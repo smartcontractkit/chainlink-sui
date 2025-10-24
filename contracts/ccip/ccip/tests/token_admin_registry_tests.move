@@ -1,7 +1,7 @@
 #[test_only]
 module ccip::token_admin_registry_tests;
 
-use ccip::ownable::OwnerCap;
+use ccip::ownable::{OwnerCap};
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
 use ccip::upgrade_registry;

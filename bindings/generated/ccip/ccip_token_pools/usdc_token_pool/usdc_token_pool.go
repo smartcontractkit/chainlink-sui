@@ -236,6 +236,9 @@ func (c *UsdcTokenPoolContract) DevInspect() IUsdcTokenPoolDevInspect {
 	return c.devInspect
 }
 
+type USDC_TOKEN_POOL struct {
+}
+
 type Domain struct {
 	AllowedCaller    []byte `move:"vector<u8>"`
 	DomainIdentifier uint32 `move:"u32"`
@@ -267,6 +270,23 @@ type McmsAcceptOwnershipProof struct {
 }
 
 func init() {
+	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::USDC_TOKEN_POOL", func(data []byte) (interface{}, error) {
+		var result USDC_TOKEN_POOL
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for USDC_TOKEN_POOL
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::USDC_TOKEN_POOL>", func(data []byte) (interface{}, error) {
+		var results []USDC_TOKEN_POOL
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::Domain", func(data []byte) (interface{}, error) {
 		var result Domain
 		_, err := mystenbcs.Unmarshal(data, &result)

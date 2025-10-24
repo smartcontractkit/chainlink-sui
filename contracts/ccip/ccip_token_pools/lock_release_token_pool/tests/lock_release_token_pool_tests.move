@@ -107,7 +107,7 @@ public fun test_initialize_and_basic_functionality() {
         let pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
 
         // Test basic getters
         assert!(lock_release_token_pool::get_token_decimals(&pool_state) == Decimals);
@@ -169,7 +169,7 @@ public fun test_chain_configuration_management() {
         let mut pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
 
         // Test chain updates
         lock_release_token_pool::apply_chain_updates(
@@ -380,7 +380,7 @@ public fun test_rebalancer_management() {
         let mut pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
 
         // Verify initial rebalancer
         assert!(lock_release_token_pool::get_rebalancer(&pool_state) == REBALANCER);
@@ -445,7 +445,7 @@ public fun test_rate_limiter_configuration() {
         let mut pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let ctx = scenario.ctx();
         let clock = clock::create_for_testing(ctx);
 
@@ -551,7 +551,7 @@ public fun test_allowlist_management() {
         let mut pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
 
         // Test initial allowlist state (should be disabled and empty)
         assert!(!lock_release_token_pool::get_allowlist_enabled(&pool_state));
@@ -873,7 +873,7 @@ public fun test_destroy_token_pool() {
         let pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let ctx = scenario.ctx();
 
         let initial_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(
@@ -942,7 +942,7 @@ public fun test_edge_cases_and_getters() {
         let mut pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
 
         // Test applying empty chain updates (should work)
         lock_release_token_pool::apply_chain_updates(
@@ -1068,7 +1068,7 @@ public fun test_lock_or_burn_functionality() {
         let mut pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let source_transfer_cap = scenario.take_from_address<onramp_sh::SourceTransferCap>(
             TOKEN_ADMIN,
         );
@@ -1251,7 +1251,7 @@ public fun test_release_or_mint_functionality() {
         let mut pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let dest_transfer_cap = scenario.take_from_sender<offramp_sh::DestTransferCap>();
         let mut ctx = tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);
@@ -1309,7 +1309,7 @@ public fun test_release_or_mint_functionality() {
         let mut pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_address<OwnerCap>(TOKEN_ADMIN);
+        let owner_cap = scenario.take_from_address<OwnerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>(TOKEN_ADMIN);
         let dest_transfer_cap = scenario.take_from_address<offramp_sh::DestTransferCap>(
             TOKEN_ADMIN,
         );
@@ -1452,7 +1452,7 @@ public fun test_set_pool() {
         let pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
         // Verify initial pool registration
@@ -1554,7 +1554,7 @@ public fun test_set_pool() {
         let mut pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
         // Get configuration before set_pool

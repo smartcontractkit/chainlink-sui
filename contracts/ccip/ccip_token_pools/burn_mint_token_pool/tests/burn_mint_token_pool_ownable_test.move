@@ -23,7 +23,7 @@ public struct TestEnv {
     ccip_ref: CCIPObjectRef,
 }
 
-fun setup(): (TestEnv, OwnerCap) {
+fun setup(): (TestEnv, OwnerCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>) {
     let mut scenario = ts::begin(OWNER);
     let ctx = scenario.ctx();
 
@@ -64,7 +64,7 @@ fun setup(): (TestEnv, OwnerCap) {
 
     scenario.next_tx(OWNER);
     let state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>>();
-    let owner_cap = scenario.take_from_sender<OwnerCap>();
+    let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>>();
 
     let env = TestEnv {
         scenario,

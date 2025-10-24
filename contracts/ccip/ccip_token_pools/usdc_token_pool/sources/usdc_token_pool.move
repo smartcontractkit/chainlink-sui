@@ -20,7 +20,7 @@ use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
 use sui::event;
-use sui::package::UpgradeCap;
+use sui::package::{Self, Publisher, UpgradeCap};
 use sui::table::{Self, Table};
 use token_messenger_minter::burn_message;
 use token_messenger_minter::deposit_for_burn::{Self, DepositForBurnWithCallerTicket};
@@ -28,6 +28,12 @@ use token_messenger_minter::handle_receive_message;
 use token_messenger_minter::state::State as MinterState;
 use usdc_token_pool::ownable::{Self, OwnerCap, OwnableState};
 use usdc_token_pool::token_pool::{Self, TokenPoolState};
+
+public struct USDC_TOKEN_POOL has drop {}
+
+fun init(otw: USDC_TOKEN_POOL, ctx: &mut TxContext) {
+    package::claim_and_keep(otw, ctx);
+}
 
 // We restrict to the first version. New pool may be required for subsequent versions.
 const SUPPORTED_USDC_VERSION_U64: u64 = 0;
@@ -731,11 +737,17 @@ public fun execute_ownership_transfer_to_mcms<T>(
     to: address,
     ctx: &mut TxContext,
 ) {
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut state.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback {},
         vector[b"usdc_token_pool"],
         ctx,
@@ -1124,8 +1136,12 @@ public fun mcms_execute_ownership_transfer<T>(
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let owner_cap: OwnerCap = mcms_registry::release_cap(registry, McmsCallback {});
+    let (owner_cap, publisher) = mcms_registry::release_cap(
+        registry,
+        McmsCallback {},
+    );
     execute_ownership_transfer(owner_cap, state, to, ctx);
+    transfer::public_transfer(publisher, to);
 }
 
 public fun mcms_set_pool<T>(

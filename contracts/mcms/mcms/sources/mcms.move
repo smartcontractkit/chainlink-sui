@@ -730,8 +730,17 @@ public fun mcms_dispatch_to_account(
     } else if (function_name_bytes == b"execute_ownership_transfer") {
         let target = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
-        let owner_cap = mcms_registry::release_cap(registry, mcms_registry::create_mcms_proof());
-        mcms_account::execute_ownership_transfer(owner_cap, account_state, registry, target, ctx);
+        let owner_cap = mcms_registry::release_cap(
+            registry,
+            mcms_account::create_mcms_account_proof(),
+        );
+        mcms_account::execute_ownership_transfer(
+            owner_cap,
+            account_state,
+            registry,
+            target,
+            ctx,
+        );
     } else {
         abort EUnknownMCMSAccountModuleFunction
     }
@@ -801,7 +810,7 @@ public fun mcms_dispatch_to_registry(
 
         mcms_registry::add_allowed_modules(
             registry,
-            mcms_registry::create_mcms_proof(),
+            mcms_account::create_mcms_account_proof(),
             new_module_names,
             ctx,
         );
@@ -817,7 +826,7 @@ public fun mcms_dispatch_to_registry(
 
         mcms_registry::remove_allowed_modules(
             registry,
-            mcms_registry::create_mcms_proof(),
+            mcms_account::create_mcms_account_proof(),
             module_names,
             ctx,
         );

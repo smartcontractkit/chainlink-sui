@@ -728,8 +728,8 @@ public fun test_remove_package_id_invalid_owner_cap() {
 const EXPLOITER: address = @0x199;
 
 #[test]
-#[expected_failure(abort_code = mcms_registry::EWrongProofType)]
-public fun test_release_cap_should_fail_with_wrong_proof_type() {
+#[expected_failure(abort_code = mcms_registry::EProofTypeNotRegistered)]
+public fun test_release_cap_should_fail_with_proof_type_not_registered() {
     let (mut env, owner_cap, fee_quoter_cap, dest_transfer_cap) = setup();
     initialize_offramp(&mut env, &owner_cap, fee_quoter_cap, dest_transfer_cap);
 
@@ -822,7 +822,7 @@ public fun test_release_cap_should_fail_with_wrong_proof_type() {
 
     // -----------------------------------------------------
     // Attempt to extract OwnerCap with wrong witness (StaticConfig instead of McmsCallback)
-    // This SHOULD FAIL with EWrongProofType
+    // This SHOULD FAIL with EProofTypeNotRegistered
 
     let scenario_4 = ts::begin(EXPLOITER);
 
@@ -835,7 +835,7 @@ public fun test_release_cap_should_fail_with_wrong_proof_type() {
 
     let static_config = offramp::get_static_config(&env.ref, &env.state);
 
-    // This will abort with EWrongProofType because StaticConfig != McmsCallback
+    // This will abort with EProofTypeNotRegistered because StaticConfig != McmsCallback
     let extracted_owner_cap = mcms_registry::release_cap<StaticConfig, OwnerCap>(
         &mut registry,
         static_config,

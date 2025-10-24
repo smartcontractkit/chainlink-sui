@@ -9,6 +9,7 @@ use std::type_name;
 use sui::address;
 use sui::derived_object;
 use sui::dynamic_object_field as dof;
+use sui::package;
 
 const EModuleAlreadyExists: u64 = 1;
 const EModuleDoesNotExist: u64 = 2;
@@ -33,9 +34,9 @@ public struct CCIPObjectRefPointer has key, store {
 
 public struct STATE_OBJECT has drop {}
 
-fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
+fun init(otw: STATE_OBJECT, ctx: &mut TxContext) {
     let mut ccip_object = CCIPObject { id: object::new(ctx) };
-    let (ownable_state, owner_cap) = ownable::new(&mut ccip_object.id, ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(&mut ccip_object.id, ctx);
 
     let mut ref = CCIPObjectRef {
         id: derived_object::claim(&mut ccip_object.id, b"CCIPObjectRef"),
@@ -55,6 +56,9 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
 
     transfer::share_object(ref);
     transfer::share_object(ccip_object);
+
+    let publisher = package::claim(otw, ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
 
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
@@ -144,11 +148,17 @@ public fun execute_ownership_transfer_to_mcms(
     to: address,
     ctx: &mut TxContext,
 ) {
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut ref.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback {},
         vector[b"fee_quoter", b"rmn_remote", b"state_object", b"token_admin_registry"],
         ctx,

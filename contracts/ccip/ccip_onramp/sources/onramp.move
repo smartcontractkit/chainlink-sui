@@ -23,7 +23,7 @@ use sui::coin::{Self, Coin, CoinMetadata};
 use sui::derived_object;
 use sui::event;
 use sui::hash;
-use sui::package::UpgradeCap;
+use sui::package::{Self, UpgradeCap, Publisher};
 use sui::table::{Self, Table};
 
 public struct OnRampState has key, store {
@@ -159,9 +159,9 @@ public fun type_and_version(): String {
 
 public struct ONRAMP has drop {}
 
-fun init(_witness: ONRAMP, ctx: &mut TxContext) {
+fun init(otw: ONRAMP, ctx: &mut TxContext) {
     let mut on_ramp_object = OnRampObject { id: object::new(ctx) };
-    let (ownable_state, owner_cap) = ownable::new(&mut on_ramp_object.id, ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(&mut on_ramp_object.id, ctx);
 
     let pointer = OnRampStatePointer {
         id: object::new(ctx),
@@ -187,6 +187,9 @@ fun init(_witness: ONRAMP, ctx: &mut TxContext) {
 
     transfer::share_object(state);
     transfer::share_object(on_ramp_object);
+
+    let publisher = package::claim(otw, ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
 
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
@@ -1104,11 +1107,18 @@ public fun execute_ownership_transfer_to_mcms(
         string::utf8(b"execute_ownership_transfer_to_mcms"),
         VERSION,
     );
+
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut state.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback {},
         vector[b"onramp"],
         ctx,

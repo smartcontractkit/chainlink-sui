@@ -1379,6 +1379,7 @@ fun test_ownable__transfer_ownership() {
     assert!(mcms_account::owner(&env.account_state) == current_owner);
 
     // Execute ownership transfer
+    env.scenario.next_tx(new_owner_addr);
     mcms_account::execute_ownership_transfer(
         owner_cap,
         &mut env.account_state,
@@ -1556,12 +1557,7 @@ fun test_bypasser_execute_batch() {
     // Must consume the ExecutingCallbackParams hot potato
     // We know there's exactly 1 param, so just consume it directly
     let params = executing_params.pop_back();
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-    ) = mcms_registry::get_callback_params_from_mcms(
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
         &mut env.registry,
         params,
     );
@@ -2815,9 +2811,11 @@ fun test_timelock_dispatch_to_account() {
 
     // First, we need to register an owner cap in the registry for dispatch to work
     let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
+    let publisher_wrapper = mcms_account::test_create_publisher_wrapper(&owner_cap);
     mcms_registry::register_entrypoint(
         &mut env.registry,
-        mcms_registry::create_mcms_proof(),
+        publisher_wrapper,
+        mcms_account::create_mcms_account_proof(),
         owner_cap,
         vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
         env.scenario.ctx(),
@@ -2864,9 +2862,11 @@ fun test_timelock_dispatch_to_deployer() {
 
     // First, we need to register an owner cap in the registry for dispatch to work
     let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
+    let publisher_wrapper = mcms_account::test_create_publisher_wrapper(&owner_cap);
     mcms_registry::register_entrypoint(
         &mut env.registry,
-        mcms_registry::create_mcms_proof(),
+        publisher_wrapper,
+        mcms_account::create_mcms_account_proof(),
         owner_cap,
         vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
         env.scenario.ctx(),
@@ -2925,9 +2925,11 @@ fun test_timelock_dispatch_to_registry_invalid_module() {
 
     // First, we need to register an owner cap in the registry for dispatch to work
     let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
+    let publisher_wrapper = mcms_account::test_create_publisher_wrapper(&owner_cap);
     mcms_registry::register_entrypoint(
         &mut env.registry,
-        mcms_registry::create_mcms_proof(),
+        publisher_wrapper,
+        mcms_account::create_mcms_account_proof(),
         owner_cap,
         vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
         env.scenario.ctx(),
@@ -2946,11 +2948,11 @@ fun test_timelock_dispatch_to_registry_invalid_module() {
 
     // This should fail with EModuleNameMismatch when the registry validates the module name
     let (_cap, _function_name, _data) = mcms_registry::get_callback_params_with_caps<
-        mcms_registry::McmsProof,
+        mcms_account::McmsAccountProof,
         mcms_account::OwnerCap,
     >(
         &mut env.registry,
-        mcms_registry::create_mcms_proof(),
+        mcms_account::create_mcms_account_proof(),
         params,
     );
 
@@ -3556,10 +3558,13 @@ fun test_mcms_dispatch_to_registry_add_allowed_modules() {
         let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
         let ctx = ts::ctx(&mut env.scenario);
 
+        let publisher_wrapper = mcms_account::test_create_publisher_wrapper(&owner_cap);
+
         // Register MCMS package with McmsProof witness
-        mcms_registry::register_entrypoint<mcms_registry::McmsProof, OwnerCap>(
+        mcms_registry::register_entrypoint<mcms_account::McmsAccountProof, OwnerCap>(
             &mut registry,
-            mcms_registry::create_mcms_proof(),
+            publisher_wrapper,
+            mcms_account::create_mcms_account_proof(),
             owner_cap,
             vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"],
             ctx,
@@ -3599,7 +3604,7 @@ fun test_mcms_dispatch_to_registry_add_allowed_modules() {
         // Verify the new module was added
         let allowed_modules = mcms_registry::get_allowed_modules(
             &registry,
-            mcms_registry::get_multisig_address(),
+            mcms_registry::get_multisig_address_ascii(),
         );
         assert!(allowed_modules.length() == 4); // Original 3 + 1 new
         assert!(allowed_modules[3] == b"new_mcms_module");

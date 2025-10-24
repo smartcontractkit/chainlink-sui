@@ -205,6 +205,9 @@ func (c *ManagedTokenContract) DevInspect() IManagedTokenDevInspect {
 	return c.devInspect
 }
 
+type MANAGED_TOKEN struct {
+}
+
 type TokenState struct {
 	Id                string       `move:"sui::object::UID"`
 	TreasuryCap       bind.Object  `move:"TreasuryCap<T>"`
@@ -346,6 +349,23 @@ func convertUnblocklistedFromBCS(bcs bcsUnblocklisted) (Unblocklisted, error) {
 }
 
 func init() {
+	bind.RegisterStructDecoder("managed_token::managed_token::MANAGED_TOKEN", func(data []byte) (interface{}, error) {
+		var result MANAGED_TOKEN
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for MANAGED_TOKEN
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MANAGED_TOKEN>", func(data []byte) (interface{}, error) {
+		var results []MANAGED_TOKEN
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::TokenState", func(data []byte) (interface{}, error) {
 		var result TokenState
 		_, err := mystenbcs.Unmarshal(data, &result)
