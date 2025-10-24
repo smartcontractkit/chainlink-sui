@@ -322,15 +322,21 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 
 func RunCCIPOffRampProposal(s *CCIPMCMSTestSuite) {
 	// 1. Build configs
-	// onRampBytes := []byte{
-	// 	0x33, 0x17, 0xaa, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
-	// 	0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-	// }
-	// expectedSCC := module_offramp.SourceChainConfig{
-	// 	IsEnabled:                 false,
-	// 	IsRmnVerificationDisabled: true,
-	// 	OnRamp:                    onRampBytes,
-	// }
+	mock32Bytes := []byte{
+		0x33, 0x17, 0xaa, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+		0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+	}
+	configDigest := []byte{
+		0x00, 0x0A, 0x2F, 0x1F, 0x37, 0xB0, 0x33, 0xCC,
+		0xC4, 0x42, 0x8A, 0xB6, 0x5C, 0x35, 0x39, 0xC9,
+		0x31, 0x5D, 0xBF, 0x88, 0x2D, 0x4B, 0xAB, 0x13,
+		0xF1, 0xE7, 0xEF, 0xE7, 0xB3, 0xDD, 0xDC, 0x36,
+	}
+	expectedSCC := module_offramp.SourceChainConfig{
+		IsEnabled:                 false,
+		IsRmnVerificationDisabled: true,
+		OnRamp:                    mock32Bytes,
+	}
 	expectedDCC := module_onramp.DestChainConfig{
 		AllowlistEnabled: true,
 		Router:           "0x304121906bf93b21f915a04cffea4df21090432e3c2fd60e51ebe68f79c90a41",
@@ -343,34 +349,34 @@ func RunCCIPOffRampProposal(s *CCIPMCMSTestSuite) {
 	// 2. Run ops to generate proposal
 	input := mcmsops.ProposalGenerateInput{
 		Defs: []cld_ops.Definition{
-			// offrampops.ApplySourceChainConfigUpdatesOp.Def(),
-			// offrampops.SetOCR3ConfigOp.Def(),
+			offrampops.ApplySourceChainConfigUpdatesOp.Def(),
+			offrampops.SetOCR3ConfigOp.Def(),
 			onrampops.ApplyDestChainConfigUpdateOp.Def(),
 			onrampops.ApplyAllowListUpdateOp.Def(),
 		},
 		Inputs: []any{
-			// offrampops.ApplySourceChainConfigUpdateInput{
-			// 	CCIPObjectRef:                         s.ccipObjects.CCIPObjectRefObjectId,
-			// 	OffRampPackageId:                      s.ccipOfframpPackageId,
-			// 	OffRampStateId:                        s.ccipOfframpObjects.StateObjectId,
-			// 	OwnerCapObjectId:                      s.ccipOfframpObjects.OwnerCapId,
-			// 	SourceChainsSelectors:                 []uint64{cselectors.ETHEREUM_MAINNET.Selector},
-			// 	SourceChainsIsEnabled:                 []bool{expectedSCC.IsEnabled},
-			// 	SourceChainsIsRMNVerificationDisabled: []bool{expectedSCC.IsRmnVerificationDisabled},
-			// 	SourceChainsOnRamp:                    [][]byte{expectedSCC.OnRamp},
-			// },
-			// offrampops.SetOCR3ConfigInput{
-			// 	OffRampPackageId:               s.ccipOfframpPackageId,
-			// 	OffRampStateId:                 s.ccipOfframpObjects.StateObjectId,
-			// 	CCIPObjectRefId:                s.ccipObjects.CCIPObjectRefObjectId,
-			// 	OwnerCapObjectId:               s.ccipOfframpObjects.OwnerCapId,
-			// 	ConfigDigest:                   []byte{0x01, 0x02, 0x03},
-			// 	OCRPluginType:                  1,
-			// 	BigF:                           0,
-			// 	IsSignatureVerificationEnabled: false,
-			// 	Signers:                        [][]byte{onRampBytes},
-			// 	Transmitters:                   []string{"0x11223344556677889900aabbccddeeff00112233"},
-			// },
+			offrampops.ApplySourceChainConfigUpdateInput{
+				CCIPObjectRef:                         s.ccipObjects.CCIPObjectRefObjectId,
+				OffRampPackageId:                      s.ccipOfframpPackageId,
+				OffRampStateId:                        s.ccipOfframpObjects.StateObjectId,
+				OwnerCapObjectId:                      s.ccipOfframpObjects.OwnerCapId,
+				SourceChainsSelectors:                 []uint64{cselectors.ETHEREUM_MAINNET.Selector},
+				SourceChainsIsEnabled:                 []bool{expectedSCC.IsEnabled},
+				SourceChainsIsRMNVerificationDisabled: []bool{expectedSCC.IsRmnVerificationDisabled},
+				SourceChainsOnRamp:                    [][]byte{expectedSCC.OnRamp},
+			},
+			offrampops.SetOCR3ConfigInput{
+				OffRampPackageId:               s.ccipOfframpPackageId,
+				OffRampStateId:                 s.ccipOfframpObjects.StateObjectId,
+				CCIPObjectRefId:                s.ccipObjects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:               s.ccipOfframpObjects.OwnerCapId,
+				ConfigDigest:                   configDigest,
+				OCRPluginType:                  byte(1),
+				BigF:                           byte(1),
+				IsSignatureVerificationEnabled: false,
+				Signers:                        [][]byte{mock32Bytes},
+				Transmitters:                   []string{"0x11223344556677889900aabbccddeeff00112233"},
+			},
 			onrampops.ApplyDestChainConfigureOnRampInput{
 				OnRampPackageId:           s.ccipOnrampPackageId,
 				CCIPObjectRefId:           s.ccipObjects.CCIPObjectRefObjectId,
