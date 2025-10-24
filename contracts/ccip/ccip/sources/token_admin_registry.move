@@ -19,6 +19,7 @@ public struct TokenAdminRegistryState has key, store {
     id: UID,
     // coin metadata object id -> token config
     token_configs: LinkedTable<address, TokenConfig>,
+    token_pool_package_id_to_coin_metadata: LinkedTable<address, address>,
 }
 
 public struct TokenConfig has copy, drop, store {
@@ -77,6 +78,7 @@ const ETokenAddressNotRegistered: u64 = 6;
 const ENotAllowed: u64 = 7;
 const EInvalidFunction: u64 = 8;
 const EInvalidOwnerCap: u64 = 9;
+const ETokenPoolPackageIdAlreadyRegistered: u64 = 10;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.0")
@@ -88,6 +90,7 @@ public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut T
     let state = TokenAdminRegistryState {
         id: object::new(ctx),
         token_configs: linked_table::new(ctx),
+        token_pool_package_id_to_coin_metadata: linked_table::new(ctx),
     };
 
     state_object::add(ref, owner_cap, state, ctx);
@@ -398,6 +401,13 @@ fun register_pool_internal(
     };
 
     state.token_configs.push_back(coin_metadata_address, token_config);
+    assert!(
+        !state.token_pool_package_id_to_coin_metadata.contains(token_pool_package_id),
+        ETokenPoolPackageIdAlreadyRegistered,
+    );
+    state
+        .token_pool_package_id_to_coin_metadata
+        .push_back(token_pool_package_id, coin_metadata_address);
 
     event::emit(PoolRegistered {
         coin_metadata_address,
@@ -584,6 +594,17 @@ fun accept_admin_role_internal(
         coin_metadata_address,
         new_admin: token_config.administrator,
     });
+}
+
+public fun is_pool_registered(ref: &CCIPObjectRef, coin_metadata_address: address): bool {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"is_pool_registered"),
+        VERSION,
+    );
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
+    state.token_configs.contains(coin_metadata_address)
 }
 
 public fun is_administrator(

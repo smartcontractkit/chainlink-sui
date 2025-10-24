@@ -78,12 +78,45 @@ fun update_bucket(clock: &Clock, bucket: &mut TokenBucket) {
 }
 
 fun calculate_refill(bucket: &TokenBucket, time_diff: u64): u64 {
-    min(
-        bucket.capacity,
-        bucket.tokens + time_diff * bucket.rate,
-    )
+    if (bucket.tokens >= bucket.capacity) { return bucket.capacity };
+    if (bucket.rate == 0) { return bucket.tokens };
+
+    let remaining = bucket.capacity - bucket.tokens;
+    // If time_diff * rate would exceed remaining, saturate to capacity
+    if (time_diff > remaining / bucket.rate) {
+        bucket.capacity
+    } else {
+        bucket.tokens + time_diff * bucket.rate
+    }
 }
 
 fun min(a: u64, b: u64): u64 {
     if (a > b) b else a
 }
+
+// ================================================================
+// |                      Test-only functions                     |
+// ================================================================
+
+#[test_only]
+public fun test_calculate_refill(bucket: &TokenBucket, time_diff: u64): u64 {
+    calculate_refill(bucket, time_diff)
+}
+
+#[test_only]
+public fun test_create_token_bucket(
+    tokens: u64,
+    last_updated: u64,
+    is_enabled: bool,
+    capacity: u64,
+    rate: u64,
+): TokenBucket {
+    TokenBucket {
+        tokens,
+        last_updated,
+        is_enabled,
+        capacity,
+        rate,
+    }
+}
+

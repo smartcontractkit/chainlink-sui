@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"test","module":"counter","name":"create","parameters":null},{"package":"test","module":"counter","name":"decrement","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_address_list","parameters":null},{"package":"test","module":"counter","name":"get_coin_value","parameters":[{"name":"coin","type":"Coin<T>"}]},{"package":"test","module":"counter","name":"get_count","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_count_no_entry","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_count_using_pointer","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_multi_nested_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_nested_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_ocr_config","parameters":null},{"package":"test","module":"counter","name":"get_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_simple_result","parameters":null},{"package":"test","module":"counter","name":"get_tuple_struct","parameters":null},{"package":"test","module":"counter","name":"get_value_with_pointer_dependency","parameters":[{"name":"counter","type":"Counter"},{"name":"pointer","type":"CCIPObjectRef"}]},{"package":"test","module":"counter","name":"get_vector_of_addresses","parameters":null},{"package":"test","module":"counter","name":"get_vector_of_u8","parameters":null},{"package":"test","module":"counter","name":"get_vector_of_vectors_of_u8","parameters":null},{"package":"test","module":"counter","name":"increment","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by","parameters":[{"name":"counter","type":"Counter"},{"name":"by","type":"u64"}]},{"package":"test","module":"counter","name":"increment_by_bytes_length","parameters":[{"name":"counter","type":"Counter"},{"name":"bytes","type":"vector<u8>"}]},{"package":"test","module":"counter","name":"increment_by_one","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_one_no_context","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_two","parameters":[{"name":"_admin","type":"AdminCap"},{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_two_no_context","parameters":[{"name":"_admin","type":"AdminCap"},{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_mult","parameters":[{"name":"counter","type":"Counter"},{"name":"a","type":"u64"},{"name":"b","type":"u64"}]},{"package":"test","module":"counter","name":"initialize","parameters":null},{"package":"test","module":"counter","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"test","module":"counter","name":"create","parameters":null},{"package":"test","module":"counter","name":"decrement","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"emit_counter_bytes","parameters":null},{"package":"test","module":"counter","name":"get_address_list","parameters":null},{"package":"test","module":"counter","name":"get_coin_value","parameters":[{"name":"coin","type":"Coin<T>"}]},{"package":"test","module":"counter","name":"get_count","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_count_no_entry","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_count_using_pointer","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_multi_nested_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_nested_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_ocr_config","parameters":null},{"package":"test","module":"counter","name":"get_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_simple_result","parameters":null},{"package":"test","module":"counter","name":"get_tuple_struct","parameters":null},{"package":"test","module":"counter","name":"get_value_with_pointer_dependency","parameters":[{"name":"counter","type":"Counter"},{"name":"pointer","type":"CCIPObjectRef"}]},{"package":"test","module":"counter","name":"get_vector_of_addresses","parameters":null},{"package":"test","module":"counter","name":"get_vector_of_u8","parameters":null},{"package":"test","module":"counter","name":"get_vector_of_vectors_of_u8","parameters":null},{"package":"test","module":"counter","name":"increment","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by","parameters":[{"name":"counter","type":"Counter"},{"name":"by","type":"u64"}]},{"package":"test","module":"counter","name":"increment_by_bytes_length","parameters":[{"name":"counter","type":"Counter"},{"name":"bytes","type":"vector<u8>"}]},{"package":"test","module":"counter","name":"increment_by_one","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_one_no_context","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_two","parameters":[{"name":"_admin","type":"AdminCap"},{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_two_no_context","parameters":[{"name":"_admin","type":"AdminCap"},{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_mult","parameters":[{"name":"counter","type":"Counter"},{"name":"a","type":"u64"},{"name":"b","type":"u64"}]},{"package":"test","module":"counter","name":"initialize","parameters":null},{"package":"test","module":"counter","name":"type_and_version","parameters":null}]`
 
 type ICounter interface {
 	Initialize(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -35,6 +35,7 @@ type ICounter interface {
 	IncrementBy(ctx context.Context, opts *bind.CallOpts, counter bind.Object, by uint64) (*models.SuiTransactionBlockResponse, error)
 	IncrementMult(ctx context.Context, opts *bind.CallOpts, counter bind.Object, a uint64, b uint64) (*models.SuiTransactionBlockResponse, error)
 	IncrementByBytesLength(ctx context.Context, opts *bind.CallOpts, counter bind.Object, bytes []byte) (*models.SuiTransactionBlockResponse, error)
+	EmitCounterBytes(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	GetCount(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetCountUsingPointer(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetCountNoEntry(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -103,6 +104,8 @@ type CounterEncoder interface {
 	IncrementMultWithArgs(args ...any) (*bind.EncodedCall, error)
 	IncrementByBytesLength(counter bind.Object, bytes []byte) (*bind.EncodedCall, error)
 	IncrementByBytesLengthWithArgs(args ...any) (*bind.EncodedCall, error)
+	EmitCounterBytes() (*bind.EncodedCall, error)
+	EmitCounterBytesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetCount(counter bind.Object) (*bind.EncodedCall, error)
 	GetCountWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetCountUsingPointer(counter bind.Object) (*bind.EncodedCall, error)
@@ -184,6 +187,17 @@ type CounterDecremented struct {
 	EventType string      `move:"0x1::string::String"`
 	CounterId bind.Object `move:"ID"`
 	NewValue  uint64      `move:"u64"`
+}
+
+type CounterBytes struct {
+	Bytes  []byte             `move:"vector<u8>"`
+	Nested NestedCounterBytes `move:"NestedCounterBytes"`
+	Values []uint64           `move:"vector<u64>"`
+}
+
+type NestedCounterBytes struct {
+	Value uint64 `move:"u64"`
+	Bytes []byte `move:"vector<u8>"`
 }
 
 type DoubleCheckCCIPPointer struct {
@@ -426,6 +440,40 @@ func init() {
 	// Register vector decoder for CounterDecremented
 	bind.RegisterStructDecoder("vector<test::counter::CounterDecremented>", func(data []byte) (interface{}, error) {
 		var results []CounterDecremented
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("test::counter::CounterBytes", func(data []byte) (interface{}, error) {
+		var result CounterBytes
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for CounterBytes
+	bind.RegisterStructDecoder("vector<test::counter::CounterBytes>", func(data []byte) (interface{}, error) {
+		var results []CounterBytes
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("test::counter::NestedCounterBytes", func(data []byte) (interface{}, error) {
+		var result NestedCounterBytes
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for NestedCounterBytes
+	bind.RegisterStructDecoder("vector<test::counter::NestedCounterBytes>", func(data []byte) (interface{}, error) {
+		var results []NestedCounterBytes
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
@@ -859,6 +907,16 @@ func (c *CounterContract) IncrementMult(ctx context.Context, opts *bind.CallOpts
 // IncrementByBytesLength executes the increment_by_bytes_length Move function.
 func (c *CounterContract) IncrementByBytesLength(ctx context.Context, opts *bind.CallOpts, counter bind.Object, bytes []byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.counterEncoder.IncrementByBytesLength(counter, bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// EmitCounterBytes executes the emit_counter_bytes Move function.
+func (c *CounterContract) EmitCounterBytes(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.counterEncoder.EmitCounterBytes()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1781,6 +1839,26 @@ func (c counterEncoder) IncrementByBytesLengthWithArgs(args ...any) (*bind.Encod
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("increment_by_bytes_length", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// EmitCounterBytes encodes a call to the emit_counter_bytes Move function.
+func (c counterEncoder) EmitCounterBytes() (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("emit_counter_bytes", typeArgsList, typeParamsList, []string{}, []any{}, nil)
+}
+
+// EmitCounterBytesWithArgs encodes a call to the emit_counter_bytes Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c counterEncoder) EmitCounterBytesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("emit_counter_bytes", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // GetCount encodes a call to the get_count Move function.
