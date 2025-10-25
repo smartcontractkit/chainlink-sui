@@ -26,7 +26,7 @@ use sui::clock;
 use sui::derived_object;
 use sui::event;
 use sui::hash;
-use sui::package::{Self, UpgradeCap, Publisher};
+use sui::package::{Self, UpgradeCap};
 use sui::table::{Self, Table};
 use sui::vec_map::{Self, VecMap};
 

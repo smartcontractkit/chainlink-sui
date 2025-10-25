@@ -161,7 +161,7 @@ public fun initialize<T: drop>(
 public fun set_pool<T>(
     ref: &mut CCIPObjectRef,
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
@@ -171,7 +171,7 @@ public fun set_pool<T>(
 fun set_pool_internal<T>(
     ref: &mut CCIPObjectRef,
     state: &USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     coin_metadata_address: address,
     caller: address,
 ) {
@@ -243,7 +243,7 @@ public fun get_remote_token<T>(
 
 public fun add_remote_pool<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>,
 ) {
@@ -257,7 +257,7 @@ public fun add_remote_pool<T>(
 
 public fun remove_remote_pool<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>,
 ) {
@@ -279,7 +279,7 @@ public fun get_supported_chains<T>(state: &USDCTokenPoolState<T>): vector<u64> {
 
 public fun apply_chain_updates<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     remote_chain_selectors_to_remove: vector<u64>,
     remote_chain_selectors_to_add: vector<u64>,
     remote_pool_addresses_to_add: vector<vector<vector<u8>>>,
@@ -305,7 +305,7 @@ public fun get_allowlist<T>(state: &USDCTokenPoolState<T>): vector<address> {
 
 public fun set_allowlist_enabled<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     enabled: bool,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
@@ -314,7 +314,7 @@ public fun set_allowlist_enabled<T>(
 
 public fun apply_allowlist_updates<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     removes: vector<address>,
     adds: vector<address>,
 ) {

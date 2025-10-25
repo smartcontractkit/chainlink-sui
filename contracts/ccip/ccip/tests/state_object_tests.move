@@ -10,6 +10,7 @@ use std::string;
 use sui::address;
 use sui::bcs;
 use sui::test_scenario::{Self, Scenario};
+use std::type_name;
 
 const SENDER_1: address = @0x1;
 const SENDER_2: address = @0x2;
@@ -260,7 +261,7 @@ fun setup_with_mcms_ownership(): (Scenario, Registry, CCIPObjectRef) {
         &mut ref,
         owner_cap,
         &mut registry,
-        @mcms,
+        mcms_registry::get_multisig_address(),
         scenario.ctx(),
     );
 
@@ -543,10 +544,11 @@ fun test_mcms_three_step_ownership_transfer() {
     assert!(initial_owner == mcms_registry::get_multisig_address());
 
     let new_owner = SENDER_2;
+    scenario.next_tx(OWNER);
 
     // Step 1: MCMS calls mcms_transfer_ownership to initiate transfer to SENDER_2
     {
-        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip);
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip.to_ascii_string());
 
         let mut data = vector::empty<u8>();
         data.append(bcs::to_bytes(&object::id_address(&ref)));
@@ -561,7 +563,6 @@ fun test_mcms_three_step_ownership_transfer() {
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
-            type_name::with_original_ids<state_object::McmsCallback>(),
         );
 
         state_object::mcms_transfer_ownership(
@@ -599,7 +600,7 @@ fun test_mcms_three_step_ownership_transfer() {
     // Step 3: MCMS calls mcms_execute_ownership_transfer to finalize
     scenario.next_tx(OWNER);
     {
-        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip);
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip.to_ascii_string());
 
         // Serialize data: [ref_address][owner_cap_address][to_address]
         let mut data = vector::empty<u8>();
@@ -615,7 +616,6 @@ fun test_mcms_three_step_ownership_transfer() {
             x"0000000000000000000000000000000000000000000000000000000000000002", // different batch_id
             0, // sequence_number
             1, // total_in_batch
-            type_name::with_original_ids<state_object::McmsCallback>(),
         );
 
         state_object::mcms_execute_ownership_transfer(

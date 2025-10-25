@@ -469,3 +469,10 @@ public fun test_create_executing_callback_params(
         total_in_batch,
     )
 }
+
+#[test_only]
+public fun test_get_cap_address<C: key + store>(registry: &Registry, package_address: ascii::String): address {
+    assert!(registry.package_caps.contains(package_address), EPackageCapNotRegistered);
+    let cap: &C = registry.package_caps.borrow(package_address);
+    object::id_address(cap)
+}

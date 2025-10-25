@@ -23,7 +23,7 @@ use sui::coin::{Self, Coin, CoinMetadata};
 use sui::derived_object;
 use sui::event;
 use sui::hash;
-use sui::package::{Self, UpgradeCap, Publisher};
+use sui::package::{Self, UpgradeCap};
 use sui::table::{Self, Table};
 
 public struct OnRampState has key, store {

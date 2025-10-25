@@ -167,7 +167,7 @@ public fun set_pool<T>(
 fun set_pool_internal<T>(
     ref: &mut CCIPObjectRef,
     state: &BurnMintTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     coin_metadata_address: address,
     caller: address,
 ) {
