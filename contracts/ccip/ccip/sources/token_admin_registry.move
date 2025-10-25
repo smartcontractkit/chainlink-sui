@@ -458,7 +458,7 @@ public fun set_pool<TypeProof: drop>(
     lock_or_burn_params: vector<address>,
     release_or_mint_params: vector<address>,
     _: TypeProof,
-    ctx: &mut TxContext,
+    caller: address,
 ) {
     let proof_tn = type_name::with_defining_ids<TypeProof>();
     let proof_package_id = address::from_ascii_bytes(&proof_tn.address_string().into_bytes());
@@ -472,7 +472,7 @@ public fun set_pool<TypeProof: drop>(
         lock_or_burn_params,
         release_or_mint_params,
         token_pool_type_proof_str,
-        ctx.sender(),
+        caller,
     );
 }
 
