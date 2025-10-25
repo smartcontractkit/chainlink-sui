@@ -1482,9 +1482,7 @@ public fun test_set_pool() {
     // Now call set_pool as the administrator to update to the correct managed_token_pool config
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let mut pool_state = scenario.take_shared<
-            ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>,
-        >();
+        let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
@@ -1509,7 +1507,7 @@ public fun test_set_pool() {
         // Call set_pool to update to the actual managed_token_pool configuration
         managed_token_pool::set_pool(
             &mut ccip_ref,
-            &mut pool_state,
+            &pool_state,
             &owner_cap,
             coin_metadata_address,
             token_state_address,

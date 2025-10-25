@@ -1231,7 +1231,7 @@ func (c burnMintTokenPoolEncoder) SetPool(typeArgs []string, ref bind.Object, st
 	}
 	return c.EncodeCallArgsWithGenerics("set_pool", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
-		"&mut BurnMintTokenPoolState<T>",
+		"&BurnMintTokenPoolState<T>",
 		"&OwnerCap",
 		"address",
 	}, []any{
@@ -1247,7 +1247,7 @@ func (c burnMintTokenPoolEncoder) SetPool(typeArgs []string, ref bind.Object, st
 func (c burnMintTokenPoolEncoder) SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
-		"&mut BurnMintTokenPoolState<T>",
+		"&BurnMintTokenPoolState<T>",
 		"&OwnerCap",
 		"address",
 	}
