@@ -113,25 +113,28 @@ public fun type_and_version(): String {
     string::utf8(b"ManagedToken 1.0.0")
 }
 
-public fun initialize<T>(treasury_cap: TreasuryCap<T>, ctx: &mut TxContext) {
-    initialize_internal(treasury_cap, option::none(), ctx);
+public fun initialize<T>(treasury_cap: TreasuryCap<T>, publisher: Publisher, ctx: &mut TxContext) {
+    initialize_internal(treasury_cap, option::none(), publisher, ctx);
 }
 
 public fun initialize_with_deny_cap<T>(
     treasury_cap: TreasuryCap<T>,
     deny_cap: DenyCapV2<T>,
+    publisher: Publisher,
     ctx: &mut TxContext,
 ) {
-    initialize_internal(treasury_cap, option::some(deny_cap), ctx);
+    initialize_internal(treasury_cap, option::some(deny_cap), publisher, ctx);
 }
 
 #[allow(lint(self_transfer))]
 fun initialize_internal<T>(
     treasury_cap: TreasuryCap<T>,
     deny_cap: Option<DenyCapV2<T>>,
+    publisher: Publisher,
     ctx: &mut TxContext,
 ) {
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
 
     let state = TokenState<T> {
         id: object::new(ctx),

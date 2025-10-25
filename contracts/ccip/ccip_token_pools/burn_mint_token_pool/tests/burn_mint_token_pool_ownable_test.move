@@ -8,6 +8,7 @@ use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 use ccip::upgrade_registry;
 use sui::coin;
+use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 
 public struct BURN_MINT_TOKEN_POOL_OWNABLE_TEST has drop {}
@@ -56,6 +57,7 @@ fun setup(): (TestEnv, OwnerCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>) {
         &coin_metadata,
         treasury_cap,
         @0x123,
+        package::test_claim(BURN_MINT_TOKEN_POOL_OWNABLE_TEST {}, scenario.ctx()),
         scenario.ctx(),
     );
 

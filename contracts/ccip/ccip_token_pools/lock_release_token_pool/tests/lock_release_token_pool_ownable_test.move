@@ -11,6 +11,7 @@ use ccip::upgrade_registry;
 use lock_release_token_pool::lock_release_token_pool::{Self, LockReleaseTokenPoolState};
 use lock_release_token_pool::ownable::{Self, OwnerCap};
 use sui::coin;
+use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 
 const OWNER: address = @0x123;
@@ -66,6 +67,7 @@ fun setup(): (TestEnv, OwnerCap<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>) {
         &treasury_cap,
         TOKEN_ADMIN,
         REBALANCER,
+        package::test_claim(LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST {}, ctx),
         ctx,
     );
 

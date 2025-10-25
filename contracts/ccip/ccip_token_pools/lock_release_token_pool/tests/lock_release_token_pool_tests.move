@@ -17,6 +17,7 @@ use std::type_name;
 use sui::address;
 use sui::clock;
 use sui::coin;
+use sui::package;
 use sui::test_scenario::{Self, Scenario};
 
 public struct LOCK_RELEASE_TOKEN_POOL_TESTS has drop {}
@@ -95,6 +96,7 @@ public fun test_initialize_and_basic_functionality() {
             &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -157,6 +159,7 @@ public fun test_chain_configuration_management() {
             &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -267,6 +270,7 @@ public fun test_liquidity_management() {
             &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -368,6 +372,7 @@ public fun test_rebalancer_management() {
             &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -433,6 +438,7 @@ public fun test_rate_limiter_configuration() {
             &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -539,6 +545,7 @@ public fun test_allowlist_management() {
             &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -627,6 +634,7 @@ public fun test_unauthorized_liquidity_provision() {
             &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -686,6 +694,7 @@ public fun test_withdraw_exceeds_balance() {
             &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -764,6 +773,7 @@ public fun test_unauthorized_withdrawal() {
             &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -843,6 +853,7 @@ public fun test_destroy_token_pool() {
             &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -937,6 +948,7 @@ public fun test_edge_cases_and_getters() {
             &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -1058,6 +1070,7 @@ public fun test_lock_or_burn_functionality() {
         &coin_metadata,
         TOKEN_ADMIN,
         REBALANCER,
+        package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
         ctx,
     );
 
@@ -1238,6 +1251,7 @@ public fun test_release_or_mint_functionality() {
             &coin_metadata,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -1442,6 +1456,7 @@ public fun test_set_pool() {
             &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
+            package::test_claim(LOCK_RELEASE_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 

@@ -6,6 +6,7 @@ use managed_token::ownable::OwnerCap;
 use std::string;
 use sui::coin::{Self, CoinMetadata};
 use sui::deny_list;
+use sui::package;
 use sui::test_scenario::{Self, Scenario};
 use sui::test_utils;
 
@@ -41,7 +42,7 @@ fun setup_managed_token_test(): (
     );
 
     // Initialize managed token
-    managed_token::initialize(treasury_cap, ctx);
+    managed_token::initialize(treasury_cap, package::test_claim(MANAGED_TOKEN_TEST {}, ctx), ctx);
 
     // Get the shared objects from scenario
     scenario.next_tx(OWNER);
@@ -73,7 +74,7 @@ fun setup_regulated_token_test(): (
     );
 
     // Initialize with deny cap
-    managed_token::initialize_with_deny_cap(treasury_cap, deny_cap, ctx);
+    managed_token::initialize_with_deny_cap(treasury_cap, deny_cap, package::test_claim(MANAGED_TOKEN_TEST {}, ctx), ctx);
 
     scenario.next_tx(OWNER);
     let state = scenario.take_shared<TokenState<MANAGED_TOKEN_TEST>>();
@@ -904,7 +905,7 @@ fun test_invalid_owner_cap_operations() {
         option::none(),
         ctx,
     );
-    managed_token::initialize(fake_treasury_cap, ctx);
+    managed_token::initialize(fake_treasury_cap, package::test_claim(MANAGED_TOKEN_TEST {}, ctx), ctx);
 
     scenario.next_tx(OTHER_USER);
     let fake_state = scenario.take_shared<TokenState<MANAGED_TOKEN_TEST>>();

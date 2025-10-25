@@ -15,6 +15,7 @@ use std::string;
 use std::type_name;
 use sui::clock;
 use sui::coin;
+use sui::package;
 use sui::test_scenario;
 
 public struct BURN_MINT_TOKEN_POOL_TESTS has drop {}
@@ -88,6 +89,7 @@ public fun test_initialize_and_basic_functionality() {
             &coin_metadata,
             treasury_cap,
             @0x123, // token_pool_administrator
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -152,6 +154,7 @@ public fun test_chain_configuration_management() {
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -268,6 +271,7 @@ public fun test_allowlist_management() {
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -326,6 +330,7 @@ public fun test_rate_limiter_configuration() {
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -429,6 +434,7 @@ public fun test_invalid_arguments_rate_limiter_configs() {
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -493,6 +499,7 @@ public fun test_comprehensive_allowlist_operations() {
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -554,6 +561,7 @@ public fun test_destroy_token_pool() {
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -617,6 +625,7 @@ public fun test_comprehensive_rate_limiter_operations() {
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -719,6 +728,7 @@ public fun test_edge_cases_and_boundary_conditions() {
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -857,6 +867,7 @@ public fun test_lock_or_burn_comprehensive() {
             &coin_metadata,
             treasury_cap, // treasury_cap is moved here
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -1003,6 +1014,7 @@ public fun test_release_or_mint_comprehensive() {
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -1145,6 +1157,7 @@ public fun test_set_allowlist_enabled() {
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -1209,6 +1222,7 @@ public fun test_apply_allowlist_updates() {
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -1314,6 +1328,7 @@ public fun test_set_pool() {
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -1530,6 +1545,7 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 

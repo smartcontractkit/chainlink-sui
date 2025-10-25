@@ -99,12 +99,14 @@ public fun initialize<T: drop>(
     local_domain_identifier: u32,
     token_pool_package_id: address,
     token_pool_administrator: address,
+    publisher: Publisher,
     ctx: &mut TxContext,
 ) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     assert!(coin_metadata_address == @usdc_coin_metadata_object_id, EInvalidCoinMetadata);
 
-    let (ownable_state, token_pool_owner_cap) = ownable::new(ctx);
+    let (ownable_state, mut token_pool_owner_cap) = ownable::new(ctx);
+    ownable::attach_publisher(&mut token_pool_owner_cap, publisher);
 
     let usdc_token_pool = USDCTokenPoolState<T> {
         id: object::new(ctx),

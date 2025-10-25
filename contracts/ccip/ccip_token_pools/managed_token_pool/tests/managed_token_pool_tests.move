@@ -19,6 +19,7 @@ use std::type_name;
 use sui::address;
 use sui::clock;
 use sui::coin;
+use sui::package;
 use sui::test_scenario::{Self, Scenario};
 
 public struct MANAGED_TOKEN_POOL_TESTS has drop {}
@@ -83,7 +84,7 @@ public fun test_initialize_and_basic_functionality() {
             ctx,
         );
 
-        managed_token::initialize(treasury_cap, ctx);
+        managed_token::initialize(treasury_cap, package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, ctx), ctx);
         coin_metadata
     };
 
@@ -119,6 +120,7 @@ public fun test_initialize_and_basic_functionality() {
             &coin_metadata,
             mint_cap,
             @managed_token_pool,
+            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
         scenario.return_to_sender(token_owner_cap);
@@ -342,7 +344,7 @@ public fun test_lock_or_burn_functionality() {
             ctx,
         );
 
-        managed_token::initialize(treasury_cap, ctx);
+        managed_token::initialize(treasury_cap, package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, ctx), ctx);
         coin_metadata
     };
 
@@ -387,6 +389,7 @@ public fun test_lock_or_burn_functionality() {
             &coin_metadata,
             mint_cap,
             @managed_token_pool,
+            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
 
@@ -544,7 +547,7 @@ public fun test_release_or_mint_functionality() {
             ctx,
         );
 
-        managed_token::initialize(treasury_cap, ctx);
+        managed_token::initialize(treasury_cap, package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, ctx), ctx);
         coin_metadata
     };
 
@@ -582,6 +585,7 @@ public fun test_release_or_mint_functionality() {
             &coin_metadata,
             mint_cap,
             @managed_token_pool,
+            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
 
@@ -742,7 +746,7 @@ public fun test_initialize_by_ccip_admin() {
             ctx,
         );
 
-        managed_token::initialize(treasury_cap, ctx);
+        managed_token::initialize(treasury_cap, package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, ctx), ctx);
         coin_metadata
     };
 
@@ -785,6 +789,7 @@ public fun test_initialize_by_ccip_admin() {
             mint_cap,
             managed_token_state_address, // Use the actual managed token state address
             @0x123, // token_pool_administrator
+            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
     };
@@ -839,7 +844,7 @@ public fun test_invalid_owner_cap_error() {
         option::none(),
         scenario.ctx(),
     );
-    managed_token::initialize(treasury_cap2, scenario.ctx());
+    managed_token::initialize(treasury_cap2, package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()), scenario.ctx());
 
     scenario.next_tx(@0x999);
     {
@@ -872,6 +877,7 @@ public fun test_invalid_owner_cap_error() {
             &coin_metadata2,
             mint_cap2,
             @0x999,
+            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
 
@@ -1098,7 +1104,7 @@ public fun test_initialize_with_managed_token_function() {
             ctx,
         );
 
-        managed_token::initialize(treasury_cap, ctx);
+        managed_token::initialize(treasury_cap, package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, ctx), ctx);
         coin_metadata
     };
 
@@ -1137,6 +1143,7 @@ public fun test_initialize_with_managed_token_function() {
             &coin_metadata,
             mint_cap,
             @managed_token_pool, // token pool administrator
+            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
 
@@ -1232,7 +1239,7 @@ fun setup_basic_pool(
             ctx,
         );
 
-        managed_token::initialize(treasury_cap, ctx);
+        managed_token::initialize(treasury_cap, package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, ctx), ctx);
         coin_metadata
     };
 
@@ -1276,6 +1283,7 @@ fun setup_basic_pool(
             &coin_metadata,
             mint_cap,
             @managed_token_pool,
+            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
 
@@ -1326,7 +1334,7 @@ public fun test_set_pool() {
         let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         // Initialize managed token
-        managed_token::initialize(treasury_cap, ctx);
+        managed_token::initialize(treasury_cap, package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, ctx), ctx);
 
         transfer::public_freeze_object(coin_metadata);
 
@@ -1370,6 +1378,7 @@ public fun test_set_pool() {
             mint_cap,
             token_state_address,
             TOKEN_ADMIN,
+            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
 

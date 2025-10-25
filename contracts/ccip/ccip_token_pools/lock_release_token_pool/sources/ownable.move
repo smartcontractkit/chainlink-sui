@@ -105,7 +105,7 @@ public fun pending_transfer_accepted<T>(state: &OwnableState<T>): Option<bool> {
     state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.accepted)
 }
 
-public fun attach_publisher<T>(owner_cap: &mut OwnerCap<T>, publisher: Publisher) {
+public(package) fun attach_publisher<T>(owner_cap: &mut OwnerCap<T>, publisher: Publisher) {
     df::add(&mut owner_cap.id, PublisherKey {}, publisher);
 }
 

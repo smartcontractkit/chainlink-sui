@@ -21,7 +21,7 @@ use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
-use sui::package::{Self, UpgradeCap};
+use sui::package::{Self, Publisher, UpgradeCap};
 
 public struct MANAGED_TOKEN_POOL has drop {}
 
@@ -65,6 +65,7 @@ public fun initialize_with_managed_token<T>(
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
     token_pool_administrator: address,
+    publisher: Publisher,
     ctx: &mut TxContext,
 ) {
     // Get treasury cap reference for registration
@@ -74,6 +75,7 @@ public fun initialize_with_managed_token<T>(
     let (_, managed_token_pool_state_address, _, _) = initialize_internal(
         coin_metadata,
         mint_cap,
+        publisher,
         ctx,
     );
 
@@ -106,6 +108,7 @@ public fun initialize_by_ccip_admin<T>(
     mint_cap: MintCap<T>,
     managed_token_state: address,
     token_pool_administrator: address,
+    publisher: Publisher,
     ctx: &mut TxContext,
 ) {
     let (
@@ -113,7 +116,7 @@ public fun initialize_by_ccip_admin<T>(
         managed_token_pool_state_address,
         token_type,
         type_proof_type_name,
-    ) = initialize_internal(coin_metadata, mint_cap, ctx);
+    ) = initialize_internal(coin_metadata, mint_cap, publisher, ctx);
 
     let type_proof_type_name_address = type_proof_type_name.address_string();
     let managed_token_pool_package_id = address::from_ascii_bytes(
@@ -149,10 +152,12 @@ public fun initialize_by_ccip_admin<T>(
 fun initialize_internal<T>(
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
+    publisher: Publisher,
     ctx: &mut TxContext,
 ): (address, address, TypeName, TypeName) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
 
     let managed_token_pool = ManagedTokenPoolState<T> {
         id: object::new(ctx),
