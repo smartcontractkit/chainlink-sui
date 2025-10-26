@@ -50,9 +50,15 @@ func NewMCMS(address string, client sui.ISuiAPI) (MCMS, error) {
 }
 
 func PublishMCMS(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (MCMS, *models.SuiTransactionBlockResponse, error) {
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.MCMS, map[string]string{
 		"mcms":       "0x0",
 		"mcms_owner": "0x2",
+		"signer":     signerAddr,
 	}, false)
 	if err != nil {
 		return nil, nil, err

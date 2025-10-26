@@ -137,6 +137,7 @@ type CCIPReceiverState struct {
 	SourceChainSelector     uint64        `move:"u64"`
 	Sender                  []byte        `move:"vector<u8>"`
 	Data                    []byte        `move:"vector<u8>"`
+	MessageReceiver         string        `move:"address"`
 	TokenReceiver           string        `move:"address"`
 	DestTokenTransferLength uint64        `move:"u64"`
 	DestTokenAmounts        []TokenAmount `move:"vector<TokenAmount>"`
@@ -170,6 +171,7 @@ type bcsCCIPReceiverState struct {
 	SourceChainSelector     uint64
 	Sender                  []byte
 	Data                    []byte
+	MessageReceiver         [32]byte
 	TokenReceiver           [32]byte
 	DestTokenTransferLength uint64
 	DestTokenAmounts        []TokenAmount
@@ -184,6 +186,7 @@ func convertCCIPReceiverStateFromBCS(bcs bcsCCIPReceiverState) (CCIPReceiverStat
 		SourceChainSelector:     bcs.SourceChainSelector,
 		Sender:                  bcs.Sender,
 		Data:                    bcs.Data,
+		MessageReceiver:         fmt.Sprintf("0x%x", bcs.MessageReceiver),
 		TokenReceiver:           fmt.Sprintf("0x%x", bcs.TokenReceiver),
 		DestTokenTransferLength: bcs.DestTokenTransferLength,
 		DestTokenAmounts:        bcs.DestTokenAmounts,

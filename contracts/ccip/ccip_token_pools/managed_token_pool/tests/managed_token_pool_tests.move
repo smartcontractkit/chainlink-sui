@@ -722,95 +722,6 @@ public fun test_release_or_mint_functionality() {
 }
 
 #[test]
-public fun test_initialize_by_ccip_admin() {
-    let mut scenario = test_scenario::begin(@managed_token_pool);
-
-    // Setup CCIP environment
-    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
-
-    // Create managed token
-    scenario.next_tx(@managed_token_pool);
-    let coin_metadata = {
-        let ctx = scenario.ctx();
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            MANAGED_TOKEN_POOL_TESTS {},
-            Decimals,
-            b"MTPT",
-            b"ManagedTokenPoolTest",
-            b"managed_token_pool_test",
-            option::none(),
-            ctx,
-        );
-
-        managed_token::initialize(treasury_cap, ctx);
-        coin_metadata
-    };
-
-    // Get the managed token state address and create mint cap
-    scenario.next_tx(@managed_token_pool);
-    let managed_token_state_address = {
-        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
-        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-
-        // Get the address before creating mint cap
-        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
-
-        // Create mint cap for the pool
-        managed_token::configure_new_minter(
-            &mut token_state,
-            &token_owner_cap,
-            @managed_token_pool,
-            1000000,
-            true,
-            scenario.ctx(),
-        );
-
-        scenario.return_to_sender(token_owner_cap);
-        test_scenario::return_shared(token_state);
-        managed_token_state_address
-    };
-
-    // Get the mint cap first, then switch to CCIP admin
-    scenario.next_tx(@managed_token_pool);
-    let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
-
-    // Switch to CCIP admin to call initialize_by_ccip_admin
-    scenario.next_tx(CCIP_ADMIN);
-    {
-        // Test initialize_by_ccip_admin function (doesn't require treasury cap)
-        managed_token_pool::initialize_by_ccip_admin(
-            &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
-            mint_cap,
-            managed_token_state_address, // Use the actual managed token state address
-            @0x123, // token_pool_administrator
-            scenario.ctx(),
-        );
-    };
-
-    // The OwnerCap gets sent to the sender (CCIP admin) by initialize_internal, not the token_pool_administrator
-    scenario.next_tx(CCIP_ADMIN);
-    {
-        let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
-
-        // Test that initialization worked correctly
-        assert!(managed_token_pool::get_token_decimals(&pool_state) == Decimals);
-        let token_address = managed_token_pool::get_token(&pool_state);
-        assert!(token_address != @0x0);
-
-        scenario.return_to_sender(owner_cap);
-        test_scenario::return_shared(pool_state);
-    };
-
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
-    scenario.end();
-}
-
-#[test]
 #[expected_failure(abort_code = managed_token_pool::EInvalidOwnerCap)]
 public fun test_invalid_owner_cap_error() {
     let mut scenario = test_scenario::begin(@managed_token_pool);
@@ -1361,18 +1272,22 @@ public fun test_set_pool() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let coin_metadata = scenario.take_immutable<coin::CoinMetadata<MANAGED_TOKEN_POOL_TESTS>>();
+        let token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
+        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
         let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
 
-        managed_token_pool::initialize_by_ccip_admin(
+        managed_token_pool::initialize_with_managed_token(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            &token_state,
+            &token_owner_cap,
             &coin_metadata,
             mint_cap,
-            token_state_address,
             TOKEN_ADMIN,
             scenario.ctx(),
         );
 
+        scenario.return_to_sender(token_owner_cap);
+        test_scenario::return_shared(token_state);
         test_scenario::return_immutable(coin_metadata);
     };
 
@@ -1482,9 +1397,7 @@ public fun test_set_pool() {
     // Now call set_pool as the administrator to update to the correct managed_token_pool config
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let mut pool_state = scenario.take_shared<
-            ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>,
-        >();
+        let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
@@ -1509,7 +1422,7 @@ public fun test_set_pool() {
         // Call set_pool to update to the actual managed_token_pool configuration
         managed_token_pool::set_pool(
             &mut ccip_ref,
-            &mut pool_state,
+            &pool_state,
             &owner_cap,
             coin_metadata_address,
             token_state_address,
@@ -1557,4 +1470,209 @@ public fun test_set_pool() {
     };
 
     test_scenario::end(scenario);
+}
+
+// ================================================================
+// |             Rate Limiter calculate_refill Tests             |
+// ================================================================
+
+#[test]
+public fun test_calculate_refill_at_capacity() {
+    use managed_token_pool::rate_limiter;
+
+    // Create a bucket that's already at capacity
+    let bucket = rate_limiter::test_create_token_bucket(
+        1000, // tokens (at capacity)
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate
+    );
+
+    // Test with various time differences
+    assert!(rate_limiter::test_calculate_refill(&bucket, 0) == 1000);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 1000);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 100) == 1000);
+}
+
+#[test]
+public fun test_calculate_refill_above_capacity() {
+    use managed_token_pool::rate_limiter;
+
+    // Create a bucket with tokens exceeding capacity (edge case)
+    let bucket = rate_limiter::test_create_token_bucket(
+        1500, // tokens (above capacity)
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate
+    );
+
+    // Should return capacity when tokens > capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 1000);
+}
+
+#[test]
+public fun test_calculate_refill_zero_rate() {
+    use managed_token_pool::rate_limiter;
+
+    // Create a bucket with rate = 0
+    let bucket = rate_limiter::test_create_token_bucket(
+        500, // tokens
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        0, // rate (zero)
+    );
+
+    // Should return current tokens when rate is 0
+    assert!(rate_limiter::test_calculate_refill(&bucket, 0) == 500);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 500);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 100) == 500);
+}
+
+#[test]
+public fun test_calculate_refill_normal_refill() {
+    use managed_token_pool::rate_limiter;
+
+    // Create a bucket with normal values
+    let bucket = rate_limiter::test_create_token_bucket(
+        100, // tokens
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate (10 tokens per second)
+    );
+
+    // Test various time differences
+    // After 10 seconds: 100 + (10 * 10) = 200
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 200);
+
+    // After 50 seconds: 100 + (50 * 10) = 600
+    assert!(rate_limiter::test_calculate_refill(&bucket, 50) == 600);
+
+    // After 89 seconds: 100 + (89 * 10) = 990
+    assert!(rate_limiter::test_calculate_refill(&bucket, 89) == 990);
+}
+
+#[test]
+public fun test_calculate_refill_saturate_at_capacity() {
+    use managed_token_pool::rate_limiter;
+
+    // Create a bucket that will exceed capacity with refill
+    let bucket = rate_limiter::test_create_token_bucket(
+        100, // tokens
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate (10 tokens per second)
+    );
+
+    // Time diff that would exceed capacity: 100 + (100 * 10) = 1100 > 1000
+    // Should saturate to capacity (1000)
+    assert!(rate_limiter::test_calculate_refill(&bucket, 100) == 1000);
+
+    // Even larger time diff should still saturate to capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 1000) == 1000);
+}
+
+#[test]
+public fun test_calculate_refill_exact_capacity() {
+    use managed_token_pool::rate_limiter;
+
+    // Create a bucket where refill will exactly reach capacity
+    let bucket = rate_limiter::test_create_token_bucket(
+        100, // tokens
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate (10 tokens per second)
+    );
+
+    // Exactly 90 seconds needed to reach capacity: 100 + (90 * 10) = 1000
+    assert!(rate_limiter::test_calculate_refill(&bucket, 90) == 1000);
+}
+
+#[test]
+public fun test_calculate_refill_zero_tokens() {
+    use managed_token_pool::rate_limiter;
+
+    // Create a bucket starting with zero tokens
+    let bucket = rate_limiter::test_create_token_bucket(
+        0, // tokens (empty)
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate
+    );
+
+    // Test refill from empty
+    assert!(rate_limiter::test_calculate_refill(&bucket, 0) == 0);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 100);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 50) == 500);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 100) == 1000);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 200) == 1000); // saturate
+}
+
+#[test]
+public fun test_calculate_refill_high_rate() {
+    use managed_token_pool::rate_limiter;
+
+    // Create a bucket with high rate
+    let bucket = rate_limiter::test_create_token_bucket(
+        0, // tokens
+        0, // last_updated
+        true, // is_enabled
+        10000, // capacity
+        1000, // rate (high rate)
+    );
+
+    // After 5 seconds: 0 + (5 * 1000) = 5000
+    assert!(rate_limiter::test_calculate_refill(&bucket, 5) == 5000);
+
+    // After 10 seconds: should saturate to capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 10000);
+}
+
+#[test]
+public fun test_calculate_refill_small_capacity() {
+    use managed_token_pool::rate_limiter;
+
+    // Create a bucket with small capacity
+    let bucket = rate_limiter::test_create_token_bucket(
+        5, // tokens
+        0, // last_updated
+        true, // is_enabled
+        10, // capacity (small)
+        1, // rate
+    );
+
+    // After 3 seconds: 5 + (3 * 1) = 8
+    assert!(rate_limiter::test_calculate_refill(&bucket, 3) == 8);
+
+    // After 5 seconds: should be exactly at capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 5) == 10);
+
+    // After 10 seconds: should saturate to capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 10);
+}
+
+#[test]
+public fun test_calculate_refill_edge_case_one_below_capacity() {
+    use managed_token_pool::rate_limiter;
+
+    // Create a bucket one token below capacity
+    let bucket = rate_limiter::test_create_token_bucket(
+        999, // tokens (one below capacity)
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate
+    );
+
+    // After 0 seconds: stays at 999
+    assert!(rate_limiter::test_calculate_refill(&bucket, 0) == 999);
+
+    // After 1 second: 999 + (1 * 10) = 1009, but should saturate to 1000
+    assert!(rate_limiter::test_calculate_refill(&bucket, 1) == 1000);
 }

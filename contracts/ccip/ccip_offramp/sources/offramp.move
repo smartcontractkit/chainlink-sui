@@ -231,6 +231,7 @@ const ETokenTransferLimitExceeded: u64 = 28;
 const EPackageIdNotFound: u64 = 29;
 const EInvalidOwnerCap: u64 = 30;
 const EUnknownSequenceNumber: u64 = 31;
+const EInvalidReportContextLength: u64 = 32;
 
 const VERSION: u8 = 1;
 
@@ -435,6 +436,7 @@ public fun init_execute(
         string::utf8(b"init_execute"),
         VERSION,
     );
+    assert!(report_context.length() == 2, EInvalidReportContextLength);
     let reports = deserialize_execution_report(report);
 
     ocr3_base::transmit(
@@ -682,6 +684,7 @@ fun pre_execute_single_report(
             message.header.source_chain_selector,
             message.sender,
             message.data,
+            message.receiver,
             message.token_receiver,
             dest_token_amounts,
         );
@@ -996,6 +999,7 @@ public fun commit(
         string::utf8(b"commit"),
         VERSION,
     );
+    assert!(report_context.length() == 2, EInvalidReportContextLength);
     let commit_report = deserialize_commit_report(report);
 
     if (
@@ -1596,13 +1600,13 @@ public fun mcms_set_ocr3_config(
         &mut stream,
     );
 
-    let config_digest = bcs_stream::deserialize_fixed_vector_u8(&mut stream, 32);
+    let config_digest = bcs_stream::deserialize_vector_u8(&mut stream);
     let ocr_plugin_type = bcs_stream::deserialize_u8(&mut stream);
     let big_f = bcs_stream::deserialize_u8(&mut stream);
     let is_signature_verification_enabled = bcs_stream::deserialize_bool(&mut stream);
     let signers = bcs_stream::deserialize_vector!(
         &mut stream,
-        |stream| bcs_stream::deserialize_fixed_vector_u8(stream, 32),
+        |stream| bcs_stream::deserialize_vector_u8(stream),
     );
     let transmitters = bcs_stream::deserialize_vector!(
         &mut stream,

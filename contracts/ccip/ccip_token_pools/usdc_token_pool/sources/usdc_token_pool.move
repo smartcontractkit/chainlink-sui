@@ -74,6 +74,7 @@ const EDomainNotFound: u64 = 10;
 const EDomainDisabled: u64 = 11;
 const ETokenAmountOverflow: u64 = 12;
 const EInvalidFunction: u64 = 13;
+const EPoolStillRegistered: u64 = 14;
 
 // ================================================================
 // |                             Init                             |
@@ -156,6 +157,16 @@ public fun set_pool<T>(
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
+    set_pool_internal(ref, state, owner_cap, coin_metadata_address, ctx.sender());
+}
+
+fun set_pool_internal<T>(
+    ref: &mut CCIPObjectRef,
+    state: &USDCTokenPoolState<T>,
+    owner_cap: &OwnerCap,
+    coin_metadata_address: address,
+    caller: address,
+) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
 
     let token_pool_state_address = object::uid_to_address(&state.id);
@@ -179,7 +190,7 @@ public fun set_pool<T>(
             @treasury,
         ],
         TypeProof {},
-        ctx,
+        caller,
     );
 }
 
@@ -524,6 +535,7 @@ fun validate_receipt(receipt: &Receipt, expected_source_domain: u32, expected_no
 // ================================================================
 
 public fun get_domain<T>(pool: &USDCTokenPoolState<T>, chain_selector: u64): Domain {
+    assert!(pool.chain_to_domain.contains(chain_selector), EDomainNotFound);
     *pool.chain_to_domain.borrow(chain_selector)
 }
 
@@ -1044,6 +1056,7 @@ public fun mcms_set_chain_rate_limiter_config<T>(
 /// destroy the USDC token pool state and the owner cap
 /// this should only be called after unregistering the pool from the token admin registry
 public fun destroy_token_pool<T>(
+    ref: &mut CCIPObjectRef,
     state: USDCTokenPoolState<T>,
     owner_cap: OwnerCap,
     ctx: &mut TxContext,
@@ -1051,6 +1064,10 @@ public fun destroy_token_pool<T>(
     assert!(
         object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state),
         EInvalidOwnerCap,
+    );
+    assert!(
+        !token_admin_registry::is_pool_registered(ref, get_token(&state)),
+        EPoolStillRegistered,
     );
 
     let USDCTokenPoolState<T> {
@@ -1127,10 +1144,10 @@ public fun mcms_execute_ownership_transfer<T>(
 
 public fun mcms_set_pool<T>(
     ref: &mut CCIPObjectRef,
-    state: &mut USDCTokenPoolState<T>,
+    state: &USDCTokenPoolState<T>,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
-    ctx: &mut TxContext,
+    _: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
@@ -1150,7 +1167,13 @@ public fun mcms_set_pool<T>(
     let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    set_pool(ref, state, owner_cap, coin_metadata_address, ctx);
+    set_pool_internal(
+        ref,
+        state,
+        owner_cap,
+        coin_metadata_address,
+        mcms_registry::get_multisig_address(),
+    );
 }
 
 public fun mcms_add_allowed_modules(

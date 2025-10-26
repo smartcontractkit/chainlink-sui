@@ -234,23 +234,41 @@ var acceptOwnershipHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create router contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := routerContract.AcceptOwnership(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.RouterStateObjectId},
-	)
+	encodedCall, err := routerContract.Encoder().AcceptOwnership(bind.Object{Id: input.RouterStateObjectId})
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute accept ownership: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.RouterStateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of AcceptOwnership on Router as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.RouterPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
 	}
 
-	b.Logger.Infow("AcceptOwnership on Router", "PackageId:", input.RouterPackageId, "StateObjectId:", input.RouterStateObjectId)
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := routerContract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on StateObject: %w", err)
+	}
+
+	b.Logger.Infow("Ownership accepted for CCIP StateObject")
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.RouterPackageId,
-		Objects:   NoObjects{},
+		Call:      call,
 	}, nil
 }
 

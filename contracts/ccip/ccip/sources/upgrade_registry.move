@@ -11,7 +11,18 @@ public struct VersionBlocked has copy, drop {
     version: u8,
 }
 
+public struct VersionUnblocked has copy, drop {
+    module_name: String,
+    version: u8,
+}
+
 public struct FunctionBlocked has copy, drop {
+    module_name: String,
+    function_name: String,
+    version: u8,
+}
+
+public struct FunctionUnblocked has copy, drop {
     module_name: String,
     function_name: String,
     version: u8,
@@ -72,6 +83,35 @@ public fun block_version(
     });
 }
 
+public fun unblock_version(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    module_name: String,
+    version: u8,
+    _: &mut TxContext,
+) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
+    let registry = state_object::borrow_mut<UpgradeRegistry>(ref);
+    if (!registry.function_restrictions.contains(module_name)) {
+        return
+    };
+    let blocked_versions = registry.function_restrictions.borrow_mut(module_name);
+    let mut i = 0;
+    while (i < blocked_versions.length()) {
+        let blocked_version = &blocked_versions[i];
+        if (blocked_version[0] == version) {
+            blocked_versions.swap_remove(i);
+            event::emit(VersionUnblocked {
+                module_name,
+                version,
+            });
+            return
+        };
+        i = i + 1;
+    };
+}
+
 public fun block_function(
     ref: &mut CCIPObjectRef,
     owner_cap: &OwnerCap,
@@ -94,6 +134,39 @@ public fun block_function(
         function_name,
         version,
     });
+}
+
+public fun unblock_function(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    module_name: String,
+    function_name: String,
+    version: u8,
+    _: &mut TxContext,
+) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
+    let registry = state_object::borrow_mut<UpgradeRegistry>(ref);
+    if (!registry.function_restrictions.contains(module_name)) {
+        return
+    };
+    let blocked_functions = registry.function_restrictions.borrow_mut(module_name);
+    let mut unblock_function = vector[version];
+    unblock_function.append(function_name.into_bytes());
+    let mut i = 0;
+    while (i < blocked_functions.length()) {
+        let blocked_function = &blocked_functions[i];
+        if (blocked_function == unblock_function) {
+            blocked_functions.swap_remove(i);
+            event::emit(FunctionUnblocked {
+                module_name,
+                function_name,
+                version,
+            });
+            return
+        };
+        i = i + 1;
+    };
 }
 
 public fun get_module_restrictions(ref: &CCIPObjectRef, module_name: String): vector<vector<u8>> {

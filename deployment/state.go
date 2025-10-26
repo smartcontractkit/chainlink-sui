@@ -8,12 +8,24 @@ import (
 )
 
 type CCIPChainState struct {
-	CCIPRouterAddress            string
-	CCIPAddress                  string
-	CCIPObjectRef                string
-	CCIPOwnerCapObjectId         string
-	CCIPUpgradeCapObjectId       string
-	MCMsAddress                  string
+	// MCMS related
+	MCMSPackageID               string
+	MCMSStateObjectID           string
+	MCMSRegistryObjectID        string
+	MCMSAccountStateObjectID    string
+	MCMSAccountOwnerCapObjectID string
+	MCMSTimelockObjectID        string
+
+	// CCIP related
+	CCIPAddress            string
+	CCIPObjectRef          string
+	CCIPOwnerCapObjectId   string
+	CCIPUpgradeCapObjectId string
+
+	// CCIP Router related
+	CCIPRouterAddress       string
+	CCIPRouterStateObjectID string
+
 	TokenPoolAddress             string
 	LockReleaseAddress           string
 	LockReleaseStateId           string
@@ -70,6 +82,34 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		// Parse addresss
 
 		switch typeAndVersion.Type {
+
+		// MCMS related
+		case SuiMcmsPackageIDType:
+			chainState.MCMSPackageID = addr
+
+		case SuiMcmsRegistryObjectIDType:
+			chainState.MCMSRegistryObjectID = addr
+
+		case SuiMcmsObjectIDType:
+			chainState.MCMSStateObjectID = addr
+
+		case SuiMcmsAccountStateObjectIDType:
+			chainState.MCMSAccountStateObjectID = addr
+
+		case SuiMcmsAccountOwnerCapObjectIDType:
+			chainState.MCMSAccountOwnerCapObjectID = addr
+
+		case SuiMcmsTimelockObjectIDType:
+			chainState.MCMSTimelockObjectID = addr
+
+		// CCIP Router related
+		case SuiCCIPRouterType:
+			chainState.CCIPRouterAddress = addr
+
+		case SuiCCIPRouterStateObjectType:
+			chainState.CCIPRouterStateObjectID = addr
+
+		// CCIP related
 		case SuiCCIPRouterType:
 			chainState.CCIPRouterAddress = addr
 
@@ -81,9 +121,6 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 
 		case SuiLockReleaseTPStateType:
 			chainState.LockReleaseStateId = addr
-
-		case SuiMcmsPackageIDType:
-			chainState.MCMsAddress = addr
 
 		case SuiCCIPObjectRefType:
 			chainState.CCIPObjectRef = addr
@@ -151,6 +188,7 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		case SuiCCIPMockV2:
 			chainState.CCIPMockV2PackageId = addr
 		}
+
 		// Set address based on type
 	}
 	return chainState, nil
