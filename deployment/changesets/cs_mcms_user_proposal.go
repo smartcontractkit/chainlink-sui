@@ -68,6 +68,7 @@ func (d InvokeMCMSFunctionOne) Apply(e cldf.Environment, config InvokeMCMSFuncti
 		"MCMSUser",
 		[]string{},
 		config.McmsUserObjectID,
+		[]string{},
 	)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create transaction: %w", err)

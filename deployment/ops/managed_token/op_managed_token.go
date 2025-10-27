@@ -83,7 +83,10 @@ var ManagedTokenInitializeOp = cld_ops.NewOperation(
 )
 
 // MANAGED_TOKEN -- configure_new_minter
-type NoObjects struct {
+
+type NoObjects struct{}
+type ConfigureMinterObjects struct {
+	MinterCapObjectId string
 }
 
 type ManagedTokenConfigureNewMinterInput struct {
@@ -96,15 +99,15 @@ type ManagedTokenConfigureNewMinterInput struct {
 	IsUnlimited           bool
 }
 
-var configureNewMinterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenConfigureNewMinterInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+var configureNewMinterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenConfigureNewMinterInput) (output sui_ops.OpTxResult[ConfigureMinterObjects], err error) {
 	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token contract: %w", err)
+		return sui_ops.OpTxResult[ConfigureMinterObjects]{}, fmt.Errorf("failed to create managed token contract: %w", err)
 	}
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	_, err = contract.ConfigureNewMinter(
+	tx, err := contract.ConfigureNewMinter(
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
@@ -115,15 +118,22 @@ var configureNewMinterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 		input.IsUnlimited,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token configure new minter: %w", err)
+		return sui_ops.OpTxResult[ConfigureMinterObjects]{}, fmt.Errorf("failed to execute managed token configure new minter: %w", err)
+	}
+
+	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "managed_token", "MintCap")
+	if err1 != nil {
+		return sui_ops.OpTxResult[ConfigureMinterObjects]{}, fmt.Errorf("failed to find MintCap object ID in tx: %w", err1)
 	}
 
 	b.Logger.Infow("ConfigureNewMinter on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageId, "Minter:", input.MinterAddress)
 
-	return sui_ops.OpTxResult[NoObjects]{
+	return sui_ops.OpTxResult[ConfigureMinterObjects]{
 		Digest:    "", // tx.Digest when available
 		PackageId: input.ManagedTokenPackageId,
-		Objects:   NoObjects{},
+		Objects: ConfigureMinterObjects{
+			MinterCapObjectId: obj1,
+		},
 	}, err
 }
 
