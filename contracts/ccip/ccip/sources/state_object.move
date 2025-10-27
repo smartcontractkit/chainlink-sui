@@ -4,7 +4,7 @@ use ccip::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
-use std::string;
+use std::string::{Self, String};
 use std::type_name;
 use sui::address;
 use sui::derived_object;
@@ -15,6 +15,7 @@ const EModuleDoesNotExist: u64 = 2;
 const EInvalidFunction: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EPackageIdNotFound: u64 = 5;
+const ECcipAdminProofNotValidated: u64 = 6;
 
 public struct CCIPObject has key {
     id: UID,
@@ -179,8 +180,16 @@ public fun pending_transfer_accepted(ref: &CCIPObjectRef): Option<bool> {
 // |                      MCMS Entrypoint                         |
 // ================================================================
 
-/// Proof for CCIP admin
-public struct CCIPAdminProof has drop {}
+/// Proof for CCIP admin, `data` is serialized using BCS
+/// `data` should contain:
+/// - target package id
+/// - target module name
+/// - target function name
+/// - bcs serialized function arguments
+public struct CCIPAdminProof {
+    data: vector<u8>,
+    validated: bool,
+}
 
 public struct McmsCallback has drop {}
 
@@ -375,7 +384,7 @@ public fun mcms_proof_entrypoint(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ): CCIPAdminProof {
-    let (_owner_cap, function, _data) = mcms_registry::get_callback_params_with_caps<
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
         OwnerCap,
     >(
@@ -388,7 +397,24 @@ public fun mcms_proof_entrypoint(
     // So we can safely provide a proof that CCIP admin is calling
     assert!(*function.as_bytes() == b"initialize_by_ccip_admin", EInvalidFunction);
 
-    CCIPAdminProof {}
+    CCIPAdminProof { data, validated: false }
+}
+
+public fun get_ccip_admin_proof_data(proof: &CCIPAdminProof): vector<u8> {
+    proof.data
+}
+
+public fun get_ccip_admin_proof_validated(proof: &CCIPAdminProof): bool {
+    proof.validated
+}
+
+public fun set_ccip_admin_proof_validated(proof: &mut CCIPAdminProof, validated: bool) {
+    proof.validated = validated
+}
+
+public fun destroy_ccip_admin_proof(proof: CCIPAdminProof) {
+    assert!(proof.validated, ECcipAdminProofNotValidated);
+    let CCIPAdminProof { data: _, validated: _ } = proof;
 }
 
 // ================================================================
@@ -410,6 +436,6 @@ public fun pending_transfer(ref: &CCIPObjectRef): (address, address, bool) {
 }
 
 #[test_only]
-public fun create_ccip_admin_proof_for_test(): CCIPAdminProof {
-    CCIPAdminProof {}
+public fun create_ccip_admin_proof_for_test(data: vector<u8>, validated: bool): CCIPAdminProof {
+    CCIPAdminProof { data, validated }
 }

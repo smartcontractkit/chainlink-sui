@@ -82,9 +82,8 @@ public fun test_initialize_and_basic_functionality() {
         );
 
         // Initialize burn mint token pool
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123, // token_pool_administrator
@@ -146,9 +145,8 @@ public fun test_chain_configuration_management() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
@@ -262,9 +260,8 @@ public fun test_allowlist_management() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
@@ -320,9 +317,8 @@ public fun test_rate_limiter_configuration() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
@@ -423,9 +419,8 @@ public fun test_invalid_arguments_rate_limiter_configs() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
@@ -487,9 +482,8 @@ public fun test_comprehensive_allowlist_operations() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
@@ -548,9 +542,8 @@ public fun test_destroy_token_pool() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
@@ -611,9 +604,8 @@ public fun test_comprehensive_rate_limiter_operations() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
@@ -713,9 +705,8 @@ public fun test_edge_cases_and_boundary_conditions() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
@@ -851,9 +842,8 @@ public fun test_lock_or_burn_comprehensive() {
         let test_coin = coin::mint(&mut treasury_cap, 1000, ctx); // Small amount to stay within rate limiter
         transfer::public_transfer(test_coin, @0x456); // Transfer to test user
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap, // treasury_cap is moved here
             @0x123,
@@ -997,9 +987,8 @@ public fun test_release_or_mint_comprehensive() {
 
         let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
@@ -1139,9 +1128,8 @@ public fun test_set_allowlist_enabled() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
@@ -1203,9 +1191,8 @@ public fun test_apply_allowlist_updates() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
@@ -1308,9 +1295,8 @@ public fun test_set_pool() {
         let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         // Initialize normally with burn_mint_token_pool
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
@@ -1381,7 +1367,7 @@ public fun test_set_pool() {
 
         token_admin_registry::register_pool_by_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             coin_metadata_address,
             different_package_id,
             string::utf8(b"different_pool"),
@@ -1524,9 +1510,8 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,

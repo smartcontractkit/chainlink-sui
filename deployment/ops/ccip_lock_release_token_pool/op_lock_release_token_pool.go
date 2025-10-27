@@ -15,8 +15,9 @@ import (
 
 // LRTP -- INITIALIZE
 type LockReleaseTokenPoolInitializeObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	OwnerCapObjectId      string
+	StateObjectId         string
+	RebalancerCapObjectId string
 }
 
 type LockReleaseTokenPoolInitializeInput struct {
@@ -53,8 +54,9 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 
 	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "lock_release_token_pool", "LockReleaseTokenPoolState")
+	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "lock_release_token_pool", "RebalancerCap")
 
-	if err1 != nil || err2 != nil {
+	if err1 != nil || err2 != nil || err3 != nil {
 		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
 	}
 
@@ -62,8 +64,9 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 		Digest:    tx.Digest,
 		PackageId: input.LockReleasePackageId,
 		Objects: LockReleaseTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
+			OwnerCapObjectId:      obj1,
+			StateObjectId:         obj2,
+			RebalancerCapObjectId: obj3,
 		},
 	}, err
 }
@@ -73,63 +76,6 @@ var LockReleaseTokenPoolInitializeOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Initializes the CCIP Lock Release Token Pool contract",
 	initLRTPHandler,
-)
-
-// LRTP -- INITIALIZE BY CCIP ADMIN
-type LockReleaseTokenPoolInitializeByCcipAdminInput struct {
-	LockReleasePackageId   string
-	CoinObjectTypeArg      string
-	StateObjectId          string
-	CoinMetadataObjectId   string
-	OwnerCapObjectId       string
-	TokenPoolAdministrator string
-	Rebalancer             string
-}
-
-var initByCcipAdminLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects], err error) {
-	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleasePackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
-	}
-
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.InitializeByCcipAdmin(
-		b.GetContext(),
-		opts,
-		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		bind.Object{Id: input.CoinMetadataObjectId},
-		input.TokenPoolAdministrator,
-		input.Rebalancer,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute lock release token pool initialization by ccip admin: %w", err)
-	}
-
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
-	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "lock_release_token_pool", "LockReleaseTokenPoolState")
-
-	if err1 != nil || err2 != nil {
-		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
-	}
-
-	return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{
-		Digest:    tx.Digest,
-		PackageId: input.LockReleasePackageId,
-		Objects: LockReleaseTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
-		},
-	}, err
-}
-
-var LockReleaseTokenPoolInitializeByCcipAdminOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "lock_release_token_pool", "initialize_by_ccip_admin"),
-	semver.MustParse("0.1.0"),
-	"Initializes the CCIP Lock Release Token Pool contract by CCIP admin",
-	initByCcipAdminLRTPHandler,
 )
 
 // LRTP -- apply_chain_updates
@@ -310,14 +256,15 @@ var LockReleaseTokenPoolSetChainRateLimiterOp = cld_ops.NewOperation(
 )
 
 // LRTP -- provide_liquidity
-type LockReleaseTokenPoolProviderLiquidityInput struct {
+type LockReleaseTokenPoolProvideLiquidityInput struct {
 	LockReleaseTokenPoolPackageId string
 	CoinObjectTypeArg             string
 	StateObjectId                 string
+	RebalancerCapObjectId         string
 	Coin                          string
 }
 
-var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolProviderLiquidityInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+var provideLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolProvideLiquidityInput) (output sui_ops.OpTxResult[NoObjects], err error) {
 	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleaseTokenPoolPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
@@ -330,6 +277,7 @@ var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		opts,
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.RebalancerCapObjectId},
 		bind.Object{Id: input.Coin},
 	)
 	if err != nil {
@@ -343,11 +291,11 @@ var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	}, err
 }
 
-var LockReleaseTokenPoolProviderLiquidityOp = cld_ops.NewOperation(
+var LockReleaseTokenPoolProvideLiquidityOp = cld_ops.NewOperation(
 	sui_ops.NewSuiOperationName("ccip", "lock_release_token_pool", "provide_liquidity"),
 	semver.MustParse("0.1.0"),
 	"Provide liquidity CCIP Lock Release Token Pool contract",
-	providerLiquidityHandler,
+	provideLiquidityHandler,
 )
 
 // LRTP -- add_remote_pool
@@ -484,72 +432,6 @@ var LockReleaseTokenPoolSetPoolOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Sets the pool in the token admin registry for the CCIP LockRelease Token Pool contract",
 	setPoolHandler,
-)
-
-// LRTP -- set_rebalancer
-type LockReleaseTokenPoolSetRebalancerInput struct {
-	LockReleaseTokenPoolPackageId string
-	CoinObjectTypeArg             string
-	StateObjectId                 string
-	OwnerCap                      string
-	Rebalancer                    string
-}
-
-var setRebalancerHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolSetRebalancerInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleaseTokenPoolPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create lock release token pool contract: %w", err)
-	}
-
-	encodedCall, err := contract.Encoder().SetRebalancer(
-		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.OwnerCap},
-		bind.Object{Id: input.StateObjectId},
-		input.Rebalancer,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode SetRebalancer call: %w", err)
-	}
-	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, []string{input.CoinObjectTypeArg})
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
-	}
-	if deps.Signer == nil {
-		b.Logger.Infow("Skipping execution of SetRebalancer on LockReleaseTokenPool as per no Signer provided")
-		return sui_ops.OpTxResult[NoObjects]{
-			Digest:    "",
-			PackageId: input.LockReleaseTokenPoolPackageId,
-			Objects:   NoObjects{},
-			Call:      call,
-		}, nil
-	}
-
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
-		b.GetContext(),
-		opts,
-		encodedCall,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute lock release token pool set rebalancer: %w", err)
-	}
-
-	b.Logger.Infow("SetRebalancer on LockReleaseTokenPool", "LockReleaseTokenPool PackageId:", input.LockReleaseTokenPoolPackageId, "Rebalancer:", input.Rebalancer)
-
-	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest,
-		PackageId: input.LockReleaseTokenPoolPackageId,
-		Objects:   NoObjects{},
-		Call:      call,
-	}, err
-}
-
-var LockReleaseTokenPoolSetRebalancerOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "lock_release_token_pool", "set_rebalancer"),
-	semver.MustParse("0.1.0"),
-	"Sets the rebalancer in the CCIP LockRelease Token Pool contract",
-	setRebalancerHandler,
 )
 
 // LRTP -- set_allowlist_enabled

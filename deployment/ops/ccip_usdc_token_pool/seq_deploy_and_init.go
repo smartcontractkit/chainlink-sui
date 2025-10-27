@@ -65,6 +65,8 @@ var DeployAndInitUSDCTokenPoolSequence = cld_ops.NewSequence(
 			deps,
 			USDCTokenPoolInitializeInput{
 				USDCTokenPoolPackageId: deployReport.Output.PackageId,
+				CCIPObjectRefObjectId:  input.CCIPObjectRefObjectId,
+				CCIPAdminProofObjectId: input.CCIPAdminProofObjectId,
 				CoinObjectTypeArg:      input.CoinObjectTypeArg,
 				StateObjectId:          input.CCIPObjectRefObjectId,
 				OwnerCapObjectId:       input.CCIPAdminProofObjectId,
