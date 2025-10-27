@@ -6,4 +6,6 @@ var AllOperationsOnramp = []cld_ops.Operation[any, any, any]{
 	*TransferOwnershipOnRampOp.AsUntyped(),
 	*AcceptOwnershipOnRampOp.AsUntyped(),
 	*ExecuteOwnershipTransferToMcmsOnRampOp.AsUntyped(),
+	*ApplyAllowListUpdateOp.AsUntyped(),
+	*ApplyDestChainConfigUpdateOp.AsUntyped(),
 }

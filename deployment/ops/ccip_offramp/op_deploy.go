@@ -126,11 +126,7 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, err
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := offRampPackage.SetOcr3Config(
-		b.GetContext(),
-		opts,
+	encodedCall, err := offRampPackage.Encoder().SetOcr3Config(
 		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.OffRampStateId},
 		bind.Object{Id: input.OwnerCapObjectId},
@@ -142,25 +138,52 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 		input.Transmitters,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to execute set ocr3 config in offramp: %w", err)
+		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to encode SetOcr3Config call: %w", err)
 	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.OffRampStateId)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of SetOcr3Config on OffRamp as per no Signer provided")
+		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
+			Digest:    "",
+			PackageId: input.OffRampPackageId,
+			Objects:   DeployCCIPOffRampObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := offRampPackage.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to execute SetOcr3Config on OffRamp: %w", err)
+	}
+
+	b.Logger.Infow("OCR3 config set on OffRamp")
 
 	return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.OffRampPackageId,
 		Objects:   DeployCCIPOffRampObjects{},
-	}, err
+		Call:      call,
+	}, nil
 }
 
 type ApplySourceChainConfigUpdateInput struct {
-	CCIPObjectRef                        string
-	OffRampPackageId                     string
-	OffRampStateId                       string
-	OwnerCapObjectId                     string
-	SourceChainsSelectors                []uint64
-	SourceChainsIsEnabled                []bool
-	SouceChainsIsRMNVerificationDisabled []bool
-	SourceChainsOnRamp                   [][]byte
+	CCIPObjectRef                         string
+	OffRampPackageId                      string
+	OffRampStateId                        string
+	OwnerCapObjectId                      string
+	SourceChainsSelectors                 []uint64
+	SourceChainsIsEnabled                 []bool
+	SourceChainsIsRMNVerificationDisabled []bool
+	SourceChainsOnRamp                    [][]byte
 }
 
 var applySourceChainConfigUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ApplySourceChainConfigUpdateInput) (output sui_ops.OpTxResult[DeployCCIPOffRampObjects], err error) {
@@ -169,28 +192,51 @@ var applySourceChainConfigUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.Op
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, err
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := offRampPackage.ApplySourceChainConfigUpdates(
-		b.GetContext(),
-		opts,
+	encodedCall, err := offRampPackage.Encoder().ApplySourceChainConfigUpdates(
 		bind.Object{Id: input.CCIPObjectRef},
 		bind.Object{Id: input.OffRampStateId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.SourceChainsSelectors,
 		input.SourceChainsIsEnabled,
-		input.SouceChainsIsRMNVerificationDisabled,
+		input.SourceChainsIsRMNVerificationDisabled,
 		input.SourceChainsOnRamp,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to execute applySourceChainConfigUpdate in offramp: %w", err)
+		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to encode ApplySourceChainConfigUpdates call: %w", err)
 	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.OffRampStateId)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ApplySourceChainConfigUpdates on OffRamp as per no Signer provided")
+		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
+			Digest:    "",
+			PackageId: input.OffRampPackageId,
+			Objects:   DeployCCIPOffRampObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := offRampPackage.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to execute ApplySourceChainConfigUpdates on OffRamp: %w", err)
+	}
+
+	b.Logger.Infow("Source chain config updates applied on OffRamp")
 
 	return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.OffRampPackageId,
 		Objects:   DeployCCIPOffRampObjects{},
-	}, err
+		Call:      call,
+	}, nil
 }
 
 type AddPackageIdOffRampInput struct {
