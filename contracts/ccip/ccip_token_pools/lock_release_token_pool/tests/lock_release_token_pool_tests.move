@@ -1052,10 +1052,10 @@ public fun test_lock_or_burn_functionality() {
         ctx,
     );
 
-    lock_release_token_pool::initialize_by_ccip_admin(
+    lock_release_token_pool::initialize(
         &mut ccip_ref,
-        state_object::create_ccip_admin_proof_for_test(),
         &coin_metadata,
+        &treasury_cap,
         TOKEN_ADMIN,
         REBALANCER,
         ctx,
@@ -1232,10 +1232,10 @@ public fun test_release_or_mint_functionality() {
 
         let _coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
-        lock_release_token_pool::initialize_by_ccip_admin(
+        lock_release_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
+            &treasury_cap,
             TOKEN_ADMIN,
             REBALANCER,
             ctx,

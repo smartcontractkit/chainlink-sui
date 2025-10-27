@@ -3,7 +3,7 @@ module lock_release_token_pool::lock_release_token_pool;
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
-use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use lock_release_token_pool::ownable::{Self, OwnerCap, OwnableState};
 use lock_release_token_pool::token_pool::{Self, TokenPoolState};
@@ -11,8 +11,6 @@ use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::string::{Self, String};
-use std::type_name::{Self, TypeName};
-use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::package::UpgradeCap;
@@ -52,7 +50,7 @@ public fun initialize<T>(
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let (_, lock_release_token_pool_state_address, _, _) = initialize_internal(
+    let lock_release_token_pool_state_address = initialize_internal(
         coin_metadata,
         rebalancer,
         ctx,
@@ -69,50 +67,12 @@ public fun initialize<T>(
     );
 }
 
-/// this is used by the ccip admin to initialize the token pool
-/// it verifies that the tx signer is the CCIP admin
-/// it does not require a treasury cap object
-public fun initialize_by_ccip_admin<T>(
-    ref: &mut CCIPObjectRef,
-    ccip_admin_proof: state_object::CCIPAdminProof,
-    coin_metadata: &CoinMetadata<T>,
-    token_pool_administrator: address,
-    rebalancer: address,
-    ctx: &mut TxContext,
-) {
-    let (
-        coin_metadata_address,
-        lock_release_token_pool_state_address,
-        token_type,
-        type_proof_type_name,
-    ) = initialize_internal(coin_metadata, rebalancer, ctx);
-
-    let type_proof_type_name_address = type_proof_type_name.address_string();
-    let lock_release_token_pool_package_id = address::from_ascii_bytes(
-        &type_proof_type_name_address.into_bytes(),
-    );
-
-    token_admin_registry::register_pool_by_admin(
-        ref,
-        ccip_admin_proof,
-        coin_metadata_address,
-        lock_release_token_pool_package_id,
-        string::utf8(b"lock_release_token_pool"),
-        token_type.into_string(),
-        token_pool_administrator,
-        type_proof_type_name.into_string(),
-        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
-        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
-        ctx,
-    );
-}
-
 #[allow(lint(self_transfer))]
 fun initialize_internal<T>(
     coin_metadata: &CoinMetadata<T>,
     rebalancer: address,
     ctx: &mut TxContext,
-): (address, address, TypeName, TypeName) {
+): address {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     let (ownable_state, owner_cap) = ownable::new(ctx);
 
@@ -129,14 +89,12 @@ fun initialize_internal<T>(
         ownable_state,
     };
     set_rebalancer_internal(&mut lock_release_token_pool, rebalancer);
-    let type_proof_type_name = type_name::with_defining_ids<TypeProof>();
-    let token_type = type_name::with_defining_ids<T>();
     let token_pool_state_address = object::uid_to_address(&lock_release_token_pool.id);
 
     transfer::share_object(lock_release_token_pool);
     transfer::public_transfer(owner_cap, ctx.sender());
 
-    (coin_metadata_address, token_pool_state_address, token_type, type_proof_type_name)
+    token_pool_state_address
 }
 
 public fun set_pool<T>(

@@ -11,7 +11,6 @@ var AllOperationsManagedTP = []cld_ops.Operation[any, any, any]{
 	*DeployCCIPManagedTokenPoolOp.AsUntyped(),
 	*ManagedTokenPoolInitializeOp.AsUntyped(),
 	*ManagedTokenPoolAddRemotePoolOp.AsUntyped(),
-	*ManagedTokenPoolInitializeByCcipAdminOp.AsUntyped(),
 	*ManagedTokenPoolApplyChainUpdatesOp.AsUntyped(),
 	*ManagedTokenPoolAddRemotePoolOp.AsUntyped(),
 	*ManagedTokenPoolRemoveRemotePoolOp.AsUntyped(),
