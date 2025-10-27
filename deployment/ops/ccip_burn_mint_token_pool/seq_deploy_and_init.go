@@ -26,6 +26,7 @@ type DeployAndInitBurnMintTokenPoolInput struct {
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
+	PublisherObjectId      string
 	// apply chain updates
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -62,6 +63,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 				CoinMetadataObjectId:   input.CoinMetadataObjectId,
 				TreasuryCapObjectId:    input.TreasuryCapObjectId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
+				PublisherObjectId:      input.PublisherObjectId,
 			},
 		)
 		if err != nil {
