@@ -19,6 +19,8 @@ use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::package::UpgradeCap;
 
+public struct BURN_MINT_TOKEN_POOL has drop {}
+
 public struct BurnMintTokenPoolState<phantom T> has key {
     id: UID,
     token_pool_state: TokenPoolState,
@@ -41,15 +43,23 @@ public fun type_and_version(): String {
     string::utf8(b"BurnMintTokenPool 1.6.0")
 }
 
+fun init(_witness: BURN_MINT_TOKEN_POOL, ctx: &mut TxContext) {
+    let owner_cap = ownable::new_owner_cap(ctx);
+
+    transfer::public_transfer(owner_cap, ctx.sender());
+}
+
 // coin metadata and decimals can be provided in Move.toml
 public fun initialize<T>(
     ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
     let burn_mint_token_pool = initialize_internal(
+        owner_cap,
         coin_metadata,
         treasury_cap,
         ctx,
@@ -70,12 +80,13 @@ public fun initialize<T>(
 
 #[allow(lint(self_transfer))]
 fun initialize_internal<T>(
+    owner_cap: &OwnerCap,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
     ctx: &mut TxContext,
 ): BurnMintTokenPoolState<T> {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let ownable_state = ownable::new_ownable_state(owner_cap, ctx);
 
     let burn_mint_token_pool = BurnMintTokenPoolState<T> {
         id: object::new(ctx),
@@ -88,8 +99,6 @@ fun initialize_internal<T>(
         treasury_cap,
         ownable_state,
     };
-
-    transfer::public_transfer(owner_cap, ctx.sender());
 
     burn_mint_token_pool
 }
@@ -997,4 +1006,11 @@ public fun mcms_remove_allowed_modules<T>(
     bcs_stream::assert_is_consumed(&stream);
 
     mcms_registry::remove_allowed_modules(registry, McmsCallback<T> {}, module_names, ctx);
+}
+
+// ============================== Test Functions ============================== //
+
+#[test_only]
+public fun test_init(ctx: &mut TxContext) {
+    init(BURN_MINT_TOKEN_POOL {}, ctx);
 }

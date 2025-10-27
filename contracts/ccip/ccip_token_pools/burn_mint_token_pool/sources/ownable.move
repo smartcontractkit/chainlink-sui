@@ -54,27 +54,29 @@ const ETransferNotAccepted: u64 = 8;
 const ECannotTransferToMcms: u64 = 9;
 const EMustTransferToMcms: u64 = 10;
 
-public(package) fun new(ctx: &mut TxContext): (OwnableState, OwnerCap) {
-    let owner = ctx.sender();
-
-    let owner_cap = OwnerCap {
+public(package) fun new_owner_cap(ctx: &mut TxContext): OwnerCap {
+    OwnerCap {
         id: object::new(ctx),
-    };
+    }
+}
+
+public(package) fun new_ownable_state(owner_cap: &OwnerCap, ctx: &mut TxContext): OwnableState {
+    let owner = ctx.sender();
 
     let state = OwnableState {
         id: object::new(ctx),
         owner,
         pending_transfer: option::none(),
-        owner_cap_id: object::id(&owner_cap),
+        owner_cap_id: object::id(owner_cap),
     };
 
     event::emit(NewOwnableStateEvent {
         ownable_state_id: object::id(&state),
-        owner_cap_id: object::id(&owner_cap),
+        owner_cap_id: object::id(owner_cap),
         owner,
     });
 
-    (state, owner_cap)
+    state
 }
 
 public fun owner_cap_id(state: &OwnableState): ID {
