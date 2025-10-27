@@ -15,6 +15,7 @@ const EModuleDoesNotExist: u64 = 2;
 const EInvalidFunction: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EPackageIdNotFound: u64 = 5;
+const ECcipAdminProofNotValidated: u64 = 6;
 
 public struct CCIPObject has key {
     id: UID,
@@ -185,7 +186,7 @@ public fun pending_transfer_accepted(ref: &CCIPObjectRef): Option<bool> {
 /// - target module name
 /// - target function name
 /// - bcs serialized function arguments
-public struct CCIPAdminProof has drop {
+public struct CCIPAdminProof {
     data: vector<u8>,
     validated: bool,
 }
@@ -412,7 +413,8 @@ public fun set_ccip_admin_proof_validated(proof: &mut CCIPAdminProof, validated:
 }
 
 public fun destroy_ccip_admin_proof(proof: CCIPAdminProof) {
-    let CCIPAdminProof { data: _, validated: _ } = proof;
+    assert!(proof.validated, ECcipAdminProofNotValidated);
+    let CCIPAdminProof { data: _, validated } = proof;
 }
 
 // ================================================================
