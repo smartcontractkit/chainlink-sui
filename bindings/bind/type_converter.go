@@ -585,20 +585,62 @@ func convertVectorToBCS(innerType string, value any) (any, error) {
 type SuiAddressBytes [32]byte
 
 func bcsEncode(value any) ([]byte, error) {
-	if addrs, ok := value.([][32]byte); ok {
-		suiAddrs := make([]SuiAddressBytes, len(addrs))
-		for i, addr := range addrs {
-			suiAddrs[i] = SuiAddressBytes(addr)
-		}
-		value = suiAddrs
+	// Normalize value before encoding
+	normalized, err := normalizeValue(value)
+	if err != nil {
+		return nil, err
 	}
 
 	bcsEncodedMsg := bytes.Buffer{}
 	bcsEncoder := mystenbcs.NewEncoder(&bcsEncodedMsg)
-	err := bcsEncoder.Encode(value)
+	err = bcsEncoder.Encode(normalized)
 	if err != nil {
 		return nil, err
 	}
 
 	return bcsEncodedMsg.Bytes(), nil
+}
+
+// normalizeValue converts special Go types into the correct BCS-friendly form.
+// TODO: This is a temporary solution until sui-go-sdk addresses [n]bytes bug
+// https://github.com/block-vision/sui-go-sdk/issues/75 won't be necessary after release
+// fixes vector<address> and vector<vector<address>> encoding.
+func normalizeValue(value any) (any, error) {
+	switch v := value.(type) {
+	case [][32]byte:
+		// Single-level vector<address>
+		return convertToSliceSuiAddressBytes(v), nil
+	case []interface{}:
+		// Possible nested address vectors: [][][32]byte (wrapped as []interface{}) (vector<vector<address>>)
+		if len(v) == 0 {
+			return v, nil
+		}
+		// Check if the first element matches the pattern
+		if _, ok := v[0].([][32]byte); !ok {
+			return value, nil
+		}
+		result := make([][]SuiAddressBytes, len(v))
+		for i, item := range v {
+			// Make sure all the items are of the expected type
+			addrs, ok := item.([][32]byte)
+			if !ok {
+				return nil, fmt.Errorf("expected [][32]byte at index %d, got %T", i, item)
+			}
+			result[i] = convertToSliceSuiAddressBytes(addrs)
+		}
+
+		return result, nil
+	}
+
+	return value, nil
+}
+
+// convertToSuiAddressBytes converts a slice of [32]byte into []SuiAddressBytes.
+func convertToSliceSuiAddressBytes(addresses [][32]byte) []SuiAddressBytes {
+	out := make([]SuiAddressBytes, len(addresses))
+	for i, addr := range addresses {
+		out[i] = SuiAddressBytes(addr)
+	}
+
+	return out
 }
