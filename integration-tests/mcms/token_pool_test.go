@@ -297,7 +297,6 @@ func RunLnRConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 	lnrProposalInput := mcmsops.ProposalGenerateInput{
 		Defs: []cld_ops.Definition{
 			// lnr config ops
-			lockreleasetokenpoolops.LockReleaseTokenPoolSetRebalancerOp.Def(),
 			lockreleasetokenpoolops.LockReleaseTokenPoolSetAllowlistEnabledOp.Def(),
 			lockreleasetokenpoolops.LockReleaseTokenPoolApplyAllowlistUpdatesOp.Def(),
 			lockreleasetokenpoolops.LockReleaseTokenPoolApplyChainUpdatesOp.Def(),
@@ -308,13 +307,6 @@ func RunLnRConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 		},
 		Inputs: []any{
 			// lnr config ops
-			lockreleasetokenpoolops.LockReleaseTokenPoolSetRebalancerInput{
-				LockReleaseTokenPoolPackageId: s.lnrPackageId,
-				CoinObjectTypeArg:             fmt.Sprintf("%s::link::LINK", s.lnrTokenPackageId),
-				StateObjectId:                 s.lnrObjects.StateObjectId,
-				OwnerCap:                      s.lnrObjects.OwnerCapObjectId,
-				Rebalancer:                    "0x9999000011112222333344445555666677778888",
-			},
 			lockreleasetokenpoolops.LockReleaseTokenPoolSetAllowlistEnabledInput{
 				LockReleaseTokenPoolPackageId: s.lnrPackageId,
 				CoinObjectTypeArg:             fmt.Sprintf("%s::link::LINK", s.lnrTokenPackageId),
