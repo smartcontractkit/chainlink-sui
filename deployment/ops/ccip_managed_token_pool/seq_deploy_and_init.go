@@ -122,6 +122,23 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 			return DeployManagedTokenPoolOutput{}, err
 		}
 
+		// init ownership transfer to MCMS
+		_, err = cld_ops.ExecuteOperation(
+			env,
+			TransferOwnershipManagedTokenPoolOp,
+			deps,
+			TransferOwnershipManagedTokenPoolInput{
+				ManagedTokenPoolPackageId: deployReport.Output.PackageId,
+				TypeArgs:                  []string{input.CoinObjectTypeArg},
+				StateObjectId:             initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectId:          initReport.Output.Objects.OwnerCapObjectId,
+				To:                        input.MCMSAddress,
+			},
+		)
+		if err != nil {
+			return DeployManagedTokenPoolOutput{}, err
+		}
+
 		return DeployManagedTokenPoolOutput{
 			ManagedTPPackageId: deployReport.Output.PackageId,
 			Objects: DeployManagedTokenPoolObjects{

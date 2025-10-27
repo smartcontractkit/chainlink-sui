@@ -535,3 +535,128 @@ fun test_mcms_remove_allowed_modules_wrong_function_name() {
     test_scenario::return_shared(ref);
     test_scenario::end(scenario);
 }
+
+// ================================================================
+// |         MCMS 3-Step Ownership Transfer Test                 |
+// ================================================================
+
+#[test]
+fun test_mcms_three_step_ownership_transfer() {
+    let (mut scenario, mut registry, mut ref) = setup_with_mcms_ownership();
+
+    // At this point, ownership is with MCMS
+    let initial_owner = state_object::owner(&ref);
+    assert!(initial_owner == mcms_registry::get_multisig_address());
+
+    let new_owner = SENDER_2;
+
+    // Step 1: MCMS calls mcms_transfer_ownership to initiate transfer to SENDER_2
+    {
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip);
+
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&owner_cap_address));
+        data.append(bcs::to_bytes(&new_owner));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"state_object"),
+            string::utf8(b"transfer_ownership"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
+            0, // sequence_number
+            1, // total_in_batch
+            type_name::with_original_ids<state_object::McmsCallback>(),
+        );
+
+        state_object::mcms_transfer_ownership(
+            &mut ref,
+            &mut registry,
+            params,
+            scenario.ctx(),
+        );
+    };
+
+    // Verify pending transfer was created
+    let (from, to, accepted) = state_object::pending_transfer(&ref);
+    assert!(from == mcms_registry::get_multisig_address());
+    assert!(to == new_owner);
+    assert!(!accepted);
+
+    // Owner should still be MCMS
+    assert!(state_object::owner(&ref) == mcms_registry::get_multisig_address());
+
+    // Step 2: SENDER_2 (new owner) accepts the ownership transfer
+    scenario.next_tx(new_owner);
+    {
+        state_object::accept_ownership(&mut ref, scenario.ctx());
+    };
+
+    // Verify pending transfer was accepted
+    let (from2, to2, accepted2) = state_object::pending_transfer(&ref);
+    assert!(from2 == mcms_registry::get_multisig_address());
+    assert!(to2 == new_owner);
+    assert!(accepted2); // Now it's accepted
+
+    // Owner should still be MCMS (not yet executed)
+    assert!(state_object::owner(&ref) == mcms_registry::get_multisig_address());
+
+    // Step 3: MCMS calls mcms_execute_ownership_transfer to finalize
+    scenario.next_tx(OWNER);
+    {
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip);
+
+        // Serialize data: [ref_address][owner_cap_address][to_address]
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&owner_cap_address));
+        data.append(bcs::to_bytes(&new_owner));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"state_object"),
+            string::utf8(b"execute_ownership_transfer"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000002", // different batch_id
+            0, // sequence_number
+            1, // total_in_batch
+            type_name::with_original_ids<state_object::McmsCallback>(),
+        );
+
+        state_object::mcms_execute_ownership_transfer(
+            &mut ref,
+            &mut registry,
+            params,
+            scenario.ctx(),
+        );
+    };
+
+    // Verify pending transfer was cleared
+    let (from3, to3, accepted3) = state_object::pending_transfer(&ref);
+    assert!(from3 == @0x0);
+    assert!(to3 == @0x0);
+    assert!(!accepted3);
+
+    // Owner should now be SENDER_2
+    assert!(state_object::owner(&ref) == new_owner);
+
+    // Step 4: Verify SENDER_2 received the OwnerCap and can use it
+    scenario.next_tx(new_owner);
+    {
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        // Verify SENDER_2 can perform operations with the OwnerCap
+        let test_obj = TestObject {
+            id: object::new(scenario.ctx()),
+        };
+        state_object::add(&mut ref, &owner_cap, test_obj, scenario.ctx());
+        assert!(state_object::contains<TestObject>(&ref));
+
+        scenario.return_to_sender(owner_cap);
+    };
+
+    test_scenario::return_shared(registry);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario);
+}
