@@ -53,8 +53,7 @@ public struct MintCap<phantom T> has key, store {
     id: UID,
 }
 
-public struct OwnableState has key, store {
-    id: UID,
+public struct OwnableState has store {
     owner: address,
     pending_owner: Option<address>,
     pending_transfer: Option<TransferRequest>,
