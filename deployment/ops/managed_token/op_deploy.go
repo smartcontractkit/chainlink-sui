@@ -19,6 +19,7 @@ type ManagedTokenDeployInput struct {
 }
 
 type ManagedTokenDeployOutput struct {
+	PublisherObjectId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenDeployInput) (output sui_ops.OpTxResult[ManagedTokenDeployOutput], err error) {
@@ -35,9 +36,17 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedT
 		return sui_ops.OpTxResult[ManagedTokenDeployOutput]{}, err
 	}
 
+	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "package", "Publisher")
+	if err1 != nil {
+		return sui_ops.OpTxResult[ManagedTokenDeployOutput]{}, fmt.Errorf("failed to find Publisher object ID in publish tx: %w", err1)
+	}
+
 	return sui_ops.OpTxResult[ManagedTokenDeployOutput]{
 		Digest:    tx.Digest,
 		PackageId: managedTokenPackage.Address(),
+		Objects: ManagedTokenDeployOutput{
+			PublisherObjectId: obj1,
+		},
 	}, err
 }
 

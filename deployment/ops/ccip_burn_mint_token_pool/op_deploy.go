@@ -20,6 +20,7 @@ type BurnMintTokenPoolDeployInput struct {
 }
 
 type BurnMintTokenPoolDeployOutput struct {
+	PublisherObjectId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolDeployInput) (output sui_ops.OpTxResult[BurnMintTokenPoolDeployOutput], err error) {
@@ -37,9 +38,17 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMint
 		return sui_ops.OpTxResult[BurnMintTokenPoolDeployOutput]{}, err
 	}
 
+	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "package", "Publisher")
+	if err1 != nil {
+		return sui_ops.OpTxResult[BurnMintTokenPoolDeployOutput]{}, fmt.Errorf("failed to find Publisher object ID in publish tx: %w", err1)
+	}
+
 	return sui_ops.OpTxResult[BurnMintTokenPoolDeployOutput]{
 		Digest:    tx.Digest,
 		PackageId: tokenPoolPackage.Address(),
+		Objects: BurnMintTokenPoolDeployOutput{
+			PublisherObjectId: obj1,
+		},
 	}, err
 }
 
