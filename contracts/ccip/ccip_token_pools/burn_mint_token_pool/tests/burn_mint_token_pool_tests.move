@@ -1382,7 +1382,7 @@ public fun test_set_pool() {
 
         token_admin_registry::register_pool_by_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             coin_metadata_address,
             different_package_id,
             string::utf8(b"different_pool"),

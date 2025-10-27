@@ -345,7 +345,7 @@ public fun register_pool<T, TypeProof: drop>(
 // the CCIP admin needs to know the token pool's type proof string too.
 public fun register_pool_by_admin(
     ref: &mut CCIPObjectRef,
-    _: state_object::CCIPAdminProof,
+    ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata_address: address,
     token_pool_package_id: address,
     token_pool_module: String,
@@ -356,6 +356,9 @@ public fun register_pool_by_admin(
     release_or_mint_params: vector<address>,
     _: &mut TxContext,
 ) {
+    // `destroy_ccip_admin_proof` verifies proof has been validated.
+    state_object::destroy_ccip_admin_proof(ccip_admin_proof);
+
     verify_function_allowed(
         ref,
         string::utf8(b"token_admin_registry"),

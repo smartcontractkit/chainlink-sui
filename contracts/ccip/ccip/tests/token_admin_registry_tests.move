@@ -223,7 +223,7 @@ public fun test_register_pool_by_admin() {
         // Register pool as admin (without treasury cap)
         registry::register_pool_by_admin(
             &mut ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             @0x123, // coin_metadata_address
             MOCK_TOKEN_POOL_PACKAGE_ID_1, // token_pool_package_id
             string::utf8(b"admin_registered_pool"), // token_pool_module
@@ -1418,7 +1418,7 @@ public fun test_set_pool_with_different_package_ids() {
 
         registry::register_pool_by_admin(
             &mut ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             mock_token_address,
             original_pool_package_id,
             string::utf8(b"original_pool_module"),
@@ -1632,7 +1632,7 @@ public fun test_set_pool_only_admin_can_call() {
 
         registry::register_pool_by_admin(
             &mut ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             mock_token_address,
             @0xAAAA,
             string::utf8(b"test_pool"),
@@ -1698,7 +1698,7 @@ public fun test_mcms_set_pool_with_package_change() {
 
         registry::register_pool_by_admin(
             &mut ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             mock_token_address,
             original_pool_package_id,
             string::utf8(b"original_pool"),
