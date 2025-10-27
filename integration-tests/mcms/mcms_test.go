@@ -5,6 +5,7 @@ package mcms
 import (
 	"testing"
 
+	cselectors "github.com/smartcontractkit/chain-selectors"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,8 @@ import (
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
+	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
+	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
 )
