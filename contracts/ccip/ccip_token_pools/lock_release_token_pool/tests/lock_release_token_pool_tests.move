@@ -1599,7 +1599,7 @@ public fun test_set_pool() {
     // Now call set_pool as the administrator to update to the correct lock_release_token_pool config
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let mut pool_state = scenario.take_shared<
+        let pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -1626,7 +1626,7 @@ public fun test_set_pool() {
         // Call set_pool to update to the actual lock_release_token_pool configuration
         lock_release_token_pool::set_pool(
             &mut ccip_ref,
-            &mut pool_state,
+            &pool_state,
             &owner_cap,
             coin_metadata_address,
             scenario.ctx(),

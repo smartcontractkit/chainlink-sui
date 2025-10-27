@@ -1373,7 +1373,7 @@ func (c lockReleaseTokenPoolEncoder) SetPool(typeArgs []string, ref bind.Object,
 	}
 	return c.EncodeCallArgsWithGenerics("set_pool", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
-		"&mut LockReleaseTokenPoolState<T>",
+		"&LockReleaseTokenPoolState<T>",
 		"&OwnerCap",
 		"address",
 	}, []any{
@@ -1389,7 +1389,7 @@ func (c lockReleaseTokenPoolEncoder) SetPool(typeArgs []string, ref bind.Object,
 func (c lockReleaseTokenPoolEncoder) SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
-		"&mut LockReleaseTokenPoolState<T>",
+		"&LockReleaseTokenPoolState<T>",
 		"&OwnerCap",
 		"address",
 	}

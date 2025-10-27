@@ -148,10 +148,28 @@ fun initialize_internal<T>(
 
 public fun set_pool<T>(
     ref: &mut CCIPObjectRef,
-    state: &mut LockReleaseTokenPoolState<T>,
+    state: &LockReleaseTokenPoolState<T>,
     owner_cap: &OwnerCap,
     coin_metadata_address: address,
     ctx: &mut TxContext,
+) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
+
+    set_pool_internal(
+        ref,
+        state,
+        owner_cap,
+        coin_metadata_address,
+        ctx.sender(),
+    );
+}
+
+fun set_pool_internal<T>(
+    ref: &mut CCIPObjectRef,
+    state: &LockReleaseTokenPoolState<T>,
+    owner_cap: &OwnerCap,
+    coin_metadata_address: address,
+    caller: address,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
 
@@ -162,7 +180,7 @@ public fun set_pool<T>(
         vector[CLOCK_ADDRESS, token_pool_state_address],
         vector[CLOCK_ADDRESS, token_pool_state_address],
         TypeProof {},
-        ctx,
+        caller,
     );
 }
 
@@ -920,7 +938,7 @@ public fun mcms_set_pool<T>(
     state: &mut LockReleaseTokenPoolState<T>,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
-    ctx: &mut TxContext,
+    _: &TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
@@ -940,7 +958,13 @@ public fun mcms_set_pool<T>(
     let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    set_pool(ref, state, owner_cap, coin_metadata_address, ctx);
+    set_pool_internal(
+        ref,
+        state,
+        owner_cap,
+        coin_metadata_address,
+        mcms_registry::get_multisig_address(),
+    );
 }
 
 public fun mcms_transfer_ownership<T>(
