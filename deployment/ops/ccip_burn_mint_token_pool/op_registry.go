@@ -12,7 +12,6 @@ var AllOperationsBurnMintTP = []cld_ops.Operation[any, any, any]{
 	*AcceptOwnershipBurnMintTokenPoolOp.AsUntyped(),
 	// Token Pool Operations
 	*BurnMintTokenPoolInitializeOp.AsUntyped(),
-	*BurnMintTokenPoolInitializeByCcipAdminOp.AsUntyped(),
 	*BurnMintTokenPoolApplyChainUpdatesOp.AsUntyped(),
 	*BurnMintTokenPoolSetChainRateLimiterOp.AsUntyped(),
 	*BurnMintTokenPoolAddRemotePoolOp.AsUntyped(),

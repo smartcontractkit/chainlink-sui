@@ -12,7 +12,6 @@ var AllOperationsLockReleaseTP = []cld_ops.Operation[any, any, any]{
 	*AcceptOwnershipLockReleaseTokenPoolOp.AsUntyped(),
 	// Token Pool Operations
 	*LockReleaseTokenPoolInitializeOp.AsUntyped(),
-	*LockReleaseTokenPoolInitializeByCcipAdminOp.AsUntyped(),
 	*LockReleaseTokenPoolApplyChainUpdatesOp.AsUntyped(),
 	*LockReleaseTokenPoolSetChainRateLimiterOp.AsUntyped(),
 	*LockReleaseTokenPoolProviderLiquidityOp.AsUntyped(),
