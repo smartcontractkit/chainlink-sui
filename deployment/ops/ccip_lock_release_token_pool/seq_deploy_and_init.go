@@ -112,6 +112,20 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 			return DeployLockReleaseTokenPoolOutput{}, err
 		}
 
+		// transfer ownership to MCMS
+		_, err = cld_ops.ExecuteOperation(
+			env,
+			TransferOwnershipLockReleaseTokenPoolOp,
+			deps,
+			TransferOwnershipLockReleaseTokenPoolInput{
+				LockReleaseTokenPoolPackageId: deployReport.Output.PackageId,
+				TypeArgs:                      []string{input.CoinObjectTypeArg},
+				StateObjectId:                 initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectId:              initReport.Output.Objects.OwnerCapObjectId,
+				To:                            input.LockReleaseTokenPoolDeployInput.MCMSAddress,
+			},
+		)
+
 		return DeployLockReleaseTokenPoolOutput{
 			LockReleaseTPPackageID: deployReport.Output.PackageId,
 			Objects: DeployLockReleaseTokenPoolObjects{

@@ -43,7 +43,7 @@ var executeOwnershipTransferToMcmsLockReleaseTokenPoolHandler = func(b cld_ops.B
 	if err != nil {
 		return sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsLockReleaseTokenPoolObjects]{}, fmt.Errorf("failed to encode ExecuteOwnershipTransferToMcms call: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, input.TypeArgs)
 	if err != nil {
 		return sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsLockReleaseTokenPoolObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}

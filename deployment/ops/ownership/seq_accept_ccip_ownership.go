@@ -1,9 +1,6 @@
 package ownershipops
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -93,9 +90,6 @@ var AcceptCCIPOwnershipSeq = cld_ops.NewSequence(
 
 			ChainSelector: input.ChainSelector,
 		}
-
-		jsonbytes, _ := json.MarshalIndent(proposalInput, "", " ")
-		fmt.Println("Accept CCIP Ownership Proposal Input: ", string(jsonbytes))
 
 		acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(env, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		if err != nil {
