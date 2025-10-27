@@ -1182,7 +1182,6 @@ public fun mcms_execute_ownership_transfer<T>(
         McmsCallback {},
     );
     execute_ownership_transfer(owner_cap, state, to, ctx);
-    transfer::public_transfer(publisher, to);
 }
 
 public fun mcms_set_pool<T>(
