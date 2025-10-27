@@ -192,9 +192,8 @@ public fun test_transfer_ownership_unauthorized() {
         NEW_OWNER,
         env.scenario.ctx(),
     );
-    transfer::public_transfer(other_user_owner_cap, OTHER_USER);
-    transfer::public_share_object(other_ownable_state);
 
+    ownable::destroy(other_ownable_state, other_user_owner_cap, env.scenario.ctx());
     tear_down(env);
     ts::return_to_address(OWNER, owner_cap);
 }

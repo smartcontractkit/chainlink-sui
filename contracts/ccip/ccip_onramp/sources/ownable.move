@@ -63,7 +63,7 @@ public fun default_key(): vector<u8> {
     DEFAULT_KEY
 }
 
-public(package) fun new(uid: &mut UID, ctx: &mut TxContext): (OwnableState, OwnerCap) {
+public(package) fun new(uid: &mut UID, ctx: &TxContext): (OwnableState, OwnerCap) {
     let owner_cap = OwnerCap { id: derived_object::claim(uid, DEFAULT_KEY) };
     new_internal(owner_cap, ctx)
 }
@@ -71,7 +71,7 @@ public(package) fun new(uid: &mut UID, ctx: &mut TxContext): (OwnableState, Owne
 public(package) fun new_with_key<K: copy + drop + store>(
     uid: &mut UID,
     key: K,
-    ctx: &mut TxContext,
+    ctx: &TxContext,
 ): (OwnableState, OwnerCap) {
     let owner_cap = OwnerCap { id: derived_object::claim(uid, key) };
     new_internal(owner_cap, ctx)

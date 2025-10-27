@@ -9,8 +9,7 @@ public struct OwnerCap<phantom T> has key, store {
     id: UID,
 }
 
-public struct OwnableState<phantom T> has key, store {
-    id: UID,
+public struct OwnableState<phantom T> has store {
     owner: address,
     pending_transfer: Option<PendingTransfer>,
     owner_cap_id: ID,
@@ -27,7 +26,6 @@ public struct PublisherKey has copy, drop, store {}
 // =================== Events =================== //
 
 public struct NewOwnableStateEvent has copy, drop, store {
-    ownable_state_id: ID,
     owner_cap_id: ID,
     owner: address,
 }
@@ -66,14 +64,12 @@ public(package) fun new<T>(ctx: &mut TxContext): (OwnableState<T>, OwnerCap<T>) 
     };
 
     let state = OwnableState<T> {
-        id: object::new(ctx),
         owner,
         pending_transfer: option::none(),
         owner_cap_id: object::id(&owner_cap),
     };
 
     event::emit(NewOwnableStateEvent {
-        ownable_state_id: object::id(&state),
         owner_cap_id: object::id(&owner_cap),
         owner,
     });
@@ -243,7 +239,6 @@ public fun execute_ownership_transfer_to_mcms<T, P: drop>(
 
 public fun destroy<T>(state: OwnableState<T>, owner_cap: OwnerCap<T>, _ctx: &mut TxContext) {
     let OwnableState<T> {
-        id: state_id,
         owner: _,
         pending_transfer: _,
         owner_cap_id: state_owner_cap_id,
@@ -253,7 +248,6 @@ public fun destroy<T>(state: OwnableState<T>, owner_cap: OwnerCap<T>, _ctx: &mut
 
     assert!(owner_cap_id.uid_to_inner() == state_owner_cap_id, EInvalidOwnerCap);
 
-    object::delete(state_id);
     object::delete(owner_cap_id);
 }
 
