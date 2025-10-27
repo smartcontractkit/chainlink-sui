@@ -728,8 +728,8 @@ public fun test_remove_package_id_invalid_owner_cap() {
 const EXPLOITER: address = @0x199;
 
 #[test]
-#[expected_failure(abort_code = mcms_registry::EWrongProofType)]
-public fun test_release_cap_should_fail_with_wrong_proof_type() {
+#[expected_failure(abort_code = mcms_registry::EProofTypeNotRegistered)]
+public fun test_release_cap_should_fail_with_proof_type_not_registered() {
     let (mut env, owner_cap, fee_quoter_cap, dest_transfer_cap) = setup();
     initialize_offramp(&mut env, &owner_cap, fee_quoter_cap, dest_transfer_cap);
 
@@ -822,7 +822,7 @@ public fun test_release_cap_should_fail_with_wrong_proof_type() {
 
     // -----------------------------------------------------
     // Attempt to extract OwnerCap with wrong witness (StaticConfig instead of McmsCallback)
-    // This SHOULD FAIL with EWrongProofType
+    // This SHOULD FAIL with EProofTypeNotRegistered
 
     let scenario_4 = ts::begin(EXPLOITER);
 
@@ -835,7 +835,7 @@ public fun test_release_cap_should_fail_with_wrong_proof_type() {
 
     let static_config = offramp::get_static_config(&env.ref, &env.state);
 
-    // This will abort with EWrongProofType because StaticConfig != McmsCallback
+    // This will abort with EProofTypeNotRegistered because StaticConfig != McmsCallback
     let extracted_owner_cap = mcms_registry::release_cap<StaticConfig, OwnerCap>(
         &mut registry,
         static_config,
@@ -848,4 +848,182 @@ public fun test_release_cap_should_fail_with_wrong_proof_type() {
     ts::return_shared(registry);
     tear_down(env);
     transfer::public_transfer(extracted_owner_cap, EXPLOITER);
+}
+
+#[test]
+public fun test_calculate_message_hash() {
+    let (env, owner_cap, fee_quoter_cap, dest_transfer_cap) = setup();
+    
+    // Expected hash values
+    let expected_hash_no_tokens = x"9f9be87e216efa0b1571131d9295e3802c5c9a3d6e369d230c72520a2e854a9e";
+    let expected_hash_with_tokens = x"d183d22cb0b713da1b6b42d9c35cc9e1268257ff703c6579d6aa68fdfb1ff4b2";
+    
+    // Test with no tokens
+    let message_id = x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+    let source_chain_selector = 123456789u64;
+    let dest_chain_selector = 987654321u64;
+    let sequence_number = 42u64;
+    let nonce = 0u64; // Must be 0 for out of order execution
+    let sender = x"8765432109fedcba8765432109fedcba87654321";
+    let receiver = @0x1234;
+    let on_ramp = b"source-onramp-address";
+    let data = b"sample message data";
+    let gas_limit = 500000u256;
+    let token_receiver = @0x0; // No tokens
+    let source_pool_addresses = vector<vector<u8>>[];
+    let dest_token_addresses = vector<address>[];
+    let dest_gas_amounts = vector<u32>[];
+    let extra_datas = vector<vector<u8>>[];
+    let amounts = vector<u256>[];
+
+    let hash_no_tokens = offramp::calculate_message_hash(
+        &env.ref,
+        message_id,
+        source_chain_selector,
+        dest_chain_selector,
+        sequence_number,
+        nonce,
+        sender,
+        receiver,
+        on_ramp,
+        data,
+        gas_limit,
+        token_receiver,
+        source_pool_addresses,
+        dest_token_addresses,
+        dest_gas_amounts,
+        extra_datas,
+        amounts,
+    );
+
+    // Verify hash is 32 bytes
+    assert!(hash_no_tokens.length() == 32, 0);
+    // Verify hash matches expected value
+    assert!(hash_no_tokens == expected_hash_no_tokens, 1);
+
+    // Test with tokens
+    let token_receiver = @0x5678;
+    let source_pool_addresses = vector[
+        x"abcdef1234567890abcdef1234567890abcdef12",
+        x"123456789abcdef123456789abcdef123456789a",
+    ];
+    let dest_token_addresses = vector[@0x5678, @0x9abc];
+    let dest_gas_amounts = vector[10000u32, 20000u32];
+    let extra_datas = vector[x"00112233", x"ffeeddcc"];
+    let amounts = vector[1000000u256, 5000000u256];
+
+    let hash_with_tokens = offramp::calculate_message_hash(
+        &env.ref,
+        message_id,
+        source_chain_selector,
+        dest_chain_selector,
+        sequence_number,
+        nonce,
+        sender,
+        receiver,
+        on_ramp,
+        data,
+        gas_limit,
+        token_receiver,
+        source_pool_addresses,
+        dest_token_addresses,
+        dest_gas_amounts,
+        extra_datas,
+        amounts,
+    );
+
+    // Verify hash is 32 bytes
+    assert!(hash_with_tokens.length() == 32, 2);
+    // Verify hash matches expected value
+    assert!(hash_with_tokens == expected_hash_with_tokens, 3);
+    
+    // Hashes should be different when tokens are included
+    assert!(hash_no_tokens != hash_with_tokens, 4);
+
+    // Test that changing any parameter changes the hash
+    let different_sequence = offramp::calculate_message_hash(
+        &env.ref,
+        message_id,
+        source_chain_selector,
+        dest_chain_selector,
+        sequence_number + 1, // Changed
+        nonce,
+        sender,
+        receiver,
+        on_ramp,
+        data,
+        gas_limit,
+        token_receiver,
+        source_pool_addresses,
+        dest_token_addresses,
+        dest_gas_amounts,
+        extra_datas,
+        amounts,
+    );
+    assert!(hash_with_tokens != different_sequence, 5);
+
+    tear_down(env);
+    ts::return_to_address(OWNER, owner_cap);
+    transfer::public_transfer(fee_quoter_cap, OWNER);
+    transfer::public_transfer(dest_transfer_cap, OWNER);
+}
+
+#[test]
+public fun test_calculate_metadata_hash() {
+    let (env, owner_cap, fee_quoter_cap, dest_transfer_cap) = setup();
+
+    // Expected hash values
+    let expected_metadata_hash = x"b62ec658417caa5bcc6ff1d8c45f8b1cb52e1b0ed71603a04b250b107ed836d9";
+    let expected_metadata_hash_different_source = x"89da72ab93f7bd546d60b58a1e1b5f628fd456fe163614ff1e31a2413ca1b55a";
+
+    let source_chain_selector = 123456789u64;
+    let dest_chain_selector = 987654321u64;
+    let on_ramp = b"source-onramp-address";
+
+    let metadata_hash = offramp::calculate_metadata_hash(
+        &env.ref,
+        source_chain_selector,
+        dest_chain_selector,
+        on_ramp,
+    );
+
+    // Verify hash is 32 bytes
+    assert!(metadata_hash.length() == 32, 0);
+    // Verify hash matches expected value
+    assert!(metadata_hash == expected_metadata_hash, 1);
+
+    // Test that changing source chain selector produces different hash
+    let metadata_hash_different_source = offramp::calculate_metadata_hash(
+        &env.ref,
+        source_chain_selector + 1,
+        dest_chain_selector,
+        on_ramp,
+    );
+    
+    assert!(metadata_hash != metadata_hash_different_source, 2);
+    // Verify the different hash matches expected value
+    assert!(metadata_hash_different_source == expected_metadata_hash_different_source, 3);
+
+    // Test that changing destination chain selector produces different hash
+    let metadata_hash_different_dest = offramp::calculate_metadata_hash(
+        &env.ref,
+        source_chain_selector,
+        dest_chain_selector + 1,
+        on_ramp,
+    );
+    assert!(metadata_hash != metadata_hash_different_dest, 4);
+
+    // Test that changing on_ramp produces different hash
+    let metadata_hash_different_onramp = offramp::calculate_metadata_hash(
+        &env.ref,
+        source_chain_selector,
+        dest_chain_selector,
+        b"different-onramp-address",
+    );
+    assert!(metadata_hash != metadata_hash_different_onramp, 5);
+
+    tear_down(env);
+    ts::return_to_address(OWNER, owner_cap);
+    transfer::public_transfer(fee_quoter_cap, OWNER);
+    transfer::public_transfer(dest_transfer_cap, OWNER);
 }

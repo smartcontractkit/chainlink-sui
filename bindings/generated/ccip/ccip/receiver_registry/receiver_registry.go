@@ -19,12 +19,12 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"receiver_registry","name":"get_receiver_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_package_id","type":"address"}]},{"package":"ccip","module":"receiver_registry","name":"get_receiver_config_fields","parameters":[{"name":"rc","type":"ReceiverConfig"}]},{"package":"ccip","module":"receiver_registry","name":"get_receiver_info","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_package_id","type":"address"}]},{"package":"ccip","module":"receiver_registry","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"receiver_registry","name":"is_registered_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_package_id","type":"address"}]},{"package":"ccip","module":"receiver_registry","name":"register_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_proof","type":"ProofType"}]},{"package":"ccip","module":"receiver_registry","name":"type_and_version","parameters":null},{"package":"ccip","module":"receiver_registry","name":"unregister_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"receiver_package_id","type":"address"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"receiver_registry","name":"get_receiver_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_package_id","type":"address"}]},{"package":"ccip","module":"receiver_registry","name":"get_receiver_config_fields","parameters":[{"name":"rc","type":"ReceiverConfig"}]},{"package":"ccip","module":"receiver_registry","name":"get_receiver_info","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_package_id","type":"address"}]},{"package":"ccip","module":"receiver_registry","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"receiver_registry","name":"is_registered_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_package_id","type":"address"}]},{"package":"ccip","module":"receiver_registry","name":"register_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"publisher_wrapper","type":"PublisherWrapper<ProofType>"},{"name":"_proof","type":"ProofType"}]},{"package":"ccip","module":"receiver_registry","name":"type_and_version","parameters":null},{"package":"ccip","module":"receiver_registry","name":"unregister_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"receiver_package_id","type":"address"}]}]`
 
 type IReceiverRegistry interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
-	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
+	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, publisherWrapper bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
 	UnregisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	IsRegisteredReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	GetReceiverConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
@@ -48,7 +48,7 @@ type ReceiverRegistryEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-	RegisterReceiver(typeArgs []string, ref bind.Object, proof bind.Object) (*bind.EncodedCall, error)
+	RegisterReceiver(typeArgs []string, ref bind.Object, publisherWrapper bind.Object, proof bind.Object) (*bind.EncodedCall, error)
 	RegisterReceiverWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	UnregisterReceiver(ref bind.Object, ownerCap bind.Object, receiverPackageId string) (*bind.EncodedCall, error)
 	UnregisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -267,8 +267,8 @@ func (c *ReceiverRegistryContract) Initialize(ctx context.Context, opts *bind.Ca
 }
 
 // RegisterReceiver executes the register_receiver Move function.
-func (c *ReceiverRegistryContract) RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.receiverRegistryEncoder.RegisterReceiver(typeArgs, ref, proof)
+func (c *ReceiverRegistryContract) RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, publisherWrapper bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.receiverRegistryEncoder.RegisterReceiver(typeArgs, ref, publisherWrapper, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -478,16 +478,18 @@ func (c receiverRegistryEncoder) InitializeWithArgs(args ...any) (*bind.EncodedC
 }
 
 // RegisterReceiver encodes a call to the register_receiver Move function.
-func (c receiverRegistryEncoder) RegisterReceiver(typeArgs []string, ref bind.Object, proof bind.Object) (*bind.EncodedCall, error) {
+func (c receiverRegistryEncoder) RegisterReceiver(typeArgs []string, ref bind.Object, publisherWrapper bind.Object, proof bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"ProofType",
 	}
 	return c.EncodeCallArgsWithGenerics("register_receiver", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
+		"PublisherWrapper<ProofType>",
 		"ProofType",
 	}, []any{
 		ref,
+		publisherWrapper,
 		proof,
 	}, nil)
 }
@@ -497,6 +499,7 @@ func (c receiverRegistryEncoder) RegisterReceiver(typeArgs []string, ref bind.Ob
 func (c receiverRegistryEncoder) RegisterReceiverWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
+		"PublisherWrapper<ProofType>",
 		"ProofType",
 	}
 

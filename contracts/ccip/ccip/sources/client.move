@@ -91,7 +91,7 @@ public struct Any2SuiMessage {
     dest_token_amounts: vector<Any2SuiTokenAmount>,
 }
 
-public struct Any2SuiTokenAmount has copy, drop, store {
+public struct Any2SuiTokenAmount has copy, drop {
     token: address,
     amount: u256,
 }
@@ -142,7 +142,7 @@ public(package) fun consume_any2sui_message(
     )
 }
 
-public fun new_dest_token_amounts(
+public(package) fun new_dest_token_amounts(
     token_addresses: vector<address>,
     token_amounts: vector<u256>,
 ): vector<Any2SuiTokenAmount> {

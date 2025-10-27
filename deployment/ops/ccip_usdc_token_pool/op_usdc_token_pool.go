@@ -14,15 +14,16 @@ import (
 
 // USDC Token Pool -- INITIALIZE
 type USDCTokenPoolInitializeObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	StateObjectId string
 }
 
 type USDCTokenPoolInitializeInput struct {
 	USDCTokenPoolPackageId string
+	OwnerCapObjectId       string
+	CCIPObjectRefObjectId  string
+	CCIPAdminProofObjectId string
 	CoinObjectTypeArg      string
 	StateObjectId          string
-	OwnerCapObjectId       string
 	CoinMetadataObjectId   string
 	LocalDomainIdentifier  uint32
 	TokenPoolPackageId     string
@@ -41,30 +42,24 @@ var initUSDCTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		input.LocalDomainIdentifier,
-		input.TokenPoolPackageId,
-		input.TokenPoolAdministrator,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[USDCTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute USDC token pool initialization: %w", err)
 	}
 
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
-	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "usdc_token_pool", "USDCTokenPoolState")
-
-	if err1 != nil || err2 != nil {
-		return sui_ops.OpTxResult[USDCTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: err1=%v, err2=%v", err1, err2)
+	stateObj, err := bind.FindObjectIdFromPublishTx(*tx, "usdc_token_pool", "USDCTokenPoolState")
+	if err != nil {
+		return sui_ops.OpTxResult[USDCTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
 	}
 
 	return sui_ops.OpTxResult[USDCTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.USDCTokenPoolPackageId,
 		Objects: USDCTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
+			StateObjectId: stateObj,
 		},
 	}, nil
 }
@@ -330,48 +325,4 @@ var USDCTokenPoolApplyAllowlistUpdatesOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Applies allowlist updates to the USDC Token Pool",
 	applyAllowlistUpdatesHandler,
-)
-
-// USDC Token Pool -- SET_POOL
-type USDCTokenPoolSetPoolInput struct {
-	USDCTokenPoolPackageId string
-	CoinObjectTypeArg      string
-	RefObjectId            string
-	StateObjectId          string
-	OwnerCap               string
-	CoinMetadataAddress    string
-}
-
-var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDCTokenPoolSetPoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_usdc_token_pool.NewUsdcTokenPool(input.USDCTokenPoolPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create USDC token pool contract: %w", err)
-	}
-
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.SetPool(
-		b.GetContext(),
-		opts,
-		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.RefObjectId},
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCap},
-		input.CoinMetadataAddress,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute set pool: %w", err)
-	}
-
-	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest,
-		PackageId: input.USDCTokenPoolPackageId,
-	}, nil
-}
-
-var USDCTokenPoolSetPoolOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "usdc_token_pool", "set_pool"),
-	semver.MustParse("0.1.0"),
-	"Sets the pool in the token admin registry for the USDC Token Pool",
-	setPoolHandler,
 )

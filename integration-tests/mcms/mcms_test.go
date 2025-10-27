@@ -6,21 +6,21 @@ import (
 	"testing"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
-	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/stretchr/testify/require"
 
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
-	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
+	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
-	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
 )
 
 type CCIPMCMSTestSuite struct {
@@ -33,150 +33,17 @@ func (s *CCIPMCMSTestSuite) SetupSuite() {
 
 func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 	s.T().Run("Transfer Ownership of CCIP to MCMS", func(t *testing.T) {
-		RunTestCCIPOwnershipTransfer(s)
+		s.RunOwnershipCCIPTransfer()
 	})
 
 	s.T().Run("Execute config proposal against CCIP from MCMS", func(t *testing.T) {
 		RunTestCCIPFeeQuoterProposal(s)
 		RunCCIPRampsProposal(s)
+		RunTestRouterProposal(s)
 	})
 }
 
 // TODO: For prod env, the initial deployment sequence should start the ownership transfer flow of every deployed contract
-func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
-	// 1a. Transfer OwnerCap of CCIP to MCMS (this should be done in the initial deployment sequence)
-	ccipContract, err := module_state_object.NewStateObject(s.ccipPackageId, s.client)
-	require.NoError(s.T(), err, "creating ccip state object contract")
-
-	tx, err := ccipContract.TransferOwnership(
-		s.T().Context(),
-		&bind.CallOpts{
-			Signer:           s.signer,
-			WaitForExecution: true,
-		},
-		bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId},
-		bind.Object{Id: s.ccipObjects.OwnerCapObjectId},
-		s.mcmsPackageID,
-	)
-	require.NoError(s.T(), err, "transferring ownership of CCIP to MCMS")
-	require.NotEmpty(s.T(), tx, "Transaction should not be empty")
-
-	s.T().Logf("✅ Transferred ownership of CCIP to MCMS in tx: %s", tx.Digest)
-
-	// 1b. Transfer ownership of the CCIP Router to MCMS
-	ccipRouterContract, err := module_router.NewRouter(s.ccipRouterPackageId, s.client)
-	require.NoError(s.T(), err, "creating ccip router contract")
-
-	tx, err = ccipRouterContract.TransferOwnership(
-		s.T().Context(),
-		&bind.CallOpts{
-			Signer:           s.signer,
-			WaitForExecution: true,
-		},
-		bind.Object{Id: s.ccipRouterObjects.RouterStateObjectId},
-		bind.Object{Id: s.ccipRouterObjects.OwnerCapObjectId},
-		s.mcmsPackageID,
-	)
-	require.NoError(s.T(), err, "transferring ownership of CCIP Router to MCMS")
-	require.NotEmpty(s.T(), tx, "Transaction should not be empty")
-
-	s.T().Logf("✅ Transferred ownership of CCIP Router to MCMS in tx: %s", tx.Digest)
-
-	// 1c. Transfer ownership of the CCIP OnRamp to MCMS
-	ccipOnRampContract, err := module_onramp.NewOnramp(s.ccipOnrampPackageId, s.client)
-	require.NoError(s.T(), err, "creating ccip onramp contract")
-
-	tx, err = ccipOnRampContract.TransferOwnership(
-		s.T().Context(),
-		&bind.CallOpts{
-			Signer:           s.signer,
-			WaitForExecution: true,
-		},
-		bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId},
-		bind.Object{Id: s.ccipOnrampObjects.StateObjectId},
-		bind.Object{Id: s.ccipOnrampObjects.OwnerCapObjectId},
-		s.mcmsPackageID,
-	)
-	require.NoError(s.T(), err, "transferring ownership of CCIP OnRamp to MCMS")
-	require.NotEmpty(s.T(), tx, "Transaction should not be empty")
-
-	s.T().Logf("✅ Transferred ownership of CCIP OnRamp to MCMS in tx: %s", tx.Digest)
-
-	// 1d. Transfer ownership of the CCIP OffRamp to MCMS
-	ccipOffRampContract, err := module_offramp.NewOfframp(s.ccipOfframpPackageId, s.client)
-	require.NoError(s.T(), err, "creating ccip offramp contract")
-
-	tx, err = ccipOffRampContract.TransferOwnership(
-		s.T().Context(),
-		&bind.CallOpts{
-			Signer:           s.signer,
-			WaitForExecution: true,
-		},
-		bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId},
-		bind.Object{Id: s.ccipOfframpObjects.StateObjectId},
-		bind.Object{Id: s.ccipOfframpObjects.OwnerCapId},
-		s.mcmsPackageID,
-	)
-	require.NoError(s.T(), err, "transferring ownership of CCIP OffRamp to MCMS")
-	require.NotEmpty(s.T(), tx, "Transaction should not be empty")
-
-	// 2. Proposal execution with acceptance from MCMS (through bypasser)
-	input := ownershipops.AcceptCCIPOwnershipInput{
-		// MCMS related
-		MCMSPackageId:     s.mcmsPackageID,
-		MCMSStateObjId:    s.mcmsObj,
-		MCMSTimelockObjId: s.timelockObj,
-		MCMSAccountObjId:  s.accountObj,
-		MCMSRegistryObjId: s.registryObj,
-
-		CCIPPackageId: s.ccipPackageId,
-		CCIPObjectRef: s.ccipObjects.CCIPObjectRefObjectId,
-
-		RouterPackageId:     s.ccipRouterPackageId,
-		RouterStateObjectId: s.ccipRouterObjects.RouterStateObjectId,
-
-		OnRampPackageId:     s.ccipOnrampPackageId,
-		OnRampStateObjectId: s.ccipOnrampObjects.StateObjectId,
-
-		OffRampPackageId:     s.ccipOfframpPackageId,
-		OffRampStateObjectId: s.ccipOfframpObjects.StateObjectId,
-
-		// Proposal
-		Role: suisdk.TimelockRoleBypasser,
-
-		ChainSelector: uint64(s.chainSelector),
-	}
-	acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(s.bundle, ownershipops.AcceptCCIPOwnershipSeq, s.deps, input)
-	s.Require().NoError(err, "executing ownership acceptance proposal sequence")
-
-	timelockProposal := acceptOwnershipProposalReport.Output
-
-	// 3. Execute transfer ownership from original owner
-	// 3.1. Execute the proposal
-	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
-
-	// 3.2. Finish the ownership transfer with the original owner signer
-	_, err = ccipContract.ExecuteOwnershipTransferToMcms(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, bind.Object{Id: s.ccipObjects.OwnerCapObjectId}, bind.Object{Id: s.registryObj}, s.mcmsPackageID)
-	s.Require().NoError(err, "executing ownership transfer of CCIP to MCMS")
-	_, err = ccipOnRampContract.ExecuteOwnershipTransferToMcms(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, bind.Object{Id: s.ccipOnrampObjects.OwnerCapObjectId}, bind.Object{Id: s.ccipOnrampObjects.StateObjectId}, bind.Object{Id: s.registryObj}, s.mcmsPackageID)
-	s.Require().NoError(err, "executing ownership transfer of OnRamp to MCMS")
-	_, err = ccipOffRampContract.ExecuteOwnershipTransferToMcms(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, bind.Object{Id: s.ccipOfframpObjects.OwnerCapId}, bind.Object{Id: s.ccipOfframpObjects.StateObjectId}, bind.Object{Id: s.registryObj}, s.mcmsPackageID)
-	s.Require().NoError(err, "executing ownership transfer of OffRamp to MCMS")
-
-	// 4. Verify the new owner is MCMS
-	newOwner, err := ccipContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId})
-	s.Require().NoError(err, "getting new owner of CCIP state object")
-	s.Require().Equal(s.mcmsPackageID, newOwner, "new owner of CCIP should be MCMS")
-
-	newOwnerOnRamp, err := ccipOnRampContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipOnrampObjects.StateObjectId})
-	s.Require().NoError(err, "getting new owner of OnRamp state object")
-	s.Require().Equal(s.mcmsPackageID, newOwnerOnRamp, "new owner of OnRamp should be MCMS")
-
-	newOwnerOffRamp, err := ccipOffRampContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipOfframpObjects.StateObjectId})
-	s.Require().NoError(err, "getting new owner of OffRamp state object")
-	s.Require().Equal(s.mcmsPackageID, newOwnerOffRamp, "new owner of OffRamp should be MCMS")
-}
-
 func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 	// 1. Build configs
 	expectedTTFC := module_fee_quoter.TokenTransferFeeConfig{
@@ -277,11 +144,12 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 			},
 		},
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
 		// Proposal
 		Role:          suisdk.TimelockRoleBypasser,
 		ChainSelector: uint64(s.chainSelector),
@@ -401,11 +269,12 @@ func RunCCIPRampsProposal(s *CCIPMCMSTestSuite) {
 			},
 		},
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
 		// Proposal
 		Role:          suisdk.TimelockRoleBypasser,
 		ChainSelector: uint64(s.chainSelector),
@@ -468,5 +337,72 @@ func RunCCIPRampsProposal(s *CCIPMCMSTestSuite) {
 	require.Equal(s.T(), expectedDCC.AllowlistEnabled, actualAllowlistEnabledFromList, "allowlist enabled should match")
 	for _, expectedSender := range expectedDCC.AllowedSenders {
 		require.Contains(s.T(), actualAllowedSenders, expectedSender, "allowed senders should contain expected sender")
+	}
+}
+
+func RunTestRouterProposal(s *CCIPMCMSTestSuite) {
+	// 1. Build configs
+	expectedDestChainSelectors := []uint64{
+		cselectors.ETHEREUM_TESTNET_SEPOLIA.Selector,
+		cselectors.ETHEREUM_TESTNET_SEPOLIA_ARBITRUM_1.Selector,
+	}
+	expectedOnRampAddresses := []string{
+		"0x1111111111111111111111111111111111111111111111111111111111111111",
+		"0x2222222222222222222222222222222222222222222222222222222222222222",
+	}
+
+	// 2. Run ops to generate proposal
+	input := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			routerops.SetOnRampsOp.Def(),
+		},
+		Inputs: []any{
+			routerops.SetOnRampsInput{
+				RouterPackageId:     s.ccipRouterPackageId,
+				RouterStateObjectId: s.ccipRouterObjects.RouterStateObjectId,
+				OwnerCapObjectId:    s.ccipRouterObjects.OwnerCapObjectId,
+				DestChainSelectors:  expectedDestChainSelectors,
+				OnRampAddresses:     expectedOnRampAddresses,
+			},
+		},
+		// MCMS related
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
+		// Proposal
+		Role:          suisdk.TimelockRoleBypasser,
+		ChainSelector: uint64(s.chainSelector),
+		Delay:         0,
+	}
+	routerReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, input)
+	s.Require().NoError(err, "executing router proposal sequence")
+
+	timelockProposal := routerReport.Output
+
+	// 3. Execute proposal
+	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+
+	// 4. Assert changes in contracts
+
+	// Create router contract instance
+	routerContract, err := module_router.NewRouter(s.ccipRouterPackageId, s.client)
+	require.NoError(s.T(), err, "creating router contract")
+
+	routerStateObj := bind.Object{Id: s.ccipRouterObjects.RouterStateObjectId}
+
+	// Verify OnRamp addresses are set correctly
+	for i, destChainSelector := range expectedDestChainSelectors {
+		// Verify chain is supported
+		isSupported, err := routerContract.DevInspect().IsChainSupported(s.T().Context(), s.deps.GetCallOpts(), routerStateObj, destChainSelector)
+		require.NoError(s.T(), err, "checking if chain is supported")
+		require.True(s.T(), isSupported, "chain %d should be supported", destChainSelector)
+
+		// Verify OnRamp address matches expected
+		actualOnRampAddress, err := routerContract.DevInspect().GetOnRamp(s.T().Context(), s.deps.GetCallOpts(), routerStateObj, destChainSelector)
+		require.NoError(s.T(), err, "getting on-ramp address for chain %d", destChainSelector)
+		require.Equal(s.T(), expectedOnRampAddresses[i], actualOnRampAddress, "on-ramp address for chain %d should match", destChainSelector)
 	}
 }

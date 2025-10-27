@@ -20,6 +20,7 @@ type LockReleaseTokenPoolDeployInput struct {
 }
 
 type LockReleaseTokenPoolDeployOutput struct {
+	OwnerCapObjectId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolDeployInput) (output sui_ops.OpTxResult[LockReleaseTokenPoolDeployOutput], err error) {
@@ -37,9 +38,17 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRele
 		return sui_ops.OpTxResult[LockReleaseTokenPoolDeployOutput]{}, err
 	}
 
+	ownerCapObj, err := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
+	if err != nil {
+		return sui_ops.OpTxResult[LockReleaseTokenPoolDeployOutput]{}, fmt.Errorf("failed to find OwnerCap object ID: %w", err)
+	}
+
 	return sui_ops.OpTxResult[LockReleaseTokenPoolDeployOutput]{
 		Digest:    tx.Digest,
 		PackageId: tokenPoolPackage.Address(),
+		Objects: LockReleaseTokenPoolDeployOutput{
+			OwnerCapObjectId: ownerCapObj,
+		},
 	}, err
 }
 

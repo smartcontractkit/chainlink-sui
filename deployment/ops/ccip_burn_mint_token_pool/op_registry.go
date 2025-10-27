@@ -15,7 +15,6 @@ var AllOperationsBurnMintTP = []cld_ops.Operation[any, any, any]{
 	*BurnMintTokenPoolApplyChainUpdatesOp.AsUntyped(),
 	*BurnMintTokenPoolSetChainRateLimiterOp.AsUntyped(),
 	*BurnMintTokenPoolAddRemotePoolOp.AsUntyped(),
-	*BurnMintTokenPoolSetPoolOp.AsUntyped(),
 	*BurnMintTokenPoolSetAllowlistEnabledOp.AsUntyped(),
 	*BurnMintTokenPoolApplyAllowlistUpdatesOp.AsUntyped(),
 	*BurnMintTokenPoolRemoveRemotePoolOp.AsUntyped(),

@@ -69,9 +69,9 @@ public fun test_create_token_transfer_params() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token in the token admin registry first
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -126,9 +126,9 @@ public fun test_create_token_transfer_params_basic() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token with TestTypeProof
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -165,9 +165,9 @@ public fun test_get_remote_chain_selector() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -232,9 +232,9 @@ public fun test_create_and_verify_token_transfer() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token in the token admin registry first
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -303,9 +303,9 @@ public fun test_add_multiple_token_transfers_should_fail() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -379,9 +379,9 @@ public fun test_get_source_token_transfer_data() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -436,9 +436,9 @@ public fun test_edge_case_large_amounts() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -483,9 +483,9 @@ public fun test_edge_case_empty_data() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -535,9 +535,9 @@ public fun test_zero_amount_transfer() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -581,9 +581,9 @@ public fun test_source_transfer_cap_permission() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),

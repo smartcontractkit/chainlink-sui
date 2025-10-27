@@ -12,6 +12,7 @@ type DeployManagedTokenObjects struct {
 	OwnerCapObjectId  string
 	StateObjectId     string
 	MinterCapObjectId string
+	PublisherObjectId string
 }
 
 type DeployManagedTokenOutput struct {
@@ -25,6 +26,7 @@ type DeployAndInitManagedTokenInput struct {
 	CoinObjectTypeArg   string
 	TreasuryCapObjectId string
 	DenyCapObjectId     string // Optional - can be empty
+	PublisherObjectId   string
 	// configure_new_minter
 	MinterAddress string
 	Allowance     uint64
@@ -50,6 +52,7 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 				CoinObjectTypeArg:     input.CoinObjectTypeArg,
 				TreasuryCapObjectId:   input.TreasuryCapObjectId,
 				DenyCapObjectId:       input.DenyCapObjectId,
+				PublisherObjectId:     deployReport.Output.Objects.PublisherObjectId,
 			},
 		)
 		if err != nil {
@@ -86,6 +89,7 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 			Objects: DeployManagedTokenObjects{
 				OwnerCapObjectId:  initReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:     initReport.Output.Objects.StateObjectId,
+				PublisherObjectId: deployReport.Output.Objects.PublisherObjectId,
 				MinterCapObjectId: minterObjectId,
 			},
 		}, nil

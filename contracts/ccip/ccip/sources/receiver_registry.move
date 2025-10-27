@@ -1,12 +1,12 @@
 module ccip::receiver_registry;
 
 use ccip::ownable::OwnerCap;
+use ccip::publisher_wrapper::{Self, PublisherWrapper};
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::upgrade_registry::verify_function_allowed;
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
-use sui::address;
 use sui::event;
 use sui::linked_table::{Self, LinkedTable};
 
@@ -15,7 +15,6 @@ public struct ReceiverConfig has copy, drop, store {
     proof_typename: ascii::String,
 }
 
-// TODO: rethink the use of vec_map here, as it is O(N) for lookups. consider a bag or other map-like structure.
 public struct ReceiverRegistry has key, store {
     id: UID,
     // receiver package id -> receiver config
@@ -54,7 +53,11 @@ public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut T
     state_object::add(ref, owner_cap, state, ctx);
 }
 
-public fun register_receiver<ProofType: drop>(ref: &mut CCIPObjectRef, _proof: ProofType) {
+public fun register_receiver<ProofType: drop>(
+    ref: &mut CCIPObjectRef,
+    publisher_wrapper: PublisherWrapper<ProofType>,
+    _proof: ProofType,
+) {
     verify_function_allowed(
         ref,
         string::utf8(b"receiver_registry"),
@@ -64,9 +67,7 @@ public fun register_receiver<ProofType: drop>(ref: &mut CCIPObjectRef, _proof: P
     let registry = state_object::borrow_mut<ReceiverRegistry>(ref);
     let proof_typename = type_name::with_defining_ids<ProofType>();
     let receiver_module_name = std::string::from_ascii(type_name::module_string(&proof_typename));
-    let receiver_package_id = address::from_ascii_bytes(
-        &ascii::into_bytes(type_name::address_string(&proof_typename)),
-    );
+    let receiver_package_id = publisher_wrapper::get_package_address(publisher_wrapper);
     assert!(!registry.receiver_configs.contains(receiver_package_id), EAlreadyRegistered);
 
     let receiver_config = ReceiverConfig {

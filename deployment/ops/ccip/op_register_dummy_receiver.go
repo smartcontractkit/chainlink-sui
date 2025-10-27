@@ -13,6 +13,7 @@ import (
 )
 
 type RegisterDummyReceiverInput struct {
+	OwnerCapObjectId       string
 	CCIPObjectRefObjectId  string
 	DummyReceiverPackageId string
 }
@@ -37,6 +38,7 @@ var registerDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	tx, err := contract.RegisterReceiver(
 		b.GetContext(),
 		opts,
+		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.CCIPObjectRefObjectId},
 	)
 	if err != nil {

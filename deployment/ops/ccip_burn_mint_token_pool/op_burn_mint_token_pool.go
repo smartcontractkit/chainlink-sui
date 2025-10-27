@@ -15,12 +15,12 @@ import (
 
 // BMTP -- INITIALIZE
 type BurnMintTokenPoolInitializeObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	StateObjectId string
 }
 
 type BurnMintTokenPoolInitializeInput struct {
 	BurnMintPackageId      string
+	OwnerCapObjectId       string
 	CoinObjectTypeArg      string
 	StateObjectId          string
 	CoinMetadataObjectId   string
@@ -40,6 +40,7 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.TreasuryCapObjectId},
@@ -49,10 +50,8 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute burn mint token pool initialization: %w", err)
 	}
 
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
-	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "burn_mint_token_pool", "BurnMintTokenPoolState")
-
-	if err1 != nil || err2 != nil {
+	stateObj, err := bind.FindObjectIdFromPublishTx(*tx, "burn_mint_token_pool", "BurnMintTokenPoolState")
+	if err != nil {
 		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
 	}
 
@@ -60,8 +59,7 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 		Digest:    tx.Digest,
 		PackageId: input.BurnMintPackageId,
 		Objects: BurnMintTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
+			StateObjectId: stateObj,
 		},
 	}, err
 }
@@ -316,74 +314,6 @@ var BurnMintTokenPoolAddRemotePoolOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Adds a remote pool in the CCIP BurnMint Token Pool contract",
 	addRemotePoolHandler,
-)
-
-// BMTP -- set_pool
-type BurnMintTokenPoolSetPoolInput struct {
-	BurnMintTokenPoolPackageId string
-	CoinObjectTypeArg          string
-	RefObjectId                string
-	StateObjectId              string
-	OwnerCap                   string
-	CoinMetadataAddress        string
-}
-
-var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolSetPoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintTokenPoolPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint token pool contract: %w", err)
-	}
-
-	encodedCall, err := contract.Encoder().SetPool(
-		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.RefObjectId},
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCap},
-		input.CoinMetadataAddress,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode SetPool call: %w", err)
-	}
-	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, []string{input.CoinObjectTypeArg})
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
-	}
-	if deps.Signer == nil {
-		b.Logger.Infow("Skipping execution of SetPool on BurnMintTokenPool as per no Signer provided")
-		return sui_ops.OpTxResult[NoObjects]{
-			Digest:    "",
-			PackageId: input.BurnMintTokenPoolPackageId,
-			Objects:   NoObjects{},
-			Call:      call,
-		}, nil
-	}
-
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
-		b.GetContext(),
-		opts,
-		encodedCall,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute burn mint token pool set pool: %w", err)
-	}
-
-	b.Logger.Infow("SetPool on BurnMintTokenPool", "BurnMintTokenPool PackageId:", input.BurnMintTokenPoolPackageId)
-
-	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest,
-		PackageId: input.BurnMintTokenPoolPackageId,
-		Objects:   NoObjects{},
-		Call:      call,
-	}, err
-}
-
-var BurnMintTokenPoolSetPoolOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "burn_mint_token_pool", "set_pool"),
-	semver.MustParse("0.1.0"),
-	"Sets the pool in the token admin registry for the CCIP Burn Mint Token Pool",
-	setPoolHandler,
 )
 
 // BMTP -- set_allowlist_enabled

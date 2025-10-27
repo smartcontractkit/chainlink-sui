@@ -2,7 +2,9 @@ module ccip::upgrade_registry;
 
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
-use std::string::{String, utf8};
+use mcms::bcs_stream;
+use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+use std::string::{Self, String};
 use sui::event;
 use sui::table::{Self, Table};
 
@@ -31,12 +33,7 @@ public struct FunctionUnblocked has copy, drop {
 const EFunctionNotAllowed: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 const EAlreadyInitialized: u64 = 3;
-const ECcipSendFunctionNotAllowed: u64 = 4;
-const ECcipSendFunctionNotAllowed1: u64 = 5;
-const ECcipSendFunctionNotAllowed2: u64 = 6;
-const ECcipSendFunctionNotAllowed3: u64 = 7;
-const ECcipSendFunctionNotAllowed4: u64 = 8;
-const ECcipSendFunctionNotAllowed5: u64 = 9;
+const EInvalidFunction: u64 = 4;
 
 public struct UpgradeRegistry has key, store {
     id: UID,
@@ -207,59 +204,135 @@ public fun verify_function_allowed(
     function_name: String,
     version: u8,
 ) {
-    if (function_name == utf8(b"ccip_send")) {
-        assert!(
-            is_function_allowed(ref, module_name, function_name, version),
-            ECcipSendFunctionNotAllowed,
-        );
-        return;
-    };
-
-    if (function_name == utf8(b"get_fee")) {
-        assert!(
-            is_function_allowed(ref, module_name, function_name, version),
-            ECcipSendFunctionNotAllowed1,
-        );
-        return;
-    };
-
-
-    if (function_name == utf8(b"calculate_message_hash")) {
-        assert!(
-            is_function_allowed(ref, module_name, function_name, version),
-            ECcipSendFunctionNotAllowed2,
-        );
-        return;
-    };
-
-
-    if (function_name == utf8(b"calculate_metadata_hash")) {
-        assert!(
-            is_function_allowed(ref, module_name, function_name, version),
-            ECcipSendFunctionNotAllowed3,
-        );
-        return;
-    };
-
-    if (function_name == utf8(b"get_validated_fee")) {
-        assert!(
-            is_function_allowed(ref, module_name, function_name, version),
-            ECcipSendFunctionNotAllowed4,
-        );
-        return;
-    };
-
-    if (function_name == utf8(b"process_message_args")) {
-        assert!(
-            is_function_allowed(ref, module_name, function_name, version),
-            ECcipSendFunctionNotAllowed5,
-        );
-        return;
-    };
-
-    // Otherwise, use the originals
-    assert!(
-        is_function_allowed(ref, module_name, function_name, version),
+   assert!(
+        is_function_allowed(
+            ref,
+            module_name,
+            function_name,
+            version,
+        ),
         EFunctionNotAllowed,
     );
+}
+
+// =================== MCMS Functions =================== //
+
+public struct McmsCallback has drop {}
+
+public fun mcms_block_version(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"block_version"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+
+    let module_name = bcs_stream::deserialize_string(&mut stream);
+    let version = bcs_stream::deserialize_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    block_version(ref, owner_cap, module_name, version, ctx);
+}
+
+public fun mcms_unblock_version(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"unblock_version"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+
+    let module_name = bcs_stream::deserialize_string(&mut stream);
+    let version = bcs_stream::deserialize_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    unblock_version(ref, owner_cap, module_name, version, ctx);
+}
+
+public fun mcms_block_function(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"block_function"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+
+    let module_name = bcs_stream::deserialize_string(&mut stream);
+    let function_name = bcs_stream::deserialize_string(&mut stream);
+    let version = bcs_stream::deserialize_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    block_function(ref, owner_cap, module_name, function_name, version, ctx);
+}
+
+public fun mcms_unblock_function(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"unblock_function"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+
+    let module_name = bcs_stream::deserialize_string(&mut stream);
+    let function_name = bcs_stream::deserialize_string(&mut stream);
+    let version = bcs_stream::deserialize_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    unblock_function(ref, owner_cap, module_name, function_name, version, ctx);
 }

@@ -707,7 +707,9 @@ var acceptOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		return sui_ops.OpTxResult[NoObjects]{}, err
 	}
 
-	encodedCall, err := ownablePackage.Encoder().AcceptOwnership(bind.Object{Id: input.StateObjectId})
+	// Use AcceptOwnershipWithArgs since OwnableState no longer has key ability
+	// We pass the full OnRampState object which contains OwnableState as a field
+	encodedCall, err := ownablePackage.Encoder().AcceptOwnershipWithArgs(bind.Object{Id: input.StateObjectId})
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
 	}

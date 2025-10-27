@@ -5,10 +5,12 @@ use ccip::allowlist;
 use ccip::eth_abi;
 use ccip::rmn_remote;
 use ccip::state_object::CCIPObjectRef;
+use std::ascii;
 use sui::clock::Clock;
 use sui::coin::CoinMetadata;
 use sui::event;
 use sui::vec_map::{Self, VecMap};
+use usdc_token_pool::rate_limiter;
 use usdc_token_pool::token_pool_rate_limiter;
 
 const MAX_U256: u256 =
@@ -19,6 +21,7 @@ public struct TokenPoolState has store {
     allowlist_state: allowlist::AllowlistState,
     coin_metadata: address,
     local_decimals: u8,
+    symbol: ascii::String,
     remote_chain_configs: VecMap<u64, RemoteChainConfig>,
     rate_limiter_config: token_pool_rate_limiter::RateLimitState,
 }
@@ -65,7 +68,7 @@ const EUnknownRemoteChainSelector: u64 = 2;
 const ECursedChain: u64 = 3;
 const ERemotePoolAlreadyAdded: u64 = 4;
 const EUnknownRemotePool: u64 = 5;
-const ERemoateChainToAddMismatch: u64 = 6;
+const ERemoteChainToAddMismatch: u64 = 6;
 const ERemoteChainAlreadyExists: u64 = 7;
 const EInvalidRemoteChainDecimals: u64 = 8;
 const EInvalidEncodedAmount: u64 = 9;
@@ -79,6 +82,7 @@ const EDecimalOverflow: u64 = 11;
 public(package) fun initialize(
     coin_metadata_address: address,
     local_decimals: u8,
+    symbol: ascii::String,
     allowlist: vector<address>,
     ctx: &mut TxContext,
 ): TokenPoolState {
@@ -86,6 +90,7 @@ public(package) fun initialize(
         allowlist_state: allowlist::new(allowlist, ctx),
         coin_metadata: coin_metadata_address,
         local_decimals,
+        symbol,
         remote_chain_configs: vec_map::empty<u64, RemoteChainConfig>(),
         rate_limiter_config: token_pool_rate_limiter::new(ctx),
     }
@@ -95,8 +100,32 @@ public fun get_token(state: &TokenPoolState): address {
     state.coin_metadata
 }
 
-public fun get_token_decimals<T>(coin_metadata: &CoinMetadata<T>): u8 {
-    coin_metadata.get_decimals()
+public fun get_symbol(state: &TokenPoolState): ascii::String {
+    state.symbol
+}
+
+public fun get_current_inbound_rate_limiter_state(
+    state: &TokenPoolState,
+    clock: &Clock,
+    remote_chain_selector: u64,
+): rate_limiter::TokenBucket {
+    token_pool_rate_limiter::get_current_inbound_rate_limiter_state(
+        &state.rate_limiter_config,
+        clock,
+        remote_chain_selector,
+    )
+}
+
+public fun get_current_outbound_rate_limiter_state(
+    state: &TokenPoolState,
+    clock: &Clock,
+    remote_chain_selector: u64,
+): rate_limiter::TokenBucket {
+    token_pool_rate_limiter::get_current_outbound_rate_limiter_state(
+        &state.rate_limiter_config,
+        clock,
+        remote_chain_selector,
+    )
 }
 
 // ================================================================
@@ -130,8 +159,8 @@ public(package) fun apply_chain_updates(
     });
 
     let add_len = remote_chain_selectors_to_add.length();
-    assert!(add_len == remote_pool_addresses_to_add.length(), ERemoateChainToAddMismatch);
-    assert!(add_len == remote_token_addresses_to_add.length(), ERemoateChainToAddMismatch);
+    assert!(add_len == remote_pool_addresses_to_add.length(), ERemoteChainToAddMismatch);
+    assert!(add_len == remote_token_addresses_to_add.length(), ERemoteChainToAddMismatch);
 
     let mut i = 0;
     while (i < add_len) {
@@ -260,9 +289,7 @@ public(package) fun validate_lock_or_burn(
     assert!(!rmn_remote::is_cursed_u128(ref, (remote_chain_selector as u128)), ECursedChain);
 
     // Allowlist check
-    if (allowlist::get_allowlist_enabled(&state.allowlist_state)) {
-        assert!(allowlist::is_allowed(&state.allowlist_state, sender), ENotPublisher);
-    };
+    assert!(allowlist::is_allowed(&state.allowlist_state, sender), ENotPublisher);
 
     if (!is_supported_chain(state, remote_chain_selector)) {
         abort EUnknownRemoteChainSelector
@@ -353,8 +380,6 @@ public fun parse_remote_decimals(source_pool_data: vector<u8>, local_decimals: u
         // Fallback to the local value.
         return local_decimals
     };
-
-    assert!(data_len == 32, EInvalidRemoteChainDecimals);
 
     let remote_decimals = eth_abi::decode_u256_value(source_pool_data);
     assert!(remote_decimals <= 255, EInvalidRemoteChainDecimals);
@@ -484,9 +509,11 @@ public(package) fun destroy_token_pool(state: TokenPoolState) {
         allowlist_state,
         coin_metadata: _coin_metadata,
         local_decimals: _local_decimals,
+        symbol: _symbol,
         remote_chain_configs: _remote_chain_configs,
         rate_limiter_config,
     } = state;
+    token_pool_rate_limiter::verify_zero_config(&rate_limiter_config);
 
     allowlist::destroy_allowlist(allowlist_state);
     token_pool_rate_limiter::destroy_rate_limiter(rate_limiter_config);

@@ -15,12 +15,12 @@ import (
 
 // MTP -- INITIALIZE_WITH_MANAGED_TOKEN
 type ManagedTokenPoolInitializeObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	StateObjectId string
 }
 
 type ManagedTokenPoolInitializeInput struct {
 	ManagedTokenPoolPackageId string
+	OwnerCapObjectId          string
 	CoinObjectTypeArg         string
 	CCIPObjectRefObjectId     string
 	ManagedTokenStateObjectId string
@@ -42,6 +42,7 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.CCIPObjectRefObjectId},
 		bind.Object{Id: input.ManagedTokenStateObjectId},
 		bind.Object{Id: input.ManagedTokenOwnerCapId},
@@ -53,10 +54,8 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute managed token pool initialization: %w", err)
 	}
 
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
-	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "managed_token_pool", "ManagedTokenPoolState")
-
-	if err1 != nil || err2 != nil {
+	stateObj, err := bind.FindObjectIdFromPublishTx(*tx, "managed_token_pool", "ManagedTokenPoolState")
+	if err != nil {
 		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
 	}
 
@@ -64,8 +63,7 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		Digest:    tx.Digest,
 		PackageId: input.ManagedTokenPoolPackageId,
 		Objects: ManagedTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
+			StateObjectId: stateObj,
 		},
 	}, err
 }
@@ -522,74 +520,4 @@ var ManagedTokenPoolApplyAllowlistUpdatesOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Applies allowlist updates in the CCIP Managed Token Pool contract",
 	applyAllowlistUpdatesHandler,
-)
-
-// MTP -- set_pool
-type ManagedTokenPoolSetPoolInput struct {
-	ManagedTokenPoolPackageId string
-	CoinObjectTypeArg         string
-	RefObjectId               string
-	StateObjectId             string
-	OwnerCap                  string
-	CoinMetadataAddress       string
-	ManagedTokenState         string
-}
-
-var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolSetPoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
-	}
-
-	encodedCall, err := contract.Encoder().SetPool(
-		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.RefObjectId},
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCap},
-		input.CoinMetadataAddress,
-		input.ManagedTokenState,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode SetPool call: %w", err)
-	}
-	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, []string{input.CoinObjectTypeArg})
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
-	}
-	if deps.Signer == nil {
-		b.Logger.Infow("Skipping execution of SetPool on ManagedTokenPool as per no Signer provided")
-		return sui_ops.OpTxResult[NoObjects]{
-			Digest:    "",
-			PackageId: input.ManagedTokenPoolPackageId,
-			Objects:   NoObjects{},
-			Call:      call,
-		}, nil
-	}
-
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
-		b.GetContext(),
-		opts,
-		encodedCall,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool set pool: %w", err)
-	}
-
-	b.Logger.Infow("SetPool on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageId)
-
-	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageId,
-		Objects:   NoObjects{},
-		Call:      call,
-	}, err
-}
-
-var ManagedTokenPoolSetPoolOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "managed_token_pool", "set_pool"),
-	semver.MustParse("0.1.0"),
-	"Sets the pool in the token admin registry for the CCIP Managed Token Pool",
-	setPoolHandler,
 )

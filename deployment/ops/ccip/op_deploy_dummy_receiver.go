@@ -27,12 +27,19 @@ var deployDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return sui_ops.OpTxResult[DeployDummyReceiverObjects]{}, err
+	}
+
 	// Compile the dummy receiver package
 	artifact, err := bind.CompilePackage(contracts.CCIPDummyReceiver, map[string]string{
 		"ccip":                input.CCIPPackageId,
 		"ccip_dummy_receiver": "0x0",
 		"mcms":                input.McmsPackageId,
 		"mcms_owner":          input.McmsOwner,
+
+		"signer": signerAddr,
 	}, false)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployDummyReceiverObjects]{}, fmt.Errorf("failed to compile dummy receiver package: %w", err)

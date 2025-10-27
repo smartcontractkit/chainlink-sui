@@ -6,4 +6,5 @@ var AllOperationsRouter = []cld_ops.Operation[any, any, any]{
 	*TransferOwnershipOp.AsUntyped(),
 	*AcceptOwnershipOp.AsUntyped(),
 	*ExecuteOwnershipTransferOp.AsUntyped(),
+	*SetOnRampsOp.AsUntyped(),
 }

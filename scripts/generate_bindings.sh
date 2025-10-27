@@ -4,9 +4,9 @@ echo "Generating bindings for Move Sui contracts..."
 # Build the bindings (add the path to contracts you want to generate bindings for)
 
 # Test Package
-# go run bindgen/main.go --moveConfig ./contracts/test/ --input ./contracts/test/sources/counter.move --output ./bindings/generated/test/counter
-# go run bindgen/main.go --moveConfig ./contracts/test/ --input ./contracts/test/sources/complex.move --output ./bindings/generated/test/complex
-# go run bindgen/main.go --moveConfig ./contracts/test/ --input ./contracts/test/sources/generics.move --output ./bindings/generated/test/generics
+go run bindgen/main.go --moveConfig ./contracts/test/ --input ./contracts/test/sources/counter.move --output ./bindings/generated/test/counter
+go run bindgen/main.go --moveConfig ./contracts/test/ --input ./contracts/test/sources/complex.move --output ./bindings/generated/test/complex
+go run bindgen/main.go --moveConfig ./contracts/test/ --input ./contracts/test/sources/generics.move --output ./bindings/generated/test/generics
 
 # CCIP
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/fee_quoter.move --output ./bindings/generated/ccip/ccip/fee_quoter

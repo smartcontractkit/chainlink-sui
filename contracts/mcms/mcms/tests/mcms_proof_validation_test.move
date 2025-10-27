@@ -1,41 +1,17 @@
 #[test_only]
 module mcms::mcms_proof_validation_test;
 
-use mcms::mcms;
 use mcms::mcms_registry;
 use mcms::mcms_test;
 use mcms::params;
+use 0x987::mock_cap;
 use std::bcs;
 use std::string;
 use std::type_name;
 
 public struct TestPackageWitness has drop {}
 
-#[test]
-#[expected_failure(abort_code = mcms::EWrongProofType)]
-fun test_validate_proof_type_registered_package_mismatch() {
-    let mut env = mcms_test::setup();
-
-    let mcms_address = mcms_registry::get_multisig_address();
-
-    // Create params with TestPackageWitness as expected type (wrong!)
-    // MCMS is registered with McmsProof, not TestPackageWitness
-    let params = mcms_registry::test_create_executing_callback_params(
-        mcms_address,
-        string::utf8(b"mcms_account"),
-        string::utf8(b"accept_ownership_as_timelock"),
-        bcs::to_bytes(&100),
-        x"b1",
-        0,
-        1,
-        type_name::with_defining_ids<TestPackageWitness>(), // WRONG proof type
-    );
-
-    // This should fail because expected_proof_type doesn't match registered type
-    mcms_test::test_mcms_dispatch_to_account(&mut env, params);
-
-    mcms_test::destroy(env);
-}
+public struct McmsAcceptOwnershipProof has drop {}
 
 #[test]
 fun test_get_callback_params_accept_ownership_valid() {
@@ -50,22 +26,18 @@ fun test_get_callback_params_accept_ownership_valid() {
         unregistered_package,
         witness_module,
         string::utf8(b"accept_ownership"),
-        bcs::to_bytes(&100u64),
+        bcs::to_bytes(&100),
         x"f1",
         0,
         1,
-        type_name::with_defining_ids<mcms_registry::McmsProof>(),
     );
 
-    let (target, module_name, function_name, data) = mcms_registry::get_callback_params(
+    let data = mcms_registry::get_accept_ownership_data(
         mcms_test::env_registry(&mut env),
         params,
-        TestPackageWitness {},
+        McmsAcceptOwnershipProof {},
     );
 
-    assert!(target == unregistered_package);
-    assert!(module_name == witness_module);
-    assert!(function_name == string::utf8(b"accept_ownership"));
     assert!(data == bcs::to_bytes(&100));
 
     mcms_test::destroy(env);
@@ -78,7 +50,7 @@ fun test_get_callback_params_accept_ownership_valid() {
         location = mcms_registry,
     ),
 ]
-fun test_get_callback_params_wrong_function() {
+fun test_get_accept_ownership_data_wrong_function() {
     let mut env = mcms_test::setup();
 
     let witness_type = type_name::with_original_ids<TestPackageWitness>();
@@ -94,22 +66,21 @@ fun test_get_callback_params_wrong_function() {
         x"01",
         0,
         1,
-        type_name::with_defining_ids<mcms_registry::McmsProof>(),
     );
 
     // Abort with EOnlyAcceptOwnershipAllowed
-    let (_, _, _, _) = mcms_registry::get_callback_params(
+    let _ = mcms_registry::get_accept_ownership_data(
         mcms_test::env_registry(&mut env),
         params,
-        TestPackageWitness {},
+        McmsAcceptOwnershipProof {},
     );
 
     mcms_test::destroy(env);
 }
 
 #[test]
-#[expected_failure(abort_code = mcms_registry::ENotMcmsAuthorized, location = mcms_registry)]
-fun test_get_callback_params_wrong_expected_proof_type() {
+#[expected_failure(abort_code = mcms_registry::EOnlyMcmsAcceptOwnershipProofAllowed, location = mcms_registry)]
+fun test_get_accept_ownership_data_wrong_proof_type() {
     let mut env = mcms_test::setup();
 
     let witness_type = type_name::with_original_ids<TestPackageWitness>();
@@ -125,11 +96,10 @@ fun test_get_callback_params_wrong_expected_proof_type() {
         x"02",
         0,
         1,
-        type_name::with_defining_ids<TestPackageWitness>(), // WRONG - should be McmsProof
     );
 
-    // Abort with ENotMcmsAuthorized
-    let (_, _, _, _) = mcms_registry::get_callback_params(
+    // Abort with EOnlyMcmsAcceptOwnershipProofAllowed
+    let _ = mcms_registry::get_accept_ownership_data(
         mcms_test::env_registry(&mut env),
         params,
         TestPackageWitness {},
@@ -140,7 +110,7 @@ fun test_get_callback_params_wrong_expected_proof_type() {
 
 #[test]
 #[expected_failure(abort_code = mcms_registry::EInvalidModuleName, location = mcms_registry)]
-fun test_get_callback_params_module_name_mismatch() {
+fun test_get_accept_ownership_data_module_name_mismatch() {
     let mut env = mcms_test::setup();
 
     let witness_type = type_name::with_original_ids<TestPackageWitness>();
@@ -154,14 +124,13 @@ fun test_get_callback_params_module_name_mismatch() {
         x"03",
         0,
         1,
-        type_name::with_defining_ids<mcms_registry::McmsProof>(),
     );
 
     // Abort with EInvalidModuleName
-    let (_, _, _, _) = mcms_registry::get_callback_params(
+    let _ = mcms_registry::get_accept_ownership_data(
         mcms_test::env_registry(&mut env),
         params,
-        TestPackageWitness {},
+        McmsAcceptOwnershipProof {},
     );
 
     mcms_test::destroy(env);
@@ -169,7 +138,7 @@ fun test_get_callback_params_module_name_mismatch() {
 
 #[test]
 #[expected_failure(abort_code = mcms_registry::EPackageIdMismatch, location = mcms_registry)]
-fun test_get_callback_params_package_id_mismatch() {
+fun test_get_accept_ownership_data_package_id_mismatch() {
     let mut env = mcms_test::setup();
 
     let witness_type = type_name::with_original_ids<TestPackageWitness>();
@@ -184,28 +153,26 @@ fun test_get_callback_params_package_id_mismatch() {
         x"08",
         0,
         1,
-        type_name::with_defining_ids<mcms_registry::McmsProof>(), // Correct expected proof type
     );
 
     // Abort with EPackageIdMismatch
     // because target (@0x9876) doesn't match proof_account_address (TestPackageWitness package)
-    let (_, _, _, _) = mcms_registry::get_callback_params(
+    let _ = mcms_registry::get_accept_ownership_data(
         mcms_test::env_registry(&mut env),
         params,
-        TestPackageWitness {},
+        McmsAcceptOwnershipProof {},
     );
 
     mcms_test::destroy(env);
 }
 
 #[test]
-fun test_expected_proof_type_accessor() {
+fun test_get_accept_ownership_data_expected_proof_type_accessor() {
     let mut env = mcms_test::setup();
 
     let witness_type = type_name::with_original_ids<TestPackageWitness>();
     let (package_addr, module_name) = params::get_account_address_and_module_name(witness_type);
 
-    let expected_type = type_name::with_defining_ids<mcms_registry::McmsProof>();
     let params = mcms_registry::test_create_executing_callback_params(
         package_addr,
         module_name,
@@ -214,28 +181,23 @@ fun test_expected_proof_type_accessor() {
         x"04",
         0,
         1,
-        expected_type,
     );
 
-    assert!(mcms_registry::expected_proof_type(&params) == expected_type);
-
-    let (_, _, _, _) = mcms_registry::get_callback_params(
+    let _ = mcms_registry::get_accept_ownership_data(
         mcms_test::env_registry(&mut env),
         params,
-        TestPackageWitness {},
+        McmsAcceptOwnershipProof {},
     );
 
     mcms_test::destroy(env);
 }
 
 #[test]
-fun test_expected_proof_type_mcms_proof() {
+fun test_get_accept_ownership_data_expected_proof_type_mcms_proof() {
     let mut env = mcms_test::setup();
 
     let witness_type = type_name::with_original_ids<TestPackageWitness>();
     let (package_addr, module_name) = params::get_account_address_and_module_name(witness_type);
-
-    let mcms_type = type_name::with_defining_ids<mcms_registry::McmsProof>();
 
     let params = mcms_registry::test_create_executing_callback_params(
         package_addr,
@@ -245,16 +207,73 @@ fun test_expected_proof_type_mcms_proof() {
         x"07",
         0,
         1,
-        mcms_type,
     );
 
-    assert!(mcms_registry::expected_proof_type(&params) == mcms_type);
-
-    let (_, _, _, _) = mcms_registry::get_callback_params(
+    let _ = mcms_registry::get_accept_ownership_data(
         mcms_test::env_registry(&mut env),
         params,
-        TestPackageWitness {},
+        McmsAcceptOwnershipProof {},
     );
 
     mcms_test::destroy(env);
+}
+
+#[test]
+#[expected_failure(abort_code = mcms_registry::ECapAddressMismatch, location = mcms_registry)]
+fun test_register_entrypoint_cap_address_mismatch() {
+    // This test verifies that a cap from package B cannot be registered with a PublisherWrapper from package A
+    // The assertion `assert!(cap_address == package_address, ECapAddressMismatch)` in register_entrypoint
+    // ensures that the cap's package address matches the PublisherWrapper's package address
+    //
+    // Test setup:
+    // - Package A = mcms package at address 0x0
+    // - Package B = mock_cap package at address 0x987
+    // - We create a PublisherWrapper from Package A (mcms)
+    // - We try to register a MockCap from Package B (mock_cap)
+    // - This should fail with ECapAddressMismatch
+
+    let mut scenario = sui::test_scenario::begin(@0x1);
+    let ctx = scenario.ctx();
+
+    // Create a registry
+    mcms_registry::test_init(ctx);
+
+    scenario.next_tx(@0x1);
+    let mut registry = scenario.take_shared<mcms_registry::Registry>();
+
+    // Create a Publisher for the mcms package (Package A at address 0x0)
+    // using test_claim with TestPackageWitness from the mcms package
+    let mcms_publisher = sui::package::test_claim(
+        TestPackageWitness {},
+        scenario.ctx(),
+    );
+
+    // Create a PublisherWrapper using TestPackageWitness from mcms package (0x0)
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        &mcms_publisher,
+        TestPackageWitness {},
+    );
+
+    // Create a MockCap from the mock_cap module (Package B at address 0x987)
+    // This is a DIFFERENT package from mcms (0x0)
+    let mock_cap_from_different_package = mock_cap::new(scenario.ctx());
+
+    // Try to register the MockCap (from 0x987 package) with publisher_wrapper (from 0x0 package)
+    // This should abort with ECapAddressMismatch because:
+    // - publisher_wrapper.package_address corresponds to mcms package (0x0)
+    // - type_name::with_original_ids<MockCap>().address_string() = "0x987" (mock_cap package)
+    // - 0x0 != 0x987, so the assertion fails
+    mcms_registry::register_entrypoint(
+        &mut registry,
+        publisher_wrapper,
+        TestPackageWitness {},
+        mock_cap_from_different_package,
+        vector[b"test_module"],
+        scenario.ctx(),
+    );
+
+    // Cleanup (this code won't be reached due to expected failure)
+    transfer::public_transfer(mcms_publisher, @0x1);
+    sui::test_scenario::return_shared(registry);
+    scenario.end();
 }

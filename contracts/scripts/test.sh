@@ -15,3 +15,4 @@ sui move test --path ccip/ccip_onramp
 sui move test --path ccip/ccip_offramp
 sui move test --path ccip/managed_token
 sui move test --path ccip/ccip_dummy_receiver
+sui move test --path ccip/managed_token_faucet

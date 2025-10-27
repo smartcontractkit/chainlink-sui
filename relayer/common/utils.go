@@ -92,3 +92,17 @@ func NormalizeName(moduleName string) string {
 	moduleName = strings.ReplaceAll(moduleName, "-", "")
 	return strings.ToLower(moduleName)
 }
+
+func GetModuleForContract(contractName string) string {
+	switch contractName {
+	case "offramp", "onramp":
+		return contractName
+	case "Counter", "counter":
+		return "counter"
+	case "Router", "router":
+		return "router"
+	default:
+		// anything under ccip module has to be state_object module
+		return "state_object"
+	}
+}

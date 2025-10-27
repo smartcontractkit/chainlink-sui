@@ -7,7 +7,6 @@ use std::type_name;
 const ETypeProofMismatch: u64 = 1;
 const ETokenTransferAlreadyExists: u64 = 2;
 const ETokenTransferDoesNotExist: u64 = 3;
-const EInvalidTokenReceiver: u64 = 4;
 
 public struct ONRAMP_STATE_HELPER has drop {}
 
@@ -25,6 +24,7 @@ public fun get_token_receiver(params: &TokenTransferParams): vector<u8> {
     params.token_receiver
 }
 
+// the amount is u64 because the token balance in SUI is u64.
 public struct TokenTransferMetadata {
     remote_chain_selector: u64,
     token_pool_package_id: address,
@@ -43,7 +43,6 @@ fun init(_witness: ONRAMP_STATE_HELPER, ctx: &mut TxContext) {
 }
 
 public fun create_token_transfer_params(token_receiver: vector<u8>): TokenTransferParams {
-    assert!(token_receiver.length() == 32, EInvalidTokenReceiver);
     TokenTransferParams {
         token_transfer: option::none(),
         token_receiver,

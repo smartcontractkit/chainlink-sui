@@ -7,11 +7,18 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 )
 
+type CCIPPoolState struct {
+	PackageID        string
+	StateObjectId    string
+	OwnerCapObjectId string
+}
+
 type CCIPChainState struct {
 	// MCMS related
 	MCMSPackageID               string
 	MCMSStateObjectID           string
 	MCMSRegistryObjectID        string
+	MCMSDeployerStateObjectID   string
 	MCMSAccountStateObjectID    string
 	MCMSAccountOwnerCapObjectID string
 	MCMSTimelockObjectID        string
@@ -21,33 +28,44 @@ type CCIPChainState struct {
 	CCIPObjectRef          string
 	CCIPOwnerCapObjectId   string
 	CCIPUpgradeCapObjectId string
+	FeeQuoterCapId         string
 
 	// CCIP Router related
 	CCIPRouterAddress       string
 	CCIPRouterStateObjectID string
 
-	TokenPoolAddress             string
-	LockReleaseAddress           string
-	LockReleaseStateId           string
-	FeeQuoterCapId               string
-	OnRampAddress                string
-	OnRampStateObjectId          string
-	OnRampOwnerCapObjectId       string
-	OnRampUpgradeCapId           string
-	OffRampAddress               string
-	OffRampOwnerCapId            string
-	OffRampUpgradeCapId          string
-	OffRampStateObjectId         string
-	LinkTokenAddress             string
-	LinkTokenCoinMetadataId      string
-	LinkTokenTreasuryCapId       string
-	CCIPBurnMintTokenPool        string
-	CCIPBurnMintTokenPoolState   string
-	CCIPBurnMintTokenPoolOwnerId string
-	UpgradeRegistryObjectId      string
-	OnRampMockV2PackageId        string
-	OffRampMockV2PackageId       string
-	CCIPMockV2PackageId          string
+	// OnRamp related
+	OnRampAddress          string
+	OnRampStateObjectId    string
+	OnRampOwnerCapObjectId string
+	OnRampUpgradeCapId     string
+
+	// OffRamp related
+	OffRampAddress       string
+	OffRampStateObjectId string
+	OffRampOwnerCapId    string
+	OffRampUpgradeCapId  string
+
+	// LINK token related
+	LinkTokenAddress        string
+	LinkTokenCoinMetadataId string
+	LinkTokenTreasuryCapId  string
+
+	// Token related
+	ManagedToken                 string
+	ManagedTokenOwnerCapObjectID string
+	ManagedTokenStateObjectID    string
+	ManagedTokenMinterCapID      string
+
+	// Token pools related
+	LnRTokenPools     map[string]CCIPPoolState
+	BnMTokenPools     map[string]CCIPPoolState
+	ManagedTokenPools map[string]CCIPPoolState
+
+	// upgrade related
+	OnRampMockV2PackageId  string
+	OffRampMockV2PackageId string
+	CCIPMockV2PackageId    string
 }
 
 // LoadOnchainStatesui loads chain state for sui chains from env
@@ -77,107 +95,86 @@ func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error
 }
 
 func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (CCIPChainState, error) {
-	chainState := CCIPChainState{}
+	chainState := CCIPChainState{
+		BnMTokenPools:     make(map[string]CCIPPoolState),
+		LnRTokenPools:     make(map[string]CCIPPoolState),
+		ManagedTokenPools: make(map[string]CCIPPoolState),
+	}
 	for addr, typeAndVersion := range addresses {
-		// Parse addresss
-
+		// Parse addresss based on type and label
 		switch typeAndVersion.Type {
 
 		// MCMS related
 		case SuiMcmsPackageIDType:
 			chainState.MCMSPackageID = addr
-
 		case SuiMcmsRegistryObjectIDType:
 			chainState.MCMSRegistryObjectID = addr
-
 		case SuiMcmsObjectIDType:
 			chainState.MCMSStateObjectID = addr
-
 		case SuiMcmsAccountStateObjectIDType:
 			chainState.MCMSAccountStateObjectID = addr
-
 		case SuiMcmsAccountOwnerCapObjectIDType:
 			chainState.MCMSAccountOwnerCapObjectID = addr
-
 		case SuiMcmsTimelockObjectIDType:
 			chainState.MCMSTimelockObjectID = addr
+		case SuiMcmsDeployerObjectIDType:
+			chainState.MCMSDeployerStateObjectID = addr
 
 		// CCIP Router related
 		case SuiCCIPRouterType:
 			chainState.CCIPRouterAddress = addr
-
 		case SuiCCIPRouterStateObjectType:
 			chainState.CCIPRouterStateObjectID = addr
 
 		// CCIP related
-		case SuiCCIPRouterType:
-			chainState.CCIPRouterAddress = addr
-
 		case SuiCCIPType:
 			chainState.CCIPAddress = addr
-
-		case SuiLockReleaseTPType:
-			chainState.LockReleaseAddress = addr
-
-		case SuiLockReleaseTPStateType:
-			chainState.LockReleaseStateId = addr
-
 		case SuiCCIPObjectRefType:
 			chainState.CCIPObjectRef = addr
-
 		case SuiCCIPOwnerCapObjectIDType:
 			chainState.CCIPOwnerCapObjectId = addr
-
 		case SuiCCIPUpgradeCapObjectIDType:
 			chainState.CCIPUpgradeCapObjectId = addr
-
 		case SuiFeeQuoterCapType:
 			chainState.FeeQuoterCapId = addr
 
+		// OnRamp related
 		case SuiOnRampType:
 			chainState.OnRampAddress = addr
-
 		case SuiOnRampStateObjectIDType:
 			chainState.OnRampStateObjectId = addr
-
 		case SuiOnRampOwnerCapObjectIDType:
 			chainState.OnRampOwnerCapObjectId = addr
-
 		case SuiOnRampUpgradeCapObjectIDType:
 			chainState.OnRampUpgradeCapId = addr
 
+		// OffRamp related
 		case SuiOffRampType:
 			chainState.OffRampAddress = addr
-
 		case SuiOffRampStateObjectIDType:
 			chainState.OffRampStateObjectId = addr
-
 		case SuiOffRampOwnerCapObjectIDType:
 			chainState.OffRampOwnerCapId = addr
-
 		case SuiOffRampUpgradeCapObjectIDType:
 			chainState.OffRampUpgradeCapId = addr
 
+		// LINK Token related
 		case SuiLinkTokenType:
 			chainState.LinkTokenAddress = addr
-
 		case SuiLinkTokenObjectMetadataID:
 			chainState.LinkTokenCoinMetadataId = addr
-
 		case SuiLinkTokenTreasuryCapID:
 			chainState.LinkTokenTreasuryCapId = addr
 
-		case SuiBnMTokenPoolType:
-			chainState.CCIPBurnMintTokenPool = addr
-
-		case SuiBnMTokenPoolStateType:
-			chainState.CCIPBurnMintTokenPoolState = addr
-
-		case SuiBnMTokenPoolOwnerIDType:
-			chainState.CCIPBurnMintTokenPoolOwnerId = addr
-
-		case SuiUpgradeRegistryObjectId:
-			chainState.UpgradeRegistryObjectId = addr
+		// Token related
+		case SuiManagedTokenType:
+			chainState.ManagedToken = addr
+		case SuiManagedTokenOwnerCapObjectID:
+			chainState.ManagedTokenOwnerCapObjectID = addr
+		case SuiManagedTokenStateObjectID:
+			chainState.ManagedTokenStateObjectID = addr
+		case SuiManagedTokenMinterCapID:
+			chainState.ManagedTokenMinterCapID = addr
 
 		case SuiOnRampMockV2:
 			chainState.OnRampMockV2PackageId = addr
@@ -187,9 +184,97 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 
 		case SuiCCIPMockV2:
 			chainState.CCIPMockV2PackageId = addr
-		}
 
-		// Set address based on type
+		// BnM Token pools related
+		case SuiBnMTokenPoolType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for BnM token pool: %w", err)
+			}
+			pool := chainState.BnMTokenPools[symbol]
+			pool.PackageID = addr
+			chainState.BnMTokenPools[symbol] = pool
+		case SuiBnMTokenPoolStateType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for BnM token pool: %w", err)
+			}
+			pool := chainState.BnMTokenPools[symbol]
+			pool.StateObjectId = addr
+			chainState.BnMTokenPools[symbol] = pool
+		case SuiBnMTokenPoolOwnerIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for BnM token pool: %w", err)
+			}
+			pool := chainState.BnMTokenPools[symbol]
+			pool.OwnerCapObjectId = addr
+			chainState.BnMTokenPools[symbol] = pool
+
+		//  LnR Token pools related
+		case SuiLnRTokenPoolType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token pool: %w", err)
+			}
+			pool := chainState.LnRTokenPools[symbol]
+			pool.PackageID = addr
+			chainState.LnRTokenPools[symbol] = pool
+		case SuiLnRTokenPoolStateType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token pool: %w", err)
+			}
+			pool := chainState.LnRTokenPools[symbol]
+			pool.StateObjectId = addr
+			chainState.LnRTokenPools[symbol] = pool
+		case SuiLnRTokenPoolOwnerIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token pool: %w", err)
+			}
+			pool := chainState.LnRTokenPools[symbol]
+			pool.OwnerCapObjectId = addr
+			chainState.LnRTokenPools[symbol] = pool
+
+		// Managed Token pools related
+		case SuiManagedTokenPoolType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token pool: %w", err)
+			}
+			pool := chainState.ManagedTokenPools[symbol]
+			pool.PackageID = addr
+			chainState.ManagedTokenPools[symbol] = pool
+		case SuiManagedTokenPoolStateType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token pool: %w", err)
+			}
+			pool := chainState.ManagedTokenPools[symbol]
+			pool.StateObjectId = addr
+			chainState.ManagedTokenPools[symbol] = pool
+		case SuiManagedTokenPoolOwnerIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token pool: %w", err)
+			}
+			pool := chainState.ManagedTokenPools[symbol]
+			pool.OwnerCapObjectId = addr
+			chainState.ManagedTokenPools[symbol] = pool
+		}
 	}
 	return chainState, nil
+}
+
+func getTokenSymbol(typeAndVersion cldf.TypeAndVersion) (string, error) {
+	if typeAndVersion.Labels.IsEmpty() {
+		return "", fmt.Errorf("no labels found for type %s", typeAndVersion.Type)
+	}
+	labels := typeAndVersion.Labels.List()
+	symbolStr := labels[0]
+	if symbolStr == "" {
+		return "", fmt.Errorf("empty symbol label for type %s", typeAndVersion.Type)
+	}
+	return symbolStr, nil
 }

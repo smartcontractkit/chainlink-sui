@@ -20,6 +20,7 @@ type BurnMintTokenPoolDeployInput struct {
 }
 
 type BurnMintTokenPoolDeployOutput struct {
+	OwnerCapObjectId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolDeployInput) (output sui_ops.OpTxResult[BurnMintTokenPoolDeployOutput], err error) {
@@ -37,9 +38,17 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMint
 		return sui_ops.OpTxResult[BurnMintTokenPoolDeployOutput]{}, err
 	}
 
+	ownerCapObj, err := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
+	if err != nil {
+		return sui_ops.OpTxResult[BurnMintTokenPoolDeployOutput]{}, fmt.Errorf("failed to find OwnerCap object ID: %w", err)
+	}
+
 	return sui_ops.OpTxResult[BurnMintTokenPoolDeployOutput]{
 		Digest:    tx.Digest,
 		PackageId: tokenPoolPackage.Address(),
+		Objects: BurnMintTokenPoolDeployOutput{
+			OwnerCapObjectId: ownerCapObj,
+		},
 	}, err
 }
 

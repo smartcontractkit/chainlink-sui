@@ -19,25 +19,27 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_onramp","module":"ownable","name":"accept_ownership","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"OwnableState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_onramp","module":"ownable","name":"default_key","parameters":null},{"package":"ccip_onramp","module":"ownable","name":"destroy","parameters":[{"name":"state","type":"OwnableState"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip_onramp","module":"ownable","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OwnableState"},{"name":"to","type":"address"}]},{"package":"ccip_onramp","module":"ownable","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OwnableState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"},{"name":"proof","type":"T"},{"name":"allowed_modules","type":"vector<vector<u8>>"}]},{"package":"ccip_onramp","module":"ownable","name":"has_pending_transfer","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"new","parameters":[{"name":"uid","type":"sui::object::UID"}]},{"package":"ccip_onramp","module":"ownable","name":"new_with_key","parameters":[{"name":"uid","type":"sui::object::UID"},{"name":"key","type":"K"}]},{"package":"ccip_onramp","module":"ownable","name":"owner","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"owner_cap_id","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"pending_transfer_from","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"pending_transfer_to","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"transfer_ownership","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OwnableState"},{"name":"to","type":"address"}]}]`
+const FunctionInfo = `[{"package":"ccip_onramp","module":"ownable","name":"accept_ownership","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"OwnableState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_onramp","module":"ownable","name":"attach_publisher","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"publisher","type":"Publisher"}]},{"package":"ccip_onramp","module":"ownable","name":"borrow_publisher","parameters":[{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip_onramp","module":"ownable","name":"default_key","parameters":null},{"package":"ccip_onramp","module":"ownable","name":"destroy","parameters":[{"name":"state","type":"OwnableState"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip_onramp","module":"ownable","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OwnableState"},{"name":"to","type":"address"}]},{"package":"ccip_onramp","module":"ownable","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OwnableState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"},{"name":"publisher_wrapper","type":"PublisherWrapper<T>"},{"name":"proof","type":"T"},{"name":"allowed_modules","type":"vector<vector<u8>>"}]},{"package":"ccip_onramp","module":"ownable","name":"has_pending_transfer","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"new","parameters":[{"name":"uid","type":"sui::object::UID"}]},{"package":"ccip_onramp","module":"ownable","name":"new_with_key","parameters":[{"name":"uid","type":"sui::object::UID"},{"name":"key","type":"K"}]},{"package":"ccip_onramp","module":"ownable","name":"owner","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"owner_cap_id","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"pending_transfer_from","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"pending_transfer_to","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"transfer_ownership","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OwnableState"},{"name":"to","type":"address"}]}]`
 
 type IOwnable interface {
 	DefaultKey(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	New(ctx context.Context, opts *bind.CallOpts, uid string) (*models.SuiTransactionBlockResponse, error)
 	NewWithKey(ctx context.Context, opts *bind.CallOpts, typeArgs []string, uid string, key bind.Object) (*models.SuiTransactionBlockResponse, error)
-	OwnerCapId(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	TransferOwnership(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
-	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
-	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, mcms string) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string, proof bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error)
-	Destroy(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	OwnerCapId(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error)
+	Owner(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error)
+	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error)
+	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error)
+	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error)
+	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error)
+	AttachPublisher(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, publisher bind.Object) (*models.SuiTransactionBlockResponse, error)
+	BorrowPublisher(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	TransferOwnership(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state OwnableState, to string) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state OwnableState, from string) (*models.SuiTransactionBlockResponse, error)
+	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state OwnableState, mcms string) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state OwnableState, to string) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state OwnableState, registry bind.Object, to string, publisherWrapper bind.Object, proof bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error)
+	Destroy(ctx context.Context, opts *bind.CallOpts, state OwnableState, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOwnableDevInspect
 	Encoder() OwnableEncoder
 	Bound() bind.IBoundContract
@@ -47,12 +49,13 @@ type IOwnableDevInspect interface {
 	DefaultKey(ctx context.Context, opts *bind.CallOpts) ([]byte, error)
 	New(ctx context.Context, opts *bind.CallOpts, uid string) ([]any, error)
 	NewWithKey(ctx context.Context, opts *bind.CallOpts, typeArgs []string, uid string, key bind.Object) ([]any, error)
-	OwnerCapId(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bind.Object, error)
-	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
-	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error)
-	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error)
-	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error)
-	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*bool, error)
+	OwnerCapId(ctx context.Context, opts *bind.CallOpts, state OwnableState) (bind.Object, error)
+	Owner(ctx context.Context, opts *bind.CallOpts, state OwnableState) (string, error)
+	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state OwnableState) (bool, error)
+	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*string, error)
+	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*string, error)
+	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*bool, error)
+	BorrowPublisher(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object) (bind.Object, error)
 }
 
 type OwnableEncoder interface {
@@ -62,31 +65,35 @@ type OwnableEncoder interface {
 	NewWithArgs(args ...any) (*bind.EncodedCall, error)
 	NewWithKey(typeArgs []string, uid string, key bind.Object) (*bind.EncodedCall, error)
 	NewWithKeyWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	OwnerCapId(state bind.Object) (*bind.EncodedCall, error)
+	OwnerCapId(state OwnableState) (*bind.EncodedCall, error)
 	OwnerCapIdWithArgs(args ...any) (*bind.EncodedCall, error)
-	Owner(state bind.Object) (*bind.EncodedCall, error)
+	Owner(state OwnableState) (*bind.EncodedCall, error)
 	OwnerWithArgs(args ...any) (*bind.EncodedCall, error)
-	HasPendingTransfer(state bind.Object) (*bind.EncodedCall, error)
+	HasPendingTransfer(state OwnableState) (*bind.EncodedCall, error)
 	HasPendingTransferWithArgs(args ...any) (*bind.EncodedCall, error)
-	PendingTransferFrom(state bind.Object) (*bind.EncodedCall, error)
+	PendingTransferFrom(state OwnableState) (*bind.EncodedCall, error)
 	PendingTransferFromWithArgs(args ...any) (*bind.EncodedCall, error)
-	PendingTransferTo(state bind.Object) (*bind.EncodedCall, error)
+	PendingTransferTo(state OwnableState) (*bind.EncodedCall, error)
 	PendingTransferToWithArgs(args ...any) (*bind.EncodedCall, error)
-	PendingTransferAccepted(state bind.Object) (*bind.EncodedCall, error)
+	PendingTransferAccepted(state OwnableState) (*bind.EncodedCall, error)
 	PendingTransferAcceptedWithArgs(args ...any) (*bind.EncodedCall, error)
-	TransferOwnership(ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error)
+	AttachPublisher(ownerCap bind.Object, publisher bind.Object) (*bind.EncodedCall, error)
+	AttachPublisherWithArgs(args ...any) (*bind.EncodedCall, error)
+	BorrowPublisher(ownerCap bind.Object) (*bind.EncodedCall, error)
+	BorrowPublisherWithArgs(args ...any) (*bind.EncodedCall, error)
+	TransferOwnership(ownerCap bind.Object, state OwnableState, to string) (*bind.EncodedCall, error)
 	TransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	AcceptOwnership(state bind.Object) (*bind.EncodedCall, error)
+	AcceptOwnership(state OwnableState) (*bind.EncodedCall, error)
 	AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error)
+	AcceptOwnershipFromObject(state OwnableState, from string) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsAcceptOwnership(state bind.Object, mcms string) (*bind.EncodedCall, error)
+	McmsAcceptOwnership(state OwnableState, mcms string) (*bind.EncodedCall, error)
 	McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransfer(ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransfer(ownerCap bind.Object, state OwnableState, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string, proof bind.Object, allowedModules [][]byte) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state OwnableState, registry bind.Object, to string, publisherWrapper bind.Object, proof bind.Object, allowedModules [][]byte) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	Destroy(state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
+	Destroy(state OwnableState, ownerCap bind.Object) (*bind.EncodedCall, error)
 	DestroyWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
@@ -134,7 +141,6 @@ type OwnerCap struct {
 }
 
 type OwnableState struct {
-	Id              string           `move:"sui::object::UID"`
 	Owner           string           `move:"address"`
 	PendingTransfer *PendingTransfer `move:"0x1::option::Option<PendingTransfer>"`
 	OwnerCapId      bind.Object      `move:"ID"`
@@ -146,10 +152,12 @@ type PendingTransfer struct {
 	Accepted bool   `move:"bool"`
 }
 
+type PublisherKey struct {
+}
+
 type NewOwnableStateEvent struct {
-	OwnableStateId bind.Object `move:"ID"`
-	OwnerCapId     bind.Object `move:"ID"`
-	Owner          string      `move:"address"`
+	OwnerCapId bind.Object `move:"ID"`
+	Owner      string      `move:"address"`
 }
 
 type OwnershipTransferRequested struct {
@@ -168,7 +176,6 @@ type OwnershipTransferred struct {
 }
 
 type bcsOwnableState struct {
-	Id              string
 	Owner           [32]byte
 	PendingTransfer *PendingTransfer
 	OwnerCapId      bind.Object
@@ -177,7 +184,6 @@ type bcsOwnableState struct {
 func convertOwnableStateFromBCS(bcs bcsOwnableState) (OwnableState, error) {
 
 	return OwnableState{
-		Id:              bcs.Id,
 		Owner:           fmt.Sprintf("0x%x", bcs.Owner),
 		PendingTransfer: bcs.PendingTransfer,
 		OwnerCapId:      bcs.OwnerCapId,
@@ -200,17 +206,15 @@ func convertPendingTransferFromBCS(bcs bcsPendingTransfer) (PendingTransfer, err
 }
 
 type bcsNewOwnableStateEvent struct {
-	OwnableStateId bind.Object
-	OwnerCapId     bind.Object
-	Owner          [32]byte
+	OwnerCapId bind.Object
+	Owner      [32]byte
 }
 
 func convertNewOwnableStateEventFromBCS(bcs bcsNewOwnableStateEvent) (NewOwnableStateEvent, error) {
 
 	return NewOwnableStateEvent{
-		OwnableStateId: bcs.OwnableStateId,
-		OwnerCapId:     bcs.OwnerCapId,
-		Owner:          fmt.Sprintf("0x%x", bcs.Owner),
+		OwnerCapId: bcs.OwnerCapId,
+		Owner:      fmt.Sprintf("0x%x", bcs.Owner),
 	}, nil
 }
 
@@ -330,6 +334,23 @@ func init() {
 				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
 			}
 			results[i] = result
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip_onramp::ownable::PublisherKey", func(data []byte) (interface{}, error) {
+		var result PublisherKey
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for PublisherKey
+	bind.RegisterStructDecoder("vector<ccip_onramp::ownable::PublisherKey>", func(data []byte) (interface{}, error) {
+		var results []PublisherKey
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
 		}
 		return results, nil
 	})
@@ -490,7 +511,7 @@ func (c *OwnableContract) NewWithKey(ctx context.Context, opts *bind.CallOpts, t
 }
 
 // OwnerCapId executes the owner_cap_id Move function.
-func (c *OwnableContract) OwnerCapId(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+func (c *OwnableContract) OwnerCapId(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.ownableEncoder.OwnerCapId(state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -500,7 +521,7 @@ func (c *OwnableContract) OwnerCapId(ctx context.Context, opts *bind.CallOpts, s
 }
 
 // Owner executes the owner Move function.
-func (c *OwnableContract) Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+func (c *OwnableContract) Owner(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.ownableEncoder.Owner(state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -510,7 +531,7 @@ func (c *OwnableContract) Owner(ctx context.Context, opts *bind.CallOpts, state 
 }
 
 // HasPendingTransfer executes the has_pending_transfer Move function.
-func (c *OwnableContract) HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+func (c *OwnableContract) HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.ownableEncoder.HasPendingTransfer(state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -520,7 +541,7 @@ func (c *OwnableContract) HasPendingTransfer(ctx context.Context, opts *bind.Cal
 }
 
 // PendingTransferFrom executes the pending_transfer_from Move function.
-func (c *OwnableContract) PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+func (c *OwnableContract) PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.ownableEncoder.PendingTransferFrom(state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -530,7 +551,7 @@ func (c *OwnableContract) PendingTransferFrom(ctx context.Context, opts *bind.Ca
 }
 
 // PendingTransferTo executes the pending_transfer_to Move function.
-func (c *OwnableContract) PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+func (c *OwnableContract) PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.ownableEncoder.PendingTransferTo(state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -540,7 +561,7 @@ func (c *OwnableContract) PendingTransferTo(ctx context.Context, opts *bind.Call
 }
 
 // PendingTransferAccepted executes the pending_transfer_accepted Move function.
-func (c *OwnableContract) PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+func (c *OwnableContract) PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.ownableEncoder.PendingTransferAccepted(state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -549,8 +570,28 @@ func (c *OwnableContract) PendingTransferAccepted(ctx context.Context, opts *bin
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// AttachPublisher executes the attach_publisher Move function.
+func (c *OwnableContract) AttachPublisher(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, publisher bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.ownableEncoder.AttachPublisher(ownerCap, publisher)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// BorrowPublisher executes the borrow_publisher Move function.
+func (c *OwnableContract) BorrowPublisher(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.ownableEncoder.BorrowPublisher(ownerCap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // TransferOwnership executes the transfer_ownership Move function.
-func (c *OwnableContract) TransferOwnership(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+func (c *OwnableContract) TransferOwnership(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state OwnableState, to string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.ownableEncoder.TransferOwnership(ownerCap, state, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -560,7 +601,7 @@ func (c *OwnableContract) TransferOwnership(ctx context.Context, opts *bind.Call
 }
 
 // AcceptOwnership executes the accept_ownership Move function.
-func (c *OwnableContract) AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+func (c *OwnableContract) AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.ownableEncoder.AcceptOwnership(state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -570,7 +611,7 @@ func (c *OwnableContract) AcceptOwnership(ctx context.Context, opts *bind.CallOp
 }
 
 // AcceptOwnershipFromObject executes the accept_ownership_from_object Move function.
-func (c *OwnableContract) AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error) {
+func (c *OwnableContract) AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state OwnableState, from string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.ownableEncoder.AcceptOwnershipFromObject(state, from)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -580,7 +621,7 @@ func (c *OwnableContract) AcceptOwnershipFromObject(ctx context.Context, opts *b
 }
 
 // McmsAcceptOwnership executes the mcms_accept_ownership Move function.
-func (c *OwnableContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, mcms string) (*models.SuiTransactionBlockResponse, error) {
+func (c *OwnableContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state OwnableState, mcms string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.ownableEncoder.McmsAcceptOwnership(state, mcms)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -590,7 +631,7 @@ func (c *OwnableContract) McmsAcceptOwnership(ctx context.Context, opts *bind.Ca
 }
 
 // ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
-func (c *OwnableContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+func (c *OwnableContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state OwnableState, to string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.ownableEncoder.ExecuteOwnershipTransfer(ownerCap, state, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -600,8 +641,8 @@ func (c *OwnableContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bi
 }
 
 // ExecuteOwnershipTransferToMcms executes the execute_ownership_transfer_to_mcms Move function.
-func (c *OwnableContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string, proof bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.ownableEncoder.ExecuteOwnershipTransferToMcms(typeArgs, ownerCap, state, registry, to, proof, allowedModules)
+func (c *OwnableContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state OwnableState, registry bind.Object, to string, publisherWrapper bind.Object, proof bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.ownableEncoder.ExecuteOwnershipTransferToMcms(typeArgs, ownerCap, state, registry, to, publisherWrapper, proof, allowedModules)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -610,7 +651,7 @@ func (c *OwnableContract) ExecuteOwnershipTransferToMcms(ctx context.Context, op
 }
 
 // Destroy executes the destroy Move function.
-func (c *OwnableContract) Destroy(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+func (c *OwnableContract) Destroy(ctx context.Context, opts *bind.CallOpts, state OwnableState, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.ownableEncoder.Destroy(state, ownerCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -672,7 +713,7 @@ func (d *OwnableDevInspect) NewWithKey(ctx context.Context, opts *bind.CallOpts,
 // OwnerCapId executes the owner_cap_id Move function using DevInspect to get return values.
 //
 // Returns: ID
-func (d *OwnableDevInspect) OwnerCapId(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bind.Object, error) {
+func (d *OwnableDevInspect) OwnerCapId(ctx context.Context, opts *bind.CallOpts, state OwnableState) (bind.Object, error) {
 	encoded, err := d.contract.ownableEncoder.OwnerCapId(state)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
@@ -694,7 +735,7 @@ func (d *OwnableDevInspect) OwnerCapId(ctx context.Context, opts *bind.CallOpts,
 // Owner executes the owner Move function using DevInspect to get return values.
 //
 // Returns: address
-func (d *OwnableDevInspect) Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error) {
+func (d *OwnableDevInspect) Owner(ctx context.Context, opts *bind.CallOpts, state OwnableState) (string, error) {
 	encoded, err := d.contract.ownableEncoder.Owner(state)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode function call: %w", err)
@@ -716,7 +757,7 @@ func (d *OwnableDevInspect) Owner(ctx context.Context, opts *bind.CallOpts, stat
 // HasPendingTransfer executes the has_pending_transfer Move function using DevInspect to get return values.
 //
 // Returns: bool
-func (d *OwnableDevInspect) HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error) {
+func (d *OwnableDevInspect) HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state OwnableState) (bool, error) {
 	encoded, err := d.contract.ownableEncoder.HasPendingTransfer(state)
 	if err != nil {
 		return false, fmt.Errorf("failed to encode function call: %w", err)
@@ -738,7 +779,7 @@ func (d *OwnableDevInspect) HasPendingTransfer(ctx context.Context, opts *bind.C
 // PendingTransferFrom executes the pending_transfer_from Move function using DevInspect to get return values.
 //
 // Returns: 0x1::option::Option<address>
-func (d *OwnableDevInspect) PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error) {
+func (d *OwnableDevInspect) PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*string, error) {
 	encoded, err := d.contract.ownableEncoder.PendingTransferFrom(state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -760,7 +801,7 @@ func (d *OwnableDevInspect) PendingTransferFrom(ctx context.Context, opts *bind.
 // PendingTransferTo executes the pending_transfer_to Move function using DevInspect to get return values.
 //
 // Returns: 0x1::option::Option<address>
-func (d *OwnableDevInspect) PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error) {
+func (d *OwnableDevInspect) PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*string, error) {
 	encoded, err := d.contract.ownableEncoder.PendingTransferTo(state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -782,7 +823,7 @@ func (d *OwnableDevInspect) PendingTransferTo(ctx context.Context, opts *bind.Ca
 // PendingTransferAccepted executes the pending_transfer_accepted Move function using DevInspect to get return values.
 //
 // Returns: 0x1::option::Option<bool>
-func (d *OwnableDevInspect) PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*bool, error) {
+func (d *OwnableDevInspect) PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state OwnableState) (*bool, error) {
 	encoded, err := d.contract.ownableEncoder.PendingTransferAccepted(state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -797,6 +838,28 @@ func (d *OwnableDevInspect) PendingTransferAccepted(ctx context.Context, opts *b
 	result, ok := results[0].(*bool)
 	if !ok {
 		return nil, fmt.Errorf("unexpected return type: expected *bool, got %T", results[0])
+	}
+	return result, nil
+}
+
+// BorrowPublisher executes the borrow_publisher Move function using DevInspect to get return values.
+//
+// Returns: &Publisher
+func (d *OwnableDevInspect) BorrowPublisher(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.ownableEncoder.BorrowPublisher(ownerCap)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
 	}
 	return result, nil
 }
@@ -901,7 +964,7 @@ func (c ownableEncoder) NewWithKeyWithArgs(typeArgs []string, args ...any) (*bin
 }
 
 // OwnerCapId encodes a call to the owner_cap_id Move function.
-func (c ownableEncoder) OwnerCapId(state bind.Object) (*bind.EncodedCall, error) {
+func (c ownableEncoder) OwnerCapId(state OwnableState) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("owner_cap_id", typeArgsList, typeParamsList, []string{
@@ -931,7 +994,7 @@ func (c ownableEncoder) OwnerCapIdWithArgs(args ...any) (*bind.EncodedCall, erro
 }
 
 // Owner encodes a call to the owner Move function.
-func (c ownableEncoder) Owner(state bind.Object) (*bind.EncodedCall, error) {
+func (c ownableEncoder) Owner(state OwnableState) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("owner", typeArgsList, typeParamsList, []string{
@@ -961,7 +1024,7 @@ func (c ownableEncoder) OwnerWithArgs(args ...any) (*bind.EncodedCall, error) {
 }
 
 // HasPendingTransfer encodes a call to the has_pending_transfer Move function.
-func (c ownableEncoder) HasPendingTransfer(state bind.Object) (*bind.EncodedCall, error) {
+func (c ownableEncoder) HasPendingTransfer(state OwnableState) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("has_pending_transfer", typeArgsList, typeParamsList, []string{
@@ -991,7 +1054,7 @@ func (c ownableEncoder) HasPendingTransferWithArgs(args ...any) (*bind.EncodedCa
 }
 
 // PendingTransferFrom encodes a call to the pending_transfer_from Move function.
-func (c ownableEncoder) PendingTransferFrom(state bind.Object) (*bind.EncodedCall, error) {
+func (c ownableEncoder) PendingTransferFrom(state OwnableState) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("pending_transfer_from", typeArgsList, typeParamsList, []string{
@@ -1021,7 +1084,7 @@ func (c ownableEncoder) PendingTransferFromWithArgs(args ...any) (*bind.EncodedC
 }
 
 // PendingTransferTo encodes a call to the pending_transfer_to Move function.
-func (c ownableEncoder) PendingTransferTo(state bind.Object) (*bind.EncodedCall, error) {
+func (c ownableEncoder) PendingTransferTo(state OwnableState) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("pending_transfer_to", typeArgsList, typeParamsList, []string{
@@ -1051,7 +1114,7 @@ func (c ownableEncoder) PendingTransferToWithArgs(args ...any) (*bind.EncodedCal
 }
 
 // PendingTransferAccepted encodes a call to the pending_transfer_accepted Move function.
-func (c ownableEncoder) PendingTransferAccepted(state bind.Object) (*bind.EncodedCall, error) {
+func (c ownableEncoder) PendingTransferAccepted(state OwnableState) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("pending_transfer_accepted", typeArgsList, typeParamsList, []string{
@@ -1080,8 +1143,67 @@ func (c ownableEncoder) PendingTransferAcceptedWithArgs(args ...any) (*bind.Enco
 	})
 }
 
+// AttachPublisher encodes a call to the attach_publisher Move function.
+func (c ownableEncoder) AttachPublisher(ownerCap bind.Object, publisher bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("attach_publisher", typeArgsList, typeParamsList, []string{
+		"&mut OwnerCap",
+		"Publisher",
+	}, []any{
+		ownerCap,
+		publisher,
+	}, nil)
+}
+
+// AttachPublisherWithArgs encodes a call to the attach_publisher Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c ownableEncoder) AttachPublisherWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OwnerCap",
+		"Publisher",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("attach_publisher", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// BorrowPublisher encodes a call to the borrow_publisher Move function.
+func (c ownableEncoder) BorrowPublisher(ownerCap bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("borrow_publisher", typeArgsList, typeParamsList, []string{
+		"&OwnerCap",
+	}, []any{
+		ownerCap,
+	}, []string{
+		"&Publisher",
+	})
+}
+
+// BorrowPublisherWithArgs encodes a call to the borrow_publisher Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c ownableEncoder) BorrowPublisherWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&OwnerCap",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("borrow_publisher", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"&Publisher",
+	})
+}
+
 // TransferOwnership encodes a call to the transfer_ownership Move function.
-func (c ownableEncoder) TransferOwnership(ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error) {
+func (c ownableEncoder) TransferOwnership(ownerCap bind.Object, state OwnableState, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("transfer_ownership", typeArgsList, typeParamsList, []string{
@@ -1113,7 +1235,7 @@ func (c ownableEncoder) TransferOwnershipWithArgs(args ...any) (*bind.EncodedCal
 }
 
 // AcceptOwnership encodes a call to the accept_ownership Move function.
-func (c ownableEncoder) AcceptOwnership(state bind.Object) (*bind.EncodedCall, error) {
+func (c ownableEncoder) AcceptOwnership(state OwnableState) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("accept_ownership", typeArgsList, typeParamsList, []string{
@@ -1139,7 +1261,7 @@ func (c ownableEncoder) AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall,
 }
 
 // AcceptOwnershipFromObject encodes a call to the accept_ownership_from_object Move function.
-func (c ownableEncoder) AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error) {
+func (c ownableEncoder) AcceptOwnershipFromObject(state OwnableState, from string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("accept_ownership_from_object", typeArgsList, typeParamsList, []string{
@@ -1168,7 +1290,7 @@ func (c ownableEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.En
 }
 
 // McmsAcceptOwnership encodes a call to the mcms_accept_ownership Move function.
-func (c ownableEncoder) McmsAcceptOwnership(state bind.Object, mcms string) (*bind.EncodedCall, error) {
+func (c ownableEncoder) McmsAcceptOwnership(state OwnableState, mcms string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_accept_ownership", typeArgsList, typeParamsList, []string{
@@ -1197,7 +1319,7 @@ func (c ownableEncoder) McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedC
 }
 
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
-func (c ownableEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error) {
+func (c ownableEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, state OwnableState, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
@@ -1229,7 +1351,7 @@ func (c ownableEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.Enc
 }
 
 // ExecuteOwnershipTransferToMcms encodes a call to the execute_ownership_transfer_to_mcms Move function.
-func (c ownableEncoder) ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string, proof bind.Object, allowedModules [][]byte) (*bind.EncodedCall, error) {
+func (c ownableEncoder) ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state OwnableState, registry bind.Object, to string, publisherWrapper bind.Object, proof bind.Object, allowedModules [][]byte) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1239,6 +1361,7 @@ func (c ownableEncoder) ExecuteOwnershipTransferToMcms(typeArgs []string, ownerC
 		"&mut OwnableState",
 		"&mut Registry",
 		"address",
+		"PublisherWrapper<T>",
 		"T",
 		"vector<vector<u8>>",
 	}, []any{
@@ -1246,6 +1369,7 @@ func (c ownableEncoder) ExecuteOwnershipTransferToMcms(typeArgs []string, ownerC
 		state,
 		registry,
 		to,
+		publisherWrapper,
 		proof,
 		allowedModules,
 	}, nil)
@@ -1259,6 +1383,7 @@ func (c ownableEncoder) ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string
 		"&mut OwnableState",
 		"&mut Registry",
 		"address",
+		"PublisherWrapper<T>",
 		"T",
 		"vector<vector<u8>>",
 	}
@@ -1274,7 +1399,7 @@ func (c ownableEncoder) ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string
 }
 
 // Destroy encodes a call to the destroy Move function.
-func (c ownableEncoder) Destroy(state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
+func (c ownableEncoder) Destroy(state OwnableState, ownerCap bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("destroy", typeArgsList, typeParamsList, []string{

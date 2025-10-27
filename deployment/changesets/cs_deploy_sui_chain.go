@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
@@ -32,7 +32,7 @@ type DeploySuiChain struct{}
 // Apply implements deployment.ChangeSetV2.
 func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
-	seqReports := make([]operations.Report[any, any], 0)
+	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	suiChain := e.BlockChains.SuiChains()[config.SuiChainSelector]
 	signer := suiChain.Signer
@@ -85,10 +85,9 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		mcmsPackageId = mcmsReport.Output.PackageId
 	}
 
-	fmt.Println("DEPLOYED MCMS: ", mcmsSeqReport.Output.PackageId)
 	// Deploy Router
 	// TODO: Maybe make this part of CCIP sequence
-	routerReport, err := operations.ExecuteOperation(e.OperationsBundle, routerops.DeployCCIPRouterOp, deps, routerops.DeployCCIPRouterInput{
+	routerReport, err := cld_ops.ExecuteOperation(e.OperationsBundle, routerops.DeployCCIPRouterOp, deps, routerops.DeployCCIPRouterInput{
 		McmsPackageId: mcmsPackageId,
 		McmsOwner:     signerAddr,
 	})
@@ -97,7 +96,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	}
 
 	// Transfer ownership of Router to MCMS
-	_, err = operations.ExecuteOperation(e.OperationsBundle, routerops.TransferOwnershipOp, deps, routerops.TransferOwnershipInput{
+	_, err = cld_ops.ExecuteOperation(e.OperationsBundle, routerops.TransferOwnershipOp, deps, routerops.TransferOwnershipInput{
 		RouterPackageId:     routerReport.Output.PackageId,
 		RouterStateObjectId: routerReport.Output.Objects.RouterStateObjectId,
 		OwnerCapObjectId:    routerReport.Output.Objects.OwnerCapObjectId,
@@ -132,7 +131,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	ccipSeqInput.DeployCCIPInput.McmsPackageId = mcmsPackageId
 	ccipSeqInput.DeployCCIPInput.McmsOwner = signerAddr
 
-	ccipSeqReport, err := operations.ExecuteSequence(e.OperationsBundle, ccipops.DeployAndInitCCIPSequence, deps, ccipSeqInput)
+	ccipSeqReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, ccipops.DeployAndInitCCIPSequence, deps, ccipSeqInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIP for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
@@ -208,7 +207,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	ccipOnRampSeqInput.ApplyDestChainConfigureOnRampInput.DestChainRouters = []string{routerReport.Output.PackageId}
 	ccipOnRampSeqInput.ApplyDestChainConfigureOnRampInput.CCIPObjectRefId = ccipSeqReport.Output.Objects.CCIPObjectRefObjectId
 
-	ccipOnRampSeqReport, err := operations.ExecuteSequence(e.OperationsBundle, onrampops.DeployAndInitCCIPOnRampSequence, deps, ccipOnRampSeqInput)
+	ccipOnRampSeqReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, onrampops.DeployAndInitCCIPOnRampSequence, deps, ccipOnRampSeqInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIP for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
@@ -263,7 +262,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	}
 	ccipOffRampSeqInput.InitializeOffRampInput.SourceChainsOnRamp = onRampBytes
 
-	ccipOffRampSeqReport, err := operations.ExecuteSequence(e.OperationsBundle, offrampops.DeployAndInitCCIPOffRampSequence, deps, ccipOffRampSeqInput)
+	ccipOffRampSeqReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, offrampops.DeployAndInitCCIPOffRampSequence, deps, ccipOffRampSeqInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIP for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
