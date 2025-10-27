@@ -20,7 +20,6 @@ use sui::address;
 use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self, Scenario};
-use mcms::bcs_stream;
 
 public struct MANAGED_TOKEN_POOL_TESTS has drop {}
 
@@ -30,20 +29,6 @@ const DefaultRemotePool: vector<u8> = b"default_remote_pool";
 const DefaultRemoteToken: vector<u8> = b"default_remote_token";
 
 const CCIP_ADMIN: address = @0x400;
-
-/// Helper function to create proof data for initialize_by_ccip_admin
-fun create_init_proof_data(
-    token_pool_administrator: address,
-    managed_token_state_address: address,
-): vector<u8> {
-    let mut proof_data = vector[];
-    proof_data.append(bcs::to_bytes(&@managed_token_pool));
-    proof_data.append(bcs::to_bytes(&string::utf8(b"managed_token_pool")));
-    proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
-    proof_data.append(bcs::to_bytes(&token_pool_administrator));
-    proof_data.append(bcs::to_bytes(&managed_token_state_address));
-    proof_data
-}
 
 fun setup_ccip_environment(scenario: &mut Scenario): (CCIPOwnerCap, CCIPObjectRef) {
     scenario.next_tx(CCIP_ADMIN);
@@ -737,96 +722,6 @@ public fun test_release_or_mint_functionality() {
 }
 
 #[test]
-public fun test_initialize_by_ccip_admin() {
-    let mut scenario = test_scenario::begin(@managed_token_pool);
-
-    // Setup CCIP environment
-    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
-
-    // Create managed token
-    scenario.next_tx(@managed_token_pool);
-    let coin_metadata = {
-        let ctx = scenario.ctx();
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            MANAGED_TOKEN_POOL_TESTS {},
-            Decimals,
-            b"MTPT",
-            b"ManagedTokenPoolTest",
-            b"managed_token_pool_test",
-            option::none(),
-            ctx,
-        );
-
-        managed_token::initialize(treasury_cap, ctx);
-        coin_metadata
-    };
-
-    // Get the managed token state address and create mint cap
-    scenario.next_tx(@managed_token_pool);
-    let managed_token_state_address = {
-        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
-        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-
-        // Get the address before creating mint cap
-        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
-
-        // Create mint cap for the pool
-        managed_token::configure_new_minter(
-            &mut token_state,
-            &token_owner_cap,
-            @managed_token_pool,
-            1000000,
-            true,
-            scenario.ctx(),
-        );
-
-        scenario.return_to_sender(token_owner_cap);
-        test_scenario::return_shared(token_state);
-        managed_token_state_address
-    };
-
-    // Get the mint cap first, then switch to CCIP admin
-    scenario.next_tx(@managed_token_pool);
-    let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
-
-    // Switch to CCIP admin to call initialize_by_ccip_admin
-    scenario.next_tx(CCIP_ADMIN);
-    {
-        // Test initialize_by_ccip_admin function (doesn't require treasury cap)
-        managed_token_pool::initialize_by_ccip_admin(
-            &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(
-                create_init_proof_data(@0x123, managed_token_state_address),
-                false
-            ),
-            &coin_metadata,
-            mint_cap,
-            scenario.ctx(),
-        );
-    };
-
-    // The OwnerCap gets sent to the sender (CCIP admin) by initialize_internal, not the token_pool_administrator
-    scenario.next_tx(CCIP_ADMIN);
-    {
-        let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
-
-        // Test that initialization worked correctly
-        assert!(managed_token_pool::get_token_decimals(&pool_state) == Decimals);
-        let token_address = managed_token_pool::get_token(&pool_state);
-        assert!(token_address != @0x0);
-
-        scenario.return_to_sender(owner_cap);
-        test_scenario::return_shared(pool_state);
-    };
-
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
-    scenario.end();
-}
-
-#[test]
 #[expected_failure(abort_code = managed_token_pool::EInvalidOwnerCap)]
 public fun test_invalid_owner_cap_error() {
     let mut scenario = test_scenario::begin(@managed_token_pool);
@@ -1377,19 +1272,22 @@ public fun test_set_pool() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let coin_metadata = scenario.take_immutable<coin::CoinMetadata<MANAGED_TOKEN_POOL_TESTS>>();
+        let token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
+        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
         let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
 
-        managed_token_pool::initialize_by_ccip_admin(
+        managed_token_pool::initialize_with_managed_token(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(
-                create_init_proof_data(TOKEN_ADMIN, token_state_address),
-                false
-            ),
+            &token_state,
+            &token_owner_cap,
             &coin_metadata,
             mint_cap,
+            TOKEN_ADMIN,
             scenario.ctx(),
         );
 
+        scenario.return_to_sender(token_owner_cap);
+        test_scenario::return_shared(token_state);
         test_scenario::return_immutable(coin_metadata);
     };
 
@@ -1452,7 +1350,7 @@ public fun test_set_pool() {
 
         token_admin_registry::register_pool_by_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(vector[], true),
+            state_object::create_ccip_admin_proof_for_test(),
             coin_metadata_address,
             different_package_id,
             string::utf8(b"different_pool"),
@@ -1499,9 +1397,7 @@ public fun test_set_pool() {
     // Now call set_pool as the administrator to update to the correct managed_token_pool config
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let mut pool_state = scenario.take_shared<
-            ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>,
-        >();
+        let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
@@ -1526,7 +1422,7 @@ public fun test_set_pool() {
         // Call set_pool to update to the actual managed_token_pool configuration
         managed_token_pool::set_pool(
             &mut ccip_ref,
-            &mut pool_state,
+            &pool_state,
             &owner_cap,
             coin_metadata_address,
             token_state_address,
@@ -1577,503 +1473,206 @@ public fun test_set_pool() {
 }
 
 // ================================================================
-// |          CCIPAdminProof Tests         |
+// |             Rate Limiter calculate_refill Tests             |
 // ================================================================
 
 #[test]
-#[expected_failure(abort_code = managed_token_pool::EInvalidPackageId)]
-public fun test_initialize_with_invalid_package_id() {
-    let mut scenario = test_scenario::begin(@managed_token_pool);
-    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+public fun test_calculate_refill_at_capacity() {
+    use managed_token_pool::rate_limiter;
 
-    // Create managed token
-    scenario.next_tx(@managed_token_pool);
-    let coin_metadata = {
-        let ctx = scenario.ctx();
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            MANAGED_TOKEN_POOL_TESTS {},
-            Decimals,
-            b"MTPT",
-            b"ManagedTokenPoolTest",
-            b"managed_token_pool_test",
-            option::none(),
-            ctx,
-        );
-        managed_token::initialize(treasury_cap, ctx);
-        coin_metadata
-    };
+    // Create a bucket that's already at capacity
+    let bucket = rate_limiter::test_create_token_bucket(
+        1000, // tokens (at capacity)
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate
+    );
 
-    // Get the managed token state address and create mint cap
-    scenario.next_tx(@managed_token_pool);
-    let managed_token_state_address = {
-        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
-        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
-        managed_token::configure_new_minter(
-            &mut token_state,
-            &token_owner_cap,
-            @managed_token_pool,
-            1000000,
-            true,
-            scenario.ctx(),
-        );
-        scenario.return_to_sender(token_owner_cap);
-        test_scenario::return_shared(token_state);
-        managed_token_state_address
-    };
-
-    scenario.next_tx(@managed_token_pool);
-    {
-        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
-
-        // Create proof with WRONG package ID
-        let mut proof_data = vector[];
-        proof_data.append(bcs::to_bytes(&@0xbad)); // Wrong package!
-        proof_data.append(bcs::to_bytes(&string::utf8(b"managed_token_pool")));
-        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
-        proof_data.append(bcs::to_bytes(&@0x123));
-        proof_data.append(bcs::to_bytes(&managed_token_state_address));
-
-        // This should fail with EInvalidPackageId
-        managed_token_pool::initialize_by_ccip_admin(
-            &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(proof_data, false),
-            &coin_metadata,
-            mint_cap,
-            scenario.ctx(),
-        );
-    };
-
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
-    test_scenario::end(scenario);
+    // Test with various time differences
+    assert!(rate_limiter::test_calculate_refill(&bucket, 0) == 1000);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 1000);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 100) == 1000);
 }
 
 #[test]
-#[expected_failure(abort_code = managed_token_pool::EInvalidModuleName)]
-public fun test_initialize_with_invalid_module_name() {
-    let mut scenario = test_scenario::begin(@managed_token_pool);
-    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+public fun test_calculate_refill_above_capacity() {
+    use managed_token_pool::rate_limiter;
 
-    // Create managed token
-    scenario.next_tx(@managed_token_pool);
-    let coin_metadata = {
-        let ctx = scenario.ctx();
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            MANAGED_TOKEN_POOL_TESTS {},
-            Decimals,
-            b"MTPT",
-            b"ManagedTokenPoolTest",
-            b"managed_token_pool_test",
-            option::none(),
-            ctx,
-        );
-        managed_token::initialize(treasury_cap, ctx);
-        coin_metadata
-    };
+    // Create a bucket with tokens exceeding capacity (edge case)
+    let bucket = rate_limiter::test_create_token_bucket(
+        1500, // tokens (above capacity)
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate
+    );
 
-    // Get the managed token state address and create mint cap
-    scenario.next_tx(@managed_token_pool);
-    let managed_token_state_address = {
-        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
-        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
-        managed_token::configure_new_minter(
-            &mut token_state,
-            &token_owner_cap,
-            @managed_token_pool,
-            1000000,
-            true,
-            scenario.ctx(),
-        );
-        scenario.return_to_sender(token_owner_cap);
-        test_scenario::return_shared(token_state);
-        managed_token_state_address
-    };
-
-    scenario.next_tx(@managed_token_pool);
-    {
-        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
-
-        // Create proof with WRONG module name
-        let mut proof_data = vector[];
-        proof_data.append(bcs::to_bytes(&@managed_token_pool));
-        proof_data.append(bcs::to_bytes(&string::utf8(b"wrong_module_name"))); // Wrong module!
-        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
-        proof_data.append(bcs::to_bytes(&@0x123));
-        proof_data.append(bcs::to_bytes(&managed_token_state_address));
-
-        // This should fail with EInvalidModuleName
-        managed_token_pool::initialize_by_ccip_admin(
-            &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(proof_data, false),
-            &coin_metadata,
-            mint_cap,
-            scenario.ctx(),
-        );
-    };
-
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
-    test_scenario::end(scenario);
+    // Should return capacity when tokens > capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 1000);
 }
 
 #[test]
-#[expected_failure(abort_code = managed_token_pool::EInvalidFunctionName)]
-public fun test_initialize_with_invalid_function_name() {
-    let mut scenario = test_scenario::begin(@managed_token_pool);
-    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+public fun test_calculate_refill_zero_rate() {
+    use managed_token_pool::rate_limiter;
 
-    // Create managed token
-    scenario.next_tx(@managed_token_pool);
-    let coin_metadata = {
-        let ctx = scenario.ctx();
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            MANAGED_TOKEN_POOL_TESTS {},
-            Decimals,
-            b"MTPT",
-            b"ManagedTokenPoolTest",
-            b"managed_token_pool_test",
-            option::none(),
-            ctx,
-        );
-        managed_token::initialize(treasury_cap, ctx);
-        coin_metadata
-    };
+    // Create a bucket with rate = 0
+    let bucket = rate_limiter::test_create_token_bucket(
+        500, // tokens
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        0, // rate (zero)
+    );
 
-    // Get the managed token state address and create mint cap
-    scenario.next_tx(@managed_token_pool);
-    let managed_token_state_address = {
-        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
-        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
-        managed_token::configure_new_minter(
-            &mut token_state,
-            &token_owner_cap,
-            @managed_token_pool,
-            1000000,
-            true,
-            scenario.ctx(),
-        );
-        scenario.return_to_sender(token_owner_cap);
-        test_scenario::return_shared(token_state);
-        managed_token_state_address
-    };
-
-    scenario.next_tx(@managed_token_pool);
-    {
-        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
-
-        // Create proof with WRONG function name
-        let mut proof_data = vector[];
-        proof_data.append(bcs::to_bytes(&@managed_token_pool));
-        proof_data.append(bcs::to_bytes(&string::utf8(b"managed_token_pool")));
-        proof_data.append(bcs::to_bytes(&string::utf8(b"wrong_function"))); // Wrong function!
-        proof_data.append(bcs::to_bytes(&@0x123));
-        proof_data.append(bcs::to_bytes(&managed_token_state_address));
-
-        // This should fail with EInvalidFunctionName
-        managed_token_pool::initialize_by_ccip_admin(
-            &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(proof_data, false),
-            &coin_metadata,
-            mint_cap,
-            scenario.ctx(),
-        );
-    };
-
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
-    test_scenario::end(scenario);
+    // Should return current tokens when rate is 0
+    assert!(rate_limiter::test_calculate_refill(&bucket, 0) == 500);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 500);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 100) == 500);
 }
 
 #[test]
-#[expected_failure(abort_code = managed_token_pool::EInvalidProof)]
-public fun test_initialize_with_already_validated_proof() {
-    let mut scenario = test_scenario::begin(@managed_token_pool);
-    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+public fun test_calculate_refill_normal_refill() {
+    use managed_token_pool::rate_limiter;
 
-    // Create managed token
-    scenario.next_tx(@managed_token_pool);
-    let coin_metadata = {
-        let ctx = scenario.ctx();
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            MANAGED_TOKEN_POOL_TESTS {},
-            Decimals,
-            b"MTPT",
-            b"ManagedTokenPoolTest",
-            b"managed_token_pool_test",
-            option::none(),
-            ctx,
-        );
-        managed_token::initialize(treasury_cap, ctx);
-        coin_metadata
-    };
+    // Create a bucket with normal values
+    let bucket = rate_limiter::test_create_token_bucket(
+        100, // tokens
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate (10 tokens per second)
+    );
 
-    // Get the managed token state address and create mint cap
-    scenario.next_tx(@managed_token_pool);
-    let managed_token_state_address = {
-        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
-        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
-        managed_token::configure_new_minter(
-            &mut token_state,
-            &token_owner_cap,
-            @managed_token_pool,
-            1000000,
-            true,
-            scenario.ctx(),
-        );
-        scenario.return_to_sender(token_owner_cap);
-        test_scenario::return_shared(token_state);
-        managed_token_state_address
-    };
+    // Test various time differences
+    // After 10 seconds: 100 + (10 * 10) = 200
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 200);
 
-    scenario.next_tx(@managed_token_pool);
-    {
-        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
+    // After 50 seconds: 100 + (50 * 10) = 600
+    assert!(rate_limiter::test_calculate_refill(&bucket, 50) == 600);
 
-        // Create proof with validated=true (simulating proof reuse attack)
-        let proof_data = create_init_proof_data(@0x123, managed_token_state_address);
-
-        // This should fail with EInvalidProof because proof is already marked as validated
-        managed_token_pool::initialize_by_ccip_admin(
-            &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(proof_data, true), // validated=true!
-            &coin_metadata,
-            mint_cap,
-            scenario.ctx(),
-        );
-    };
-
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
-    test_scenario::end(scenario);
+    // After 89 seconds: 100 + (89 * 10) = 990
+    assert!(rate_limiter::test_calculate_refill(&bucket, 89) == 990);
 }
 
 #[test]
-#[allow(implicit_const_copy)]
-#[expected_failure(abort_code = bcs_stream::E_OUT_OF_BYTES)]
-public fun test_initialize_with_malformed_proof_missing_parameter() {
-    let mut scenario = test_scenario::begin(@managed_token_pool);
-    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+public fun test_calculate_refill_saturate_at_capacity() {
+    use managed_token_pool::rate_limiter;
 
-    // Create managed token
-    scenario.next_tx(@managed_token_pool);
-    let coin_metadata = {
-        let ctx = scenario.ctx();
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            MANAGED_TOKEN_POOL_TESTS {},
-            Decimals,
-            b"MTPT",
-            b"ManagedTokenPoolTest",
-            b"managed_token_pool_test",
-            option::none(),
-            ctx,
-        );
-        managed_token::initialize(treasury_cap, ctx);
-        coin_metadata
-    };
+    // Create a bucket that will exceed capacity with refill
+    let bucket = rate_limiter::test_create_token_bucket(
+        100, // tokens
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate (10 tokens per second)
+    );
 
-    // Get the managed token state address and create mint cap
-    scenario.next_tx(@managed_token_pool);
-    let _managed_token_state_address = {
-        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
-        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
-        managed_token::configure_new_minter(
-            &mut token_state,
-            &token_owner_cap,
-            @managed_token_pool,
-            1000000,
-            true,
-            scenario.ctx(),
-        );
-        scenario.return_to_sender(token_owner_cap);
-        test_scenario::return_shared(token_state);
-        managed_token_state_address
-    };
+    // Time diff that would exceed capacity: 100 + (100 * 10) = 1100 > 1000
+    // Should saturate to capacity (1000)
+    assert!(rate_limiter::test_calculate_refill(&bucket, 100) == 1000);
 
-    scenario.next_tx(@managed_token_pool);
-    {
-        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
-
-        // Create proof with MISSING parameter (only 4 instead of 5)
-        let mut proof_data = vector[];
-        proof_data.append(bcs::to_bytes(&@managed_token_pool));
-        proof_data.append(bcs::to_bytes(&string::utf8(b"managed_token_pool")));
-        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
-        proof_data.append(bcs::to_bytes(&@0x123));
-        // Missing: managed_token_state_address!
-
-        // This should fail during deserialization
-        managed_token_pool::initialize_by_ccip_admin(
-            &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(proof_data, false),
-            &coin_metadata,
-            mint_cap,
-            scenario.ctx(),
-        );
-    };
-
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
-    test_scenario::end(scenario);
+    // Even larger time diff should still saturate to capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 1000) == 1000);
 }
 
 #[test]
-#[allow(implicit_const_copy)]
-#[expected_failure(abort_code = bcs_stream::E_NOT_CONSUMED)]
-public fun test_initialize_with_malformed_proof_extra_data() {
-    let mut scenario = test_scenario::begin(@managed_token_pool);
-    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+public fun test_calculate_refill_exact_capacity() {
+    use managed_token_pool::rate_limiter;
 
-    // Create managed token
-    scenario.next_tx(@managed_token_pool);
-    let coin_metadata = {
-        let ctx = scenario.ctx();
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            MANAGED_TOKEN_POOL_TESTS {},
-            Decimals,
-            b"MTPT",
-            b"ManagedTokenPoolTest",
-            b"managed_token_pool_test",
-            option::none(),
-            ctx,
-        );
-        managed_token::initialize(treasury_cap, ctx);
-        coin_metadata
-    };
+    // Create a bucket where refill will exactly reach capacity
+    let bucket = rate_limiter::test_create_token_bucket(
+        100, // tokens
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate (10 tokens per second)
+    );
 
-    // Get the managed token state address and create mint cap
-    scenario.next_tx(@managed_token_pool);
-    let managed_token_state_address = {
-        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
-        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
-        managed_token::configure_new_minter(
-            &mut token_state,
-            &token_owner_cap,
-            @managed_token_pool,
-            1000000,
-            true,
-            scenario.ctx(),
-        );
-        scenario.return_to_sender(token_owner_cap);
-        test_scenario::return_shared(token_state);
-        managed_token_state_address
-    };
-
-    scenario.next_tx(@managed_token_pool);
-    {
-        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
-
-        // Create proof with EXTRA unexpected data
-        let mut proof_data = vector[];
-        proof_data.append(bcs::to_bytes(&@managed_token_pool));
-        proof_data.append(bcs::to_bytes(&string::utf8(b"managed_token_pool")));
-        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
-        proof_data.append(bcs::to_bytes(&@0x123));
-        proof_data.append(bcs::to_bytes(&managed_token_state_address));
-        proof_data.append(bcs::to_bytes(&@0x456)); // Extra data that shouldn't be here!
-
-        // This should fail at assert_is_consumed check
-        managed_token_pool::initialize_by_ccip_admin(
-            &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(proof_data, false),
-            &coin_metadata,
-            mint_cap,
-            scenario.ctx(),
-        );
-    };
-
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
-    test_scenario::end(scenario);
+    // Exactly 90 seconds needed to reach capacity: 100 + (90 * 10) = 1000
+    assert!(rate_limiter::test_calculate_refill(&bucket, 90) == 1000);
 }
 
 #[test]
-public fun test_initialize_with_valid_proof_comprehensive() {
-    let mut scenario = test_scenario::begin(@managed_token_pool);
-    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+public fun test_calculate_refill_zero_tokens() {
+    use managed_token_pool::rate_limiter;
 
-    // Create managed token
-    scenario.next_tx(@managed_token_pool);
-    let coin_metadata = {
-        let ctx = scenario.ctx();
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            MANAGED_TOKEN_POOL_TESTS {},
-            Decimals,
-            b"MTPT",
-            b"ManagedTokenPoolTest",
-            b"managed_token_pool_test",
-            option::none(),
-            ctx,
-        );
-        managed_token::initialize(treasury_cap, ctx);
-        coin_metadata
-    };
+    // Create a bucket starting with zero tokens
+    let bucket = rate_limiter::test_create_token_bucket(
+        0, // tokens (empty)
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate
+    );
 
-    // Get the managed token state address and create mint cap
-    scenario.next_tx(@managed_token_pool);
-    let managed_token_state_address = {
-        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
-        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
-        managed_token::configure_new_minter(
-            &mut token_state,
-            &token_owner_cap,
-            @managed_token_pool,
-            1000000,
-            true,
-            scenario.ctx(),
-        );
-        scenario.return_to_sender(token_owner_cap);
-        test_scenario::return_shared(token_state);
-        managed_token_state_address
-    };
+    // Test refill from empty
+    assert!(rate_limiter::test_calculate_refill(&bucket, 0) == 0);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 100);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 50) == 500);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 100) == 1000);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 200) == 1000); // saturate
+}
 
-    scenario.next_tx(@managed_token_pool);
-    {
-        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
+#[test]
+public fun test_calculate_refill_high_rate() {
+    use managed_token_pool::rate_limiter;
 
-        // Create VALID proof with all correct data
-        let proof_data = create_init_proof_data(@0x999, managed_token_state_address);
+    // Create a bucket with high rate
+    let bucket = rate_limiter::test_create_token_bucket(
+        0, // tokens
+        0, // last_updated
+        true, // is_enabled
+        10000, // capacity
+        1000, // rate (high rate)
+    );
 
-        // This should succeed
-        managed_token_pool::initialize_by_ccip_admin(
-            &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(proof_data, false),
-            &coin_metadata,
-            mint_cap,
-            scenario.ctx(),
-        );
-    };
+    // After 5 seconds: 0 + (5 * 1000) = 5000
+    assert!(rate_limiter::test_calculate_refill(&bucket, 5) == 5000);
 
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
+    // After 10 seconds: should saturate to capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 10000);
+}
 
-    // Verify initialization was successful
-    scenario.next_tx(@managed_token_pool);
-    {
-        let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+#[test]
+public fun test_calculate_refill_small_capacity() {
+    use managed_token_pool::rate_limiter;
 
-        // Verify pool was created correctly
-        assert!(managed_token_pool::get_token_decimals(&pool_state) == Decimals);
-        let token_address = managed_token_pool::get_token(&pool_state);
-        assert!(token_address != @0x0);
+    // Create a bucket with small capacity
+    let bucket = rate_limiter::test_create_token_bucket(
+        5, // tokens
+        0, // last_updated
+        true, // is_enabled
+        10, // capacity (small)
+        1, // rate
+    );
 
-        scenario.return_to_sender(owner_cap);
-        test_scenario::return_shared(pool_state);
-    };
+    // After 3 seconds: 5 + (3 * 1) = 8
+    assert!(rate_limiter::test_calculate_refill(&bucket, 3) == 8);
 
-    test_scenario::end(scenario);
+    // After 5 seconds: should be exactly at capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 5) == 10);
+
+    // After 10 seconds: should saturate to capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 10);
+}
+
+#[test]
+public fun test_calculate_refill_edge_case_one_below_capacity() {
+    use managed_token_pool::rate_limiter;
+
+    // Create a bucket one token below capacity
+    let bucket = rate_limiter::test_create_token_bucket(
+        999, // tokens (one below capacity)
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate
+    );
+
+    // After 0 seconds: stays at 999
+    assert!(rate_limiter::test_calculate_refill(&bucket, 0) == 999);
+
+    // After 1 second: 999 + (1 * 10) = 1009, but should saturate to 1000
+    assert!(rate_limiter::test_calculate_refill(&bucket, 1) == 1000);
 }

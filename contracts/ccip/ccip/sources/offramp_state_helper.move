@@ -206,6 +206,7 @@ public fun new_any2sui_message(
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
+    message_receiver: address,
     token_receiver: address,
     dest_token_amounts: vector<Any2SuiTokenAmount>,
 ): Any2SuiMessage {
@@ -214,6 +215,7 @@ public fun new_any2sui_message(
         source_chain_selector,
         sender,
         data,
+        message_receiver,
         token_receiver,
         dest_token_amounts,
     )
@@ -223,7 +225,7 @@ public fun consume_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,
     message: Any2SuiMessage,
     _: TypeProof,
-): (vector<u8>, u64, vector<u8>, vector<u8>, address, vector<Any2SuiTokenAmount>) {
+): (vector<u8>, u64, vector<u8>, vector<u8>, address, address, vector<Any2SuiTokenAmount>) {
     let proof_tn = type_name::with_defining_ids<TypeProof>();
     let address_str = type_name::address_string(&proof_tn);
     let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
@@ -232,7 +234,7 @@ public fun consume_any2sui_message<TypeProof: drop>(
     let (_, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
     assert!(proof_typename == proof_tn.into_string(), ETypeProofMismatch);
 
-    client::consume_any2sui_message(message)
+    client::consume_any2sui_message(message, receiver_package_id)
 }
 
 /// this function is called by ccip offramp directly, permissioned by the dest transfer cap.
@@ -283,6 +285,7 @@ public fun test_init(ctx: &mut TxContext) {
 #[test_only]
 public fun deconstruct_receiver_params_with_message_for_test(
     _: &DestTransferCap,
+    receiver_package_id: address,
     receiver_params: ReceiverParams,
 ) {
     let ReceiverParams {
@@ -302,7 +305,7 @@ public fun deconstruct_receiver_params_with_message_for_test(
 
     if (message_op.is_some()) {
         let message = message_op.extract();
-        client::consume_any2sui_message(message);
+        client::consume_any2sui_message(message, receiver_package_id);
     };
     message_op.destroy_none();
     r.destroy_none();

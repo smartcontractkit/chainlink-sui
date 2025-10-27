@@ -352,7 +352,7 @@ public fun test_register_and_set_pool() {
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof2 {},
-            ctx,
+            ctx.sender(),
         );
 
         // Request admin transfer
@@ -589,7 +589,7 @@ public fun test_set_pool_comprehensive() {
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof2 {},
-            ctx,
+            ctx.sender(),
         );
 
         // Since TypeProof and TypeProof2 have the same package ID, the configuration should remain unchanged
@@ -624,7 +624,7 @@ public fun test_set_pool_comprehensive() {
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof {},
-            ctx,
+            ctx.sender(),
         );
 
         // Verify pool was NOT updated (same package ID means no change)
@@ -757,7 +757,7 @@ public fun test_set_pool_unregistered_token() {
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof {},
-            ctx,
+            ctx.sender(),
         );
 
         ts::return_shared(ref);
@@ -805,7 +805,7 @@ public fun test_set_pool_unauthorized() {
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof2 {},
-            ctx,
+            ctx.sender(),
         );
 
         ts::return_shared(ref);
@@ -1475,7 +1475,7 @@ public fun test_set_pool_with_different_package_ids() {
             vector[@0x6, @0x3333], // new lock_or_burn_params
             vector[@0x6, @0x4444], // new release_or_mint_params
             TypeProof {}, // This has the test module's package ID
-            ctx,
+            ctx.sender(),
         );
 
         // Get the TypeProof package ID
@@ -1594,7 +1594,7 @@ public fun test_set_pool_same_package_id_no_update() {
             vector[@0x6, @0x5555], // different params
             vector[@0x6, @0x6666], // different params
             TypeProof {},
-            ctx,
+            ctx.sender(),
         );
 
         // Verify nothing changed
@@ -1667,7 +1667,7 @@ public fun test_set_pool_only_admin_can_call() {
             vector[@0x6, @0x3333],
             vector[@0x6, @0x4444],
             TypeProof {},
-            ctx,
+            ctx.sender(),
         );
 
         ts::return_shared(ref);
@@ -1882,7 +1882,7 @@ public fun test_set_pool_function_not_allowed() {
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof2 {},
-            ctx,
+            ctx.sender(),
         );
 
         ts::return_shared(ref);

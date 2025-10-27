@@ -18,7 +18,7 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250908082700-aa3f5927af8c
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20251016153021-3d4a0208cf70
-	github.com/smartcontractkit/mcms v0.27.1-0.20251016194901-e46e00ac4f51
+	github.com/smartcontractkit/mcms v0.28.1-0.20251022150312-a7ac4a4da5ef
 	github.com/stretchr/testify v1.10.0
 )
 
@@ -140,6 +140,7 @@ require (
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/stephenlacy/go-ethereum-hdwallet v0.0.0-20230913225845-a4fa94429863 // indirect
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect

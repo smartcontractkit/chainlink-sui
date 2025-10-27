@@ -9,14 +9,12 @@ use burn_mint_token_pool::token_pool::{Self, TokenPoolState};
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
-use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::string::{Self, String};
-use std::type_name::{Self, TypeName};
-use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::package::UpgradeCap;
@@ -31,10 +29,7 @@ public struct BurnMintTokenPoolState<phantom T> has key {
 const EInvalidArguments: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 const EInvalidFunction: u64 = 3;
-const EInvalidProof: u64 = 4;
-const EInvalidPackageId: u64 = 5;
-const EInvalidModuleName: u64 = 6;
-const EInvalidFunctionName: u64 = 7;
+const EPoolStillRegistered: u64 = 4;
 
 const CLOCK_ADDRESS: address = @0x6;
 
@@ -54,7 +49,7 @@ public fun initialize<T>(
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
-    let (_, _, _, burn_mint_token_pool) = initialize_internal(
+    let burn_mint_token_pool = initialize_internal(
         coin_metadata,
         treasury_cap,
         ctx,
@@ -73,67 +68,12 @@ public fun initialize<T>(
     transfer::share_object(burn_mint_token_pool);
 }
 
-public fun initialize_by_ccip_admin<T>(
-    ref: &mut CCIPObjectRef,
-    mut ccip_admin_proof: state_object::CCIPAdminProof,
-    coin_metadata: &CoinMetadata<T>,
-    treasury_cap: TreasuryCap<T>,
-    ctx: &mut TxContext,
-) {
-    assert!(!state_object::get_ccip_admin_proof_validated(&ccip_admin_proof), EInvalidProof);
-
-    let data = state_object::get_ccip_admin_proof_data(&ccip_admin_proof);
-    let mut stream = bcs_stream::new(data);
-    let target_package_id = bcs_stream::deserialize_address(&mut stream);
-    let target_module_name = bcs_stream::deserialize_string(&mut stream);
-    let target_function_name = bcs_stream::deserialize_string(&mut stream);
-    let token_pool_administrator = bcs_stream::deserialize_address(&mut stream);
-    bcs_stream::assert_is_consumed(&stream);
-
-    assert!(target_package_id == @burn_mint_token_pool, EInvalidPackageId);
-    assert!(target_module_name == string::utf8(b"burn_mint_token_pool"), EInvalidModuleName);
-    assert!(
-        target_function_name == string::utf8(b"initialize_by_ccip_admin"),
-        EInvalidFunctionName,
-    );
-
-    state_object::set_ccip_admin_proof_validated(&mut ccip_admin_proof, true);
-
-    let (
-        coin_metadata_address,
-        type_proof_type_name,
-        token_type,
-        burn_mint_token_pool,
-    ) = initialize_internal(coin_metadata, treasury_cap, ctx);
-
-    let type_proof_type_name_address = type_proof_type_name.address_string();
-    let burn_mint_token_pool_package_id = address::from_ascii_bytes(
-        &type_proof_type_name_address.into_bytes(),
-    );
-
-    token_admin_registry::register_pool_by_admin(
-        ref,
-        ccip_admin_proof,
-        coin_metadata_address,
-        burn_mint_token_pool_package_id,
-        string::utf8(b"burn_mint_token_pool"),
-        token_type.into_string(),
-        token_pool_administrator,
-        type_proof_type_name.into_string(),
-        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
-        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
-        ctx,
-    );
-
-    transfer::share_object(burn_mint_token_pool);
-}
-
 #[allow(lint(self_transfer))]
 fun initialize_internal<T>(
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
     ctx: &mut TxContext,
-): (address, TypeName, TypeName, BurnMintTokenPoolState<T>) {
+): BurnMintTokenPoolState<T> {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     let (ownable_state, owner_cap) = ownable::new(ctx);
 
@@ -148,20 +88,36 @@ fun initialize_internal<T>(
         treasury_cap,
         ownable_state,
     };
-    let type_proof_type_name = type_name::with_defining_ids<TypeProof>();
-    let token_type = type_name::with_defining_ids<T>();
 
     transfer::public_transfer(owner_cap, ctx.sender());
 
-    (coin_metadata_address, type_proof_type_name, token_type, burn_mint_token_pool)
+    burn_mint_token_pool
 }
 
 public fun set_pool<T>(
     ref: &mut CCIPObjectRef,
-    state: &mut BurnMintTokenPoolState<T>,
+    state: &BurnMintTokenPoolState<T>,
     owner_cap: &OwnerCap,
     coin_metadata_address: address,
     ctx: &mut TxContext,
+) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
+
+    set_pool_internal(
+        ref,
+        state,
+        owner_cap,
+        coin_metadata_address,
+        ctx.sender(),
+    );
+}
+
+fun set_pool_internal<T>(
+    ref: &mut CCIPObjectRef,
+    state: &BurnMintTokenPoolState<T>,
+    owner_cap: &OwnerCap,
+    coin_metadata_address: address,
+    caller: address,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
 
@@ -172,10 +128,9 @@ public fun set_pool<T>(
         vector[CLOCK_ADDRESS, token_pool_state_address],
         vector[CLOCK_ADDRESS, token_pool_state_address],
         TypeProof {},
-        ctx,
+        caller,
     );
 }
-
 // ================================================================
 // |                 Exposing token_pool functions                |
 // ================================================================
@@ -482,6 +437,7 @@ public fun set_chain_rate_limiter_config<T>(
 // destroy the burn mint token pool state and the owner cap, return the treasury cap to the owner
 // this should only be called after unregistering the pool from the token admin registry
 public fun destroy_token_pool<T>(
+    ref: &mut CCIPObjectRef,
     state: BurnMintTokenPoolState<T>,
     owner_cap: OwnerCap,
     ctx: &mut TxContext,
@@ -489,6 +445,10 @@ public fun destroy_token_pool<T>(
     assert!(
         object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state),
         EInvalidOwnerCap,
+    );
+    assert!(
+        !token_admin_registry::is_pool_registered(ref, get_token(&state)),
+        EPoolStillRegistered,
     );
 
     let BurnMintTokenPoolState<T> {
@@ -899,7 +859,7 @@ public fun mcms_set_pool<T>(
     state: &mut BurnMintTokenPoolState<T>,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
-    ctx: &mut TxContext,
+    _: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
@@ -919,7 +879,13 @@ public fun mcms_set_pool<T>(
     let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    set_pool(ref, state, owner_cap, coin_metadata_address, ctx);
+    set_pool_internal(
+        ref,
+        state,
+        owner_cap,
+        coin_metadata_address,
+        mcms_registry::get_multisig_address(),
+    );
 }
 
 public fun mcms_transfer_ownership<T>(
