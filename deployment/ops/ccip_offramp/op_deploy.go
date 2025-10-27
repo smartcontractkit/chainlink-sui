@@ -424,7 +424,9 @@ var acceptOwnershipOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, err
 	}
 
-	encodedCall, err := ownablePackage.Encoder().AcceptOwnership(bind.Object{Id: input.OffRampStateObjectId})
+	// Use AcceptOwnershipWithArgs since OwnableState no longer has key ability
+	// We pass the full OffRampState object which contains OwnableState as a field
+	encodedCall, err := ownablePackage.Encoder().AcceptOwnershipWithArgs(bind.Object{Id: input.OffRampStateObjectId})
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
 	}
