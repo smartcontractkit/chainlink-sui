@@ -20,6 +20,8 @@ type USDCTokenPoolInitializeObjects struct {
 
 type USDCTokenPoolInitializeInput struct {
 	USDCTokenPoolPackageId string
+	CCIPObjectRefObjectId  string
+	CCIPAdminProofObjectId string
 	CoinObjectTypeArg      string
 	StateObjectId          string
 	OwnerCapObjectId       string
@@ -41,12 +43,9 @@ var initUSDCTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.CCIPObjectRefObjectId},
+		bind.Object{Id: input.CCIPAdminProofObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
-		input.LocalDomainIdentifier,
-		input.TokenPoolPackageId,
-		input.TokenPoolAdministrator,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[USDCTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute USDC token pool initialization: %w", err)
