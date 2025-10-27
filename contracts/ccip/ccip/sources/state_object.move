@@ -414,7 +414,7 @@ public fun set_ccip_admin_proof_validated(proof: &mut CCIPAdminProof, validated:
 
 public fun destroy_ccip_admin_proof(proof: CCIPAdminProof) {
     assert!(proof.validated, ECcipAdminProofNotValidated);
-    let CCIPAdminProof { data: _, validated } = proof;
+    let CCIPAdminProof { data: _, validated: _ } = proof;
 }
 
 // ================================================================

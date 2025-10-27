@@ -79,7 +79,6 @@ const ENotAllowed: u64 = 7;
 const EInvalidFunction: u64 = 8;
 const EInvalidOwnerCap: u64 = 9;
 const ETokenPoolPackageIdAlreadyRegistered: u64 = 10;
-const EProofNotValidated: u64 = 11;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.0")
@@ -357,7 +356,7 @@ public fun register_pool_by_admin(
     release_or_mint_params: vector<address>,
     _: &mut TxContext,
 ) {
-    assert!(state_object::get_ccip_admin_proof_validated(&ccip_admin_proof), EProofNotValidated);
+    // `destroy_ccip_admin_proof` verifies proof has been validated.
     state_object::destroy_ccip_admin_proof(ccip_admin_proof);
 
     verify_function_allowed(
