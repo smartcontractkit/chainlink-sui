@@ -210,11 +210,10 @@ public fun test_add_package_id_with_invalid_owner_cap() {
     // Cleanup
     let TestObject { id } = obj;
     object::delete(id);
-    transfer::public_transfer(ownable_state, @0x0);
     transfer::public_transfer(fake_owner_cap, @0x0);
 
     // Cleanup the original scenario objects
-    test_scenario::return_to_sender(&scenario, owner_cap);
+    ownable::destroy(ownable_state, owner_cap, ctx);
     test_scenario::return_shared(ref);
     test_scenario::end(scenario);
 }

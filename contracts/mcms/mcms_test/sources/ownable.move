@@ -9,8 +9,7 @@ public struct OwnerCap has key, store {
     id: UID,
 }
 
-public struct OwnableState has key, store {
-    id: UID,
+public struct OwnableState has store {
     owner: address,
     pending_transfer: Option<PendingTransfer>,
     owner_cap_id: ID,
@@ -27,7 +26,6 @@ public struct PublisherKey has copy, drop, store {}
 // =================== Events =================== //
 
 public struct NewOwnableStateEvent has copy, drop, store {
-    ownable_state_id: ID,
     owner_cap_id: ID,
     owner: address,
 }
@@ -66,14 +64,12 @@ public fun new(ctx: &mut TxContext): (OwnableState, OwnerCap) {
     };
 
     let state = OwnableState {
-        id: object::new(ctx),
         owner,
         pending_transfer: option::none(),
         owner_cap_id: object::id(&owner_cap),
     };
 
     event::emit(NewOwnableStateEvent {
-        ownable_state_id: object::id(&state),
         owner_cap_id: object::id(&owner_cap),
         owner,
     });
@@ -243,7 +239,6 @@ public fun execute_ownership_transfer_to_mcms<T: drop>(
 
 public fun destroy(state: OwnableState, owner_cap: OwnerCap, _ctx: &mut TxContext) {
     let OwnableState {
-        id: state_id,
         owner: _,
         pending_transfer: _,
         owner_cap_id: state_owner_cap_id,
@@ -253,6 +248,5 @@ public fun destroy(state: OwnableState, owner_cap: OwnerCap, _ctx: &mut TxContex
 
     assert!(owner_cap_id.uid_to_inner() == state_owner_cap_id, EInvalidOwnerCap);
 
-    object::delete(state_id);
     object::delete(owner_cap_id);
 }

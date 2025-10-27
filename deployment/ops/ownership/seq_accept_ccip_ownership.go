@@ -1,14 +1,13 @@
 package ownershipops
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
+
+	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
@@ -16,7 +15,6 @@ import (
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 )
 
 type AcceptCCIPOwnershipInput struct {
@@ -93,9 +91,6 @@ var AcceptCCIPOwnershipSeq = cld_ops.NewSequence(
 
 			ChainSelector: input.ChainSelector,
 		}
-
-		jsonbytes, _ := json.MarshalIndent(proposalInput, "", " ")
-		fmt.Println("Accept CCIP Ownership Proposal Input: ", string(jsonbytes))
 
 		acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(env, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		if err != nil {

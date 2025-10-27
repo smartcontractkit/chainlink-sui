@@ -6,7 +6,7 @@ module managed_token_pool::managed_token_pool;
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
-use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use managed_token::managed_token::{Self, TokenState, MintCap};
 use managed_token::ownable::OwnerCap as ManagedTokenOwnerCap;
@@ -16,8 +16,6 @@ use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::string::{Self, String};
-use std::type_name::{Self, TypeName};
-use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
@@ -72,7 +70,7 @@ public fun initialize_with_managed_token<T>(
     let treasury_cap_ref = managed_token::borrow_treasury_cap(managed_token_state, owner_cap);
 
     // Initialize the token pool
-    let (_, managed_token_pool_state_address, _, _) = initialize_internal(
+    let managed_token_pool_state_address = initialize_internal(
         coin_metadata,
         mint_cap,
         publisher,
@@ -101,60 +99,13 @@ public fun initialize_with_managed_token<T>(
     );
 }
 
-public fun initialize_by_ccip_admin<T>(
-    ref: &mut CCIPObjectRef,
-    ccip_admin_proof: state_object::CCIPAdminProof,
-    coin_metadata: &CoinMetadata<T>,
-    mint_cap: MintCap<T>,
-    managed_token_state: address,
-    token_pool_administrator: address,
-    publisher: Publisher,
-    ctx: &mut TxContext,
-) {
-    let (
-        coin_metadata_address,
-        managed_token_pool_state_address,
-        token_type,
-        type_proof_type_name,
-    ) = initialize_internal(coin_metadata, mint_cap, publisher, ctx);
-
-    let type_proof_type_name_address = type_proof_type_name.address_string();
-    let managed_token_pool_package_id = address::from_ascii_bytes(
-        &type_proof_type_name_address.into_bytes(),
-    );
-
-    token_admin_registry::register_pool_by_admin(
-        ref,
-        ccip_admin_proof,
-        coin_metadata_address,
-        managed_token_pool_package_id,
-        string::utf8(b"managed_token_pool"),
-        token_type.into_string(),
-        token_pool_administrator,
-        type_proof_type_name.into_string(),
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            managed_token_state,
-            managed_token_pool_state_address,
-        ],
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            managed_token_state,
-            managed_token_pool_state_address,
-        ],
-        ctx,
-    );
-}
-
 #[allow(lint(self_transfer))]
 fun initialize_internal<T>(
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
     publisher: Publisher,
     ctx: &mut TxContext,
-): (address, address, TypeName, TypeName) {
+): address {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     let (ownable_state, mut owner_cap) = ownable::new(ctx);
     ownable::attach_publisher(&mut owner_cap, publisher);
@@ -170,14 +121,12 @@ fun initialize_internal<T>(
         mint_cap,
         ownable_state,
     };
-    let type_proof_type_name = type_name::with_defining_ids<TypeProof>();
-    let token_type = type_name::with_defining_ids<T>();
     let managed_token_pool_state_address = object::uid_to_address(&managed_token_pool.id);
 
     transfer::share_object(managed_token_pool);
     transfer::public_transfer(owner_cap, ctx.sender());
 
-    (coin_metadata_address, managed_token_pool_state_address, token_type, type_proof_type_name)
+    managed_token_pool_state_address
 }
 
 public fun set_pool<T>(

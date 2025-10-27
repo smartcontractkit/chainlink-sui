@@ -9,14 +9,12 @@ use burn_mint_token_pool::token_pool::{Self, TokenPoolState};
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
-use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::string::{Self, String};
-use std::type_name::{Self, TypeName};
-use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::package::{Self, Publisher, UpgradeCap};
@@ -58,7 +56,7 @@ public fun initialize<T>(
     publisher: Publisher,
     ctx: &mut TxContext,
 ) {
-    let (_, _, _, burn_mint_token_pool) = initialize_internal(
+    let burn_mint_token_pool = initialize_internal(
         coin_metadata,
         treasury_cap,
         publisher,
@@ -78,51 +76,13 @@ public fun initialize<T>(
     transfer::share_object(burn_mint_token_pool);
 }
 
-public fun initialize_by_ccip_admin<T>(
-    ref: &mut CCIPObjectRef,
-    ccip_admin_proof: state_object::CCIPAdminProof,
-    coin_metadata: &CoinMetadata<T>,
-    treasury_cap: TreasuryCap<T>,
-    token_pool_administrator: address,
-    publisher: Publisher,
-    ctx: &mut TxContext,
-) {
-    let (
-        coin_metadata_address,
-        type_proof_type_name,
-        token_type,
-        burn_mint_token_pool,
-    ) = initialize_internal(coin_metadata, treasury_cap, publisher, ctx);
-
-    let type_proof_type_name_address = type_proof_type_name.address_string();
-    let burn_mint_token_pool_package_id = address::from_ascii_bytes(
-        &type_proof_type_name_address.into_bytes(),
-    );
-
-    token_admin_registry::register_pool_by_admin(
-        ref,
-        ccip_admin_proof,
-        coin_metadata_address,
-        burn_mint_token_pool_package_id,
-        string::utf8(b"burn_mint_token_pool"),
-        token_type.into_string(),
-        token_pool_administrator,
-        type_proof_type_name.into_string(),
-        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
-        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
-        ctx,
-    );
-
-    transfer::share_object(burn_mint_token_pool);
-}
-
 #[allow(lint(self_transfer))]
 fun initialize_internal<T>(
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
     publisher: Publisher,
     ctx: &mut TxContext,
-): (address, TypeName, TypeName, BurnMintTokenPoolState<T>) {
+): BurnMintTokenPoolState<T> {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     let (ownable_state, mut owner_cap) = ownable::new(ctx);
     ownable::attach_publisher(&mut owner_cap, publisher);
@@ -138,12 +98,10 @@ fun initialize_internal<T>(
         treasury_cap,
         ownable_state,
     };
-    let type_proof_type_name = type_name::with_defining_ids<TypeProof>();
-    let token_type = type_name::with_defining_ids<T>();
 
     transfer::public_transfer(owner_cap, ctx.sender());
 
-    (coin_metadata_address, type_proof_type_name, token_type, burn_mint_token_pool)
+    burn_mint_token_pool
 }
 
 public fun set_pool<T>(

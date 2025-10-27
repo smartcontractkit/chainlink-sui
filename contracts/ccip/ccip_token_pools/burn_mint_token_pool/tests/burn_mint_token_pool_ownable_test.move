@@ -51,9 +51,8 @@ fun setup(): (TestEnv, OwnerCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>) {
         scenario.ctx(),
     );
 
-    burn_mint_token_pool::initialize_by_ccip_admin(
+    burn_mint_token_pool::initialize(
         &mut ccip_ref,
-        state_object::create_ccip_admin_proof_for_test(),
         &coin_metadata,
         treasury_cap,
         @0x123,
