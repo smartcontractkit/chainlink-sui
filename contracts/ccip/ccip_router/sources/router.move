@@ -10,7 +10,7 @@ use std::type_name;
 use sui::address;
 use sui::derived_object;
 use sui::event;
-use sui::package::UpgradeCap;
+use sui::package::{Self, UpgradeCap};
 use sui::table::{Self, Table};
 
 public struct ROUTER has drop {}
@@ -42,9 +42,9 @@ const EInvalidFunction: u64 = 4;
 const EInvalidObjectAddress: u64 = 5;
 const EInvalidOnrampAddress: u64 = 6;
 
-fun init(_witness: ROUTER, ctx: &mut TxContext) {
+fun init(otw: ROUTER, ctx: &mut TxContext) {
     let mut router_object = RouterObject { id: object::new(ctx) };
-    let (ownable_state, owner_cap) = ownable::new(&mut router_object.id, ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(&mut router_object.id, ctx);
 
     let router = RouterState {
         id: derived_object::claim(&mut router_object.id, b"RouterState"),
@@ -63,6 +63,9 @@ fun init(_witness: ROUTER, ctx: &mut TxContext) {
 
     transfer::share_object(router);
     transfer::share_object(router_object);
+
+    let publisher = package::claim(otw, ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
 
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(router_state_pointer, package_id);
@@ -173,12 +176,11 @@ public fun mcms_accept_ownership(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function, data) = mcms_registry::get_callback_params(
+    let data = mcms_registry::get_accept_ownership_data(
         registry,
         params,
-        McmsCallback {},
+        McmsAcceptOwnershipProof {},
     );
-    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
@@ -204,11 +206,17 @@ public fun execute_ownership_transfer_to_mcms(
     to: address,
     ctx: &mut TxContext,
 ) {
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut state.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback {},
         vector[b"router"],
         ctx,
@@ -234,6 +242,9 @@ public fun mcms_register_upgrade_cap(
 // ================================================================
 
 public struct McmsCallback has drop {}
+
+/// Proof for MCMS Accept Ownership
+public struct McmsAcceptOwnershipProof has drop {}
 
 public fun mcms_set_on_ramps(
     state: &mut RouterState,

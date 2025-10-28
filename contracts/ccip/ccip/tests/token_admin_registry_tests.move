@@ -1,7 +1,7 @@
 #[test_only]
 module ccip::token_admin_registry_tests;
 
-use ccip::ownable::OwnerCap;
+use ccip::ownable::{OwnerCap};
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
 use ccip::upgrade_registry;
@@ -1066,7 +1066,6 @@ public fun test_mcms_transfer_admin_role() {
 #[test]
 public fun test_mcms_accept_admin_role() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    let mcms_proof_type = type_name::with_defining_ids<state_object::McmsCallback>();
     let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
     let local_token = object::id_address(&coin_metadata);
     let mcms = mcms_registry::get_multisig_address();
@@ -1122,7 +1121,6 @@ public fun test_mcms_accept_admin_role() {
             x"0000000000000000000000000000000000000000000000000000000000000001",
             0,
             1,
-            mcms_proof_type,
         );
 
         // Execute MCMS accept
@@ -1143,7 +1141,6 @@ public fun test_mcms_accept_admin_role() {
 #[test]
 public fun test_mcms_full_admin_transfer_flow() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    let mcms_proof_type = type_name::with_defining_ids<state_object::McmsCallback>();
     let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
     let local_token = object::id_address(&coin_metadata);
     let mcms = mcms_registry::get_multisig_address();
@@ -1210,7 +1207,6 @@ public fun test_mcms_full_admin_transfer_flow() {
             x"0000000000000000000000000000000000000000000000000000000000000002",
             0,
             1,
-            mcms_proof_type,
         );
 
         registry::mcms_accept_admin_role(&mut ref, &mut registry, params, scenario.ctx());
@@ -1231,7 +1227,6 @@ public fun test_mcms_full_admin_transfer_flow() {
 #[expected_failure(abort_code = registry::ENotPendingAdministrator)]
 public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    let mcms_proof_type = type_name::with_defining_ids<state_object::McmsCallback>();
     let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
     let local_token = object::id_address(&coin_metadata);
 
@@ -1280,7 +1275,6 @@ public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
             x"0000000000000000000000000000000000000000000000000000000000000003",
             0,
             1,
-            mcms_proof_type,
         );
 
         registry::mcms_accept_admin_role(&mut ref, &mut registry, params, scenario.ctx());
@@ -1297,7 +1291,6 @@ public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
 #[expected_failure(abort_code = registry::ETokenNotRegistered)]
 public fun test_mcms_transfer_admin_role_token_not_registered_fails() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    let mcms_proof_type = type_name::with_defining_ids<state_object::McmsCallback>();
     let mcms = mcms_registry::get_multisig_address();
 
     initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
@@ -1332,7 +1325,6 @@ public fun test_mcms_transfer_admin_role_token_not_registered_fails() {
             x"0000000000000000000000000000000000000000000000000000000000000004",
             0,
             1,
-            mcms_proof_type,
         );
 
         registry::mcms_transfer_admin_role(&mut ref, &mut registry, params, scenario.ctx());
@@ -1749,7 +1741,6 @@ public fun test_mcms_set_pool_with_package_change() {
             x"0000000000000000000000000000000000000000000000000000000000000021",
             0,
             1,
-            type_name::with_defining_ids<state_object::McmsCallback>(),
         );
 
         registry::mcms_accept_admin_role(&mut ref, &mut registry_obj, params, scenario.ctx());
@@ -1791,7 +1782,6 @@ public fun test_mcms_set_pool_with_package_change() {
             x"0000000000000000000000000000000000000000000000000000000000000022",
             0,
             1,
-            type_name::with_defining_ids<state_object::McmsCallback>(),
         );
 
         registry::mcms_set_pool(&mut ref, &mut registry_obj, params, scenario.ctx());

@@ -19,12 +19,12 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"managed_token","module":"managed_token","name":"accept_ownership","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"managed_token","module":"managed_token","name":"blocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"borrow_treasury_cap","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"}]},{"package":"managed_token","module":"managed_token","name":"burn","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"coin","type":"Coin<T>"},{"name":"from","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"configure_new_minter","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"minter","type":"address"},{"name":"allowance","type":"u64"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"destroy_managed_token","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"get_all_mint_caps","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"has_pending_transfer","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"increment_mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"allowance_increment","type":"u64"}]},{"package":"managed_token","module":"managed_token","name":"initialize","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"}]},{"package":"managed_token","module":"managed_token","name":"initialize_with_deny_cap","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"deny_cap","type":"DenyCapV2<T>"}]},{"package":"managed_token","module":"managed_token","name":"is_authorized_mint_cap","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"id","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint_and_transfer","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"owner","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_from","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_to","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"set_unlimited_mint_allowances","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"total_supply","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"transfer_ownership","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"new_owner","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"type_and_version","parameters":null},{"package":"managed_token","module":"managed_token","name":"unblocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"unpause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]}]`
+const FunctionInfo = `[{"package":"managed_token","module":"managed_token","name":"accept_ownership","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"managed_token","module":"managed_token","name":"blocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"borrow_treasury_cap","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"}]},{"package":"managed_token","module":"managed_token","name":"burn","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"coin","type":"Coin<T>"},{"name":"from","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"configure_new_minter","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"minter","type":"address"},{"name":"allowance","type":"u64"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"destroy_managed_token","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"get_all_mint_caps","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"has_pending_transfer","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"increment_mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"allowance_increment","type":"u64"}]},{"package":"managed_token","module":"managed_token","name":"initialize","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"publisher","type":"Publisher"}]},{"package":"managed_token","module":"managed_token","name":"initialize_with_deny_cap","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"deny_cap","type":"DenyCapV2<T>"},{"name":"publisher","type":"Publisher"}]},{"package":"managed_token","module":"managed_token","name":"is_authorized_mint_cap","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"id","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint_and_transfer","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"owner","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_from","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_to","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"set_unlimited_mint_allowances","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"total_supply","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"transfer_ownership","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"new_owner","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"type_and_version","parameters":null},{"package":"managed_token","module":"managed_token","name":"unblocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"unpause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]}]`
 
 type IManagedToken interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object) (*models.SuiTransactionBlockResponse, error)
-	InitializeWithDenyCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object, denyCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object, publisher bind.Object) (*models.SuiTransactionBlockResponse, error)
+	InitializeWithDenyCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object, denyCap bind.Object, publisher bind.Object) (*models.SuiTransactionBlockResponse, error)
 	MintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, mintCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	TotalSupply(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	IsAuthorizedMintCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, id bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -88,9 +88,9 @@ type IManagedTokenDevInspect interface {
 type ManagedTokenEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(typeArgs []string, treasuryCap bind.Object) (*bind.EncodedCall, error)
+	Initialize(typeArgs []string, treasuryCap bind.Object, publisher bind.Object) (*bind.EncodedCall, error)
 	InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	InitializeWithDenyCap(typeArgs []string, treasuryCap bind.Object, denyCap bind.Object) (*bind.EncodedCall, error)
+	InitializeWithDenyCap(typeArgs []string, treasuryCap bind.Object, denyCap bind.Object, publisher bind.Object) (*bind.EncodedCall, error)
 	InitializeWithDenyCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	MintAllowance(typeArgs []string, state bind.Object, mintCap bind.Object) (*bind.EncodedCall, error)
 	MintAllowanceWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -211,6 +211,9 @@ func (c *ManagedTokenContract) DevInspect() IManagedTokenDevInspect {
 	return c.devInspect
 }
 
+type MANAGED_TOKEN struct {
+}
+
 type TokenState struct {
 	Id                string       `move:"sui::object::UID"`
 	TreasuryCap       bind.Object  `move:"TreasuryCap<T>"`
@@ -273,6 +276,9 @@ type MinterUnlimitedAllowanceSet struct {
 }
 
 type McmsCallback struct {
+}
+
+type McmsAcceptOwnershipProof struct {
 }
 
 type bcsMinterConfigured struct {
@@ -349,6 +355,23 @@ func convertUnblocklistedFromBCS(bcs bcsUnblocklisted) (Unblocklisted, error) {
 }
 
 func init() {
+	bind.RegisterStructDecoder("managed_token::managed_token::MANAGED_TOKEN", func(data []byte) (interface{}, error) {
+		var result MANAGED_TOKEN
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for MANAGED_TOKEN
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MANAGED_TOKEN>", func(data []byte) (interface{}, error) {
+		var results []MANAGED_TOKEN
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::TokenState", func(data []byte) (interface{}, error) {
 		var result TokenState
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -640,6 +663,23 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("managed_token::managed_token::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
+		var result McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for McmsAcceptOwnershipProof
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
+		var results []McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -653,8 +693,8 @@ func (c *ManagedTokenContract) TypeAndVersion(ctx context.Context, opts *bind.Ca
 }
 
 // Initialize executes the initialize Move function.
-func (c *ManagedTokenContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.Initialize(typeArgs, treasuryCap)
+func (c *ManagedTokenContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object, publisher bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.Initialize(typeArgs, treasuryCap, publisher)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -663,8 +703,8 @@ func (c *ManagedTokenContract) Initialize(ctx context.Context, opts *bind.CallOp
 }
 
 // InitializeWithDenyCap executes the initialize_with_deny_cap Move function.
-func (c *ManagedTokenContract) InitializeWithDenyCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object, denyCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.InitializeWithDenyCap(typeArgs, treasuryCap, denyCap)
+func (c *ManagedTokenContract) InitializeWithDenyCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object, denyCap bind.Object, publisher bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.InitializeWithDenyCap(typeArgs, treasuryCap, denyCap, publisher)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1353,15 +1393,17 @@ func (c managedTokenEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedC
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c managedTokenEncoder) Initialize(typeArgs []string, treasuryCap bind.Object) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) Initialize(typeArgs []string, treasuryCap bind.Object, publisher bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
 		"TreasuryCap<T>",
+		"Publisher",
 	}, []any{
 		treasuryCap,
+		publisher,
 	}, nil)
 }
 
@@ -1370,6 +1412,7 @@ func (c managedTokenEncoder) Initialize(typeArgs []string, treasuryCap bind.Obje
 func (c managedTokenEncoder) InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"TreasuryCap<T>",
+		"Publisher",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1383,7 +1426,7 @@ func (c managedTokenEncoder) InitializeWithArgs(typeArgs []string, args ...any) 
 }
 
 // InitializeWithDenyCap encodes a call to the initialize_with_deny_cap Move function.
-func (c managedTokenEncoder) InitializeWithDenyCap(typeArgs []string, treasuryCap bind.Object, denyCap bind.Object) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) InitializeWithDenyCap(typeArgs []string, treasuryCap bind.Object, denyCap bind.Object, publisher bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1391,9 +1434,11 @@ func (c managedTokenEncoder) InitializeWithDenyCap(typeArgs []string, treasuryCa
 	return c.EncodeCallArgsWithGenerics("initialize_with_deny_cap", typeArgsList, typeParamsList, []string{
 		"TreasuryCap<T>",
 		"DenyCapV2<T>",
+		"Publisher",
 	}, []any{
 		treasuryCap,
 		denyCap,
+		publisher,
 	}, nil)
 }
 
@@ -1403,6 +1448,7 @@ func (c managedTokenEncoder) InitializeWithDenyCapWithArgs(typeArgs []string, ar
 	expectedParams := []string{
 		"TreasuryCap<T>",
 		"DenyCapV2<T>",
+		"Publisher",
 	}
 
 	if len(args) != len(expectedParams) {

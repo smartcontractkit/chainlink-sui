@@ -26,6 +26,7 @@ type BurnMintTokenPoolInitializeInput struct {
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
+	PublisherObjectId      string
 }
 
 var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolInitializeInput) (output sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects], err error) {
@@ -44,6 +45,7 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.TreasuryCapObjectId},
 		input.TokenPoolAdministrator,
+		bind.Object{Id: input.PublisherObjectId},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute burn mint token pool initialization: %w", err)

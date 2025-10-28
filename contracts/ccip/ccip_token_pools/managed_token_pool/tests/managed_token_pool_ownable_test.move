@@ -3,11 +3,13 @@ module managed_token_pool::managed_token_pool_ownable_test;
 
 use managed_token_pool::ownable;
 
+public struct MANAGED_TOKEN_POOL_OWNABLE_TEST has drop {}
+
 #[test]
 public fun test_ownable_module_functions_exist() {
     // Test that we can create ownable state and cap
     let mut scenario = sui::test_scenario::begin(@0x123);
-    let (ownable_state, owner_cap) = ownable::new(scenario.ctx());
+    let (ownable_state, owner_cap) = ownable::new<MANAGED_TOKEN_POOL_OWNABLE_TEST>(scenario.ctx());
 
     // Test query functions
     let _owner = ownable::owner(&ownable_state);

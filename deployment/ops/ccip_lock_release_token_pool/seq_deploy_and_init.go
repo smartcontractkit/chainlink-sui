@@ -12,6 +12,7 @@ type DeployLockReleaseTokenPoolObjects struct {
 	OwnerCapObjectId      string
 	StateObjectId         string
 	RebalancerCapObjectId string
+	PublisherObjectId     string
 }
 
 type DeployLockReleaseTokenPoolOutput struct {
@@ -28,6 +29,7 @@ type DeployAndInitLockReleaseTokenPoolInput struct {
 	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
 	Rebalancer             string
+	PublisherObjectId      string
 	// apply chain updates
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -65,6 +67,7 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 				TreasuryCapObjectId:    input.TreasuryCapObjectId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
 				Rebalancer:             input.Rebalancer,
+				PublisherObjectId:      deployReport.Output.Objects.PublisherObjectId,
 			},
 		)
 		if err != nil {
@@ -132,6 +135,7 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 				OwnerCapObjectId:      initReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:         initReport.Output.Objects.StateObjectId,
 				RebalancerCapObjectId: initReport.Output.Objects.RebalancerCapObjectId,
+				PublisherObjectId:     deployReport.Output.Objects.PublisherObjectId,
 			},
 		}, nil
 	},

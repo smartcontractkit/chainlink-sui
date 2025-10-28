@@ -7,9 +7,10 @@ use mcms::mcms_account;
 use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry};
 use std::string;
-use std::type_name;
+use sui::address;
 use sui::bcs;
 use sui::test_scenario::{Self, Scenario};
+use std::type_name;
 
 const SENDER_1: address = @0x1;
 const SENDER_2: address = @0x2;
@@ -259,7 +260,7 @@ fun setup_with_mcms_ownership(): (Scenario, Registry, CCIPObjectRef) {
         &mut ref,
         owner_cap,
         &mut registry,
-        @mcms,
+        mcms_registry::get_multisig_address(),
         scenario.ctx(),
     );
 
@@ -273,7 +274,7 @@ fun test_mcms_add_allowed_modules_success() {
     let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
     // Verify initial allowed modules (should have fee_quoter, rmn_remote, state_object, token_admin_registry)
-    let initial_modules = mcms_registry::get_allowed_modules(&registry, @ccip);
+    let initial_modules = mcms_registry::get_allowed_modules(&registry, address::to_ascii_string(@ccip));
     assert!(initial_modules.contains(&b"fee_quoter"), 0);
     assert!(initial_modules.contains(&b"rmn_remote"), 1);
     assert!(initial_modules.contains(&b"state_object"), 2);
@@ -297,7 +298,6 @@ fun test_mcms_add_allowed_modules_success() {
         x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
         0, // sequence_number
         1, // total_in_batch
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     state_object::mcms_add_allowed_modules(
@@ -307,7 +307,7 @@ fun test_mcms_add_allowed_modules_success() {
     );
 
     // Verify nonce_manager was added
-    let updated_modules = mcms_registry::get_allowed_modules(&registry, @ccip);
+    let updated_modules = mcms_registry::get_allowed_modules(&registry, address::to_ascii_string(@ccip));
     assert!(updated_modules.contains(&b"nonce_manager"), 5); // Should exist now
 
     // Cleanup
@@ -338,7 +338,6 @@ fun test_mcms_add_allowed_modules_already_exists() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     // This should fail with EModuleAlreadyAllowed
@@ -377,7 +376,6 @@ fun test_mcms_add_allowed_modules_wrong_function_name() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     // This should fail with EInvalidFunction
@@ -416,7 +414,6 @@ fun test_mcms_remove_allowed_modules_success() {
             x"0000000000000000000000000000000000000000000000000000000000000001",
             0,
             1,
-            type_name::with_original_ids<state_object::McmsCallback>(),
         );
 
         state_object::mcms_add_allowed_modules(
@@ -427,7 +424,7 @@ fun test_mcms_remove_allowed_modules_success() {
     };
 
     // Verify nonce_manager was added
-    let modules_before = mcms_registry::get_allowed_modules(&registry, @ccip);
+    let modules_before = mcms_registry::get_allowed_modules(&registry, address::to_ascii_string(@ccip));
     assert!(modules_before.contains(&b"nonce_manager"), 0);
 
     // Now remove the module
@@ -445,7 +442,6 @@ fun test_mcms_remove_allowed_modules_success() {
             x"0000000000000000000000000000000000000000000000000000000000000002",
             0,
             1,
-            type_name::with_original_ids<state_object::McmsCallback>(),
         );
 
         state_object::mcms_remove_allowed_modules(
@@ -456,7 +452,7 @@ fun test_mcms_remove_allowed_modules_success() {
     };
 
     // Verify nonce_manager was removed
-    let modules_after = mcms_registry::get_allowed_modules(&registry, @ccip);
+    let modules_after = mcms_registry::get_allowed_modules(&registry, address::to_ascii_string(@ccip));
     assert!(!modules_after.contains(&b"nonce_manager"), 1);
 
     // Cleanup
@@ -484,7 +480,6 @@ fun test_mcms_remove_allowed_modules_not_in_allowlist() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     // This should fail with EModuleNotInAllowlist
@@ -520,7 +515,6 @@ fun test_mcms_remove_allowed_modules_wrong_function_name() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     // This should fail with EInvalidFunction
@@ -549,10 +543,11 @@ fun test_mcms_three_step_ownership_transfer() {
     assert!(initial_owner == mcms_registry::get_multisig_address());
 
     let new_owner = SENDER_2;
+    scenario.next_tx(OWNER);
 
     // Step 1: MCMS calls mcms_transfer_ownership to initiate transfer to SENDER_2
     {
-        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip);
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip.to_ascii_string());
 
         let mut data = vector::empty<u8>();
         data.append(bcs::to_bytes(&object::id_address(&ref)));
@@ -567,7 +562,6 @@ fun test_mcms_three_step_ownership_transfer() {
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
-            type_name::with_original_ids<state_object::McmsCallback>(),
         );
 
         state_object::mcms_transfer_ownership(
@@ -605,7 +599,7 @@ fun test_mcms_three_step_ownership_transfer() {
     // Step 3: MCMS calls mcms_execute_ownership_transfer to finalize
     scenario.next_tx(OWNER);
     {
-        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip);
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip.to_ascii_string());
 
         // Serialize data: [ref_address][owner_cap_address][to_address]
         let mut data = vector::empty<u8>();
@@ -621,7 +615,6 @@ fun test_mcms_three_step_ownership_transfer() {
             x"0000000000000000000000000000000000000000000000000000000000000002", // different batch_id
             0, // sequence_number
             1, // total_in_batch
-            type_name::with_original_ids<state_object::McmsCallback>(),
         );
 
         state_object::mcms_execute_ownership_transfer(

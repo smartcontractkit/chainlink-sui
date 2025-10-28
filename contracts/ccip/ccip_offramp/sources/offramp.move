@@ -26,7 +26,7 @@ use sui::clock;
 use sui::derived_object;
 use sui::event;
 use sui::hash;
-use sui::package::UpgradeCap;
+use sui::package::{Self, UpgradeCap};
 use sui::table::{Self, Table};
 use sui::vec_map::{Self, VecMap};
 
@@ -241,9 +241,9 @@ public fun type_and_version(): String {
 
 public struct OFFRAMP has drop {}
 
-fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
+fun init(otw: OFFRAMP, ctx: &mut TxContext) {
     let mut off_ramp_object = OffRampObject { id: object::new(ctx) };
-    let (ownable_state, owner_cap) = ownable::new(&mut off_ramp_object.id, ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(&mut off_ramp_object.id, ctx);
 
     let state = OffRampState {
         id: derived_object::claim(&mut off_ramp_object.id, b"OffRampState"),
@@ -271,6 +271,9 @@ fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
 
     transfer::share_object(state);
     transfer::share_object(off_ramp_object);
+
+    let publisher = package::claim(otw, ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
 
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
@@ -1361,12 +1364,11 @@ public fun mcms_accept_ownership(
         string::utf8(b"accept_ownership"),
         VERSION,
     );
-    let (_, _, function, data) = mcms_registry::get_callback_params(
+    let data = mcms_registry::get_accept_ownership_data(
         registry,
         params,
-        McmsCallback {},
+        McmsAcceptOwnershipProof {},
     );
-    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
@@ -1407,11 +1409,18 @@ public fun execute_ownership_transfer_to_mcms(
         string::utf8(b"execute_ownership_transfer_to_mcms"),
         VERSION,
     );
+
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut state.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback {},
         vector[b"offramp"],
         ctx,
@@ -1444,6 +1453,9 @@ public fun mcms_register_upgrade_cap(
 // ================================================================
 
 public struct McmsCallback has drop {}
+
+/// Proof for MCMS Accept Ownership
+public struct McmsAcceptOwnershipProof has drop {}
 
 public fun mcms_add_package_id(
     state: &mut OffRampState,
