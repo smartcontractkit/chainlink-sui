@@ -12,6 +12,7 @@ type DeployManagedTokenObjects struct {
 	OwnerCapObjectId  string
 	StateObjectId     string
 	MinterCapObjectId string
+	PublisherObjectId string
 }
 
 type DeployManagedTokenOutput struct {
@@ -88,6 +89,7 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 			Objects: DeployManagedTokenObjects{
 				OwnerCapObjectId:  initReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:     initReport.Output.Objects.StateObjectId,
+				PublisherObjectId: deployReport.Output.Objects.PublisherObjectId,
 				MinterCapObjectId: minterObjectId,
 			},
 		}, nil

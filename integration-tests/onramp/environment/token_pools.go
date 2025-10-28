@@ -105,7 +105,7 @@ func SetupManagedTokenPool(
 	client sui.ISuiAPI,
 	lggr logger.Logger,
 ) (
-	*cld_ops.SequenceReport[managedtokenpoolops.SeqDeployAndInitManagedTokenPoolInput, managedtokenpoolops.DeployManagedTokenPoolOutput],
+	*cld_ops.SequenceReport[managedtokenpoolops.DeployAndInitManagedTokenPoolInput, managedtokenpoolops.DeployManagedTokenPoolOutput],
 	*cld_ops.SequenceReport[managedtokenops.DeployAndInitManagedTokenInput, managedtokenops.DeployManagedTokenOutput],
 ) {
 	t.Helper()
@@ -148,7 +148,7 @@ func SetupManagedTokenPool(
 	)
 
 	// Now deploy and initialize the managed token pool
-	seqManagedTokenPoolDeployInput := managedtokenpoolops.SeqDeployAndInitManagedTokenPoolInput{
+	seqManagedTokenPoolDeployInput := managedtokenpoolops.DeployAndInitManagedTokenPoolInput{
 		// Deploy inputs
 		CCIPPackageId:         reportCCIP.Output.CCIPPackageId,
 		ManagedTokenPackageId: managedTokenReport.Output.ManagedTokenPackageId,

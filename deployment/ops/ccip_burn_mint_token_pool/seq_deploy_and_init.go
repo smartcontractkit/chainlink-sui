@@ -26,6 +26,7 @@ type DeployAndInitBurnMintTokenPoolInput struct {
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
+	PublisherObjectId      string
 	// apply chain updates
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64

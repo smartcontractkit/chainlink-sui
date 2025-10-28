@@ -17,7 +17,7 @@ import (
 type DeployTPAndConfigureConfig struct {
 	SuiChainSelector   uint64
 	TokenPoolTypes     []string
-	ManagedTPInput     managedtokenpoolops.SeqDeployAndInitManagedTokenPoolInput
+	ManagedTPInput     managedtokenpoolops.DeployAndInitManagedTokenPoolInput
 	LockReleaseTPInput lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput
 	BurnMintTpInput    burnminttokenpoolops.DeployAndInitBurnMintTokenPoolInput
 }

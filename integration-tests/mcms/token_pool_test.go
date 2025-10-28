@@ -150,7 +150,7 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 			InboundCapacities:    []uint64{500000, 1500000, 2500000},
 			InboundRates:         []uint64{50, 150, 250},
 		},
-		ManagedTPInput: managedtokenpoolops.SeqDeployAndInitManagedTokenPoolInput{
+		ManagedTPInput: managedtokenpoolops.DeployAndInitManagedTokenPoolInput{
 			// deploy
 			CCIPPackageId:         s.ccipPackageId,
 			ManagedTokenPackageId: s.managedTokenPackageId,

@@ -83,7 +83,7 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.TokenAdminRegistryInitializeOp, deps, inputTAR)
 	require.NoError(t, err, "failed to initialize token admin registry")
 
-	// Run BurnMintTokenPool deploy + configure sequence
+	// Run LR TokenPool deploy + configure sequence
 	LRTokenPoolInput := DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: LockReleaseTokenPoolDeployInput{
 			CCIPPackageId:    reportCCIP.Output.PackageId,
@@ -98,6 +98,7 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 		TreasuryCapObjectId:    linkReport.Output.Objects.TreasuryCapObjectId,
 		TokenPoolAdministrator: signerAddress,
 		Rebalancer:             "0x0",
+		PublisherObjectId:      "0x0",
 
 		// apply dest chain updates
 		RemoteChainSelectorsToRemove: []uint64{},

@@ -8,12 +8,13 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
 
-type SeqDeployAndInitManagedTokenPoolInput struct {
+type DeployAndInitManagedTokenPoolInput struct {
 	// deploy
 	CCIPPackageId         string
 	ManagedTokenPackageId string
 	MCMSAddress           string
 	MCMSOwnerAddress      string
+	PublisherObjectId     string
 	// initialize
 	CoinObjectTypeArg         string
 	CCIPObjectRefObjectId     string
@@ -51,7 +52,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 	"sui-deploy-managed-token-pool-seq",
 	semver.MustParse("0.1.0"),
 	"Deploys and sets initial managed token pool configuration",
-	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input SeqDeployAndInitManagedTokenPoolInput) (DeployManagedTokenPoolOutput, error) {
+	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployAndInitManagedTokenPoolInput) (DeployManagedTokenPoolOutput, error) {
 		deployReport, err := cld_ops.ExecuteOperation(env, DeployCCIPManagedTokenPoolOp, deps, ManagedTokenPoolDeployInput{
 			CCIPPackageId:         input.CCIPPackageId,
 			ManagedTokenPackageId: input.ManagedTokenPackageId,
