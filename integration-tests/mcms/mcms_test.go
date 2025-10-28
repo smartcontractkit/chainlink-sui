@@ -19,6 +19,7 @@ import (
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
+	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
 )
@@ -39,6 +40,7 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 	s.T().Run("Execute config proposal against CCIP from MCMS", func(t *testing.T) {
 		RunTestCCIPFeeQuoterProposal(s)
 		RunCCIPRampsProposal(s)
+		RunTestRouterProposal(s)
 	})
 }
 
@@ -120,6 +122,8 @@ func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 	require.NoError(s.T(), err, "transferring ownership of CCIP OffRamp to MCMS")
 	require.NotEmpty(s.T(), tx, "Transaction should not be empty")
 
+	s.T().Logf("✅ Transferred ownership of CCIP OffRamp to MCMS in tx: %s", tx.Digest)
+
 	// 2. Proposal execution with acceptance from MCMS (through bypasser)
 	input := ownershipops.AcceptCCIPOwnershipInput{
 		// MCMS related
@@ -162,6 +166,8 @@ func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 	s.Require().NoError(err, "executing ownership transfer of OnRamp to MCMS")
 	_, err = ccipOffRampContract.ExecuteOwnershipTransferToMcms(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, bind.Object{Id: s.ccipOfframpObjects.OwnerCapId}, bind.Object{Id: s.ccipOfframpObjects.StateObjectId}, bind.Object{Id: s.registryObj}, s.mcmsPackageID)
 	s.Require().NoError(err, "executing ownership transfer of OffRamp to MCMS")
+	_, err = ccipRouterContract.ExecuteOwnershipTransferToMcms(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipRouterObjects.OwnerCapObjectId}, bind.Object{Id: s.ccipRouterObjects.RouterStateObjectId}, bind.Object{Id: s.registryObj}, s.mcmsPackageID)
+	s.Require().NoError(err, "executing ownership transfer of Router to MCMS")
 
 	// 4. Verify the new owner is MCMS
 	newOwner, err := ccipContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId})
@@ -175,6 +181,10 @@ func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 	newOwnerOffRamp, err := ccipOffRampContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipOfframpObjects.StateObjectId})
 	s.Require().NoError(err, "getting new owner of OffRamp state object")
 	s.Require().Equal(s.mcmsPackageID, newOwnerOffRamp, "new owner of OffRamp should be MCMS")
+
+	newOwnerRouter, err := ccipRouterContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipRouterObjects.RouterStateObjectId})
+	s.Require().NoError(err, "getting new owner of Router state object")
+	s.Require().Equal(s.mcmsPackageID, newOwnerRouter, "new owner of Router should be MCMS")
 }
 
 func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
@@ -468,5 +478,71 @@ func RunCCIPRampsProposal(s *CCIPMCMSTestSuite) {
 	require.Equal(s.T(), expectedDCC.AllowlistEnabled, actualAllowlistEnabledFromList, "allowlist enabled should match")
 	for _, expectedSender := range expectedDCC.AllowedSenders {
 		require.Contains(s.T(), actualAllowedSenders, expectedSender, "allowed senders should contain expected sender")
+	}
+}
+
+func RunTestRouterProposal(s *CCIPMCMSTestSuite) {
+	// 1. Build configs
+	expectedDestChainSelectors := []uint64{
+		cselectors.ETHEREUM_TESTNET_SEPOLIA.Selector,
+		cselectors.ETHEREUM_TESTNET_SEPOLIA_ARBITRUM_1.Selector,
+	}
+	expectedOnRampAddresses := []string{
+		"0x1111111111111111111111111111111111111111111111111111111111111111",
+		"0x2222222222222222222222222222222222222222222222222222222222222222",
+	}
+
+	// 2. Run ops to generate proposal
+	input := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			routerops.SetOnRampsOp.Def(),
+		},
+		Inputs: []any{
+			routerops.SetOnRampsInput{
+				RouterPackageId:     s.ccipRouterPackageId,
+				RouterStateObjectId: s.ccipRouterObjects.RouterStateObjectId,
+				OwnerCapObjectId:    s.ccipRouterObjects.OwnerCapObjectId,
+				DestChainSelectors:  expectedDestChainSelectors,
+				OnRampAddresses:     expectedOnRampAddresses,
+			},
+		},
+		// MCMS related
+		MmcsPackageID:  s.mcmsPackageID,
+		McmsStateObjID: s.mcmsObj,
+		TimelockObjID:  s.timelockObj,
+		AccountObjID:   s.accountObj,
+		RegistryObjID:  s.registryObj,
+		// Proposal
+		Role:          suisdk.TimelockRoleBypasser,
+		ChainSelector: uint64(s.chainSelector),
+		Delay:         0,
+	}
+	routerReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, input)
+	s.Require().NoError(err, "executing router proposal sequence")
+
+	timelockProposal := routerReport.Output
+
+	// 3. Execute proposal
+	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+
+	// 4. Assert changes in contracts
+
+	// Create router contract instance
+	routerContract, err := module_router.NewRouter(s.ccipRouterPackageId, s.client)
+	require.NoError(s.T(), err, "creating router contract")
+
+	routerStateObj := bind.Object{Id: s.ccipRouterObjects.RouterStateObjectId}
+
+	// Verify OnRamp addresses are set correctly
+	for i, destChainSelector := range expectedDestChainSelectors {
+		// Verify chain is supported
+		isSupported, err := routerContract.DevInspect().IsChainSupported(s.T().Context(), s.deps.GetCallOpts(), routerStateObj, destChainSelector)
+		require.NoError(s.T(), err, "checking if chain is supported")
+		require.True(s.T(), isSupported, "chain %d should be supported", destChainSelector)
+
+		// Verify OnRamp address matches expected
+		actualOnRampAddress, err := routerContract.DevInspect().GetOnRamp(s.T().Context(), s.deps.GetCallOpts(), routerStateObj, destChainSelector)
+		require.NoError(s.T(), err, "getting on-ramp address for chain %d", destChainSelector)
+		require.Equal(s.T(), expectedOnRampAddresses[i], actualOnRampAddress, "on-ramp address for chain %d should match", destChainSelector)
 	}
 }
