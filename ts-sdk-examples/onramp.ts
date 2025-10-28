@@ -31,7 +31,7 @@ export async function buildCcipSendPTB(tx: Transaction, client: SuiClient, a: Bu
 
   const state = tx.object(a.onrampState)
   const clock = tx.object('0x6')
-  const receiver = tx.pure.address(a.receiver)
+  // const receiver = tx.pure.address(a.receiver)
   const receiverBytes = Array.from(Buffer.from(a.receiver.replace('0x', ''), 'hex'))
 
   // Create Token State Params
@@ -40,7 +40,7 @@ export async function buildCcipSendPTB(tx: Transaction, client: SuiClient, a: Bu
     module: 'onramp_state_helper',
     function: 'create_token_transfer_params',
     arguments: [
-      receiver,
+      tx.pure('vector<u8>', receiverBytes), // vector<u8>
     ]
   })
 
@@ -59,7 +59,7 @@ export async function buildCcipSendPTB(tx: Transaction, client: SuiClient, a: Bu
           tx.object(a.tokenCoin),         // coin (if the pool needs a Coin<T> input)
           tx.pure.u64(a.destChainSelector),
           clock,
-          tx.object.denyList(),              // deny_list (doc: always 0x403)
+          tx.object.denyList(),           // deny_list (doc: always 0x403)
           tx.object(a.tokenPoolState!)    // managed_token_state (if required)
         ]
       })
