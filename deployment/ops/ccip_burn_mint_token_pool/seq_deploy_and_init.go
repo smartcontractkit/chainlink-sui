@@ -62,6 +62,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 				CoinMetadataObjectId:   input.CoinMetadataObjectId,
 				TreasuryCapObjectId:    input.TreasuryCapObjectId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
+				PublisherObjectId:      deployReport.Output.Objects.PublisherObjectId,
 			},
 		)
 		if err != nil {

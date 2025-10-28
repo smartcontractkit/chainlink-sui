@@ -74,6 +74,7 @@ var DeployAndInitUSDCTokenPoolSequence = cld_ops.NewSequence(
 				LocalDomainIdentifier:  input.LocalDomainIdentifier,
 				TokenPoolPackageId:     input.TokenPoolPackageId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
+				PublisherObjectId:      deployReport.Output.Objects.PublisherObjectId,
 			},
 		)
 		if err != nil {

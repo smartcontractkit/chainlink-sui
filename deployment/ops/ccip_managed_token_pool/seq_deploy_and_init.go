@@ -75,6 +75,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 				CoinMetadataObjectId:      input.CoinMetadataObjectId,
 				MintCapObjectId:           input.MintCapObjectId,
 				TokenPoolAdministrator:    input.TokenPoolAdministrator,
+				PublisherObjectId:         deployReport.Output.Objects.PublisherObjectId,
 			},
 		)
 		if err != nil {
