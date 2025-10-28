@@ -1,8 +1,8 @@
 package mcmsops
 
 import (
+	"encoding/json"
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -39,6 +39,35 @@ type ProposalGenerateInput struct {
 	ChainSelector uint64 `json:"chainSelector"`
 }
 
+func extractTransactionCall(output interface{}, operationID string) (sui_ops.TransactionCall, error) {
+	jsonBytes, err := json.Marshal(output)
+	if err != nil {
+		return sui_ops.TransactionCall{}, fmt.Errorf("failed to marshal operation %s output: %w", operationID, err)
+	}
+
+	var outputMap map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &outputMap); err != nil {
+		return sui_ops.TransactionCall{}, fmt.Errorf("failed to unmarshal operation %s output: %w", operationID, err)
+	}
+
+	callInterface, exists := outputMap["Call"]
+	if !exists {
+		return sui_ops.TransactionCall{}, fmt.Errorf("operation %s output does not have a Call field", operationID)
+	}
+
+	callBytes, err := json.Marshal(callInterface)
+	if err != nil {
+		return sui_ops.TransactionCall{}, fmt.Errorf("failed to marshal Call field for operation %s: %w", operationID, err)
+	}
+
+	var call sui_ops.TransactionCall
+	if err := json.Unmarshal(callBytes, &call); err != nil {
+		return sui_ops.TransactionCall{}, fmt.Errorf("failed to unmarshal Call field for operation %s: %w", operationID, err)
+	}
+
+	return call, nil
+}
+
 var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ProposalGenerateInput) (output mcms.TimelockProposal, err error) {
 	if len(input.Defs) != len(input.Inputs) {
 		return mcms.TimelockProposal{}, fmt.Errorf("number of definitions (%d) does not match number of inputs (%d)", len(input.Defs), len(input.Inputs))
@@ -73,20 +102,10 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		if err != nil {
 			return mcms.TimelockProposal{}, fmt.Errorf("failed to execute operation %s: %w", def.ID, err)
 		}
-		// Use reflection to extract the Call field from the OpTxResult regardless of its specific type
-		outputValue := reflect.ValueOf(res.Output)
-		if outputValue.Kind() != reflect.Struct {
-			return mcms.TimelockProposal{}, fmt.Errorf("operation %s did not return a struct output", def.ID)
-		}
-
-		callField := outputValue.FieldByName("Call")
-		if !callField.IsValid() {
-			return mcms.TimelockProposal{}, fmt.Errorf("operation %s output does not have a Call field", def.ID)
-		}
-
-		call, ok := callField.Interface().(sui_ops.TransactionCall)
-		if !ok {
-			return mcms.TimelockProposal{}, fmt.Errorf("operation %s Call field is not a TransactionCall", def.ID)
+		// Extract the Call field
+		call, err := extractTransactionCall(res.Output, def.ID)
+		if err != nil {
+			return mcms.TimelockProposal{}, err
 		}
 
 		tx, err := suisdk.NewTransactionWithStateObj(
