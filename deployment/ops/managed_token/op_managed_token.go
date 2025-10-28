@@ -24,6 +24,7 @@ type ManagedTokenInitializeInput struct {
 	CoinObjectTypeArg     string
 	TreasuryCapObjectId   string
 	DenyCapObjectId       string // Optional - can be empty
+	PublisherObjectId     string
 }
 
 var initManagedTokenHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenInitializeInput) (output sui_ops.OpTxResult[ManagedTokenInitializeObjects], err error) {
@@ -43,6 +44,7 @@ var initManagedTokenHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 			[]string{input.CoinObjectTypeArg},
 			bind.Object{Id: input.TreasuryCapObjectId},
 			bind.Object{Id: input.DenyCapObjectId},
+			bind.Object{Id: input.PublisherObjectId},
 		)
 	} else {
 		tx, err = contract.Initialize(
@@ -50,6 +52,7 @@ var initManagedTokenHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 			opts,
 			[]string{input.CoinObjectTypeArg},
 			bind.Object{Id: input.TreasuryCapObjectId},
+			bind.Object{Id: input.PublisherObjectId},
 		)
 	}
 

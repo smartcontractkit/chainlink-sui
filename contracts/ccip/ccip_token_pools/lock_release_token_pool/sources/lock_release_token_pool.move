@@ -13,7 +13,13 @@ use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::string::{Self, String};
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
-use sui::package::UpgradeCap;
+use sui::package::{Self, Publisher, UpgradeCap};
+
+public struct LOCK_RELEASE_TOKEN_POOL has drop {}
+
+fun init(otw: LOCK_RELEASE_TOKEN_POOL, ctx: &mut TxContext) {
+    package::claim_and_keep(otw, ctx);
+}
 
 #[allow(lint(coin_field))]
 public struct LockReleaseTokenPoolState<phantom T> has key {
@@ -21,7 +27,7 @@ public struct LockReleaseTokenPoolState<phantom T> has key {
     token_pool_state: TokenPoolState,
     reserve: Coin<T>,
     rebalancer_cap_id: ID,
-    ownable_state: OwnableState,
+    ownable_state: OwnableState<T>,
 }
 
 public struct RebalancerCap has key, store {
@@ -51,11 +57,13 @@ public fun initialize<T>(
     treasury_cap: &TreasuryCap<T>,
     token_pool_administrator: address,
     rebalancer: address,
+    publisher: Publisher,
     ctx: &mut TxContext,
 ) {
     let lock_release_token_pool_state_address = initialize_internal(
         coin_metadata,
         rebalancer,
+        publisher,
         ctx,
     );
 
@@ -74,10 +82,12 @@ public fun initialize<T>(
 fun initialize_internal<T>(
     coin_metadata: &CoinMetadata<T>,
     rebalancer: address,
+    publisher: Publisher,
     ctx: &mut TxContext,
 ): address {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
 
     let rebalancer_cap = RebalancerCap {
         id: object::new(ctx),
@@ -107,7 +117,7 @@ fun initialize_internal<T>(
 public fun set_pool<T>(
     ref: &mut CCIPObjectRef,
     state: &LockReleaseTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
@@ -125,7 +135,7 @@ public fun set_pool<T>(
 fun set_pool_internal<T>(
     ref: &mut CCIPObjectRef,
     state: &LockReleaseTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     coin_metadata_address: address,
     caller: address,
 ) {
@@ -183,7 +193,7 @@ public fun get_remote_token<T>(
 
 public fun add_remote_pool<T>(
     state: &mut LockReleaseTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>,
 ) {
@@ -197,7 +207,7 @@ public fun add_remote_pool<T>(
 
 public fun remove_remote_pool<T>(
     state: &mut LockReleaseTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>,
 ) {
@@ -222,7 +232,7 @@ public fun get_supported_chains<T>(state: &LockReleaseTokenPoolState<T>): vector
 
 public fun apply_chain_updates<T>(
     state: &mut LockReleaseTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     remote_chain_selectors_to_remove: vector<u64>,
     remote_chain_selectors_to_add: vector<u64>,
     remote_pool_addresses_to_add: vector<vector<vector<u8>>>,
@@ -248,7 +258,7 @@ public fun get_allowlist<T>(state: &LockReleaseTokenPoolState<T>): vector<addres
 
 public fun set_allowlist_enabled<T>(
     state: &mut LockReleaseTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     enabled: bool,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
@@ -257,7 +267,7 @@ public fun set_allowlist_enabled<T>(
 
 public fun apply_allowlist_updates<T>(
     state: &mut LockReleaseTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     removes: vector<address>,
     adds: vector<address>,
 ) {
@@ -380,7 +390,7 @@ public fun release_or_mint<T>(
 
 public fun set_chain_rate_limiter_configs<T>(
     state: &mut LockReleaseTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     clock: &Clock,
     remote_chain_selectors: vector<u64>,
     outbound_is_enableds: vector<bool>,
@@ -422,7 +432,7 @@ public fun set_chain_rate_limiter_configs<T>(
 
 public fun set_chain_rate_limiter_config<T>(
     state: &mut LockReleaseTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     clock: &Clock,
     remote_chain_selector: u64,
     outbound_is_enabled: bool,
@@ -527,7 +537,7 @@ public fun pending_transfer_accepted<T>(state: &LockReleaseTokenPoolState<T>): O
 
 public fun transfer_ownership<T>(
     state: &mut LockReleaseTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     new_owner: address,
     ctx: &mut TxContext,
 ) {
@@ -552,12 +562,11 @@ public fun mcms_accept_ownership<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function, data) = mcms_registry::get_callback_params(
+    let data = mcms_registry::get_accept_ownership_data(
         registry,
         params,
-        McmsCallback<T> {},
+        McmsAcceptOwnershipProof<T> {},
     );
-    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
@@ -568,7 +577,7 @@ public fun mcms_accept_ownership<T>(
 }
 
 public fun execute_ownership_transfer<T>(
-    owner_cap: OwnerCap,
+    owner_cap: OwnerCap<T>,
     state: &mut LockReleaseTokenPoolState<T>,
     to: address,
     ctx: &mut TxContext,
@@ -577,17 +586,23 @@ public fun execute_ownership_transfer<T>(
 }
 
 public fun execute_ownership_transfer_to_mcms<T>(
-    owner_cap: OwnerCap,
+    owner_cap: OwnerCap<T>,
     state: &mut LockReleaseTokenPoolState<T>,
     registry: &mut Registry,
     to: address,
     ctx: &mut TxContext,
 ) {
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback<T> {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut state.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback<T> {},
         vector[b"lock_release_token_pool"],
         ctx,
@@ -614,6 +629,9 @@ public fun mcms_register_upgrade_cap(
 
 public struct McmsCallback<phantom T> has drop {}
 
+/// Proof for MCMS Accept Ownership
+public struct McmsAcceptOwnershipProof<phantom T> has drop {}
+
 public fun mcms_set_allowlist_enabled<T>(
     state: &mut LockReleaseTokenPoolState<T>,
     registry: &mut Registry,
@@ -621,7 +639,7 @@ public fun mcms_set_allowlist_enabled<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -648,7 +666,7 @@ public fun mcms_apply_allowlist_updates<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -682,7 +700,7 @@ public fun mcms_apply_chain_updates<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -734,7 +752,7 @@ public fun mcms_add_remote_pool<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -761,7 +779,7 @@ public fun mcms_remove_remote_pool<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -789,7 +807,7 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -855,7 +873,7 @@ public fun mcms_set_chain_rate_limiter_config<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -900,7 +918,7 @@ public fun mcms_set_pool<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -933,7 +951,7 @@ public fun mcms_transfer_ownership<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -961,7 +979,7 @@ public fun mcms_execute_ownership_transfer<T>(
 ) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -989,7 +1007,7 @@ public fun mcms_add_allowed_modules<T>(
 ) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -1016,7 +1034,7 @@ public fun mcms_remove_allowed_modules<T>(
 ) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -1041,7 +1059,7 @@ public fun mcms_remove_allowed_modules<T>(
 public fun destroy_token_pool<T>(
     ref: &mut CCIPObjectRef,
     state: LockReleaseTokenPoolState<T>,
-    owner_cap: OwnerCap,
+    owner_cap: OwnerCap<T>,
     ctx: &mut TxContext,
 ): Coin<T> {
     assert!(

@@ -385,6 +385,9 @@ type OFFRAMP struct {
 type McmsCallback struct {
 }
 
+type McmsAcceptOwnershipProof struct {
+}
+
 type bcsOffRampState struct {
 	Id                                      string
 	PackageIds                              [][32]byte
@@ -1194,6 +1197,23 @@ func init() {
 	// Register vector decoder for McmsCallback
 	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::McmsCallback>", func(data []byte) (interface{}, error) {
 		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip_offramp::offramp::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
+		var result McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for McmsAcceptOwnershipProof
+	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
+		var results []McmsAcceptOwnershipProof
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err

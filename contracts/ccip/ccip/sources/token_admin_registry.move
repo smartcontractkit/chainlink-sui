@@ -1,6 +1,6 @@
 module ccip::token_admin_registry;
 
-use ccip::ownable::OwnerCap;
+use ccip::ownable::{Self, OwnerCap};
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::upgrade_registry::verify_function_allowed;
 use mcms::bcs_stream;
@@ -848,8 +848,14 @@ public fun test_mcms_register_entrypoint(
     registry: &mut Registry,
     ctx: &mut TxContext,
 ) {
+    let publisher = ownable::borrow_publisher(&owner_cap);
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        publisher,
+        state_object::mcms_callback(),
+    );
     mcms_registry::register_entrypoint(
         registry,
+        publisher_wrapper,
         state_object::mcms_callback(),
         owner_cap,
         vector[b"fee_quoter", b"rmn_remote", b"state_object", b"token_admin_registry"], // Allowed CCIP modules

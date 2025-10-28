@@ -22,7 +22,7 @@ type DeployAndInitAllTokenPoolsInput struct {
 	TokenPoolTypes   []string // supported: "bnm", "lnr", "managed"
 
 	// Token pool specific inputs
-	ManagedTPInput     managedtokenpoolops.SeqDeployAndInitManagedTokenPoolInput
+	ManagedTPInput     managedtokenpoolops.DeployAndInitManagedTokenPoolInput
 	LockReleaseTPInput lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput
 	BurnMintTpInput    burnminttokenpoolops.DeployAndInitBurnMintTokenPoolInput
 }

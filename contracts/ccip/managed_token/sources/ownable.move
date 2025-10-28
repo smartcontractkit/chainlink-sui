@@ -1,7 +1,9 @@
 module managed_token::ownable;
 
-use mcms::mcms_registry::{Self, Registry};
+use mcms::mcms_registry::{Self, Registry, PublisherWrapper};
+use sui::dynamic_field as df;
 use sui::event;
+use sui::package::Publisher;
 
 public struct OwnerCap<phantom T> has key, store {
     id: UID,
@@ -18,6 +20,8 @@ public struct PendingTransfer has drop, store {
     to: address,
     accepted: bool,
 }
+
+public struct PublisherKey has copy, drop, store {}
 
 // =================== Events =================== //
 
@@ -52,7 +56,7 @@ const ETransferNotAccepted: u64 = 8;
 const ECannotTransferToMcms: u64 = 9;
 const EMustTransferToMcms: u64 = 10;
 
-public fun new<T>(ctx: &mut TxContext): (OwnableState<T>, OwnerCap<T>) {
+public(package) fun new<T>(ctx: &mut TxContext): (OwnableState<T>, OwnerCap<T>) {
     let owner = ctx.sender();
 
     let owner_cap = OwnerCap<T> {
@@ -95,6 +99,14 @@ public fun pending_transfer_to<T>(state: &OwnableState<T>): Option<address> {
 
 public fun pending_transfer_accepted<T>(state: &OwnableState<T>): Option<bool> {
     state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.accepted)
+}
+
+public(package) fun attach_publisher<T>(owner_cap: &mut OwnerCap<T>, publisher: Publisher) {
+    df::add(&mut owner_cap.id, PublisherKey {}, publisher);
+}
+
+public(package) fun borrow_publisher<T>(owner_cap: &OwnerCap<T>): &Publisher {
+    df::borrow(&owner_cap.id, PublisherKey {})
 }
 
 public fun transfer_ownership<T>(
@@ -191,6 +203,7 @@ public fun execute_ownership_transfer_to_mcms<T, P: drop>(
     state: &mut OwnableState<T>,
     registry: &mut Registry,
     to: address,
+    publisher_wrapper: PublisherWrapper<P>,
     proof: P,
     allowed_modules: vector<vector<u8>>,
     ctx: &mut TxContext,
@@ -214,6 +227,7 @@ public fun execute_ownership_transfer_to_mcms<T, P: drop>(
 
     mcms_registry::register_entrypoint(
         registry,
+        publisher_wrapper,
         proof,
         owner_cap,
         allowed_modules,
@@ -235,4 +249,17 @@ public fun destroy<T>(state: OwnableState<T>, owner_cap: OwnerCap<T>, _ctx: &mut
     assert!(owner_cap_id.uid_to_inner() == state_owner_cap_id, EInvalidOwnerCap);
 
     object::delete(owner_cap_id);
+}
+
+// =================== Test-only functions =================== //
+
+#[test_only]
+public fun create_test_owner_cap<T>(ctx: &mut TxContext): OwnerCap<T> {
+    OwnerCap<T> { id: object::new(ctx) }
+}
+
+#[test_only]
+public fun test_destroy_owner_cap<T>(cap: OwnerCap<T>) {
+    let OwnerCap { id } = cap;
+    object::delete(id);
 }

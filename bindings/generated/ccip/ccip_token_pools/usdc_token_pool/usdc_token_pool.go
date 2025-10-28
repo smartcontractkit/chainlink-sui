@@ -19,11 +19,11 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"usdc_token_pool","module":"usdc_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"destroy_token_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_domain","parameters":[{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_package_auth_caller","parameters":null},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_token","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"ccip_admin_proof","type":"state_object::CCIPAdminProof"},{"name":"coin_metadata","type":"CoinMetadata<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"deny_list","type":"DenyList"},{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"state","type":"MinterState"},{"name":"message_transmitter_state","type":"MessageTransmitterState"},{"name":"treasury","type":"Treasury<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"owner","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"deny_list","type":"DenyList"},{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"state","type":"MinterState"},{"name":"message_transmitter_state","type":"MessageTransmitterState"},{"name":"treasury","type":"Treasury<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"enabled","type":"bool"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_domains","parameters":[{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"remote_domain_identifiers","type":"vector<u32>"},{"name":"allowed_remote_callers","type":"vector<vector<u8>>"},{"name":"enableds","type":"vector<bool>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"coin_metadata_address","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"usdc_token_pool","module":"usdc_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"destroy_token_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_domain","parameters":[{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_package_auth_caller","parameters":null},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_token","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"ccip_admin_proof","type":"state_object::CCIPAdminProof"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"publisher","type":"Publisher"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"deny_list","type":"DenyList"},{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"state","type":"MinterState"},{"name":"message_transmitter_state","type":"MessageTransmitterState"},{"name":"treasury","type":"Treasury<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"owner","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"deny_list","type":"DenyList"},{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"state","type":"MinterState"},{"name":"message_transmitter_state","type":"MessageTransmitterState"},{"name":"treasury","type":"Treasury<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"enabled","type":"bool"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_domains","parameters":[{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"remote_domain_identifiers","type":"vector<u32>"},{"name":"allowed_remote_callers","type":"vector<vector<u8>>"},{"name":"enableds","type":"vector<bool>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"coin_metadata_address","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"type_and_version","parameters":null}]`
 
 type IUsdcTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, publisher bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -99,7 +99,7 @@ type IUsdcTokenPoolDevInspect interface {
 type UsdcTokenPoolEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object) (*bind.EncodedCall, error)
+	Initialize(typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, publisher bind.Object) (*bind.EncodedCall, error)
 	InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
 	SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -236,6 +236,9 @@ func (c *UsdcTokenPoolContract) DevInspect() IUsdcTokenPoolDevInspect {
 	return c.devInspect
 }
 
+type USDC_TOKEN_POOL struct {
+}
+
 type Domain struct {
 	AllowedCaller    []byte `move:"vector<u8>"`
 	DomainIdentifier uint32 `move:"u32"`
@@ -263,7 +266,27 @@ type TypeProof struct {
 type McmsCallback struct {
 }
 
+type McmsAcceptOwnershipProof struct {
+}
+
 func init() {
+	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::USDC_TOKEN_POOL", func(data []byte) (interface{}, error) {
+		var result USDC_TOKEN_POOL
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for USDC_TOKEN_POOL
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::USDC_TOKEN_POOL>", func(data []byte) (interface{}, error) {
+		var results []USDC_TOKEN_POOL
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::Domain", func(data []byte) (interface{}, error) {
 		var result Domain
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -349,6 +372,23 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
+		var result McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for McmsAcceptOwnershipProof
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
+		var results []McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -362,8 +402,8 @@ func (c *UsdcTokenPoolContract) TypeAndVersion(ctx context.Context, opts *bind.C
 }
 
 // Initialize executes the initialize Move function.
-func (c *UsdcTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.usdcTokenPoolEncoder.Initialize(typeArgs, ref, ccipAdminProof, coinMetadata)
+func (c *UsdcTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, publisher bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.Initialize(typeArgs, ref, ccipAdminProof, coinMetadata, publisher)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1244,7 +1284,7 @@ func (c usdcTokenPoolEncoder) TypeAndVersionWithArgs(args ...any) (*bind.Encoded
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c usdcTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object) (*bind.EncodedCall, error) {
+func (c usdcTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, publisher bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1253,10 +1293,12 @@ func (c usdcTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, cci
 		"&mut CCIPObjectRef",
 		"state_object::CCIPAdminProof",
 		"&CoinMetadata<T>",
+		"Publisher",
 	}, []any{
 		ref,
 		ccipAdminProof,
 		coinMetadata,
+		publisher,
 	}, nil)
 }
 
@@ -1267,6 +1309,7 @@ func (c usdcTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args ...any)
 		"&mut CCIPObjectRef",
 		"state_object::CCIPAdminProof",
 		"&CoinMetadata<T>",
+		"Publisher",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1288,7 +1331,7 @@ func (c usdcTokenPoolEncoder) SetPool(typeArgs []string, ref bind.Object, state 
 	return c.EncodeCallArgsWithGenerics("set_pool", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
 		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"address",
 	}, []any{
 		ref,
@@ -1304,7 +1347,7 @@ func (c usdcTokenPoolEncoder) SetPoolWithArgs(typeArgs []string, args ...any) (*
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
 		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"address",
 	}
 
@@ -1508,7 +1551,7 @@ func (c usdcTokenPoolEncoder) AddRemotePool(typeArgs []string, state bind.Object
 	}
 	return c.EncodeCallArgsWithGenerics("add_remote_pool", typeArgsList, typeParamsList, []string{
 		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"u64",
 		"vector<u8>",
 	}, []any{
@@ -1524,7 +1567,7 @@ func (c usdcTokenPoolEncoder) AddRemotePool(typeArgs []string, state bind.Object
 func (c usdcTokenPoolEncoder) AddRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"u64",
 		"vector<u8>",
 	}
@@ -1547,7 +1590,7 @@ func (c usdcTokenPoolEncoder) RemoveRemotePool(typeArgs []string, state bind.Obj
 	}
 	return c.EncodeCallArgsWithGenerics("remove_remote_pool", typeArgsList, typeParamsList, []string{
 		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"u64",
 		"vector<u8>",
 	}, []any{
@@ -1563,7 +1606,7 @@ func (c usdcTokenPoolEncoder) RemoveRemotePool(typeArgs []string, state bind.Obj
 func (c usdcTokenPoolEncoder) RemoveRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"u64",
 		"vector<u8>",
 	}
@@ -1657,7 +1700,7 @@ func (c usdcTokenPoolEncoder) ApplyChainUpdates(typeArgs []string, state bind.Ob
 	}
 	return c.EncodeCallArgsWithGenerics("apply_chain_updates", typeArgsList, typeParamsList, []string{
 		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"vector<u64>",
 		"vector<u64>",
 		"vector<vector<vector<u8>>>",
@@ -1677,7 +1720,7 @@ func (c usdcTokenPoolEncoder) ApplyChainUpdates(typeArgs []string, state bind.Ob
 func (c usdcTokenPoolEncoder) ApplyChainUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"vector<u64>",
 		"vector<u64>",
 		"vector<vector<vector<u8>>>",
@@ -1770,7 +1813,7 @@ func (c usdcTokenPoolEncoder) SetAllowlistEnabled(typeArgs []string, state bind.
 	}
 	return c.EncodeCallArgsWithGenerics("set_allowlist_enabled", typeArgsList, typeParamsList, []string{
 		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"bool",
 	}, []any{
 		state,
@@ -1784,7 +1827,7 @@ func (c usdcTokenPoolEncoder) SetAllowlistEnabled(typeArgs []string, state bind.
 func (c usdcTokenPoolEncoder) SetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"bool",
 	}
 
@@ -1806,7 +1849,7 @@ func (c usdcTokenPoolEncoder) ApplyAllowlistUpdates(typeArgs []string, state bin
 	}
 	return c.EncodeCallArgsWithGenerics("apply_allowlist_updates", typeArgsList, typeParamsList, []string{
 		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"vector<address>",
 		"vector<address>",
 	}, []any{
@@ -1822,7 +1865,7 @@ func (c usdcTokenPoolEncoder) ApplyAllowlistUpdates(typeArgs []string, state bin
 func (c usdcTokenPoolEncoder) ApplyAllowlistUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"vector<address>",
 		"vector<address>",
 	}

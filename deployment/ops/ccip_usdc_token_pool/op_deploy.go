@@ -26,6 +26,7 @@ type USDCTokenPoolDeployInput struct {
 }
 
 type USDCTokenPoolDeployOutput struct {
+	PublisherObjectId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDCTokenPoolDeployInput) (output sui_ops.OpTxResult[USDCTokenPoolDeployOutput], err error) {
@@ -49,9 +50,17 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDCToke
 		return sui_ops.OpTxResult[USDCTokenPoolDeployOutput]{}, err
 	}
 
+	publisherObj, err := bind.FindObjectIdFromPublishTx(*tx, "package", "Publisher")
+	if err != nil {
+		return sui_ops.OpTxResult[USDCTokenPoolDeployOutput]{}, fmt.Errorf("failed to find Publisher object ID: %w", err)
+	}
+
 	return sui_ops.OpTxResult[USDCTokenPoolDeployOutput]{
 		Digest:    tx.Digest,
 		PackageId: tokenPoolPackage.Address(),
+		Objects: USDCTokenPoolDeployOutput{
+			PublisherObjectId: publisherObj,
+		},
 	}, err
 }
 
