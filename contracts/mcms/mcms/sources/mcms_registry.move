@@ -478,6 +478,6 @@ public fun test_get_cap_address<C: key + store>(registry: &Registry, package_add
 }
 
 #[test_only]
-public fun get_cap<C: key + store>(registry: &Registry, package_address: address): &C {
+public fun get_cap<C: key + store>(registry: &Registry, package_address: ascii::String): &C {
     registry.package_caps.borrow(package_address)
 }

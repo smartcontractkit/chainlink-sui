@@ -239,12 +239,13 @@ public fun execute_ownership_transfer_to_mcms<T, P: drop>(
 
 /// Used for registering a custom Cap type with MCMS, e.g. McmsCap for LockReleaseTokenPool.
 /// Needed as `OwnableState` does not know about the custom Cap type and needs updating.
-/// Calling function should assert the owner cap inside `cap` matches `ownable_state.owner_cap_id`.
-public(package) fun execute_ownership_and_cap_transfer_to_mcms<C: key + store, T: drop>(
-    state: &mut OwnableState,
+/// IMPORTANT: Calling function should assert the owner cap inside `cap` matches `ownable_state.owner_cap_id`.
+public(package) fun execute_ownership_and_cap_transfer_to_mcms<C: key + store, T: drop, CoinType>(
+    state: &mut OwnableState<CoinType>,
     registry: &mut Registry,
     cap: C,
     to: address,
+    publisher_wrapper: PublisherWrapper<T>,
     proof: T,
     allowed_modules: vector<vector<u8>>,
     ctx: &mut TxContext,
@@ -262,7 +263,7 @@ public(package) fun execute_ownership_and_cap_transfer_to_mcms<C: key + store, T
     state.owner = to;
     state.pending_transfer = option::none();
 
-    mcms_registry::register_entrypoint(registry, proof, cap, allowed_modules, ctx);
+    mcms_registry::register_entrypoint(registry, publisher_wrapper, proof, cap, allowed_modules, ctx);
     event::emit(OwnershipTransferred { from: current_owner, to });
 }
 
