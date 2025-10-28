@@ -19,12 +19,11 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"destroy_token_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"token_pool_administrator","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"initialize_by_ccip_admin","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"ccip_admin_proof","type":"state_object::CCIPAdminProof"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"token_pool_administrator","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"owner","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"pool","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"enabled","type":"bool"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"coin_metadata_address","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"destroy_token_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"token_pool_administrator","type":"address"},{"name":"publisher","type":"Publisher"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"owner","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"pool","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"enabled","type":"bool"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"coin_metadata_address","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"new_owner","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"type_and_version","parameters":null}]`
 
 type IBurnMintTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error)
-	InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string, publisher bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -44,7 +43,7 @@ type IBurnMintTokenPool interface {
 	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, clock bind.Object, pool bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*models.SuiTransactionBlockResponse, error)
-	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -85,7 +84,7 @@ type IBurnMintTokenPoolDevInspect interface {
 	GetSupportedChains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]uint64, error)
 	GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
 	GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]string, error)
-	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (any, error)
+	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (any, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*string, error)
@@ -96,10 +95,8 @@ type IBurnMintTokenPoolDevInspect interface {
 type BurnMintTokenPoolEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string) (*bind.EncodedCall, error)
+	Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string, publisher bind.Object) (*bind.EncodedCall, error)
 	InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	InitializeByCcipAdmin(typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string) (*bind.EncodedCall, error)
-	InitializeByCcipAdminWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
 	SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetToken(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
@@ -138,7 +135,7 @@ type BurnMintTokenPoolEncoder interface {
 	SetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfig(typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfigWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	DestroyTokenPool(typeArgs []string, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
+	DestroyTokenPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	DestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	Owner(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
 	OwnerWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -229,11 +226,14 @@ func (c *BurnMintTokenPoolContract) DevInspect() IBurnMintTokenPoolDevInspect {
 	return c.devInspect
 }
 
+type BURN_MINT_TOKEN_POOL struct {
+}
+
 type BurnMintTokenPoolState struct {
 	Id             string      `move:"sui::object::UID"`
 	TokenPoolState bind.Object `move:"TokenPoolState"`
 	TreasuryCap    bind.Object `move:"TreasuryCap<T>"`
-	OwnableState   bind.Object `move:"OwnableState"`
+	OwnableState   bind.Object `move:"OwnableState<T>"`
 }
 
 type TypeProof struct {
@@ -242,7 +242,27 @@ type TypeProof struct {
 type McmsCallback struct {
 }
 
+type McmsAcceptOwnershipProof struct {
+}
+
 func init() {
+	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BURN_MINT_TOKEN_POOL", func(data []byte) (interface{}, error) {
+		var result BURN_MINT_TOKEN_POOL
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for BURN_MINT_TOKEN_POOL
+	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::BURN_MINT_TOKEN_POOL>", func(data []byte) (interface{}, error) {
+		var results []BURN_MINT_TOKEN_POOL
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolState", func(data []byte) (interface{}, error) {
 		var result BurnMintTokenPoolState
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -294,6 +314,23 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
+		var result McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for McmsAcceptOwnershipProof
+	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
+		var results []McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -307,18 +344,8 @@ func (c *BurnMintTokenPoolContract) TypeAndVersion(ctx context.Context, opts *bi
 }
 
 // Initialize executes the initialize Move function.
-func (c *BurnMintTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.Initialize(typeArgs, ref, coinMetadata, treasuryCap, tokenPoolAdministrator)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// InitializeByCcipAdmin executes the initialize_by_ccip_admin Move function.
-func (c *BurnMintTokenPoolContract) InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.InitializeByCcipAdmin(typeArgs, ref, ccipAdminProof, coinMetadata, treasuryCap, tokenPoolAdministrator)
+func (c *BurnMintTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string, publisher bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.Initialize(typeArgs, ref, coinMetadata, treasuryCap, tokenPoolAdministrator, publisher)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -517,8 +544,8 @@ func (c *BurnMintTokenPoolContract) SetChainRateLimiterConfig(ctx context.Contex
 }
 
 // DestroyTokenPool executes the destroy_token_pool Move function.
-func (c *BurnMintTokenPoolContract) DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.DestroyTokenPool(typeArgs, state, ownerCap)
+func (c *BurnMintTokenPoolContract) DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.DestroyTokenPool(typeArgs, ref, state, ownerCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -989,8 +1016,8 @@ func (d *BurnMintTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts *bi
 // DestroyTokenPool executes the destroy_token_pool Move function using DevInspect to get return values.
 //
 // Returns: TreasuryCap<T>
-func (d *BurnMintTokenPoolDevInspect) DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (any, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.DestroyTokenPool(typeArgs, state, ownerCap)
+func (d *BurnMintTokenPoolDevInspect) DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (any, error) {
+	encoded, err := d.contract.burnMintTokenPoolEncoder.DestroyTokenPool(typeArgs, ref, state, ownerCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1143,7 +1170,7 @@ func (c burnMintTokenPoolEncoder) TypeAndVersionWithArgs(args ...any) (*bind.Enc
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c burnMintTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string) (*bind.EncodedCall, error) {
+func (c burnMintTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string, publisher bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1153,11 +1180,13 @@ func (c burnMintTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object,
 		"&CoinMetadata<T>",
 		"TreasuryCap<T>",
 		"address",
+		"Publisher",
 	}, []any{
 		ref,
 		coinMetadata,
 		treasuryCap,
 		tokenPoolAdministrator,
+		publisher,
 	}, nil)
 }
 
@@ -1169,6 +1198,7 @@ func (c burnMintTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args ...
 		"&CoinMetadata<T>",
 		"TreasuryCap<T>",
 		"address",
+		"Publisher",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1181,48 +1211,6 @@ func (c burnMintTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args ...
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// InitializeByCcipAdmin encodes a call to the initialize_by_ccip_admin Move function.
-func (c burnMintTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string) (*bind.EncodedCall, error) {
-	typeArgsList := typeArgs
-	typeParamsList := []string{
-		"T",
-	}
-	return c.EncodeCallArgsWithGenerics("initialize_by_ccip_admin", typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"state_object::CCIPAdminProof",
-		"&CoinMetadata<T>",
-		"TreasuryCap<T>",
-		"address",
-	}, []any{
-		ref,
-		ccipAdminProof,
-		coinMetadata,
-		treasuryCap,
-		tokenPoolAdministrator,
-	}, nil)
-}
-
-// InitializeByCcipAdminWithArgs encodes a call to the initialize_by_ccip_admin Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) InitializeByCcipAdminWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut CCIPObjectRef",
-		"state_object::CCIPAdminProof",
-		"&CoinMetadata<T>",
-		"TreasuryCap<T>",
-		"address",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := typeArgs
-	typeParamsList := []string{
-		"T",
-	}
-	return c.EncodeCallArgsWithGenerics("initialize_by_ccip_admin", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
 // SetPool encodes a call to the set_pool Move function.
 func (c burnMintTokenPoolEncoder) SetPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
@@ -1231,8 +1219,8 @@ func (c burnMintTokenPoolEncoder) SetPool(typeArgs []string, ref bind.Object, st
 	}
 	return c.EncodeCallArgsWithGenerics("set_pool", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
-		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&BurnMintTokenPoolState<T>",
+		"&OwnerCap<T>",
 		"address",
 	}, []any{
 		ref,
@@ -1247,8 +1235,8 @@ func (c burnMintTokenPoolEncoder) SetPool(typeArgs []string, ref bind.Object, st
 func (c burnMintTokenPoolEncoder) SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
-		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&BurnMintTokenPoolState<T>",
+		"&OwnerCap<T>",
 		"address",
 	}
 
@@ -1452,7 +1440,7 @@ func (c burnMintTokenPoolEncoder) AddRemotePool(typeArgs []string, state bind.Ob
 	}
 	return c.EncodeCallArgsWithGenerics("add_remote_pool", typeArgsList, typeParamsList, []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"u64",
 		"vector<u8>",
 	}, []any{
@@ -1468,7 +1456,7 @@ func (c burnMintTokenPoolEncoder) AddRemotePool(typeArgs []string, state bind.Ob
 func (c burnMintTokenPoolEncoder) AddRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"u64",
 		"vector<u8>",
 	}
@@ -1491,7 +1479,7 @@ func (c burnMintTokenPoolEncoder) RemoveRemotePool(typeArgs []string, state bind
 	}
 	return c.EncodeCallArgsWithGenerics("remove_remote_pool", typeArgsList, typeParamsList, []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"u64",
 		"vector<u8>",
 	}, []any{
@@ -1507,7 +1495,7 @@ func (c burnMintTokenPoolEncoder) RemoveRemotePool(typeArgs []string, state bind
 func (c burnMintTokenPoolEncoder) RemoveRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"u64",
 		"vector<u8>",
 	}
@@ -1601,7 +1589,7 @@ func (c burnMintTokenPoolEncoder) ApplyChainUpdates(typeArgs []string, state bin
 	}
 	return c.EncodeCallArgsWithGenerics("apply_chain_updates", typeArgsList, typeParamsList, []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"vector<u64>",
 		"vector<u64>",
 		"vector<vector<vector<u8>>>",
@@ -1621,7 +1609,7 @@ func (c burnMintTokenPoolEncoder) ApplyChainUpdates(typeArgs []string, state bin
 func (c burnMintTokenPoolEncoder) ApplyChainUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"vector<u64>",
 		"vector<u64>",
 		"vector<vector<vector<u8>>>",
@@ -1714,7 +1702,7 @@ func (c burnMintTokenPoolEncoder) SetAllowlistEnabled(typeArgs []string, state b
 	}
 	return c.EncodeCallArgsWithGenerics("set_allowlist_enabled", typeArgsList, typeParamsList, []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"bool",
 	}, []any{
 		state,
@@ -1728,7 +1716,7 @@ func (c burnMintTokenPoolEncoder) SetAllowlistEnabled(typeArgs []string, state b
 func (c burnMintTokenPoolEncoder) SetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"bool",
 	}
 
@@ -1750,7 +1738,7 @@ func (c burnMintTokenPoolEncoder) ApplyAllowlistUpdates(typeArgs []string, state
 	}
 	return c.EncodeCallArgsWithGenerics("apply_allowlist_updates", typeArgsList, typeParamsList, []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"vector<address>",
 		"vector<address>",
 	}, []any{
@@ -1766,7 +1754,7 @@ func (c burnMintTokenPoolEncoder) ApplyAllowlistUpdates(typeArgs []string, state
 func (c burnMintTokenPoolEncoder) ApplyAllowlistUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"vector<address>",
 		"vector<address>",
 	}
@@ -1873,7 +1861,7 @@ func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfigs(typeArgs []string, 
 	}
 	return c.EncodeCallArgsWithGenerics("set_chain_rate_limiter_configs", typeArgsList, typeParamsList, []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"&Clock",
 		"vector<u64>",
 		"vector<bool>",
@@ -1901,7 +1889,7 @@ func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfigs(typeArgs []string, 
 func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"&Clock",
 		"vector<u64>",
 		"vector<bool>",
@@ -1930,7 +1918,7 @@ func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfig(typeArgs []string, s
 	}
 	return c.EncodeCallArgsWithGenerics("set_chain_rate_limiter_config", typeArgsList, typeParamsList, []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"&Clock",
 		"u64",
 		"bool",
@@ -1958,7 +1946,7 @@ func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfig(typeArgs []string, s
 func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfigWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"&Clock",
 		"u64",
 		"bool",
@@ -1980,15 +1968,17 @@ func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfigWithArgs(typeArgs []s
 }
 
 // DestroyTokenPool encodes a call to the destroy_token_pool Move function.
-func (c burnMintTokenPoolEncoder) DestroyTokenPool(typeArgs []string, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
+func (c burnMintTokenPoolEncoder) DestroyTokenPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("destroy_token_pool", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
 		"BurnMintTokenPoolState<T>",
-		"OwnerCap",
+		"OwnerCap<T>",
 	}, []any{
+		ref,
 		state,
 		ownerCap,
 	}, []string{
@@ -2000,8 +1990,9 @@ func (c burnMintTokenPoolEncoder) DestroyTokenPool(typeArgs []string, state bind
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c burnMintTokenPoolEncoder) DestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&mut CCIPObjectRef",
 		"BurnMintTokenPoolState<T>",
-		"OwnerCap",
+		"OwnerCap<T>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2194,7 +2185,7 @@ func (c burnMintTokenPoolEncoder) TransferOwnership(typeArgs []string, state bin
 	}
 	return c.EncodeCallArgsWithGenerics("transfer_ownership", typeArgsList, typeParamsList, []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"address",
 	}, []any{
 		state,
@@ -2208,7 +2199,7 @@ func (c burnMintTokenPoolEncoder) TransferOwnership(typeArgs []string, state bin
 func (c burnMintTokenPoolEncoder) TransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
-		"&OwnerCap",
+		"&OwnerCap<T>",
 		"address",
 	}
 
@@ -2328,7 +2319,7 @@ func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransfer(typeArgs []string, ow
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
-		"OwnerCap",
+		"OwnerCap<T>",
 		"&mut BurnMintTokenPoolState<T>",
 		"address",
 	}, []any{
@@ -2342,7 +2333,7 @@ func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransfer(typeArgs []string, ow
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"OwnerCap",
+		"OwnerCap<T>",
 		"&mut BurnMintTokenPoolState<T>",
 		"address",
 	}
@@ -2364,7 +2355,7 @@ func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferToMcms(typeArgs []stri
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, []string{
-		"OwnerCap",
+		"OwnerCap<T>",
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
 		"address",
@@ -2380,7 +2371,7 @@ func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferToMcms(typeArgs []stri
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"OwnerCap",
+		"OwnerCap<T>",
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
 		"address",

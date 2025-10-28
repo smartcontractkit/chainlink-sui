@@ -71,7 +71,7 @@ public fun test_create_token_transfer_params() {
     // Register a token in the token admin registry first
     registry::register_pool_by_admin(
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
+        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -128,7 +128,7 @@ public fun test_create_token_transfer_params_basic() {
     // Register a token with TestTypeProof
     registry::register_pool_by_admin(
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
+        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -167,7 +167,7 @@ public fun test_get_remote_chain_selector() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
+        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -234,7 +234,7 @@ public fun test_create_and_verify_token_transfer() {
     // Register a token in the token admin registry first
     registry::register_pool_by_admin(
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
+        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -305,7 +305,7 @@ public fun test_add_multiple_token_transfers_should_fail() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
+        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -381,7 +381,7 @@ public fun test_get_source_token_transfer_data() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
+        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -438,7 +438,7 @@ public fun test_edge_case_large_amounts() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
+        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -485,7 +485,7 @@ public fun test_edge_case_empty_data() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
+        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -537,7 +537,7 @@ public fun test_zero_amount_transfer() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
+        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),
@@ -583,7 +583,7 @@ public fun test_source_transfer_cap_permission() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
+        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         @0x1,
         string::utf8(b"test_pool"),

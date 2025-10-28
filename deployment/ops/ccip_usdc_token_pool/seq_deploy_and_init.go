@@ -65,6 +65,8 @@ var DeployAndInitUSDCTokenPoolSequence = cld_ops.NewSequence(
 			deps,
 			USDCTokenPoolInitializeInput{
 				USDCTokenPoolPackageId: deployReport.Output.PackageId,
+				CCIPObjectRefObjectId:  input.CCIPObjectRefObjectId,
+				CCIPAdminProofObjectId: input.CCIPAdminProofObjectId,
 				CoinObjectTypeArg:      input.CoinObjectTypeArg,
 				StateObjectId:          input.CCIPObjectRefObjectId,
 				OwnerCapObjectId:       input.CCIPAdminProofObjectId,
@@ -72,6 +74,7 @@ var DeployAndInitUSDCTokenPoolSequence = cld_ops.NewSequence(
 				LocalDomainIdentifier:  input.LocalDomainIdentifier,
 				TokenPoolPackageId:     input.TokenPoolPackageId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
+				PublisherObjectId:      deployReport.Output.Objects.PublisherObjectId,
 			},
 		)
 		if err != nil {

@@ -12,6 +12,7 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
+	module_ownable "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/ownable"
 )
 
 type DeployCCIPOnRampObjects struct {
@@ -125,11 +126,7 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := onRampPackage.ApplyDestChainConfigUpdates(
-		b.GetContext(),
-		opts,
+	encodedCall, err := onRampPackage.Encoder().ApplyDestChainConfigUpdates(
 		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
@@ -138,14 +135,41 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 		input.DestChainRouters,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute ApplyDestChainUpdate on onRamp: %w", err)
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to encode ApplyDestChainConfigUpdates call: %w", err)
 	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ApplyDestChainConfigUpdates on OnRamp as per no Signer provided")
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
+			Digest:    "",
+			PackageId: input.OnRampPackageId,
+			Objects:   DeployCCIPOnRampObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute ApplyDestChainConfigUpdates on OnRamp: %w", err)
+	}
+
+	b.Logger.Infow("Destination chain config updates applied on OnRamp")
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.OnRampPackageId,
 		Objects:   DeployCCIPOnRampObjects{},
-	}, err
+		Call:      call,
+	}, nil
 }
 
 type ApplyAllowListUpdatesInput struct {
@@ -165,11 +189,7 @@ var ApplyAllowListUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := onRampPackage.ApplyAllowlistUpdates(
-		b.GetContext(),
-		opts,
+	encodedCall, err := onRampPackage.Encoder().ApplyAllowlistUpdates(
 		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
@@ -179,14 +199,41 @@ var ApplyAllowListUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		input.DestChainRemoveAllowedSenders,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute  ApplyAllowListUpdates on onRamp: %w", err)
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to encode ApplyAllowlistUpdates call: %w", err)
 	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ApplyAllowlistUpdates on OnRamp as per no Signer provided")
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
+			Digest:    "",
+			PackageId: input.OnRampPackageId,
+			Objects:   DeployCCIPOnRampObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute ApplyAllowlistUpdates on OnRamp: %w", err)
+	}
+
+	b.Logger.Infow("Allowlist updates applied on OnRamp")
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.OnRampPackageId,
 		Objects:   DeployCCIPOnRampObjects{},
-	}, err
+		Call:      call,
+	}, nil
 }
 
 type IsChainSupportedInput struct {
@@ -347,17 +394,37 @@ var addPackageIdHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Ad
 		return sui_ops.OpTxResult[AddPackageIdObjects]{}, err
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := onRampPackage.AddPackageId(
-		b.GetContext(),
-		opts,
+	encodedCall, err := onRampPackage.Encoder().AddPackageId(
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.PackageId,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[AddPackageIdObjects]{}, fmt.Errorf("failed to execute AddPackageId on onRamp: %w", err)
+		return sui_ops.OpTxResult[AddPackageIdObjects]{}, fmt.Errorf("failed to encode AddPackageId call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of AddPackageId on OnRamp as per no Signer provided", "packageId", input.PackageId)
+		return sui_ops.OpTxResult[AddPackageIdObjects]{
+			Digest:    "",
+			PackageId: input.OnRampPackageId,
+			Objects:   AddPackageIdObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdObjects]{}, fmt.Errorf("failed to execute AddPackageId on OnRamp: %w", err)
 	}
 
 	b.Logger.Infow("Package ID added to OnRamp", "packageId", input.PackageId)
@@ -366,6 +433,7 @@ var addPackageIdHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Ad
 		Digest:    tx.Digest,
 		PackageId: input.OnRampPackageId,
 		Objects:   AddPackageIdObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -393,14 +461,34 @@ var removePackageIdOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		return sui_ops.OpTxResult[RemovePackageIdOnRampObjects]{}, err
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := onRampPackage.RemovePackageId(
-		b.GetContext(),
-		opts,
+	encodedCall, err := onRampPackage.Encoder().RemovePackageId(
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.PackageId,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[RemovePackageIdOnRampObjects]{}, fmt.Errorf("failed to encode RemovePackageId call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[RemovePackageIdOnRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of RemovePackageId on OnRamp as per no Signer provided", "packageId", input.PackageId)
+		return sui_ops.OpTxResult[RemovePackageIdOnRampObjects]{
+			Digest:    "",
+			PackageId: input.OnRampPackageId,
+			Objects:   RemovePackageIdOnRampObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[RemovePackageIdOnRampObjects]{}, fmt.Errorf("failed to execute RemovePackageId on OnRamp: %w", err)
@@ -412,6 +500,7 @@ var removePackageIdOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		Digest:    tx.Digest,
 		PackageId: input.OnRampPackageId,
 		Objects:   RemovePackageIdOnRampObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -555,6 +644,7 @@ var GetPendingTransferOnRampOp = cld_ops.NewOperation(
 
 type TransferOwnershipOnRampInput struct {
 	OnRampPackageId  string
+	CCIPObjectRefId  string
 	StateObjectId    string
 	OwnerCapObjectId string
 	To               string
@@ -575,7 +665,7 @@ var transferOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDep
 	tx, err := onRampPackage.TransferOwnership(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.To,
@@ -602,37 +692,63 @@ var TransferOwnershipOnRampOp = cld_ops.NewOperation(
 
 type AcceptOwnershipOnRampInput struct {
 	OnRampPackageId string
+	CCIPObjectRefId string
 	StateObjectId   string
 }
 
-type AcceptOwnershipOnRampObjects struct {
+type NoObjects struct {
 	// No specific objects are returned from accept_ownership
 }
 
-var acceptOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptOwnershipOnRampInput) (output sui_ops.OpTxResult[AcceptOwnershipOnRampObjects], err error) {
-	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+var acceptOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptOwnershipOnRampInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	// mcms_accept_ownership uses the Ownable module
+	ownablePackage, err := module_ownable.NewOwnable(input.OnRampPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[AcceptOwnershipOnRampObjects]{}, err
+		return sui_ops.OpTxResult[NoObjects]{}, err
 	}
 
+	// Use AcceptOwnershipWithArgs since OwnableState no longer has key ability
+	// We pass the full OnRampState object which contains OwnableState as a field
+	encodedCall, err := ownablePackage.Encoder().AcceptOwnershipWithArgs(bind.Object{Id: input.StateObjectId})
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
+	}
+	// We need ownable encoding, but we call the onramp
+	encodedCall.Module.ModuleName = "onramp"
+	// we set the ref object as the state of the call, so we can access it in the entrypoint encoder
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRefId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of AcceptOwnership on OnRamp as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.OnRampPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	// If we have a signer, this is accepting the ownership from EOA, we use the onramp directly
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 	tx, err := onRampPackage.AcceptOwnership(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[AcceptOwnershipOnRampObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on OnRamp: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on StateObject: %w", err)
 	}
 
-	b.Logger.Infow("Ownership accepted for OnRamp")
+	b.Logger.Infow("Ownership accepted for CCIP StateObject")
 
-	return sui_ops.OpTxResult[AcceptOwnershipOnRampObjects]{
+	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.OnRampPackageId,
-		Objects:   AcceptOwnershipOnRampObjects{},
 	}, nil
 }
 

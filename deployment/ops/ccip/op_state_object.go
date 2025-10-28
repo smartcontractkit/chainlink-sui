@@ -457,12 +457,82 @@ var AcceptOwnershipStateObjectOp = cld_ops.NewOperation(
 	acceptOwnershipStateObjectHandler,
 )
 
-var AllOperationsStateObject = []cld_ops.Operation[any, any, any]{
-	*AddPackageIdStateObjectOp.AsUntyped(),
-	*RemovePackageIdStateObjectOp.AsUntyped(),
-	*GetOwnerCapIdStateObjectOp.AsUntyped(),
-	*GetOwnerStateObjectOp.AsUntyped(),
-	*GetPendingTransferStateObjectOp.AsUntyped(),
-	*TransferOwnershipStateObjectOp.AsUntyped(),
-	*AcceptOwnershipStateObjectOp.AsUntyped(),
+// =================== Execute Ownership Transfer To MCMS Operations =================== //
+
+type ExecuteOwnershipTransferToMcmsStateObjectInput struct {
+	CCIPPackageId         string
+	CCIPObjectRefObjectId string
+	OwnerCapObjectId      string
+	RegistryObjectId      string
+	To                    string
 }
+
+type ExecuteOwnershipTransferToMcmsStateObjectObjects struct {
+	// No specific objects are returned from execute_ownership_transfer_to_mcms
+}
+
+var executeOwnershipTransferToMcmsStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ExecuteOwnershipTransferToMcmsStateObjectInput) (output sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsStateObjectObjects], err error) {
+	contract, err := module_state_object.NewStateObject(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
+	}
+
+	encodedCall, err := contract.Encoder().ExecuteOwnershipTransferToMcms(
+		bind.Object{Id: input.CCIPObjectRefObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.RegistryObjectId},
+		input.To,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsStateObjectObjects]{}, fmt.Errorf("failed to encode ExecuteOwnershipTransferToMcms call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRefObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsStateObjectObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ExecuteOwnershipTransferToMcms on StateObject as per no Signer provided", "to", input.To)
+		return sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsStateObjectObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   ExecuteOwnershipTransferToMcmsStateObjectObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsStateObjectObjects]{}, fmt.Errorf("failed to execute ExecuteOwnershipTransferToMcms on StateObject: %w", err)
+	}
+
+	newOwner, err := contract.DevInspect().Owner(b.GetContext(), opts, bind.Object{Id: input.CCIPObjectRefObjectId})
+	if err != nil {
+		return sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsStateObjectObjects]{}, fmt.Errorf("failed to get new owner for StateObject: %w", err)
+	}
+
+	if newOwner != input.To {
+		return sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsStateObjectObjects]{}, fmt.Errorf("ownership transfer to MCMS failed for StateObject: expected new owner %s, got %s", input.To, newOwner)
+	}
+
+	b.Logger.Infow("Ownership transfer to MCMS executed successfully for CCIP StateObject", "to", input.To)
+
+	return sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsStateObjectObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   ExecuteOwnershipTransferToMcmsStateObjectObjects{},
+		Call:      call,
+	}, nil
+}
+
+var ExecuteOwnershipTransferToMcmsStateObjectOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "state_object", "execute_ownership_transfer_to_mcms"),
+	semver.MustParse("0.1.0"),
+	"Executes ownership transfer to MCMS for the CCIP StateObject",
+	executeOwnershipTransferToMcmsStateObjectHandler,
+)

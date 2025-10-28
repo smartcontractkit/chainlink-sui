@@ -12,6 +12,7 @@ type DeployLockReleaseTokenPoolObjects struct {
 	OwnerCapObjectId      string
 	StateObjectId         string
 	RebalancerCapObjectId string
+	PublisherObjectId     string
 }
 
 type DeployLockReleaseTokenPoolOutput struct {
@@ -28,6 +29,7 @@ type DeployAndInitLockReleaseTokenPoolInput struct {
 	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
 	Rebalancer             string
+	PublisherObjectId      string
 	// apply chain updates
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -65,6 +67,7 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 				TreasuryCapObjectId:    input.TreasuryCapObjectId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
 				Rebalancer:             input.Rebalancer,
+				PublisherObjectId:      deployReport.Output.Objects.PublisherObjectId,
 			},
 		)
 		if err != nil {
@@ -112,110 +115,19 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 			return DeployLockReleaseTokenPoolOutput{}, err
 		}
 
-		return DeployLockReleaseTokenPoolOutput{
-			LockReleaseTPPackageID: deployReport.Output.PackageId,
-			Objects: DeployLockReleaseTokenPoolObjects{
-				OwnerCapObjectId:      initReport.Output.Objects.OwnerCapObjectId,
-				StateObjectId:         initReport.Output.Objects.StateObjectId,
-				RebalancerCapObjectId: initReport.Output.Objects.RebalancerCapObjectId,
-			},
-		}, nil
-	},
-)
-
-// DEPLOY AND INIT BY CCIP ADMIN SEQUENCE
-type DeployAndInitLockReleaseTokenPoolByCcipAdminInput struct {
-	LockReleaseTokenPoolDeployInput
-	// init by ccip admin
-	CoinObjectTypeArg      string
-	CCIPObjectRefObjectId  string
-	CoinMetadataObjectId   string
-	OwnerCapObjectId       string
-	TokenPoolAdministrator string
-	Rebalancer             string
-	// apply chain updates
-	RemoteChainSelectorsToRemove []uint64
-	RemoteChainSelectorsToAdd    []uint64
-	RemotePoolAddressesToAdd     [][]string
-	RemoteTokenAddressesToAdd    []string
-	// set chain rate limiter configs
-	RemoteChainSelectors []uint64
-	OutboundIsEnableds   []bool
-	OutboundCapacities   []uint64
-	OutboundRates        []uint64
-	InboundIsEnableds    []bool
-	InboundCapacities    []uint64
-	InboundRates         []uint64
-}
-
-var DeployAndInitLockReleaseTokenPoolByCcipAdminSequence = cld_ops.NewSequence(
-	"sui-deploy-lock-release-token-pool-by-ccip-admin-seq",
-	semver.MustParse("0.1.0"),
-	"Deploys and sets initial lock release token pool configuration using CCIP admin",
-	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployAndInitLockReleaseTokenPoolByCcipAdminInput) (DeployLockReleaseTokenPoolOutput, error) {
-		deployReport, err := cld_ops.ExecuteOperation(env, DeployCCIPLockReleaseTokenPoolOp, deps, input.LockReleaseTokenPoolDeployInput)
-		if err != nil {
-			return DeployLockReleaseTokenPoolOutput{}, err
-		}
-
-		initReport, err := cld_ops.ExecuteOperation(
-			env,
-			LockReleaseTokenPoolInitializeByCcipAdminOp,
-			deps,
-			LockReleaseTokenPoolInitializeByCcipAdminInput{
-				CoinObjectTypeArg:      input.CoinObjectTypeArg,
-				LockReleasePackageId:   deployReport.Output.PackageId,
-				StateObjectId:          input.CCIPObjectRefObjectId,
-				CoinMetadataObjectId:   input.CoinMetadataObjectId,
-				OwnerCapObjectId:       input.OwnerCapObjectId,
-				TokenPoolAdministrator: input.TokenPoolAdministrator,
-				Rebalancer:             input.Rebalancer,
-			},
-		)
-		if err != nil {
-			return DeployLockReleaseTokenPoolOutput{}, err
-		}
-
+		// transfer ownership to MCMS
 		_, err = cld_ops.ExecuteOperation(
 			env,
-			LockReleaseTokenPoolApplyChainUpdatesOp,
+			TransferOwnershipLockReleaseTokenPoolOp,
 			deps,
-			LockReleaseTokenPoolApplyChainUpdatesInput{
-				LockReleasePackageId:         deployReport.Output.PackageId,
-				CoinObjectTypeArg:            input.CoinObjectTypeArg,
-				StateObjectId:                initReport.Output.Objects.StateObjectId,
-				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectId,
-				RemoteChainSelectorsToRemove: input.RemoteChainSelectorsToRemove,
-				RemoteChainSelectorsToAdd:    input.RemoteChainSelectorsToAdd,
-				RemotePoolAddressesToAdd:     input.RemotePoolAddressesToAdd,
-				RemoteTokenAddressesToAdd:    input.RemoteTokenAddressesToAdd,
+			TransferOwnershipLockReleaseTokenPoolInput{
+				LockReleaseTokenPoolPackageId: deployReport.Output.PackageId,
+				TypeArgs:                      []string{input.CoinObjectTypeArg},
+				StateObjectId:                 initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectId:              initReport.Output.Objects.OwnerCapObjectId,
+				To:                            input.LockReleaseTokenPoolDeployInput.MCMSAddress,
 			},
 		)
-		if err != nil {
-			return DeployLockReleaseTokenPoolOutput{}, err
-		}
-
-		_, err = cld_ops.ExecuteOperation(
-			env,
-			LockReleaseTokenPoolSetChainRateLimiterOp,
-			deps,
-			LockReleaseTokenPoolSetChainRateLimiterInput{
-				LockReleasePackageId: deployReport.Output.PackageId,
-				CoinObjectTypeArg:    input.CoinObjectTypeArg,
-				StateObjectId:        initReport.Output.Objects.StateObjectId,
-				OwnerCap:             initReport.Output.Objects.OwnerCapObjectId,
-				RemoteChainSelectors: input.RemoteChainSelectors,
-				OutboundIsEnableds:   input.OutboundIsEnableds,
-				OutboundCapacities:   input.OutboundCapacities,
-				OutboundRates:        input.OutboundRates,
-				InboundIsEnableds:    input.InboundIsEnableds,
-				InboundCapacities:    input.InboundCapacities,
-				InboundRates:         input.InboundRates,
-			},
-		)
-		if err != nil {
-			return DeployLockReleaseTokenPoolOutput{}, err
-		}
 
 		return DeployLockReleaseTokenPoolOutput{
 			LockReleaseTPPackageID: deployReport.Output.PackageId,
@@ -223,6 +135,7 @@ var DeployAndInitLockReleaseTokenPoolByCcipAdminSequence = cld_ops.NewSequence(
 				OwnerCapObjectId:      initReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:         initReport.Output.Objects.StateObjectId,
 				RebalancerCapObjectId: initReport.Output.Objects.RebalancerCapObjectId,
+				PublisherObjectId:     deployReport.Output.Objects.PublisherObjectId,
 			},
 		}, nil
 	},

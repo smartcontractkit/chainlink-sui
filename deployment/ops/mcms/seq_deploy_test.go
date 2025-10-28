@@ -54,11 +54,16 @@ func TestDeployMCMSSeq(t *testing.T) {
 		},
 	}
 
+	registry := cld_ops.NewOperationRegistry(
+		MCMSAcceptOwnershipOp.AsUntyped(),
+	)
+
 	reporter := cld_ops.NewMemoryReporter()
 	bundle := cld_ops.NewBundle(
 		context.Background,
 		logger.Test(t),
 		reporter,
+		cld_ops.WithOperationRegistry(registry),
 	)
 
 	// Generate sorted signers for testing (similar to Test_Sui_SetConfig)
@@ -176,6 +181,6 @@ func TestDeployMCMSSeq(t *testing.T) {
 	require.NotEmpty(t, objects.McmsRegistryObjectId, "MCMS Registry Object ID should not be empty")
 	require.NotEmpty(t, objects.McmsAccountStateObjectId, "MCMS Account State Object ID should not be empty")
 	require.NotEmpty(t, objects.McmsAccountOwnerCapObjectId, "MCMS Account Owner Cap Object ID should not be empty")
-	require.NotEmpty(t, report.Output.Digest, "Transaction digest should not be empty")
 	require.NotEmpty(t, report.Output.PackageId, "Package ID should not be empty")
+	require.NotEmpty(t, report.Output.AcceptOwnershipProposal, "Accept Ownership Proposal should not be empty")
 }

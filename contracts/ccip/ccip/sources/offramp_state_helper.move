@@ -1,8 +1,9 @@
 module ccip::offramp_state_helper;
 
 use ccip::client::{Self, Any2SuiMessage, Any2SuiTokenAmount};
+use ccip::ownable::OwnerCap;
 use ccip::receiver_registry;
-use ccip::state_object::CCIPObjectRef;
+use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
 use std::ascii;
 use std::type_name;
@@ -17,6 +18,7 @@ const ETokenTransferAlreadyExists: u64 = 6;
 const ETokenTransferDoesNotExist: u64 = 7;
 const ETokenTransferAlreadyCompleted: u64 = 8;
 const EMessageAlreadyExists: u64 = 9;
+const EInvalidOwnerCap: u64 = 10;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
@@ -60,6 +62,19 @@ fun init(_witness: OFFRAMP_STATE_HELPER, ctx: &mut TxContext) {
     };
 
     transfer::transfer(dest_cap, ctx.sender());
+}
+
+// create a new dest transfer cap if we need to create a new offramp state object
+public fun new_dest_transfer_cap(
+    ref: &CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    ctx: &mut TxContext,
+): DestTransferCap {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
+    DestTransferCap {
+        id: object::new(ctx),
+    }
 }
 
 public fun create_receiver_params(_: &DestTransferCap, source_chain_selector: u64): ReceiverParams {
@@ -191,6 +206,7 @@ public fun new_any2sui_message(
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
+    message_receiver: address,
     token_receiver: address,
     dest_token_amounts: vector<Any2SuiTokenAmount>,
 ): Any2SuiMessage {
@@ -199,6 +215,7 @@ public fun new_any2sui_message(
         source_chain_selector,
         sender,
         data,
+        message_receiver,
         token_receiver,
         dest_token_amounts,
     )
@@ -208,7 +225,7 @@ public fun consume_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,
     message: Any2SuiMessage,
     _: TypeProof,
-): (vector<u8>, u64, vector<u8>, vector<u8>, address, vector<Any2SuiTokenAmount>) {
+): (vector<u8>, u64, vector<u8>, vector<u8>, address, address, vector<Any2SuiTokenAmount>) {
     let proof_tn = type_name::with_defining_ids<TypeProof>();
     let address_str = type_name::address_string(&proof_tn);
     let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
@@ -217,7 +234,7 @@ public fun consume_any2sui_message<TypeProof: drop>(
     let (_, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
     assert!(proof_typename == proof_tn.into_string(), ETypeProofMismatch);
 
-    client::consume_any2sui_message(message)
+    client::consume_any2sui_message(message, receiver_package_id)
 }
 
 /// this function is called by ccip offramp directly, permissioned by the dest transfer cap.
@@ -268,6 +285,7 @@ public fun test_init(ctx: &mut TxContext) {
 #[test_only]
 public fun deconstruct_receiver_params_with_message_for_test(
     _: &DestTransferCap,
+    receiver_package_id: address,
     receiver_params: ReceiverParams,
 ) {
     let ReceiverParams {
@@ -287,7 +305,7 @@ public fun deconstruct_receiver_params_with_message_for_test(
 
     if (message_op.is_some()) {
         let message = message_op.extract();
-        client::consume_any2sui_message(message);
+        client::consume_any2sui_message(message, receiver_package_id);
     };
     message_op.destroy_none();
     r.destroy_none();

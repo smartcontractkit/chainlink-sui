@@ -26,6 +26,7 @@ type DeployAndInitBurnMintTokenPoolInput struct {
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
+	PublisherObjectId      string
 	// apply chain updates
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -62,6 +63,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 				CoinMetadataObjectId:   input.CoinMetadataObjectId,
 				TreasuryCapObjectId:    input.TreasuryCapObjectId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
+				PublisherObjectId:      deployReport.Output.Objects.PublisherObjectId,
 			},
 		)
 		if err != nil {
@@ -108,6 +110,20 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 		if err != nil {
 			return DeployBurnMintTokenPoolOutput{}, err
 		}
+
+		// transfer ownership to MCMS
+		_, err = cld_ops.ExecuteOperation(
+			env,
+			TransferOwnershipBurnMintTokenPoolOp,
+			deps,
+			TransferOwnershipBurnMintTokenPoolInput{
+				BurnMintTokenPoolPackageId: deployReport.Output.PackageId,
+				TypeArgs:                   []string{input.CoinObjectTypeArg},
+				StateObjectId:              initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectId:           initReport.Output.Objects.OwnerCapObjectId,
+				To:                         input.BurnMintTokenPoolDeployInput.MCMSAddress,
+			},
+		)
 
 		return DeployBurnMintTokenPoolOutput{
 			BurnMintTPPackageID: deployReport.Output.PackageId,

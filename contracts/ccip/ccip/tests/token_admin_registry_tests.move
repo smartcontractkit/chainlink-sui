@@ -1,7 +1,7 @@
 #[test_only]
 module ccip::token_admin_registry_tests;
 
-use ccip::ownable::OwnerCap;
+use ccip::ownable::{OwnerCap};
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
 use ccip::upgrade_registry;
@@ -223,7 +223,7 @@ public fun test_register_pool_by_admin() {
         // Register pool as admin (without treasury cap)
         registry::register_pool_by_admin(
             &mut ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             @0x123, // coin_metadata_address
             MOCK_TOKEN_POOL_PACKAGE_ID_1, // token_pool_package_id
             string::utf8(b"admin_registered_pool"), // token_pool_module
@@ -352,7 +352,7 @@ public fun test_register_and_set_pool() {
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof2 {},
-            ctx,
+            ctx.sender(),
         );
 
         // Request admin transfer
@@ -589,7 +589,7 @@ public fun test_set_pool_comprehensive() {
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof2 {},
-            ctx,
+            ctx.sender(),
         );
 
         // Since TypeProof and TypeProof2 have the same package ID, the configuration should remain unchanged
@@ -624,7 +624,7 @@ public fun test_set_pool_comprehensive() {
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof {},
-            ctx,
+            ctx.sender(),
         );
 
         // Verify pool was NOT updated (same package ID means no change)
@@ -757,7 +757,7 @@ public fun test_set_pool_unregistered_token() {
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof {},
-            ctx,
+            ctx.sender(),
         );
 
         ts::return_shared(ref);
@@ -805,7 +805,7 @@ public fun test_set_pool_unauthorized() {
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof2 {},
-            ctx,
+            ctx.sender(),
         );
 
         ts::return_shared(ref);
@@ -1066,7 +1066,6 @@ public fun test_mcms_transfer_admin_role() {
 #[test]
 public fun test_mcms_accept_admin_role() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    let mcms_proof_type = type_name::with_defining_ids<state_object::McmsCallback>();
     let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
     let local_token = object::id_address(&coin_metadata);
     let mcms = mcms_registry::get_multisig_address();
@@ -1122,7 +1121,6 @@ public fun test_mcms_accept_admin_role() {
             x"0000000000000000000000000000000000000000000000000000000000000001",
             0,
             1,
-            mcms_proof_type,
         );
 
         // Execute MCMS accept
@@ -1143,7 +1141,6 @@ public fun test_mcms_accept_admin_role() {
 #[test]
 public fun test_mcms_full_admin_transfer_flow() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    let mcms_proof_type = type_name::with_defining_ids<state_object::McmsCallback>();
     let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
     let local_token = object::id_address(&coin_metadata);
     let mcms = mcms_registry::get_multisig_address();
@@ -1210,7 +1207,6 @@ public fun test_mcms_full_admin_transfer_flow() {
             x"0000000000000000000000000000000000000000000000000000000000000002",
             0,
             1,
-            mcms_proof_type,
         );
 
         registry::mcms_accept_admin_role(&mut ref, &mut registry, params, scenario.ctx());
@@ -1231,7 +1227,6 @@ public fun test_mcms_full_admin_transfer_flow() {
 #[expected_failure(abort_code = registry::ENotPendingAdministrator)]
 public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    let mcms_proof_type = type_name::with_defining_ids<state_object::McmsCallback>();
     let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
     let local_token = object::id_address(&coin_metadata);
 
@@ -1280,7 +1275,6 @@ public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
             x"0000000000000000000000000000000000000000000000000000000000000003",
             0,
             1,
-            mcms_proof_type,
         );
 
         registry::mcms_accept_admin_role(&mut ref, &mut registry, params, scenario.ctx());
@@ -1297,7 +1291,6 @@ public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
 #[expected_failure(abort_code = registry::ETokenNotRegistered)]
 public fun test_mcms_transfer_admin_role_token_not_registered_fails() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    let mcms_proof_type = type_name::with_defining_ids<state_object::McmsCallback>();
     let mcms = mcms_registry::get_multisig_address();
 
     initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
@@ -1332,7 +1325,6 @@ public fun test_mcms_transfer_admin_role_token_not_registered_fails() {
             x"0000000000000000000000000000000000000000000000000000000000000004",
             0,
             1,
-            mcms_proof_type,
         );
 
         registry::mcms_transfer_admin_role(&mut ref, &mut registry, params, scenario.ctx());
@@ -1426,7 +1418,7 @@ public fun test_set_pool_with_different_package_ids() {
 
         registry::register_pool_by_admin(
             &mut ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             mock_token_address,
             original_pool_package_id,
             string::utf8(b"original_pool_module"),
@@ -1475,7 +1467,7 @@ public fun test_set_pool_with_different_package_ids() {
             vector[@0x6, @0x3333], // new lock_or_burn_params
             vector[@0x6, @0x4444], // new release_or_mint_params
             TypeProof {}, // This has the test module's package ID
-            ctx,
+            ctx.sender(),
         );
 
         // Get the TypeProof package ID
@@ -1594,7 +1586,7 @@ public fun test_set_pool_same_package_id_no_update() {
             vector[@0x6, @0x5555], // different params
             vector[@0x6, @0x6666], // different params
             TypeProof {},
-            ctx,
+            ctx.sender(),
         );
 
         // Verify nothing changed
@@ -1640,7 +1632,7 @@ public fun test_set_pool_only_admin_can_call() {
 
         registry::register_pool_by_admin(
             &mut ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             mock_token_address,
             @0xAAAA,
             string::utf8(b"test_pool"),
@@ -1667,7 +1659,7 @@ public fun test_set_pool_only_admin_can_call() {
             vector[@0x6, @0x3333],
             vector[@0x6, @0x4444],
             TypeProof {},
-            ctx,
+            ctx.sender(),
         );
 
         ts::return_shared(ref);
@@ -1706,7 +1698,7 @@ public fun test_mcms_set_pool_with_package_change() {
 
         registry::register_pool_by_admin(
             &mut ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             mock_token_address,
             original_pool_package_id,
             string::utf8(b"original_pool"),
@@ -1749,7 +1741,6 @@ public fun test_mcms_set_pool_with_package_change() {
             x"0000000000000000000000000000000000000000000000000000000000000021",
             0,
             1,
-            type_name::with_defining_ids<state_object::McmsCallback>(),
         );
 
         registry::mcms_accept_admin_role(&mut ref, &mut registry_obj, params, scenario.ctx());
@@ -1791,7 +1782,6 @@ public fun test_mcms_set_pool_with_package_change() {
             x"0000000000000000000000000000000000000000000000000000000000000022",
             0,
             1,
-            type_name::with_defining_ids<state_object::McmsCallback>(),
         );
 
         registry::mcms_set_pool(&mut ref, &mut registry_obj, params, scenario.ctx());
@@ -1882,7 +1872,7 @@ public fun test_set_pool_function_not_allowed() {
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof2 {},
-            ctx,
+            ctx.sender(),
         );
 
         ts::return_shared(ref);

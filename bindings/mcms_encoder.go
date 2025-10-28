@@ -48,7 +48,7 @@ func overrideCall(call *bind.EncodedCall, module, function string) *bind.Encoded
 
 // MCMS SDK will call this to encode the entrypoint call
 // Data is the raw BCS encoded bytes of the final function call
-func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *transaction.Argument, target, module, function, stateObjID string, data []byte) (*bind.EncodedCall, error) {
+func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *transaction.Argument, target, module, function, stateObjID string, data []byte, typeArgs []string) (*bind.EncodedCall, error) {
 	clock := bind.Object{Id: "0x6"}
 	stateObj := bind.Object{Id: stateObjID}
 	registryObj := bind.Object{Id: e.registryObjID}
@@ -76,8 +76,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		if err != nil {
 			return nil, err
 		}
-		// TODO: Find correct type args
-		typeArgs := []string{"0x1::sui::SUI"}
+
 		entrypointCall, err := burnMintTokenPool.Encoder().McmsSetChainRateLimiterConfigsWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams, clock)
 		if err != nil {
 			return nil, err
@@ -91,8 +90,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		if err != nil {
 			return nil, err
 		}
-		// TODO: Find correct type args
-		typeArgs := []string{"0x1::sui::SUI"}
+
 		entrypointCall, err := burnMintTokenPool.Encoder().McmsExecuteOwnershipTransferWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		if err != nil {
 			return nil, err
@@ -115,6 +113,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			if ccipRef.Id != stateObj.Id {
 				return nil, fmt.Errorf("ccip ref (%s) does not match state object (%s)", ccipRef.Id, stateObj.Id)
 			}
+
 			return feeQuoter.Encoder().McmsUpdatePricesWithOwnerCapWithArgs(ccipRef, registryObj, clock, executingCallbackParams)
 		}
 
@@ -132,13 +131,21 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 	// OFFRAMP
 	case "offramp":
 		switch function {
-		case "accept_ownership",
-			"set_dynamic_config",
+		case "set_dynamic_config",
 			"apply_source_chain_config_updates",
 			"set_ocr3_config",
 			"transfer_ownership",
 			"execute_ownership_transfer":
 			return encodeWithCCIPObjectRefAndState()
+		case "accept_ownership":
+			offramp, err := module_offramp.NewOfframp(target, nil)
+			if err != nil {
+				return nil, err
+			}
+			ccipObjectRef := bind.Object{Id: stateObjID} // For accept_ownership, the state object is the CCIP object ref
+			stateObj := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+
+			return offramp.Encoder().McmsAcceptOwnershipWithArgs(ccipObjectRef, stateObj, registryObj, executingCallbackParams)
 		}
 
 	// ONRAMP
@@ -148,8 +155,17 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return nil, err
 		}
 		switch function {
-		case "accept_ownership",
-			"set_dynamic_config",
+		case "accept_ownership":
+			onramp, err := module_onramp.NewOnramp(target, nil)
+			if err != nil {
+				return nil, err
+			}
+			ccipObjectRef := bind.Object{Id: stateObjID} // For accept_ownership, the state object is the CCIP object ref
+			stateObj := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+
+			return onramp.Encoder().McmsAcceptOwnershipWithArgs(ccipObjectRef, stateObj, registryObj, executingCallbackParams)
+
+		case "set_dynamic_config",
 			"apply_dest_chain_config_updates",
 			"apply_allowlist_updates",
 			"transfer_ownership",
@@ -164,10 +180,10 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 
 			nonceManagerCapObj := bind.Object{Id: toHexString(nonceManagerCap)}
 			sourceTransferCapObj := bind.Object{Id: toHexString(sourceTransferCap)}
-
 			if toHexString(state) != stateObj.Id {
 				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
 			}
+
 			return onramp.Encoder().McmsInitializeWithArgs(stateObj, registryObj, nonceManagerCapObj, sourceTransferCapObj, executingCallbackParams)
 		case "withdraw_fee_tokens":
 			deserializer := bcs.NewDeserializer(data)
@@ -182,8 +198,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			if toHexString(state) != stateObj.Id {
 				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
 			}
-			// TODO: Find correct type args
-			typeArgs := []string{"0x1::sui::SUI"}
+
 			return onramp.Encoder().McmsWithdrawFeeTokensWithArgs(typeArgs, ccipRef, stateObj, registryObj, coinMetadata, executingCallbackParams)
 		}
 
@@ -206,8 +221,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 		switch function {
 		case "accept_ownership":
-			// TODO: Find correct type args
-			typeArgs := []string{"0x1::sui::SUI"}
 			return burnMintTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "set_allowlist_enabled",
 			"apply_allowlist_updates",
@@ -220,6 +233,10 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
+		case "set_pool":
+			ccipRefBytes := deserializeFirst32Bytes(data)
+			ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
+			return burnMintTokenPool.Encoder().McmsSetPoolWithArgs(typeArgs, ccipRef, stateObj, registryObj, executingCallbackParams)
 		}
 
 	// LOCK RELEASE TOKEN POOL
@@ -230,8 +247,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 		switch function {
 		case "accept_ownership":
-			// TODO: Find correct type args
-			typeArgs := []string{"0x1::sui::SUI"}
 			return lockReleaseTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "set_rebalancer",
 			"set_allowlist_enabled",
@@ -245,6 +260,10 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
+		case "set_pool":
+			ccipRefBytes := deserializeFirst32Bytes(data)
+			ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
+			return lockReleaseTokenPool.Encoder().McmsSetPoolWithArgs(typeArgs, ccipRef, stateObj, registryObj, executingCallbackParams)
 
 		}
 
@@ -256,8 +275,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 		switch function {
 		case "accept_ownership":
-			// TODO: Find correct type args
-			typeArgs := []string{"0x1::sui::SUI"}
+
 			return managedTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "set_allowlist_enabled",
 			"apply_allowlist_updates",
@@ -270,6 +288,11 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
+		case "set_pool":
+			ccipRefBytes := deserializeFirst32Bytes(data)
+			ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
+			return managedTokenPool.Encoder().McmsSetPoolWithArgs(typeArgs, ccipRef, stateObj, registryObj, executingCallbackParams)
+
 		}
 
 	// USDC TOKEN POOL
@@ -280,8 +303,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 		switch function {
 		case "accept_ownership":
-			// TODO: Find correct type args
-			typeArgs := []string{"0x1::sui::SUI"}
+
 			return usdcTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "set_allowlist_enabled",
 			"apply_allowlist_updates",
@@ -293,6 +315,10 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return encodeDefaultWithTypeArgs()
 		case "set_chain_rate_limiter_configs", "set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
+		case "set_pool":
+			ccipRefBytes := deserializeFirst32Bytes(data)
+			ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
+			return usdcTokenPool.Encoder().McmsSetPoolWithArgs(typeArgs, ccipRef, stateObj, registryObj, executingCallbackParams)
 		}
 
 	// MANAGED TOKEN
@@ -303,19 +329,16 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 		switch function {
 		case "accept_ownership":
-			// TODO: Find correct type args
-			typeArgs := []string{"0x1::sui::SUI"}
+
 			return managedToken.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "configure_new_minter":
-			// TODO: Find correct type args
-			typeArgs := []string{"0x1::sui::SUI"}
+
 			return managedToken.Encoder().McmsConfigureNewMinterWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "increment_mint_allowance",
 			"set_unlimited_mint_allowances",
 			"blocklist",
 			"unblocklist",
 			"pause":
-			typeArgs := []string{"0x1::sui::SUI"}
 			deserializer := bcs.NewDeserializer(data)
 			state := deserializer.ReadFixedBytes(SuiAddressLength)
 			deserializer.ReadFixedBytes(SuiAddressLength) // skip owner cap, we don't need it

@@ -26,8 +26,14 @@ use sui::coin::{
 };
 use sui::deny_list::DenyList;
 use sui::event;
-use sui::package::UpgradeCap;
+use sui::package::{Self, Publisher, UpgradeCap};
 use sui::vec_map::{Self, VecMap};
+
+public struct MANAGED_TOKEN has drop {}
+
+fun init(otw: MANAGED_TOKEN, ctx: &mut TxContext) {
+    package::claim_and_keep(otw, ctx);
+}
 
 public struct TokenState<phantom T> has key, store {
     id: UID,
@@ -107,25 +113,28 @@ public fun type_and_version(): String {
     string::utf8(b"ManagedToken 1.0.0")
 }
 
-public fun initialize<T>(treasury_cap: TreasuryCap<T>, ctx: &mut TxContext) {
-    initialize_internal(treasury_cap, option::none(), ctx);
+public fun initialize<T>(treasury_cap: TreasuryCap<T>, publisher: Publisher, ctx: &mut TxContext) {
+    initialize_internal(treasury_cap, option::none(), publisher, ctx);
 }
 
 public fun initialize_with_deny_cap<T>(
     treasury_cap: TreasuryCap<T>,
     deny_cap: DenyCapV2<T>,
+    publisher: Publisher,
     ctx: &mut TxContext,
 ) {
-    initialize_internal(treasury_cap, option::some(deny_cap), ctx);
+    initialize_internal(treasury_cap, option::some(deny_cap), publisher, ctx);
 }
 
 #[allow(lint(self_transfer))]
 fun initialize_internal<T>(
     treasury_cap: TreasuryCap<T>,
     deny_cap: Option<DenyCapV2<T>>,
+    publisher: Publisher,
     ctx: &mut TxContext,
 ) {
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
 
     let state = TokenState<T> {
         id: object::new(ctx),
@@ -523,12 +532,11 @@ public fun mcms_accept_ownership<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function_name, data) = mcms_registry::get_callback_params(
+    let data = mcms_registry::get_accept_ownership_data(
         registry,
         params,
-        McmsCallback {},
+        McmsAcceptOwnershipProof<T> {},
     );
-    assert!(function_name == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
@@ -554,15 +562,78 @@ public fun execute_ownership_transfer_to_mcms<T>(
     to: address,
     ctx: &mut TxContext,
 ) {
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut state.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback {},
         vector[b"managed_token"],
         ctx,
     );
+}
+
+public fun mcms_transfer_ownership<T>(
+    state: &mut TokenState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap<T>,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(owner_cap)],
+        &mut stream,
+    );
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    transfer_ownership(state, owner_cap, to, ctx);
+}
+
+public fun mcms_execute_ownership_transfer<T>(
+    state: &mut TokenState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap<T>,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(_owner_cap), object::id_address(state)],
+        &mut stream,
+    );
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+    execute_ownership_transfer(owner_cap, state, to, ctx);
 }
 
 public fun mcms_register_upgrade_cap(
@@ -584,6 +655,9 @@ public fun mcms_register_upgrade_cap(
 // ================================================================
 
 public struct McmsCallback has drop {}
+
+/// Proof for MCMS Accept Ownership
+public struct McmsAcceptOwnershipProof<phantom T> has drop {}
 
 public fun mcms_configure_new_minter<T>(
     state: &mut TokenState<T>,

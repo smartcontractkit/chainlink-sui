@@ -8,6 +8,7 @@ use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 use ccip::upgrade_registry;
 use sui::coin;
+use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 
 public struct BURN_MINT_TOKEN_POOL_OWNABLE_TEST has drop {}
@@ -23,7 +24,7 @@ public struct TestEnv {
     ccip_ref: CCIPObjectRef,
 }
 
-fun setup(): (TestEnv, OwnerCap) {
+fun setup(): (TestEnv, OwnerCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>) {
     let mut scenario = ts::begin(OWNER);
     let ctx = scenario.ctx();
 
@@ -50,12 +51,12 @@ fun setup(): (TestEnv, OwnerCap) {
         scenario.ctx(),
     );
 
-    burn_mint_token_pool::initialize_by_ccip_admin(
+    burn_mint_token_pool::initialize(
         &mut ccip_ref,
-        state_object::create_ccip_admin_proof_for_test(),
         &coin_metadata,
         treasury_cap,
         @0x123,
+        package::test_claim(BURN_MINT_TOKEN_POOL_OWNABLE_TEST {}, scenario.ctx()),
         scenario.ctx(),
     );
 
@@ -64,7 +65,7 @@ fun setup(): (TestEnv, OwnerCap) {
 
     scenario.next_tx(OWNER);
     let state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>>();
-    let owner_cap = scenario.take_from_sender<OwnerCap>();
+    let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>>();
 
     let env = TestEnv {
         scenario,

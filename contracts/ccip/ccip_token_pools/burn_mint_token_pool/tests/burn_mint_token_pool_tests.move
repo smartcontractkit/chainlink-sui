@@ -15,6 +15,7 @@ use std::string;
 use std::type_name;
 use sui::clock;
 use sui::coin;
+use sui::package;
 use sui::test_scenario;
 
 public struct BURN_MINT_TOKEN_POOL_TESTS has drop {}
@@ -82,12 +83,12 @@ public fun test_initialize_and_basic_functionality() {
         );
 
         // Initialize burn mint token pool
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123, // token_pool_administrator
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -100,7 +101,7 @@ public fun test_initialize_and_basic_functionality() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
 
         // Test basic getters
         let token_address = burn_mint_token_pool::get_token(&pool_state);
@@ -146,12 +147,12 @@ public fun test_chain_configuration_management() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -166,7 +167,7 @@ public fun test_chain_configuration_management() {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
 
         // Test apply_chain_updates - add chains
         burn_mint_token_pool::apply_chain_updates(
@@ -262,12 +263,12 @@ public fun test_allowlist_management() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -280,7 +281,7 @@ public fun test_allowlist_management() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
 
         // Initially allowlist should be disabled and empty
         let allowlist_enabled = burn_mint_token_pool::get_allowlist_enabled(&pool_state);
@@ -320,12 +321,12 @@ public fun test_rate_limiter_configuration() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -340,7 +341,7 @@ public fun test_rate_limiter_configuration() {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
         let mut ctx = tx_context::dummy();
         let clock = clock::create_for_testing(&mut ctx);
 
@@ -423,12 +424,12 @@ public fun test_invalid_arguments_rate_limiter_configs() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -443,7 +444,7 @@ public fun test_invalid_arguments_rate_limiter_configs() {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
 
         // Test with mismatched vector lengths (should fail with EInvalidArguments)
         burn_mint_token_pool::set_chain_rate_limiter_configs(
@@ -487,12 +488,12 @@ public fun test_comprehensive_allowlist_operations() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -505,7 +506,7 @@ public fun test_comprehensive_allowlist_operations() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
 
         // Initial state: allowlist disabled and empty
         assert!(!burn_mint_token_pool::get_allowlist_enabled(&pool_state));
@@ -548,12 +549,12 @@ public fun test_destroy_token_pool() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
-            @0x123,
+            @burn_mint_token_pool,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -561,15 +562,21 @@ public fun test_destroy_token_pool() {
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
+        token_admin_registry::unregister_pool(
+            &mut ccip_ref,
+            burn_mint_token_pool::get_token(&pool_state),
+            scenario.ctx(),
+        );
 
         // Test destroy_token_pool function
         let returned_treasury_cap = burn_mint_token_pool::destroy_token_pool(
+            &mut ccip_ref,
             pool_state,
             owner_cap,
             scenario.ctx(),
@@ -579,6 +586,7 @@ public fun test_destroy_token_pool() {
         transfer::public_transfer(returned_treasury_cap, scenario.ctx().sender());
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -604,12 +612,12 @@ public fun test_comprehensive_rate_limiter_operations() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -624,7 +632,7 @@ public fun test_comprehensive_rate_limiter_operations() {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
 
         // First add chains to configure rate limits for
         burn_mint_token_pool::apply_chain_updates(
@@ -706,12 +714,12 @@ public fun test_edge_cases_and_boundary_conditions() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -726,7 +734,7 @@ public fun test_edge_cases_and_boundary_conditions() {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
 
         // Test operations on empty chain configurations
         let supported_chains = burn_mint_token_pool::get_supported_chains(&pool_state);
@@ -844,12 +852,12 @@ public fun test_lock_or_burn_comprehensive() {
         let test_coin = coin::mint(&mut treasury_cap, 1000, ctx); // Small amount to stay within rate limiter
         transfer::public_transfer(test_coin, @0x456); // Transfer to test user
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap, // treasury_cap is moved here
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -864,7 +872,7 @@ public fun test_lock_or_burn_comprehensive() {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
         let ccip_ref = scenario.take_shared<CCIPObjectRef>();
         let source_transfer_cap = scenario.take_from_sender<onramp_sh::SourceTransferCap>();
         let mut ctx = tx_context::dummy();
@@ -990,12 +998,12 @@ public fun test_release_or_mint_comprehensive() {
 
         let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -1011,7 +1019,7 @@ public fun test_release_or_mint_comprehensive() {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
         let ccip_ref = scenario.take_shared<CCIPObjectRef>();
         let dest_transfer_cap = scenario.take_from_sender<offramp_sh::DestTransferCap>();
         let mut ctx = tx_context::dummy();
@@ -1132,12 +1140,12 @@ public fun test_set_allowlist_enabled() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -1152,7 +1160,7 @@ public fun test_set_allowlist_enabled() {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
 
         // Initially allowlist should be disabled
         assert!(!burn_mint_token_pool::get_allowlist_enabled(&pool_state));
@@ -1196,12 +1204,12 @@ public fun test_apply_allowlist_updates() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -1216,7 +1224,7 @@ public fun test_apply_allowlist_updates() {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
 
         // Enable allowlist first
         burn_mint_token_pool::set_allowlist_enabled(&mut pool_state, &owner_cap, true);
@@ -1301,12 +1309,12 @@ public fun test_set_pool() {
         let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         // Initialize normally with burn_mint_token_pool
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -1321,7 +1329,7 @@ public fun test_set_pool() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
         let ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
         // Verify initial pool registration
@@ -1374,7 +1382,7 @@ public fun test_set_pool() {
 
         token_admin_registry::register_pool_by_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             coin_metadata_address,
             different_package_id,
             string::utf8(b"different_pool"),
@@ -1424,7 +1432,7 @@ public fun test_set_pool() {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
         let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
         // Get configuration before set_pool
@@ -1517,12 +1525,12 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
             ctx,
         );
 
-        burn_mint_token_pool::initialize_by_ccip_admin(
+        burn_mint_token_pool::initialize(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
+            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
             ctx,
         );
 
@@ -1537,7 +1545,7 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
 
         // Test initial state
         assert!(!burn_mint_token_pool::get_allowlist_enabled(&pool_state));
@@ -1586,4 +1594,209 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
     };
 
     test_scenario::end(scenario);
+}
+
+// ================================================================
+// |             Rate Limiter calculate_refill Tests             |
+// ================================================================
+
+#[test]
+public fun test_calculate_refill_at_capacity() {
+    use burn_mint_token_pool::rate_limiter;
+
+    // Create a bucket that's already at capacity
+    let bucket = rate_limiter::test_create_token_bucket(
+        1000, // tokens (at capacity)
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate
+    );
+
+    // Test with various time differences
+    assert!(rate_limiter::test_calculate_refill(&bucket, 0) == 1000);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 1000);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 100) == 1000);
+}
+
+#[test]
+public fun test_calculate_refill_above_capacity() {
+    use burn_mint_token_pool::rate_limiter;
+
+    // Create a bucket with tokens exceeding capacity (edge case)
+    let bucket = rate_limiter::test_create_token_bucket(
+        1500, // tokens (above capacity)
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate
+    );
+
+    // Should return capacity when tokens > capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 1000);
+}
+
+#[test]
+public fun test_calculate_refill_zero_rate() {
+    use burn_mint_token_pool::rate_limiter;
+
+    // Create a bucket with rate = 0
+    let bucket = rate_limiter::test_create_token_bucket(
+        500, // tokens
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        0, // rate (zero)
+    );
+
+    // Should return current tokens when rate is 0
+    assert!(rate_limiter::test_calculate_refill(&bucket, 0) == 500);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 500);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 100) == 500);
+}
+
+#[test]
+public fun test_calculate_refill_normal_refill() {
+    use burn_mint_token_pool::rate_limiter;
+
+    // Create a bucket with normal values
+    let bucket = rate_limiter::test_create_token_bucket(
+        100, // tokens
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate (10 tokens per second)
+    );
+
+    // Test various time differences
+    // After 10 seconds: 100 + (10 * 10) = 200
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 200);
+
+    // After 50 seconds: 100 + (50 * 10) = 600
+    assert!(rate_limiter::test_calculate_refill(&bucket, 50) == 600);
+
+    // After 89 seconds: 100 + (89 * 10) = 990
+    assert!(rate_limiter::test_calculate_refill(&bucket, 89) == 990);
+}
+
+#[test]
+public fun test_calculate_refill_saturate_at_capacity() {
+    use burn_mint_token_pool::rate_limiter;
+
+    // Create a bucket that will exceed capacity with refill
+    let bucket = rate_limiter::test_create_token_bucket(
+        100, // tokens
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate (10 tokens per second)
+    );
+
+    // Time diff that would exceed capacity: 100 + (100 * 10) = 1100 > 1000
+    // Should saturate to capacity (1000)
+    assert!(rate_limiter::test_calculate_refill(&bucket, 100) == 1000);
+
+    // Even larger time diff should still saturate to capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 1000) == 1000);
+}
+
+#[test]
+public fun test_calculate_refill_exact_capacity() {
+    use burn_mint_token_pool::rate_limiter;
+
+    // Create a bucket where refill will exactly reach capacity
+    let bucket = rate_limiter::test_create_token_bucket(
+        100, // tokens
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate (10 tokens per second)
+    );
+
+    // Exactly 90 seconds needed to reach capacity: 100 + (90 * 10) = 1000
+    assert!(rate_limiter::test_calculate_refill(&bucket, 90) == 1000);
+}
+
+#[test]
+public fun test_calculate_refill_zero_tokens() {
+    use burn_mint_token_pool::rate_limiter;
+
+    // Create a bucket starting with zero tokens
+    let bucket = rate_limiter::test_create_token_bucket(
+        0, // tokens (empty)
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate
+    );
+
+    // Test refill from empty
+    assert!(rate_limiter::test_calculate_refill(&bucket, 0) == 0);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 100);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 50) == 500);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 100) == 1000);
+    assert!(rate_limiter::test_calculate_refill(&bucket, 200) == 1000); // saturate
+}
+
+#[test]
+public fun test_calculate_refill_high_rate() {
+    use burn_mint_token_pool::rate_limiter;
+
+    // Create a bucket with high rate
+    let bucket = rate_limiter::test_create_token_bucket(
+        0, // tokens
+        0, // last_updated
+        true, // is_enabled
+        10000, // capacity
+        1000, // rate (high rate)
+    );
+
+    // After 5 seconds: 0 + (5 * 1000) = 5000
+    assert!(rate_limiter::test_calculate_refill(&bucket, 5) == 5000);
+
+    // After 10 seconds: should saturate to capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 10000);
+}
+
+#[test]
+public fun test_calculate_refill_small_capacity() {
+    use burn_mint_token_pool::rate_limiter;
+
+    // Create a bucket with small capacity
+    let bucket = rate_limiter::test_create_token_bucket(
+        5, // tokens
+        0, // last_updated
+        true, // is_enabled
+        10, // capacity (small)
+        1, // rate
+    );
+
+    // After 3 seconds: 5 + (3 * 1) = 8
+    assert!(rate_limiter::test_calculate_refill(&bucket, 3) == 8);
+
+    // After 5 seconds: should be exactly at capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 5) == 10);
+
+    // After 10 seconds: should saturate to capacity
+    assert!(rate_limiter::test_calculate_refill(&bucket, 10) == 10);
+}
+
+#[test]
+public fun test_calculate_refill_edge_case_one_below_capacity() {
+    use burn_mint_token_pool::rate_limiter;
+
+    // Create a bucket one token below capacity
+    let bucket = rate_limiter::test_create_token_bucket(
+        999, // tokens (one below capacity)
+        0, // last_updated
+        true, // is_enabled
+        1000, // capacity
+        10, // rate
+    );
+
+    // After 0 seconds: stays at 999
+    assert!(rate_limiter::test_calculate_refill(&bucket, 0) == 999);
+
+    // After 1 second: 999 + (1 * 10) = 1009, but should saturate to 1000
+    assert!(rate_limiter::test_calculate_refill(&bucket, 1) == 1000);
 }

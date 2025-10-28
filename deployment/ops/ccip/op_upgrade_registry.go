@@ -118,7 +118,7 @@ var BlockVersionOp = cld_ops.NewOperation(
 	blockVersionHandler,
 )
 
-// =================== Version Unblocking Operations =================== //
+// =================== Unblock Version Operations =================== //
 
 type UnblockVersionInput struct {
 	CCIPPackageId    string
@@ -227,7 +227,7 @@ var BlockFunctionOp = cld_ops.NewOperation(
 	blockFunctionHandler,
 )
 
-// =================== Function Unblocking Operations =================== //
+// =================== Unblock Function Operations =================== //
 
 type UnblockFunctionInput struct {
 	CCIPPackageId    string
@@ -444,14 +444,3 @@ var VerifyFunctionAllowedOp = cld_ops.NewOperation(
 	"Verifies that a function is allowed in the UpgradeRegistry (throws error if not allowed)",
 	verifyFunctionAllowedHandler,
 )
-
-var AllOperationsUpgradeRegistry = []cld_ops.Operation[any, any, any]{
-	*UpgradeRegistryInitializeOp.AsUntyped(),
-	*BlockVersionOp.AsUntyped(),
-	*UnblockVersionOp.AsUntyped(),
-	*BlockFunctionOp.AsUntyped(),
-	*UnblockFunctionOp.AsUntyped(),
-	*GetModuleRestrictionsOp.AsUntyped(),
-	*IsFunctionAllowedOp.AsUntyped(),
-	*VerifyFunctionAllowedOp.AsUntyped(),
-}

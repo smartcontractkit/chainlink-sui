@@ -56,7 +56,27 @@ func ToTransactionCall(call *bind.EncodedCall, stateObjID string) (TransactionCa
 		Module:     call.Module.ModuleName,
 		Function:   call.Function,
 		Data:       calldata,
-		TypeArgs:   call.TypeParams,
+		TypeArgs:   []string{},
+		StateObjID: stateObjID,
+	}, nil
+}
+
+func ToTransactionCallWithTypeArgs(call *bind.EncodedCall, stateObjID string, typeArgs []string) (TransactionCall, error) {
+	if call == nil {
+		return TransactionCall{}, fmt.Errorf("nil call provided")
+	}
+
+	calldata, err := extractByteArgsFromEncodedCall(*call)
+	if err != nil {
+		return TransactionCall{}, fmt.Errorf("failed to extract byte args from encoded call: %w", err)
+	}
+
+	return TransactionCall{
+		PackageID:  call.Module.PackageID,
+		Module:     call.Module.ModuleName,
+		Function:   call.Function,
+		Data:       calldata,
+		TypeArgs:   typeArgs,
 		StateObjID: stateObjID,
 	}, nil
 }
