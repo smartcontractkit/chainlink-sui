@@ -597,7 +597,7 @@ func (d *McmsRegistryDevInspect) CreatePublisherWrapper(ctx context.Context, opt
 //
 // Returns:
 //
-//	[0]: &C
+//	[0]: &mut C
 //	[1]: 0x1::string::String
 //	[2]: vector<u8>
 func (d *McmsRegistryDevInspect) GetCallbackParamsWithCaps(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) ([]any, error) {
@@ -1101,7 +1101,7 @@ func (c mcmsRegistryEncoder) GetCallbackParamsWithCaps(typeArgs []string, regist
 		proof,
 		params,
 	}, []string{
-		"&C",
+		"&mut C",
 		"0x1::string::String",
 		"vector<u8>",
 	})
@@ -1125,7 +1125,7 @@ func (c mcmsRegistryEncoder) GetCallbackParamsWithCapsWithArgs(typeArgs []string
 		"C",
 	}
 	return c.EncodeCallArgsWithGenerics("get_callback_params_with_caps", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"&C",
+		"&mut C",
 		"0x1::string::String",
 		"vector<u8>",
 	})

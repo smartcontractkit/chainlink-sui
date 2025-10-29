@@ -283,6 +283,12 @@ public fun new_fee_quoter_cap(
     owner_cap: &OwnerCap,
     ctx: &mut TxContext,
 ): FeeQuoterCap {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"new_fee_quoter_cap"),
+        VERSION,
+    );
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     FeeQuoterCap {
