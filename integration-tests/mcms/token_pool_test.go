@@ -8,6 +8,9 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
+	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
 	lockreleasetokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
 	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_managed_token_pool"
@@ -194,20 +197,31 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 }
 
 func (s *TokenPoolTestSuite) Test_Token_Pool_MCMS() {
+	s.T().Run("Transfer ownership of CCIP to MCMS", func(t *testing.T) {
+		s.RunOwnershipCCIPTransfer()
+	})
+
 	s.T().Run("Transfer ownership of token pools to MCMS", func(t *testing.T) {
 		RunOwnershipTokenPoolProposal(s)
 	})
 
 	s.T().Run("Run Lock and Release TP config ops through MCMS", func(t *testing.T) {
 		RunLnRConfigOpsTokenPoolProposal(s)
+		RunTransferAdminTokenPoolProposal(s, s.lnrTokenObjects.CoinMetadataObjectId)
 	})
 
 	s.T().Run("Run Burn and Mint TP config ops through MCMS", func(t *testing.T) {
 		RunBnMConfigOpsTokenPoolProposal(s)
+		RunTransferAdminTokenPoolProposal(s, s.linkObjects.CoinMetadataObjectId)
 	})
 
 	s.T().Run("Run Managed Token TP config ops through MCMS", func(t *testing.T) {
 		RunManagedConfigOpsTokenPoolProposal(s)
+		RunTransferAdminTokenPoolProposal(s, s.managedTokenLinkObjects.CoinMetadataObjectId)
+	})
+
+	s.T().Run("Unregister Token Pool through MCMS", func(t *testing.T) {
+		RunUnregisterLnRTokenPoolProposal(s)
 	})
 }
 
@@ -367,7 +381,7 @@ func RunLnRConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 				RefObjectId:                   s.ccipObjects.CCIPObjectRefObjectId,
 				StateObjectId:                 s.lnrObjects.StateObjectId,
 				OwnerCap:                      s.lnrObjects.OwnerCapObjectId,
-				CoinMetadataAddress:           s.lnrTokenObjects.CoinMetadataObjectId,
+				CoinMetadataAddress:           s.linkObjects.CoinMetadataObjectId,
 			},
 		},
 
@@ -467,7 +481,7 @@ func RunBnMConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 				RefObjectId:                s.ccipObjects.CCIPObjectRefObjectId,
 				StateObjectId:              s.bnmObjects.StateObjectId,
 				OwnerCap:                   s.bnmObjects.OwnerCapObjectId,
-				CoinMetadataAddress:        s.lnrTokenObjects.CoinMetadataObjectId,
+				CoinMetadataAddress:        s.linkObjects.CoinMetadataObjectId,
 			},
 		},
 
@@ -491,7 +505,6 @@ func RunBnMConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 	timelockProposal := proposalReport.Output
 
 	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
-
 }
 
 func RunManagedConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
@@ -592,4 +605,158 @@ func RunManagedConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 	timelockProposal := proposalReport.Output
 
 	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+}
+
+func RunTransferAdminTokenPoolProposal(s *TokenPoolTestSuite, coinmetadataAddress string) {
+	transferAdminProposalInput := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			ccipops.TokenAdminRegistryTransferAdminRoleOp.Def(),
+		},
+		Inputs: []any{
+			ccipops.TransferAdminRoleInput{
+				CCIPPackageId:       s.ccipPackageId,
+				CCIPObjectRef:       s.ccipObjects.CCIPObjectRefObjectId,
+				CoinMetadataAddress: coinmetadataAddress,
+				NewAdmin:            s.mcmsOwnerAddress, // current signer address
+			},
+		},
+
+		// MCMS related
+		MmcsPackageID:  s.mcmsPackageID,
+		McmsStateObjID: s.mcmsObj,
+		TimelockObjID:  s.timelockObj,
+		AccountObjID:   s.accountObj,
+		RegistryObjID:  s.registryObj,
+
+		// Proposal
+		Role: suisdk.TimelockRoleBypasser,
+
+		ChainSelector: uint64(s.chainSelector),
+	}
+
+	// Execute transfer admin proposal
+	proposalReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, transferAdminProposalInput)
+	s.Require().NoError(err, "executing transfer admin proposal sequence")
+
+	timelockProposal := proposalReport.Output
+
+	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+
+	// Accept the admin role from signer
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(s.ccipPackageId, s.deps.Client)
+	s.Require().NoError(err, "creating token admin registry contract instance")
+
+	acceptAdminInput := ccipops.AcceptAdminRoleInput{
+		CCIPPackageId:       s.ccipPackageId,
+		CoinMetadataAddress: coinmetadataAddress,
+		CCIPObjectRef:       s.ccipObjects.CCIPObjectRefObjectId,
+	}
+
+	_, err = cld_ops.ExecuteOperation(s.bundle, ccipops.TokenAdminRegistryAcceptAdminRoleOp, s.deps, acceptAdminInput)
+	s.Require().NoError(err, "executing accept admin role operation")
+
+	// verify new admin is mcms owner
+	isAdmin, err := contract.DevInspect().IsAdministrator(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, coinmetadataAddress, s.mcmsOwnerAddress)
+	s.Require().NoError(err, "checking if mcms owner is admin")
+	s.Require().True(isAdmin, "mcms owner is not admin after transfer")
+	s.T().Logf("MCMS owner %s is now admin of coin metadata %s", s.mcmsOwnerAddress, coinmetadataAddress)
+
+	// Transfer again to MCMS
+	transferAdminInput := ccipops.TransferAdminRoleInput{
+		CCIPPackageId:       s.ccipPackageId,
+		CCIPObjectRef:       s.ccipObjects.CCIPObjectRefObjectId,
+		CoinMetadataAddress: coinmetadataAddress,
+		NewAdmin:            s.mcmsPackageID, // tx signer
+	}
+	_, err = cld_ops.ExecuteOperation(s.bundle, ccipops.TokenAdminRegistryTransferAdminRoleOp, s.deps, transferAdminInput)
+	s.Require().NoError(err, "executing transfer admin role operation")
+
+	// Accept the admin role from MCMS
+	acceptAdminProposalInput := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			ccipops.TokenAdminRegistryAcceptAdminRoleOp.Def(),
+		},
+		Inputs: []any{
+			ccipops.AcceptAdminRoleInput{
+				CCIPPackageId:       s.ccipPackageId,
+				CCIPObjectRef:       s.ccipObjects.CCIPObjectRefObjectId,
+				CoinMetadataAddress: coinmetadataAddress,
+			},
+		},
+
+		// MCMS related
+		MmcsPackageID:  s.mcmsPackageID,
+		McmsStateObjID: s.mcmsObj,
+		TimelockObjID:  s.timelockObj,
+		AccountObjID:   s.accountObj,
+		RegistryObjID:  s.registryObj,
+
+		// Proposal
+		Role: suisdk.TimelockRoleBypasser,
+
+		ChainSelector: uint64(s.chainSelector),
+	}
+
+	// Execute transfer admin proposal
+	proposalReport, err = cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, acceptAdminProposalInput)
+	s.Require().NoError(err, "executing transfer admin proposal sequence")
+
+	timelockProposal = proposalReport.Output
+
+	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+
+	// verify new admin is mcms owner
+	isAdmin, err = contract.DevInspect().IsAdministrator(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, coinmetadataAddress, s.mcmsPackageID)
+	s.Require().NoError(err, "checking if mcms owner is admin")
+	s.Require().True(isAdmin, "mcms is not admin after transfer")
+}
+
+func RunUnregisterLnRTokenPoolProposal(s *TokenPoolTestSuite) {
+	// verify pool is registered before unregistering
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(s.ccipPackageId, s.deps.Client)
+	s.Require().NoError(err, "creating token admin registry contract instance")
+
+	pool, err := contract.DevInspect().GetPool(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, s.lnrTokenObjects.CoinMetadataObjectId)
+	s.Require().NoError(err, "checking if token pool is registered")
+	s.Require().NotEmpty(pool, "token pool is not registered before unregistering")
+	s.Require().Equal(s.lnrPackageId, pool, "registered pool package ID does not match expected")
+
+	// Generate unregister proposal
+	unregisterProposalInput := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			ccipops.TokenAdminRegistryUnregisterPoolOp.Def(),
+		},
+		Inputs: []any{
+			ccipops.UnregisterPoolInput{
+				CCIPPackageId:       s.ccipPackageId,
+				CCIPObjectRef:       s.ccipObjects.CCIPObjectRefObjectId,
+				CoinMetadataAddress: s.lnrTokenObjects.CoinMetadataObjectId,
+			},
+		},
+
+		// MCMS related
+		MmcsPackageID:  s.mcmsPackageID,
+		McmsStateObjID: s.mcmsObj,
+		TimelockObjID:  s.timelockObj,
+		AccountObjID:   s.accountObj,
+		RegistryObjID:  s.registryObj,
+
+		// Proposal
+		Role: suisdk.TimelockRoleBypasser,
+
+		ChainSelector: uint64(s.chainSelector),
+	}
+
+	// Execute unregister proposal
+	proposalReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, unregisterProposalInput)
+	s.Require().NoError(err, "executing unregister token pool proposal sequence")
+
+	timelockProposal := proposalReport.Output
+
+	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+
+	// verify pool is unregistered
+	pool, err = contract.DevInspect().GetPool(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, s.lnrTokenObjects.CoinMetadataObjectId)
+	s.Require().NoError(err, "checking if token pool is registered after unregistering")
+	s.Require().Equal(pool, "0x0000000000000000000000000000000000000000000000000000000000000000", "token pool is still registered after unregistering")
 }

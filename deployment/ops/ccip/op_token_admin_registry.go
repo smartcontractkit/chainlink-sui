@@ -68,7 +68,7 @@ var TokenAdminRegistryInitializeOp = cld_ops.NewOperation(
 
 type UnregisterPoolInput struct {
 	CCIPPackageId       string
-	StateObjectId       string
+	CCIPObjectRef       string
 	CoinMetadataAddress string
 }
 
@@ -78,16 +78,33 @@ var unregisterPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
 
+	encodedCall, err := contract.Encoder().UnregisterPool(bind.Object{Id: input.CCIPObjectRef}, input.CoinMetadataAddress)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode UnregisterPool call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRef)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of UnregisterPool on TokenAdminRegistry as per no Signer provided", "CoinMetadataAddress", input.CoinMetadataAddress)
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.UnregisterPool(
+	tx, err := contract.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		input.CoinMetadataAddress,
+		encodedCall,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute unregister pool: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute UnregisterPool on TokenAdminRegistry: %w", err)
 	}
 
 	b.Logger.Infow("UnregisterPool on TokenAdminRegistry", "PackageId:", input.CCIPPackageId, "CoinMetadataAddress:", input.CoinMetadataAddress)
@@ -96,6 +113,7 @@ var unregisterPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   NoObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -112,7 +130,7 @@ var TokenAdminRegistryUnregisterPoolOp = cld_ops.NewOperation(
 
 type TransferAdminRoleInput struct {
 	CCIPPackageId       string
-	StateObjectId       string
+	CCIPObjectRef       string
 	CoinMetadataAddress string
 	NewAdmin            string
 }
@@ -123,17 +141,33 @@ var transferAdminRoleHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
 
+	encodedCall, err := contract.Encoder().TransferAdminRole(bind.Object{Id: input.CCIPObjectRef}, input.CoinMetadataAddress, input.NewAdmin)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode TransferAdminRole call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRef)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of TransferAdminRole on TokenAdminRegistry as per no Signer provided", "CoinMetadataAddress", input.CoinMetadataAddress, "NewAdmin", input.NewAdmin)
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.TransferAdminRole(
+	tx, err := contract.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		input.CoinMetadataAddress,
-		input.NewAdmin,
+		encodedCall,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute transfer admin role: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute TransferAdminRole on TokenAdminRegistry: %w", err)
 	}
 
 	b.Logger.Infow("TransferAdminRole on TokenAdminRegistry", "PackageId:", input.CCIPPackageId, "CoinMetadataAddress:", input.CoinMetadataAddress, "NewAdmin:", input.NewAdmin)
@@ -142,6 +176,7 @@ var transferAdminRoleHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   NoObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -158,7 +193,7 @@ var TokenAdminRegistryTransferAdminRoleOp = cld_ops.NewOperation(
 
 type AcceptAdminRoleInput struct {
 	CCIPPackageId       string
-	StateObjectId       string
+	CCIPObjectRef       string
 	CoinMetadataAddress string
 }
 
@@ -168,16 +203,33 @@ var acceptAdminRoleHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
 
+	encodedCall, err := contract.Encoder().AcceptAdminRole(bind.Object{Id: input.CCIPObjectRef}, input.CoinMetadataAddress)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode AcceptAdminRole call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRef)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of AcceptAdminRole on TokenAdminRegistry as per no Signer provided", "CoinMetadataAddress", input.CoinMetadataAddress)
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.AcceptAdminRole(
+	tx, err := contract.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		input.CoinMetadataAddress,
+		encodedCall,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute accept admin role: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute AcceptAdminRole on TokenAdminRegistry: %w", err)
 	}
 
 	b.Logger.Infow("AcceptAdminRole on TokenAdminRegistry", "PackageId:", input.CCIPPackageId, "CoinMetadataAddress:", input.CoinMetadataAddress)
@@ -186,6 +238,7 @@ var acceptAdminRoleHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   NoObjects{},
+		Call:      call,
 	}, nil
 }
 
