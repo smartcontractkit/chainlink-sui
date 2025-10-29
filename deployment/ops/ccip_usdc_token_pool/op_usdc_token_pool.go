@@ -40,7 +40,7 @@ var initUSDCTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Initialize(
+	tx, err := contract.InitializeByCcipAdmin(
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},

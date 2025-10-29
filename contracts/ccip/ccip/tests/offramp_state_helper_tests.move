@@ -233,8 +233,6 @@ public fun test_complete_token_transfer() {
     offramp_state_helper::complete_token_transfer(
         &ref,
         &mut receiver_params,
-        RECEIVER_ADDRESS,
-        TOKEN_ADDRESS_1,
         TestTypeProof {},
     );
 
@@ -418,8 +416,6 @@ public fun test_complete_token_transfer_twice_should_fail() {
     offramp_state_helper::complete_token_transfer(
         &ref,
         &mut receiver_params,
-        RECEIVER_ADDRESS,
-        TOKEN_ADDRESS_1,
         TestTypeProof {},
     );
 
@@ -427,8 +423,6 @@ public fun test_complete_token_transfer_twice_should_fail() {
     offramp_state_helper::complete_token_transfer(
         &ref,
         &mut receiver_params,
-        RECEIVER_ADDRESS,
-        TOKEN_ADDRESS_1,
         TestTypeProof {},
     );
 

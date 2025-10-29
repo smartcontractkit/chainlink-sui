@@ -91,7 +91,7 @@ public struct Any2SuiMessage {
     dest_token_amounts: vector<Any2SuiTokenAmount>,
 }
 
-public struct Any2SuiTokenAmount has copy, drop, store {
+public struct Any2SuiTokenAmount has copy, drop {
     token: address,
     amount: u256,
 }
