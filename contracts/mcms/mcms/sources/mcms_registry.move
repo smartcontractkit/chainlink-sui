@@ -254,7 +254,7 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
     registry: &mut Registry,
     _proof: T,
     params: ExecutingCallbackParams,
-): (&C, String, vector<u8>) {
+): (&mut C, String, vector<u8>) {
     let ExecutingCallbackParams {
         target,
         module_name,
@@ -282,7 +282,7 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
     let allowed = registry.allowed_modules.borrow(proof_account_address);
     assert!(allowed.contains(module_name.as_bytes()), EModuleNotAllowed);
 
-    let package_cap: &C = registry.package_caps.borrow(proof_account_address);
+    let package_cap = registry.package_caps.borrow_mut(proof_account_address);
     (package_cap, function_name, data)
 }
 
@@ -484,4 +484,9 @@ public fun test_get_cap_address<C: key + store>(
     assert!(registry.package_caps.contains(package_address), EPackageCapNotRegistered);
     let cap: &C = registry.package_caps.borrow(package_address);
     object::id_address(cap)
+}
+
+#[test_only]
+public fun get_cap<C: key + store>(registry: &Registry, package_address: ascii::String): &C {
+    registry.package_caps.borrow(package_address)
 }

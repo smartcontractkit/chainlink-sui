@@ -5,7 +5,7 @@ use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
-use std::string;
+use std::string::{Self};
 use std::type_name;
 use sui::address;
 use sui::derived_object;
