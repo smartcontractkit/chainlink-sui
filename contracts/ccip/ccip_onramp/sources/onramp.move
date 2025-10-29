@@ -1,5 +1,6 @@
 module ccip_onramp::onramp;
 
+use ccip::address::assert_non_zero_address_vector;
 use ccip::eth_abi;
 use ccip::fee_quoter;
 use ccip::merkle_proof;
@@ -817,6 +818,7 @@ public fun ccip_send<T>(
             token_receiver,
         );
         assert!(token_receiver_from_extra_args == token_receiver, EInvalidTokenReceiver);
+        assert_non_zero_address_vector(&token_receiver);
 
         token_transfers.push_back(Sui2AnyTokenTransfer {
             source_pool_address: source_pool_package_id,
