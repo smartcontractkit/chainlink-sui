@@ -15,10 +15,10 @@ type SuiChainView struct {
 
 	MCMSWithTimelock string // TODO
 
-	CCIP    string          // TODO
-	OnRamp  view.OnRampView `json:"onRamp,omitempty"`
-	OffRamp string          // TODO
-	Router  view.RouterView `json:"router,omitempty"`
+	CCIP    string           // TODO
+	OnRamp  view.OnRampView  `json:"onRamp,omitempty"`
+	OffRamp view.OffRampView `json:"offRamp,omitempty"`
+	Router  view.RouterView  `json:"router,omitempty"`
 
 	Tokens     map[string]string            `json:"tokens,omitempty"`
 	TokenPools map[string]map[string]string // TODO // TokenSymbol => TokenPool Address => PoolView
@@ -106,6 +106,16 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		}
 		chainView.OnRamp = onRampView
 		lggr.Infow("generated onRamp view", "onRampAddress", s.OnRampAddress, "chain", chainName)
+	}
+
+	// OffRamp
+	if s.OffRampAddress != "" {
+		offRampView, err := view.GenerateOffRampView(s.OffRampAddress, s.CCIPRouterAddress)
+		if err != nil {
+			return SuiChainView{}, fmt.Errorf("failed to generate offramp view for offramp %s: %w", s.OffRampAddress, err)
+		}
+		chainView.OffRamp = offRampView
+		lggr.Infow("generated offRamp view", "offRampAddress", s.OffRampAddress, "chain", chainName)
 	}
 
 	return chainView, nil
