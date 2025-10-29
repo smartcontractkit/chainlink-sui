@@ -260,6 +260,8 @@ public fun test_accept_ownership_already_accepted() {
 public fun test_ownable_functions_with_owner_cap_validation() {
     let (mut env, owner_cap) = setup();
 
+    // Test that owner cap validation works in other functions
+    // Note: set_rebalancer removed; rebalancer is set on initialization via cap issuance
     assert!(lock_release_token_pool::get_rebalancer(&env.state) != @0x0);
 
     lock_release_token_pool::set_allowlist_enabled(&mut env.state, &owner_cap, true);
