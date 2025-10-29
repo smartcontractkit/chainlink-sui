@@ -13,7 +13,7 @@ type SuiChainView struct {
 	ChainSelector uint64 `json:"chainSelector,omitempty"`
 	ChainID       string `json:"chainID,omitempty"`
 
-	MCMSWithTimelock string // TODO
+	MCMSWithTimelock view.MCMSWithTimelockView `json:"mcmsWithTimelock"`
 
 	CCIP    string           // TODO
 	OnRamp  view.OnRampView  `json:"onRamp,omitempty"`
@@ -87,6 +87,16 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	}
 
 	lggr.Infow("generating Sui chain view", "chain", chainName, "selector", selector)
+
+	// MCMS
+	if s.MCMSStateObjectID != "" {
+		mcmsView, err := view.GenerateMCMSWithTimelockView(s.MCMSStateObjectID)
+		if err != nil {
+			return SuiChainView{}, fmt.Errorf("failed to generate mcms view for mcms %s: %w", s.MCMSStateObjectID, err)
+		}
+		chainView.MCMSWithTimelock = mcmsView
+		lggr.Infow("generated MCMS view", "mcmsStateObjectID", s.MCMSStateObjectID, "chain", chainName)
+	}
 
 	// Router
 	if s.CCIPRouterAddress != "" {
