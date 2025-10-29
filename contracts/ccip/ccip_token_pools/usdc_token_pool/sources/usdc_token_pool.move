@@ -743,7 +743,7 @@ public fun mcms_accept_ownership<T>(
     let data = mcms_registry::get_accept_ownership_data(
         registry,
         params,
-        McmsAcceptOwnershipProof {},
+        McmsAcceptOwnershipProof<T> {},
     );
 
     let mut stream = bcs_stream::new(data);
@@ -772,7 +772,7 @@ public fun execute_ownership_transfer_to_mcms<T>(
 ) {
     let publisher_wrapper = mcms_registry::create_publisher_wrapper(
         ownable::borrow_publisher(&owner_cap),
-        McmsCallback {},
+        McmsCallback<T> {},
     );
 
     ownable::execute_ownership_transfer_to_mcms(
@@ -781,7 +781,7 @@ public fun execute_ownership_transfer_to_mcms<T>(
         registry,
         to,
         publisher_wrapper,
-        McmsCallback {},
+        McmsCallback<T> {},
         vector[b"usdc_token_pool"],
         ctx,
     );
@@ -805,10 +805,10 @@ public fun mcms_register_upgrade_cap(
 // |                      MCMS Entrypoint                         |
 // ================================================================
 
-public struct McmsCallback has drop {}
+public struct McmsCallback<phantom T> has drop {}
 
 /// Proof for MCMS Accept Ownership
-public struct McmsAcceptOwnershipProof has drop {}
+public struct McmsAcceptOwnershipProof<phantom T> has drop {}
 
 public fun mcms_set_allowlist_enabled<T>(
     state: &mut USDCTokenPoolState<T>,
@@ -816,11 +816,11 @@ public fun mcms_set_allowlist_enabled<T>(
     params: ExecutingCallbackParams,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap<T>,
     >(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
         params,
     );
     assert!(function == string::utf8(b"set_allowlist_enabled"), EInvalidFunction);
@@ -843,11 +843,11 @@ public fun mcms_apply_allowlist_updates<T>(
     params: ExecutingCallbackParams,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap<T>,
     >(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
         params,
     );
     assert!(function == string::utf8(b"apply_allowlist_updates"), EInvalidFunction);
@@ -877,11 +877,11 @@ public fun mcms_apply_chain_updates<T>(
     params: ExecutingCallbackParams,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap<T>,
     >(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
         params,
     );
     assert!(function == string::utf8(b"apply_chain_updates"), EInvalidFunction);
@@ -929,11 +929,11 @@ public fun mcms_add_remote_pool<T>(
     params: ExecutingCallbackParams,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap<T>,
     >(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
         params,
     );
     assert!(function == string::utf8(b"add_remote_pool"), EInvalidFunction);
@@ -957,11 +957,11 @@ public fun mcms_remove_remote_pool<T>(
     params: ExecutingCallbackParams,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap<T>,
     >(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
         params,
     );
     assert!(function == string::utf8(b"remove_remote_pool"), EInvalidFunction);
@@ -985,11 +985,11 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
     clock: &Clock,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap<T>,
     >(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
         params,
     );
     assert!(function == string::utf8(b"set_chain_rate_limiter_configs"), EInvalidFunction);
@@ -1051,11 +1051,11 @@ public fun mcms_set_chain_rate_limiter_config<T>(
     clock: &Clock,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap<T>,
     >(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
         params,
     );
     assert!(function == string::utf8(b"set_chain_rate_limiter_config"), EInvalidFunction);
@@ -1128,11 +1128,11 @@ public fun mcms_transfer_ownership<T>(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap<T>,
     >(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
         params,
     );
     assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
@@ -1156,11 +1156,11 @@ public fun mcms_execute_ownership_transfer<T>(
     ctx: &mut TxContext,
 ) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap<T>,
     >(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
         params,
     );
     assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
@@ -1174,9 +1174,9 @@ public fun mcms_execute_ownership_transfer<T>(
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let owner_cap = mcms_registry::release_cap<McmsCallback, OwnerCap<T>>(
+    let owner_cap = mcms_registry::release_cap<McmsCallback<T>, OwnerCap<T>>(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
     );
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }
@@ -1189,11 +1189,11 @@ public fun mcms_set_pool<T>(
     _: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap<T>,
     >(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
         params,
     );
     assert!(function == string::utf8(b"set_pool"), EInvalidFunction);
@@ -1221,11 +1221,11 @@ public fun mcms_add_allowed_modules<T>(
     ctx: &mut TxContext,
 ) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap<T>,
     >(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
         params,
     );
     assert!(function == string::utf8(b"add_allowed_modules"), EInvalidFunction);
@@ -1239,7 +1239,7 @@ public fun mcms_add_allowed_modules<T>(
     );
     bcs_stream::assert_is_consumed(&stream);
 
-    mcms_registry::add_allowed_modules(registry, McmsCallback {}, new_module_names, ctx);
+    mcms_registry::add_allowed_modules(registry, McmsCallback<T> {}, new_module_names, ctx);
 }
 
 public fun mcms_remove_allowed_modules<T>(
@@ -1248,11 +1248,11 @@ public fun mcms_remove_allowed_modules<T>(
     ctx: &mut TxContext,
 ) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap<T>,
     >(
         registry,
-        McmsCallback {},
+        McmsCallback<T> {},
         params,
     );
     assert!(function == string::utf8(b"remove_allowed_modules"), EInvalidFunction);
@@ -1266,5 +1266,5 @@ public fun mcms_remove_allowed_modules<T>(
     );
     bcs_stream::assert_is_consumed(&stream);
 
-    mcms_registry::remove_allowed_modules(registry, McmsCallback {}, module_names, ctx);
+    mcms_registry::remove_allowed_modules(registry, McmsCallback<T> {}, module_names, ctx);
 }
