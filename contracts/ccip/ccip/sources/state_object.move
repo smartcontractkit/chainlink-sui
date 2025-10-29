@@ -2,14 +2,15 @@ module ccip::state_object;
 
 use ccip::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
+use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
-use std::string::{Self, String};
+use std::string;
 use std::type_name;
 use sui::address;
 use sui::derived_object;
 use sui::dynamic_object_field as dof;
-use sui::package;
+use sui::package::{Self, UpgradeCap};
 
 const EModuleAlreadyExists: u64 = 1;
 const EModuleDoesNotExist: u64 = 2;
@@ -166,6 +167,15 @@ public fun execute_ownership_transfer_to_mcms(
     );
 }
 
+public fun mcms_register_upgrade_cap(
+    upgrade_cap: UpgradeCap,
+    registry: &mut Registry,
+    state: &mut DeployerState,
+    ctx: &mut TxContext,
+) {
+    mcms_deployer::register_upgrade_cap(state, registry, upgrade_cap, ctx);
+}
+
 public fun owner(ref: &CCIPObjectRef): address {
     ref.ownable_state.owner()
 }
@@ -311,6 +321,7 @@ public fun mcms_accept_ownership(
 public fun mcms_execute_ownership_transfer(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
+    deployer_state: &mut DeployerState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -334,6 +345,16 @@ public fun mcms_execute_ownership_transfer(
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+
+    if (mcms_deployer::has_upgrade_cap(deployer_state, @ccip)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback {},
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
     execute_ownership_transfer(ref, owner_cap, to, ctx);
 }
 

@@ -938,6 +938,7 @@ public fun mcms_transfer_ownership<T>(
 public fun mcms_execute_ownership_transfer<T>(
     state: &mut BurnMintTokenPoolState<T>,
     registry: &mut Registry,
+    deployer_state: &mut DeployerState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -964,6 +965,16 @@ public fun mcms_execute_ownership_transfer<T>(
         registry,
         McmsCallback<T> {},
     );
+
+    if (mcms_deployer::has_upgrade_cap(deployer_state, @burn_mint_token_pool)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback<T> {}
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }
 

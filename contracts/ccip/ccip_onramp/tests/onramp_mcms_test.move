@@ -8,7 +8,7 @@ use ccip::upgrade_registry;
 use ccip_onramp::onramp::{Self, OnRampState};
 use ccip_onramp::ownable::OwnerCap;
 use mcms::mcms_account;
-use mcms::mcms_deployer;
+use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry};
 use std::string;
 use sui::bcs;
@@ -28,6 +28,7 @@ public struct Env {
     scenario: Scenario,
     state: OnRampState,
     registry: Registry,
+    deployer_state: DeployerState,
     ref: CCIPObjectRef,
     clock: sui::clock::Clock,
 }
@@ -50,6 +51,7 @@ fun setup(): (Env, NonceManagerCap, osh::SourceTransferCap) {
     scenario.next_tx(OWNER);
 
     let registry = ts::take_shared<Registry>(&scenario);
+    let deployer_state = ts::take_shared<DeployerState>(&scenario);
     let mut ref = ts::take_shared<CCIPObjectRef>(&scenario);
     let state = ts::take_shared<OnRampState>(&scenario);
 
@@ -67,6 +69,7 @@ fun setup(): (Env, NonceManagerCap, osh::SourceTransferCap) {
         scenario,
         state,
         registry,
+        deployer_state,
         ref,
         clock,
     };
@@ -75,9 +78,10 @@ fun setup(): (Env, NonceManagerCap, osh::SourceTransferCap) {
 }
 
 fun tear_down(env: Env) {
-    let Env { scenario, state, registry, ref, clock } = env;
+    let Env { scenario, state, registry, deployer_state, ref, clock } = env;
     ts::return_shared(state);
     ts::return_shared(registry);
+    ts::return_shared(deployer_state);
     ts::return_shared(ref);
     clock.destroy_for_testing();
     ts::end(scenario);
@@ -378,6 +382,7 @@ public fun test_mcms_transfer_ownership_e2e() {
         &env.ref,
         &mut env.state,
         &mut env.registry,
+        &mut env.deployer_state,
         params,
         env.scenario.ctx(),
     );

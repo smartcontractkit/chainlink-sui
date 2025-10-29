@@ -1672,6 +1672,7 @@ public fun mcms_execute_ownership_transfer(
     ref: &CCIPObjectRef,
     state: &mut OffRampState,
     registry: &mut Registry,
+    deployer_state: &mut DeployerState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -1695,6 +1696,16 @@ public fun mcms_execute_ownership_transfer(
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+
+    if (mcms_deployer::has_upgrade_cap(deployer_state, @ccip_offramp)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback {}
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
     execute_ownership_transfer(ref, owner_cap, state, to, ctx);
 }
 

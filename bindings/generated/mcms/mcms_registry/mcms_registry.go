@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"mcms","module":"mcms_registry","name":"add_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"new_allowed_modules","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"borrow_owner_cap","parameters":[{"name":"registry","type":"Registry"}]},{"package":"mcms","module":"mcms_registry","name":"create_executing_callback_params","parameters":[{"name":"target","type":"address"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"data","type":"vector<u8>"},{"name":"batch_id","type":"vector<u8>"},{"name":"sequence_number","type":"u64"},{"name":"total_in_batch","type":"u64"}]},{"package":"mcms","module":"mcms_registry","name":"create_publisher_wrapper","parameters":[{"name":"publisher","type":"Publisher"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"data","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"function_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_accept_ownership_data","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"get_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"ascii::String"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_from_mcms","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_with_caps","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_multisig_address","parameters":null},{"package":"mcms","module":"mcms_registry","name":"get_multisig_address_ascii","parameters":null},{"package":"mcms","module":"mcms_registry","name":"get_next_expected_sequence","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_batch_completed","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_package_registered","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"ascii::String"}]},{"package":"mcms","module":"mcms_registry","name":"module_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"register_entrypoint","parameters":[{"name":"registry","type":"Registry"},{"name":"publisher_wrapper","type":"PublisherWrapper<T>"},{"name":"_proof","type":"T"},{"name":"package_cap","type":"C"},{"name":"allowed_modules","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"release_cap","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"remove_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"modules_to_remove","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"target","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]}]`
+const FunctionInfo = `[{"package":"mcms","module":"mcms_registry","name":"add_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"new_allowed_modules","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"borrow_owner_cap","parameters":[{"name":"registry","type":"Registry"}]},{"package":"mcms","module":"mcms_registry","name":"create_executing_callback_params","parameters":[{"name":"target","type":"address"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"data","type":"vector<u8>"},{"name":"batch_id","type":"vector<u8>"},{"name":"sequence_number","type":"u64"},{"name":"total_in_batch","type":"u64"}]},{"package":"mcms","module":"mcms_registry","name":"create_publisher_wrapper","parameters":[{"name":"publisher","type":"Publisher"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"data","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"function_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_accept_ownership_data","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"get_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"ascii::String"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_from_mcms","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_with_caps","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_multisig_address","parameters":null},{"package":"mcms","module":"mcms_registry","name":"get_multisig_address_ascii","parameters":null},{"package":"mcms","module":"mcms_registry","name":"get_next_expected_sequence","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"get_registered_proof_type","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"ascii::String"}]},{"package":"mcms","module":"mcms_registry","name":"is_batch_completed","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_package_registered","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"ascii::String"}]},{"package":"mcms","module":"mcms_registry","name":"module_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"register_entrypoint","parameters":[{"name":"registry","type":"Registry"},{"name":"publisher_wrapper","type":"PublisherWrapper<T>"},{"name":"_proof","type":"T"},{"name":"package_cap","type":"C"},{"name":"allowed_modules","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"release_cap","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"remove_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"modules_to_remove","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"target","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]}]`
 
 type IMcmsRegistry interface {
 	CreatePublisherWrapper(ctx context.Context, opts *bind.CallOpts, typeArgs []string, publisher bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -33,6 +33,7 @@ type IMcmsRegistry interface {
 	GetCallbackParamsFromMcms(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params ExecutingCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	CreateExecutingCallbackParams(ctx context.Context, opts *bind.CallOpts, target string, moduleName string, functionName string, data []byte, batchId []byte, sequenceNumber uint64, totalInBatch uint64) (*models.SuiTransactionBlockResponse, error)
 	IsPackageRegistered(ctx context.Context, opts *bind.CallOpts, registry bind.Object, packageAddress string) (*models.SuiTransactionBlockResponse, error)
+	GetRegisteredProofType(ctx context.Context, opts *bind.CallOpts, registry bind.Object, packageAddress string) (*models.SuiTransactionBlockResponse, error)
 	GetAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, packageAddress string) (*models.SuiTransactionBlockResponse, error)
 	Target(ctx context.Context, opts *bind.CallOpts, params ExecutingCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	ModuleName(ctx context.Context, opts *bind.CallOpts, params ExecutingCallbackParams) (*models.SuiTransactionBlockResponse, error)
@@ -56,6 +57,7 @@ type IMcmsRegistryDevInspect interface {
 	GetCallbackParamsFromMcms(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params ExecutingCallbackParams) ([]any, error)
 	CreateExecutingCallbackParams(ctx context.Context, opts *bind.CallOpts, target string, moduleName string, functionName string, data []byte, batchId []byte, sequenceNumber uint64, totalInBatch uint64) (ExecutingCallbackParams, error)
 	IsPackageRegistered(ctx context.Context, opts *bind.CallOpts, registry bind.Object, packageAddress string) (bool, error)
+	GetRegisteredProofType(ctx context.Context, opts *bind.CallOpts, registry bind.Object, packageAddress string) (bind.Object, error)
 	GetAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, packageAddress string) ([][]byte, error)
 	Target(ctx context.Context, opts *bind.CallOpts, params ExecutingCallbackParams) (string, error)
 	ModuleName(ctx context.Context, opts *bind.CallOpts, params ExecutingCallbackParams) (string, error)
@@ -90,6 +92,8 @@ type McmsRegistryEncoder interface {
 	CreateExecutingCallbackParamsWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsPackageRegistered(registry bind.Object, packageAddress string) (*bind.EncodedCall, error)
 	IsPackageRegisteredWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetRegisteredProofType(registry bind.Object, packageAddress string) (*bind.EncodedCall, error)
+	GetRegisteredProofTypeWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetAllowedModules(registry bind.Object, packageAddress string) (*bind.EncodedCall, error)
 	GetAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
 	Target(params ExecutingCallbackParams) (*bind.EncodedCall, error)
@@ -485,6 +489,16 @@ func (c *McmsRegistryContract) IsPackageRegistered(ctx context.Context, opts *bi
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// GetRegisteredProofType executes the get_registered_proof_type Move function.
+func (c *McmsRegistryContract) GetRegisteredProofType(ctx context.Context, opts *bind.CallOpts, registry bind.Object, packageAddress string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsRegistryEncoder.GetRegisteredProofType(registry, packageAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // GetAllowedModules executes the get_allowed_modules Move function.
 func (c *McmsRegistryContract) GetAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, packageAddress string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.mcmsRegistryEncoder.GetAllowedModules(registry, packageAddress)
@@ -726,6 +740,28 @@ func (d *McmsRegistryDevInspect) IsPackageRegistered(ctx context.Context, opts *
 	result, ok := results[0].(bool)
 	if !ok {
 		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetRegisteredProofType executes the get_registered_proof_type Move function using DevInspect to get return values.
+//
+// Returns: TypeName
+func (d *McmsRegistryDevInspect) GetRegisteredProofType(ctx context.Context, opts *bind.CallOpts, registry bind.Object, packageAddress string) (bind.Object, error) {
+	encoded, err := d.contract.mcmsRegistryEncoder.GetRegisteredProofType(registry, packageAddress)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
 	}
 	return result, nil
 }
@@ -1361,6 +1397,39 @@ func (c mcmsRegistryEncoder) IsPackageRegisteredWithArgs(args ...any) (*bind.Enc
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("is_package_registered", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"bool",
+	})
+}
+
+// GetRegisteredProofType encodes a call to the get_registered_proof_type Move function.
+func (c mcmsRegistryEncoder) GetRegisteredProofType(registry bind.Object, packageAddress string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_registered_proof_type", typeArgsList, typeParamsList, []string{
+		"&Registry",
+		"ascii::String",
+	}, []any{
+		registry,
+		packageAddress,
+	}, []string{
+		"TypeName",
+	})
+}
+
+// GetRegisteredProofTypeWithArgs encodes a call to the get_registered_proof_type Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsRegistryEncoder) GetRegisteredProofTypeWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&Registry",
+		"ascii::String",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_registered_proof_type", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"TypeName",
 	})
 }
 

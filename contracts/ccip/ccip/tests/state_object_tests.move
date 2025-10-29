@@ -10,7 +10,6 @@ use std::string;
 use sui::address;
 use sui::bcs;
 use sui::test_scenario::{Self, Scenario};
-use std::type_name;
 
 const SENDER_1: address = @0x1;
 const SENDER_2: address = @0x2;
@@ -599,6 +598,7 @@ fun test_mcms_three_step_ownership_transfer() {
     // Step 3: MCMS calls mcms_execute_ownership_transfer to finalize
     scenario.next_tx(OWNER);
     {
+        let mut deployer_state = test_scenario::take_shared<mcms_deployer::DeployerState>(&scenario);
         let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip.to_ascii_string());
 
         // Serialize data: [ref_address][owner_cap_address][to_address]
@@ -620,9 +620,12 @@ fun test_mcms_three_step_ownership_transfer() {
         state_object::mcms_execute_ownership_transfer(
             &mut ref,
             &mut registry,
+            &mut deployer_state,
             params,
             scenario.ctx(),
         );
+
+        test_scenario::return_shared(deployer_state);
     };
 
     // Verify pending transfer was cleared
