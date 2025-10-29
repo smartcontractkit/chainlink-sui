@@ -208,7 +208,8 @@ public fun new_any2sui_message(
     data: vector<u8>,
     message_receiver: address,
     token_receiver: address,
-    dest_token_amounts: vector<Any2SuiTokenAmount>,
+    token_addresses: vector<address>,
+    token_amounts: vector<u256>,
 ): Any2SuiMessage {
     client::new_any2sui_message(
         message_id,
@@ -217,7 +218,7 @@ public fun new_any2sui_message(
         data,
         message_receiver,
         token_receiver,
-        dest_token_amounts,
+        client::new_dest_token_amounts(token_addresses, token_amounts),
     )
 }
 

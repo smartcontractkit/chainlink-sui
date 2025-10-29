@@ -3,7 +3,6 @@
 /// during upgrades.
 module ccip_offramp::offramp;
 
-use ccip::client;
 use ccip::eth_abi;
 use ccip::fee_quoter::{Self, FeeQuoterCap};
 use ccip::merkle_proof;
@@ -575,6 +574,7 @@ fun pre_execute_single_report(
     execution_report: ExecutionReport,
     manual_execution: bool,
 ): osh::ReceiverParams {
+    assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
     let source_chain_selector = execution_report.source_chain_selector;
 
     if (rmn_remote::is_cursed_u128(ref, source_chain_selector as u128)) {
@@ -643,7 +643,6 @@ fun pre_execute_single_report(
             (message.token_receiver != @0x0 && number_of_tokens_in_msg > 0), // if token_receiver is not empty, tokens should be transferred
         EInvalidTokenReceiver,
     );
-    assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
 
     let mut receiver_params = osh::create_receiver_params(
         state.dest_transfer_cap.borrow(),
@@ -680,7 +679,6 @@ fun pre_execute_single_report(
         (!message.data.is_empty() || message.gas_limit != 0) && receiver_registry::is_registered_receiver(ref, message.receiver);
     // if the message has a valid message receiver and proper data & gas limit
     if (has_valid_message_receiver) {
-        let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
         let any2sui_message = osh::new_any2sui_message(
             state.dest_transfer_cap.borrow(),
             message.header.message_id,
@@ -689,7 +687,8 @@ fun pre_execute_single_report(
             message.data,
             message.receiver,
             message.token_receiver,
-            dest_token_amounts,
+            token_addresses,
+            token_amounts,
         );
 
         osh::populate_message(
