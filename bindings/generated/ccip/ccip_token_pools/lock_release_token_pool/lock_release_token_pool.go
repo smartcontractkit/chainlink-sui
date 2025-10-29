@@ -49,7 +49,7 @@ type ILockReleaseTokenPool interface {
 	GetRebalancer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetRebalancer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetRebalancer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, rebalancer string) (*models.SuiTransactionBlockResponse, error)
-	McmsDestroyMcmsCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsDestroyRebalancerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DestroyRebalancerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, rebalancerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -158,8 +158,8 @@ type LockReleaseTokenPoolEncoder interface {
 	McmsSetRebalancerWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetRebalancer(typeArgs []string, state bind.Object, ownerCap bind.Object, rebalancer string) (*bind.EncodedCall, error)
 	SetRebalancerWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	McmsDestroyMcmsCap(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsDestroyMcmsCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsDestroyRebalancerCap(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsDestroyRebalancerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	DestroyRebalancerCap(typeArgs []string, state bind.Object, rebalancerCap bind.Object) (*bind.EncodedCall, error)
 	DestroyRebalancerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	Owner(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
@@ -697,9 +697,9 @@ func (c *LockReleaseTokenPoolContract) SetRebalancer(ctx context.Context, opts *
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsDestroyMcmsCap executes the mcms_destroy_mcms_cap Move function.
-func (c *LockReleaseTokenPoolContract) McmsDestroyMcmsCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.lockReleaseTokenPoolEncoder.McmsDestroyMcmsCap(typeArgs, state, registry, params)
+// McmsDestroyRebalancerCap executes the mcms_destroy_rebalancer_cap Move function.
+func (c *LockReleaseTokenPoolContract) McmsDestroyRebalancerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.McmsDestroyRebalancerCap(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2422,13 +2422,13 @@ func (c lockReleaseTokenPoolEncoder) SetRebalancerWithArgs(typeArgs []string, ar
 	return c.EncodeCallArgsWithGenerics("set_rebalancer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// McmsDestroyMcmsCap encodes a call to the mcms_destroy_mcms_cap Move function.
-func (c lockReleaseTokenPoolEncoder) McmsDestroyMcmsCap(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+// McmsDestroyRebalancerCap encodes a call to the mcms_destroy_rebalancer_cap Move function.
+func (c lockReleaseTokenPoolEncoder) McmsDestroyRebalancerCap(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("mcms_destroy_mcms_cap", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_rebalancer_cap", typeArgsList, typeParamsList, []string{
 		"&mut LockReleaseTokenPoolState<T>",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -2439,9 +2439,9 @@ func (c lockReleaseTokenPoolEncoder) McmsDestroyMcmsCap(typeArgs []string, state
 	}, nil)
 }
 
-// McmsDestroyMcmsCapWithArgs encodes a call to the mcms_destroy_mcms_cap Move function using arbitrary arguments.
+// McmsDestroyRebalancerCapWithArgs encodes a call to the mcms_destroy_rebalancer_cap Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c lockReleaseTokenPoolEncoder) McmsDestroyMcmsCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c lockReleaseTokenPoolEncoder) McmsDestroyRebalancerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut LockReleaseTokenPoolState<T>",
 		"&mut Registry",
@@ -2455,7 +2455,7 @@ func (c lockReleaseTokenPoolEncoder) McmsDestroyMcmsCapWithArgs(typeArgs []strin
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("mcms_destroy_mcms_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_rebalancer_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // DestroyRebalancerCap encodes a call to the destroy_rebalancer_cap Move function.

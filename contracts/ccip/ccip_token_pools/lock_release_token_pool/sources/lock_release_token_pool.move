@@ -631,7 +631,7 @@ fun set_rebalancer_cap_id<T>(
     event::emit(RebalancerSet<T> { old_rebalancer_cap_id, new_rebalancer_cap_id });
 }
 
-public fun mcms_destroy_mcms_cap<T>(
+public fun mcms_destroy_rebalancer_cap<T>(
     state: &mut LockReleaseTokenPoolState<T>,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
@@ -645,7 +645,7 @@ public fun mcms_destroy_mcms_cap<T>(
         McmsCallback<T> {},
         params,
     );
-    assert!(function == string::utf8(b"destroy_mcms_cap"), EInvalidFunction);
+    assert!(function == string::utf8(b"destroy_rebalancer_cap"), EInvalidFunction);
     assert!(mcms_cap.rebalancer_cap.is_some(), ERebalancerCapDoesNotExist);
 
     let mut stream = bcs_stream::new(data);
