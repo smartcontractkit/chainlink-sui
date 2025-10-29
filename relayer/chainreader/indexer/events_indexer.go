@@ -326,8 +326,9 @@ eventLoop:
 					BlockVersion:        0,
 					BlockHeight:         fmt.Sprintf("%d", block.Height),
 					BlockHash:           []byte(block.TxDigest),
-					BlockTimestamp:      block.Timestamp,
-					Data:                normalizedData.(map[string]any),
+					// Sui returns block.Timestamp in ms; convert to seconds for consistency with CCIP readers.
+					BlockTimestamp: block.Timestamp / 1000,
+					Data:           normalizedData.(map[string]any),
 				}
 				batchRecords = append(batchRecords, record)
 			}
