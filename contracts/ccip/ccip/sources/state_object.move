@@ -4,7 +4,7 @@ use ccip::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
-use std::string::{Self, String};
+use std::string::{Self};
 use std::type_name;
 use sui::address;
 use sui::derived_object;
