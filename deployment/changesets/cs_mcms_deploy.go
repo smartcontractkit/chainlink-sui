@@ -3,13 +3,14 @@ package changesets
 import (
 	"fmt"
 
+	"github.com/smartcontractkit/mcms"
+
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
-	"github.com/smartcontractkit/mcms"
 )
 
 var _ cldf.ChangeSetV2[mcmsops.DeployMCMSSeqInput] = DeployMCMS{}
@@ -101,6 +102,13 @@ func storeMCMSInAddressBook(ab *cldf.AddressBookMap, chainSelector uint64, mcmsR
 	err = ab.Save(chainSelector, mcmsReport.Objects.TimelockObjectId, typeAndVersionMCMSTimelock)
 	if err != nil {
 		return fmt.Errorf("failed to save MCMS Timelock object ID %s for Sui chain %d: %w", mcmsReport.Objects.TimelockObjectId, chainSelector, err)
+	}
+
+	// save MCMS Deployer object ID to the addressbook
+	typeAndVersionMCMSDeployer := cldf.NewTypeAndVersion(deployment.SuiMcmsDeployerObjectIDType, deployment.Version1_0_0)
+	err = ab.Save(chainSelector, mcmsReport.Objects.McmsDeployerObjectId, typeAndVersionMCMSDeployer)
+	if err != nil {
+		return fmt.Errorf("failed to save MCMS Deployer object ID %s for Sui chain %d: %w", mcmsReport.Objects.McmsDeployerObjectId, chainSelector, err)
 	}
 
 	return nil
