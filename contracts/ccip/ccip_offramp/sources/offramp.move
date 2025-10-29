@@ -231,6 +231,7 @@ const EPackageIdNotFound: u64 = 29;
 const EInvalidOwnerCap: u64 = 30;
 const EUnknownSequenceNumber: u64 = 31;
 const EInvalidReportContextLength: u64 = 32;
+const EInvalidBlessedMerkleRoots: u64 = 33;
 
 const VERSION: u8 = 1;
 
@@ -884,6 +885,7 @@ fun deserialize_commit_report(report_bytes: vector<u8>): CommitReport {
     });
 
     let blessed_merkle_roots = parse_merkle_root(&mut stream);
+    assert!(blessed_merkle_roots.length() > 0, EInvalidBlessedMerkleRoots);
     let unblessed_merkle_roots = parse_merkle_root(&mut stream);
 
     let rmn_signatures = bcs_stream::deserialize_vector!(
