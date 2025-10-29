@@ -37,10 +37,10 @@ SolidityURL = 'http://localhost:9000'
 BroadcastChanSize = 100
 ConfirmPollSecs = 2
 DefaultMaxGasAmount = 200000
-MaxTxRetryAttempts = 5
+MaxTxRetryAttempts = 10
 RequestType = 'WaitForEffectsCert'
-TransactionTimeout = '10s'
-MaxConcurrentRequests = 100
+TransactionTimeout = '120s'
+MaxConcurrentRequests = 500
 
 [Sui.TransactionsIndexer]
 PollingIntervalSecs = 3
