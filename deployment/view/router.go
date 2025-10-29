@@ -1,6 +1,8 @@
 package view
 
 type RouterView struct {
+	ContractMetaData
+
 	IsTestRouter bool              `json:"isTestRouter"`
 	OnRamps      map[uint64]string `json:"onRamps"`  // Map of DestinationChainSelector to OnRampAddress
 	OffRamps     map[uint64]string `json:"offRamps"` // Map of DestinationChainSelector to OffRampAddress
@@ -21,6 +23,11 @@ func GenerateRouterView(routerAddress string, offRampAddresses []string, isTestR
 	}
 
 	return RouterView{
+		ContractMetaData: ContractMetaData{
+			Address:        routerAddress,
+			Owner:          "0xmock_owner_address",
+			TypeAndVersion: "Router 1.0.0",
+		},
 		IsTestRouter: isTestRouter,
 		OnRamps:      onRamps,
 		OffRamps:     offRamps,
