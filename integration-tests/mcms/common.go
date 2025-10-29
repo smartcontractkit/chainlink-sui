@@ -566,12 +566,40 @@ func (s *MCMSTestSuite) RunOwnershipCCIPTransfer() {
 	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
 
 	// 3.2. Finish the ownership transfer with the original owner signer
-	_, err = ccipContract.ExecuteOwnershipTransferToMcms(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, bind.Object{Id: s.ccipObjects.OwnerCapObjectId}, bind.Object{Id: s.registryObj}, s.mcmsPackageID)
-	s.Require().NoError(err, "executing ownership transfer of CCIP to MCMS")
-	_, err = ccipOnRampContract.ExecuteOwnershipTransferToMcms(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, bind.Object{Id: s.ccipOnrampObjects.OwnerCapObjectId}, bind.Object{Id: s.ccipOnrampObjects.StateObjectId}, bind.Object{Id: s.registryObj}, s.mcmsPackageID)
-	s.Require().NoError(err, "executing ownership transfer of OnRamp to MCMS")
-	_, err = ccipOffRampContract.ExecuteOwnershipTransferToMcms(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, bind.Object{Id: s.ccipOfframpObjects.OwnerCapId}, bind.Object{Id: s.ccipOfframpObjects.StateObjectId}, bind.Object{Id: s.registryObj}, s.mcmsPackageID)
-	s.Require().NoError(err, "executing ownership transfer of OffRamp to MCMS")
+	executeTransferInput := ownershipops.ExecuteOwnershipTransferToMcmsSeqInput{
+		StateObject: &ccipops.ExecuteOwnershipTransferToMcmsStateObjectInput{
+			CCIPPackageId:         s.ccipPackageId,
+			CCIPObjectRefObjectId: s.ccipObjects.CCIPObjectRefObjectId,
+			OwnerCapObjectId:      s.ccipObjects.OwnerCapObjectId,
+			RegistryObjectId:      s.registryObj,
+			To:                    s.mcmsPackageID,
+		},
+		OnRamp: &onrampops.ExecuteOwnershipTransferToMcmsOnRampInput{
+			OnRampPackageId:     s.ccipOnrampPackageId,
+			OnRampRefObjectId:   s.ccipObjects.CCIPObjectRefObjectId,
+			OwnerCapObjectId:    s.ccipOnrampObjects.OwnerCapObjectId,
+			OnRampStateObjectId: s.ccipOnrampObjects.StateObjectId,
+			RegistryObjectId:    s.registryObj,
+			To:                  s.mcmsPackageID,
+		},
+		OffRamp: &offrampops.ExecuteOwnershipTransferToMcmsOffRampInput{
+			OffRampPackageId:     s.ccipOfframpPackageId,
+			OffRampRefObjectId:   s.ccipObjects.CCIPObjectRefObjectId,
+			OwnerCapObjectId:     s.ccipOfframpObjects.OwnerCapId,
+			OffRampStateObjectId: s.ccipOfframpObjects.StateObjectId,
+			RegistryObjectId:     s.registryObj,
+			To:                   s.mcmsPackageID,
+		},
+		Router: &routerops.ExecuteOwnershipTransferToMcmsRouterInput{
+			RouterPackageId:     s.ccipRouterPackageId,
+			OwnerCapObjectId:    s.ccipRouterObjects.OwnerCapObjectId,
+			RouterStateObjectId: s.ccipRouterObjects.RouterStateObjectId,
+			RegistryObjectId:    s.registryObj,
+			To:                  s.mcmsPackageID,
+		},
+	}
+	_, err = cld_ops.ExecuteSequence(s.bundle, ownershipops.ExecuteOwnershipTransferToMcmsSequence, s.deps, executeTransferInput)
+	s.Require().NoError(err, "executing final ownership transfer to MCMS")
 
 	// 4. Verify the new owner is MCMS
 	newOwner, err := ccipContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId})
@@ -585,4 +613,8 @@ func (s *MCMSTestSuite) RunOwnershipCCIPTransfer() {
 	newOwnerOffRamp, err := ccipOffRampContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipOfframpObjects.StateObjectId})
 	s.Require().NoError(err, "getting new owner of OffRamp state object")
 	s.Require().Equal(s.mcmsPackageID, newOwnerOffRamp, "new owner of OffRamp should be MCMS")
+
+	newOwnerRouter, err := ccipRouterContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipRouterObjects.RouterStateObjectId})
+	s.Require().NoError(err, "getting new owner of Router state object")
+	s.Require().Equal(s.mcmsPackageID, newOwnerRouter, "new owner of Router should be MCMS")
 }

@@ -43,7 +43,6 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 }
 
 // TODO: For prod env, the initial deployment sequence should start the ownership transfer flow of every deployed contract
-
 func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 	// 1. Build configs
 	expectedTTFC := module_fee_quoter.TokenTransferFeeConfig{
