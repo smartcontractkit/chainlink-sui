@@ -9,8 +9,7 @@ public struct OwnerCap<phantom T> has key, store {
     id: UID,
 }
 
-public struct OwnableState<phantom T> has key, store {
-    id: UID,
+public struct OwnableState<phantom T> has store {
     owner: address,
     pending_transfer: Option<PendingTransfer>,
     owner_cap_id: ID,
