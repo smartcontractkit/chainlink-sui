@@ -150,6 +150,7 @@ const EInvalidRemoteChainSelector: u64 = 17;
 const EInvalidFunction: u64 = 18;
 const EPackageIdNotFound: u64 = 19;
 const EInvalidOwnerCap: u64 = 20;
+const EInvalidTokenReceiver: u64 = 21;
 
 const VERSION: u8 = 1;
 
@@ -806,6 +807,16 @@ public fun ccip_send<T>(
         ) = osh::get_source_token_transfer_data(&token_params);
         assert!(remote_chain_selector == dest_chain_selector, EInvalidRemoteChainSelector);
         assert!(amount > 0, ECannotSendZeroTokens);
+
+        // validate that the token receiver from the hot potato is the same as the token receiver from the extra args
+        let token_receiver = osh::get_token_receiver(&token_params);
+        let token_receiver_from_extra_args = fee_quoter::get_token_receiver(
+            ref,
+            dest_chain_selector,
+            extra_args,
+            token_receiver,
+        );
+        assert!(token_receiver_from_extra_args == token_receiver, EInvalidTokenReceiver);
 
         token_transfers.push_back(Sui2AnyTokenTransfer {
             source_pool_address: source_pool_package_id,
