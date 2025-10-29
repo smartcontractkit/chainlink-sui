@@ -104,11 +104,11 @@ func storeMCMSInAddressBook(ab *cldf.AddressBookMap, chainSelector uint64, mcmsR
 		return fmt.Errorf("failed to save MCMS Timelock object ID %s for Sui chain %d: %w", mcmsReport.Objects.TimelockObjectId, chainSelector, err)
 	}
 
-	// save MCMS Deployer object ID to the addressbook
+	// save MCMS Deployer State object ID to the addressbook
 	typeAndVersionMCMSDeployer := cldf.NewTypeAndVersion(deployment.SuiMcmsDeployerObjectIDType, deployment.Version1_0_0)
-	err = ab.Save(chainSelector, mcmsReport.Objects.McmsDeployerObjectId, typeAndVersionMCMSDeployer)
+	err = ab.Save(chainSelector, mcmsReport.Objects.McmsDeployerStateObjectId, typeAndVersionMCMSDeployer)
 	if err != nil {
-		return fmt.Errorf("failed to save MCMS Deployer object ID %s for Sui chain %d: %w", mcmsReport.Objects.McmsDeployerObjectId, chainSelector, err)
+		return fmt.Errorf("failed to save MCMS Deployer object ID %s for Sui chain %d: %w", mcmsReport.Objects.McmsDeployerStateObjectId, chainSelector, err)
 	}
 
 	return nil
