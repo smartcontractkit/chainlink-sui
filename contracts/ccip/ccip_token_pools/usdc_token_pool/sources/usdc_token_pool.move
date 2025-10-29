@@ -65,7 +65,7 @@ public struct USDCTokenPoolState<phantom T> has key {
     token_pool_state: TokenPoolState,
     chain_to_domain: Table<u64, Domain>,
     local_domain_identifier: u32,
-    ownable_state: OwnableState,
+    ownable_state: OwnableState<T>,
 }
 
 const EInvalidCoinMetadata: u64 = 1;
@@ -98,7 +98,7 @@ public fun type_and_version(): String {
 #[allow(lint(self_transfer))]
 public fun initialize<T: drop>(
     ref: &mut CCIPObjectRef,
-    ccip_admin_proof: state_object::CCIPAdminProof,
+    mut ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata: &CoinMetadata<T>, // this can be provided as an address or in Move.toml
     publisher: Publisher,
     ctx: &mut TxContext,
@@ -572,7 +572,7 @@ public fun get_domain<T>(pool: &USDCTokenPoolState<T>, chain_selector: u64): Dom
 
 public fun set_domains<T>(
     pool: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     remote_chain_selectors: vector<u64>,
     remote_domain_identifiers: vector<u32>,
     allowed_remote_callers: vector<vector<u8>>,
@@ -626,7 +626,7 @@ public fun set_domains<T>(
 
 public fun set_chain_rate_limiter_configs<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     clock: &Clock,
     remote_chain_selectors: vector<u64>,
     outbound_is_enableds: vector<bool>,
@@ -668,7 +668,7 @@ public fun set_chain_rate_limiter_configs<T>(
 
 public fun set_chain_rate_limiter_config<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     clock: &Clock,
     remote_chain_selector: u64,
     outbound_is_enabled: bool,
@@ -718,7 +718,7 @@ public fun pending_transfer_accepted<T>(state: &USDCTokenPoolState<T>): Option<b
 
 public fun transfer_ownership<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
+    owner_cap: &OwnerCap<T>,
     new_owner: address,
     ctx: &mut TxContext,
 ) {
@@ -746,7 +746,7 @@ public fun mcms_accept_ownership<T>(
     let data = mcms_registry::get_accept_ownership_data(
         registry,
         params,
-        McmsAcceptOwnershipProof<T> {},
+        McmsAcceptOwnershipProof {},
     );
 
     let mut stream = bcs_stream::new(data);
@@ -758,7 +758,7 @@ public fun mcms_accept_ownership<T>(
 }
 
 public fun execute_ownership_transfer<T>(
-    owner_cap: OwnerCap,
+    owner_cap: OwnerCap<T>,
     state: &mut USDCTokenPoolState<T>,
     to: address,
     ctx: &mut TxContext,
@@ -767,7 +767,7 @@ public fun execute_ownership_transfer<T>(
 }
 
 public fun execute_ownership_transfer_to_mcms<T>(
-    owner_cap: OwnerCap,
+    owner_cap: OwnerCap<T>,
     state: &mut USDCTokenPoolState<T>,
     registry: &mut Registry,
     to: address,
@@ -820,7 +820,7 @@ public fun mcms_set_allowlist_enabled<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback {},
@@ -847,7 +847,7 @@ public fun mcms_apply_allowlist_updates<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback {},
@@ -881,7 +881,7 @@ public fun mcms_apply_chain_updates<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback {},
@@ -933,7 +933,7 @@ public fun mcms_add_remote_pool<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback {},
@@ -961,7 +961,7 @@ public fun mcms_remove_remote_pool<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback {},
@@ -989,7 +989,7 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback {},
@@ -1055,7 +1055,7 @@ public fun mcms_set_chain_rate_limiter_config<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback {},
@@ -1097,7 +1097,7 @@ public fun mcms_set_chain_rate_limiter_config<T>(
 public fun destroy_token_pool<T>(
     ref: &mut CCIPObjectRef,
     state: USDCTokenPoolState<T>,
-    owner_cap: OwnerCap,
+    owner_cap: OwnerCap<T>,
     ctx: &mut TxContext,
 ) {
     assert!(
@@ -1132,7 +1132,7 @@ public fun mcms_transfer_ownership<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback {},
@@ -1160,7 +1160,7 @@ public fun mcms_execute_ownership_transfer<T>(
 ) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback {},
@@ -1177,7 +1177,7 @@ public fun mcms_execute_ownership_transfer<T>(
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let (owner_cap, publisher) = mcms_registry::release_cap(
+    let owner_cap = mcms_registry::release_cap<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
     );
@@ -1193,7 +1193,7 @@ public fun mcms_set_pool<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback {},
@@ -1218,14 +1218,14 @@ public fun mcms_set_pool<T>(
     );
 }
 
-public fun mcms_add_allowed_modules(
+public fun mcms_add_allowed_modules<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback {},
@@ -1245,14 +1245,14 @@ public fun mcms_add_allowed_modules(
     mcms_registry::add_allowed_modules(registry, McmsCallback {}, new_module_names, ctx);
 }
 
-public fun mcms_remove_allowed_modules(
+public fun mcms_remove_allowed_modules<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
-        OwnerCap,
+        OwnerCap<T>,
     >(
         registry,
         McmsCallback {},
