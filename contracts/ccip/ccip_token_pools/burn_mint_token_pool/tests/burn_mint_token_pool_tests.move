@@ -84,11 +84,11 @@ public fun test_initialize_and_basic_functionality() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -163,11 +163,11 @@ public fun test_chain_configuration_management() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -293,11 +293,11 @@ public fun test_allowlist_management() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -365,11 +365,11 @@ public fun test_rate_limiter_configuration() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -482,11 +482,11 @@ public fun test_invalid_arguments_rate_limiter_configs() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -560,11 +560,11 @@ public fun test_comprehensive_allowlist_operations() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -635,11 +635,11 @@ public fun test_destroy_token_pool() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -712,11 +712,11 @@ public fun test_comprehensive_rate_limiter_operations() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -828,11 +828,11 @@ public fun test_edge_cases_and_boundary_conditions() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -980,11 +980,11 @@ public fun test_lock_or_burn_comprehensive() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -1136,12 +1136,12 @@ public fun test_release_or_mint_comprehensive() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
         coin_metadata_address
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -1290,11 +1290,11 @@ public fun test_set_allowlist_enabled() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -1368,11 +1368,11 @@ public fun test_apply_allowlist_updates() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -1486,12 +1486,12 @@ public fun test_set_pool() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
         coin_metadata_address
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
@@ -1707,11 +1707,11 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
 
         // Call test_init to create owner_cap
         burn_mint_token_pool::test_init(ctx);
-        
+
         transfer::public_freeze_object(coin_metadata);
         transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
     };
-    
+
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
