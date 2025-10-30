@@ -286,22 +286,29 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
     (package_cap, function_name, data)
 }
 
+/// Release the package cap for a registered package.
+/// All four states from `Registry` are removed:
+/// - package_caps
+/// - registered_proof_types
+/// - proof_type_to_package
+/// - allowed_modules
 public fun release_cap<T: drop, C: key + store>(registry: &mut Registry, _proof: T): C {
     let proof_type = type_name::with_original_ids<T>();
     let proof_account_address = proof_type.address_string();
 
-    assert!(registry.proof_type_to_package.contains(proof_type), EProofTypeNotRegistered);
-
-    let expected_package_address = registry.proof_type_to_package.borrow(proof_type);
-    assert!(proof_account_address == expected_package_address, EWrongProofType);
-
-    let expected_type = registry.registered_proof_types.borrow(proof_account_address);
-    assert!(proof_type == *expected_type, EWrongProofType);
-
+    // Assert the package is registered
     assert!(registry.package_caps.contains(proof_account_address), EPackageCapNotRegistered);
+    assert!(registry.proof_type_to_package.contains(proof_type), EProofTypeNotRegistered);
     assert!(registry.registered_proof_types.contains(proof_account_address), EModuleNotRegistered);
 
-    registry.package_caps.remove(proof_account_address)
+    let expected_type = registry.registered_proof_types.remove(proof_account_address);
+    assert!(proof_type == expected_type, EWrongProofType);
+
+    let cap = registry.package_caps.remove(proof_account_address);
+    registry.proof_type_to_package.remove(proof_type);
+    registry.allowed_modules.remove(proof_account_address);
+
+    cap
 }
 
 public(package) fun borrow_owner_cap<C: key + store>(registry: &Registry): &C {
@@ -385,16 +392,15 @@ public fun is_package_registered(registry: &Registry, package_address: ascii::St
     registry.package_caps.contains(package_address)
 }
 
-/// Internal function that returns the expected proof type for a target package
-/// - For registered packages: returns their registered proof type
-/// - For unregistered packages: Only allows `accept_ownership` function and returns McmsProof
-/// `mcms_registry::get_callback_params` validates the proof type and function name are as expected.
-fun get_registered_proof_type(registry: &Registry, package_address: ascii::String): TypeName {
+public(package) fun get_registered_proof_type(
+    registry: &Registry,
+    package_address: ascii::String,
+): TypeName {
     assert!(registry.registered_proof_types.contains(package_address), EPackageNotRegistered);
     *registry.registered_proof_types.borrow(package_address)
 }
 
-/// View function to get the list of allowed module names for a registered package
+/// Returns the list of allowed module names for a registered package
 public fun get_allowed_modules(
     registry: &Registry,
     package_address: ascii::String,
@@ -471,7 +477,10 @@ public fun test_create_executing_callback_params(
 }
 
 #[test_only]
-public fun test_get_cap_address<C: key + store>(registry: &Registry, package_address: ascii::String): address {
+public fun test_get_cap_address<C: key + store>(
+    registry: &Registry,
+    package_address: ascii::String,
+): address {
     assert!(registry.package_caps.contains(package_address), EPackageCapNotRegistered);
     let cap: &C = registry.package_caps.borrow(package_address);
     object::id_address(cap)

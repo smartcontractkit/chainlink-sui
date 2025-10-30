@@ -54,11 +54,11 @@ const EInvalidOwnerCap: u64 = 3;
 const EInvalidFunction: u64 = 4;
 const EInvalidRebalancerCap: u64 = 5;
 const EPoolStillRegistered: u64 = 6;
-const ERebalancerCapIsInUse: u64 = 8;
-const ERebalancerCapNotTransferredOut: u64 = 9;
-const EInvalidRebalancer: u64 = 10;
-const ERebalancerCapDoesNotExist: u64 = 11;
-const ERebalancerCapMismatch: u64 = 12;
+const ERebalancerCapIsInUse: u64 = 7;
+const ERebalancerCapNotTransferredOut: u64 = 8;
+const EInvalidRebalancer: u64 = 9;
+const ERebalancerCapDoesNotExist: u64 = 10;
+const ERebalancerCapMismatch: u64 = 11;
 
 // ================================================================
 // |                             Init                             |
@@ -1151,6 +1151,7 @@ public fun mcms_transfer_ownership<T>(
 public fun mcms_execute_ownership_transfer<T>(
     state: &mut LockReleaseTokenPoolState<T>,
     registry: &mut Registry,
+    deployer_state: &mut DeployerState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -1171,6 +1172,7 @@ public fun mcms_execute_ownership_transfer<T>(
     );
 
     let to = bcs_stream::deserialize_address(&mut stream);
+    let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
     let McmsCap<T> { id, owner_cap, rebalancer_cap } = mcms_registry::release_cap(
@@ -1181,6 +1183,15 @@ public fun mcms_execute_ownership_transfer<T>(
 
     rebalancer_cap.destroy_none();
     object::delete(id);
+
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback<T> {}
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
 
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }
