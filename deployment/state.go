@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -88,6 +89,9 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	lggr.Infow("generating Sui chain view", "chain", chainName, "selector", selector)
 
+	suiChain := e.BlockChains.SuiChains()[selector]
+	ctx := context.Background()
+
 	// MCMS
 	if s.MCMSStateObjectID != "" {
 		mcmsView, err := view.GenerateMCMSWithTimelockView(s.MCMSStateObjectID)
@@ -109,8 +113,8 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	}
 
 	// Router
-	if s.CCIPRouterAddress != "" {
-		routerView, err := view.GenerateRouterView(s.CCIPRouterAddress, []string{s.OffRampAddress}, false)
+	if s.CCIPRouterAddress != "" && s.CCIPRouterStateObjectID != "" {
+		routerView, err := view.GenerateRouterView(ctx, suiChain, s.CCIPRouterAddress, s.CCIPRouterStateObjectID)
 		if err != nil {
 			return SuiChainView{}, fmt.Errorf("failed to generate router view for router %s: %w", s.CCIPRouterAddress, err)
 		}
