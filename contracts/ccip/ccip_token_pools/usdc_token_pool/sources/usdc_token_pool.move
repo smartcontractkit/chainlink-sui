@@ -106,7 +106,6 @@ public fun initialize_by_ccip_admin<T: drop>(
     ref: &mut CCIPObjectRef,
     mut ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata: &CoinMetadata<T>, // this can be provided as an address or in Move.toml
-    publisher: Publisher,
     ctx: &mut TxContext,
 ) {
     assert!(!state_object::get_ccip_admin_proof_validated(&ccip_admin_proof), EInvalidProof);

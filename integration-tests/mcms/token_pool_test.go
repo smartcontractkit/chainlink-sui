@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"testing"
 
+	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -19,8 +22,6 @@ import (
 	managedtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/managed_token"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
-	"github.com/stretchr/testify/require"
 )
 
 type TokenPoolTestSuite struct {

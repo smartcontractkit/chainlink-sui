@@ -26,7 +26,6 @@ type DeployAndInitBurnMintTokenPoolInput struct {
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
-	PublisherObjectId      string
 	// apply chain updates
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -57,13 +56,13 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 			BurnMintTokenPoolInitializeOp,
 			deps,
 			BurnMintTokenPoolInitializeInput{
-				CoinObjectTypeArg:      input.CoinObjectTypeArg,
 				BurnMintPackageId:      deployReport.Output.PackageId,
+				OwnerCapObjectId:       deployReport.Output.Objects.OwnerCapObjectId,
+				CoinObjectTypeArg:      input.CoinObjectTypeArg,
 				StateObjectId:          input.CCIPObjectRefObjectId,
 				CoinMetadataObjectId:   input.CoinMetadataObjectId,
 				TreasuryCapObjectId:    input.TreasuryCapObjectId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
-				PublisherObjectId:      deployReport.Output.Objects.PublisherObjectId,
 			},
 		)
 		if err != nil {
@@ -78,7 +77,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 				BurnMintPackageId:            deployReport.Output.PackageId,
 				CoinObjectTypeArg:            input.CoinObjectTypeArg,
 				StateObjectId:                initReport.Output.Objects.StateObjectId,
-				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCap:                     deployReport.Output.Objects.OwnerCapObjectId,
 				RemoteChainSelectorsToRemove: input.RemoteChainSelectorsToRemove,
 				RemoteChainSelectorsToAdd:    input.RemoteChainSelectorsToAdd,
 				RemotePoolAddressesToAdd:     input.RemotePoolAddressesToAdd,
@@ -97,7 +96,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 				BurnMintPackageId:    deployReport.Output.PackageId,
 				CoinObjectTypeArg:    input.CoinObjectTypeArg,
 				StateObjectId:        initReport.Output.Objects.StateObjectId,
-				OwnerCap:             initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCap:             deployReport.Output.Objects.OwnerCapObjectId,
 				RemoteChainSelectors: input.RemoteChainSelectors,
 				OutboundIsEnableds:   input.OutboundIsEnableds,
 				OutboundCapacities:   input.OutboundCapacities,
@@ -120,7 +119,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 				BurnMintTokenPoolPackageId: deployReport.Output.PackageId,
 				TypeArgs:                   []string{input.CoinObjectTypeArg},
 				StateObjectId:              initReport.Output.Objects.StateObjectId,
-				OwnerCapObjectId:           initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCapObjectId:           deployReport.Output.Objects.OwnerCapObjectId,
 				To:                         input.BurnMintTokenPoolDeployInput.MCMSAddress,
 			},
 		)
@@ -128,7 +127,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 		return DeployBurnMintTokenPoolOutput{
 			BurnMintTPPackageID: deployReport.Output.PackageId,
 			Objects: DeployBurnMintTokenPoolObjects{
-				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:    initReport.Output.Objects.StateObjectId,
 			},
 		}, nil
