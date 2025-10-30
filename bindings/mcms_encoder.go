@@ -7,6 +7,7 @@ import (
 
 	"github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/block-vision/sui-go-sdk/transaction"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
@@ -23,11 +24,12 @@ import (
 var SuiAddressLength = 32
 
 type CCIPEntrypointArgEncoder struct {
-	registryObjID string
+	registryObjID      string
+	deployerStateObjID string
 }
 
-func NewCCIPEntrypointArgEncoder(registryObjID string) *CCIPEntrypointArgEncoder {
-	return &CCIPEntrypointArgEncoder{registryObjID: registryObjID}
+func NewCCIPEntrypointArgEncoder(registryObjID string, deployerStateObjID string) *CCIPEntrypointArgEncoder {
+	return &CCIPEntrypointArgEncoder{registryObjID: registryObjID, deployerStateObjID: deployerStateObjID}
 }
 
 func deserializeFirst32Bytes(data []byte) []byte {
@@ -52,6 +54,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 	clock := bind.Object{Id: "0x6"}
 	stateObj := bind.Object{Id: stateObjID}
 	registryObj := bind.Object{Id: e.registryObjID}
+	deployerStateObj := bind.Object{Id: e.deployerStateObjID}
 
 	encodeWithCCIPObjectRefAndState := func() (*bind.EncodedCall, error) {
 		// Deserialize the ccip object ref (always the first 32 bytes)
@@ -91,7 +94,21 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return nil, err
 		}
 
-		entrypointCall, err := burnMintTokenPool.Encoder().McmsExecuteOwnershipTransferWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
+		entrypointCall, err := burnMintTokenPool.Encoder().McmsSetAllowlistEnabledWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
+		if err != nil {
+			return nil, err
+		}
+
+		return overrideCall(entrypointCall, module, function), nil
+	}
+
+	encodeExecuteOwnershipTransferWithTypeArgs := func() (*bind.EncodedCall, error) {
+		burnMintTokenPool, err := module_burn_mint_token_pool.NewBurnMintTokenPool(target, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		entrypointCall, err := burnMintTokenPool.Encoder().McmsExecuteOwnershipTransferWithArgs(typeArgs, stateObj, registryObj, deployerStateObj, executingCallbackParams)
 		if err != nil {
 			return nil, err
 		}
@@ -227,9 +244,10 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			"apply_chain_updates",
 			"add_remote_pool",
 			"remove_remote_pool",
-			"transfer_ownership",
-			"execute_ownership_transfer":
+			"transfer_ownership":
 			return encodeDefaultWithTypeArgs()
+		case "execute_ownership_transfer":
+			return encodeExecuteOwnershipTransferWithTypeArgs()
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
@@ -254,9 +272,10 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			"apply_chain_updates",
 			"add_remote_pool",
 			"remove_remote_pool",
-			"transfer_ownership",
-			"execute_ownership_transfer":
+			"transfer_ownership":
 			return encodeDefaultWithTypeArgs()
+		case "execute_ownership_transfer":
+			return encodeExecuteOwnershipTransferWithTypeArgs()
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
@@ -282,9 +301,10 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			"apply_chain_updates",
 			"add_remote_pool",
 			"remove_remote_pool",
-			"transfer_ownership",
-			"execute_ownership_transfer":
+			"transfer_ownership":
 			return encodeDefaultWithTypeArgs()
+		case "execute_ownership_transfer":
+			return encodeExecuteOwnershipTransferWithTypeArgs()
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
@@ -310,9 +330,10 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			"apply_chain_updates",
 			"add_remote_pool",
 			"remove_remote_pool",
-			"transfer_ownership",
-			"execute_ownership_transfer":
+			"transfer_ownership":
 			return encodeDefaultWithTypeArgs()
+		case "execute_ownership_transfer":
+			return encodeExecuteOwnershipTransferWithTypeArgs()
 		case "set_chain_rate_limiter_configs", "set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
 		case "set_pool":

@@ -10,10 +10,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms/types"
+
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
@@ -177,7 +179,7 @@ func TestDeployMCMSSeq(t *testing.T) {
 	objects := report.Output.Objects
 	require.NotEmpty(t, objects.McmsMultisigStateObjectId, "MCMS Multisig State Object ID should not be empty")
 	require.NotEmpty(t, objects.TimelockObjectId, "MCMS Timelock Object ID should not be empty")
-	require.NotEmpty(t, objects.McmsDeployerObjectId, "MCMS Deployer Object ID should not be empty")
+	require.NotEmpty(t, objects.McmsDeployerStateObjectId, "MCMS Deployer State Object ID should not be empty")
 	require.NotEmpty(t, objects.McmsRegistryObjectId, "MCMS Registry Object ID should not be empty")
 	require.NotEmpty(t, objects.McmsAccountStateObjectId, "MCMS Account State Object ID should not be empty")
 	require.NotEmpty(t, objects.McmsAccountOwnerCapObjectId, "MCMS Account Owner Cap Object ID should not be empty")

@@ -14,7 +14,6 @@ type DeployAndInitManagedTokenPoolInput struct {
 	ManagedTokenPackageId string
 	MCMSAddress           string
 	MCMSOwnerAddress      string
-	PublisherObjectId     string
 	// initialize
 	CoinObjectTypeArg         string
 	CCIPObjectRefObjectId     string
@@ -69,6 +68,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 			deps,
 			ManagedTokenPoolInitializeInput{
 				ManagedTokenPoolPackageId: deployReport.Output.PackageId,
+				OwnerCapObjectId:          deployReport.Output.Objects.OwnerCapObjectId,
 				CoinObjectTypeArg:         input.CoinObjectTypeArg,
 				CCIPObjectRefObjectId:     input.CCIPObjectRefObjectId,
 				ManagedTokenStateObjectId: input.ManagedTokenStateObjectId,
@@ -76,7 +76,6 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 				CoinMetadataObjectId:      input.CoinMetadataObjectId,
 				MintCapObjectId:           input.MintCapObjectId,
 				TokenPoolAdministrator:    input.TokenPoolAdministrator,
-				PublisherObjectId:         deployReport.Output.Objects.PublisherObjectId,
 			},
 		)
 		if err != nil {
@@ -91,7 +90,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 				ManagedTokenPoolPackageId:    deployReport.Output.PackageId,
 				CoinObjectTypeArg:            input.CoinObjectTypeArg,
 				StateObjectId:                initReport.Output.Objects.StateObjectId,
-				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCap:                     deployReport.Output.Objects.OwnerCapObjectId,
 				RemoteChainSelectorsToRemove: input.RemoteChainSelectorsToRemove,
 				RemoteChainSelectorsToAdd:    input.RemoteChainSelectorsToAdd,
 				RemotePoolAddressesToAdd:     input.RemotePoolAddressesToAdd,
@@ -110,7 +109,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 				ManagedTokenPoolPackageId: deployReport.Output.PackageId,
 				CoinObjectTypeArg:         input.CoinObjectTypeArg,
 				StateObjectId:             initReport.Output.Objects.StateObjectId,
-				OwnerCap:                  initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCap:                  deployReport.Output.Objects.OwnerCapObjectId,
 				RemoteChainSelectors:      input.RemoteChainSelectors,
 				OutboundIsEnableds:        input.OutboundIsEnableds,
 				OutboundCapacities:        input.OutboundCapacities,
@@ -133,7 +132,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 				ManagedTokenPoolPackageId: deployReport.Output.PackageId,
 				TypeArgs:                  []string{input.CoinObjectTypeArg},
 				StateObjectId:             initReport.Output.Objects.StateObjectId,
-				OwnerCapObjectId:          initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCapObjectId:          deployReport.Output.Objects.OwnerCapObjectId,
 				To:                        input.MCMSAddress,
 			},
 		)
@@ -144,7 +143,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 		return DeployManagedTokenPoolOutput{
 			ManagedTPPackageId: deployReport.Output.PackageId,
 			Objects: DeployManagedTokenPoolObjects{
-				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:    initReport.Output.Objects.StateObjectId,
 			},
 		}, nil

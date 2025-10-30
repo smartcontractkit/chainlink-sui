@@ -11,6 +11,13 @@ import (
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/smartcontractkit/mcms"
+	"github.com/smartcontractkit/mcms/sdk"
+	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
+	"github.com/smartcontractkit/mcms/types"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	mcmsencoder "github.com/smartcontractkit/chainlink-sui/bindings"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -27,14 +34,9 @@ import (
 	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
-	"github.com/smartcontractkit/mcms"
-	"github.com/smartcontractkit/mcms/sdk"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
-	"github.com/smartcontractkit/mcms/types"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
@@ -89,6 +91,7 @@ type MCMSTestSuite struct {
 	mcmsObj          string
 	timelockObj      string
 	registryObj      string
+	deployerStateObj string
 	accountObj       string
 	ownerCapObj      string
 
@@ -174,6 +177,7 @@ func (s *MCMSTestSuite) SetupSuite() {
 	s.mcmsObj = mcmsDeploymentReport.Output.Objects.McmsMultisigStateObjectId
 	s.timelockObj = mcmsDeploymentReport.Output.Objects.TimelockObjectId
 	s.registryObj = mcmsDeploymentReport.Output.Objects.McmsRegistryObjectId
+	s.deployerStateObj = mcmsDeploymentReport.Output.Objects.McmsDeployerStateObjectId
 	s.accountObj = mcmsDeploymentReport.Output.Objects.McmsAccountStateObjectId
 	s.ownerCapObj = mcmsDeploymentReport.Output.Objects.McmsAccountOwnerCapObjectId
 
@@ -197,10 +201,11 @@ func (s *MCMSTestSuite) SetupSuite() {
 	s.ExecuteProposalE2e(&acceptProposal, s.proposerConfig, 0)
 
 	rep, err := cld_ops.ExecuteOperation(s.bundle, mcmsops.MCMSExecuteTransferOwnershipOp, s.deps, mcmsops.MCMSExecuteTransferOwnershipInput{
-		McmsPackageID:    s.mcmsPackageID,
-		OwnerCap:         s.ownerCapObj,
-		AccountObjectID:  s.accountObj,
-		RegistryObjectID: s.registryObj,
+		McmsPackageID:         s.mcmsPackageID,
+		OwnerCap:              s.ownerCapObj,
+		AccountObjectID:       s.accountObj,
+		RegistryObjectID:      s.registryObj,
+		DeployerStateObjectID: s.deployerStateObj,
 	})
 	s.Require().NoError(err, "executing ownership transfer to self")
 	s.T().Logf("✅ Transferred ownership of MCMS to itself in tx: %s", rep.Output.Digest)
@@ -388,7 +393,7 @@ func (s *MCMSTestSuite) SetRoot(proposal *mcms.Proposal, roleConfig *RoleConfig)
 	encoders, err := proposal.GetEncoders()
 	s.Require().NoError(err)
 	suiEncoder := encoders[s.chainSelector].(*suisdk.Encoder)
-	executor, err := suisdk.NewExecutor(s.client, s.signer, suiEncoder, mcmsencoder.NewCCIPEntrypointArgEncoder(s.registryObj), s.mcmsPackageID, roleConfig.Role, s.mcmsObj, s.accountObj, s.registryObj, s.timelockObj)
+	executor, err := suisdk.NewExecutor(s.client, s.signer, suiEncoder, mcmsencoder.NewCCIPEntrypointArgEncoder(s.registryObj, s.deployerStateObj), s.mcmsPackageID, roleConfig.Role, s.mcmsObj, s.accountObj, s.registryObj, s.timelockObj)
 	s.Require().NoError(err, "creating executor for Sui mcms contract")
 
 	executors := map[types.ChainSelector]sdk.Executor{
@@ -406,7 +411,7 @@ func (s *MCMSTestSuite) Execute(timelockProposal *mcms.TimelockProposal, proposa
 	encoders, err := proposal.GetEncoders()
 	s.Require().NoError(err)
 	suiEncoder := encoders[s.chainSelector].(*suisdk.Encoder)
-	executor, err := suisdk.NewExecutor(s.client, s.signer, suiEncoder, mcmsencoder.NewCCIPEntrypointArgEncoder(s.registryObj), s.mcmsPackageID, roleConfig.Role, s.mcmsObj, s.accountObj, s.registryObj, s.timelockObj)
+	executor, err := suisdk.NewExecutor(s.client, s.signer, suiEncoder, mcmsencoder.NewCCIPEntrypointArgEncoder(s.registryObj, s.deployerStateObj), s.mcmsPackageID, roleConfig.Role, s.mcmsObj, s.accountObj, s.registryObj, s.timelockObj)
 	s.Require().NoError(err, "creating executor for Sui mcms contract")
 
 	executors := map[types.ChainSelector]sdk.Executor{
@@ -426,7 +431,7 @@ func (s *MCMSTestSuite) Execute(timelockProposal *mcms.TimelockProposal, proposa
 		timelockExecutor, tErr := suisdk.NewTimelockExecutor(
 			s.client,
 			s.signer,
-			mcmsencoder.NewCCIPEntrypointArgEncoder(s.registryObj),
+			mcmsencoder.NewCCIPEntrypointArgEncoder(s.registryObj, s.deployerStateObj),
 			s.mcmsPackageID,
 			s.registryObj,
 			s.accountObj,
