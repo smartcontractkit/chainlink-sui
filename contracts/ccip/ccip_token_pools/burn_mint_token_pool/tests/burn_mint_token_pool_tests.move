@@ -1429,9 +1429,7 @@ public fun test_set_pool() {
     // Now call set_pool as the administrator to update to the correct burn_mint_token_pool config
     scenario.next_tx(@0x123);
     {
-        let mut pool_state = scenario.take_shared<
-            BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
-        >();
+        let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
         let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
@@ -1456,7 +1454,7 @@ public fun test_set_pool() {
         // Call set_pool to update to the actual burn_mint_token_pool configuration
         burn_mint_token_pool::set_pool(
             &mut ccip_ref,
-            &mut pool_state,
+            &pool_state,
             &owner_cap,
             coin_metadata_address,
             scenario.ctx(),
