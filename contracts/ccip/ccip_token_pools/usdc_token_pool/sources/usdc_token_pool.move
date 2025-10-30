@@ -1180,16 +1180,22 @@ public fun mcms_execute_ownership_transfer<T>(
         McmsCallback<T> {},
     );
 
-    if (mcms_deployer::has_upgrade_cap(deployer_state, @usdc_token_pool)) {
+    if (mcms_deployer::has_upgrade_cap(deployer_state, get_package_address<T>())) {
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
             registry,
-            McmsCallback {}
+            McmsCallback<T> {}
         );
         transfer::public_transfer(upgrade_cap, to);
     };
 
     execute_ownership_transfer(owner_cap, state, to, ctx);
+}
+
+fun get_package_address<T>(): address {
+    let tn = type_name::with_defining_ids<McmsCallback<T>>();
+    let addr_bytes = tn.address_string().into_bytes();
+    address::from_ascii_bytes(&addr_bytes)
 }
 
 public fun mcms_set_pool<T>(
