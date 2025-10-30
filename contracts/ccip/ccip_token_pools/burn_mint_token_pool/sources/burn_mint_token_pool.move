@@ -18,8 +18,6 @@ use std::string::{Self, String};
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::package::{Self, Publisher, UpgradeCap};
-use std::type_name;
-use sui::address;
 
 public struct BURN_MINT_TOKEN_POOL has drop {}
 
@@ -959,6 +957,7 @@ public fun mcms_execute_ownership_transfer<T>(
     );
 
     let to = bcs_stream::deserialize_address(&mut stream);
+    let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap<McmsCallback<T>, OwnerCap<T>>(
@@ -966,7 +965,7 @@ public fun mcms_execute_ownership_transfer<T>(
         McmsCallback<T> {},
     );
 
-    if (mcms_deployer::has_upgrade_cap(deployer_state, get_package_address<T>())) {
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
             registry,
@@ -976,12 +975,6 @@ public fun mcms_execute_ownership_transfer<T>(
     };
 
     execute_ownership_transfer(owner_cap, state, to, ctx);
-}
-
-fun get_package_address<T>(): address {
-    let tn = type_name::with_defining_ids<McmsCallback<T>>();
-    let addr_bytes = tn.address_string().into_bytes();
-    address::from_ascii_bytes(&addr_bytes)
 }
 
 public fun mcms_add_allowed_modules<T>(

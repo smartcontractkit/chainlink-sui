@@ -367,6 +367,7 @@ public fun test_mcms_transfer_ownership_e2e() {
     data.append(bcs::to_bytes(&owner_cap_address));
     data.append(bcs::to_bytes(&object::id_address(&env.state)));
     data.append(bcs::to_bytes(&new_owner));
+    data.append(bcs::to_bytes(&@ccip_onramp));
 
     let params = mcms_registry::test_create_executing_callback_params(
         @ccip_onramp,

@@ -619,11 +619,12 @@ fun test_mcms_three_step_ownership_transfer() {
         );
         let mut deployer_state = test_scenario::take_shared<mcms_deployer::DeployerState>(&scenario);
 
-        // Serialize data: [ref_address][owner_cap_address][to_address]
+        // Serialize data: [ref_address][owner_cap_address][to_address][package_address]
         let mut data = vector::empty<u8>();
         data.append(bcs::to_bytes(&object::id_address(&ref)));
         data.append(bcs::to_bytes(&owner_cap_address));
         data.append(bcs::to_bytes(&new_owner));
+        data.append(bcs::to_bytes(&@ccip));
 
         let params = mcms_registry::test_create_executing_callback_params(
             @ccip,
