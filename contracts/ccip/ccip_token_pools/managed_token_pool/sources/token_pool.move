@@ -95,10 +95,6 @@ public fun get_token(state: &TokenPoolState): address {
     state.coin_metadata
 }
 
-public fun get_token_decimals<T>(coin_metadata: &CoinMetadata<T>): u8 {
-    coin_metadata.get_decimals()
-}
-
 // ================================================================
 // |                        Remote Chains                         |
 // ================================================================

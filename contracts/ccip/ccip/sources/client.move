@@ -142,7 +142,7 @@ public(package) fun consume_any2sui_message(
     )
 }
 
-public fun new_dest_token_amounts(
+public(package) fun new_dest_token_amounts(
     token_addresses: vector<address>,
     token_amounts: vector<u256>,
 ): vector<Any2SuiTokenAmount> {
