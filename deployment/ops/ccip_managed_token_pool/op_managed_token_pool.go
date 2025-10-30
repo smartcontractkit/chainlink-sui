@@ -15,12 +15,12 @@ import (
 
 // MTP -- INITIALIZE_WITH_MANAGED_TOKEN
 type ManagedTokenPoolInitializeObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	StateObjectId string
 }
 
 type ManagedTokenPoolInitializeInput struct {
 	ManagedTokenPoolPackageId string
+	OwnerCapObjectId          string
 	CoinObjectTypeArg         string
 	CCIPObjectRefObjectId     string
 	ManagedTokenStateObjectId string
@@ -28,7 +28,6 @@ type ManagedTokenPoolInitializeInput struct {
 	CoinMetadataObjectId      string
 	MintCapObjectId           string
 	TokenPoolAdministrator    string
-	PublisherObjectId         string
 }
 
 var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolInitializeInput) (output sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects], err error) {
@@ -43,22 +42,20 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.CCIPObjectRefObjectId},
 		bind.Object{Id: input.ManagedTokenStateObjectId},
 		bind.Object{Id: input.ManagedTokenOwnerCapId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.MintCapObjectId},
 		input.TokenPoolAdministrator,
-		bind.Object{Id: input.PublisherObjectId},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute managed token pool initialization: %w", err)
 	}
 
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
-	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "managed_token_pool", "ManagedTokenPoolState")
-
-	if err1 != nil || err2 != nil {
+	stateObj, err := bind.FindObjectIdFromPublishTx(*tx, "managed_token_pool", "ManagedTokenPoolState")
+	if err != nil {
 		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
 	}
 
@@ -66,8 +63,7 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		Digest:    tx.Digest,
 		PackageId: input.ManagedTokenPoolPackageId,
 		Objects: ManagedTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
+			StateObjectId: stateObj,
 		},
 	}, err
 }

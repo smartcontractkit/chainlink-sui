@@ -15,18 +15,17 @@ import (
 
 // BMTP -- INITIALIZE
 type BurnMintTokenPoolInitializeObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	StateObjectId string
 }
 
 type BurnMintTokenPoolInitializeInput struct {
 	BurnMintPackageId      string
+	OwnerCapObjectId       string
 	CoinObjectTypeArg      string
 	StateObjectId          string
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
-	PublisherObjectId      string
 }
 
 var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolInitializeInput) (output sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects], err error) {
@@ -41,20 +40,18 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.TreasuryCapObjectId},
 		input.TokenPoolAdministrator,
-		bind.Object{Id: input.PublisherObjectId},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute burn mint token pool initialization: %w", err)
 	}
 
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
-	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "burn_mint_token_pool", "BurnMintTokenPoolState")
-
-	if err1 != nil || err2 != nil {
+	stateObj, err := bind.FindObjectIdFromPublishTx(*tx, "burn_mint_token_pool", "BurnMintTokenPoolState")
+	if err != nil {
 		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
 	}
 
@@ -62,8 +59,7 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 		Digest:    tx.Digest,
 		PackageId: input.BurnMintPackageId,
 		Objects: BurnMintTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
+			StateObjectId: stateObj,
 		},
 	}, err
 }

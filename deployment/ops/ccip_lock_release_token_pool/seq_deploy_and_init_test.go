@@ -98,7 +98,6 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 		TreasuryCapObjectId:    linkReport.Output.Objects.TreasuryCapObjectId,
 		TokenPoolAdministrator: signerAddress,
 		Rebalancer:             "0x0",
-		PublisherObjectId:      "0x0",
 
 		// apply dest chain updates
 		RemoteChainSelectorsToRemove: []uint64{},

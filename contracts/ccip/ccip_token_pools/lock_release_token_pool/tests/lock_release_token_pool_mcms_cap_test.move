@@ -45,7 +45,7 @@ public struct TestEnv {
 
 fun setup(): (
     TestEnv,
-    OwnerCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>,
+    OwnerCap,
     RebalancerCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>,
 ) {
     let mut scenario = ts::begin(OWNER);
@@ -82,30 +82,44 @@ fun setup(): (
         ctx,
     );
 
+    // Call test_init to create owner_cap
+    lock_release_token_pool::test_init(ctx);
+
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(treasury_cap, OWNER);
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    ts::return_shared(ccip_ref);
+
+    // Now take the owner_cap that was created by test_init and initialize the pool
+    scenario.next_tx(OWNER);
+    let mut owner_cap_for_init = ts::take_from_sender<OwnerCap>(&scenario);
+    let mut ccip_ref = ts::take_shared<CCIPObjectRef>(&scenario);
+    let coin_metadata = ts::take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(&scenario);
+    let treasury_cap = ts::take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(&scenario);
+
     lock_release_token_pool::initialize(
+        &mut owner_cap_for_init,
         &mut ccip_ref,
         &coin_metadata,
         &treasury_cap,
         TOKEN_ADMIN,
         EOA_REBALANCER,
-        package::test_claim(
-            lock_release_token_pool::test_mcms_callback<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>(),
-            ctx,
-        ),
-        ctx,
+        scenario.ctx(),
     );
 
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(treasury_cap, ctx.sender());
-    transfer::public_transfer(ccip_owner_cap, @0x0);
+    transfer::public_transfer(owner_cap_for_init, OWNER);
+    transfer::public_transfer(treasury_cap, OWNER);
+    ts::return_immutable(coin_metadata);
+    ts::return_shared(ccip_ref);
 
     scenario.next_tx(OWNER);
     let state = ts::take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(
         &scenario,
     );
-    let owner_cap = ts::take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(
+    let owner_cap = ts::take_from_sender<OwnerCap>(
         &scenario,
     );
+    let ccip_ref = ts::take_shared<CCIPObjectRef>(&scenario);
 
     scenario.next_tx(EOA_REBALANCER);
     let rebalancer_cap = ts::take_from_sender<RebalancerCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(

@@ -15,20 +15,19 @@ import (
 
 // LRTP -- INITIALIZE
 type LockReleaseTokenPoolInitializeObjects struct {
-	OwnerCapObjectId      string
 	StateObjectId         string
 	RebalancerCapObjectId string
 }
 
 type LockReleaseTokenPoolInitializeInput struct {
 	LockReleasePackageId   string
+	OwnerCapObjectId       string
 	CoinObjectTypeArg      string
 	StateObjectId          string
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
 	Rebalancer             string
-	PublisherObjectId      string
 }
 
 var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolInitializeInput) (output sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects], err error) {
@@ -43,22 +42,21 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.TreasuryCapObjectId},
 		input.TokenPoolAdministrator,
 		input.Rebalancer,
-		bind.Object{Id: input.PublisherObjectId},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute lock release token pool initialization: %w", err)
 	}
 
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
-	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "lock_release_token_pool", "LockReleaseTokenPoolState")
-	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "lock_release_token_pool", "RebalancerCap")
+	stateObj, err1 := bind.FindObjectIdFromPublishTx(*tx, "lock_release_token_pool", "LockReleaseTokenPoolState")
+	rebalancerObj, err2 := bind.FindObjectIdFromPublishTx(*tx, "lock_release_token_pool", "RebalancerCap")
 
-	if err1 != nil || err2 != nil || err3 != nil {
+	if err1 != nil || err2 != nil {
 		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
 	}
 
@@ -66,9 +64,8 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 		Digest:    tx.Digest,
 		PackageId: input.LockReleasePackageId,
 		Objects: LockReleaseTokenPoolInitializeObjects{
-			OwnerCapObjectId:      obj1,
-			StateObjectId:         obj2,
-			RebalancerCapObjectId: obj3,
+			StateObjectId:         stateObj,
+			RebalancerCapObjectId: rebalancerObj,
 		},
 	}, err
 }
