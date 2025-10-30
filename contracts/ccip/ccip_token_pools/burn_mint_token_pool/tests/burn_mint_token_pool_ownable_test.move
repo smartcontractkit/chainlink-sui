@@ -24,7 +24,7 @@ public struct TestEnv {
     ccip_ref: CCIPObjectRef,
 }
 
-fun setup(): (TestEnv, OwnerCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>) {
+fun setup(): (TestEnv, OwnerCap) {
     let mut scenario = ts::begin(OWNER);
     let ctx = scenario.ctx();
 
@@ -40,7 +40,7 @@ fun setup(): (TestEnv, OwnerCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>) {
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
 
-    // Create token and initialize pool in the same transaction
+    // Create token
     let (treasury_cap, coin_metadata) = coin::create_currency(
         BURN_MINT_TOKEN_POOL_OWNABLE_TEST {},
         Decimals,
@@ -51,21 +51,38 @@ fun setup(): (TestEnv, OwnerCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>) {
         scenario.ctx(),
     );
 
+    // Call test_init to create owner_cap
+    burn_mint_token_pool::test_init(scenario.ctx());
+
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(treasury_cap, OWNER);
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    ts::return_shared(ccip_ref);
+
+    // Now take the owner_cap that was created by test_init and initialize the pool
+    scenario.next_tx(OWNER);
+    let mut owner_cap_for_init = scenario.take_from_sender<OwnerCap>();
+    let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
+    let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>>();
+    let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>>();
+
     burn_mint_token_pool::initialize(
+        &mut owner_cap_for_init,
         &mut ccip_ref,
         &coin_metadata,
         treasury_cap,
         @0x123,
-        package::test_claim(BURN_MINT_TOKEN_POOL_OWNABLE_TEST {}, scenario.ctx()),
         scenario.ctx(),
     );
 
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(ccip_owner_cap, @0x0);
+    transfer::public_transfer(owner_cap_for_init, OWNER);
+    ts::return_immutable(coin_metadata);
+    ts::return_shared(ccip_ref);
 
     scenario.next_tx(OWNER);
     let state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>>();
-    let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>>();
+    let owner_cap = scenario.take_from_sender<OwnerCap>();
+    let ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
     let env = TestEnv {
         scenario,

@@ -109,20 +109,28 @@ public fun test_initialize_and_basic_functionality() {
 
     scenario.next_tx(@managed_token_pool);
     {
+        // Call test_init to create owner_cap
+        managed_token_pool::test_init(scenario.ctx());
+    };
+
+    scenario.next_tx(@managed_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
         let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
         let token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
 
         managed_token_pool::initialize_with_managed_token(
+            &mut owner_cap,
             &mut ccip_ref,
             &token_state,
             &token_owner_cap,
             &coin_metadata,
             mint_cap,
             @managed_token_pool,
-            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
+        transfer::public_transfer(owner_cap, @managed_token_pool);
         scenario.return_to_sender(token_owner_cap);
         test_scenario::return_shared(token_state);
     };
@@ -130,7 +138,7 @@ public fun test_initialize_and_basic_functionality() {
     scenario.next_tx(@managed_token_pool);
     {
         let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Test basic getters
         assert!(managed_token_pool::get_token_decimals(&pool_state) == Decimals);
@@ -161,7 +169,7 @@ public fun test_chain_configuration_management() {
         let mut pool_state = scenario.take_shared<
             ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Test chain updates
         managed_token_pool::apply_chain_updates(
@@ -232,7 +240,7 @@ public fun test_allowlist_management() {
     scenario.next_tx(@managed_token_pool);
     {
         let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Test initial allowlist state
         assert!(!managed_token_pool::get_allowlist_enabled(&pool_state));
@@ -260,7 +268,7 @@ public fun test_rate_limiter_configuration() {
         let mut pool_state = scenario.take_shared<
             ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
         let mut ctx = sui::tx_context::dummy();
         let clock = clock::create_for_testing(&mut ctx);
 
@@ -378,27 +386,34 @@ public fun test_lock_or_burn_functionality() {
 
     scenario.next_tx(@managed_token_pool);
     {
+        // Call test_init to create owner_cap
+        managed_token_pool::test_init(scenario.ctx());
+    };
+
+    scenario.next_tx(@managed_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
         let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
         let token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
 
         managed_token_pool::initialize_with_managed_token(
+            &mut owner_cap,
             &mut ccip_ref,
             &token_state,
             &token_owner_cap,
             &coin_metadata,
             mint_cap,
             @managed_token_pool,
-            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
 
+        transfer::public_transfer(owner_cap, @managed_token_pool);
         scenario.return_to_sender(token_owner_cap);
         test_scenario::return_shared(token_state);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    transfer::public_share_object(ccip_ref);
 
     // Set up chain and rate limiting
     scenario.next_tx(@managed_token_pool);
@@ -406,8 +421,7 @@ public fun test_lock_or_burn_functionality() {
         let mut pool_state = scenario.take_shared<
             ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
         let source_transfer_cap = scenario.take_from_sender<onramp_sh::SourceTransferCap>();
         let mut ctx = sui::tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);
@@ -441,7 +455,6 @@ public fun test_lock_or_burn_functionality() {
         transfer::public_transfer(source_transfer_cap, @managed_token_pool);
         transfer::public_transfer(owner_cap, @managed_token_pool);
         test_scenario::return_shared(pool_state);
-        test_scenario::return_shared(ccip_ref);
     };
 
     // Test lock_or_burn - use the address that has the mint cap
@@ -452,7 +465,6 @@ public fun test_lock_or_burn_functionality() {
         >();
         let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let user_mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
-        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
         let mut ctx = sui::tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);
         let deny_list = sui::deny_list::new_for_testing(&mut ctx);
@@ -517,11 +529,11 @@ public fun test_lock_or_burn_functionality() {
         transfer::public_transfer(user_mint_cap, @0x456);
         test_scenario::return_shared(pool_state);
         test_scenario::return_shared(token_state);
-        test_scenario::return_shared(ccip_ref);
         sui::test_utils::destroy(deny_list);
     };
 
     transfer::public_freeze_object(coin_metadata);
+    test_scenario::return_shared(ccip_ref);
     scenario.end();
 }
 
@@ -571,31 +583,36 @@ public fun test_release_or_mint_functionality() {
     };
 
     scenario.next_tx(@managed_token_pool);
-    let coin_metadata_address = {
+    let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
+    {
+        // Call test_init to create owner_cap
+        managed_token_pool::test_init(scenario.ctx());
+    };
+
+    scenario.next_tx(@managed_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
         let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
         let token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
 
-        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
-
         managed_token_pool::initialize_with_managed_token(
+            &mut owner_cap,
             &mut ccip_ref,
             &token_state,
             &token_owner_cap,
             &coin_metadata,
             mint_cap,
             @managed_token_pool,
-            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
 
+        scenario.return_to_sender(owner_cap);
         scenario.return_to_sender(token_owner_cap);
         test_scenario::return_shared(token_state);
-        coin_metadata_address
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    transfer::public_share_object(ccip_ref);
 
     // Set up chain and rate limiting
     scenario.next_tx(@managed_token_pool);
@@ -603,8 +620,7 @@ public fun test_release_or_mint_functionality() {
         let mut pool_state = scenario.take_shared<
             ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
         let dest_transfer_cap = scenario.take_from_sender<offramp_sh::DestTransferCap>();
         let mut ctx = sui::tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);
@@ -638,7 +654,6 @@ public fun test_release_or_mint_functionality() {
         transfer::public_transfer(dest_transfer_cap, @managed_token_pool);
         transfer::public_transfer(owner_cap, @managed_token_pool);
         test_scenario::return_shared(pool_state);
-        test_scenario::return_shared(ccip_ref);
     };
 
     // Test release_or_mint
@@ -648,7 +663,6 @@ public fun test_release_or_mint_functionality() {
             ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>,
         >();
         let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
-        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
         let dest_transfer_cap = scenario.take_from_address<offramp_sh::DestTransferCap>(
             @managed_token_pool,
         );
@@ -704,7 +718,6 @@ public fun test_release_or_mint_functionality() {
         transfer::public_transfer(dest_transfer_cap, @managed_token_pool);
         test_scenario::return_shared(pool_state);
         test_scenario::return_shared(token_state);
-        test_scenario::return_shared(ccip_ref);
         sui::test_utils::destroy(deny_list);
     };
 
@@ -722,6 +735,7 @@ public fun test_release_or_mint_functionality() {
     };
 
     transfer::public_freeze_object(coin_metadata);
+    test_scenario::return_shared(ccip_ref);
     scenario.end();
 }
 
@@ -776,21 +790,29 @@ public fun test_invalid_owner_cap_error() {
 
     scenario.next_tx(@0x999);
     {
+        // Call test_init to create owner_cap
+        managed_token_pool::test_init(scenario.ctx());
+    };
+
+    scenario.next_tx(@0x999);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
         let mint_cap2 = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
         let token_state2 = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap2 = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
 
         managed_token_pool::initialize_with_managed_token(
+            &mut owner_cap,
             &mut ccip_ref2,
             &token_state2,
             &token_owner_cap2,
             &coin_metadata2,
             mint_cap2,
             @0x999,
-            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
 
+        transfer::public_transfer(owner_cap, @0x999);
         scenario.return_to_sender(token_owner_cap2);
         test_scenario::return_shared(token_state2);
     };
@@ -798,10 +820,10 @@ public fun test_invalid_owner_cap_error() {
     // Now test with mismatched owner caps
     scenario.next_tx(@managed_token_pool);
     let mut pool_state1 = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
-    let correct_owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+    let correct_owner_cap = scenario.take_from_sender<OwnerCap>();
 
     scenario.next_tx(@0x999);
-    let wrong_owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+    let wrong_owner_cap = scenario.take_from_sender<OwnerCap>();
 
     // First add the chain using the correct owner cap so the chain exists
     managed_token_pool::apply_chain_updates(
@@ -847,7 +869,7 @@ public fun test_invalid_arguments_error() {
         let mut pool_state = scenario.take_shared<
             ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
         let mut ctx = sui::tx_context::dummy();
         let clock = clock::create_for_testing(&mut ctx);
 
@@ -885,7 +907,7 @@ public fun test_edge_cases_and_comprehensive_coverage() {
         let mut pool_state = scenario.take_shared<
             ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
         let mut ctx = sui::tx_context::dummy();
         let clock = clock::create_for_testing(&mut ctx);
 
@@ -1041,22 +1063,30 @@ public fun test_initialize_with_managed_token_function() {
     // Test the new initialize_with_managed_token function
     scenario.next_tx(@managed_token_pool);
     {
+        // Call test_init to create owner_cap
+        managed_token_pool::test_init(scenario.ctx());
+    };
+
+    scenario.next_tx(@managed_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
         let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
         let token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
 
         // Use the new function that takes managed token state and owner cap directly
         managed_token_pool::initialize_with_managed_token(
+            &mut owner_cap,
             &mut ccip_ref,
             &token_state,
             &token_owner_cap,
             &coin_metadata,
             mint_cap,
             @managed_token_pool, // token pool administrator
-            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
 
+        transfer::public_transfer(owner_cap, @managed_token_pool);
         scenario.return_to_sender(token_owner_cap);
         test_scenario::return_shared(token_state);
     };
@@ -1065,7 +1095,7 @@ public fun test_initialize_with_managed_token_function() {
     scenario.next_tx(@managed_token_pool);
     {
         let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Test basic getters to ensure initialization worked
         assert!(managed_token_pool::get_token_decimals(&pool_state) == Decimals);
@@ -1182,21 +1212,29 @@ fun setup_basic_pool(
 
     scenario.next_tx(@managed_token_pool);
     {
+        // Call test_init to create owner_cap
+        managed_token_pool::test_init(scenario.ctx());
+    };
+
+    scenario.next_tx(@managed_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
         let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
         let token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
 
         managed_token_pool::initialize_with_managed_token(
+            &mut owner_cap,
             &mut ccip_ref,
             &token_state,
             &token_owner_cap,
             &coin_metadata,
             mint_cap,
             @managed_token_pool,
-            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
 
+        transfer::public_transfer(owner_cap, @managed_token_pool);
         scenario.return_to_sender(token_owner_cap);
         test_scenario::return_shared(token_state);
     };
@@ -1278,36 +1316,42 @@ public fun test_set_pool() {
     // Initialize pool normally with managed_token_pool
     scenario.next_tx(TOKEN_ADMIN);
     {
+        // Call test_init to create owner_cap
+        managed_token_pool::test_init(scenario.ctx());
+    };
+
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
         let coin_metadata = scenario.take_immutable<coin::CoinMetadata<MANAGED_TOKEN_POOL_TESTS>>();
         let token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
         let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
 
         managed_token_pool::initialize_with_managed_token(
+            &mut owner_cap,
             &mut ccip_ref,
             &token_state,
             &token_owner_cap,
             &coin_metadata,
             mint_cap,
             TOKEN_ADMIN,
-            package::test_claim(MANAGED_TOKEN_POOL_TESTS {}, scenario.ctx()),
             scenario.ctx(),
         );
 
+        transfer::public_transfer(owner_cap, TOKEN_ADMIN);
         scenario.return_to_sender(token_owner_cap);
         test_scenario::return_shared(token_state);
         test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     // Verify initial pool registration with managed_token_pool configuration
     scenario.next_tx(TOKEN_ADMIN);
     {
         let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Verify initial pool registration
         let initial_pool = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
@@ -1335,15 +1379,12 @@ public fun test_set_pool() {
 
         scenario.return_to_sender(owner_cap);
         test_scenario::return_shared(pool_state);
-        test_scenario::return_shared(ccip_ref);
     };
 
     // Manually update the configuration to a different package ID
     // Must run as the administrator (TOKEN_ADMIN) to unregister
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
-
         // Use unregister and re-register to change the package ID
         token_admin_registry::unregister_pool(
             &mut ccip_ref,
@@ -1369,15 +1410,11 @@ public fun test_set_pool() {
             different_params,
             scenario.ctx(),
         );
-
-        test_scenario::return_shared(ccip_ref);
     };
 
     // Verify the different configuration
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
-
         let (
             before_package_id,
             before_module,
@@ -1398,16 +1435,13 @@ public fun test_set_pool() {
         assert!(before_proof == ascii::string(b"0xcafe::different_pool::DifferentTypeProof"));
         assert!(before_lock_params == vector[@0x6, @0x403, @0xfade, @0xbeef]);
         assert!(before_release_params == vector[@0x6, @0x403, @0xfade, @0xbeef]);
-
-        test_scenario::return_shared(ccip_ref);
     };
 
     // Now call set_pool as the administrator to update to the correct managed_token_pool config
     scenario.next_tx(TOKEN_ADMIN);
     {
         let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-        let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Get configuration before set_pool
         let (
@@ -1474,9 +1508,9 @@ public fun test_set_pool() {
 
         scenario.return_to_sender(owner_cap);
         test_scenario::return_shared(pool_state);
-        test_scenario::return_shared(ccip_ref);
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
