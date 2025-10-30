@@ -1097,6 +1097,7 @@ fun get_token_transfer_cost(
     let mut token_transfer_fee_wei: u256 = 0;
     let mut token_transfer_gas: u32 = 0;
     let mut token_transfer_bytes_overhead: u32 = 0;
+    assert!(local_token_addresses.length() == local_token_amounts.length(), ETokenAmountMismatch);
 
     local_token_addresses.zip_do_ref!(
         &local_token_amounts,
@@ -1350,6 +1351,7 @@ fun process_pool_return_data(
 
     let tokens_len = dest_token_addresses.length();
     assert!(tokens_len == dest_pool_datas.length(), ETokenAmountMismatch);
+    assert!(tokens_len == local_token_addresses.length(), ETokenAmountMismatch);
 
     let mut dest_exec_data_per_token = vector[];
     let mut i = 0;
