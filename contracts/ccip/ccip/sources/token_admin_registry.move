@@ -170,6 +170,22 @@ public fun get_token_config_struct(
     }
 }
 
+public fun get_pool_local_token(ref: &CCIPObjectRef, token_pool_package_id: address): address {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"get_pool_local_token"),
+        VERSION,
+    );
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
+
+    if (state.token_pool_package_id_to_coin_metadata.contains(token_pool_package_id)) {
+        *state.token_pool_package_id_to_coin_metadata.borrow(token_pool_package_id)
+    } else {
+        @0x0
+    }
+}
+
 public fun get_token_config(
     ref: &CCIPObjectRef,
     coin_metadata_address: address,
@@ -445,7 +461,10 @@ fun unregister_pool_internal(
 
     let token_config = state.token_configs.remove(coin_metadata_address);
 
-    assert!(token_config.administrator == caller, ENotAllowed);
+    assert!(
+        token_config.administrator == caller || token_config.pending_administrator == mcms_registry::get_multisig_address(),
+        ENotAllowed,
+    );
 
     let previous_pool_address = token_config.token_pool_package_id;
 
@@ -512,6 +531,21 @@ fun set_pool_internal(
         token_config.lock_or_burn_params = lock_or_burn_params;
         token_config.release_or_mint_params = release_or_mint_params;
         token_config.token_pool_type_proof = token_pool_type_proof;
+
+        // Update the package ID mapping
+        // First remove the old mapping
+        state.token_pool_package_id_to_coin_metadata.remove(previous_pool_package_id);
+
+        // Then update or add the new mapping
+        if (state.token_pool_package_id_to_coin_metadata.contains(token_pool_package_id)) {
+            // If the new package ID already exists, remove and re-add it
+            let _old_coin_address = state
+                .token_pool_package_id_to_coin_metadata
+                .remove(token_pool_package_id);
+        };
+        state
+            .token_pool_package_id_to_coin_metadata
+            .push_back(token_pool_package_id, coin_metadata_address);
 
         event::emit(PoolSet {
             coin_metadata_address,
