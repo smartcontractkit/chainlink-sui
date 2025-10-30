@@ -11,6 +11,7 @@ use sui::clock::Clock;
 use sui::ecdsa_k1;
 use sui::event;
 use sui::hash::keccak256;
+use sui::linked_table::{Self, LinkedTable};
 use sui::package::UpgradeTicket;
 use sui::table::{Self, Table};
 use sui::vec_map::{Self, VecMap};
@@ -58,7 +59,7 @@ public struct Multisig has store {
     signers: VecMap<vector<u8>, Signer>,
     config: Config,
     /// Remember signed hashes that this contract has seen. Each signed hash can only be set once.
-    seen_signed_hashes: VecMap<vector<u8>, bool>,
+    seen_signed_hashes: LinkedTable<vector<u8>, bool>,
     expiring_root_and_op_count: ExpiringRootAndOpCount,
     root_metadata: RootMetadata,
 }
@@ -193,9 +194,9 @@ const EUnknownMCMSRegistryModuleFunction: u64 = 41;
 public struct MCMS has drop {}
 
 fun init(_witness: MCMS, ctx: &mut TxContext) {
-    let bypasser = create_multisig(BYPASSER_ROLE);
-    let canceller = create_multisig(CANCELLER_ROLE);
-    let proposer = create_multisig(PROPOSER_ROLE);
+    let bypasser = create_multisig(BYPASSER_ROLE, ctx);
+    let canceller = create_multisig(CANCELLER_ROLE, ctx);
+    let proposer = create_multisig(PROPOSER_ROLE, ctx);
 
     let multisig_state = MultisigState {
         id: object::new(ctx),
@@ -225,7 +226,7 @@ fun init(_witness: MCMS, ctx: &mut TxContext) {
     transfer::share_object(timelock);
 }
 
-fun create_multisig(role: u8): Multisig {
+fun create_multisig(role: u8, ctx: &mut TxContext): Multisig {
     Multisig {
         role,
         signers: vec_map::empty(),
@@ -234,7 +235,7 @@ fun create_multisig(role: u8): Multisig {
             group_quorums: VEC_NUM_GROUPS,
             group_parents: VEC_NUM_GROUPS,
         },
-        seen_signed_hashes: vec_map::empty(),
+        seen_signed_hashes: linked_table::new(ctx),
         expiring_root_and_op_count: ExpiringRootAndOpCount {
             root: vector[],
             valid_until: 0,
@@ -299,7 +300,7 @@ public fun set_root(
     // Validate that `multisig` is a registered multisig for `role`.
     let multisig = borrow_multisig_mut(state, role);
 
-    assert!(!multisig.seen_signed_hashes.contains(&signed_hash), EAlreadySeenHash);
+    assert!(!multisig.seen_signed_hashes.contains(signed_hash), EAlreadySeenHash);
     assert!(get_timestamp_seconds(clock) <= valid_until, EValidUntilExpired);
 
     // TODO: No support for chain_ids yet
@@ -371,7 +372,7 @@ public fun set_root(
     let root_group_vote_count = group_vote_counts[0];
     assert!(root_group_vote_count >= root_group_quorum, EInsufficientSigners);
 
-    multisig.seen_signed_hashes.insert(signed_hash, true);
+    multisig.seen_signed_hashes.push_back(signed_hash, true);
     multisig.expiring_root_and_op_count =
         ExpiringRootAndOpCount {
             root,
@@ -1352,8 +1353,50 @@ fun deserialize_timelock_function_action(data: vector<u8>): (address, String, St
     (target, module_name, function_name)
 }
 
-public fun seen_signed_hashes(state: &MultisigState, role: u8): VecMap<vector<u8>, bool> {
-    borrow_multisig(state, role).seen_signed_hashes
+public fun seen_signed_hashes(state: &MultisigState, role: u8): vector<vector<u8>> {
+    let multisig = borrow_multisig(state, role);
+    let mut hashes = vector[];
+    let mut current_key = multisig.seen_signed_hashes.front();
+
+    while (current_key.is_some()) {
+        let key = *current_key.borrow();
+        hashes.push_back(key);
+        current_key = multisig.seen_signed_hashes.next(key);
+    };
+
+    hashes
+}
+
+/// Get the N most recent signed hashes for a role (from the back of the list)
+///
+/// @param state - Reference to the MultisigState
+/// @param role - The role to query
+/// @param limit - Maximum number of recent hashes to return
+///
+/// @return: Vector of the most recent signed hashes (newest first)
+public fun recent_seen_signed_hashes(
+    state: &MultisigState,
+    role: u8,
+    limit: u64,
+): vector<vector<u8>> {
+    let multisig = borrow_multisig(state, role);
+    let mut hashes = vector[];
+    let mut current_key = multisig.seen_signed_hashes.back();
+
+    let mut count = 0;
+    while (current_key.is_some() && count < limit) {
+        let key = *current_key.borrow();
+        hashes.push_back(key);
+        current_key = multisig.seen_signed_hashes.prev(key);
+        count = count + 1;
+    };
+
+    hashes
+}
+
+public fun seen_signed_hashes_count(state: &MultisigState, role: u8): u64 {
+    let multisig = borrow_multisig(state, role);
+    multisig.seen_signed_hashes.length()
 }
 
 public fun expiring_root_and_op_count(state: &MultisigState, role: u8): (vector<u8>, u64, u64) {
@@ -2005,7 +2048,11 @@ public fun test_compute_eth_message_hash(root: vector<u8>, valid_until: u64): ve
 #[test_only]
 public fun test_set_hash_seen(state: &mut MultisigState, role: u8, hash: vector<u8>, seen: bool) {
     let multisig = borrow_multisig_mut(state, role);
-    multisig.seen_signed_hashes.insert(hash, seen);
+    if (!multisig.seen_signed_hashes.contains(hash)) {
+        multisig.seen_signed_hashes.push_back(hash, seen);
+    } else {
+        *multisig.seen_signed_hashes.borrow_mut(hash) = seen;
+    };
 }
 
 #[test_only]
