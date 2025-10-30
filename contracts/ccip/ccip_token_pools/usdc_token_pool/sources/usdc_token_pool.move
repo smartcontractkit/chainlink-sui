@@ -94,9 +94,8 @@ public fun type_and_version(): String {
     string::utf8(b"USDCTokenPool 1.6.0")
 }
 
-// TODO: should we just import USDC as type arg?
 #[allow(lint(self_transfer))]
-public fun initialize<T: drop>(
+public fun initialize_by_ccip_admin<T: drop>(
     ref: &mut CCIPObjectRef,
     mut ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata: &CoinMetadata<T>, // this can be provided as an address or in Move.toml
@@ -519,8 +518,6 @@ public fun release_or_mint<T: drop>(
     offramp_sh::complete_token_transfer(
         ref,
         receiver_params,
-        receiver,
-        dest_token_address,
         TypeProof {},
     );
 }

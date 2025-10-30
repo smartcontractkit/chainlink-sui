@@ -167,14 +167,15 @@ public fun get_token_param_data(
 }
 
 /// only the token pool with a proper type proof can call this function to
-/// return a CompletedDestTokenTransfer object.
+/// add a receipt to the receiver params.
 public fun complete_token_transfer<TypeProof: drop>(
     ref: &CCIPObjectRef,
     receiver_params: &mut ReceiverParams,
-    token_receiver: address,
-    dest_token_address: address,
     _: TypeProof,
 ) {
+    let dest_token_transfer = receiver_params.token_transfer.borrow();
+    let token_receiver = dest_token_transfer.token_receiver;
+    let dest_token_address = dest_token_transfer.dest_token_address;
     let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
         ref,
         dest_token_address,

@@ -273,7 +273,10 @@ fun test_mcms_add_allowed_modules_success() {
     let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
     // Verify initial allowed modules (should have fee_quoter, rmn_remote, state_object, token_admin_registry)
-    let initial_modules = mcms_registry::get_allowed_modules(&registry, address::to_ascii_string(@ccip));
+    let initial_modules = mcms_registry::get_allowed_modules(
+        &registry,
+        address::to_ascii_string(@ccip),
+    );
     assert!(initial_modules.contains(&b"fee_quoter"), 0);
     assert!(initial_modules.contains(&b"rmn_remote"), 1);
     assert!(initial_modules.contains(&b"state_object"), 2);
@@ -306,7 +309,10 @@ fun test_mcms_add_allowed_modules_success() {
     );
 
     // Verify nonce_manager was added
-    let updated_modules = mcms_registry::get_allowed_modules(&registry, address::to_ascii_string(@ccip));
+    let updated_modules = mcms_registry::get_allowed_modules(
+        &registry,
+        address::to_ascii_string(@ccip),
+    );
     assert!(updated_modules.contains(&b"nonce_manager"), 5); // Should exist now
 
     // Cleanup
@@ -423,7 +429,10 @@ fun test_mcms_remove_allowed_modules_success() {
     };
 
     // Verify nonce_manager was added
-    let modules_before = mcms_registry::get_allowed_modules(&registry, address::to_ascii_string(@ccip));
+    let modules_before = mcms_registry::get_allowed_modules(
+        &registry,
+        address::to_ascii_string(@ccip),
+    );
     assert!(modules_before.contains(&b"nonce_manager"), 0);
 
     // Now remove the module
@@ -451,7 +460,10 @@ fun test_mcms_remove_allowed_modules_success() {
     };
 
     // Verify nonce_manager was removed
-    let modules_after = mcms_registry::get_allowed_modules(&registry, address::to_ascii_string(@ccip));
+    let modules_after = mcms_registry::get_allowed_modules(
+        &registry,
+        address::to_ascii_string(@ccip),
+    );
     assert!(!modules_after.contains(&b"nonce_manager"), 1);
 
     // Cleanup
@@ -546,7 +558,10 @@ fun test_mcms_three_step_ownership_transfer() {
 
     // Step 1: MCMS calls mcms_transfer_ownership to initiate transfer to SENDER_2
     {
-        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip.to_ascii_string());
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(
+            &registry,
+            @ccip.to_ascii_string(),
+        );
 
         let mut data = vector::empty<u8>();
         data.append(bcs::to_bytes(&object::id_address(&ref)));
@@ -598,8 +613,11 @@ fun test_mcms_three_step_ownership_transfer() {
     // Step 3: MCMS calls mcms_execute_ownership_transfer to finalize
     scenario.next_tx(OWNER);
     {
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(
+            &registry,
+            @ccip.to_ascii_string(),
+        );
         let mut deployer_state = test_scenario::take_shared<mcms_deployer::DeployerState>(&scenario);
-        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(&registry, @ccip.to_ascii_string());
 
         // Serialize data: [ref_address][owner_cap_address][to_address]
         let mut data = vector::empty<u8>();

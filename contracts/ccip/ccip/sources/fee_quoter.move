@@ -283,6 +283,12 @@ public fun new_fee_quoter_cap(
     owner_cap: &OwnerCap,
     ctx: &mut TxContext,
 ): FeeQuoterCap {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"new_fee_quoter_cap"),
+        VERSION,
+    );
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     FeeQuoterCap {
@@ -1156,7 +1162,7 @@ public fun get_token_receiver(
     ref: &CCIPObjectRef,
     dest_chain_selector: u64,
     extra_args: vector<u8>,
-    message_receiver: vector<u8>,
+    default_token_receiver: vector<u8>,
 ): vector<u8> {
     verify_function_allowed(
         ref,
@@ -1174,7 +1180,7 @@ public fun get_token_receiver(
         chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
         || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
     ) {
-        message_receiver
+        default_token_receiver
     } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
         let (
             _gas_limit,
