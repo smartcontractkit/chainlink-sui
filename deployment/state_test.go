@@ -79,7 +79,6 @@ func getExpectedSuiChainState() CCIPChainState {
 		CCIPUpgradeCapObjectId:       "0x99aef4fefc921681d57823e479fc424f43457ef9ebdf6cf1cbd91379c27ef19c",
 		CCIPRouterAddress:            "0xed4613bd35004954c07150c3e9b10230f5e23e3058bc2ca0e3e676cb43eb4dc1",
 		CCIPRouterStateObjectID:      "0xbb2486d233b0d358f82fb8c4c5c75881e65069ea8ebe5ab692a636c9e0eff7cd",
-		TokenPoolAddress:             "",
 		LockReleaseAddress:           "",
 		LockReleaseStateId:           "",
 		FeeQuoterCapId:               "0xceac727ef0d9a8494323478ece8b883877d9178a573e1678565e5195eac878e8",

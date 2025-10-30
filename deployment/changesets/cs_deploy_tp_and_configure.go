@@ -57,6 +57,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 		},
 	}
 
+	// FIXME: this doesn't support multiple token pools of the same type
 	// Populate state information for each token pool type
 	for _, tokenPoolType := range config.TokenPoolTypes {
 		switch tokenPoolType {
