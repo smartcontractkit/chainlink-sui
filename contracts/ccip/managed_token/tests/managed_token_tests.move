@@ -2,6 +2,7 @@
 module managed_token::managed_token_test;
 
 use managed_token::managed_token::{Self, TokenState, MintCap};
+use managed_token::mint_allowance;
 use managed_token::ownable::OwnerCap;
 use std::string;
 use sui::coin::{Self, CoinMetadata};
@@ -74,7 +75,12 @@ fun setup_regulated_token_test(): (
     );
 
     // Initialize with deny cap
-    managed_token::initialize_with_deny_cap(treasury_cap, deny_cap, package::test_claim(MANAGED_TOKEN_TEST {}, ctx), ctx);
+    managed_token::initialize_with_deny_cap(
+        treasury_cap,
+        deny_cap,
+        package::test_claim(MANAGED_TOKEN_TEST {}, ctx),
+        ctx,
+    );
 
     scenario.next_tx(OWNER);
     let state = scenario.take_shared<TokenState<MANAGED_TOKEN_TEST>>();
@@ -129,7 +135,7 @@ fun test_basic_initialization_and_configuration() {
 
     // Configure multiple minters
     setup_minter_with_allowance(&mut state, &owner_cap, MINTER, 1000, false, scenario.ctx());
-    setup_minter_with_allowance(&mut state, &owner_cap, OTHER_USER, 2000, true, scenario.ctx());
+    setup_minter_with_allowance(&mut state, &owner_cap, OTHER_USER, 2000, false, scenario.ctx());
 
     // Verify mint caps were created
     let mint_caps = managed_token::get_all_mint_caps(&state);
@@ -417,6 +423,18 @@ fun test_multiple_allowance_increments() {
     transfer::public_transfer(coin, RECIPIENT);
     transfer::public_transfer(mint_cap, MINTER);
     test_utils::destroy(deny_list);
+    cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
+}
+
+#[test]
+#[expected_failure(abort_code = mint_allowance::EInvalidAllowance)]
+fun test_invalid_allowance_when_unlimited_with_nonzero_value() {
+    let (mut scenario, mut state, owner_cap, coin_metadata) = setup_managed_token_test();
+
+    // Attempt to configure a minter with unlimited=true and non-zero value -> should fail
+    setup_minter_with_allowance(&mut state, &owner_cap, MINTER, 1, true, scenario.ctx());
+
+    // Cleanup (should not be reached)
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -905,7 +923,11 @@ fun test_invalid_owner_cap_operations() {
         option::none(),
         ctx,
     );
-    managed_token::initialize(fake_treasury_cap, package::test_claim(MANAGED_TOKEN_TEST {}, ctx), ctx);
+    managed_token::initialize(
+        fake_treasury_cap,
+        package::test_claim(MANAGED_TOKEN_TEST {}, ctx),
+        ctx,
+    );
 
     scenario.next_tx(OTHER_USER);
     let fake_state = scenario.take_shared<TokenState<MANAGED_TOKEN_TEST>>();

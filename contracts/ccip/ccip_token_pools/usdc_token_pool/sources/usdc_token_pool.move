@@ -92,6 +92,7 @@ const EInvalidProof: u64 = 15;
 const EInvalidPackageId: u64 = 16;
 const EInvalidModuleName: u64 = 17;
 const EInvalidFunctionName: u64 = 18;
+const EInvalidMintRecipient: u64 = 19;
 
 // ================================================================
 // |                             Init                             |
@@ -447,7 +448,7 @@ public fun release_or_mint<T: drop>(
     ctx: &mut TxContext,
 ) {
     let (
-        receiver,
+        token_receiver,
         remote_chain_selector,
         _,
         dest_token_address,
@@ -499,6 +500,8 @@ public fun release_or_mint<T: drop>(
     // Complete the message and destroy the StampedReceipt
     receive_message::complete_receive_message(stamped_receipt, message_transmitter_state);
 
+    let mint_recipient = burn_message::mint_recipient(&burn_message);
+    assert!(mint_recipient == token_receiver, EInvalidMintRecipient);
     let local_amount = burn_message::amount(&burn_message);
     let mut amount_op = local_amount.try_as_u64();
     assert!(amount_op.is_some(), ETokenAmountOverflow);
@@ -516,7 +519,7 @@ public fun release_or_mint<T: drop>(
 
     token_pool::emit_released_or_minted(
         &pool.token_pool_state,
-        receiver,
+        token_receiver,
         amount,
         remote_chain_selector,
     );
@@ -602,6 +605,7 @@ public fun set_domains<T>(
         assert!(remote_chain_selector != 0, EZeroChainSelector);
 
         assert!(allowed_caller.length() != 0, EEmptyAllowedCaller);
+        ccip::address::assert_non_zero_address_vector(&allowed_caller);
 
         if (pool.chain_to_domain.contains(remote_chain_selector)) {
             pool.chain_to_domain.remove(remote_chain_selector);
