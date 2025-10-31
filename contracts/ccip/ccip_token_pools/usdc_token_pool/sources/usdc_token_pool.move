@@ -77,21 +77,15 @@ public struct USDCTokenPoolState<phantom T> has key {
 
 const EInvalidCoinMetadata: u64 = 1;
 const EInvalidArguments: u64 = 2;
-const EInvalidOwnerCap: u64 = 4;
-const EZeroChainSelector: u64 = 5;
-const EEmptyAllowedCaller: u64 = 6;
-const EInvalidMessageVersion: u64 = 7;
-const EDomainMismatch: u64 = 8;
-const ENonceMismatch: u64 = 9;
-const EDomainNotFound: u64 = 10;
-const EDomainDisabled: u64 = 11;
-const ETokenAmountOverflow: u64 = 12;
-const EInvalidFunction: u64 = 13;
-const EPoolStillRegistered: u64 = 14;
-const EInvalidProof: u64 = 15;
-const EInvalidPackageId: u64 = 16;
-const EInvalidModuleName: u64 = 17;
-const EInvalidFunctionName: u64 = 18;
+const EInvalidOwnerCap: u64 = 3;
+const EZeroChainSelector: u64 = 4;
+const EEmptyAllowedCaller: u64 = 5;
+const EInvalidMessageVersion: u64 = 6;
+const EDomainMismatch: u64 = 7;
+const ENonceMismatch: u64 = 8;
+const EDomainNotFound: u64 = 9;
+const EDomainDisabled: u64 = 10;
+const ETokenAmountOverflow: u64 = 11;
 
 // ================================================================
 // |                             Init                             |
@@ -102,40 +96,18 @@ public fun type_and_version(): String {
 }
 
 #[allow(lint(self_transfer))]
-public fun initialize_by_ccip_admin<T: drop>(
+/// USDC token pool must be registered with CCIP Token Admin Registry separately.
+/// This is because CCIP does not have access to the `TreasuryCap` for USDC.
+public fun initialize<T: drop>(
     owner_cap: &mut OwnerCap,
-    ref: &mut CCIPObjectRef,
-    mut ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata: &CoinMetadata<T>, // this can be provided as an address or in Move.toml
+    local_domain_identifier: u32,
     ctx: &mut TxContext,
 ) {
-    assert!(!state_object::get_ccip_admin_proof_validated(&ccip_admin_proof), EInvalidProof);
-
-    let data = state_object::get_ccip_admin_proof_data(&ccip_admin_proof);
-    let mut stream = bcs_stream::new(data);
-
-    let target_package_id = bcs_stream::deserialize_address(&mut stream);
-    let target_module_name = bcs_stream::deserialize_string(&mut stream);
-    let target_function_name = bcs_stream::deserialize_string(&mut stream);
-    let local_domain_identifier = bcs_stream::deserialize_u32(&mut stream);
-    let token_pool_package_id = bcs_stream::deserialize_address(&mut stream);
-    let token_pool_administrator = bcs_stream::deserialize_address(&mut stream);
-    bcs_stream::assert_is_consumed(&stream);
-
-    assert!(target_package_id == @usdc_token_pool, EInvalidPackageId);
-    assert!(target_module_name == string::utf8(b"usdc_token_pool"), EInvalidModuleName);
-    assert!(
-        target_function_name == string::utf8(b"initialize_by_ccip_admin"),
-        EInvalidFunctionName,
-    );
-
-    state_object::set_ccip_admin_proof_validated(&mut ccip_admin_proof, true);
-
-    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
+    let coin_metadata_address = object::id_address(&coin_metadata);
     assert!(coin_metadata_address == @usdc_coin_metadata_object_id, EInvalidCoinMetadata);
 
     let ownable_state = ownable::detach_ownable_state(owner_cap);
-
     let usdc_token_pool = USDCTokenPoolState<T> {
         id: object::new(ctx),
         token_pool_state: token_pool::initialize(
@@ -149,39 +121,6 @@ public fun initialize_by_ccip_admin<T: drop>(
         local_domain_identifier,
         ownable_state,
     };
-
-    let token_type = type_name::with_defining_ids<T>();
-    let proof_type = type_name::with_defining_ids<TypeProof>();
-    let token_pool_state_address = object::id_to_address(&object::id(&usdc_token_pool));
-
-    token_admin_registry::register_pool_by_admin(
-        ref,
-        ccip_admin_proof,
-        coin_metadata_address,
-        token_pool_package_id,
-        string::utf8(b"usdc_token_pool"),
-        token_type.into_string(),
-        token_pool_administrator,
-        proof_type.into_string(),
-        // these addresses match the lock_or_burn and release_or_mint functions' last 6 arguments, excluding the ctx
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            token_pool_state_address,
-            @token_messenger_minter_state,
-            @message_transmitter_state,
-            @treasury,
-        ],
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            token_pool_state_address,
-            @token_messenger_minter_state,
-            @message_transmitter_state,
-            @treasury,
-        ],
-        ctx,
-    );
 
     transfer::share_object(usdc_token_pool);
 }

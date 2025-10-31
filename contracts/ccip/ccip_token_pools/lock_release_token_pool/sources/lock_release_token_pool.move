@@ -3,6 +3,7 @@ module lock_release_token_pool::lock_release_token_pool;
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
+use ccip::publisher_wrapper::{Self};
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use lock_release_token_pool::ownable::{Self, OwnerCap, OwnableState};
@@ -85,6 +86,10 @@ public fun initialize<T>(
         rebalancer,
         ctx,
     );
+    let publisher_wrapper = publisher_wrapper::create(
+        ownable::borrow_publisher(owner_cap),
+        TypeProof {},
+    );
 
     token_admin_registry::register_pool(
         ref,
@@ -93,6 +98,7 @@ public fun initialize<T>(
         token_pool_administrator,
         vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
         vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
+        publisher_wrapper,
         TypeProof {},
     );
 }

@@ -193,9 +193,9 @@ public fun test_complete_token_transfer() {
     let (mut scenario, owner_cap, mut ref, dest_cap) = setup_test();
 
     // Register a token in the token admin registry
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_ADDRESS_1,
         string::utf8(b"test_pool"),
@@ -379,9 +379,9 @@ public fun test_complete_token_transfer_twice_should_fail() {
     let (mut scenario, owner_cap, mut ref, dest_cap) = setup_test();
 
     // Register a token in the token admin registry
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_ADDRESS_1,
         string::utf8(b"test_pool"),
