@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"destroy_token_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"initialize","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"token_pool_administrator","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"owner","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"pool","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"enabled","type":"bool"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"coin_metadata_address","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"destroy_token_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_current_inbound_rate_limiter_state","parameters":[{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_current_outbound_rate_limiter_state","parameters":[{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_token_symbol","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"initialize","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"token_pool_administrator","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"owner","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"pool","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"enabled","type":"bool"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"coin_metadata_address","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"type_and_version","parameters":null}]`
 
 type IBurnMintTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -27,6 +27,7 @@ type IBurnMintTokenPool interface {
 	SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetTokenSymbol(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	IsRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error)
 	GetRemoteToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
@@ -43,6 +44,8 @@ type IBurnMintTokenPool interface {
 	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, clock bind.Object, pool bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*models.SuiTransactionBlockResponse, error)
+	GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -77,6 +80,7 @@ type IBurnMintTokenPoolDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
 	GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (byte, error)
+	GetTokenSymbol(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
 	GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([][]byte, error)
 	IsRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (bool, error)
 	GetRemoteToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([]byte, error)
@@ -84,6 +88,8 @@ type IBurnMintTokenPoolDevInspect interface {
 	GetSupportedChains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]uint64, error)
 	GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
 	GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]string, error)
+	GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error)
+	GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error)
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (any, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
@@ -103,6 +109,8 @@ type BurnMintTokenPoolEncoder interface {
 	GetTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetTokenDecimals(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
 	GetTokenDecimalsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	GetTokenSymbol(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
+	GetTokenSymbolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetRemotePools(typeArgs []string, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error)
 	GetRemotePoolsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	IsRemotePool(typeArgs []string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*bind.EncodedCall, error)
@@ -135,6 +143,10 @@ type BurnMintTokenPoolEncoder interface {
 	SetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfig(typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfigWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	GetCurrentInboundRateLimiterState(typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error)
+	GetCurrentInboundRateLimiterStateWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	GetCurrentOutboundRateLimiterState(typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error)
+	GetCurrentOutboundRateLimiterStateWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	DestroyTokenPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	DestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	Owner(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
@@ -383,6 +395,16 @@ func (c *BurnMintTokenPoolContract) GetTokenDecimals(ctx context.Context, opts *
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// GetTokenSymbol executes the get_token_symbol Move function.
+func (c *BurnMintTokenPoolContract) GetTokenSymbol(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.GetTokenSymbol(typeArgs, state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // GetRemotePools executes the get_remote_pools Move function.
 func (c *BurnMintTokenPoolContract) GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.burnMintTokenPoolEncoder.GetRemotePools(typeArgs, state, remoteChainSelector)
@@ -536,6 +558,26 @@ func (c *BurnMintTokenPoolContract) SetChainRateLimiterConfigs(ctx context.Conte
 // SetChainRateLimiterConfig executes the set_chain_rate_limiter_config Move function.
 func (c *BurnMintTokenPoolContract) SetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.burnMintTokenPoolEncoder.SetChainRateLimiterConfig(typeArgs, state, ownerCap, clock, remoteChainSelector, outboundIsEnabled, outboundCapacity, outboundRate, inboundIsEnabled, inboundCapacity, inboundRate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetCurrentInboundRateLimiterState executes the get_current_inbound_rate_limiter_state Move function.
+func (c *BurnMintTokenPoolContract) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.GetCurrentInboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetCurrentOutboundRateLimiterState executes the get_current_outbound_rate_limiter_state Move function.
+func (c *BurnMintTokenPoolContract) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.GetCurrentOutboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -859,6 +901,28 @@ func (d *BurnMintTokenPoolDevInspect) GetTokenDecimals(ctx context.Context, opts
 	return result, nil
 }
 
+// GetTokenSymbol executes the get_token_symbol Move function using DevInspect to get return values.
+//
+// Returns: ascii::String
+func (d *BurnMintTokenPoolDevInspect) GetTokenSymbol(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error) {
+	encoded, err := d.contract.burnMintTokenPoolEncoder.GetTokenSymbol(typeArgs, state)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
+}
+
 // GetRemotePools executes the get_remote_pools Move function using DevInspect to get return values.
 //
 // Returns: vector<vector<u8>>
@@ -1009,6 +1073,50 @@ func (d *BurnMintTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts *bi
 	result, ok := results[0].([]string)
 	if !ok {
 		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetCurrentInboundRateLimiterState executes the get_current_inbound_rate_limiter_state Move function using DevInspect to get return values.
+//
+// Returns: rate_limiter::TokenBucket
+func (d *BurnMintTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error) {
+	encoded, err := d.contract.burnMintTokenPoolEncoder.GetCurrentInboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetCurrentOutboundRateLimiterState executes the get_current_outbound_rate_limiter_state Move function using DevInspect to get return values.
+//
+// Returns: rate_limiter::TokenBucket
+func (d *BurnMintTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error) {
+	encoded, err := d.contract.burnMintTokenPoolEncoder.GetCurrentOutboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
 	}
 	return result, nil
 }
@@ -1315,6 +1423,40 @@ func (c burnMintTokenPoolEncoder) GetTokenDecimalsWithArgs(typeArgs []string, ar
 	}
 	return c.EncodeCallArgsWithGenerics("get_token_decimals", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"u8",
+	})
+}
+
+// GetTokenSymbol encodes a call to the get_token_symbol Move function.
+func (c burnMintTokenPoolEncoder) GetTokenSymbol(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("get_token_symbol", typeArgsList, typeParamsList, []string{
+		"&BurnMintTokenPoolState<T>",
+	}, []any{
+		state,
+	}, []string{
+		"ascii::String",
+	})
+}
+
+// GetTokenSymbolWithArgs encodes a call to the get_token_symbol Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c burnMintTokenPoolEncoder) GetTokenSymbolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&BurnMintTokenPoolState<T>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("get_token_symbol", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"ascii::String",
 	})
 }
 
@@ -1965,6 +2107,86 @@ func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfigWithArgs(typeArgs []s
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("set_chain_rate_limiter_config", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// GetCurrentInboundRateLimiterState encodes a call to the get_current_inbound_rate_limiter_state Move function.
+func (c burnMintTokenPoolEncoder) GetCurrentInboundRateLimiterState(typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("get_current_inbound_rate_limiter_state", typeArgsList, typeParamsList, []string{
+		"&Clock",
+		"&BurnMintTokenPoolState<T>",
+		"u64",
+	}, []any{
+		clock,
+		state,
+		remoteChainSelector,
+	}, []string{
+		"rate_limiter::TokenBucket",
+	})
+}
+
+// GetCurrentInboundRateLimiterStateWithArgs encodes a call to the get_current_inbound_rate_limiter_state Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c burnMintTokenPoolEncoder) GetCurrentInboundRateLimiterStateWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&Clock",
+		"&BurnMintTokenPoolState<T>",
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("get_current_inbound_rate_limiter_state", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"rate_limiter::TokenBucket",
+	})
+}
+
+// GetCurrentOutboundRateLimiterState encodes a call to the get_current_outbound_rate_limiter_state Move function.
+func (c burnMintTokenPoolEncoder) GetCurrentOutboundRateLimiterState(typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("get_current_outbound_rate_limiter_state", typeArgsList, typeParamsList, []string{
+		"&Clock",
+		"&BurnMintTokenPoolState<T>",
+		"u64",
+	}, []any{
+		clock,
+		state,
+		remoteChainSelector,
+	}, []string{
+		"rate_limiter::TokenBucket",
+	})
+}
+
+// GetCurrentOutboundRateLimiterStateWithArgs encodes a call to the get_current_outbound_rate_limiter_state Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c burnMintTokenPoolEncoder) GetCurrentOutboundRateLimiterStateWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&Clock",
+		"&BurnMintTokenPoolState<T>",
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("get_current_outbound_rate_limiter_state", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"rate_limiter::TokenBucket",
+	})
 }
 
 // DestroyTokenPool encodes a call to the destroy_token_pool Move function.

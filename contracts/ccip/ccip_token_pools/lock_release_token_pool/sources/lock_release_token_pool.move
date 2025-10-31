@@ -6,10 +6,12 @@ use ccip::onramp_state_helper as onramp_sh;
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use lock_release_token_pool::ownable::{Self, OwnerCap, OwnableState};
+use lock_release_token_pool::rate_limiter;
 use lock_release_token_pool::token_pool::{Self, TokenPoolState};
 use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+use std::ascii;
 use std::string::{Self, String};
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
@@ -114,6 +116,7 @@ fun initialize_internal<T>(
         token_pool_state: token_pool::initialize(
             coin_metadata_address,
             coin_metadata.get_decimals(),
+            coin_metadata.get_symbol(),
             vector[],
             ctx,
         ),
@@ -178,6 +181,10 @@ public fun get_token<T>(state: &LockReleaseTokenPoolState<T>): address {
 
 public fun get_token_decimals<T>(state: &LockReleaseTokenPoolState<T>): u8 {
     state.token_pool_state.get_local_decimals()
+}
+
+public fun get_token_symbol<T>(state: &LockReleaseTokenPoolState<T>): ascii::String {
+    state.token_pool_state.get_symbol()
 }
 
 public fun get_remote_pools<T>(
@@ -467,6 +474,30 @@ public fun set_chain_rate_limiter_config<T>(
         inbound_capacity,
         inbound_rate,
     );
+}
+
+public fun get_current_inbound_rate_limiter_state<T>(
+    clock: &Clock,
+    state: &LockReleaseTokenPoolState<T>,
+    remote_chain_selector: u64,
+): rate_limiter::TokenBucket {
+    token_pool::get_current_inbound_rate_limiter_state(
+        &state.token_pool_state,
+        clock,
+        remote_chain_selector,
+    )
+}
+
+public fun get_current_outbound_rate_limiter_state<T>(
+    clock: &Clock,
+    state: &LockReleaseTokenPoolState<T>,
+    remote_chain_selector: u64,
+): rate_limiter::TokenBucket {
+    token_pool::get_current_outbound_rate_limiter_state(
+        &state.token_pool_state,
+        clock,
+        remote_chain_selector,
+    )
 }
 
 // ================================================================
@@ -1188,7 +1219,7 @@ public fun mcms_execute_ownership_transfer<T>(
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
             registry,
-            McmsCallback<T> {}
+            McmsCallback<T> {},
         );
         transfer::public_transfer(upgrade_cap, to);
     };
