@@ -879,6 +879,12 @@ func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.Ch
 		expressions = aptosCRUtils.ApplyEventFilterRenames(expressions, eventConfig.EventFilterRenames)
 	}
 
+	s.logger.Debugw("QueryKey received request",
+		"contract", eventConfig.Package,
+		"eventHandle", eventHandle,
+		"expressions", expressions,
+		"limitAndSort", limitAndSort)
+
 	// Query events from database
 	records, err := s.dbStore.QueryEvents(ctx, eventConfig.Package, eventHandle, expressions, limitAndSort)
 	if err != nil {

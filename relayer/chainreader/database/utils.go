@@ -37,10 +37,15 @@ func BuildSQLCondition(expr query.Expression, args *[]any, argCount *int) (strin
 			return "(" + strings.Join(conditions, " AND ") + ")", nil
 
 		case *primitives.Timestamp:
-			condition := fmt.Sprintf("block_timestamp %s $%d", operatorSQL(v.Operator), *argCount)
-			*args = append(*args, v.Timestamp)
-			*argCount++
+			ts := v.Timestamp
 
+			if ts > 9999999999 {
+				ts = ts / 1000
+			}
+
+			condition := fmt.Sprintf("block_timestamp %s $%d", operatorSQL(v.Operator), *argCount)
+			*args = append(*args, ts)
+			*argCount++
 			return condition, nil
 
 		case *primitives.Confidence:
