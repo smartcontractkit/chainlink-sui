@@ -149,7 +149,7 @@ fun initialize_internal<T>(
 }
 
 public fun mint_allowance<T>(state: &TokenState<T>, mint_cap: ID): (u64, bool) {
-    if (!state.is_authorized_mint_cap(mint_cap)) return (0, false);
+    if (!state.is_minter_cap_allowed(mint_cap)) return (0, false);
     state.mint_allowances_map.get(&mint_cap).allowance_info()
 }
 
@@ -159,7 +159,7 @@ public fun total_supply<T>(state: &TokenState<T>): u64 {
 }
 
 /// Checks if a MintCap object is authorized to mint.
-public fun is_authorized_mint_cap<T>(state: &TokenState<T>, id: ID): bool {
+public fun is_minter_cap_allowed<T>(state: &TokenState<T>, id: ID): bool {
     state.mint_allowances_map.contains(&id)
 }
 
@@ -211,7 +211,7 @@ public fun increment_mint_allowance<T>(
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     assert!(!is_paused<T>(deny_list), EPaused);
     assert!(allowance_increment > 0, EZeroAmount);
-    assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
+    assert!(state.is_minter_cap_allowed(mint_cap_id), EUnauthorizedMintCap);
 
     assert!(
         !state.mint_allowances_map.get(&mint_cap_id).is_unlimited(),
@@ -241,7 +241,7 @@ public fun set_unlimited_mint_allowances<T>(
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     assert!(!is_paused<T>(deny_list), EPaused);
-    assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
+    assert!(state.is_minter_cap_allowed(mint_cap_id), EUnauthorizedMintCap);
 
     state.mint_allowances_map.get_mut(&mint_cap_id).set(0, is_unlimited);
 
@@ -314,7 +314,7 @@ fun validate_mint<T>(
     assert!(!is_blocklisted<T>(deny_list, ctx.sender()), EDeniedAddress);
     assert!(!is_blocklisted<T>(deny_list, recipient), EDeniedAddress);
     let mint_cap_id = object::id(mint_cap);
-    assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
+    assert!(state.is_minter_cap_allowed(mint_cap_id), EUnauthorizedMintCap);
     assert!(amount > 0, EZeroAmount);
 
     let mint_allowance = state.mint_allowances_map.get_mut(&mint_cap_id);
@@ -342,7 +342,7 @@ public fun burn<T>(
     assert!(!is_paused<T>(deny_list), EPaused);
     assert!(!is_blocklisted<T>(deny_list, ctx.sender()), EDeniedAddress);
     let mint_cap_id = object::id(mint_cap);
-    assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
+    assert!(state.is_minter_cap_allowed(mint_cap_id), EUnauthorizedMintCap);
 
     let amount = coin.value();
     assert!(amount > 0, EZeroAmount);
@@ -640,7 +640,7 @@ public fun mcms_execute_ownership_transfer<T>(
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
             registry,
-            McmsCallback {}
+            McmsCallback {},
         );
         transfer::public_transfer(upgrade_cap, to);
     };
