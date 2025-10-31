@@ -528,10 +528,10 @@ fun test_unauthorized_access_scenarios() {
     let (allowance, is_unlimited) = managed_token::mint_allowance(&state, fake_mint_cap_id);
     assert!(allowance == 0);
     assert!(!is_unlimited);
-    assert!(!managed_token::is_authorized_mint_cap(&state, fake_mint_cap_id));
+    assert!(!managed_token::is_minter_cap_allowed(&state, fake_mint_cap_id));
 
     // Verify authorized mint cap works
-    assert!(managed_token::is_authorized_mint_cap(&state, mint_cap_id));
+    assert!(managed_token::is_minter_cap_allowed(&state, mint_cap_id));
     let (real_allowance, real_unlimited) = managed_token::mint_allowance(&state, mint_cap_id);
     assert!(real_allowance == 1000);
     assert!(!real_unlimited);
