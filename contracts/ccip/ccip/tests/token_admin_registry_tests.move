@@ -273,13 +273,14 @@ public fun test_register_pool_duplicate_package_id_fails() {
 
     // First registration with a specific package ID
     scenario.next_tx(CCIP_ADMIN);
+    let owner_cap = scenario.take_from_sender<OwnerCap>();
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let ctx = scenario.ctx();
 
-        registry::register_pool_by_admin(
+        registry::register_pool_as_owner(
+            &owner_cap,
             &mut ref,
-            state_object::create_ccip_admin_proof_for_test(vector[], true),
             @0xABC1, // coin_metadata_address #1
             @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
             string::utf8(b"dup_pool"),
@@ -307,9 +308,9 @@ public fun test_register_pool_duplicate_package_id_fails() {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let ctx = scenario.ctx();
 
-        registry::register_pool_by_admin(
+        registry::register_pool_as_owner(
+            &owner_cap,
             &mut ref,
-            state_object::create_ccip_admin_proof_for_test(vector[], true),
             @0xABC2, // coin_metadata_address #2
             @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA, // duplicate package id
             string::utf8(b"dup_pool_2"),
@@ -324,6 +325,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
         ts::return_shared(ref);
     };
 
+    scenario.return_to_sender(owner_cap);
     ts::end(scenario);
 }
 

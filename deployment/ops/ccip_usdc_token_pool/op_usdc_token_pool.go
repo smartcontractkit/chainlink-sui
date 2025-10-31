@@ -38,14 +38,13 @@ var initUSDCTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.InitializeByCcipAdmin(
+	tx, err := contract.Initialize(
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.OwnerCapObjectId},
-		bind.Object{Id: input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.CCIPAdminProofObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
+		input.LocalDomainIdentifier,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[USDCTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute USDC token pool initialization: %w", err)

@@ -100,9 +100,7 @@ public fun type_and_version(): String {
 /// This is because CCIP does not have access to the `TreasuryCap` for USDC.
 public fun initialize<T: drop>(
     owner_cap: &mut OwnerCap,
-    ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>, // this can be provided as an address or in Move.toml
-    token_pool_administrator: address,
     local_domain_identifier: u32,
     ctx: &mut TxContext,
 ) {
@@ -123,42 +121,6 @@ public fun initialize<T: drop>(
         local_domain_identifier,
         ownable_state,
     };
-
-    let token_type = type_name::with_defining_ids<T>();
-    let proof_type = type_name::with_defining_ids<TypeProof>();
-    let token_pool_state_address = object::id_address(&usdc_token_pool);
-    let publisher_wrapper = publisher_wrapper::create(
-        ownable::borrow_publisher(owner_cap),
-        TypeProof {},
-    );
-    
-    token_admin_registry::register_pool(
-        ref,
-        coin_metadata_address,
-        token_pool_package_id,
-        string::utf8(b"usdc_token_pool"),
-        token_type.into_string(),
-        token_pool_administrator,
-        proof_type.into_string(),
-        // these addresses match the lock_or_burn and release_or_mint functions' last 6 arguments, excluding the ctx
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            token_pool_state_address,
-            @token_messenger_minter_state,
-            @message_transmitter_state,
-            @treasury,
-        ],
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            token_pool_state_address,
-            @token_messenger_minter_state,
-            @message_transmitter_state,
-            @treasury,
-        ],
-        ctx,
-    );
 
     transfer::share_object(usdc_token_pool);
 }
