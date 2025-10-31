@@ -11,7 +11,6 @@ use ccip::upgrade_registry;
 use lock_release_token_pool::lock_release_token_pool::{Self, LockReleaseTokenPoolState};
 use lock_release_token_pool::ownable::{Self, OwnerCap};
 use sui::coin;
-use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 
 const OWNER: address = @0x123;
@@ -71,8 +70,12 @@ fun setup(): (TestEnv, OwnerCap) {
     // Now take the owner_cap that was created by test_init and initialize the pool
     scenario.next_tx(OWNER);
     let mut owner_cap_for_init = ts::take_from_sender<OwnerCap>(&scenario);
-    let coin_metadata = ts::take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>>(&scenario);
-    let treasury_cap = ts::take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>>(&scenario);
+    let coin_metadata = ts::take_immutable<
+        coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>,
+    >(&scenario);
+    let treasury_cap = ts::take_from_sender<
+        coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>,
+    >(&scenario);
 
     lock_release_token_pool::initialize(
         &mut owner_cap_for_init,

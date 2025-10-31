@@ -382,7 +382,7 @@ func RunLnRConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 				RefObjectId:                   s.ccipObjects.CCIPObjectRefObjectId,
 				StateObjectId:                 s.lnrObjects.StateObjectId,
 				OwnerCap:                      s.lnrObjects.OwnerCapObjectId,
-				CoinMetadataAddress:           s.linkObjects.CoinMetadataObjectId,
+				CoinMetadataAddress:           s.lnrTokenObjects.CoinMetadataObjectId,
 			},
 		},
 
