@@ -79,6 +79,7 @@ const ENotAllowed: u64 = 7;
 const EInvalidFunction: u64 = 8;
 const EInvalidOwnerCap: u64 = 9;
 const ETokenPoolPackageIdAlreadyRegistered: u64 = 10;
+const ETokenPoolPackageIdNotRegistered: u64 = 11;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.0")
@@ -462,7 +463,7 @@ fun unregister_pool_internal(
     let token_config = state.token_configs.remove(coin_metadata_address);
 
     assert!(
-        token_config.administrator == caller || token_config.pending_administrator == mcms_registry::get_multisig_address(),
+        token_config.administrator == caller || token_config.administrator == mcms_registry::get_multisig_address(),
         ENotAllowed,
     );
 
@@ -520,7 +521,10 @@ fun set_pool_internal(
 
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
 
-    assert!(token_config.administrator == caller, ENotAllowed);
+    assert!(
+        token_config.administrator == caller || token_config.administrator == mcms_registry::get_multisig_address(),
+        ENotAllowed,
+    );
 
     // TODO: sort out the UX here
     // the token pool changes, the package id, state address, module, and type proof will change.
@@ -534,15 +538,17 @@ fun set_pool_internal(
 
         // Update the package ID mapping
         // First remove the old mapping
+        assert!(
+            state.token_pool_package_id_to_coin_metadata.contains(previous_pool_package_id),
+            ETokenPoolPackageIdNotRegistered,
+        );
         state.token_pool_package_id_to_coin_metadata.remove(previous_pool_package_id);
 
         // Then update or add the new mapping
-        if (state.token_pool_package_id_to_coin_metadata.contains(token_pool_package_id)) {
-            // If the new package ID already exists, remove and re-add it
-            let _old_coin_address = state
-                .token_pool_package_id_to_coin_metadata
-                .remove(token_pool_package_id);
-        };
+        assert!(
+            !state.token_pool_package_id_to_coin_metadata.contains(token_pool_package_id),
+            ETokenPoolPackageIdAlreadyRegistered,
+        );
         state
             .token_pool_package_id_to_coin_metadata
             .push_back(token_pool_package_id, coin_metadata_address);
@@ -810,6 +816,7 @@ public fun mcms_accept_admin_role(
 #[test_only]
 public fun insert_token_configs_for_test<TypeProof: drop>(
     ref: &mut CCIPObjectRef,
+    administrator: address,
     coin_metadata_addresses: vector<address>,
     _proof: TypeProof,
 ) {
@@ -820,7 +827,7 @@ public fun insert_token_configs_for_test<TypeProof: drop>(
             token_pool_package_id: @0x0,
             token_pool_module: string::utf8(b"TestModule"),
             token_type: ascii::string(b"TestType"),
-            administrator: @0x0,
+            administrator,
             pending_administrator: @0x0,
             token_pool_type_proof: ascii::string(b"TestProof"),
             lock_or_burn_params: vector[],
