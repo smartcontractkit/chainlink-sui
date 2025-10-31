@@ -6,6 +6,7 @@ module managed_token_pool::managed_token_pool;
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
+use ccip::publisher_wrapper::{Self};
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use managed_token::managed_token::{Self, TokenState, MintCap};
@@ -87,6 +88,10 @@ public fun initialize_with_managed_token<T>(
         mint_cap,
         ctx,
     );
+    let publisher_wrapper = publisher_wrapper::create(
+        ownable::borrow_publisher(owner_cap),
+        TypeProof {},
+    );
 
     // Register the pool with the token admin registry
     token_admin_registry::register_pool(
@@ -106,6 +111,7 @@ public fun initialize_with_managed_token<T>(
             object::id_to_address(&object::id(managed_token_state)),
             managed_token_pool_state_address,
         ],
+        publisher_wrapper,
         TypeProof {},
     );
 }
