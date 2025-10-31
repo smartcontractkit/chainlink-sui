@@ -65,16 +65,15 @@ var DeployAndInitUSDCTokenPoolSequence = cld_ops.NewSequence(
 			deps,
 			USDCTokenPoolInitializeInput{
 				USDCTokenPoolPackageId: deployReport.Output.PackageId,
+				OwnerCapObjectId:       deployReport.Output.Objects.OwnerCapObjectId,
 				CCIPObjectRefObjectId:  input.CCIPObjectRefObjectId,
 				CCIPAdminProofObjectId: input.CCIPAdminProofObjectId,
 				CoinObjectTypeArg:      input.CoinObjectTypeArg,
 				StateObjectId:          input.CCIPObjectRefObjectId,
-				OwnerCapObjectId:       input.CCIPAdminProofObjectId,
 				CoinMetadataObjectId:   input.CoinMetadataObjectId,
 				LocalDomainIdentifier:  input.LocalDomainIdentifier,
 				TokenPoolPackageId:     input.TokenPoolPackageId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
-				PublisherObjectId:      deployReport.Output.Objects.PublisherObjectId,
 			},
 		)
 		if err != nil {
@@ -90,7 +89,7 @@ var DeployAndInitUSDCTokenPoolSequence = cld_ops.NewSequence(
 				USDCTokenPoolPackageId:  deployReport.Output.PackageId,
 				CoinObjectTypeArg:       input.CoinObjectTypeArg,
 				StateObjectId:           initReport.Output.Objects.StateObjectId,
-				OwnerCap:                initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCap:                deployReport.Output.Objects.OwnerCapObjectId,
 				RemoteChainSelectors:    input.RemoteChainSelectors,
 				RemoteDomainIdentifiers: input.RemoteDomainIdentifiers,
 				AllowedRemoteCallers:    input.AllowedRemoteCallers,
@@ -110,7 +109,7 @@ var DeployAndInitUSDCTokenPoolSequence = cld_ops.NewSequence(
 				USDCTokenPoolPackageId:       deployReport.Output.PackageId,
 				CoinObjectTypeArg:            input.CoinObjectTypeArg,
 				StateObjectId:                initReport.Output.Objects.StateObjectId,
-				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCap:                     deployReport.Output.Objects.OwnerCapObjectId,
 				RemoteChainSelectorsToRemove: input.RemoteChainSelectorsToRemove,
 				RemoteChainSelectorsToAdd:    input.RemoteChainSelectorsToAdd,
 				RemotePoolAddressesToAdd:     input.RemotePoolAddressesToAdd,
@@ -130,7 +129,7 @@ var DeployAndInitUSDCTokenPoolSequence = cld_ops.NewSequence(
 				USDCTokenPoolPackageId: deployReport.Output.PackageId,
 				CoinObjectTypeArg:      input.CoinObjectTypeArg,
 				StateObjectId:          initReport.Output.Objects.StateObjectId,
-				OwnerCap:               initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCap:               deployReport.Output.Objects.OwnerCapObjectId,
 				ClockObjectId:          input.ClockObjectId,
 				RemoteChainSelectors:   input.RateLimiterRemoteChainSelectors,
 				OutboundIsEnableds:     input.OutboundIsEnableds,
@@ -148,7 +147,7 @@ var DeployAndInitUSDCTokenPoolSequence = cld_ops.NewSequence(
 		return DeployUSDCTokenPoolOutput{
 			CCIPPackageId: deployReport.Output.PackageId,
 			Objects: DeployUSDCTokenPoolObjects{
-				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:    initReport.Output.Objects.StateObjectId,
 			},
 		}, nil

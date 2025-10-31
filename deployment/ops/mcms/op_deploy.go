@@ -17,7 +17,7 @@ type DeployMCMSObjects struct {
 	McmsMultisigStateObjectId string
 	TimelockObjectId          string
 	// MCMS Deployer
-	McmsDeployerObjectId string
+	McmsDeployerStateObjectId string
 	// MCMS Registry
 	McmsRegistryObjectId string
 	// MCMS Account
@@ -55,7 +55,7 @@ var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyI
 		Objects: DeployMCMSObjects{
 			McmsMultisigStateObjectId:   mcmsObject,
 			TimelockObjectId:            timelockObj,
-			McmsDeployerObjectId:        depState,
+			McmsDeployerStateObjectId:   depState,
 			McmsRegistryObjectId:        reg,
 			McmsAccountStateObjectId:    acc,
 			McmsAccountOwnerCapObjectId: ownCap,

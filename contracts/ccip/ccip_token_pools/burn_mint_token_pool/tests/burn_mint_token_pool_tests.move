@@ -82,26 +82,39 @@ public fun test_initialize_and_basic_functionality() {
             ctx,
         );
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         // Initialize burn mint token pool
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123, // token_pool_administrator
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Test basic getters
         let token_address = burn_mint_token_pool::get_token(&pool_state);
@@ -123,6 +136,7 @@ public fun test_initialize_and_basic_functionality() {
         test_scenario::return_shared(pool_state);
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -147,27 +161,40 @@ public fun test_chain_configuration_management() {
             ctx,
         );
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Test apply_chain_updates - add chains
         burn_mint_token_pool::apply_chain_updates(
@@ -240,6 +267,7 @@ public fun test_chain_configuration_management() {
         test_scenario::return_shared(pool_state);
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -263,25 +291,38 @@ public fun test_allowlist_management() {
             ctx,
         );
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Initially allowlist should be disabled and empty
         let allowlist_enabled = burn_mint_token_pool::get_allowlist_enabled(&pool_state);
@@ -298,6 +339,7 @@ public fun test_allowlist_management() {
         test_scenario::return_shared(pool_state);
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -321,27 +363,40 @@ public fun test_rate_limiter_configuration() {
             ctx,
         );
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
         let mut ctx = tx_context::dummy();
         let clock = clock::create_for_testing(&mut ctx);
 
@@ -398,6 +453,7 @@ public fun test_rate_limiter_configuration() {
         test_scenario::return_shared(pool_state);
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -424,27 +480,40 @@ public fun test_invalid_arguments_rate_limiter_configs() {
             ctx,
         );
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Test with mismatched vector lengths (should fail with EInvalidArguments)
         burn_mint_token_pool::set_chain_rate_limiter_configs(
@@ -465,6 +534,7 @@ public fun test_invalid_arguments_rate_limiter_configs() {
     };
 
     clock.destroy_for_testing();
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -488,25 +558,38 @@ public fun test_comprehensive_allowlist_operations() {
             ctx,
         );
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Initial state: allowlist disabled and empty
         assert!(!burn_mint_token_pool::get_allowlist_enabled(&pool_state));
@@ -526,6 +609,7 @@ public fun test_comprehensive_allowlist_operations() {
         test_scenario::return_shared(pool_state);
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -549,16 +633,30 @@ public fun test_destroy_token_pool() {
             ctx,
         );
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
@@ -566,7 +664,7 @@ public fun test_destroy_token_pool() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         token_admin_registry::unregister_pool(
             &mut ccip_ref,
@@ -612,27 +710,40 @@ public fun test_comprehensive_rate_limiter_operations() {
             ctx,
         );
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // First add chains to configure rate limits for
         burn_mint_token_pool::apply_chain_updates(
@@ -691,6 +802,7 @@ public fun test_comprehensive_rate_limiter_operations() {
     };
 
     clock.destroy_for_testing();
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -714,27 +826,40 @@ public fun test_edge_cases_and_boundary_conditions() {
             ctx,
         );
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Test operations on empty chain configurations
         let supported_chains = burn_mint_token_pool::get_supported_chains(&pool_state);
@@ -823,6 +948,7 @@ public fun test_edge_cases_and_boundary_conditions() {
         test_scenario::return_shared(pool_state);
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -852,28 +978,40 @@ public fun test_lock_or_burn_comprehensive() {
         let test_coin = coin::mint(&mut treasury_cap, 1000, ctx); // Small amount to stay within rate limiter
         transfer::public_transfer(test_coin, @0x456); // Transfer to test user
 
-        burn_mint_token_pool::initialize(
-            &mut ccip_ref,
-            &coin_metadata,
-            treasury_cap, // treasury_cap is moved here
-            @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
-        );
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
 
         transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
+        burn_mint_token_pool::initialize(
+            &mut owner_cap,
+            &mut ccip_ref,
+            &coin_metadata,
+            treasury_cap,
+            @0x123,
+            scenario.ctx(),
+        );
+
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    transfer::public_share_object(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
         let source_transfer_cap = scenario.take_from_sender<onramp_sh::SourceTransferCap>();
         let mut ctx = tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);
@@ -909,7 +1047,6 @@ public fun test_lock_or_burn_comprehensive() {
         transfer::public_transfer(source_transfer_cap, @burn_mint_token_pool);
         transfer::public_transfer(owner_cap, @burn_mint_token_pool);
         test_scenario::return_shared(pool_state);
-        test_scenario::return_shared(ccip_ref);
     };
 
     // Test lock_or_burn operation
@@ -918,7 +1055,6 @@ public fun test_lock_or_burn_comprehensive() {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
         let test_coin = scenario.take_from_sender<coin::Coin<BURN_MINT_TOKEN_POOL_TESTS>>();
         let mut ctx = tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);
@@ -968,9 +1104,9 @@ public fun test_lock_or_burn_comprehensive() {
         clock.destroy_for_testing();
         transfer::public_transfer(source_transfer_cap, @burn_mint_token_pool);
         test_scenario::return_shared(pool_state);
-        test_scenario::return_shared(ccip_ref);
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -998,29 +1134,41 @@ public fun test_release_or_mint_comprehensive() {
 
         let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+        coin_metadata_address
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
-        coin_metadata_address
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    transfer::public_share_object(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
         let dest_transfer_cap = scenario.take_from_sender<offramp_sh::DestTransferCap>();
         let mut ctx = tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);
@@ -1096,7 +1244,6 @@ public fun test_release_or_mint_comprehensive() {
         transfer::public_transfer(dest_transfer_cap, @burn_mint_token_pool);
         transfer::public_transfer(owner_cap, @burn_mint_token_pool);
         test_scenario::return_shared(pool_state);
-        test_scenario::return_shared(ccip_ref);
     };
 
     // Verify the minted coin was transferred to the receiver
@@ -1112,6 +1259,7 @@ public fun test_release_or_mint_comprehensive() {
         transfer::public_transfer(minted_coin, @burn_mint_token_pool);
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -1140,27 +1288,40 @@ public fun test_set_allowlist_enabled() {
             ctx,
         );
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Initially allowlist should be disabled
         assert!(!burn_mint_token_pool::get_allowlist_enabled(&pool_state));
@@ -1181,6 +1342,7 @@ public fun test_set_allowlist_enabled() {
         test_scenario::return_shared(pool_state);
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -1204,27 +1366,40 @@ public fun test_apply_allowlist_updates() {
             ctx,
         );
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Enable allowlist first
         burn_mint_token_pool::set_allowlist_enabled(&mut pool_state, &owner_cap, true);
@@ -1282,6 +1457,7 @@ public fun test_apply_allowlist_updates() {
         test_scenario::return_shared(pool_state);
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
@@ -1308,29 +1484,41 @@ public fun test_set_pool() {
 
         let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+        coin_metadata_address
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         // Initialize normally with burn_mint_token_pool
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
-        coin_metadata_address
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     // Verify initial pool registration with burn_mint_token_pool configuration
     scenario.next_tx(@burn_mint_token_pool);
     {
         let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Verify initial pool registration
         let initial_pool = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
@@ -1359,14 +1547,12 @@ public fun test_set_pool() {
         // Transfer owner_cap to the administrator for the next transaction
         transfer::public_transfer(owner_cap, @0x123);
         test_scenario::return_shared(pool_state);
-        test_scenario::return_shared(ccip_ref);
     };
 
     // Manually update the configuration to a different package ID
     // Must run as the administrator (@0x123) to unregister
     scenario.next_tx(@0x123);
     {
-        let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
         // Use unregister and re-register to change the package ID
         token_admin_registry::unregister_pool(
@@ -1393,14 +1579,11 @@ public fun test_set_pool() {
             different_params,
             scenario.ctx(),
         );
-
-        test_scenario::return_shared(ccip_ref);
     };
 
     // Verify the different configuration
     scenario.next_tx(@0x123);
     {
-        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
         let (
             before_package_id,
@@ -1422,18 +1605,15 @@ public fun test_set_pool() {
         assert!(before_proof == ascii::string(b"0xcafe::different_pool::DifferentTypeProof"));
         assert!(before_lock_params == vector[@0x6, @0xfade]);
         assert!(before_release_params == vector[@0x6, @0xfade]);
-
-        test_scenario::return_shared(ccip_ref);
     };
 
     // Now call set_pool as the administrator to update to the correct burn_mint_token_pool config
     scenario.next_tx(@0x123);
     {
-        let mut pool_state = scenario.take_shared<
+        let pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Get configuration before set_pool
         let (
@@ -1456,7 +1636,7 @@ public fun test_set_pool() {
         // Call set_pool to update to the actual burn_mint_token_pool configuration
         burn_mint_token_pool::set_pool(
             &mut ccip_ref,
-            &mut pool_state,
+            &pool_state,
             &owner_cap,
             coin_metadata_address,
             scenario.ctx(),
@@ -1525,27 +1705,40 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
             ctx,
         );
 
+        // Call test_init to create owner_cap
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+
         burn_mint_token_pool::initialize(
+            &mut owner_cap,
             &mut ccip_ref,
             &coin_metadata,
             treasury_cap,
             @0x123,
-            package::test_claim(BURN_MINT_TOKEN_POOL_TESTS {}, ctx),
-            ctx,
+            scenario.ctx(),
         );
 
-        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut pool_state = scenario.take_shared<
             BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
         >();
-        let owner_cap = scenario.take_from_sender<OwnerCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Test initial state
         assert!(!burn_mint_token_pool::get_allowlist_enabled(&pool_state));
@@ -1593,6 +1786,7 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
         test_scenario::return_shared(pool_state);
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 

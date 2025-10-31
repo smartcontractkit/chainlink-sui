@@ -11,7 +11,7 @@ use sui::address;
 use sui::derived_object;
 use sui::event;
 use sui::package::{Self, UpgradeCap};
-use sui::table::{Self, Table};
+use sui::vec_map::{Self, VecMap};
 
 public struct ROUTER has drop {}
 
@@ -27,7 +27,7 @@ public struct OnRampSet has copy, drop {
 public struct RouterState has key {
     id: UID,
     ownable_state: OwnableState,
-    on_ramp_package_ids: Table<u64, address>, // dest_chain_selector -> on_ramp_package_id
+    on_ramp_package_ids: VecMap<u64, address>, // dest_chain_selector -> on_ramp_package_id
 }
 
 public struct RouterStatePointer has key, store {
@@ -49,7 +49,7 @@ fun init(otw: ROUTER, ctx: &mut TxContext) {
     let router = RouterState {
         id: derived_object::claim(&mut router_object.id, b"RouterState"),
         ownable_state,
-        on_ramp_package_ids: table::new(ctx),
+        on_ramp_package_ids: vec_map::empty(),
     };
 
     let router_state_pointer = RouterStatePointer {
@@ -80,14 +80,18 @@ public fun type_and_version(): String {
 }
 
 public fun is_chain_supported(router: &RouterState, dest_chain_selector: u64): bool {
-    router.on_ramp_package_ids.contains(dest_chain_selector)
+    router.on_ramp_package_ids.contains(&dest_chain_selector)
 }
 
 // Returns the on ramp package id for the given destination chain selector.
 public fun get_on_ramp(router: &RouterState, dest_chain_selector: u64): address {
-    assert!(router.on_ramp_package_ids.contains(dest_chain_selector), EOnrampNotFound);
+    assert!(router.on_ramp_package_ids.contains(&dest_chain_selector), EOnrampNotFound);
 
-    *router.on_ramp_package_ids.borrow(dest_chain_selector)
+    *router.on_ramp_package_ids.get(&dest_chain_selector)
+}
+
+public fun get_dest_chains(router: &RouterState): vector<u64> {
+    router.on_ramp_package_ids.keys()
 }
 
 /// Sets the onramp package ids for the given destination chains.
@@ -116,10 +120,10 @@ public fun set_on_ramps(
         let on_ramp_package_id = on_ramp_package_ids[i];
         assert!(on_ramp_package_id != @0x0, EInvalidOnrampAddress);
 
-        if (router.on_ramp_package_ids.contains(dest_chain_selector)) {
-            router.on_ramp_package_ids.remove(dest_chain_selector);
+        if (router.on_ramp_package_ids.contains(&dest_chain_selector)) {
+            router.on_ramp_package_ids.remove(&dest_chain_selector);
         };
-        router.on_ramp_package_ids.add(dest_chain_selector, on_ramp_package_id);
+        router.on_ramp_package_ids.insert(dest_chain_selector, on_ramp_package_id);
         event::emit(OnRampSet { dest_chain_selector, on_ramp_package_id });
         i = i + 1;
     };
@@ -316,6 +320,7 @@ public fun mcms_transfer_ownership(
 public fun mcms_execute_ownership_transfer(
     state: &mut RouterState,
     registry: &mut Registry,
+    deployer_state: &mut DeployerState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -336,9 +341,20 @@ public fun mcms_execute_ownership_transfer(
     );
 
     let to = bcs_stream::deserialize_address(&mut stream);
+    let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback {}
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }
 

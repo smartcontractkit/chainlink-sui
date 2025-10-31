@@ -90,10 +90,11 @@ var MCMSAcceptOwnershipOp = cld_ops.NewOperation(
 
 type MCMSExecuteTransferOwnershipInput struct {
 	// MCMS related
-	McmsPackageID    string `json:"mcmsPackageID"`
-	OwnerCap         string `json:"ownerCap"`
-	AccountObjectID  string `json:"accountObjectID"`
-	RegistryObjectID string `json:"registryObjectID"`
+	McmsPackageID         string `json:"mcmsPackageID"`
+	OwnerCap              string `json:"ownerCap"`
+	AccountObjectID       string `json:"accountObjectID"`
+	RegistryObjectID      string `json:"registryObjectID"`
+	DeployerStateObjectID string `json:"deployerStateObjectID"`
 }
 
 var executeTransferOwnershipHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input MCMSExecuteTransferOwnershipInput) (output sui_ops.OpTxResult[cld_ops.EmptyInput], err error) {

@@ -19,11 +19,11 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"managed_token_pool","module":"managed_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"destroy_token_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_token","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"initialize_with_managed_token","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"managed_token_state","type":"TokenState<T>"},{"name":"owner_cap","type":"ManagedTokenOwnerCap<T>"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"token_pool_administrator","type":"address"},{"name":"publisher","type":"Publisher"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"deny_list","type":"DenyList"},{"name":"token_state","type":"TokenState<T>"},{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"owner","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"deny_list","type":"DenyList"},{"name":"token_state","type":"TokenState<T>"},{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"enabled","type":"bool"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"set_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"coin_metadata_address","type":"address"},{"name":"managed_token_state","type":"address"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"new_owner","type":"address"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"managed_token_pool","module":"managed_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"destroy_token_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_token","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"initialize_with_managed_token","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"},{"name":"managed_token_state","type":"TokenState<T>"},{"name":"managed_token_owner_cap","type":"ManagedTokenOwnerCap<T>"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"token_pool_administrator","type":"address"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"deny_list","type":"DenyList"},{"name":"token_state","type":"TokenState<T>"},{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"owner","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"deny_list","type":"DenyList"},{"name":"token_state","type":"TokenState<T>"},{"name":"state","type":"ManagedTokenPoolState<T>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"enabled","type":"bool"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"set_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"coin_metadata_address","type":"address"},{"name":"managed_token_state","type":"address"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"ManagedTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"managed_token_pool","module":"managed_token_pool","name":"type_and_version","parameters":null}]`
 
 type IManagedTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	InitializeWithManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolAdministrator string, publisher bind.Object) (*models.SuiTransactionBlockResponse, error)
+	InitializeWithManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, ref bind.Object, managedTokenState bind.Object, managedTokenOwnerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error)
 	SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string, managedTokenState string) (*models.SuiTransactionBlockResponse, error)
 	AddRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error)
 	RemoveRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error)
@@ -65,7 +65,7 @@ type IManagedTokenPool interface {
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IManagedTokenPoolDevInspect
@@ -95,7 +95,7 @@ type IManagedTokenPoolDevInspect interface {
 type ManagedTokenPoolEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	InitializeWithManagedToken(typeArgs []string, ref bind.Object, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolAdministrator string, publisher bind.Object) (*bind.EncodedCall, error)
+	InitializeWithManagedToken(typeArgs []string, ownerCap bind.Object, ref bind.Object, managedTokenState bind.Object, managedTokenOwnerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolAdministrator string) (*bind.EncodedCall, error)
 	InitializeWithManagedTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string, managedTokenState string) (*bind.EncodedCall, error)
 	SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -179,7 +179,7 @@ type ManagedTokenPoolEncoder interface {
 	McmsSetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsTransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsAddAllowedModules(typeArgs []string, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAddAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -233,7 +233,7 @@ type ManagedTokenPoolState struct {
 	Id             string      `move:"sui::object::UID"`
 	TokenPoolState bind.Object `move:"TokenPoolState"`
 	MintCap        bind.Object `move:"MintCap<T>"`
-	OwnableState   bind.Object `move:"OwnableState<T>"`
+	OwnableState   bind.Object `move:"OwnableState"`
 }
 
 type TypeProof struct {
@@ -344,8 +344,8 @@ func (c *ManagedTokenPoolContract) TypeAndVersion(ctx context.Context, opts *bin
 }
 
 // InitializeWithManagedToken executes the initialize_with_managed_token Move function.
-func (c *ManagedTokenPoolContract) InitializeWithManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolAdministrator string, publisher bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenPoolEncoder.InitializeWithManagedToken(typeArgs, ref, managedTokenState, ownerCap, coinMetadata, mintCap, tokenPoolAdministrator, publisher)
+func (c *ManagedTokenPoolContract) InitializeWithManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, ref bind.Object, managedTokenState bind.Object, managedTokenOwnerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenPoolEncoder.InitializeWithManagedToken(typeArgs, ownerCap, ref, managedTokenState, managedTokenOwnerCap, coinMetadata, mintCap, tokenPoolAdministrator)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -764,8 +764,8 @@ func (c *ManagedTokenPoolContract) McmsTransferOwnership(ctx context.Context, op
 }
 
 // McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
-func (c *ManagedTokenPoolContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenPoolEncoder.McmsExecuteOwnershipTransfer(typeArgs, state, registry, params)
+func (c *ManagedTokenPoolContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenPoolEncoder.McmsExecuteOwnershipTransfer(typeArgs, state, registry, deployerState, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1170,27 +1170,27 @@ func (c managedTokenPoolEncoder) TypeAndVersionWithArgs(args ...any) (*bind.Enco
 }
 
 // InitializeWithManagedToken encodes a call to the initialize_with_managed_token Move function.
-func (c managedTokenPoolEncoder) InitializeWithManagedToken(typeArgs []string, ref bind.Object, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolAdministrator string, publisher bind.Object) (*bind.EncodedCall, error) {
+func (c managedTokenPoolEncoder) InitializeWithManagedToken(typeArgs []string, ownerCap bind.Object, ref bind.Object, managedTokenState bind.Object, managedTokenOwnerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolAdministrator string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("initialize_with_managed_token", typeArgsList, typeParamsList, []string{
+		"&mut OwnerCap",
 		"&mut CCIPObjectRef",
 		"&TokenState<T>",
 		"&ManagedTokenOwnerCap<T>",
 		"&CoinMetadata<T>",
 		"MintCap<T>",
 		"address",
-		"Publisher",
 	}, []any{
+		ownerCap,
 		ref,
 		managedTokenState,
-		ownerCap,
+		managedTokenOwnerCap,
 		coinMetadata,
 		mintCap,
 		tokenPoolAdministrator,
-		publisher,
 	}, nil)
 }
 
@@ -1198,13 +1198,13 @@ func (c managedTokenPoolEncoder) InitializeWithManagedToken(typeArgs []string, r
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c managedTokenPoolEncoder) InitializeWithManagedTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&mut OwnerCap",
 		"&mut CCIPObjectRef",
 		"&TokenState<T>",
 		"&ManagedTokenOwnerCap<T>",
 		"&CoinMetadata<T>",
 		"MintCap<T>",
 		"address",
-		"Publisher",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1226,7 +1226,7 @@ func (c managedTokenPoolEncoder) SetPool(typeArgs []string, ref bind.Object, sta
 	return c.EncodeCallArgsWithGenerics("set_pool", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
 		"&ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"address",
 		"address",
 	}, []any{
@@ -1244,7 +1244,7 @@ func (c managedTokenPoolEncoder) SetPoolWithArgs(typeArgs []string, args ...any)
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
 		"&ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"address",
 		"address",
 	}
@@ -1267,7 +1267,7 @@ func (c managedTokenPoolEncoder) AddRemotePool(typeArgs []string, state bind.Obj
 	}
 	return c.EncodeCallArgsWithGenerics("add_remote_pool", typeArgsList, typeParamsList, []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"u64",
 		"vector<u8>",
 	}, []any{
@@ -1283,7 +1283,7 @@ func (c managedTokenPoolEncoder) AddRemotePool(typeArgs []string, state bind.Obj
 func (c managedTokenPoolEncoder) AddRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"u64",
 		"vector<u8>",
 	}
@@ -1306,7 +1306,7 @@ func (c managedTokenPoolEncoder) RemoveRemotePool(typeArgs []string, state bind.
 	}
 	return c.EncodeCallArgsWithGenerics("remove_remote_pool", typeArgsList, typeParamsList, []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"u64",
 		"vector<u8>",
 	}, []any{
@@ -1322,7 +1322,7 @@ func (c managedTokenPoolEncoder) RemoveRemotePool(typeArgs []string, state bind.
 func (c managedTokenPoolEncoder) RemoveRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"u64",
 		"vector<u8>",
 	}
@@ -1416,7 +1416,7 @@ func (c managedTokenPoolEncoder) ApplyChainUpdates(typeArgs []string, state bind
 	}
 	return c.EncodeCallArgsWithGenerics("apply_chain_updates", typeArgsList, typeParamsList, []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"vector<u64>",
 		"vector<u64>",
 		"vector<vector<vector<u8>>>",
@@ -1436,7 +1436,7 @@ func (c managedTokenPoolEncoder) ApplyChainUpdates(typeArgs []string, state bind
 func (c managedTokenPoolEncoder) ApplyChainUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"vector<u64>",
 		"vector<u64>",
 		"vector<vector<vector<u8>>>",
@@ -1529,7 +1529,7 @@ func (c managedTokenPoolEncoder) SetAllowlistEnabled(typeArgs []string, state bi
 	}
 	return c.EncodeCallArgsWithGenerics("set_allowlist_enabled", typeArgsList, typeParamsList, []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"bool",
 	}, []any{
 		state,
@@ -1543,7 +1543,7 @@ func (c managedTokenPoolEncoder) SetAllowlistEnabled(typeArgs []string, state bi
 func (c managedTokenPoolEncoder) SetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"bool",
 	}
 
@@ -1565,7 +1565,7 @@ func (c managedTokenPoolEncoder) ApplyAllowlistUpdates(typeArgs []string, state 
 	}
 	return c.EncodeCallArgsWithGenerics("apply_allowlist_updates", typeArgsList, typeParamsList, []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"vector<address>",
 		"vector<address>",
 	}, []any{
@@ -1581,7 +1581,7 @@ func (c managedTokenPoolEncoder) ApplyAllowlistUpdates(typeArgs []string, state 
 func (c managedTokenPoolEncoder) ApplyAllowlistUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"vector<address>",
 		"vector<address>",
 	}
@@ -1882,7 +1882,7 @@ func (c managedTokenPoolEncoder) SetChainRateLimiterConfigs(typeArgs []string, s
 	}
 	return c.EncodeCallArgsWithGenerics("set_chain_rate_limiter_configs", typeArgsList, typeParamsList, []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"&Clock",
 		"vector<u64>",
 		"vector<bool>",
@@ -1910,7 +1910,7 @@ func (c managedTokenPoolEncoder) SetChainRateLimiterConfigs(typeArgs []string, s
 func (c managedTokenPoolEncoder) SetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"&Clock",
 		"vector<u64>",
 		"vector<bool>",
@@ -1939,7 +1939,7 @@ func (c managedTokenPoolEncoder) SetChainRateLimiterConfig(typeArgs []string, st
 	}
 	return c.EncodeCallArgsWithGenerics("set_chain_rate_limiter_config", typeArgsList, typeParamsList, []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"&Clock",
 		"u64",
 		"bool",
@@ -1967,7 +1967,7 @@ func (c managedTokenPoolEncoder) SetChainRateLimiterConfig(typeArgs []string, st
 func (c managedTokenPoolEncoder) SetChainRateLimiterConfigWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"&Clock",
 		"u64",
 		"bool",
@@ -2166,7 +2166,7 @@ func (c managedTokenPoolEncoder) TransferOwnership(typeArgs []string, state bind
 	}
 	return c.EncodeCallArgsWithGenerics("transfer_ownership", typeArgsList, typeParamsList, []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"address",
 	}, []any{
 		state,
@@ -2180,7 +2180,7 @@ func (c managedTokenPoolEncoder) TransferOwnership(typeArgs []string, state bind
 func (c managedTokenPoolEncoder) TransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut ManagedTokenPoolState<T>",
-		"&OwnerCap<T>",
+		"&OwnerCap",
 		"address",
 	}
 
@@ -2300,7 +2300,7 @@ func (c managedTokenPoolEncoder) ExecuteOwnershipTransfer(typeArgs []string, own
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
-		"OwnerCap<T>",
+		"OwnerCap",
 		"&mut ManagedTokenPoolState<T>",
 		"address",
 	}, []any{
@@ -2314,7 +2314,7 @@ func (c managedTokenPoolEncoder) ExecuteOwnershipTransfer(typeArgs []string, own
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c managedTokenPoolEncoder) ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"OwnerCap<T>",
+		"OwnerCap",
 		"&mut ManagedTokenPoolState<T>",
 		"address",
 	}
@@ -2336,7 +2336,7 @@ func (c managedTokenPoolEncoder) ExecuteOwnershipTransferToMcms(typeArgs []strin
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, []string{
-		"OwnerCap<T>",
+		"OwnerCap",
 		"&mut ManagedTokenPoolState<T>",
 		"&mut Registry",
 		"address",
@@ -2352,7 +2352,7 @@ func (c managedTokenPoolEncoder) ExecuteOwnershipTransferToMcms(typeArgs []strin
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c managedTokenPoolEncoder) ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"OwnerCap<T>",
+		"OwnerCap",
 		"&mut ManagedTokenPoolState<T>",
 		"&mut Registry",
 		"address",
@@ -2667,7 +2667,7 @@ func (c managedTokenPoolEncoder) DestroyTokenPool(typeArgs []string, ref bind.Ob
 	return c.EncodeCallArgsWithGenerics("destroy_token_pool", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
 		"ManagedTokenPoolState<T>",
-		"OwnerCap<T>",
+		"OwnerCap",
 	}, []any{
 		ref,
 		state,
@@ -2683,7 +2683,7 @@ func (c managedTokenPoolEncoder) DestroyTokenPoolWithArgs(typeArgs []string, arg
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
 		"ManagedTokenPoolState<T>",
-		"OwnerCap<T>",
+		"OwnerCap",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2774,7 +2774,7 @@ func (c managedTokenPoolEncoder) McmsTransferOwnershipWithArgs(typeArgs []string
 }
 
 // McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.
-func (c managedTokenPoolEncoder) McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c managedTokenPoolEncoder) McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2782,10 +2782,12 @@ func (c managedTokenPoolEncoder) McmsExecuteOwnershipTransfer(typeArgs []string,
 	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, []string{
 		"&mut ManagedTokenPoolState<T>",
 		"&mut Registry",
+		"&mut DeployerState",
 		"ExecutingCallbackParams",
 	}, []any{
 		state,
 		registry,
+		deployerState,
 		params,
 	}, nil)
 }
@@ -2796,6 +2798,7 @@ func (c managedTokenPoolEncoder) McmsExecuteOwnershipTransferWithArgs(typeArgs [
 	expectedParams := []string{
 		"&mut ManagedTokenPoolState<T>",
 		"&mut Registry",
+		"&mut DeployerState",
 		"ExecutingCallbackParams",
 	}
 
