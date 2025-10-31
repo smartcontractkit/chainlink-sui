@@ -3,7 +3,7 @@ module usdc_token_pool::usdc_token_pool;
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
-use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
@@ -86,6 +86,9 @@ const ENonceMismatch: u64 = 8;
 const EDomainNotFound: u64 = 9;
 const EDomainDisabled: u64 = 10;
 const ETokenAmountOverflow: u64 = 11;
+const EInvalidMintRecipient: u64 = 12;
+const EInvalidFunction: u64 = 13;
+const EPoolStillRegistered: u64 = 14;
 
 // ================================================================
 // |                             Init                             |
@@ -104,7 +107,7 @@ public fun initialize<T: drop>(
     local_domain_identifier: u32,
     ctx: &mut TxContext,
 ) {
-    let coin_metadata_address = object::id_address(&coin_metadata);
+    let coin_metadata_address = object::id_address(coin_metadata);
     assert!(coin_metadata_address == @usdc_coin_metadata_object_id, EInvalidCoinMetadata);
 
     let ownable_state = ownable::detach_ownable_state(owner_cap);
@@ -386,7 +389,7 @@ public fun release_or_mint<T: drop>(
     ctx: &mut TxContext,
 ) {
     let (
-        receiver,
+        token_receiver,
         remote_chain_selector,
         _,
         dest_token_address,
@@ -438,6 +441,8 @@ public fun release_or_mint<T: drop>(
     // Complete the message and destroy the StampedReceipt
     receive_message::complete_receive_message(stamped_receipt, message_transmitter_state);
 
+    let mint_recipient = burn_message::mint_recipient(&burn_message);
+    assert!(mint_recipient == token_receiver, EInvalidMintRecipient);
     let local_amount = burn_message::amount(&burn_message);
     let mut amount_op = local_amount.try_as_u64();
     assert!(amount_op.is_some(), ETokenAmountOverflow);
@@ -455,7 +460,7 @@ public fun release_or_mint<T: drop>(
 
     token_pool::emit_released_or_minted(
         &pool.token_pool_state,
-        receiver,
+        token_receiver,
         amount,
         remote_chain_selector,
     );
@@ -541,6 +546,7 @@ public fun set_domains<T>(
         assert!(remote_chain_selector != 0, EZeroChainSelector);
 
         assert!(allowed_caller.length() != 0, EEmptyAllowedCaller);
+        ccip::address::assert_non_zero_address_vector(&allowed_caller);
 
         if (pool.chain_to_domain.contains(remote_chain_selector)) {
             pool.chain_to_domain.remove(remote_chain_selector);
