@@ -1,12 +1,17 @@
 module managed_token_faucet::faucet;
 
 use managed_token::managed_token::{Self, MintCap, TokenState};
+use std::string::{Self, String};
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
 
 public struct FaucetState<phantom T> has key, store {
     id: UID,
     mint_cap: MintCap<T>,
+}
+
+public fun type_and_version(): String {
+    string::utf8(b"ManagedTokenFaucet 1.6.0")
 }
 
 public fun initialize<T>(mint_cap: MintCap<T>, ctx: &mut TxContext) {
