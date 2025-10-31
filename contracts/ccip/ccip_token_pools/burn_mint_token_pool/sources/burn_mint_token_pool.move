@@ -10,6 +10,7 @@ use burn_mint_token_pool::token_pool::{Self, TokenPoolState};
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
+use ccip::publisher_wrapper::{Self};
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use mcms::bcs_stream;
@@ -70,6 +71,10 @@ public fun initialize<T>(
         treasury_cap,
         ctx,
     );
+    let publisher_wrapper = publisher_wrapper::create(
+        ownable::borrow_publisher(owner_cap),
+        TypeProof {},
+    );
 
     token_admin_registry::register_pool(
         ref,
@@ -78,6 +83,7 @@ public fun initialize<T>(
         token_pool_administrator,
         vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
         vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
+        publisher_wrapper,
         TypeProof {},
     );
 

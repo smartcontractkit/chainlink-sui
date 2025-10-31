@@ -1345,8 +1345,6 @@ public fun test_set_pool() {
         test_scenario::return_immutable(coin_metadata);
     };
 
-    transfer::public_transfer(ccip_owner_cap, @0x0);
-
     // Verify initial pool registration with managed_token_pool configuration
     scenario.next_tx(TOKEN_ADMIN);
     {
@@ -1391,15 +1389,19 @@ public fun test_set_pool() {
             coin_metadata_address,
             scenario.ctx(),
         );
+    };
 
+    // Register with a different package ID using CCIP owner
+    scenario.next_tx(TOKEN_ADMIN);
+    {
         // Register with a different package ID using CCIP admin
         let different_package_id = @0xcafe;
         let different_type_proof = ascii::string(b"0xcafe::different_pool::DifferentTypeProof");
         let different_params = vector[@0x6, @0x403, @0xfade, @0xbeef];
 
-        token_admin_registry::register_pool_by_admin(
+        token_admin_registry::register_pool_as_owner(
+            &ccip_owner_cap,
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(vector[], true),
             coin_metadata_address,
             different_package_id,
             string::utf8(b"different_pool"),
@@ -1510,6 +1512,7 @@ public fun test_set_pool() {
         test_scenario::return_shared(pool_state);
     };
 
+    transfer::public_transfer(ccip_owner_cap, @0x0);
     test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }

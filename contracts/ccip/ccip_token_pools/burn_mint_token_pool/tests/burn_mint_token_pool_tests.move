@@ -1308,9 +1308,6 @@ public fun test_release_or_mint_comprehensive() {
 
 // === Additional Function Tests ===
 
-// Note: The initialize function (with treasury cap) is tested implicitly
-// in all other tests that use initialize_by_ccip_admin
-
 #[test]
 public fun test_set_allowlist_enabled() {
     let mut scenario = test_scenario::begin(@burn_mint_token_pool);
@@ -1567,7 +1564,8 @@ public fun test_set_pool() {
         test_scenario::return_immutable(coin_metadata);
     };
 
-    transfer::public_transfer(ccip_owner_cap, @0x0);
+    // Keep ccip_owner_cap for later use
+    transfer::public_transfer(ccip_owner_cap, @burn_mint_token_pool);
 
     // Verify initial pool registration with burn_mint_token_pool configuration
     scenario.next_tx(@burn_mint_token_pool);
@@ -1614,15 +1612,21 @@ public fun test_set_pool() {
             coin_metadata_address,
             scenario.ctx(),
         );
+    };
+
+    // Register with a different package ID using CCIP owner
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let ccip_owner_cap = scenario.take_from_sender<ccip::ownable::OwnerCap>();
 
         // Register with a different package ID using CCIP admin
         let different_package_id = @0xcafe;
         let different_type_proof = ascii::string(b"0xcafe::different_pool::DifferentTypeProof");
         let different_params = vector[@0x6, @0xfade];
 
-        token_admin_registry::register_pool_by_admin(
+        token_admin_registry::register_pool_as_owner(
+            &ccip_owner_cap,
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(vector[], true),
             coin_metadata_address,
             different_package_id,
             string::utf8(b"different_pool"),
@@ -1633,6 +1637,8 @@ public fun test_set_pool() {
             different_params,
             scenario.ctx(),
         );
+
+        scenario.return_to_sender(ccip_owner_cap);
     };
 
     // Verify the different configuration
