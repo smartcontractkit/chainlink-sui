@@ -37,6 +37,10 @@ func BuildSQLCondition(expr query.Expression, args *[]any, argCount *int) (strin
 			return "(" + strings.Join(conditions, " AND ") + ")", nil
 
 		case *primitives.Timestamp:
+
+			// Detect and normalize millisecond timestamps if there is any.
+			// Sui use ms since epoch, while DB expects seconds.
+			// Using 9_999_999_999 (~year 2286) as a cutoff: anything larger is clearly ms.
 			ts := v.Timestamp
 
 			if ts > 9999999999 {
