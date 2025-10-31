@@ -80,6 +80,7 @@ const ENotAllowed: u64 = 7;
 const EInvalidFunction: u64 = 8;
 const EInvalidOwnerCap: u64 = 9;
 const ETokenPoolPackageIdAlreadyRegistered: u64 = 10;
+const ETokenPoolPackageIdNotRegistered: u64 = 11;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.0")
@@ -168,6 +169,22 @@ public fun get_token_config_struct(
             lock_or_burn_params: vector[],
             release_or_mint_params: vector[],
         }
+    }
+}
+
+public fun get_pool_local_token(ref: &CCIPObjectRef, token_pool_package_id: address): address {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"get_pool_local_token"),
+        VERSION,
+    );
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
+
+    if (state.token_pool_package_id_to_coin_metadata.contains(token_pool_package_id)) {
+        *state.token_pool_package_id_to_coin_metadata.borrow(token_pool_package_id)
+    } else {
+        @0x0
     }
 }
 
@@ -447,9 +464,19 @@ fun unregister_pool_internal(
 
     let token_config = state.token_configs.remove(coin_metadata_address);
 
-    assert!(token_config.administrator == caller, ENotAllowed);
+    assert!(
+        token_config.administrator == caller || token_config.administrator == mcms_registry::get_multisig_address(),
+        ENotAllowed,
+    );
 
     let previous_pool_address = token_config.token_pool_package_id;
+
+    // Remove mapping from package id -> coin metadata to avoid stale entries
+    assert!(
+        state.token_pool_package_id_to_coin_metadata.contains(previous_pool_address),
+        ETokenPoolPackageIdNotRegistered,
+    );
+    state.token_pool_package_id_to_coin_metadata.remove(previous_pool_address);
 
     event::emit(PoolUnregistered {
         coin_metadata_address,
@@ -503,7 +530,10 @@ fun set_pool_internal(
 
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
 
-    assert!(token_config.administrator == caller, ENotAllowed);
+    assert!(
+        token_config.administrator == caller || token_config.administrator == mcms_registry::get_multisig_address(),
+        ENotAllowed,
+    );
 
     // TODO: sort out the UX here
     // the token pool changes, the package id, state address, module, and type proof will change.
@@ -514,6 +544,23 @@ fun set_pool_internal(
         token_config.lock_or_burn_params = lock_or_burn_params;
         token_config.release_or_mint_params = release_or_mint_params;
         token_config.token_pool_type_proof = token_pool_type_proof;
+
+        // Update the package ID mapping
+        // First remove the old mapping
+        assert!(
+            state.token_pool_package_id_to_coin_metadata.contains(previous_pool_package_id),
+            ETokenPoolPackageIdNotRegistered,
+        );
+        state.token_pool_package_id_to_coin_metadata.remove(previous_pool_package_id);
+
+        // Then update or add the new mapping
+        assert!(
+            !state.token_pool_package_id_to_coin_metadata.contains(token_pool_package_id),
+            ETokenPoolPackageIdAlreadyRegistered,
+        );
+        state
+            .token_pool_package_id_to_coin_metadata
+            .push_back(token_pool_package_id, coin_metadata_address);
 
         event::emit(PoolSet {
             coin_metadata_address,
@@ -837,6 +884,7 @@ public fun mcms_accept_admin_role(
 #[test_only]
 public fun insert_token_configs_for_test<TypeProof: drop>(
     ref: &mut CCIPObjectRef,
+    administrator: address,
     coin_metadata_addresses: vector<address>,
     _proof: TypeProof,
 ) {
@@ -847,7 +895,7 @@ public fun insert_token_configs_for_test<TypeProof: drop>(
             token_pool_package_id: @0x0,
             token_pool_module: string::utf8(b"TestModule"),
             token_type: ascii::string(b"TestType"),
-            administrator: @0x0,
+            administrator,
             pending_administrator: @0x0,
             token_pool_type_proof: ascii::string(b"TestProof"),
             lock_or_burn_params: vector[],

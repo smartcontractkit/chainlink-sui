@@ -266,6 +266,103 @@ public fun test_get_pool() {
 }
 
 #[test]
+#[expected_failure(abort_code = registry::ETokenPoolPackageIdAlreadyRegistered)]
+public fun test_register_pool_duplicate_package_id_fails() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    // First registration with a specific package ID
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let ctx = scenario.ctx();
+
+        registry::register_pool_by_admin(
+            &mut ref,
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
+            @0xABC1, // coin_metadata_address #1
+            @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+            string::utf8(b"dup_pool"),
+            ascii::string(b"TypeOne"),
+            TOKEN_ADMIN_ADDRESS,
+            ascii::string(b"ProofOne"),
+            vector[@0x6, @0x1111],
+            vector[@0x6, @0x2222],
+            ctx,
+        );
+
+        // Sanity: mapping from package -> coin metadata should be set
+        let mapped = registry::get_pool_local_token(
+            &ref,
+            @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+        );
+        assert!(mapped == @0xABC1);
+
+        ts::return_shared(ref);
+    };
+
+    // Second registration with the SAME package ID should fail
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let ctx = scenario.ctx();
+
+        registry::register_pool_by_admin(
+            &mut ref,
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
+            @0xABC2, // coin_metadata_address #2
+            @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA, // duplicate package id
+            string::utf8(b"dup_pool_2"),
+            ascii::string(b"TypeTwo"),
+            TOKEN_ADMIN_ADDRESS,
+            ascii::string(b"ProofTwo"),
+            vector[@0x6, @0x3333],
+            vector[@0x6, @0x4444],
+            ctx,
+        );
+
+        ts::return_shared(ref);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::ETokenPoolPackageIdNotRegistered)]
+public fun test_set_pool_previous_package_not_in_mapping_fails() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    // Insert a token config that does NOT populate the package-id-to-coin mapping
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+
+        registry::insert_token_configs_for_test(
+            &mut ref,
+            TOKEN_ADMIN_ADDRESS,
+            vector[@0xBEEF],
+            TypeProof {},
+        );
+
+        // Attempt to set a new pool. Since previous_pool_package_id (@0x0) is not in the mapping,
+        // this should fail with ETokenPoolPackageIdNotRegistered.
+        registry::set_pool(
+            &mut ref,
+            @0xBEEF,
+            vector[@0x6, @0x5555],
+            vector[@0x6, @0x6666],
+            TypeProof {},
+            TOKEN_ADMIN_ADDRESS,
+        );
+
+        ts::return_shared(ref);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
 #[allow(implicit_const_copy)]
 public fun test_mcms_register_pool() {
     let mut scenario = create_test_scenario(CCIP_ADMIN);
@@ -503,7 +600,12 @@ public fun test_get_all_configured_tokens() {
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
 
-        registry::insert_token_configs_for_test(&mut ref, vector[@0x1, @0x2, @0x3], TypeProof {});
+        registry::insert_token_configs_for_test(
+            &mut ref,
+            TOKEN_ADMIN_ADDRESS,
+            vector[@0x1, @0x2, @0x3],
+            TypeProof {},
+        );
 
         // Test with max_count = 0
         let (res, next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x0, 0);
@@ -540,14 +642,24 @@ public fun test_get_all_configured_tokens_edge_cases() {
         assert!(!has_more);
 
         // Test case 2: Single token
-        registry::insert_token_configs_for_test(&mut ref, vector[@0x1], TypeProof {});
+        registry::insert_token_configs_for_test(
+            &mut ref,
+            TOKEN_ADMIN_ADDRESS,
+            vector[@0x1],
+            TypeProof {},
+        );
         let (res, _next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x0, 1);
         assert!(res.length() == 1);
         assert!(res[0] == @0x1);
         assert!(!has_more);
 
         // Test case 3: Start from middle
-        registry::insert_token_configs_for_test(&mut ref, vector[@0x2, @0x3], TypeProof {});
+        registry::insert_token_configs_for_test(
+            &mut ref,
+            TOKEN_ADMIN_ADDRESS,
+            vector[@0x2, @0x3],
+            TypeProof {},
+        );
         let (res, _next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x1, 2);
         assert!(res.length() == 2);
         assert!(res[0] == @0x2);
@@ -579,6 +691,7 @@ public fun test_get_all_configured_tokens_pagination() {
 
         registry::insert_token_configs_for_test(
             &mut ref,
+            TOKEN_ADMIN_ADDRESS,
             vector[@0x1, @0x2, @0x3, @0x4, @0x5],
             TypeProof {},
         );
@@ -813,7 +926,12 @@ public fun test_get_all_configured_tokens_non_existent() {
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
 
-        registry::insert_token_configs_for_test(&mut ref, vector[@0x1, @0x2, @0x3], TypeProof {});
+        registry::insert_token_configs_for_test(
+            &mut ref,
+            TOKEN_ADMIN_ADDRESS,
+            vector[@0x1, @0x2, @0x3],
+            TypeProof {},
+        );
 
         // Test starting from key between existing tokens
         let (res, _next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x1, 1);

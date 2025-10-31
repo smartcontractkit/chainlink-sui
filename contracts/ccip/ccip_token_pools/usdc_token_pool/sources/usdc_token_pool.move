@@ -20,13 +20,14 @@ use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
 use sui::event;
-use sui::package::{Self, Publisher, UpgradeCap};
+use sui::package::{Self, UpgradeCap};
 use sui::table::{Self, Table};
 use token_messenger_minter::burn_message;
 use token_messenger_minter::deposit_for_burn::{Self, DepositForBurnWithCallerTicket};
 use token_messenger_minter::handle_receive_message;
 use token_messenger_minter::state::State as MinterState;
 use usdc_token_pool::ownable::{Self, OwnerCap, OwnableState};
+use usdc_token_pool::rate_limiter;
 use usdc_token_pool::token_pool::{Self, TokenPoolState};
 
 public struct USDC_TOKEN_POOL has drop {}
@@ -114,6 +115,7 @@ public fun initialize<T: drop>(
         token_pool_state: token_pool::initialize(
             coin_metadata_address,
             coin_metadata.get_decimals(),
+            coin_metadata.get_symbol(),
             vector[],
             ctx,
         ),
@@ -670,6 +672,30 @@ public fun set_chain_rate_limiter_config<T>(
     );
 }
 
+public fun get_current_inbound_rate_limiter_state<T>(
+    clock: &Clock,
+    state: &USDCTokenPoolState<T>,
+    remote_chain_selector: u64,
+): rate_limiter::TokenBucket {
+    token_pool::get_current_inbound_rate_limiter_state(
+        &state.token_pool_state,
+        clock,
+        remote_chain_selector,
+    )
+}
+
+public fun get_current_outbound_rate_limiter_state<T>(
+    clock: &Clock,
+    state: &USDCTokenPoolState<T>,
+    remote_chain_selector: u64,
+): rate_limiter::TokenBucket {
+    token_pool::get_current_outbound_rate_limiter_state(
+        &state.token_pool_state,
+        clock,
+        remote_chain_selector,
+    )
+}
+
 // ================================================================
 // |                      Ownable Functions                       |
 // ================================================================
@@ -1165,7 +1191,7 @@ public fun mcms_execute_ownership_transfer<T>(
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
             registry,
-            McmsCallback<T> {}
+            McmsCallback<T> {},
         );
         transfer::public_transfer(upgrade_cap, to);
     };

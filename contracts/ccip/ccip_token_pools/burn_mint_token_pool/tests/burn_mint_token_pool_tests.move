@@ -15,7 +15,6 @@ use std::string;
 use std::type_name;
 use sui::clock;
 use sui::coin;
-use sui::package;
 use sui::test_scenario;
 
 public struct BURN_MINT_TOKEN_POOL_TESTS has drop {}
@@ -92,8 +91,12 @@ public fun test_initialize_and_basic_functionality() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize burn mint token pool
         burn_mint_token_pool::initialize(
@@ -171,8 +174,12 @@ public fun test_chain_configuration_management() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
@@ -301,8 +308,12 @@ public fun test_allowlist_management() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
@@ -373,8 +384,12 @@ public fun test_rate_limiter_configuration() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
@@ -490,8 +505,12 @@ public fun test_invalid_arguments_rate_limiter_configs() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
@@ -568,8 +587,12 @@ public fun test_comprehensive_allowlist_operations() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
@@ -643,8 +666,12 @@ public fun test_destroy_token_pool() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
@@ -720,8 +747,12 @@ public fun test_comprehensive_rate_limiter_operations() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
@@ -836,8 +867,12 @@ public fun test_edge_cases_and_boundary_conditions() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
@@ -988,8 +1023,12 @@ public fun test_lock_or_burn_comprehensive() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
@@ -1145,8 +1184,12 @@ public fun test_release_or_mint_comprehensive() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
@@ -1295,8 +1338,12 @@ public fun test_set_allowlist_enabled() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
@@ -1373,8 +1420,12 @@ public fun test_apply_allowlist_updates() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
@@ -1492,8 +1543,12 @@ public fun test_set_pool() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize normally with burn_mint_token_pool
         burn_mint_token_pool::initialize(
@@ -1551,7 +1606,6 @@ public fun test_set_pool() {
     // Must run as the administrator (@0x123) to unregister
     scenario.next_tx(@0x123);
     {
-
         // Use unregister and re-register to change the package ID
         token_admin_registry::unregister_pool(
             &mut ccip_ref,
@@ -1590,7 +1644,6 @@ public fun test_set_pool() {
     // Verify the different configuration
     scenario.next_tx(@0x123);
     {
-
         let (
             before_package_id,
             before_module,
@@ -1616,9 +1669,7 @@ public fun test_set_pool() {
     // Now call set_pool as the administrator to update to the correct burn_mint_token_pool config
     scenario.next_tx(@0x123);
     {
-        let pool_state = scenario.take_shared<
-            BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>,
-        >();
+        let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Get configuration before set_pool
@@ -1721,8 +1772,12 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
     scenario.next_tx(@burn_mint_token_pool);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
 
         burn_mint_token_pool::initialize(
             &mut owner_cap,
