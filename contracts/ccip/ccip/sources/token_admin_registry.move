@@ -469,6 +469,13 @@ fun unregister_pool_internal(
 
     let previous_pool_address = token_config.token_pool_package_id;
 
+    // Remove mapping from package id -> coin metadata to avoid stale entries
+    assert!(
+        state.token_pool_package_id_to_coin_metadata.contains(previous_pool_address),
+        ETokenPoolPackageIdNotRegistered,
+    );
+    state.token_pool_package_id_to_coin_metadata.remove(previous_pool_address);
+
     event::emit(PoolUnregistered {
         coin_metadata_address,
         previous_pool_address,
