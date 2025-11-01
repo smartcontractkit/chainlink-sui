@@ -2,6 +2,7 @@
 module ccip::receiver_registry_tests;
 
 use ccip::ownable::OwnerCap;
+use ccip::publisher_wrapper;
 use ccip::receiver_registry::{Self, ReceiverRegistry};
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::upgrade_registry;
@@ -9,12 +10,13 @@ use std::ascii;
 use std::string;
 use std::type_name;
 use sui::address;
+use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 
 public struct RECEIVER_REGISTRY_TESTS has drop {}
 
-public struct TestReceiverProof has drop {}
-public struct TestReceiverProof2 has drop {}
+public struct TestReceiverProof has drop, copy {}
+public struct TestReceiverProof2 has drop, copy {}
 
 const OWNER: address = @0x1000;
 
@@ -56,6 +58,20 @@ fun cleanup_test(scenario: Scenario, ref: CCIPObjectRef, owner_cap: OwnerCap) {
     ts::end(scenario);
 }
 
+// Helper function to register a receiver with publisher wrapper
+fun register_test_receiver<ProofType: drop + copy>(
+    ref: &mut CCIPObjectRef,
+    proof: ProofType,
+    ctx: &mut TxContext,
+) {
+    let publisher = package::test_claim(RECEIVER_REGISTRY_TESTS {}, ctx);
+    let publisher_wrapper = publisher_wrapper::create(&publisher, proof);
+
+    receiver_registry::register_receiver(ref, publisher_wrapper, proof);
+
+    package::burn_publisher(publisher);
+}
+
 #[test]
 public fun test_initialize() {
     let (mut scenario, mut ref, owner_cap) = setup_test();
@@ -90,7 +106,7 @@ public fun test_register_receiver() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
 
     // Register a receiver
-    receiver_registry::register_receiver(&mut ref, TestReceiverProof {});
+    register_test_receiver(&mut ref, TestReceiverProof {}, ctx);
 
     // Verify the receiver is registered
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
@@ -117,10 +133,10 @@ public fun test_register_receiver_already_registered() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
 
     // Register a receiver
-    receiver_registry::register_receiver(&mut ref, TestReceiverProof {});
+    register_test_receiver(&mut ref, TestReceiverProof {}, ctx);
 
     // Try to register the same receiver again - should fail
-    receiver_registry::register_receiver(&mut ref, TestReceiverProof {});
+    register_test_receiver(&mut ref, TestReceiverProof {}, ctx);
 
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -134,10 +150,10 @@ public fun test_register_receiver_same_package_different_proof() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
 
     // Register a receiver with TestReceiverProof
-    receiver_registry::register_receiver(&mut ref, TestReceiverProof {});
+    register_test_receiver(&mut ref, TestReceiverProof {}, ctx);
 
     // Try to register with TestReceiverProof2 (same package ID) - should fail
-    receiver_registry::register_receiver(&mut ref, TestReceiverProof2 {});
+    register_test_receiver(&mut ref, TestReceiverProof2 {}, ctx);
 
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -150,7 +166,7 @@ public fun test_register_multiple_receivers_same_package() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
 
     // Register first receiver
-    receiver_registry::register_receiver(&mut ref, TestReceiverProof {});
+    register_test_receiver(&mut ref, TestReceiverProof {}, ctx);
 
     // Verify both proof types have the same package ID (they're in the same module)
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
@@ -179,7 +195,7 @@ public fun test_unregister_receiver() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
 
     // Register a receiver
-    receiver_registry::register_receiver(&mut ref, TestReceiverProof {});
+    register_test_receiver(&mut ref, TestReceiverProof {}, ctx);
 
     // Verify it's registered
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
@@ -221,7 +237,7 @@ public fun test_is_registered_receiver() {
     assert!(!receiver_registry::is_registered_receiver(&ref, package_id_1));
 
     // Register receiver
-    receiver_registry::register_receiver(&mut ref, TestReceiverProof {});
+    register_test_receiver(&mut ref, TestReceiverProof {}, ctx);
 
     // Check registered receiver
     assert!(receiver_registry::is_registered_receiver(&ref, package_id_1));
@@ -257,7 +273,7 @@ public fun test_get_receiver_config() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
 
     // Register a receiver
-    receiver_registry::register_receiver(&mut ref, TestReceiverProof {});
+    register_test_receiver(&mut ref, TestReceiverProof {}, ctx);
 
     // Get the config
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
@@ -290,7 +306,7 @@ public fun test_get_receiver_module_and_state() {
     assert!(proof_typename_str == ascii::string(b""));
 
     // Register a receiver
-    receiver_registry::register_receiver(&mut ref, TestReceiverProof {});
+    register_test_receiver(&mut ref, TestReceiverProof {}, ctx);
 
     // Test registered receiver - should return actual values
     let (module_name, proof_typename_str) = receiver_registry::get_receiver_info(
@@ -314,7 +330,7 @@ public fun test_register_receiver_with_zero_state_id() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
 
     // Register a receiver (stateless receiver)
-    receiver_registry::register_receiver(&mut ref, TestReceiverProof {});
+    register_test_receiver(&mut ref, TestReceiverProof {}, ctx);
 
     // Verify the receiver is registered
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
@@ -346,7 +362,7 @@ public fun test_complete_receiver_lifecycle() {
     assert!(!receiver_registry::is_registered_receiver(&ref, package_id_1));
 
     // 2. Register receiver
-    receiver_registry::register_receiver(&mut ref, TestReceiverProof {});
+    register_test_receiver(&mut ref, TestReceiverProof {}, ctx);
     assert!(receiver_registry::is_registered_receiver(&ref, package_id_1));
 
     // 3. Verify config is correct

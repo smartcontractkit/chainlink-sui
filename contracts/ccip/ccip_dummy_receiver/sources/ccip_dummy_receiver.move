@@ -2,15 +2,20 @@ module ccip_dummy_receiver::dummy_receiver;
 
 use ccip::client;
 use ccip::offramp_state_helper as osh;
+use ccip::publisher_wrapper;
 use ccip::receiver_registry;
 use ccip::state_object::CCIPObjectRef;
 use std::string::{Self, String};
 use sui::clock::Clock;
 use sui::coin::Coin;
+use sui::dynamic_field as df;
 use sui::event;
+use sui::package::{Self, Publisher};
 use sui::transfer::Receiving;
 
 const EMessageIdMismatch: u64 = 0;
+
+public struct DUMMY_RECEIVER has drop {}
 
 public struct OwnerCap has key, store {
     id: UID,
@@ -41,6 +46,8 @@ public struct CCIPReceiverState has key {
 
 public struct DummyReceiverProof has drop {}
 
+public struct PublisherKey has copy, drop, store {}
+
 public struct TokenAmount has copy, drop, store {
     token: address,
     amount: u256,
@@ -50,7 +57,7 @@ public fun type_and_version(): String {
     string::utf8(b"DummyReceiver 1.6.0")
 }
 
-fun init(ctx: &mut TxContext) {
+fun init(otw: DUMMY_RECEIVER, ctx: &mut TxContext) {
     let state = CCIPReceiverState {
         id: object::new(ctx),
         counter: 0,
@@ -64,17 +71,22 @@ fun init(ctx: &mut TxContext) {
         dest_token_amounts: vector[],
     };
 
-    let owner_cap = OwnerCap {
+    let mut owner_cap = OwnerCap {
         id: object::new(ctx),
         receiver_address: object::id_to_address(object::borrow_id(&state)),
     };
+
+    let publisher = package::claim(otw, ctx);
+    df::add(&mut owner_cap.id, PublisherKey {}, publisher);
 
     transfer::share_object(state);
     transfer::transfer(owner_cap, ctx.sender());
 }
 
-public fun register_receiver(ref: &mut CCIPObjectRef) {
-    receiver_registry::register_receiver(ref, DummyReceiverProof {});
+public fun register_receiver(owner_cap: &OwnerCap, ref: &mut CCIPObjectRef) {
+    let publisher: &Publisher = df::borrow(&owner_cap.id, PublisherKey {});
+    let publisher_wrapper = publisher_wrapper::create(publisher, DummyReceiverProof {});
+    receiver_registry::register_receiver(ref, publisher_wrapper, DummyReceiverProof {});
 }
 
 public fun get_counter(state: &CCIPReceiverState): u64 {
