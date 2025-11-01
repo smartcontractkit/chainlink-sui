@@ -25,6 +25,10 @@ var (
 	SuiLockReleaseTPType             deployment.ContractType = "SuiLockReleaseToken"
 	SuiLockReleaseTPStateType        deployment.ContractType = "SuiLockReleaseTokenState"
 
+	// CCIP Dummy Receiver related
+	SuiCCIPDummyReceiverStateObjectIDType    deployment.ContractType = "SuiCCIPDummyReceiverStateObjectID"
+	SuiCCIPDummyReceiverOwnerCapObjectIDType deployment.ContractType = "SuiCCIPDummyReceiverOwnerCapObjectID"
+
 	// MCMS Related
 	SuiMcmsPackageIDType               deployment.ContractType = "SuiManyChainMultisigPackageID"
 	SuiMcmsObjectIDType                deployment.ContractType = "SuiManyChainMultisigObjectID"
