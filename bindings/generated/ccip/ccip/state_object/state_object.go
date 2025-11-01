@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"state_object","name":"accept_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"add","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"obj","type":"T"}]},{"package":"ccip","module":"state_object","name":"add_package_id","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip","module":"state_object","name":"borrow","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"borrow_mut","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"contains","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"execute_ownership_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"to","type":"address"}]},{"package":"ccip","module":"state_object","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip","module":"state_object","name":"has_pending_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"owner","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"owner_cap_id","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"pending_transfer_accepted","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"pending_transfer_from","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"pending_transfer_to","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"remove","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"state_object","name":"remove_package_id","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip","module":"state_object","name":"transfer_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"to","type":"address"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"state_object","name":"accept_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"accept_ownership_from_object","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip","module":"state_object","name":"add","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"obj","type":"T"}]},{"package":"ccip","module":"state_object","name":"add_package_id","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip","module":"state_object","name":"borrow","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"borrow_mut","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"contains","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"execute_ownership_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"to","type":"address"}]},{"package":"ccip","module":"state_object","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip","module":"state_object","name":"has_pending_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"owner","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"owner_cap_id","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"pending_transfer_accepted","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"pending_transfer_from","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"pending_transfer_to","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"remove","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"state_object","name":"remove_package_id","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip","module":"state_object","name":"transfer_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"to","type":"address"}]}]`
 
 type IStateObject interface {
 	AddPackageId(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
@@ -32,6 +32,7 @@ type IStateObject interface {
 	BorrowMut(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	TransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, ref bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -88,6 +89,8 @@ type StateObjectEncoder interface {
 	TransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	AcceptOwnership(ref bind.Object) (*bind.EncodedCall, error)
 	AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
+	AcceptOwnershipFromObject(ref bind.Object, from string) (*bind.EncodedCall, error)
+	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransfer(ref bind.Object, ownerCap bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcms(ref bind.Object, ownerCap bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
@@ -445,6 +448,16 @@ func (c *StateObjectContract) TransferOwnership(ctx context.Context, opts *bind.
 // AcceptOwnership executes the accept_ownership Move function.
 func (c *StateObjectContract) AcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.stateObjectEncoder.AcceptOwnership(ref)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// AcceptOwnershipFromObject executes the accept_ownership_from_object Move function.
+func (c *StateObjectContract) AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, ref bind.Object, from string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.AcceptOwnershipFromObject(ref, from)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1179,6 +1192,35 @@ func (c stateObjectEncoder) AcceptOwnershipWithArgs(args ...any) (*bind.EncodedC
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("accept_ownership", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// AcceptOwnershipFromObject encodes a call to the accept_ownership_from_object Move function.
+func (c stateObjectEncoder) AcceptOwnershipFromObject(ref bind.Object, from string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_ownership_from_object", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut UID",
+	}, []any{
+		ref,
+		from,
+	}, nil)
+}
+
+// AcceptOwnershipFromObjectWithArgs encodes a call to the accept_ownership_from_object Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c stateObjectEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut UID",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_ownership_from_object", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.

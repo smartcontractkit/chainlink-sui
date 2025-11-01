@@ -463,6 +463,42 @@ public fun destroy_managed_token<T>(
     (treasury_cap, deny_cap)
 }
 
+public fun mcms_destroy_managed_token<T>(
+    state: TokenState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap<T>,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"destroy_managed_token"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(&state), &mut stream);
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap = mcms_registry::release_cap<McmsCallback, OwnerCap<T>>(
+        registry,
+        McmsCallback {},
+    );
+
+    let (treasury_cap, deny_cap) = destroy_managed_token(owner_cap, state, ctx);
+    transfer::public_transfer(treasury_cap, to);
+    if (deny_cap.is_some()) {
+        transfer::public_transfer(deny_cap.destroy_some(), to);
+    } else {
+        deny_cap.destroy_none();
+    }
+}
+
 /// Access function to get a reference to the treasury cap
 /// This allows other modules to access the treasury cap for registration purposes
 public fun borrow_treasury_cap<T>(state: &TokenState<T>, owner_cap: &OwnerCap<T>): &TreasuryCap<T> {

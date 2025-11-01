@@ -133,6 +133,14 @@ public fun accept_ownership(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
     ownable::accept_ownership(&mut ref.ownable_state, ctx);
 }
 
+public fun accept_ownership_from_object(
+    ref: &mut CCIPObjectRef,
+    from: &mut UID,
+    ctx: &mut TxContext,
+) {
+    ownable::accept_ownership_from_object(&mut ref.ownable_state, from, ctx);
+}
+
 public fun execute_ownership_transfer(
     ref: &mut CCIPObjectRef,
     owner_cap: OwnerCap,
