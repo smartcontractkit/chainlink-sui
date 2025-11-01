@@ -568,6 +568,55 @@ public fun set_domains<T>(
     };
 }
 
+public fun mcms_set_domains<T>(
+    pool: &mut USDCTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback<T>,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_domains"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(pool), object::id_address(owner_cap)],
+        &mut stream,
+    );
+
+    let remote_chain_selectors = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let remote_domain_identifiers = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u32(stream),
+    );
+    let allowed_remote_callers = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector_u8(stream),
+    );
+    let enableds = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_domains(
+        pool,
+        owner_cap,
+        remote_chain_selectors,
+        remote_domain_identifiers,
+        allowed_remote_callers,
+        enableds,
+    )
+}
+
 // ================================================================
 // |                    Rate limit config                         |
 // ================================================================
@@ -1094,6 +1143,38 @@ public fun destroy_token_pool<T>(
 
     // Destroy ownable state and owner cap using helper functions
     ownable::destroy(ownable_state, owner_cap, ctx);
+}
+
+public fun mcms_destroy_token_pool<T>(
+    ref: &mut CCIPObjectRef,
+    state: USDCTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback<T>,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"destroy_token_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(&state), &mut stream);
+
+    let _to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap = mcms_registry::release_cap<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+    );
+
+    destroy_token_pool(ref, state, owner_cap, ctx);
+    // Note: USDC token pool destroy_token_pool doesn't return anything
 }
 
 public fun mcms_transfer_ownership<T>(
