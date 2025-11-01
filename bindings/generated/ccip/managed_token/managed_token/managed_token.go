@@ -40,6 +40,7 @@ type IManagedToken interface {
 	Pause(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, denyList bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Unpause(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, denyList bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DestroyManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsDestroyManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	BorrowTreasuryCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -122,6 +123,8 @@ type ManagedTokenEncoder interface {
 	UnpauseWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	DestroyManagedToken(typeArgs []string, ownerCap bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	DestroyManagedTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsDestroyManagedToken(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsDestroyManagedTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	BorrowTreasuryCap(typeArgs []string, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	BorrowTreasuryCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	Owner(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
@@ -855,6 +858,16 @@ func (c *ManagedTokenContract) Unpause(ctx context.Context, opts *bind.CallOpts,
 // DestroyManagedToken executes the destroy_managed_token Move function.
 func (c *ManagedTokenContract) DestroyManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.managedTokenEncoder.DestroyManagedToken(typeArgs, ownerCap, state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsDestroyManagedToken executes the mcms_destroy_managed_token Move function.
+func (c *ManagedTokenContract) McmsDestroyManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.McmsDestroyManagedToken(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2048,6 +2061,42 @@ func (c managedTokenEncoder) DestroyManagedTokenWithArgs(typeArgs []string, args
 		"TreasuryCap<T>",
 		"0x1::option::Option<DenyCapV2<T>>",
 	})
+}
+
+// McmsDestroyManagedToken encodes a call to the mcms_destroy_managed_token Move function.
+func (c managedTokenEncoder) McmsDestroyManagedToken(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_managed_token", typeArgsList, typeParamsList, []string{
+		"TokenState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsDestroyManagedTokenWithArgs encodes a call to the mcms_destroy_managed_token Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c managedTokenEncoder) McmsDestroyManagedTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"TokenState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_managed_token", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // BorrowTreasuryCap encodes a call to the borrow_treasury_cap Move function.
