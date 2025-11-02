@@ -724,6 +724,7 @@ public fun mcms_dispatch_to_account(
         let cap = mcms_registry::borrow_owner_cap(registry);
         mcms_account::transfer_ownership(cap, account_state, target, ctx);
     } else if (function_name_bytes == b"accept_ownership_as_timelock") {
+        bcs_stream::assert_is_consumed(&stream);
         mcms_account::accept_ownership_as_timelock(
             account_state,
             ctx,
@@ -1032,6 +1033,7 @@ public fun mcms_set_config(
 
     let stream = &mut bcs_stream::new(data);
     let role_param = bcs_stream::deserialize_u8(stream);
+    let chain_id = bcs_stream::deserialize_u256(stream);
     let signer_addresses = bcs_stream::deserialize_vector!(
         stream,
         |stream| { bcs_stream::deserialize_vector_u8(stream) },
@@ -1047,7 +1049,7 @@ public fun mcms_set_config(
         owner_cap,
         state,
         role_param,
-        12,
+        chain_id,
         signer_addresses,
         signer_groups,
         group_quorums,
