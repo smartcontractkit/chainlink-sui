@@ -52,20 +52,15 @@ type MCMSAcceptOwnershipInput struct {
 }
 
 var acceptOwnershipHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input MCMSAcceptOwnershipInput) (output sui_ops.OpTxResult[cld_ops.EmptyInput], err error) {
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	mcmsAccount, err := modulemcmsaccount.NewMcmsAccount(input.McmsPackageID, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, err
-	}
-
-	encodedCall, err := mcmsAccount.Encoder().AcceptOwnershipAsTimelock(bind.Object{Id: input.AccountObjectID})
-	if err != nil {
-		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
-	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.AccountObjectID)
-	if err != nil {
-		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	// For MCMS execution, the AccountState is passed separately by the dispatch mechanism,
+	// so we need to serialize empty data (no function parameters beyond the state object)
+	call := sui_ops.TransactionCall{
+		PackageID:  input.McmsPackageID,
+		Module:     "mcms_account",
+		Function:   "accept_ownership_as_timelock",
+		Data:       []byte{}, // Empty data - AccountState is handled by MCMS dispatch
+		TypeArgs:   []string{},
+		StateObjID: input.AccountObjectID,
 	}
 
 	if deps.Signer != nil {
