@@ -203,48 +203,6 @@ func TestEncodeEntryPointArg_Onramp(t *testing.T) {
 	ccipRefID := "0x8888888888888888888888888888888888888888888888888888888888888888"
 	executingCallbackParams := &transaction.Argument{}
 
-	t.Run("initialize", func(t *testing.T) {
-		ownerCapID := "0x7777777777777777777777777777777777777777777777777777777777777777"
-		nonceManagerCapID := "0x6666666666666666666666666666666666666666666666666666666666666666"
-		sourceTransferCapID := "0x5555555555555555555555555555555555555555555555555555555555555555"
-
-		data := serializeAddresses(stateObjID, ownerCapID, nonceManagerCapID, sourceTransferCapID)
-
-		result, err := encoder.EncodeEntryPointArg(
-			executingCallbackParams,
-			target,
-			"onramp",
-			"initialize",
-			stateObjID,
-			data,
-			[]string{"0x1::sui::SUI"},
-		)
-
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, "onramp", result.Module.ModuleName)
-		assert.Equal(t, "mcms_initialize", result.Function)
-
-		// Verify deserialization - check that the encoder correctly deserialized BCS data
-		// and used the correct object IDs from the data
-		require.Len(t, result.CallArgs, 5, "Expected 5 arguments: state, registry, nonceManagerCap, sourceTransferCap, executingCallbackParams")
-
-		// Extract object IDs from the result to verify deserialization
-		stateObjIDFromResult, err := extractObjectID(result.CallArgs[0])
-		require.NoError(t, err, "Failed to extract state object ID")
-		assert.Equal(t, stateObjID, stateObjIDFromResult, "State object ID should match the one provided")
-
-		// Verify nonceManagerCap was deserialized correctly (3rd argument, index 2)
-		nonceManagerCapFromResult, err := extractObjectID(result.CallArgs[2])
-		require.NoError(t, err, "Failed to extract nonceManagerCap object ID")
-		assert.Equal(t, toHexString(createAddress(nonceManagerCapID)), nonceManagerCapFromResult, "NonceManagerCap should match deserialized value from data")
-
-		// Verify sourceTransferCap was deserialized correctly (4th argument, index 3)
-		sourceTransferCapFromResult, err := extractObjectID(result.CallArgs[3])
-		require.NoError(t, err, "Failed to extract sourceTransferCap object ID")
-		assert.Equal(t, toHexString(createAddress(sourceTransferCapID)), sourceTransferCapFromResult, "SourceTransferCap should match deserialized value from data")
-	})
-
 	t.Run("withdraw_fee_tokens", func(t *testing.T) {
 		ownerCapID := "0x7777777777777777777777777777777777777777777777777777777777777777"
 		feeTokenMetadataID := "0x6666666666666666666666666666666666666666666666666666666666666666"
@@ -1048,28 +1006,6 @@ func TestEncodeEntryPointArg_ErrorCases(t *testing.T) {
 			target,
 			"fee_quoter",
 			"update_prices_with_owner_cap",
-			stateObjID,
-			data,
-			[]string{"0x1::sui::SUI"},
-		)
-
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "does not match state object")
-	})
-
-	t.Run("onramp_initialize_state_mismatch", func(t *testing.T) {
-		ownerCapID := "0x7777777777777777777777777777777777777777777777777777777777777777"
-		nonceManagerCapID := "0x6666666666666666666666666666666666666666666666666666666666666666"
-		sourceTransferCapID := "0x5555555555555555555555555555555555555555555555555555555555555555"
-
-		// First address is wrong state
-		data := serializeAddresses(wrongStateObjID, ownerCapID, nonceManagerCapID, sourceTransferCapID)
-
-		_, err := encoder.EncodeEntryPointArg(
-			executingCallbackParams,
-			target,
-			"onramp",
-			"initialize",
 			stateObjID,
 			data,
 			[]string{"0x1::sui::SUI"},

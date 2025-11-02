@@ -188,20 +188,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			"transfer_ownership",
 			"execute_ownership_transfer":
 			return encodeWithCCIPObjectRefAndState()
-		case "initialize":
-			deserializer := bcs.NewDeserializer(data)
-			state := deserializer.ReadFixedBytes(SuiAddressLength)
-			deserializer.ReadFixedBytes(SuiAddressLength) // skip owner cap, we don't need it
-			nonceManagerCap := deserializer.ReadFixedBytes(SuiAddressLength)
-			sourceTransferCap := deserializer.ReadFixedBytes(SuiAddressLength)
-
-			nonceManagerCapObj := bind.Object{Id: toHexString(nonceManagerCap)}
-			sourceTransferCapObj := bind.Object{Id: toHexString(sourceTransferCap)}
-			if toHexString(state) != stateObj.Id {
-				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
-			}
-
-			return onramp.Encoder().McmsInitializeWithArgs(stateObj, registryObj, nonceManagerCapObj, sourceTransferCapObj, executingCallbackParams)
 		case "withdraw_fee_tokens":
 			deserializer := bcs.NewDeserializer(data)
 			ccipRefBytes := deserializer.ReadFixedBytes(SuiAddressLength)
