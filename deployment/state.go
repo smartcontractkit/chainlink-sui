@@ -26,11 +26,6 @@ type CCIPChainState struct {
 	CCIPRouterAddress       string
 	CCIPRouterStateObjectID string
 
-	// CCIP Dummy Receiver related
-	CCIPDummyReceiverPackageID        string
-	CCIPDummyReceiverStateObjectID    string
-	CCIPDummyReceiverOwnerCapObjectId string
-
 	TokenPoolAddress             string
 	LockReleaseAddress           string
 	LockReleaseStateId           string
