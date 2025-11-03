@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -431,13 +432,27 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				continue
 			}
 
+			// Convert the txDigest to hex
+			txDigestHex := transactionRecord.Digest
+			if base64Bytes, err := base64.StdEncoding.DecodeString(txDigestHex); err == nil {
+				hexTxId := hex.EncodeToString(base64Bytes)
+				txDigestHex = "0x" + hexTxId
+			}
+
+			blockHashBytes, err := base64.StdEncoding.DecodeString(checkpointResponse.Digest)
+			if err != nil {
+				tIndexer.logger.Errorw("Failed to decode block hash", "error", err)
+				// fallback
+				blockHashBytes = []byte(checkpointResponse.Digest)
+			}
+
 			record := database.EventRecord{
 				EventAccountAddress: eventAccountAddress,
 				EventHandle:         eventHandle,
 				EventOffset:         0,
-				TxDigest:            transactionRecord.Digest,
+				TxDigest:            txDigestHex,
 				BlockHeight:         checkpointResponse.SequenceNumber,
-				BlockHash:           []byte(checkpointResponse.Digest),
+				BlockHash:           blockHashBytes,
 				BlockTimestamp:      blockTimestamp,
 				Data:                executionStateChanged,
 			}

@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -317,15 +318,29 @@ eventLoop:
 					packageIdToInsert = *selector.InitialPackageId
 				}
 
+				// Convert the txDigest to hex
+				txDigestHex := event.Id.TxDigest
+				if base64Bytes, err := base64.StdEncoding.DecodeString(txDigestHex); err == nil {
+					hexTxId := hex.EncodeToString(base64Bytes)
+					txDigestHex = "0x" + hexTxId
+				}
+
+				blockHashBytes, err := base64.StdEncoding.DecodeString(block.TxDigest)
+				if err != nil {
+					eIndexer.logger.Errorw("Failed to decode block hash", "error", err)
+					// fallback
+					blockHashBytes = []byte(block.TxDigest)
+				}
+
 				// Convert event to database record
 				record := database.EventRecord{
 					EventAccountAddress: packageIdToInsert,
 					EventHandle:         eventHandle,
 					EventOffset:         offset,
-					TxDigest:            event.Id.TxDigest,
+					TxDigest:            txDigestHex,
 					BlockVersion:        0,
 					BlockHeight:         fmt.Sprintf("%d", block.Height),
-					BlockHash:           []byte(block.TxDigest),
+					BlockHash:           blockHashBytes,
 					// Sui returns block.Timestamp in ms; convert to seconds for consistency with CCIP readers.
 					BlockTimestamp: block.Timestamp / 1000,
 					Data:           normalizedData.(map[string]any),
