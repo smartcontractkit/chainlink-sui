@@ -5,7 +5,7 @@ use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
-use std::string::{Self};
+use std::string;
 use std::type_name;
 use sui::address;
 use sui::derived_object;
@@ -17,7 +17,6 @@ const EModuleDoesNotExist: u64 = 2;
 const EInvalidFunction: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EPackageIdNotFound: u64 = 5;
-const ECcipAdminProofNotValidated: u64 = 6;
 
 public struct CCIPObject has key {
     id: UID,
@@ -134,6 +133,14 @@ public fun accept_ownership(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
     ownable::accept_ownership(&mut ref.ownable_state, ctx);
 }
 
+public fun accept_ownership_from_object(
+    ref: &mut CCIPObjectRef,
+    from: &mut UID,
+    ctx: &mut TxContext,
+) {
+    ownable::accept_ownership_from_object(&mut ref.ownable_state, from, ctx);
+}
+
 public fun execute_ownership_transfer(
     ref: &mut CCIPObjectRef,
     owner_cap: OwnerCap,
@@ -199,17 +206,6 @@ public fun pending_transfer_accepted(ref: &CCIPObjectRef): Option<bool> {
 // ================================================================
 // |                      MCMS Entrypoint                         |
 // ================================================================
-
-/// Proof for CCIP admin, `data` is serialized using BCS
-/// `data` should contain:
-/// - target package id
-/// - target module name
-/// - target function name
-/// - bcs serialized function arguments
-public struct CCIPAdminProof {
-    data: vector<u8>,
-    validated: bool,
-}
 
 public struct McmsCallback has drop {}
 
@@ -413,44 +409,6 @@ public fun mcms_remove_allowed_modules(
     mcms_registry::remove_allowed_modules(registry, McmsCallback {}, module_names, ctx);
 }
 
-public fun mcms_proof_entrypoint(
-    registry: &mut Registry,
-    params: ExecutingCallbackParams,
-    _ctx: &mut TxContext,
-): CCIPAdminProof {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
-        OwnerCap,
-    >(
-        registry,
-        McmsCallback {},
-        params,
-    );
-
-    // We validate that the owner cap is registered
-    // So we can safely provide a proof that CCIP admin is calling
-    assert!(*function.as_bytes() == b"initialize_by_ccip_admin", EInvalidFunction);
-
-    CCIPAdminProof { data, validated: false }
-}
-
-public fun get_ccip_admin_proof_data(proof: &CCIPAdminProof): vector<u8> {
-    proof.data
-}
-
-public fun get_ccip_admin_proof_validated(proof: &CCIPAdminProof): bool {
-    proof.validated
-}
-
-public fun set_ccip_admin_proof_validated(proof: &mut CCIPAdminProof, validated: bool) {
-    proof.validated = validated
-}
-
-public fun destroy_ccip_admin_proof(proof: CCIPAdminProof) {
-    assert!(proof.validated, ECcipAdminProofNotValidated);
-    let CCIPAdminProof { data: _, validated: _ } = proof;
-}
-
 // ================================================================
 // |                      Test Functions                          |
 // ================================================================
@@ -461,15 +419,15 @@ public fun test_init(ctx: &mut TxContext) {
 }
 
 #[test_only]
+public fun test_create_mcms_callback(): McmsCallback {
+    McmsCallback {}
+}
+
+#[test_only]
 public fun pending_transfer(ref: &CCIPObjectRef): (address, address, bool) {
     let from = ownable::pending_transfer_from(&ref.ownable_state);
     let to = ownable::pending_transfer_to(&ref.ownable_state);
     let accepted = ownable::pending_transfer_accepted(&ref.ownable_state);
 
     (from.get_with_default(@0x0), to.get_with_default(@0x0), accepted.get_with_default(false))
-}
-
-#[test_only]
-public fun create_ccip_admin_proof_for_test(data: vector<u8>, validated: bool): CCIPAdminProof {
-    CCIPAdminProof { data, validated }
 }

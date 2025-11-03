@@ -4,6 +4,7 @@ module ccip::offramp_state_helper_tests;
 use ccip::client;
 use ccip::offramp_state_helper::{Self, DestTransferCap};
 use ccip::ownable::OwnerCap;
+use ccip::publisher_wrapper;
 use ccip::receiver_registry;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
@@ -12,6 +13,7 @@ use std::ascii;
 use std::string;
 use std::type_name;
 use sui::coin;
+use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 
 public struct OFFRAMP_STATE_HELPER_TESTS has drop {}
@@ -193,9 +195,9 @@ public fun test_complete_token_transfer() {
     let (mut scenario, owner_cap, mut ref, dest_cap) = setup_test();
 
     // Register a token in the token admin registry
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_ADDRESS_1,
         string::utf8(b"test_pool"),
@@ -247,13 +249,17 @@ public fun test_complete_token_transfer() {
 
 #[test]
 public fun test_extract_any2sui_message() {
-    let (scenario, owner_cap, mut ref, dest_cap) = setup_test();
+    let (mut scenario, owner_cap, mut ref, dest_cap) = setup_test();
 
     // Register a receiver
+    let publisher = package::test_claim(OFFRAMP_STATE_HELPER_TESTS {}, scenario.ctx());
+    let publisher_wrapper = publisher_wrapper::create(&publisher, TestTypeProof {});
     receiver_registry::register_receiver(
         &mut ref,
+        publisher_wrapper,
         TestTypeProof {},
     );
+    package::burn_publisher(publisher);
 
     let mut receiver_params = offramp_state_helper::create_receiver_params(
         &dest_cap,
@@ -379,9 +385,9 @@ public fun test_complete_token_transfer_twice_should_fail() {
     let (mut scenario, owner_cap, mut ref, dest_cap) = setup_test();
 
     // Register a token in the token admin registry
-    registry::register_pool_by_admin(
+    registry::register_pool_as_owner(
+        &owner_cap,
         &mut ref,
-        state_object::create_ccip_admin_proof_for_test(vector[], true),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_ADDRESS_1,
         string::utf8(b"test_pool"),

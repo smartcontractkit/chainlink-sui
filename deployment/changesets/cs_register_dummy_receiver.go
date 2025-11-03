@@ -12,6 +12,7 @@ import (
 
 type RegisterDummyReceiverConfig struct {
 	SuiChainSelector       uint64
+	OwnerCapObjectId       string
 	CCIPObjectRefObjectId  string
 	DummyReceiverPackageId string
 }
@@ -41,6 +42,7 @@ func (d RegisterDummyReceiver) Apply(e cldf.Environment, config RegisterDummyRec
 
 	// Run RegisterReceiver Operation
 	RegisterReceiverOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.RegisterDummyReceiverOp, deps, ccipops.RegisterDummyReceiverInput{
+		OwnerCapObjectId:       config.OwnerCapObjectId,
 		CCIPObjectRefObjectId:  config.CCIPObjectRefObjectId,
 		DummyReceiverPackageId: config.DummyReceiverPackageId,
 	})
