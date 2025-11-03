@@ -8,11 +8,12 @@
 
 When a function parameter has a `PointerTag` configured, the ChainReader:
 
-1. **Validates the pointer tag** and extracts module, pointer name, field name, and derivation key
-2. **Fetches owned objects** from the specified package on the Sui blockchain from the same contract being called
-3. **Matches objects** based on the module and object type
-4. **Extracts the parent object ID** from the field
-5. **Derives the child object ID** using the derivation key and automatically populates the parameter
+1. **Validates the pointer tag** and extracts module, pointer name, and derivation key
+2. **Looks up the parent field name** from the global `common.PointerConfigs` registry based on the pointer name
+3. **Fetches owned objects** from the specified package on the Sui blockchain from the same contract being called
+4. **Matches objects** based on the module and object type
+5. **Extracts the parent object ID** from the field (as defined in the registry)
+6. **Derives the child object ID** using the derivation key and automatically populates the parameter
 
 ## Configuration Format
 
@@ -20,8 +21,9 @@ When a function parameter has a `PointerTag` configured, the ChainReader:
 type PointerTag struct {
     Module        string // e.g., "state_object", "offramp", "counter"
     PointerName   string // e.g., "CCIPObjectRefPointer", "OffRampStatePointer"
-    FieldName     string // e.g., "ccip_object_id", "off_ramp_object_id"
+    FieldName     string // OPTIONAL: Ignored in favor of registry lookup
     DerivationKey string // e.g., "CCIPObjectRef", "OffRampState", "Counter"
+    PackageID     string // OPTIONAL: Override for cross-package pointers
 }
 
 type SuiFunctionParam struct {
@@ -35,12 +37,40 @@ type SuiFunctionParam struct {
 
 ### PointerTag Fields
 
-- `Module` - The Sui module name containing the object type
-- `PointerName` - The object/struct type to search for (typically ends with "Pointer" in the contract)
-- `FieldName` - The field within the pointer object containing the parent object ID
-- `DerivationKey` - The key used to derive the child object ID from the parent object ID
+- `Module` - The Sui module name containing the object type (required)
+- `PointerName` - The object/struct type to search for, typically ends with "Pointer" (required)
+- `FieldName` - **[OPTIONAL/IGNORED]** This field is not used by the implementation. The parent field name is automatically looked up from the global `common.PointerConfigs` registry based on the `PointerName`
+- `DerivationKey` - The key used to derive the child object ID from the parent object ID (required)
+- `PackageID` - **[OPTIONAL]** Override the package ID for cross-package pointer dependencies. If empty, the calling contract's package ID is used
 
-**Note**: With the introduction of derived objects in Sui, pointer objects now store a parent object ID, and child object IDs are deterministically derived using derivation keys. The `FieldName` refers to the parent object ID field in the pointer, and `DerivationKey` specifies which child object to derive.
+**Note**: With the introduction of derived objects in Sui, pointer objects now store a parent object ID, and child object IDs are deterministically derived using derivation keys. The parent field name is looked up from `common.PointerConfigs`, and `DerivationKey` specifies which child object to derive.
+
+## Pointer Registry
+
+All pointer types must be registered in `relayer/common/pointer_config.go` in the `PointerConfigs` map before they can be used. This registry is the single source of truth for pointer configurations and defines:
+
+- **Module** - The Sui module containing the pointer object
+- **Pointer** - The pointer object type name (e.g., "OffRampStatePointer", "CounterPointer")
+- **ParentFieldName** - The field in the pointer object containing the parent object ID
+
+### Adding New Pointer Types
+
+When adding support for a new pointer type, you must update `common.PointerConfigs`:
+
+```go
+// In relayer/common/pointer_config.go
+var PointerConfigs = map[string][]PointerConfig{
+    "mycontract": {
+        {
+            Module:          "mymodule",
+            Pointer:         "MyPointer",
+            ParentFieldName: "my_parent_object_id",
+        },
+    },
+}
+```
+
+The registry key should be the contract/module name (case-insensitive). Once registered, the pointer type can be used in PointerTags without specifying the field name - it will be automatically looked up.
 
 ## Usage Example
 
@@ -48,8 +78,9 @@ type SuiFunctionParam struct {
 pointerTag := &codec.PointerTag{
     Module:        "counter",
     PointerName:   "CounterPointer",
-    FieldName:     "counter_object_id",
     DerivationKey: "Counter",
+    // FieldName is optional and will be looked up from common.PointerConfigs
+    // which maps "CounterPointer" -> "counter_object_id"
 }
 
 // Function configuration
@@ -70,8 +101,8 @@ pointerTag := &codec.PointerTag{
 **Breaking down the pointer tag components:**
 - `Module: "counter"` - Module name
 - `PointerName: "CounterPointer"` - Pointer object type
-- `FieldName: "counter_object_id"` - Field in CounterPointer containing the parent object ID
 - `DerivationKey: "Counter"` - Derivation key to derive the Counter child object from the parent
+- Field name is automatically looked up from `common.PointerConfigs` ("counter_object_id" for CounterPointer)
 
 > __IMPORTANT__: the pointer object MUST be owned by the contract.
 
@@ -115,5 +146,6 @@ The ChainReader's `prepareArguments` function:
 
 - Only works with objects owned by the contract package
 - Requires objects to exist and be accessible via `ReadOwnedObjects`
-- All PointerTag fields (Module, PointerName, FieldName, DerivationKey) must be correctly specified
-- Field names must match exactly between the tag and the actual object structure
+- Pointer types must be pre-registered in `common.PointerConfigs` before use
+- The PointerTag's Module, PointerName, and DerivationKey must be correctly specified
+- Field names in the registry must match the actual on-chain object structure exactly
