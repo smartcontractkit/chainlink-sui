@@ -1,6 +1,7 @@
 module ccip::token_admin_registry;
 
 use ccip::ownable::{Self, OwnerCap};
+use ccip::publisher_wrapper::{Self, PublisherWrapper};
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::upgrade_registry::verify_function_allowed;
 use mcms::bcs_stream;
@@ -79,6 +80,7 @@ const ENotAllowed: u64 = 7;
 const EInvalidFunction: u64 = 8;
 const EInvalidOwnerCap: u64 = 9;
 const ETokenPoolPackageIdAlreadyRegistered: u64 = 10;
+const ETokenPoolPackageIdNotRegistered: u64 = 11;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.0")
@@ -167,6 +169,22 @@ public fun get_token_config_struct(
             lock_or_burn_params: vector[],
             release_or_mint_params: vector[],
         }
+    }
+}
+
+public fun get_pool_local_token(ref: &CCIPObjectRef, token_pool_package_id: address): address {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"get_pool_local_token"),
+        VERSION,
+    );
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
+
+    if (state.token_pool_package_id_to_coin_metadata.contains(token_pool_package_id)) {
+        *state.token_pool_package_id_to_coin_metadata.borrow(token_pool_package_id)
+    } else {
+        @0x0
     }
 }
 
@@ -306,8 +324,9 @@ public fun get_all_configured_tokens(
 // |                       Register Pool                          |
 // ================================================================
 
-// only the token owner can call this function to register a token pool for the token it owns._
-// the ownership is proven by the presence of the treasury cap.
+/// Only the token owner can call this function to register a token pool for the token it owns.
+/// The ownership of the token is proven by the presence of the treasury cap.
+/// The publisher wrapper proves that the caller owns the token pool package.
 public fun register_pool<T, TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
@@ -315,6 +334,7 @@ public fun register_pool<T, TypeProof: drop>(
     initial_administrator: address,
     lock_or_burn_params: vector<address>,
     release_or_mint_params: vector<address>,
+    publisher_wrapper: PublisherWrapper<TypeProof>, // Proves ownership over the token pool package.
     _proof: TypeProof,
 ) {
     verify_function_allowed(
@@ -323,52 +343,51 @@ public fun register_pool<T, TypeProof: drop>(
         string::utf8(b"register_pool"),
         VERSION,
     );
-    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    let token_type = type_name::with_defining_ids<T>().into_string();
+
+    let package_address = publisher_wrapper::get_package_address(publisher_wrapper);
     let proof_tn = type_name::with_defining_ids<TypeProof>();
-    let proof_package_id = address::from_ascii_bytes(&proof_tn.address_string().into_bytes());
     let token_pool_module = proof_tn.module_string().into_bytes().to_string();
+    let coin_metadata_address = object::id_address(coin_metadata);
+    let token_type = type_name::with_defining_ids<T>().into_string();
+
     register_pool_internal(
         ref,
         coin_metadata_address,
-        proof_package_id,
+        package_address,
         token_pool_module,
         token_type,
         initial_administrator,
-        type_name::into_string(proof_tn),
+        proof_tn.into_string(),
         lock_or_burn_params,
         release_or_mint_params,
     );
 }
 
-// this function is only callable by the CCIP admin, who can present a CCIP admin proof.
-// the CCIP admin needs to know the token pool's type proof string too.
-public fun register_pool_by_admin(
+/// Only owner of CCIP can call this function to register a token pool.
+public fun register_pool_as_owner(
+    _: &OwnerCap,
     ref: &mut CCIPObjectRef,
-    ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata_address: address,
-    token_pool_package_id: address,
+    package_address: address,
     token_pool_module: String,
     token_type: ascii::String,
     initial_administrator: address,
     token_pool_type_proof: ascii::String,
     lock_or_burn_params: vector<address>,
     release_or_mint_params: vector<address>,
-    _: &mut TxContext,
+    _ctx: &mut TxContext,
 ) {
-    // `destroy_ccip_admin_proof` verifies proof has been validated.
-    state_object::destroy_ccip_admin_proof(ccip_admin_proof);
-
     verify_function_allowed(
         ref,
         string::utf8(b"token_admin_registry"),
-        string::utf8(b"register_pool_by_admin"),
+        string::utf8(b"register_pool_as_owner"),
         VERSION,
     );
+
     register_pool_internal(
         ref,
         coin_metadata_address,
-        token_pool_package_id,
+        package_address,
         token_pool_module,
         token_type,
         initial_administrator,
@@ -445,9 +464,19 @@ fun unregister_pool_internal(
 
     let token_config = state.token_configs.remove(coin_metadata_address);
 
-    assert!(token_config.administrator == caller, ENotAllowed);
+    assert!(
+        token_config.administrator == caller || token_config.administrator == mcms_registry::get_multisig_address(),
+        ENotAllowed,
+    );
 
     let previous_pool_address = token_config.token_pool_package_id;
+
+    // Remove mapping from package id -> coin metadata to avoid stale entries
+    assert!(
+        state.token_pool_package_id_to_coin_metadata.contains(previous_pool_address),
+        ETokenPoolPackageIdNotRegistered,
+    );
+    state.token_pool_package_id_to_coin_metadata.remove(previous_pool_address);
 
     event::emit(PoolUnregistered {
         coin_metadata_address,
@@ -501,7 +530,10 @@ fun set_pool_internal(
 
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
 
-    assert!(token_config.administrator == caller, ENotAllowed);
+    assert!(
+        token_config.administrator == caller || token_config.administrator == mcms_registry::get_multisig_address(),
+        ENotAllowed,
+    );
 
     // TODO: sort out the UX here
     // the token pool changes, the package id, state address, module, and type proof will change.
@@ -512,6 +544,23 @@ fun set_pool_internal(
         token_config.lock_or_burn_params = lock_or_burn_params;
         token_config.release_or_mint_params = release_or_mint_params;
         token_config.token_pool_type_proof = token_pool_type_proof;
+
+        // Update the package ID mapping
+        // First remove the old mapping
+        assert!(
+            state.token_pool_package_id_to_coin_metadata.contains(previous_pool_package_id),
+            ETokenPoolPackageIdNotRegistered,
+        );
+        state.token_pool_package_id_to_coin_metadata.remove(previous_pool_package_id);
+
+        // Then update or add the new mapping
+        assert!(
+            !state.token_pool_package_id_to_coin_metadata.contains(token_pool_package_id),
+            ETokenPoolPackageIdAlreadyRegistered,
+        );
+        state
+            .token_pool_package_id_to_coin_metadata
+            .push_back(token_pool_package_id, coin_metadata_address);
 
         event::emit(PoolSet {
             coin_metadata_address,
@@ -632,6 +681,65 @@ public fun is_administrator(
 // ================================================================
 // |                       MCMS Functions                         |
 // ================================================================
+
+/// Only callable once validated by MCMS - `ExecutingCallbackParams` is from MCMS.
+/// MCMS needs to know the token pool's type proof string to register the token pool.
+public fun mcms_register_pool(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"register_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(owner_cap), object::id_address(ref)],
+        &mut stream,
+    );
+
+    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
+    let token_pool_package_id = bcs_stream::deserialize_address(&mut stream);
+    let token_pool_module = bcs_stream::deserialize_string(&mut stream);
+    let token_type_string = bcs_stream::deserialize_string(&mut stream);
+    let initial_administrator = bcs_stream::deserialize_address(&mut stream);
+    let token_pool_type_proof_string = bcs_stream::deserialize_string(&mut stream);
+    let lock_or_burn_params = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
+    );
+    let release_or_mint_params = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    // Convert String to ascii::String
+    let token_type = ascii::string(token_type_string.into_bytes());
+    let token_pool_type_proof = ascii::string(token_pool_type_proof_string.into_bytes());
+
+    register_pool_as_owner(
+        owner_cap,
+        ref,
+        coin_metadata_address,
+        token_pool_package_id,
+        token_pool_module,
+        token_type,
+        initial_administrator,
+        token_pool_type_proof,
+        lock_or_burn_params,
+        release_or_mint_params,
+        ctx,
+    );
+}
 
 public fun mcms_unregister_pool(
     ref: &mut CCIPObjectRef,
@@ -776,6 +884,7 @@ public fun mcms_accept_admin_role(
 #[test_only]
 public fun insert_token_configs_for_test<TypeProof: drop>(
     ref: &mut CCIPObjectRef,
+    administrator: address,
     coin_metadata_addresses: vector<address>,
     _proof: TypeProof,
 ) {
@@ -786,7 +895,7 @@ public fun insert_token_configs_for_test<TypeProof: drop>(
             token_pool_package_id: @0x0,
             token_pool_module: string::utf8(b"TestModule"),
             token_type: ascii::string(b"TestType"),
-            administrator: @0x0,
+            administrator,
             pending_administrator: @0x0,
             token_pool_type_proof: ascii::string(b"TestProof"),
             lock_or_burn_params: vector[],

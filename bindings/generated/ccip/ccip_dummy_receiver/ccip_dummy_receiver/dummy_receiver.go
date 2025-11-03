@@ -19,11 +19,11 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"ccip_receive","parameters":[{"name":"expected_message_id","type":"vector<u8>"},{"name":"ref","type":"CCIPObjectRef"},{"name":"message","type":"client::Any2SuiMessage"},{"name":"_","type":"Clock"},{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_counter","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_dest_token_amounts","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_amount","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_token","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_receiver","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"register_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"ccip_receive","parameters":[{"name":"expected_message_id","type":"vector<u8>"},{"name":"ref","type":"CCIPObjectRef"},{"name":"message","type":"client::Any2SuiMessage"},{"name":"_","type":"Clock"},{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_counter","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_dest_token_amounts","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_amount","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_token","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_receiver","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"register_receiver","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"type_and_version","parameters":null}]`
 
 type IDummyReceiver interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
+	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetCounter(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetDestTokenAmounts(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenReceiver(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -53,7 +53,7 @@ type IDummyReceiverDevInspect interface {
 type DummyReceiverEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	RegisterReceiver(ref bind.Object) (*bind.EncodedCall, error)
+	RegisterReceiver(ownerCap bind.Object, ref bind.Object) (*bind.EncodedCall, error)
 	RegisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetCounter(state bind.Object) (*bind.EncodedCall, error)
 	GetCounterWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -116,6 +116,9 @@ func (c *DummyReceiverContract) DevInspect() IDummyReceiverDevInspect {
 	return c.devInspect
 }
 
+type DUMMY_RECEIVER struct {
+}
+
 type OwnerCap struct {
 	Id              string `move:"sui::object::UID"`
 	ReceiverAddress string `move:"address"`
@@ -144,6 +147,9 @@ type CCIPReceiverState struct {
 }
 
 type DummyReceiverProof struct {
+}
+
+type PublisherKey struct {
 }
 
 type TokenAmount struct {
@@ -211,6 +217,23 @@ func convertTokenAmountFromBCS(bcs bcsTokenAmount) (TokenAmount, error) {
 }
 
 func init() {
+	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::DUMMY_RECEIVER", func(data []byte) (interface{}, error) {
+		var result DUMMY_RECEIVER
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for DUMMY_RECEIVER
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::DUMMY_RECEIVER>", func(data []byte) (interface{}, error) {
+		var results []DUMMY_RECEIVER
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::OwnerCap", func(data []byte) (interface{}, error) {
 		var temp bcsOwnerCap
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -307,6 +330,23 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::PublisherKey", func(data []byte) (interface{}, error) {
+		var result PublisherKey
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for PublisherKey
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::PublisherKey>", func(data []byte) (interface{}, error) {
+		var results []PublisherKey
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::TokenAmount", func(data []byte) (interface{}, error) {
 		var temp bcsTokenAmount
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -351,8 +391,8 @@ func (c *DummyReceiverContract) TypeAndVersion(ctx context.Context, opts *bind.C
 }
 
 // RegisterReceiver executes the register_receiver Move function.
-func (c *DummyReceiverContract) RegisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.dummyReceiverEncoder.RegisterReceiver(ref)
+func (c *DummyReceiverContract) RegisterReceiver(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ref bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.RegisterReceiver(ownerCap, ref)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -657,12 +697,14 @@ func (c dummyReceiverEncoder) TypeAndVersionWithArgs(args ...any) (*bind.Encoded
 }
 
 // RegisterReceiver encodes a call to the register_receiver Move function.
-func (c dummyReceiverEncoder) RegisterReceiver(ref bind.Object) (*bind.EncodedCall, error) {
+func (c dummyReceiverEncoder) RegisterReceiver(ownerCap bind.Object, ref bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("register_receiver", typeArgsList, typeParamsList, []string{
+		"&OwnerCap",
 		"&mut CCIPObjectRef",
 	}, []any{
+		ownerCap,
 		ref,
 	}, nil)
 }
@@ -671,6 +713,7 @@ func (c dummyReceiverEncoder) RegisterReceiver(ref bind.Object) (*bind.EncodedCa
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c dummyReceiverEncoder) RegisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&OwnerCap",
 		"&mut CCIPObjectRef",
 	}
 

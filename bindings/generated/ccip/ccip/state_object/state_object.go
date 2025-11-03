@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"state_object","name":"accept_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"add","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"obj","type":"T"}]},{"package":"ccip","module":"state_object","name":"add_package_id","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip","module":"state_object","name":"borrow","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"borrow_mut","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"contains","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"destroy_ccip_admin_proof","parameters":[{"name":"proof","type":"CCIPAdminProof"}]},{"package":"ccip","module":"state_object","name":"execute_ownership_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"to","type":"address"}]},{"package":"ccip","module":"state_object","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip","module":"state_object","name":"get_ccip_admin_proof_data","parameters":[{"name":"proof","type":"CCIPAdminProof"}]},{"package":"ccip","module":"state_object","name":"get_ccip_admin_proof_validated","parameters":[{"name":"proof","type":"CCIPAdminProof"}]},{"package":"ccip","module":"state_object","name":"has_pending_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"owner","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"owner_cap_id","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"pending_transfer_accepted","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"pending_transfer_from","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"pending_transfer_to","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"remove","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"state_object","name":"remove_package_id","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip","module":"state_object","name":"set_ccip_admin_proof_validated","parameters":[{"name":"proof","type":"CCIPAdminProof"},{"name":"validated","type":"bool"}]},{"package":"ccip","module":"state_object","name":"transfer_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"to","type":"address"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"state_object","name":"accept_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"accept_ownership_from_object","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip","module":"state_object","name":"add","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"obj","type":"T"}]},{"package":"ccip","module":"state_object","name":"add_package_id","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip","module":"state_object","name":"borrow","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"borrow_mut","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"contains","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"execute_ownership_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"to","type":"address"}]},{"package":"ccip","module":"state_object","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip","module":"state_object","name":"has_pending_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"owner","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"owner_cap_id","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"pending_transfer_accepted","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"pending_transfer_from","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"pending_transfer_to","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"state_object","name":"remove","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"state_object","name":"remove_package_id","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip","module":"state_object","name":"transfer_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"to","type":"address"}]}]`
 
 type IStateObject interface {
 	AddPackageId(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
@@ -32,8 +32,10 @@ type IStateObject interface {
 	BorrowMut(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	TransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, ref bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -44,14 +46,9 @@ type IStateObject interface {
 	McmsRemovePackageId(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsProofEntrypoint(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	GetCcipAdminProofData(ctx context.Context, opts *bind.CallOpts, proof CCIPAdminProof) (*models.SuiTransactionBlockResponse, error)
-	GetCcipAdminProofValidated(ctx context.Context, opts *bind.CallOpts, proof CCIPAdminProof) (*models.SuiTransactionBlockResponse, error)
-	SetCcipAdminProofValidated(ctx context.Context, opts *bind.CallOpts, proof CCIPAdminProof, validated bool) (*models.SuiTransactionBlockResponse, error)
-	DestroyCcipAdminProof(ctx context.Context, opts *bind.CallOpts, proof CCIPAdminProof) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IStateObjectDevInspect
 	Encoder() StateObjectEncoder
 	Bound() bind.IBoundContract
@@ -69,9 +66,6 @@ type IStateObjectDevInspect interface {
 	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*string, error)
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*bool, error)
 	McmsCallback(ctx context.Context, opts *bind.CallOpts) (McmsCallback, error)
-	McmsProofEntrypoint(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (CCIPAdminProof, error)
-	GetCcipAdminProofData(ctx context.Context, opts *bind.CallOpts, proof CCIPAdminProof) ([]byte, error)
-	GetCcipAdminProofValidated(ctx context.Context, opts *bind.CallOpts, proof CCIPAdminProof) (bool, error)
 }
 
 type StateObjectEncoder interface {
@@ -95,10 +89,14 @@ type StateObjectEncoder interface {
 	TransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	AcceptOwnership(ref bind.Object) (*bind.EncodedCall, error)
 	AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
+	AcceptOwnershipFromObject(ref bind.Object, from string) (*bind.EncodedCall, error)
+	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransfer(ref bind.Object, ownerCap bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcms(ref bind.Object, ownerCap bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
+	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	Owner(ref bind.Object) (*bind.EncodedCall, error)
 	OwnerWithArgs(args ...any) (*bind.EncodedCall, error)
 	HasPendingTransfer(ref bind.Object) (*bind.EncodedCall, error)
@@ -119,22 +117,12 @@ type StateObjectEncoder interface {
 	McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsAcceptOwnership(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsExecuteOwnershipTransfer(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransfer(ref bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsAddAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAddAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsRemoveAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsRemoveAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsProofEntrypoint(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsProofEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetCcipAdminProofData(proof CCIPAdminProof) (*bind.EncodedCall, error)
-	GetCcipAdminProofDataWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetCcipAdminProofValidated(proof CCIPAdminProof) (*bind.EncodedCall, error)
-	GetCcipAdminProofValidatedWithArgs(args ...any) (*bind.EncodedCall, error)
-	SetCcipAdminProofValidated(proof CCIPAdminProof, validated bool) (*bind.EncodedCall, error)
-	SetCcipAdminProofValidatedWithArgs(args ...any) (*bind.EncodedCall, error)
-	DestroyCcipAdminProof(proof CCIPAdminProof) (*bind.EncodedCall, error)
-	DestroyCcipAdminProofWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type StateObjectContract struct {
@@ -192,11 +180,6 @@ type CCIPObjectRefPointer struct {
 }
 
 type STATE_OBJECT struct {
-}
-
-type CCIPAdminProof struct {
-	Data      []byte `move:"vector<u8>"`
-	Validated bool   `move:"bool"`
 }
 
 type McmsCallback struct {
@@ -330,23 +313,6 @@ func init() {
 	// Register vector decoder for STATE_OBJECT
 	bind.RegisterStructDecoder("vector<ccip::state_object::STATE_OBJECT>", func(data []byte) (interface{}, error) {
 		var results []STATE_OBJECT
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::state_object::CCIPAdminProof", func(data []byte) (interface{}, error) {
-		var result CCIPAdminProof
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CCIPAdminProof
-	bind.RegisterStructDecoder("vector<ccip::state_object::CCIPAdminProof>", func(data []byte) (interface{}, error) {
-		var results []CCIPAdminProof
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
@@ -489,6 +455,16 @@ func (c *StateObjectContract) AcceptOwnership(ctx context.Context, opts *bind.Ca
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// AcceptOwnershipFromObject executes the accept_ownership_from_object Move function.
+func (c *StateObjectContract) AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, ref bind.Object, from string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.AcceptOwnershipFromObject(ref, from)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
 func (c *StateObjectContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.stateObjectEncoder.ExecuteOwnershipTransfer(ref, ownerCap, to)
@@ -502,6 +478,16 @@ func (c *StateObjectContract) ExecuteOwnershipTransfer(ctx context.Context, opts
 // ExecuteOwnershipTransferToMcms executes the execute_ownership_transfer_to_mcms Move function.
 func (c *StateObjectContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.stateObjectEncoder.ExecuteOwnershipTransferToMcms(ref, ownerCap, registry, to)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsRegisterUpgradeCap executes the mcms_register_upgrade_cap Move function.
+func (c *StateObjectContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.McmsRegisterUpgradeCap(upgradeCap, registry, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -610,8 +596,8 @@ func (c *StateObjectContract) McmsAcceptOwnership(ctx context.Context, opts *bin
 }
 
 // McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
-func (c *StateObjectContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.stateObjectEncoder.McmsExecuteOwnershipTransfer(ref, registry, params)
+func (c *StateObjectContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.McmsExecuteOwnershipTransfer(ref, registry, deployerState, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -632,56 +618,6 @@ func (c *StateObjectContract) McmsAddAllowedModules(ctx context.Context, opts *b
 // McmsRemoveAllowedModules executes the mcms_remove_allowed_modules Move function.
 func (c *StateObjectContract) McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.stateObjectEncoder.McmsRemoveAllowedModules(registry, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// McmsProofEntrypoint executes the mcms_proof_entrypoint Move function.
-func (c *StateObjectContract) McmsProofEntrypoint(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.stateObjectEncoder.McmsProofEntrypoint(registry, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// GetCcipAdminProofData executes the get_ccip_admin_proof_data Move function.
-func (c *StateObjectContract) GetCcipAdminProofData(ctx context.Context, opts *bind.CallOpts, proof CCIPAdminProof) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.stateObjectEncoder.GetCcipAdminProofData(proof)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// GetCcipAdminProofValidated executes the get_ccip_admin_proof_validated Move function.
-func (c *StateObjectContract) GetCcipAdminProofValidated(ctx context.Context, opts *bind.CallOpts, proof CCIPAdminProof) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.stateObjectEncoder.GetCcipAdminProofValidated(proof)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// SetCcipAdminProofValidated executes the set_ccip_admin_proof_validated Move function.
-func (c *StateObjectContract) SetCcipAdminProofValidated(ctx context.Context, opts *bind.CallOpts, proof CCIPAdminProof, validated bool) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.stateObjectEncoder.SetCcipAdminProofValidated(proof, validated)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// DestroyCcipAdminProof executes the destroy_ccip_admin_proof Move function.
-func (c *StateObjectContract) DestroyCcipAdminProof(ctx context.Context, opts *bind.CallOpts, proof CCIPAdminProof) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.stateObjectEncoder.DestroyCcipAdminProof(proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -923,72 +859,6 @@ func (d *StateObjectDevInspect) McmsCallback(ctx context.Context, opts *bind.Cal
 	result, ok := results[0].(McmsCallback)
 	if !ok {
 		return McmsCallback{}, fmt.Errorf("unexpected return type: expected McmsCallback, got %T", results[0])
-	}
-	return result, nil
-}
-
-// McmsProofEntrypoint executes the mcms_proof_entrypoint Move function using DevInspect to get return values.
-//
-// Returns: CCIPAdminProof
-func (d *StateObjectDevInspect) McmsProofEntrypoint(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (CCIPAdminProof, error) {
-	encoded, err := d.contract.stateObjectEncoder.McmsProofEntrypoint(registry, params)
-	if err != nil {
-		return CCIPAdminProof{}, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return CCIPAdminProof{}, err
-	}
-	if len(results) == 0 {
-		return CCIPAdminProof{}, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(CCIPAdminProof)
-	if !ok {
-		return CCIPAdminProof{}, fmt.Errorf("unexpected return type: expected CCIPAdminProof, got %T", results[0])
-	}
-	return result, nil
-}
-
-// GetCcipAdminProofData executes the get_ccip_admin_proof_data Move function using DevInspect to get return values.
-//
-// Returns: vector<u8>
-func (d *StateObjectDevInspect) GetCcipAdminProofData(ctx context.Context, opts *bind.CallOpts, proof CCIPAdminProof) ([]byte, error) {
-	encoded, err := d.contract.stateObjectEncoder.GetCcipAdminProofData(proof)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return nil, err
-	}
-	if len(results) == 0 {
-		return nil, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
-	}
-	return result, nil
-}
-
-// GetCcipAdminProofValidated executes the get_ccip_admin_proof_validated Move function using DevInspect to get return values.
-//
-// Returns: bool
-func (d *StateObjectDevInspect) GetCcipAdminProofValidated(ctx context.Context, opts *bind.CallOpts, proof CCIPAdminProof) (bool, error) {
-	encoded, err := d.contract.stateObjectEncoder.GetCcipAdminProofValidated(proof)
-	if err != nil {
-		return false, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return false, err
-	}
-	if len(results) == 0 {
-		return false, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
 	}
 	return result, nil
 }
@@ -1324,6 +1194,35 @@ func (c stateObjectEncoder) AcceptOwnershipWithArgs(args ...any) (*bind.EncodedC
 	return c.EncodeCallArgsWithGenerics("accept_ownership", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
+// AcceptOwnershipFromObject encodes a call to the accept_ownership_from_object Move function.
+func (c stateObjectEncoder) AcceptOwnershipFromObject(ref bind.Object, from string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_ownership_from_object", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut UID",
+	}, []any{
+		ref,
+		from,
+	}, nil)
+}
+
+// AcceptOwnershipFromObjectWithArgs encodes a call to the accept_ownership_from_object Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c stateObjectEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut UID",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_ownership_from_object", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
 func (c stateObjectEncoder) ExecuteOwnershipTransfer(ref bind.Object, ownerCap bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -1389,6 +1288,38 @@ func (c stateObjectEncoder) ExecuteOwnershipTransferToMcmsWithArgs(args ...any) 
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsRegisterUpgradeCap encodes a call to the mcms_register_upgrade_cap Move function.
+func (c stateObjectEncoder) McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_register_upgrade_cap", typeArgsList, typeParamsList, []string{
+		"UpgradeCap",
+		"&mut Registry",
+		"&mut DeployerState",
+	}, []any{
+		upgradeCap,
+		registry,
+		state,
+	}, nil)
+}
+
+// McmsRegisterUpgradeCapWithArgs encodes a call to the mcms_register_upgrade_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c stateObjectEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"UpgradeCap",
+		"&mut Registry",
+		"&mut DeployerState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_register_upgrade_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // Owner encodes a call to the owner Move function.
@@ -1694,16 +1625,18 @@ func (c stateObjectEncoder) McmsAcceptOwnershipWithArgs(args ...any) (*bind.Enco
 }
 
 // McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.
-func (c stateObjectEncoder) McmsExecuteOwnershipTransfer(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c stateObjectEncoder) McmsExecuteOwnershipTransfer(ref bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
 		"&mut Registry",
+		"&mut DeployerState",
 		"ExecutingCallbackParams",
 	}, []any{
 		ref,
 		registry,
+		deployerState,
 		params,
 	}, nil)
 }
@@ -1714,6 +1647,7 @@ func (c stateObjectEncoder) McmsExecuteOwnershipTransferWithArgs(args ...any) (*
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
 		"&mut Registry",
+		"&mut DeployerState",
 		"ExecutingCallbackParams",
 	}
 
@@ -1781,152 +1715,4 @@ func (c stateObjectEncoder) McmsRemoveAllowedModulesWithArgs(args ...any) (*bind
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_remove_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
-// McmsProofEntrypoint encodes a call to the mcms_proof_entrypoint Move function.
-func (c stateObjectEncoder) McmsProofEntrypoint(registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_proof_entrypoint", typeArgsList, typeParamsList, []string{
-		"&mut Registry",
-		"ExecutingCallbackParams",
-	}, []any{
-		registry,
-		params,
-	}, []string{
-		"ccip::state_object::CCIPAdminProof",
-	})
-}
-
-// McmsProofEntrypointWithArgs encodes a call to the mcms_proof_entrypoint Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c stateObjectEncoder) McmsProofEntrypointWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut Registry",
-		"ExecutingCallbackParams",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_proof_entrypoint", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip::state_object::CCIPAdminProof",
-	})
-}
-
-// GetCcipAdminProofData encodes a call to the get_ccip_admin_proof_data Move function.
-func (c stateObjectEncoder) GetCcipAdminProofData(proof CCIPAdminProof) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_ccip_admin_proof_data", typeArgsList, typeParamsList, []string{
-		"&CCIPAdminProof",
-	}, []any{
-		proof,
-	}, []string{
-		"vector<u8>",
-	})
-}
-
-// GetCcipAdminProofDataWithArgs encodes a call to the get_ccip_admin_proof_data Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c stateObjectEncoder) GetCcipAdminProofDataWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&CCIPAdminProof",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_ccip_admin_proof_data", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<u8>",
-	})
-}
-
-// GetCcipAdminProofValidated encodes a call to the get_ccip_admin_proof_validated Move function.
-func (c stateObjectEncoder) GetCcipAdminProofValidated(proof CCIPAdminProof) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_ccip_admin_proof_validated", typeArgsList, typeParamsList, []string{
-		"&CCIPAdminProof",
-	}, []any{
-		proof,
-	}, []string{
-		"bool",
-	})
-}
-
-// GetCcipAdminProofValidatedWithArgs encodes a call to the get_ccip_admin_proof_validated Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c stateObjectEncoder) GetCcipAdminProofValidatedWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&CCIPAdminProof",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_ccip_admin_proof_validated", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"bool",
-	})
-}
-
-// SetCcipAdminProofValidated encodes a call to the set_ccip_admin_proof_validated Move function.
-func (c stateObjectEncoder) SetCcipAdminProofValidated(proof CCIPAdminProof, validated bool) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("set_ccip_admin_proof_validated", typeArgsList, typeParamsList, []string{
-		"&mut CCIPAdminProof",
-		"bool",
-	}, []any{
-		proof,
-		validated,
-	}, nil)
-}
-
-// SetCcipAdminProofValidatedWithArgs encodes a call to the set_ccip_admin_proof_validated Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c stateObjectEncoder) SetCcipAdminProofValidatedWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut CCIPAdminProof",
-		"bool",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("set_ccip_admin_proof_validated", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
-// DestroyCcipAdminProof encodes a call to the destroy_ccip_admin_proof Move function.
-func (c stateObjectEncoder) DestroyCcipAdminProof(proof CCIPAdminProof) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("destroy_ccip_admin_proof", typeArgsList, typeParamsList, []string{
-		"ccip::state_object::CCIPAdminProof",
-	}, []any{
-		proof,
-	}, nil)
-}
-
-// DestroyCcipAdminProofWithArgs encodes a call to the destroy_ccip_admin_proof Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c stateObjectEncoder) DestroyCcipAdminProofWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"ccip::state_object::CCIPAdminProof",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("destroy_ccip_admin_proof", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

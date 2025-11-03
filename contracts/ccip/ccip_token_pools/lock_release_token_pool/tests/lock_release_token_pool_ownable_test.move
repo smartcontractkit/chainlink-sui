@@ -11,7 +11,6 @@ use ccip::upgrade_registry;
 use lock_release_token_pool::lock_release_token_pool::{Self, LockReleaseTokenPoolState};
 use lock_release_token_pool::ownable::{Self, OwnerCap};
 use sui::coin;
-use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 
 const OWNER: address = @0x123;
@@ -29,7 +28,7 @@ public struct TestEnv {
     ccip_ref: CCIPObjectRef,
 }
 
-fun setup(): (TestEnv, OwnerCap<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>) {
+fun setup(): (TestEnv, OwnerCap) {
     let mut scenario = ts::begin(OWNER);
 
     // Setup CCIP environment
@@ -61,25 +60,44 @@ fun setup(): (TestEnv, OwnerCap<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>) {
         ctx,
     );
 
+    // Call test_init to create owner_cap
+    lock_release_token_pool::test_init(ctx);
+
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(treasury_cap, OWNER);
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+
+    // Now take the owner_cap that was created by test_init and initialize the pool
+    scenario.next_tx(OWNER);
+    let mut owner_cap_for_init = ts::take_from_sender<OwnerCap>(&scenario);
+    let coin_metadata = ts::take_immutable<
+        coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>,
+    >(&scenario);
+    let treasury_cap = ts::take_from_sender<
+        coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>,
+    >(&scenario);
+
     lock_release_token_pool::initialize(
+        &mut owner_cap_for_init,
         &mut ccip_ref,
         &coin_metadata,
         &treasury_cap,
         TOKEN_ADMIN,
         REBALANCER,
-        package::test_claim(LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST {}, ctx),
-        ctx,
+        scenario.ctx(),
     );
 
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(treasury_cap, ctx.sender());
-    transfer::public_transfer(ccip_owner_cap, @0x0);
+    transfer::public_transfer(owner_cap_for_init, OWNER);
+    transfer::public_transfer(treasury_cap, OWNER);
+    ts::return_immutable(coin_metadata);
+    ts::return_shared(ccip_ref);
 
     scenario.next_tx(OWNER);
     let state = ts::take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>>(
         &scenario,
     );
-    let owner_cap = ts::take_from_sender<OwnerCap<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>>(&scenario);
+    let owner_cap = ts::take_from_sender<OwnerCap>(&scenario);
+    let ccip_ref = ts::take_shared<CCIPObjectRef>(&scenario);
 
     let env = TestEnv {
         scenario,
@@ -183,9 +201,7 @@ public fun test_transfer_ownership_unauthorized() {
 
     // Try to transfer ownership from unauthorized user
     env.scenario.next_tx(OTHER_USER);
-    let (other_ownable_state, other_user_owner_cap) = ownable::new<
-        LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST,
-    >(env.scenario.ctx());
+    let (other_ownable_state, other_user_owner_cap) = ownable::new(env.scenario.ctx());
     lock_release_token_pool::transfer_ownership(
         &mut env.state,
         &other_user_owner_cap,

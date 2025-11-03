@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"github.com/Masterminds/semver/v3"
+
 	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 )
 
@@ -31,6 +32,7 @@ var (
 	SuiMcmsAccountStateObjectIDType    deployment.ContractType = "SuiManyChainMultisigAccountStateObjectID"
 	SuiMcmsAccountOwnerCapObjectIDType deployment.ContractType = "SuiManyChainMultisigAccountOwnerCapObjectID"
 	SuiMcmsTimelockObjectIDType        deployment.ContractType = "SuiManyChainMultisigTimelockObjectID"
+	SuiMcmsDeployerObjectIDType        deployment.ContractType = "SuiManyChainMultisigDeployerObjectID"
 
 	// MCMS User Related
 	SuiMcmsUserPackageIDType        deployment.ContractType = "SuiMcmsUserPackageID"

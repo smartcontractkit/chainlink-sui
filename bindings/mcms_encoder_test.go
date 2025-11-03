@@ -203,48 +203,6 @@ func TestEncodeEntryPointArg_Onramp(t *testing.T) {
 	ccipRefID := "0x8888888888888888888888888888888888888888888888888888888888888888"
 	executingCallbackParams := &transaction.Argument{}
 
-	t.Run("initialize", func(t *testing.T) {
-		ownerCapID := "0x7777777777777777777777777777777777777777777777777777777777777777"
-		nonceManagerCapID := "0x6666666666666666666666666666666666666666666666666666666666666666"
-		sourceTransferCapID := "0x5555555555555555555555555555555555555555555555555555555555555555"
-
-		data := serializeAddresses(stateObjID, ownerCapID, nonceManagerCapID, sourceTransferCapID)
-
-		result, err := encoder.EncodeEntryPointArg(
-			executingCallbackParams,
-			target,
-			"onramp",
-			"initialize",
-			stateObjID,
-			data,
-			[]string{"0x1::sui::SUI"},
-		)
-
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, "onramp", result.Module.ModuleName)
-		assert.Equal(t, "mcms_initialize", result.Function)
-
-		// Verify deserialization - check that the encoder correctly deserialized BCS data
-		// and used the correct object IDs from the data
-		require.Len(t, result.CallArgs, 5, "Expected 5 arguments: state, registry, nonceManagerCap, sourceTransferCap, executingCallbackParams")
-
-		// Extract object IDs from the result to verify deserialization
-		stateObjIDFromResult, err := extractObjectID(result.CallArgs[0])
-		require.NoError(t, err, "Failed to extract state object ID")
-		assert.Equal(t, stateObjID, stateObjIDFromResult, "State object ID should match the one provided")
-
-		// Verify nonceManagerCap was deserialized correctly (3rd argument, index 2)
-		nonceManagerCapFromResult, err := extractObjectID(result.CallArgs[2])
-		require.NoError(t, err, "Failed to extract nonceManagerCap object ID")
-		assert.Equal(t, toHexString(createAddress(nonceManagerCapID)), nonceManagerCapFromResult, "NonceManagerCap should match deserialized value from data")
-
-		// Verify sourceTransferCap was deserialized correctly (4th argument, index 3)
-		sourceTransferCapFromResult, err := extractObjectID(result.CallArgs[3])
-		require.NoError(t, err, "Failed to extract sourceTransferCap object ID")
-		assert.Equal(t, toHexString(createAddress(sourceTransferCapID)), sourceTransferCapFromResult, "SourceTransferCap should match deserialized value from data")
-	})
-
 	t.Run("withdraw_fee_tokens", func(t *testing.T) {
 		ownerCapID := "0x7777777777777777777777777777777777777777777777777777777777777777"
 		feeTokenMetadataID := "0x6666666666666666666666666666666666666666666666666666666666666666"
@@ -363,7 +321,8 @@ func TestEncodeEntryPointArg_Router(t *testing.T) {
 
 func TestEncodeEntryPointArg_BurnMintTokenPool(t *testing.T) {
 	encoder := &CCIPEntrypointArgEncoder{
-		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
+		registryObjID:      "0x1234567890123456789012345678901234567890123456789012345678901234",
+		deployerStateObjID: "0x8888888888888888888888888888888888888888888888888888888888888888",
 	}
 
 	target := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
@@ -396,7 +355,6 @@ func TestEncodeEntryPointArg_BurnMintTokenPool(t *testing.T) {
 		"add_remote_pool",
 		"remove_remote_pool",
 		"transfer_ownership",
-		"execute_ownership_transfer",
 	}
 
 	for _, fn := range typeArgTestCases {
@@ -427,6 +385,38 @@ func TestEncodeEntryPointArg_BurnMintTokenPool(t *testing.T) {
 			assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID (from BCS data)")
 		})
 	}
+
+	t.Run("execute_ownership_transfer", func(t *testing.T) {
+		data := []byte{}
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"burn_mint_token_pool",
+			"execute_ownership_transfer",
+			stateObjID,
+			data,
+			[]string{"0x1::sui::SUI"},
+		)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "burn_mint_token_pool", result.Module.ModuleName)
+		assert.Equal(t, "mcms_execute_ownership_transfer", result.Function)
+
+		require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+		require.Len(t, result.CallArgs, 4, "Expected 4 arguments: state, registry, deployer_state, executingCallbackParams")
+
+		// Verify the state was deserialized correctly
+		stateFromResult, err := extractObjectID(result.CallArgs[0])
+		require.NoError(t, err, "Failed to extract state object ID")
+		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+
+		// Verify the deployer state was set correctly
+		deployerStateFromResult, err := extractObjectID(result.CallArgs[2])
+		require.NoError(t, err, "Failed to extract deployer state object ID")
+		assert.Equal(t, encoder.deployerStateObjID, deployerStateFromResult, "Deployer state should match deployerStateObjID")
+	})
 
 	rateLimiterTestCases := []string{
 		"set_chain_rate_limiter_configs",
@@ -465,7 +455,8 @@ func TestEncodeEntryPointArg_BurnMintTokenPool(t *testing.T) {
 
 func TestEncodeEntryPointArg_LockReleaseTokenPool(t *testing.T) {
 	encoder := &CCIPEntrypointArgEncoder{
-		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
+		registryObjID:      "0x1234567890123456789012345678901234567890123456789012345678901234",
+		deployerStateObjID: "0x8888888888888888888888888888888888888888888888888888888888888888",
 	}
 
 	target := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
@@ -499,7 +490,6 @@ func TestEncodeEntryPointArg_LockReleaseTokenPool(t *testing.T) {
 		"add_remote_pool",
 		"remove_remote_pool",
 		"transfer_ownership",
-		"execute_ownership_transfer",
 	}
 
 	for _, fn := range typeArgTestCases {
@@ -530,6 +520,38 @@ func TestEncodeEntryPointArg_LockReleaseTokenPool(t *testing.T) {
 			assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID (from BCS data)")
 		})
 	}
+
+	t.Run("execute_ownership_transfer", func(t *testing.T) {
+		data := []byte{}
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"lock_release_token_pool",
+			"execute_ownership_transfer",
+			stateObjID,
+			data,
+			[]string{"0x1::sui::SUI"},
+		)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "lock_release_token_pool", result.Module.ModuleName)
+		assert.Equal(t, "mcms_execute_ownership_transfer", result.Function)
+
+		require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+		require.Len(t, result.CallArgs, 4, "Expected 4 arguments: state, registry, deployer_state, executingCallbackParams")
+
+		// Verify the state was deserialized correctly
+		stateFromResult, err := extractObjectID(result.CallArgs[0])
+		require.NoError(t, err, "Failed to extract state object ID")
+		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+
+		// Verify the deployer state was set correctly
+		deployerStateFromResult, err := extractObjectID(result.CallArgs[2])
+		require.NoError(t, err, "Failed to extract deployer state object ID")
+		assert.Equal(t, encoder.deployerStateObjID, deployerStateFromResult, "Deployer state should match deployerStateObjID")
+	})
 
 	rateLimiterTestCases := []string{
 		"set_chain_rate_limiter_configs",
@@ -568,7 +590,8 @@ func TestEncodeEntryPointArg_LockReleaseTokenPool(t *testing.T) {
 
 func TestEncodeEntryPointArg_ManagedTokenPool(t *testing.T) {
 	encoder := &CCIPEntrypointArgEncoder{
-		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
+		registryObjID:      "0x1234567890123456789012345678901234567890123456789012345678901234",
+		deployerStateObjID: "0x8888888888888888888888888888888888888888888888888888888888888888",
 	}
 
 	target := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
@@ -601,7 +624,6 @@ func TestEncodeEntryPointArg_ManagedTokenPool(t *testing.T) {
 		"add_remote_pool",
 		"remove_remote_pool",
 		"transfer_ownership",
-		"execute_ownership_transfer",
 	}
 
 	for _, fn := range typeArgTestCases {
@@ -632,6 +654,38 @@ func TestEncodeEntryPointArg_ManagedTokenPool(t *testing.T) {
 			assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID (from BCS data)")
 		})
 	}
+
+	t.Run("execute_ownership_transfer", func(t *testing.T) {
+		data := []byte{}
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"managed_token_pool",
+			"execute_ownership_transfer",
+			stateObjID,
+			data,
+			[]string{"0x1::sui::SUI"},
+		)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "managed_token_pool", result.Module.ModuleName)
+		assert.Equal(t, "mcms_execute_ownership_transfer", result.Function)
+
+		require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+		require.Len(t, result.CallArgs, 4, "Expected 4 arguments: state, registry, deployer_state, executingCallbackParams")
+
+		// Verify the state was deserialized correctly
+		stateFromResult, err := extractObjectID(result.CallArgs[0])
+		require.NoError(t, err, "Failed to extract state object ID")
+		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+
+		// Verify the deployer state was set correctly
+		deployerStateFromResult, err := extractObjectID(result.CallArgs[2])
+		require.NoError(t, err, "Failed to extract deployer state object ID")
+		assert.Equal(t, encoder.deployerStateObjID, deployerStateFromResult, "Deployer state should match deployerStateObjID")
+	})
 
 	rateLimiterTestCases := []string{
 		"set_chain_rate_limiter_configs",
@@ -670,7 +724,8 @@ func TestEncodeEntryPointArg_ManagedTokenPool(t *testing.T) {
 
 func TestEncodeEntryPointArg_UsdcTokenPool(t *testing.T) {
 	encoder := &CCIPEntrypointArgEncoder{
-		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
+		registryObjID:      "0x1234567890123456789012345678901234567890123456789012345678901234",
+		deployerStateObjID: "0x8888888888888888888888888888888888888888888888888888888888888888",
 	}
 
 	target := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
@@ -703,7 +758,6 @@ func TestEncodeEntryPointArg_UsdcTokenPool(t *testing.T) {
 		"add_remote_pool",
 		"remove_remote_pool",
 		"transfer_ownership",
-		"execute_ownership_transfer",
 	}
 
 	for _, fn := range typeArgTestCases {
@@ -734,6 +788,38 @@ func TestEncodeEntryPointArg_UsdcTokenPool(t *testing.T) {
 			assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID (from BCS data)")
 		})
 	}
+
+	t.Run("execute_ownership_transfer", func(t *testing.T) {
+		data := []byte{}
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"usdc_token_pool",
+			"execute_ownership_transfer",
+			stateObjID,
+			data,
+			[]string{"0x1::sui::SUI"},
+		)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "usdc_token_pool", result.Module.ModuleName)
+		assert.Equal(t, "mcms_execute_ownership_transfer", result.Function)
+
+		require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+		require.Len(t, result.CallArgs, 4, "Expected 4 arguments: state, registry, deployer_state, executingCallbackParams")
+
+		// Verify the state was deserialized correctly
+		stateFromResult, err := extractObjectID(result.CallArgs[0])
+		require.NoError(t, err, "Failed to extract state object ID")
+		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+
+		// Verify the deployer state was set correctly
+		deployerStateFromResult, err := extractObjectID(result.CallArgs[2])
+		require.NoError(t, err, "Failed to extract deployer state object ID")
+		assert.Equal(t, encoder.deployerStateObjID, deployerStateFromResult, "Deployer state should match deployerStateObjID")
+	})
 
 	rateLimiterTestCases := []string{
 		"set_chain_rate_limiter_configs",
@@ -929,28 +1015,6 @@ func TestEncodeEntryPointArg_ErrorCases(t *testing.T) {
 		assert.Contains(t, err.Error(), "does not match state object")
 	})
 
-	t.Run("onramp_initialize_state_mismatch", func(t *testing.T) {
-		ownerCapID := "0x7777777777777777777777777777777777777777777777777777777777777777"
-		nonceManagerCapID := "0x6666666666666666666666666666666666666666666666666666666666666666"
-		sourceTransferCapID := "0x5555555555555555555555555555555555555555555555555555555555555555"
-
-		// First address is wrong state
-		data := serializeAddresses(wrongStateObjID, ownerCapID, nonceManagerCapID, sourceTransferCapID)
-
-		_, err := encoder.EncodeEntryPointArg(
-			executingCallbackParams,
-			target,
-			"onramp",
-			"initialize",
-			stateObjID,
-			data,
-			[]string{"0x1::sui::SUI"},
-		)
-
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "does not match state object")
-	})
-
 	t.Run("onramp_withdraw_fee_tokens_state_mismatch", func(t *testing.T) {
 		ccipRefID := "0x8888888888888888888888888888888888888888888888888888888888888888"
 		ownerCapID := "0x7777777777777777777777777777777777777777777777777777777777777777"
@@ -1078,8 +1142,10 @@ func TestHelperFunctions(t *testing.T) {
 
 func TestNewCCIPEntrypointArgEncoder(t *testing.T) {
 	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-	encoder := NewCCIPEntrypointArgEncoder(registryObjID)
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
 
 	assert.NotNil(t, encoder)
 	assert.Equal(t, registryObjID, encoder.registryObjID)
+	assert.Equal(t, deployerStateObjID, encoder.deployerStateObjID)
 }

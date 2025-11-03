@@ -1,7 +1,8 @@
 #[test_only]
 module ccip::token_admin_registry_tests;
 
-use ccip::ownable::{OwnerCap};
+use ccip::ownable::OwnerCap;
+use ccip::publisher_wrapper;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
 use ccip::upgrade_registry;
@@ -14,6 +15,7 @@ use std::string;
 use std::type_name;
 use sui::address;
 use sui::coin;
+use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 
 // === Test Witness Types ===
@@ -86,7 +88,11 @@ fun register_test_pool<T>(
     treasury_cap: &coin::TreasuryCap<T>,
     coin_metadata: &coin::CoinMetadata<T>,
     admin: address,
+    ctx: &mut TxContext,
 ) {
+    let publisher = package::test_claim(TOKEN_ADMIN_REGISTRY_TESTS {}, ctx);
+    let publisher_wrapper = publisher_wrapper::create(&publisher, TypeProof {});
+
     registry::register_pool(
         ref,
         treasury_cap,
@@ -94,8 +100,56 @@ fun register_test_pool<T>(
         admin,
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        publisher_wrapper,
         TypeProof {},
     );
+
+    package::burn_publisher(publisher);
+}
+
+fun register_pool_via_mcms(
+    scenario: &mut Scenario,
+    owner_cap_id: address,
+    coin_metadata_address: address,
+    token_pool_package_id: address,
+    token_pool_module: vector<u8>,
+    token_type: ascii::String,
+    initial_administrator: address,
+    token_pool_type_proof: ascii::String,
+    lock_or_burn_params: vector<address>,
+    release_or_mint_params: vector<address>,
+) {
+    let mut ref = scenario.take_shared<CCIPObjectRef>();
+    let mut registry = scenario.take_shared<Registry>();
+
+    // Prepare BCS serialized data for mcms_register_pool
+    let mut data = vector::empty<u8>();
+    data.append(bcs::to_bytes(&owner_cap_id));
+    data.append(bcs::to_bytes(&object::id_address(&ref)));
+    data.append(bcs::to_bytes(&coin_metadata_address));
+    data.append(bcs::to_bytes(&token_pool_package_id));
+    data.append(bcs::to_bytes(&string::utf8(token_pool_module)));
+    data.append(bcs::to_bytes(&token_type));
+    data.append(bcs::to_bytes(&initial_administrator));
+    data.append(bcs::to_bytes(&token_pool_type_proof));
+    data.append(bcs::to_bytes(&lock_or_burn_params));
+    data.append(bcs::to_bytes(&release_or_mint_params));
+
+    // Create MCMS callback params
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"register_pool"),
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000002",
+        0,
+        1,
+    );
+
+    registry::mcms_register_pool(&mut ref, &mut registry, params, scenario.ctx());
+
+    ts::return_shared(registry);
+    ts::return_shared(ref);
 }
 
 fun assert_empty_token_config(ref: &CCIPObjectRef, token_address: address) {
@@ -193,6 +247,7 @@ public fun test_get_pool() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         // Test with registered token
@@ -211,35 +266,166 @@ public fun test_get_pool() {
 }
 
 #[test]
-public fun test_register_pool_by_admin() {
+#[expected_failure(abort_code = registry::ETokenPoolPackageIdAlreadyRegistered)]
+public fun test_register_pool_duplicate_package_id_fails() {
     let mut scenario = create_test_scenario(CCIP_ADMIN);
     initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
 
+    // First registration with a specific package ID
+    scenario.next_tx(CCIP_ADMIN);
+    let owner_cap = scenario.take_from_sender<OwnerCap>();
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let ctx = scenario.ctx();
+
+        registry::register_pool_as_owner(
+            &owner_cap,
+            &mut ref,
+            @0xABC1, // coin_metadata_address #1
+            @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+            string::utf8(b"dup_pool"),
+            ascii::string(b"TypeOne"),
+            TOKEN_ADMIN_ADDRESS,
+            ascii::string(b"ProofOne"),
+            vector[@0x6, @0x1111],
+            vector[@0x6, @0x2222],
+            ctx,
+        );
+
+        // Sanity: mapping from package -> coin metadata should be set
+        let mapped = registry::get_pool_local_token(
+            &ref,
+            @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+        );
+        assert!(mapped == @0xABC1);
+
+        ts::return_shared(ref);
+    };
+
+    // Second registration with the SAME package ID should fail
     scenario.next_tx(CCIP_ADMIN);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let ctx = scenario.ctx();
 
-        // Register pool as admin (without treasury cap)
-        registry::register_pool_by_admin(
+        registry::register_pool_as_owner(
+            &owner_cap,
             &mut ref,
-            state_object::create_ccip_admin_proof_for_test(vector[], true),
-            @0x123, // coin_metadata_address
-            MOCK_TOKEN_POOL_PACKAGE_ID_1, // token_pool_package_id
-            string::utf8(b"admin_registered_pool"), // token_pool_module
-            ascii::string(b"TestType"),
-            TOKEN_ADMIN_ADDRESS, // initial_administrator
-            ascii::string(b"AdminProof"), // proof
-            vector<address>[], // lock_or_burn_params
-            vector<address>[], // release_or_mint_params
+            @0xABC2, // coin_metadata_address #2
+            @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA, // duplicate package id
+            string::utf8(b"dup_pool_2"),
+            ascii::string(b"TypeTwo"),
+            TOKEN_ADMIN_ADDRESS,
+            ascii::string(b"ProofTwo"),
+            vector[@0x6, @0x3333],
+            vector[@0x6, @0x4444],
             ctx,
         );
+
+        ts::return_shared(ref);
+    };
+
+    scenario.return_to_sender(owner_cap);
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::ETokenPoolPackageIdNotRegistered)]
+public fun test_set_pool_previous_package_not_in_mapping_fails() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    // Insert a token config that does NOT populate the package-id-to-coin mapping
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+
+        registry::insert_token_configs_for_test(
+            &mut ref,
+            TOKEN_ADMIN_ADDRESS,
+            vector[@0xBEEF],
+            TypeProof {},
+        );
+
+        // Attempt to set a new pool. Since previous_pool_package_id (@0x0) is not in the mapping,
+        // this should fail with ETokenPoolPackageIdNotRegistered.
+        registry::set_pool(
+            &mut ref,
+            @0xBEEF,
+            vector[@0x6, @0x5555],
+            vector[@0x6, @0x6666],
+            TypeProof {},
+            TOKEN_ADMIN_ADDRESS,
+        );
+
+        ts::return_shared(ref);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[allow(implicit_const_copy)]
+public fun test_mcms_register_pool() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    // Get owner_cap ID before registering MCMS capability
+    scenario.next_tx(CCIP_ADMIN);
+    let owner_cap = scenario.take_from_sender<OwnerCap>();
+    let owner_cap_id = object::id_address(&owner_cap);
+    scenario.return_to_sender(owner_cap);
+
+    // Register MCMS capability
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
+
+        ts::return_shared(registry);
+    };
+
+    // Register pool via MCMS
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        // Prepare BCS serialized data for mcms_register_pool
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&owner_cap_id)); // owner_cap address (will be validated by MCMS)
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&@0x123)); // coin_metadata_address
+        data.append(bcs::to_bytes(&MOCK_TOKEN_POOL_PACKAGE_ID_1)); // token_pool_package_id
+        data.append(bcs::to_bytes(&string::utf8(b"admin_registered_pool"))); // token_pool_module
+        data.append(bcs::to_bytes(&ascii::string(b"TestType"))); // token_type
+        data.append(bcs::to_bytes(&TOKEN_ADMIN_ADDRESS)); // initial_administrator
+        data.append(bcs::to_bytes(&ascii::string(b"AdminProof"))); // token_pool_type_proof
+        data.append(bcs::to_bytes(&vector<address>[])); // lock_or_burn_params
+        data.append(bcs::to_bytes(&vector<address>[])); // release_or_mint_params
+
+        // Create MCMS callback params
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"register_pool"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000002",
+            0,
+            1,
+        );
+
+        // Call mcms_register_pool
+        registry::mcms_register_pool(&mut ref, &mut registry, params, scenario.ctx());
 
         // Verify registration
         let pool_address = registry::get_pool(&ref, @0x123);
         assert!(pool_address == MOCK_TOKEN_POOL_PACKAGE_ID_1);
         assert!(registry::is_administrator(&ref, @0x123, TOKEN_ADMIN_ADDRESS));
 
+        ts::return_shared(registry);
         ts::return_shared(ref);
     };
 
@@ -265,6 +451,7 @@ public fun test_register_and_unregister() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS_2,
+            scenario.ctx(),
         );
 
         // Verify registration
@@ -312,6 +499,7 @@ public fun test_register_and_set_pool() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         // Verify initial registration
@@ -414,7 +602,12 @@ public fun test_get_all_configured_tokens() {
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
 
-        registry::insert_token_configs_for_test(&mut ref, vector[@0x1, @0x2, @0x3], TypeProof {});
+        registry::insert_token_configs_for_test(
+            &mut ref,
+            TOKEN_ADMIN_ADDRESS,
+            vector[@0x1, @0x2, @0x3],
+            TypeProof {},
+        );
 
         // Test with max_count = 0
         let (res, next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x0, 0);
@@ -451,14 +644,24 @@ public fun test_get_all_configured_tokens_edge_cases() {
         assert!(!has_more);
 
         // Test case 2: Single token
-        registry::insert_token_configs_for_test(&mut ref, vector[@0x1], TypeProof {});
+        registry::insert_token_configs_for_test(
+            &mut ref,
+            TOKEN_ADMIN_ADDRESS,
+            vector[@0x1],
+            TypeProof {},
+        );
         let (res, _next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x0, 1);
         assert!(res.length() == 1);
         assert!(res[0] == @0x1);
         assert!(!has_more);
 
         // Test case 3: Start from middle
-        registry::insert_token_configs_for_test(&mut ref, vector[@0x2, @0x3], TypeProof {});
+        registry::insert_token_configs_for_test(
+            &mut ref,
+            TOKEN_ADMIN_ADDRESS,
+            vector[@0x2, @0x3],
+            TypeProof {},
+        );
         let (res, _next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x1, 2);
         assert!(res.length() == 2);
         assert!(res[0] == @0x2);
@@ -490,6 +693,7 @@ public fun test_get_all_configured_tokens_pagination() {
 
         registry::insert_token_configs_for_test(
             &mut ref,
+            TOKEN_ADMIN_ADDRESS,
             vector[@0x1, @0x2, @0x3, @0x4, @0x5],
             TypeProof {},
         );
@@ -557,6 +761,7 @@ public fun test_set_pool_comprehensive() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         let tn = type_name::with_defining_ids<TypeProof>();
@@ -692,6 +897,7 @@ public fun test_register_and_unregister_as_non_admin() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS_2,
+            scenario.ctx(),
         );
 
         let ctx = scenario.ctx();
@@ -722,7 +928,12 @@ public fun test_get_all_configured_tokens_non_existent() {
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
 
-        registry::insert_token_configs_for_test(&mut ref, vector[@0x1, @0x2, @0x3], TypeProof {});
+        registry::insert_token_configs_for_test(
+            &mut ref,
+            TOKEN_ADMIN_ADDRESS,
+            vector[@0x1, @0x2, @0x3],
+            TypeProof {},
+        );
 
         // Test starting from key between existing tokens
         let (res, _next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x1, 1);
@@ -785,6 +996,7 @@ public fun test_set_pool_unauthorized() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS_2,
+            scenario.ctx(),
         );
 
         let ctx = scenario.ctx();
@@ -856,6 +1068,7 @@ public fun test_register_pool_already_registered() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         // Try to register the same token again - should fail
@@ -864,6 +1077,7 @@ public fun test_register_pool_already_registered() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         let ctx = scenario.ctx();
@@ -894,6 +1108,7 @@ public fun test_transfer_admin_role_not_administrator() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         let ctx = scenario.ctx();
@@ -935,6 +1150,7 @@ public fun test_accept_admin_role_not_pending() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         // Request admin transfer to TOKEN_ADMIN_ADDRESS_2
@@ -980,6 +1196,7 @@ public fun test_accept_admin_role_no_pending_transfer() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         // NOTE: No admin transfer request made
@@ -1036,6 +1253,7 @@ public fun test_mcms_transfer_admin_role() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         let ctx = scenario.ctx();
@@ -1092,6 +1310,7 @@ public fun test_mcms_accept_admin_role() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         // set pending transfer to MCMS
@@ -1167,6 +1386,7 @@ public fun test_mcms_full_admin_transfer_flow() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         let ctx = scenario.ctx();
@@ -1250,6 +1470,7 @@ public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         let ctx = scenario.ctx();
@@ -1376,6 +1597,7 @@ public fun test_register_pool_function_not_allowed() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         let ctx = scenario.ctx();
@@ -1410,27 +1632,43 @@ public fun test_set_pool_with_different_package_ids() {
     let original_pool_package_id =
         @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;
 
-    // Step 1: Register a pool with a specific package ID (simulates original pool)
+    // Get owner_cap ID before registering MCMS capability
+    scenario.next_tx(CCIP_ADMIN);
+    let owner_cap = scenario.take_from_sender<OwnerCap>();
+    let owner_cap_id = object::id_address(&owner_cap);
+    scenario.return_to_sender(owner_cap);
+
+    // Register MCMS capability
     scenario.next_tx(CCIP_ADMIN);
     {
-        let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let ctx = scenario.ctx();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let mut registry = scenario.take_shared<Registry>();
 
-        registry::register_pool_by_admin(
-            &mut ref,
-            state_object::create_ccip_admin_proof_for_test(vector[], true),
-            mock_token_address,
-            original_pool_package_id,
-            string::utf8(b"original_pool_module"),
-            ascii::string(b"OriginalTokenType"),
-            TOKEN_ADMIN_ADDRESS,
-            ascii::string(b"OriginalTypeProof"),
-            vector[@0x6, @0x1111], // original lock_or_burn_params
-            vector[@0x6, @0x2222], // original release_or_mint_params
-            ctx,
-        );
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
 
-        // Verify initial configuration
+        ts::return_shared(registry);
+    };
+
+    // Step 1: Register a pool with a specific package ID (simulates original pool)
+    scenario.next_tx(CCIP_ADMIN);
+    register_pool_via_mcms(
+        &mut scenario,
+        owner_cap_id,
+        mock_token_address,
+        original_pool_package_id,
+        b"original_pool_module",
+        ascii::string(b"OriginalTokenType"),
+        TOKEN_ADMIN_ADDRESS,
+        ascii::string(b"OriginalTypeProof"),
+        vector[@0x6, @0x1111], // original lock_or_burn_params
+        vector[@0x6, @0x2222], // original release_or_mint_params
+    );
+
+    // Verify initial configuration
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let ref = scenario.take_shared<CCIPObjectRef>();
+
         let pool = registry::get_pool(&ref, mock_token_address);
         assert!(pool == original_pool_package_id, 0);
 
@@ -1538,6 +1776,7 @@ public fun test_set_pool_same_package_id_no_update() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         let ctx = scenario.ctx();
@@ -1624,28 +1863,37 @@ public fun test_set_pool_only_admin_can_call() {
 
     let mock_token_address = @0x999;
 
-    // Register a pool with TOKEN_ADMIN_ADDRESS as administrator
+    // Get owner_cap ID before registering MCMS capability
+    scenario.next_tx(CCIP_ADMIN);
+    let owner_cap = scenario.take_from_sender<OwnerCap>();
+    let owner_cap_id = object::id_address(&owner_cap);
+    scenario.return_to_sender(owner_cap);
+
+    // Register MCMS capability
     scenario.next_tx(CCIP_ADMIN);
     {
-        let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let ctx = scenario.ctx();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let mut registry = scenario.take_shared<Registry>();
 
-        registry::register_pool_by_admin(
-            &mut ref,
-            state_object::create_ccip_admin_proof_for_test(vector[], true),
-            mock_token_address,
-            @0xAAAA,
-            string::utf8(b"test_pool"),
-            ascii::string(b"TestType"),
-            TOKEN_ADMIN_ADDRESS,
-            ascii::string(b"TestProof"),
-            vector[@0x6, @0x1111],
-            vector[@0x6, @0x2222],
-            ctx,
-        );
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
 
-        ts::return_shared(ref);
+        ts::return_shared(registry);
     };
+
+    // Register a pool with TOKEN_ADMIN_ADDRESS as administrator
+    scenario.next_tx(CCIP_ADMIN);
+    register_pool_via_mcms(
+        &mut scenario,
+        owner_cap_id,
+        mock_token_address,
+        @0xAAAA,
+        b"test_pool",
+        ascii::string(b"TestType"),
+        TOKEN_ADMIN_ADDRESS,
+        ascii::string(b"TestProof"),
+        vector[@0x6, @0x1111],
+        vector[@0x6, @0x2222],
+    );
 
     // Try to call set_pool as RANDOM_USER (not the administrator) - should fail
     scenario.next_tx(RANDOM_USER);
@@ -1679,6 +1927,12 @@ public fun test_mcms_set_pool_with_package_change() {
         @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;
     let mcms = mcms_registry::get_multisig_address();
 
+    // Get owner_cap ID before registering MCMS capability
+    scenario.next_tx(CCIP_ADMIN);
+    let owner_cap = scenario.take_from_sender<OwnerCap>();
+    let owner_cap_id = object::id_address(&owner_cap);
+    scenario.return_to_sender(owner_cap);
+
     // Register MCMS capability
     scenario.next_tx(CCIP_ADMIN);
     {
@@ -1692,26 +1946,18 @@ public fun test_mcms_set_pool_with_package_change() {
 
     // Register a pool with original package ID
     scenario.next_tx(CCIP_ADMIN);
-    {
-        let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let ctx = scenario.ctx();
-
-        registry::register_pool_by_admin(
-            &mut ref,
-            state_object::create_ccip_admin_proof_for_test(vector[], true),
-            mock_token_address,
-            original_pool_package_id,
-            string::utf8(b"original_pool"),
-            ascii::string(b"OriginalType"),
-            TOKEN_ADMIN_ADDRESS,
-            ascii::string(b"OriginalProof"),
-            vector[@0x6, @0x1111],
-            vector[@0x6, @0x2222],
-            ctx,
-        );
-
-        ts::return_shared(ref);
-    };
+    register_pool_via_mcms(
+        &mut scenario,
+        owner_cap_id,
+        mock_token_address,
+        original_pool_package_id,
+        b"original_pool",
+        ascii::string(b"OriginalType"),
+        TOKEN_ADMIN_ADDRESS,
+        ascii::string(b"OriginalProof"),
+        vector[@0x6, @0x1111],
+        vector[@0x6, @0x2222],
+    );
 
     // Transfer admin to MCMS
     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
@@ -1833,6 +2079,7 @@ public fun test_set_pool_function_not_allowed() {
             &treasury_cap,
             &coin_metadata,
             TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
         );
 
         let ctx = scenario.ctx();

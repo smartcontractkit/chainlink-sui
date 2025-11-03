@@ -19,13 +19,14 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_router","module":"router","name":"accept_ownership","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"RouterState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"get_uid","parameters":[{"name":"router_object","type":"RouterObject"}]},{"package":"ccip_router","module":"router","name":"has_pending_transfer","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"is_chain_supported","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"owner","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_from","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_to","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"set_on_ramps","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"router","type":"RouterState"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"on_ramp_package_ids","type":"vector<address>"}]},{"package":"ccip_router","module":"router","name":"transfer_ownership","parameters":[{"name":"state","type":"RouterState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_router","module":"router","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"ccip_router","module":"router","name":"accept_ownership","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"RouterState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"get_dest_chains","parameters":[{"name":"router","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"get_uid","parameters":[{"name":"router_object","type":"RouterObject"}]},{"package":"ccip_router","module":"router","name":"has_pending_transfer","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"is_chain_supported","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"owner","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_from","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_to","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"set_on_ramps","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"router","type":"RouterState"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"on_ramp_package_ids","type":"vector<address>"}]},{"package":"ccip_router","module":"router","name":"transfer_ownership","parameters":[{"name":"state","type":"RouterState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_router","module":"router","name":"type_and_version","parameters":null}]`
 
 type IRouter interface {
 	GetUid(ctx context.Context, opts *bind.CallOpts, routerObject bind.Object) (*models.SuiTransactionBlockResponse, error)
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	GetOnRamp(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	GetDestChains(ctx context.Context, opts *bind.CallOpts, router bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetOnRamps(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, router bind.Object, destChainSelectors []uint64, onRampPackageIds []string) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -41,7 +42,7 @@ type IRouter interface {
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetOnRamps(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IRouterDevInspect
@@ -54,6 +55,7 @@ type IRouterDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (bool, error)
 	GetOnRamp(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (string, error)
+	GetDestChains(ctx context.Context, opts *bind.CallOpts, router bind.Object) ([]uint64, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error)
@@ -70,6 +72,8 @@ type RouterEncoder interface {
 	IsChainSupportedWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetOnRamp(router bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	GetOnRampWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetDestChains(router bind.Object) (*bind.EncodedCall, error)
+	GetDestChainsWithArgs(args ...any) (*bind.EncodedCall, error)
 	SetOnRamps(ownerCap bind.Object, router bind.Object, destChainSelectors []uint64, onRampPackageIds []string) (*bind.EncodedCall, error)
 	SetOnRampsWithArgs(args ...any) (*bind.EncodedCall, error)
 	Owner(state bind.Object) (*bind.EncodedCall, error)
@@ -100,7 +104,7 @@ type RouterEncoder interface {
 	McmsSetOnRampsWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsTransferOwnership(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsAddAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAddAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -162,7 +166,7 @@ type OnRampSet struct {
 type RouterState struct {
 	Id               string      `move:"sui::object::UID"`
 	OwnableState     bind.Object `move:"OwnableState"`
-	OnRampPackageIds bind.Object `move:"Table<u64, address>"`
+	OnRampPackageIds bind.Object `move:"VecMap<u64, address>"`
 }
 
 type RouterStatePointer struct {
@@ -392,6 +396,16 @@ func (c *RouterContract) GetOnRamp(ctx context.Context, opts *bind.CallOpts, rou
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// GetDestChains executes the get_dest_chains Move function.
+func (c *RouterContract) GetDestChains(ctx context.Context, opts *bind.CallOpts, router bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.routerEncoder.GetDestChains(router)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // SetOnRamps executes the set_on_ramps Move function.
 func (c *RouterContract) SetOnRamps(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, router bind.Object, destChainSelectors []uint64, onRampPackageIds []string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.routerEncoder.SetOnRamps(ownerCap, router, destChainSelectors, onRampPackageIds)
@@ -543,8 +557,8 @@ func (c *RouterContract) McmsTransferOwnership(ctx context.Context, opts *bind.C
 }
 
 // McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
-func (c *RouterContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.routerEncoder.McmsExecuteOwnershipTransfer(state, registry, params)
+func (c *RouterContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.routerEncoder.McmsExecuteOwnershipTransfer(state, registry, deployerState, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -656,6 +670,28 @@ func (d *RouterDevInspect) GetOnRamp(ctx context.Context, opts *bind.CallOpts, r
 	result, ok := results[0].(string)
 	if !ok {
 		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetDestChains executes the get_dest_chains Move function using DevInspect to get return values.
+//
+// Returns: vector<u64>
+func (d *RouterDevInspect) GetDestChains(ctx context.Context, opts *bind.CallOpts, router bind.Object) ([]uint64, error) {
+	encoded, err := d.contract.routerEncoder.GetDestChains(router)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([]uint64)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected []uint64, got %T", results[0])
 	}
 	return result, nil
 }
@@ -891,6 +927,36 @@ func (c routerEncoder) GetOnRampWithArgs(args ...any) (*bind.EncodedCall, error)
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_on_ramp", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"address",
+	})
+}
+
+// GetDestChains encodes a call to the get_dest_chains Move function.
+func (c routerEncoder) GetDestChains(router bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_dest_chains", typeArgsList, typeParamsList, []string{
+		"&RouterState",
+	}, []any{
+		router,
+	}, []string{
+		"vector<u64>",
+	})
+}
+
+// GetDestChainsWithArgs encodes a call to the get_dest_chains Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c routerEncoder) GetDestChainsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&RouterState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_dest_chains", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<u64>",
 	})
 }
 
@@ -1362,16 +1428,18 @@ func (c routerEncoder) McmsTransferOwnershipWithArgs(args ...any) (*bind.Encoded
 }
 
 // McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.
-func (c routerEncoder) McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c routerEncoder) McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, []string{
 		"&mut RouterState",
 		"&mut Registry",
+		"&mut DeployerState",
 		"ExecutingCallbackParams",
 	}, []any{
 		state,
 		registry,
+		deployerState,
 		params,
 	}, nil)
 }
@@ -1382,6 +1450,7 @@ func (c routerEncoder) McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.
 	expectedParams := []string{
 		"&mut RouterState",
 		"&mut Registry",
+		"&mut DeployerState",
 		"ExecutingCallbackParams",
 	}
 

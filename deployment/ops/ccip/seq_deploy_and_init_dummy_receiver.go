@@ -51,6 +51,7 @@ var DeployAndInitDummyReceiverSequence = cld_ops.NewSequence(
 			RegisterDummyReceiverOp,
 			deps,
 			RegisterDummyReceiverInput{
+				OwnerCapObjectId:       deployReport.Output.Objects.OwnerCapObjectId,
 				CCIPObjectRefObjectId:  input.CCIPObjectRefObjectId,
 				DummyReceiverPackageId: deployReport.Output.PackageId,
 			},

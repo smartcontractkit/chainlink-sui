@@ -17,4 +17,3 @@ managed_token = "0x1113"
 mcms = "0x4000"
 mcms_owner = "0x4010"
 managed_token_faucet = "0x0"
-

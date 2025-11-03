@@ -1,5 +1,6 @@
 module ccip_onramp::onramp;
 
+use ccip::address::assert_non_zero_address_vector;
 use ccip::eth_abi;
 use ccip::fee_quoter;
 use ccip::merkle_proof;
@@ -817,6 +818,7 @@ public fun ccip_send<T>(
             token_receiver,
         );
         assert!(token_receiver_from_extra_args == token_receiver, EInvalidTokenReceiver);
+        assert_non_zero_address_vector(&token_receiver);
 
         token_transfers.push_back(Sui2AnyTokenTransfer {
             source_pool_address: source_pool_package_id,
@@ -1385,6 +1387,7 @@ public fun mcms_execute_ownership_transfer(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
     registry: &mut Registry,
+    deployer_state: &mut DeployerState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -1405,71 +1408,21 @@ public fun mcms_execute_ownership_transfer(
     );
 
     let to = bcs_stream::deserialize_address(&mut stream);
+    let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback {}
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
     execute_ownership_transfer(ref, owner_cap, state, to, ctx);
-}
-
-public fun mcms_initialize(
-    state: &mut OnRampState,
-    registry: &mut Registry,
-    nonce_manager_cap: NonceManagerCap,
-    source_transfer_cap: osh::SourceTransferCap,
-    params: ExecutingCallbackParams,
-    ctx: &mut TxContext,
-) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
-        OwnerCap,
-    >(
-        registry,
-        McmsCallback {},
-        params,
-    );
-    assert!(function == string::utf8(b"initialize"), EInvalidFunction);
-
-    let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addrs(
-        vector[
-            object::id_address(state),
-            object::id_address(owner_cap),
-            object::id_address(&nonce_manager_cap),
-            object::id_address(&source_transfer_cap),
-        ],
-        &mut stream,
-    );
-
-    let chain_selector = bcs_stream::deserialize_u64(&mut stream);
-    let fee_aggregator = bcs_stream::deserialize_address(&mut stream);
-    let allowlist_admin = bcs_stream::deserialize_address(&mut stream);
-    let dest_chain_selectors = bcs_stream::deserialize_vector!(
-        &mut stream,
-        |stream| bcs_stream::deserialize_u64(stream),
-    );
-    let dest_chain_allowlist_enabled = bcs_stream::deserialize_vector!(
-        &mut stream,
-        |stream| bcs_stream::deserialize_bool(stream),
-    );
-    let dest_chain_routers = bcs_stream::deserialize_vector!(
-        &mut stream,
-        |stream| bcs_stream::deserialize_address(stream),
-    );
-    bcs_stream::assert_is_consumed(&stream);
-
-    initialize(
-        state,
-        owner_cap,
-        nonce_manager_cap,
-        source_transfer_cap,
-        chain_selector,
-        fee_aggregator,
-        allowlist_admin,
-        dest_chain_selectors,
-        dest_chain_allowlist_enabled,
-        dest_chain_routers,
-        ctx,
-    );
 }
 
 public fun mcms_withdraw_fee_tokens<T>(

@@ -3,7 +3,7 @@ module usdc_token_pool::usdc_token_pool;
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
-use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
@@ -20,19 +20,26 @@ use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
 use sui::event;
-use sui::package::{Self, Publisher, UpgradeCap};
+use sui::package::{Self, UpgradeCap};
 use sui::table::{Self, Table};
 use token_messenger_minter::burn_message;
 use token_messenger_minter::deposit_for_burn::{Self, DepositForBurnWithCallerTicket};
 use token_messenger_minter::handle_receive_message;
 use token_messenger_minter::state::State as MinterState;
 use usdc_token_pool::ownable::{Self, OwnerCap, OwnableState};
+use usdc_token_pool::rate_limiter;
 use usdc_token_pool::token_pool::{Self, TokenPoolState};
 
 public struct USDC_TOKEN_POOL has drop {}
 
 fun init(otw: USDC_TOKEN_POOL, ctx: &mut TxContext) {
-    package::claim_and_keep(otw, ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(ctx);
+    ownable::attach_ownable_state(&mut owner_cap, ownable_state);
+
+    let publisher = package::claim(otw, ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
+
+    transfer::public_transfer(owner_cap, ctx.sender());
 }
 
 // We restrict to the first version. New pool may be required for subsequent versions.
@@ -65,26 +72,23 @@ public struct USDCTokenPoolState<phantom T> has key {
     token_pool_state: TokenPoolState,
     chain_to_domain: Table<u64, Domain>,
     local_domain_identifier: u32,
-    ownable_state: OwnableState<T>,
+    ownable_state: OwnableState,
 }
 
 const EInvalidCoinMetadata: u64 = 1;
 const EInvalidArguments: u64 = 2;
-const EInvalidOwnerCap: u64 = 4;
-const EZeroChainSelector: u64 = 5;
-const EEmptyAllowedCaller: u64 = 6;
-const EInvalidMessageVersion: u64 = 7;
-const EDomainMismatch: u64 = 8;
-const ENonceMismatch: u64 = 9;
-const EDomainNotFound: u64 = 10;
-const EDomainDisabled: u64 = 11;
-const ETokenAmountOverflow: u64 = 12;
+const EInvalidOwnerCap: u64 = 3;
+const EZeroChainSelector: u64 = 4;
+const EEmptyAllowedCaller: u64 = 5;
+const EInvalidMessageVersion: u64 = 6;
+const EDomainMismatch: u64 = 7;
+const ENonceMismatch: u64 = 8;
+const EDomainNotFound: u64 = 9;
+const EDomainDisabled: u64 = 10;
+const ETokenAmountOverflow: u64 = 11;
+const EInvalidMintRecipient: u64 = 12;
 const EInvalidFunction: u64 = 13;
 const EPoolStillRegistered: u64 = 14;
-const EInvalidProof: u64 = 15;
-const EInvalidPackageId: u64 = 16;
-const EInvalidModuleName: u64 = 17;
-const EInvalidFunctionName: u64 = 18;
 
 // ================================================================
 // |                             Init                             |
@@ -95,46 +99,24 @@ public fun type_and_version(): String {
 }
 
 #[allow(lint(self_transfer))]
-public fun initialize_by_ccip_admin<T: drop>(
-    ref: &mut CCIPObjectRef,
-    mut ccip_admin_proof: state_object::CCIPAdminProof,
+/// USDC token pool must be registered with CCIP Token Admin Registry separately.
+/// This is because CCIP does not have access to the `TreasuryCap` for USDC.
+public fun initialize<T: drop>(
+    owner_cap: &mut OwnerCap,
     coin_metadata: &CoinMetadata<T>, // this can be provided as an address or in Move.toml
-    publisher: Publisher,
+    local_domain_identifier: u32,
     ctx: &mut TxContext,
 ) {
-    assert!(!state_object::get_ccip_admin_proof_validated(&ccip_admin_proof), EInvalidProof);
-
-    let data = state_object::get_ccip_admin_proof_data(&ccip_admin_proof);
-    let mut stream = bcs_stream::new(data);
-
-    let target_package_id = bcs_stream::deserialize_address(&mut stream);
-    let target_module_name = bcs_stream::deserialize_string(&mut stream);
-    let target_function_name = bcs_stream::deserialize_string(&mut stream);
-    let local_domain_identifier = bcs_stream::deserialize_u32(&mut stream);
-    let token_pool_package_id = bcs_stream::deserialize_address(&mut stream);
-    let token_pool_administrator = bcs_stream::deserialize_address(&mut stream);
-    bcs_stream::assert_is_consumed(&stream);
-
-    assert!(target_package_id == @usdc_token_pool, EInvalidPackageId);
-    assert!(target_module_name == string::utf8(b"usdc_token_pool"), EInvalidModuleName);
-    assert!(
-        target_function_name == string::utf8(b"initialize_by_ccip_admin"),
-        EInvalidFunctionName,
-    );
-
-    state_object::set_ccip_admin_proof_validated(&mut ccip_admin_proof, true);
-
-    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
+    let coin_metadata_address = object::id_address(coin_metadata);
     assert!(coin_metadata_address == @usdc_coin_metadata_object_id, EInvalidCoinMetadata);
 
-    let (ownable_state, mut token_pool_owner_cap) = ownable::new(ctx);
-    ownable::attach_publisher(&mut token_pool_owner_cap, publisher);
-
+    let ownable_state = ownable::detach_ownable_state(owner_cap);
     let usdc_token_pool = USDCTokenPoolState<T> {
         id: object::new(ctx),
         token_pool_state: token_pool::initialize(
             coin_metadata_address,
             coin_metadata.get_decimals(),
+            coin_metadata.get_symbol(),
             vector[],
             ctx,
         ),
@@ -143,47 +125,13 @@ public fun initialize_by_ccip_admin<T: drop>(
         ownable_state,
     };
 
-    let token_type = type_name::with_defining_ids<T>();
-    let proof_type = type_name::with_defining_ids<TypeProof>();
-    let token_pool_state_address = object::id_to_address(&object::id(&usdc_token_pool));
-
-    token_admin_registry::register_pool_by_admin(
-        ref,
-        ccip_admin_proof,
-        coin_metadata_address,
-        token_pool_package_id,
-        string::utf8(b"usdc_token_pool"),
-        token_type.into_string(),
-        token_pool_administrator,
-        proof_type.into_string(),
-        // these addresses match the lock_or_burn and release_or_mint functions' last 6 arguments, excluding the ctx
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            token_pool_state_address,
-            @token_messenger_minter_state,
-            @message_transmitter_state,
-            @treasury,
-        ],
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            token_pool_state_address,
-            @token_messenger_minter_state,
-            @message_transmitter_state,
-            @treasury,
-        ],
-        ctx,
-    );
-
     transfer::share_object(usdc_token_pool);
-    transfer::public_transfer(token_pool_owner_cap, ctx.sender());
 }
 
 public fun set_pool<T>(
     ref: &mut CCIPObjectRef,
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap<T>,
+    owner_cap: &OwnerCap,
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
@@ -193,7 +141,7 @@ public fun set_pool<T>(
 fun set_pool_internal<T>(
     ref: &mut CCIPObjectRef,
     state: &USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap<T>,
+    owner_cap: &OwnerCap,
     coin_metadata_address: address,
     caller: address,
 ) {
@@ -265,7 +213,7 @@ public fun get_remote_token<T>(
 
 public fun add_remote_pool<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap<T>,
+    owner_cap: &OwnerCap,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>,
 ) {
@@ -279,7 +227,7 @@ public fun add_remote_pool<T>(
 
 public fun remove_remote_pool<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap<T>,
+    owner_cap: &OwnerCap,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>,
 ) {
@@ -301,7 +249,7 @@ public fun get_supported_chains<T>(state: &USDCTokenPoolState<T>): vector<u64> {
 
 public fun apply_chain_updates<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap<T>,
+    owner_cap: &OwnerCap,
     remote_chain_selectors_to_remove: vector<u64>,
     remote_chain_selectors_to_add: vector<u64>,
     remote_pool_addresses_to_add: vector<vector<vector<u8>>>,
@@ -327,7 +275,7 @@ public fun get_allowlist<T>(state: &USDCTokenPoolState<T>): vector<address> {
 
 public fun set_allowlist_enabled<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap<T>,
+    owner_cap: &OwnerCap,
     enabled: bool,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
@@ -336,7 +284,7 @@ public fun set_allowlist_enabled<T>(
 
 public fun apply_allowlist_updates<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap<T>,
+    owner_cap: &OwnerCap,
     removes: vector<address>,
     adds: vector<address>,
 ) {
@@ -441,7 +389,7 @@ public fun release_or_mint<T: drop>(
     ctx: &mut TxContext,
 ) {
     let (
-        receiver,
+        token_receiver,
         remote_chain_selector,
         _,
         dest_token_address,
@@ -493,6 +441,8 @@ public fun release_or_mint<T: drop>(
     // Complete the message and destroy the StampedReceipt
     receive_message::complete_receive_message(stamped_receipt, message_transmitter_state);
 
+    let mint_recipient = burn_message::mint_recipient(&burn_message);
+    assert!(mint_recipient == token_receiver, EInvalidMintRecipient);
     let local_amount = burn_message::amount(&burn_message);
     let mut amount_op = local_amount.try_as_u64();
     assert!(amount_op.is_some(), ETokenAmountOverflow);
@@ -510,7 +460,7 @@ public fun release_or_mint<T: drop>(
 
     token_pool::emit_released_or_minted(
         &pool.token_pool_state,
-        receiver,
+        token_receiver,
         amount,
         remote_chain_selector,
     );
@@ -569,7 +519,7 @@ public fun get_domain<T>(pool: &USDCTokenPoolState<T>, chain_selector: u64): Dom
 
 public fun set_domains<T>(
     pool: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap<T>,
+    owner_cap: &OwnerCap,
     remote_chain_selectors: vector<u64>,
     remote_domain_identifiers: vector<u32>,
     allowed_remote_callers: vector<vector<u8>>,
@@ -596,6 +546,7 @@ public fun set_domains<T>(
         assert!(remote_chain_selector != 0, EZeroChainSelector);
 
         assert!(allowed_caller.length() != 0, EEmptyAllowedCaller);
+        ccip::address::assert_non_zero_address_vector(&allowed_caller);
 
         if (pool.chain_to_domain.contains(remote_chain_selector)) {
             pool.chain_to_domain.remove(remote_chain_selector);
@@ -617,13 +568,62 @@ public fun set_domains<T>(
     };
 }
 
+public fun mcms_set_domains<T>(
+    pool: &mut USDCTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback<T>,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_domains"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(pool), object::id_address(owner_cap)],
+        &mut stream,
+    );
+
+    let remote_chain_selectors = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let remote_domain_identifiers = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u32(stream),
+    );
+    let allowed_remote_callers = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector_u8(stream),
+    );
+    let enableds = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_domains(
+        pool,
+        owner_cap,
+        remote_chain_selectors,
+        remote_domain_identifiers,
+        allowed_remote_callers,
+        enableds,
+    )
+}
+
 // ================================================================
 // |                    Rate limit config                         |
 // ================================================================
 
 public fun set_chain_rate_limiter_configs<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap<T>,
+    owner_cap: &OwnerCap,
     clock: &Clock,
     remote_chain_selectors: vector<u64>,
     outbound_is_enableds: vector<bool>,
@@ -665,7 +665,7 @@ public fun set_chain_rate_limiter_configs<T>(
 
 public fun set_chain_rate_limiter_config<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap<T>,
+    owner_cap: &OwnerCap,
     clock: &Clock,
     remote_chain_selector: u64,
     outbound_is_enabled: bool,
@@ -687,6 +687,30 @@ public fun set_chain_rate_limiter_config<T>(
         inbound_capacity,
         inbound_rate,
     );
+}
+
+public fun get_current_inbound_rate_limiter_state<T>(
+    clock: &Clock,
+    state: &USDCTokenPoolState<T>,
+    remote_chain_selector: u64,
+): rate_limiter::TokenBucket {
+    token_pool::get_current_inbound_rate_limiter_state(
+        &state.token_pool_state,
+        clock,
+        remote_chain_selector,
+    )
+}
+
+public fun get_current_outbound_rate_limiter_state<T>(
+    clock: &Clock,
+    state: &USDCTokenPoolState<T>,
+    remote_chain_selector: u64,
+): rate_limiter::TokenBucket {
+    token_pool::get_current_outbound_rate_limiter_state(
+        &state.token_pool_state,
+        clock,
+        remote_chain_selector,
+    )
 }
 
 // ================================================================
@@ -715,7 +739,7 @@ public fun pending_transfer_accepted<T>(state: &USDCTokenPoolState<T>): Option<b
 
 public fun transfer_ownership<T>(
     state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap<T>,
+    owner_cap: &OwnerCap,
     new_owner: address,
     ctx: &mut TxContext,
 ) {
@@ -755,7 +779,7 @@ public fun mcms_accept_ownership<T>(
 }
 
 public fun execute_ownership_transfer<T>(
-    owner_cap: OwnerCap<T>,
+    owner_cap: OwnerCap,
     state: &mut USDCTokenPoolState<T>,
     to: address,
     ctx: &mut TxContext,
@@ -764,7 +788,7 @@ public fun execute_ownership_transfer<T>(
 }
 
 public fun execute_ownership_transfer_to_mcms<T>(
-    owner_cap: OwnerCap<T>,
+    owner_cap: OwnerCap,
     state: &mut USDCTokenPoolState<T>,
     registry: &mut Registry,
     to: address,
@@ -817,7 +841,7 @@ public fun mcms_set_allowlist_enabled<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap<T>,
+        OwnerCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -844,7 +868,7 @@ public fun mcms_apply_allowlist_updates<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap<T>,
+        OwnerCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -878,7 +902,7 @@ public fun mcms_apply_chain_updates<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap<T>,
+        OwnerCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -930,7 +954,7 @@ public fun mcms_add_remote_pool<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap<T>,
+        OwnerCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -958,7 +982,7 @@ public fun mcms_remove_remote_pool<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap<T>,
+        OwnerCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -986,7 +1010,7 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap<T>,
+        OwnerCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -1052,7 +1076,7 @@ public fun mcms_set_chain_rate_limiter_config<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap<T>,
+        OwnerCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -1094,7 +1118,7 @@ public fun mcms_set_chain_rate_limiter_config<T>(
 public fun destroy_token_pool<T>(
     ref: &mut CCIPObjectRef,
     state: USDCTokenPoolState<T>,
-    owner_cap: OwnerCap<T>,
+    owner_cap: OwnerCap,
     ctx: &mut TxContext,
 ) {
     assert!(
@@ -1121,6 +1145,38 @@ public fun destroy_token_pool<T>(
     ownable::destroy(ownable_state, owner_cap, ctx);
 }
 
+public fun mcms_destroy_token_pool<T>(
+    ref: &mut CCIPObjectRef,
+    state: USDCTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback<T>,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"destroy_token_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(&state), &mut stream);
+
+    let _to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap = mcms_registry::release_cap<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+    );
+
+    destroy_token_pool(ref, state, owner_cap, ctx);
+    // Note: USDC token pool destroy_token_pool doesn't return anything
+}
+
 public fun mcms_transfer_ownership<T>(
     state: &mut USDCTokenPoolState<T>,
     registry: &mut Registry,
@@ -1129,7 +1185,7 @@ public fun mcms_transfer_ownership<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap<T>,
+        OwnerCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -1152,12 +1208,13 @@ public fun mcms_transfer_ownership<T>(
 public fun mcms_execute_ownership_transfer<T>(
     state: &mut USDCTokenPoolState<T>,
     registry: &mut Registry,
+    deployer_state: &mut DeployerState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap<T>,
+        OwnerCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -1174,11 +1231,27 @@ public fun mcms_execute_ownership_transfer<T>(
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let owner_cap = mcms_registry::release_cap<McmsCallback<T>, OwnerCap<T>>(
+    let owner_cap = mcms_registry::release_cap<McmsCallback<T>, OwnerCap>(
         registry,
         McmsCallback<T> {},
     );
+
+    if (mcms_deployer::has_upgrade_cap(deployer_state, get_package_address<T>())) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback<T> {},
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
     execute_ownership_transfer(owner_cap, state, to, ctx);
+}
+
+fun get_package_address<T>(): address {
+    let tn = type_name::with_defining_ids<McmsCallback<T>>();
+    let addr_bytes = tn.address_string().into_bytes();
+    address::from_ascii_bytes(&addr_bytes)
 }
 
 public fun mcms_set_pool<T>(
@@ -1190,7 +1263,7 @@ public fun mcms_set_pool<T>(
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap<T>,
+        OwnerCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -1222,7 +1295,7 @@ public fun mcms_add_allowed_modules<T>(
 ) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap<T>,
+        OwnerCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -1249,7 +1322,7 @@ public fun mcms_remove_allowed_modules<T>(
 ) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap<T>,
+        OwnerCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -1267,4 +1340,9 @@ public fun mcms_remove_allowed_modules<T>(
     bcs_stream::assert_is_consumed(&stream);
 
     mcms_registry::remove_allowed_modules(registry, McmsCallback<T> {}, module_names, ctx);
+}
+
+#[test_only]
+public fun test_init(ctx: &mut TxContext) {
+    init(USDC_TOKEN_POOL {}, ctx);
 }

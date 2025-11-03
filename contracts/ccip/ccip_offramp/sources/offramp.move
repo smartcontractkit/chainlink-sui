@@ -3,7 +3,6 @@
 /// during upgrades.
 module ccip_offramp::offramp;
 
-use ccip::client;
 use ccip::eth_abi;
 use ccip::fee_quoter::{Self, FeeQuoterCap};
 use ccip::merkle_proof;
@@ -680,7 +679,6 @@ fun pre_execute_single_report(
         (!message.data.is_empty() || message.gas_limit != 0) && receiver_registry::is_registered_receiver(ref, message.receiver);
     // if the message has a valid message receiver and proper data & gas limit
     if (has_valid_message_receiver) {
-        let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
         let any2sui_message = osh::new_any2sui_message(
             state.dest_transfer_cap.borrow(),
             message.header.message_id,
@@ -689,7 +687,8 @@ fun pre_execute_single_report(
             message.data,
             message.receiver,
             message.token_receiver,
-            dest_token_amounts,
+            token_addresses,
+            token_amounts,
         );
 
         osh::populate_message(
@@ -1672,6 +1671,7 @@ public fun mcms_execute_ownership_transfer(
     ref: &CCIPObjectRef,
     state: &mut OffRampState,
     registry: &mut Registry,
+    deployer_state: &mut DeployerState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -1692,9 +1692,20 @@ public fun mcms_execute_ownership_transfer(
     );
 
     let to = bcs_stream::deserialize_address(&mut stream);
+    let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback {}
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
     execute_ownership_transfer(ref, owner_cap, state, to, ctx);
 }
 

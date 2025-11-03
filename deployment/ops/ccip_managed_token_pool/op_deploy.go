@@ -21,7 +21,7 @@ type ManagedTokenPoolDeployInput struct {
 }
 
 type ManagedTokenPoolDeployOutput struct {
-	PublisherObjectId string
+	OwnerCapObjectId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolDeployInput) (output sui_ops.OpTxResult[ManagedTokenPoolDeployOutput], err error) {
@@ -40,16 +40,16 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedT
 		return sui_ops.OpTxResult[ManagedTokenPoolDeployOutput]{}, err
 	}
 
-	publisherObj, err := bind.FindObjectIdFromPublishTx(*tx, "package", "Publisher")
+	ownerCapObj, err := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	if err != nil {
-		return sui_ops.OpTxResult[ManagedTokenPoolDeployOutput]{}, fmt.Errorf("failed to find Publisher object ID: %w", err)
+		return sui_ops.OpTxResult[ManagedTokenPoolDeployOutput]{}, fmt.Errorf("failed to find OwnerCap object ID: %w", err)
 	}
 
 	return sui_ops.OpTxResult[ManagedTokenPoolDeployOutput]{
 		Digest:    tx.Digest,
 		PackageId: tokenPoolPackage.Address(),
 		Objects: ManagedTokenPoolDeployOutput{
-			PublisherObjectId: publisherObj,
+			OwnerCapObjectId: ownerCapObj,
 		},
 	}, err
 }
