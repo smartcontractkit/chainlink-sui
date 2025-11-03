@@ -1,11 +1,91 @@
 {
   "9762610643973837292": {
-    "0x012fd673ed8cda310acd840635bfed201bcd76a446515eb4c569fa2a4155d75b": {
-      "Type": "SuiOffRampUpgradeCapObjectID",
-      "Version": "1.0.0"
+    "0x70f10215a219a1f2e30f746e68c1e4f2b39f593d83a1980c7cf4e4738591a7e5": {
+      "Type": "SuiBnMTokenPool",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-BnM": {}
+      }
     },
     "0x2d5b1f5a1e7b4049694e425f24b46e227eaf234ca362719394ebd0ae71790fc2": {
       "Type": "SuiBnMTokenPoolState",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-BnM": {}
+      }
+    },
+    "0x78dde1c270c6edf64e586850b04cba3701d259441f4390e3bc4490407a9ecc86": {
+      "Type": "SuiBnMTokenPoolOwnerID",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-BnM": {}
+      }
+    },
+    "0x81023260b32ab203041857f07dcf0349ef59ec45039b21ad8d051846ab8f6": {
+      "Type": "SuiBnMTokenPool",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-BnM2": {}
+      }
+    },
+    "0x3e6c205b2f8c5159795f536035c573338fbb345db473829a95fceb0f82890fd3": {
+      "Type": "SuiBnMTokenPoolState",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-BnM2": {}
+      }
+    },
+    "0x89eef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd97": {
+      "Type": "SuiBnMTokenPoolOwnerID",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-BnM2": {}
+      }
+    },
+    "0x90f10215a219a1f2e30f746e68c1e4f2b39f593d83a1980c7cf4e4738591a7e6": {
+      "Type": "SuiLnRTokenPool",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-LnR": {}
+      }
+    },
+    "0x4e6c205b2f8c5159795f536035c573338fbb345db473829a95fceb0f82890fd4": {
+      "Type": "SuiLnRTokenPoolState",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-LnR": {}
+      }
+    },
+    "0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd98": {
+      "Type": "SuiLnRTokenPoolOwnerID",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-LnR": {}
+      }
+    },
+    "0xa10215a219a1f2e30f746e68c1e4f2b39f593d83a1980c7cf4e4738591a7e7": {
+      "Type": "SuiManagedTokenPool",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0x5f6c205b2f8c5159795f536035c573338fbb345db473829a95fceb0f82890fd5": {
+      "Type": "SuiManagedTokenPoolState",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0xabeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd99": {
+      "Type": "SuiManagedTokenPoolOwnerID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0x012fd673ed8cda310acd840635bfed201bcd76a446515eb4c569fa2a4155d75b": {
+      "Type": "SuiOffRampUpgradeCapObjectID",
       "Version": "1.0.0"
     },
     "0x4fdacea0d627df26a6f34ac62952ed8d3c32ea70aacb90a7f2134b39e36a79cd": {
@@ -24,16 +104,8 @@
       "Type": "SuiLinkTokenTreasuryCapID",
       "Version": "1.0.0"
     },
-    "0x70f10215a219a1f2e30f746e68c1e4f2b39f593d83a1980c7cf4e4738591a7e5": {
-      "Type": "SuiBnMTokenPool",
-      "Version": "1.0.0"
-    },
     "0x75ec1e10b4302f7c69476eb196c88a0aa43a4d509bbbe5cc1feb213e4b6dd58b": {
       "Type": "SuiOnRampStateObjectID",
-      "Version": "1.0.0"
-    },
-    "0x78dde1c270c6edf64e586850b04cba3701d259441f4390e3bc4490407a9ecc86": {
-      "Type": "SuiBnMTokenPoolOwnerID",
       "Version": "1.0.0"
     },
     "0x8101795ff02d4935a05fb519e1b21b83855a970639cf0c28fa7a51f7d2e689ae": {
