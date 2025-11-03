@@ -43,6 +43,7 @@ type DeployManagedTokenPoolObjects struct {
 }
 
 type DeployManagedTokenPoolOutput struct {
+	TokenSymbol        string
 	ManagedTPPackageId string
 	Objects            DeployManagedTokenPoolObjects
 }
