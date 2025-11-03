@@ -4,11 +4,10 @@ module mcms_test::mcms_user_test;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry};
 use mcms_test::mcms_user::{Self, UserData};
-use mcms_test::ownable::{OwnerCap};
-
+use mcms_test::ownable::OwnerCap;
 use std::string;
 use sui::bcs;
-use sui::package::{Self};
+use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 use sui::test_utils;
 
@@ -58,7 +57,6 @@ fun setup_mcms_registry_and_user_data(scenario: &mut Scenario): address {
         let user_data = ts::take_shared<UserData>(scenario);
         let owner_cap = ts::take_from_sender<OwnerCap>(scenario);
         let ctx = ts::ctx(scenario);
-
 
         // Initialize the user data with mcms_registry
         // This creates a owner_cap and mcms_registry owns this cap
@@ -421,7 +419,7 @@ fun test_sequential_function_calls() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms::bcs_stream::E_INVALID_OBJECT_ADDRESS)]
+#[expected_failure(abort_code = mcms::bcs_stream::EInvalidObjectAddress)]
 fun test_call_function_with_invalid_user_data() {
     let mut scenario = create_test_scenario();
 
