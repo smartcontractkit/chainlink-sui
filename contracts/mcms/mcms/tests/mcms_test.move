@@ -1515,12 +1515,17 @@ fun test_bypasser_execute_batch() {
     let new_delay = initial_delay + 1000; // Set to a different value
 
     // Use bypasser role to execute batch - this should return ExecutingCallbackParams
+    // Prepare data with timelock object ID
+    let mut bypasser_update_delay_data = vector[];
+    bypasser_update_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    bypasser_update_delay_data.append(bcs::to_bytes(&new_delay));
+
     let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
         mcms::bypasser_role(),
         vector[mcms_registry::get_multisig_address()], // targets
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
-        vector[bcs::to_bytes(&new_delay)], // datas
+        vector[bypasser_update_delay_data], // datas
         env.scenario.ctx(),
     );
 
@@ -1535,11 +1540,15 @@ fun test_bypasser_execute_batch() {
 
     // Now we need to consume the ExecutingCallbackParams by calling the actual function
     // Since this is timelock_update_min_delay, we need to dispatch it properly
+    let mut update_delay_data = vector[];
+    update_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    update_delay_data.append(bcs::to_bytes(&new_delay));
+
     let callback_params = mcms::test_create_timelock_callback_params(
         mcms::timelock_role(), // dispatch functions expect TIMELOCK_ROLE
         string::utf8(b"mcms"),
         string::utf8(b"timelock_update_min_delay"),
-        bcs::to_bytes(&new_delay),
+        update_delay_data,
     );
 
     // Dispatch the update_min_delay function to consume the hot potato
@@ -2326,11 +2335,15 @@ fun test_timelock_dispatching_system() {
     let initial_delay = mcms::timelock_min_delay(&env.timelock);
     let new_delay = initial_delay + 5000;
 
+    let mut update_delay_data = vector[];
+    update_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    update_delay_data.append(bcs::to_bytes(&new_delay));
+
     let update_delay_params = mcms::test_create_timelock_callback_params(
         mcms::timelock_role(),
         string::utf8(b"mcms"),
         string::utf8(b"timelock_update_min_delay"),
-        bcs::to_bytes(&new_delay),
+        update_delay_data,
     );
 
     // Dispatch and verify hot potato is consumed properly
@@ -2490,12 +2503,17 @@ fun test_bypasser_execute_blocked_function() {
     let new_delay = initial_delay + 1000;
 
     // Bypasser should be able to directly execute the blocked function
+    // Prepare data with timelock object ID
+    let mut update_delay_data = vector[];
+    update_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    update_delay_data.append(bcs::to_bytes(&new_delay));
+
     let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
         mcms::bypasser_role(),
         vector[target], // targets
         vector[module_name], // module_names
         vector[function_name], // function_names
-        vector[bcs::to_bytes(&new_delay)], // datas
+        vector[update_delay_data], // datas
         env.scenario.ctx(),
     );
 
@@ -2545,6 +2563,12 @@ fun test_execute_batch_with_dependencies() {
 
     // Execute first operation to update min delay
     let clock = &env.clock;
+
+    // Prepare data with timelock object ID
+    let mut first_min_delay_data = vector[];
+    first_min_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    first_min_delay_data.append(bcs::to_bytes(&MIN_DELAY));
+
     mcms::test_timelock_schedule_batch(
         &mut env.timelock,
         clock,
@@ -2552,7 +2576,7 @@ fun test_execute_batch_with_dependencies() {
         vector[mcms_registry::get_multisig_address()], // targets
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
-        vector[bcs::to_bytes(&MIN_DELAY)], // datas
+        vector[first_min_delay_data], // datas
         mcms::zero_hash(), // predecessor
         x"abcd", // salt
         delay,
@@ -2565,6 +2589,12 @@ fun test_execute_batch_with_dependencies() {
     {
         let clock = &env.clock;
         let registry = &env.registry;
+
+        // Prepare data for execution with timelock object ID
+        let mut exec_first_min_delay_data = vector[];
+        exec_first_min_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+        exec_first_min_delay_data.append(bcs::to_bytes(&MIN_DELAY));
+
         let mut executing_callback_params = mcms::timelock_execute_batch(
             &mut env.timelock,
             clock,
@@ -2572,7 +2602,7 @@ fun test_execute_batch_with_dependencies() {
             vector[mcms_registry::get_multisig_address()], // targets
             vector[string::utf8(b"mcms")], // module_names
             vector[string::utf8(b"timelock_update_min_delay")], // function_names
-            vector[bcs::to_bytes(&MIN_DELAY)], // datas
+            vector[exec_first_min_delay_data], // datas
             mcms::zero_hash(), // predecessor
             x"abcd", // salt
             env.scenario.ctx(),
@@ -2596,6 +2626,12 @@ fun test_execute_batch_with_dependencies() {
     // Schedule and execute second operation to test sequential execution
     let new_delay = 2000u64;
     let clock = &env.clock;
+
+    // Prepare data with timelock object ID
+    let mut second_update_delay_data = vector[];
+    second_update_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    second_update_delay_data.append(bcs::to_bytes(&new_delay));
+
     mcms::test_timelock_schedule_batch(
         &mut env.timelock,
         clock,
@@ -2603,7 +2639,7 @@ fun test_execute_batch_with_dependencies() {
         vector[mcms_registry::get_multisig_address()], // targets
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
-        vector[bcs::to_bytes(&new_delay)], // datas
+        vector[second_update_delay_data], // datas
         mcms::zero_hash(), // predecessor
         x"efab", // salt
         MIN_DELAY, // Use the updated min delay
@@ -2616,6 +2652,11 @@ fun test_execute_batch_with_dependencies() {
     {
         let clock = &env.clock;
         let registry = &env.registry;
+        // Prepare data with timelock object ID for execution
+        let mut execute_update_delay_data = vector[];
+        execute_update_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+        execute_update_delay_data.append(bcs::to_bytes(&new_delay));
+
         let mut executing_callback_params = mcms::timelock_execute_batch(
             &mut env.timelock,
             clock,
@@ -2623,7 +2664,7 @@ fun test_execute_batch_with_dependencies() {
             vector[mcms_registry::get_multisig_address()], // targets
             vector[string::utf8(b"mcms")], // module_names
             vector[string::utf8(b"timelock_update_min_delay")], // function_names
-            vector[bcs::to_bytes(&new_delay)], // datas
+            vector[execute_update_delay_data], // datas
             mcms::zero_hash(), // predecessor
             x"efab", // salt
             env.scenario.ctx(),
@@ -2666,12 +2707,17 @@ fun test_bypasser_allowed_when_timelock_active() {
     let new_delay = initial_delay + 1000;
 
     // This should succeed because bypassers are allowed to bypass the timelock
+    // Prepare data with timelock object ID
+    let mut bypasser_active_update_delay_data = vector[];
+    bypasser_active_update_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    bypasser_active_update_delay_data.append(bcs::to_bytes(&new_delay));
+
     let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
         mcms::bypasser_role(),
         vector[mcms_registry::get_multisig_address()], // targets
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
-        vector[bcs::to_bytes(&new_delay)], // datas
+        vector[bypasser_active_update_delay_data], // datas
         env.scenario.ctx(),
     );
 
@@ -2734,7 +2780,9 @@ fun test_timelock_dispatch_to_self() {
 
     // Test dispatch to mcms module function - timelock_update_min_delay
     let new_min_delay = 2000u64;
-    let data = bcs::to_bytes(&new_min_delay);
+    let mut data = vector[];
+    data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    data.append(bcs::to_bytes(&new_min_delay));
 
     let params = mcms_registry::test_create_executing_callback_params(
         mcms_registry::get_multisig_address(),
@@ -2761,7 +2809,9 @@ fun test_timelock_dispatch_to_self() {
     let module_name = string::utf8(b"test_module");
     let function_name = string::utf8(b"test_function");
 
-    let mut block_data = bcs::to_bytes(&target);
+    let mut block_data = vector[];
+    block_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    block_data.append(bcs::to_bytes(&target));
     block_data.append(bcs::to_bytes(&module_name));
     block_data.append(bcs::to_bytes(&function_name));
 
@@ -2811,6 +2861,7 @@ fun test_timelock_dispatch_to_account() {
 
     // First, we need to register an owner cap in the registry for dispatch to work
     let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
+    let owner_cap_id = object::id_address(&owner_cap);
     let publisher_wrapper = mcms_account::test_create_publisher_wrapper(&owner_cap);
     mcms_registry::register_entrypoint(
         &mut env.registry,
@@ -2822,11 +2873,17 @@ fun test_timelock_dispatch_to_account() {
     );
 
     // Now test dispatch routing to account module
+    // Prepare BCS data with owner cap and account_state object IDs, then target address
+    let mut data = vector[];
+    data.append(bcs::to_bytes(&owner_cap_id));
+    data.append(bcs::to_bytes(&object::id_address(&env.account_state)));
+    data.append(bcs::to_bytes(&new_owner));
+
     let params = mcms_registry::test_create_executing_callback_params(
         mcms_registry::get_multisig_address(),
         string::utf8(b"mcms_account"),
         string::utf8(b"transfer_ownership"),
-        bcs::to_bytes(&new_owner),
+        data,
         x"0000000000000000000000000000000000000000000000000000000000000005", // batch_id
         0, // sequence_number
         1, // total_in_batch,
@@ -2862,6 +2919,7 @@ fun test_timelock_dispatch_to_deployer() {
 
     // First, we need to register an owner cap in the registry for dispatch to work
     let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
+    let owner_cap_id = object::id_address(&owner_cap);
     let publisher_wrapper = mcms_account::test_create_publisher_wrapper(&owner_cap);
     mcms_registry::register_entrypoint(
         &mut env.registry,
@@ -2887,6 +2945,8 @@ fun test_timelock_dispatch_to_deployer() {
     };
 
     let mut data = vector[];
+    data.append(bcs::to_bytes(&owner_cap_id)); // owner_cap object ID
+    data.append(bcs::to_bytes(&object::id_address(&env.deployer_state))); // deployer_state object ID
     data.append(bcs::to_bytes(&(1 as u8))); // policy
     data.append(bcs::to_bytes(&vector[123u8])); // digest
     data.append(bcs::to_bytes(&mcms_registry::get_multisig_address())); // package address
@@ -2965,6 +3025,12 @@ fun test_dispatch_timelock_execute_batch() {
 
     // First schedule a batch operation so we have something to execute
     let clock = &env.clock;
+
+    // Prepare data with timelock object ID prepended
+    let mut update_min_delay_data = vector[];
+    update_min_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    update_min_delay_data.append(bcs::to_bytes(&1000u64));
+
     mcms::test_timelock_schedule_batch(
         &mut env.timelock,
         clock,
@@ -2972,7 +3038,7 @@ fun test_dispatch_timelock_execute_batch() {
         vector[mcms_registry::get_multisig_address()], // targets
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
-        vector[bcs::to_bytes(&1000u64)], // datas - new min delay
+        vector[update_min_delay_data], // datas - new min delay with timelock ID
         mcms::zero_hash(), // predecessor
         vector[1u8], // salt
         0u64, // delay
@@ -2983,11 +3049,20 @@ fun test_dispatch_timelock_execute_batch() {
     let targets = vector[mcms_registry::get_multisig_address()];
     let module_names = vector[string::utf8(b"mcms")];
     let function_names = vector[string::utf8(b"timelock_update_min_delay")];
-    let datas = vector[bcs::to_bytes(&1000u64)];
+
+    // Re-create the data with timelock object ID
+    let mut update_min_delay_data2 = vector[];
+    update_min_delay_data2.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    update_min_delay_data2.append(bcs::to_bytes(&1000u64));
+    let datas = vector[update_min_delay_data2];
     let predecessor = mcms::zero_hash();
     let salt = vector[1u8];
 
-    let mut serialized_data = bcs::to_bytes(&targets);
+    let mut serialized_data = vector[];
+    serialized_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    serialized_data.append(bcs::to_bytes(&object::id_address(&env.clock)));
+    serialized_data.append(bcs::to_bytes(&object::id_address(&env.registry)));
+    serialized_data.append(bcs::to_bytes(&targets));
     serialized_data.append(bcs::to_bytes(&module_names));
     serialized_data.append(bcs::to_bytes(&function_names));
     serialized_data.append(bcs::to_bytes(&datas));
@@ -3038,7 +3113,13 @@ fun test_dispatch_timelock_bypasser_execute_batch() {
     let targets = vector[mcms_registry::get_multisig_address()];
     let module_names = vector[string::utf8(b"mcms")];
     let function_names = vector[string::utf8(b"timelock_update_min_delay")];
-    let datas = vector[bcs::to_bytes(&2000)]; // new min delay
+
+    // Prepare data with timelock object ID
+    let mut bypasser_batch_data = vector[];
+    bypasser_batch_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    bypasser_batch_data.append(bcs::to_bytes(&2000));
+
+    let datas = vector[bypasser_batch_data]; // new min delay with timelock ID
 
     let mut serialized_data = bcs::to_bytes(&targets);
     serialized_data.append(bcs::to_bytes(&module_names));
@@ -3111,11 +3192,15 @@ fun test_dispatch_timelock_cancel() {
     assert!(mcms::timelock_is_operation_pending(&env.timelock, operation_id));
 
     // Create TimelockCallbackParams for dispatch_timelock_cancel
+    let mut cancel_data = vector[];
+    cancel_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    cancel_data.append(bcs::to_bytes(&operation_id));
+
     let callback_params = mcms::test_create_timelock_callback_params(
         mcms::canceller_role(),
         string::utf8(b"mcms"),
         string::utf8(b"timelock_cancel"),
-        bcs::to_bytes(&operation_id),
+        cancel_data,
     );
 
     mcms::dispatch_timelock_cancel(
@@ -3281,7 +3366,10 @@ fun test_dispatch_timelock_schedule_batch() {
     let salt = vector[3];
     let delay = 1000;
 
-    let mut serialized_data = bcs::to_bytes(&targets);
+    let mut serialized_data = vector[];
+    serialized_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    serialized_data.append(bcs::to_bytes(&object::id_address(&env.clock)));
+    serialized_data.append(bcs::to_bytes(&targets));
     serialized_data.append(bcs::to_bytes(&module_names));
     serialized_data.append(bcs::to_bytes(&function_names));
     serialized_data.append(bcs::to_bytes(&datas));
@@ -3323,11 +3411,15 @@ fun test_dispatch_timelock_update_min_delay() {
     let new_delay = initial_delay + 2000;
 
     // Create TimelockCallbackParams for dispatch_timelock_update_min_delay
+    let mut data = vector[];
+    data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    data.append(bcs::to_bytes(&new_delay));
+
     let callback_params = mcms::test_create_timelock_callback_params(
         mcms::timelock_role(),
         string::utf8(b"mcms"),
         string::utf8(b"timelock_update_min_delay"),
-        bcs::to_bytes(&new_delay),
+        data,
     );
 
     // Test the dispatch function
@@ -3355,7 +3447,9 @@ fun test_dispatch_timelock_block_function() {
     let function_name = string::utf8(b"test_function");
 
     // Create serialized data for timelock_block_function parameters
-    let mut serialized_data = bcs::to_bytes(&target);
+    let mut serialized_data = vector[];
+    serialized_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    serialized_data.append(bcs::to_bytes(&target));
     serialized_data.append(bcs::to_bytes(&module_name));
     serialized_data.append(bcs::to_bytes(&function_name));
 
@@ -3416,7 +3510,9 @@ fun test_dispatch_timelock_unblock_function() {
     assert!(initial_count > 0);
 
     // Create serialized data for timelock_unblock_function parameters
-    let mut serialized_data = bcs::to_bytes(&target);
+    let mut serialized_data = vector[];
+    serialized_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    serialized_data.append(bcs::to_bytes(&target));
     serialized_data.append(bcs::to_bytes(&module_name));
     serialized_data.append(bcs::to_bytes(&function_name));
 
