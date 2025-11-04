@@ -281,6 +281,11 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 
 	if functionConfig.ResultTupleToStruct != nil {
 		structResult := make(map[string]any)
+		// Check the length of results to avoid panics
+		if len(results) < len(functionConfig.ResultTupleToStruct) {
+			return fmt.Errorf("expected %d results, got %d", len(functionConfig.ResultTupleToStruct), len(results))
+		}
+
 		for i, mapKey := range functionConfig.ResultTupleToStruct {
 			structResult[mapKey] = results[i]
 		}
@@ -639,7 +644,6 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 }
 
 type pointerMapEntry struct {
-	field         string // the field name from the Sui object (pointer field containing parent object ID)
 	derivationKey string // the key used to derive the child object address
 	paramName     string // the parameter name from the function config
 }
@@ -703,10 +707,9 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 			pointerSelectors[appendTag] = readIdentifierForPointer
 		}
 
-		// each entry within the pointersMap contains an entry for the field name,
-		// the derivation key, and the (function config) parameter name
+		// each entry within the pointersMap contains the derivation key and the (function config) parameter name
+		// the parent field name is looked up from common.PointerConfigs when fetching the parent object ID
 		pointersMap[appendTag] = append(pointersMap[appendTag], pointerMapEntry{
-			field:         pointerTag.FieldName,
 			derivationKey: pointerTag.DerivationKey,
 			paramName:     paramConfig.Name,
 		})
@@ -973,9 +976,11 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 			continue
 		}
 
+		// create a copy of the record to ensure correct memory location
+		toSave := record
 		sequences = append(sequences, SequenceWithRecord{
 			Sequence: sequence,
-			Record:   &record,
+			Record:   &toSave,
 		})
 	}
 
