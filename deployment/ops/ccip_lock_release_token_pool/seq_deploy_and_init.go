@@ -15,6 +15,7 @@ type DeployLockReleaseTokenPoolObjects struct {
 }
 
 type DeployLockReleaseTokenPoolOutput struct {
+	TokenSymbol            string
 	LockReleaseTPPackageID string
 	Objects                DeployLockReleaseTokenPoolObjects
 }
