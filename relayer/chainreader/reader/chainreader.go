@@ -972,9 +972,11 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 			continue
 		}
 
+		// create a copy of the record to ensure correct memory location
+		toSave := record
 		sequences = append(sequences, SequenceWithRecord{
 			Sequence: sequence,
-			Record:   &record,
+			Record:   &toSave,
 		})
 	}
 
