@@ -14,7 +14,7 @@ import (
 )
 
 const SuiDecimals = 9
-const SuiDecimalsDenominator = 10 ^ SuiDecimals
+const SuiDecimalsDenominator = 1_000_000_000
 
 // BalanceMonitorOpts contains the options for creating a new Sui account balance monitor.
 type BalanceMonitorOpts struct {
