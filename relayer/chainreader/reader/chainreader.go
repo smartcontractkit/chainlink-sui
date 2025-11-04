@@ -281,6 +281,11 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 
 	if functionConfig.ResultTupleToStruct != nil {
 		structResult := make(map[string]any)
+		// Check the length of results to avoid panics
+		if len(results) < len(functionConfig.ResultTupleToStruct) {
+			return fmt.Errorf("expected %d results, got %d", len(functionConfig.ResultTupleToStruct), len(results))
+		}
+
 		for i, mapKey := range functionConfig.ResultTupleToStruct {
 			structResult[mapKey] = results[i]
 		}
@@ -965,9 +970,11 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 			continue
 		}
 
+		// create a copy of the record to ensure correct memory location
+		toSave := record
 		sequences = append(sequences, SequenceWithRecord{
 			Sequence: sequence,
-			Record:   &record,
+			Record:   &toSave,
 		})
 	}
 
