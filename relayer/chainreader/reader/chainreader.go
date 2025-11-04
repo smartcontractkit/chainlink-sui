@@ -281,6 +281,11 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 
 	if functionConfig.ResultTupleToStruct != nil {
 		structResult := make(map[string]any)
+		// Check the length of results to avoid panics
+		if len(results) < len(functionConfig.ResultTupleToStruct) {
+			return fmt.Errorf("expected %d results, got %d", len(functionConfig.ResultTupleToStruct), len(results))
+		}
+
 		for i, mapKey := range functionConfig.ResultTupleToStruct {
 			structResult[mapKey] = results[i]
 		}
