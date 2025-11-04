@@ -1931,7 +1931,7 @@ public fun timelock_get_blocked_functions_count(timelock: &Timelock): u64 {
     timelock.blocked_functions.length()
 }
 
-public fun create_calls(
+public(package) fun create_calls(
     targets: vector<address>,
     module_names: vector<String>,
     function_names: vector<String>,
@@ -1961,7 +1961,7 @@ public fun create_calls(
     calls
 }
 
-public fun hash_operation_batch(
+public(package) fun hash_operation_batch(
     calls: vector<Call>,
     predecessor: vector<u8>,
     salt: vector<u8>,
