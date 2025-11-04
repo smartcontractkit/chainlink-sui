@@ -644,7 +644,6 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 }
 
 type pointerMapEntry struct {
-	field         string // the field name from the Sui object (pointer field containing parent object ID)
 	derivationKey string // the key used to derive the child object address
 	paramName     string // the parameter name from the function config
 }
@@ -708,10 +707,9 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 			pointerSelectors[appendTag] = readIdentifierForPointer
 		}
 
-		// each entry within the pointersMap contains an entry for the field name,
-		// the derivation key, and the (function config) parameter name
+		// each entry within the pointersMap contains the derivation key and the (function config) parameter name
+		// the parent field name is looked up from common.PointerConfigs when fetching the parent object ID
 		pointersMap[appendTag] = append(pointersMap[appendTag], pointerMapEntry{
-			field:         pointerTag.FieldName,
 			derivationKey: pointerTag.DerivationKey,
 			paramName:     paramConfig.Name,
 		})
