@@ -302,10 +302,6 @@ public fun set_root(
 
     assert!(!multisig.seen_signed_hashes.contains(signed_hash), EAlreadySeenHash);
     assert!(get_timestamp_seconds(clock) <= valid_until, EValidUntilExpired);
-
-    // TODO: No support for chain_ids yet
-    // assert!(metadata.chain_id == (chain_ids::get() as u256), EWrongChainId);
-
     assert!(metadata.multisig == mcms_registry::get_multisig_address(), EWrongMultisig);
 
     let op_count = multisig.expiring_root_and_op_count.op_count;
@@ -465,9 +461,6 @@ public fun execute(
                 > multisig.expiring_root_and_op_count.op_count,
         EPostOpCountReached,
     );
-
-    // TODO: No support for chain_ids yet
-    // assert!(chain_id == (chain_ids::get() as u256), EWrongChainId);
     assert!(
         get_timestamp_seconds(clock) <= multisig.expiring_root_and_op_count.valid_until,
         EValidUntilExpired,
@@ -537,12 +530,7 @@ public fun dispatch_timelock_schedule_batch(
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_schedule_batch", EInvalidFunctionName);
 
-    let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addrs(
-        vector[object::id_address(timelock), object::id_address(clock)],
-        &mut stream,
-    );
-
+    let stream = &mut bcs_stream::new(data);
     let (
         targets,
         module_names,
@@ -551,7 +539,7 @@ public fun dispatch_timelock_schedule_batch(
         predecessor,
         salt,
         delay,
-    ) = deserialize_timelock_schedule_batch(&mut stream);
+    ) = deserialize_timelock_schedule_batch(stream);
 
     timelock_schedule_batch(
         timelock,
@@ -587,15 +575,6 @@ public fun dispatch_timelock_execute_batch(
     assert!(*function_name.as_bytes() == b"timelock_execute_batch", EInvalidFunctionName);
 
     let stream = &mut bcs_stream::new(data);
-    bcs_stream::validate_obj_addrs(
-        vector[
-            object::id_address(timelock),
-            object::id_address(clock),
-            object::id_address(registry),
-        ],
-        stream,
-    );
-
     let (
         targets,
         module_names,
@@ -661,65 +640,9 @@ public fun dispatch_timelock_cancel(
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_cancel", EInvalidFunctionName);
 
-    let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addr(object::id_address(timelock), &mut stream);
-
-    let id = deserialize_timelock_cancel(&mut stream);
+    let stream = &mut bcs_stream::new(data);
+    let id = deserialize_timelock_cancel(stream);
     timelock_cancel(timelock, role, id, ctx)
-}
-
-public fun dispatch_timelock_update_min_delay(
-    timelock: &mut Timelock,
-    timelock_callback_params: TimelockCallbackParams,
-    ctx: &mut TxContext,
-) {
-    let TimelockCallbackParams { module_name, function_name, data, role } =
-        timelock_callback_params;
-
-    assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
-    assert!(*function_name.as_bytes() == b"timelock_update_min_delay", EInvalidFunctionName);
-
-    let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addr(object::id_address(timelock), &mut stream);
-
-    let new_min_delay = deserialize_timelock_update_min_delay(&mut stream);
-    timelock_update_min_delay(timelock, role, new_min_delay, ctx)
-}
-
-public fun dispatch_timelock_block_function(
-    timelock: &mut Timelock,
-    timelock_callback_params: TimelockCallbackParams,
-    ctx: &mut TxContext,
-) {
-    let TimelockCallbackParams { module_name, function_name, data, role } =
-        timelock_callback_params;
-
-    assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
-    assert!(*function_name.as_bytes() == b"timelock_block_function", EInvalidFunctionName);
-
-    let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addr(object::id_address(timelock), &mut stream);
-
-    let (target, module_name, function_name) = deserialize_timelock_function_action(&mut stream);
-    timelock_block_function(timelock, role, target, module_name, function_name, ctx)
-}
-
-public fun dispatch_timelock_unblock_function(
-    timelock: &mut Timelock,
-    timelock_callback_params: TimelockCallbackParams,
-    ctx: &mut TxContext,
-) {
-    let TimelockCallbackParams { module_name, function_name, data, role } =
-        timelock_callback_params;
-
-    assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
-    assert!(*function_name.as_bytes() == b"timelock_unblock_function", EInvalidFunctionName);
-
-    let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addr(object::id_address(timelock), &mut stream);
-
-    let (target, module_name, function_name) = deserialize_timelock_function_action(&mut stream);
-    timelock_unblock_function(timelock, role, target, module_name, function_name, ctx)
 }
 
 /*
@@ -902,10 +825,10 @@ public fun mcms_timelock_schedule_batch(
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_schedule_batch", EInvalidFunctionName);
 
-    let mut stream = bcs_stream::new(data);
+    let stream = &mut bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
         vector[object::id_address(timelock), object::id_address(clock)],
-        &mut stream,
+        stream,
     );
 
     let (
@@ -916,7 +839,7 @@ public fun mcms_timelock_schedule_batch(
         predecessor,
         salt,
         delay,
-    ) = deserialize_timelock_schedule_batch(&mut stream);
+    ) = deserialize_timelock_schedule_batch(stream);
 
     timelock_schedule_batch(
         timelock,
