@@ -175,6 +175,7 @@ fun default_execute_args(): ExecuteArgs {
 #[test]
 /// Cannot test E2E with hard coded proofs as object IDs are generated dynamically (AccountState object ID)
 /// Therefore when we serialize the proof, each run will generate a different proof as the object IDs are different
+/// We rely on MCMS lib e2e tests to test the full flow with valid proofs.
 public fun test_e2e() {
     let mut env = setup();
 
@@ -1500,7 +1501,6 @@ fun test_bypasser_execute_batch() {
     let new_delay = initial_delay + 1000; // Set to a different value
 
     // Use bypasser role to execute batch - this should return ExecutingCallbackParams
-    // Prepare data with timelock object ID
     let mut bypasser_update_delay_data = vector[];
     bypasser_update_delay_data.append(bcs::to_bytes(&new_delay));
 
