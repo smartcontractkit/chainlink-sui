@@ -14,6 +14,7 @@ type DeployBurnMintTokenPoolObjects struct {
 }
 
 type DeployBurnMintTokenPoolOutput struct {
+	TokenSymbol         string
 	BurnMintTPPackageID string
 	Objects             DeployBurnMintTokenPoolObjects
 }
