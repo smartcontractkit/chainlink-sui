@@ -6,7 +6,7 @@ const EInvalidAllowance: u64 = 2;
 
 /// A MintAllowance for a coin of type T.
 /// Used for minting and burning.
-public struct MintAllowance<phantom T> has copy, drop, store {
+public struct MintAllowance<phantom T> has store {
     value: u64,
     is_unlimited: bool,
 }
