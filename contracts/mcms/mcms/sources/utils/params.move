@@ -9,6 +9,7 @@ use sui::hex;
 const ECmpVectorsDiffLen: u64 = 1;
 const EOutOfBytes: u64 = 2;
 const ENonModuleType: u64 = 3;
+const EInputTooLargeForNumBytes: u64 = 4;
 
 const ASCII_COLON: u8 = 58;
 const ASCII_LESS_THAN: u8 = 60; // '<' character for generics
@@ -17,6 +18,8 @@ public fun encode_uint<T: drop>(input: T, num_bytes: u64): vector<u8> {
     let mut bcs_bytes = bcs::to_bytes(&input);
 
     let len = bcs_bytes.length();
+    assert!(len <= num_bytes, EInputTooLargeForNumBytes);
+
     if (len < num_bytes) {
         let bytes_to_pad = num_bytes - len;
         let mut i = 0;
