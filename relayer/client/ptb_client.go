@@ -1030,6 +1030,10 @@ func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, mo
 		return "", fmt.Errorf("failed to load module package ids: %w", err)
 	}
 
+	if len(packageIds) == 0 {
+		return "", fmt.Errorf("nil or empty package ids found for package %s and module %s", packageId, module)
+	}
+
 	return packageIds[len(packageIds)-1], nil
 }
 
