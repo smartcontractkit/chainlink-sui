@@ -644,7 +644,6 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 }
 
 type pointerMapEntry struct {
-	field         string // the field name from the Sui object (pointer field containing parent object ID)
 	derivationKey string // the key used to derive the child object address
 	paramName     string // the parameter name from the function config
 }
@@ -708,10 +707,9 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 			pointerSelectors[appendTag] = readIdentifierForPointer
 		}
 
-		// each entry within the pointersMap contains an entry for the field name,
-		// the derivation key, and the (function config) parameter name
+		// each entry within the pointersMap contains the derivation key and the (function config) parameter name
+		// the parent field name is looked up from common.PointerConfigs when fetching the parent object ID
 		pointersMap[appendTag] = append(pointersMap[appendTag], pointerMapEntry{
-			field:         pointerTag.FieldName,
 			derivationKey: pointerTag.DerivationKey,
 			paramName:     paramConfig.Name,
 		})
@@ -898,6 +896,20 @@ func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.Ch
 		return nil, fmt.Errorf("failed to query events from database: %w", err)
 	}
 
+	// Apply the event field renames to the returned records if specified in the config
+	if len(eventConfig.EventFieldRenames) > 0 {
+		for _, rec := range records {
+			mappedData := rec.Data
+			renameErr := aptosCRUtils.MaybeRenameFields(mappedData, eventConfig.EventFieldRenames)
+			if renameErr != nil {
+				s.logger.Errorw("Failed to rename event data fields", "error", renameErr)
+				continue
+			}
+
+			rec.Data = mappedData
+		}
+	}
+
 	s.logger.Debugw("Successfully queried events from database",
 		"eventCount", len(records),
 		"eventHandle", eventHandle,
@@ -972,9 +984,11 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 			continue
 		}
 
+		// create a copy of the record to ensure correct memory location
+		toSave := record
 		sequences = append(sequences, SequenceWithRecord{
 			Sequence: sequence,
-			Record:   &record,
+			Record:   &toSave,
 		})
 	}
 
