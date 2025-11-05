@@ -64,6 +64,16 @@ type PrivateKeySigner struct {
 	privateKey ed25519.PrivateKey
 }
 
+// String implements fmt.Stringer to prevent accidental exposure of private key material
+func (s *PrivateKeySigner) String() string {
+	return "PrivateKeySigner{privateKey: [REDACTED]}"
+}
+
+// GoString implements fmt.GoStringer to prevent accidental exposure of private key material
+func (s *PrivateKeySigner) GoString() string {
+	return "PrivateKeySigner{privateKey: [REDACTED]}"
+}
+
 var IntentBytes = []byte{0, 0, 0}
 
 func NewPrivateKeySigner(privateKey ed25519.PrivateKey) SuiSigner {

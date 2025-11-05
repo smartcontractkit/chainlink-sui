@@ -2,8 +2,8 @@ package changesets
 
 import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
@@ -31,7 +31,7 @@ type AddRemoteTP struct{}
 // Apply implements deployment.ChangeSetV2.
 func (d AddRemoteTP) Apply(e cldf.Environment, config AddRemoteTPConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
-	seqReports := make([]operations.Report[any, any], 0)
+	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	suiChains := e.BlockChains.SuiChains()
 
