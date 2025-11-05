@@ -99,7 +99,7 @@ func GetModuleForContract(contractName string) string {
 		return contractName
 	case "Counter", "counter":
 		return "counter"
-	case "Router":
+	case "Router", "router":
 		return "router"
 	default:
 		// anything under ccip module has to be state_object module
