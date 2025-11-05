@@ -14,6 +14,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
+	"github.com/smartcontractkit/chainlink-common/pkg/types"
 
 	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/loop"
 
@@ -239,7 +240,44 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	if err != nil {
 		return err
 	}
-	_, contractName, method := parsed.address, parsed.contractName, parsed.readName
+	originalPkgId, contractName, method := parsed.address, parsed.contractName, parsed.readName
+
+	s.logger.Info("GLV UPGRADE: ", parsed.address, parsed.contractName)
+
+	module := "state_object"
+	// anything under ccip module has to be state_object module
+	switch parsed.contractName {
+	case "OffRamp":
+		module = "offramp"
+	case "OnRamp":
+		module = "onramp"
+	}
+
+	// Override the package ID with the latest package ID of the module being called.
+	// This ensure we are always using the latestPkgID in case of upgrades.
+	latestPackageId, err := s.client.GetLatestPackageId(ctx, parsed.address, module, "")
+	if err != nil {
+		return err
+	}
+
+	// this is the upgraded pkgID
+	parsed.address = latestPackageId
+
+	s.logger.Info("LATEST PKG ID POST GETLATESTPKGID: ", parsed.address)
+
+	// Bind the new pkgID if the latestPkgID is not currentPkgId
+	// this means there has been an upgrade
+	if originalPkgId != latestPackageId {
+		newBinding := types.BoundContract{
+			Name:    contractName,
+			Address: parsed.address, // Package ID of the deployed counter contract
+		}
+
+		err := s.Bind(ctx, []pkgtypes.BoundContract{newBinding})
+		if err != nil {
+			return fmt.Errorf("error while binding new contract: %w", err)
+		}
+	}
 
 	if err = s.validateContractBindingAndConfig(parsed.contractName, parsed.address); err != nil {
 		return err
@@ -274,7 +312,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		"function", parsed.readName,
 	)
 
-	results, err := s.callFunction(ctx, parsed, params, functionConfig)
+	results, err := s.callFunction(ctx, parsed, params, functionConfig, originalPkgId)
 	if err != nil {
 		return err
 	}
@@ -572,13 +610,13 @@ func (s *suiChainReader) validateContractBindingAndConfig(name string, address s
 }
 
 // callFunction calls a contract function and returns the result
-func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifier, params any, functionConfig *config.ChainReaderFunction) ([]any, error) {
+func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifier, params any, functionConfig *config.ChainReaderFunction, originalPkgId string) ([]any, error) {
 	argMap, err := s.parseParams(params, functionConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	args, argTypes, err := s.prepareArguments(ctx, argMap, functionConfig, parsed)
+	args, argTypes, err := s.prepareArguments(ctx, argMap, functionConfig, parsed, originalPkgId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare arguments: %w", err)
 	}
@@ -651,7 +689,7 @@ type pointerMapEntry struct {
 // prepareArguments prepares function arguments and types for the call.
 // For pointer tags, it looks up cached parent object IDs (pre-loaded during Bind) and derives
 // child object IDs using the derivation keys specified in the pointer tags.
-func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *config.ChainReaderFunction, identifier *readIdentifier) ([]any, []string, error) {
+func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *config.ChainReaderFunction, identifier *readIdentifier, originalPkgId string) ([]any, []string, error) {
 	if functionConfig.Params == nil {
 		return []any{}, []string{}, nil
 	}
@@ -729,8 +767,10 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 		if !cached {
 			// Not in cache, fetch from RPC (fallback for on-demand loading)
 			var err error
+			// this should always be called from original pkgID because the statePointer is owned by originalPkg
+			// even in case of upgrades.
 			parentObjectID, err = s.client.GetParentObjectID(
-				ctx, selector.address, selector.contractName, selector.readName,
+				ctx, originalPkgId, selector.contractName, selector.readName,
 			)
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to get parent object ID: %w", err)
