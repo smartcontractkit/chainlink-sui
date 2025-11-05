@@ -287,6 +287,10 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 							Module:  "counter",
 							Event:   "CounterIncremented",
 						},
+						EventFieldRenames: map[string]aptosCRConfig.RenamedField{
+							"counter_id": {NewName: "counterId"},
+							"new_value":  {NewName: "newValue"},
+						},
 					},
 					"counter_decremented": {
 						Name:      "counter_decremented",
@@ -380,6 +384,55 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 					},
 				},
 			},
+			"Router": {
+				Name: "router",
+				Functions: map[string]*config.ChainReaderFunction{
+					"get_mock_onramp_address": {
+						Name:          "get_mock_onramp_address",
+						SignerAddress: accountAddress,
+						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+					},
+				},
+				Events: map[string]*config.ChainReaderEvent{},
+			},
+			"FeeQuoter": {
+				Name: "fee_quoter",
+				Functions: map[string]*config.ChainReaderFunction{
+					"emit_usd_per_token_updated_event": {
+						Name:          "emit_usd_per_token_updated_event",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type: "address",
+								Name: "token",
+							},
+							{
+								Type: "u256",
+								Name: "usd_per_token",
+							},
+							{
+								Type: "u64",
+								Name: "timestamp",
+							},
+						},
+					},
+				},
+				Events: map[string]*config.ChainReaderEvent{
+					"usd_per_token_updated": {
+						Name:      "usd_per_token_updated",
+						EventType: "UsdPerTokenUpdated",
+						EventSelector: client.EventSelector{
+							Package: packageId,
+							Module:  "fee_quoter",
+							Event:   "UsdPerTokenUpdated",
+						},
+						EventFieldRenames: map[string]aptosCRConfig.RenamedField{
+							"token":       {NewName: "myToken"},
+							"usdPerToken": {NewName: "dollarPerToken"},
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -396,6 +449,16 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	onRampBinding := types.BoundContract{
 		Name:    "OnRamp",
 		Address: packageId, // Package ID of the deployed onramp contract
+	}
+
+	routerBinding := types.BoundContract{
+		Name:    "Router",
+		Address: packageId, // Package ID of the deployed router contract
+	}
+
+	feeQuoterBinding := types.BoundContract{
+		Name:    "FeeQuoter",
+		Address: packageId, // Package ID of the deployed fee_quoter contract
 	}
 
 	datastoreUrl := os.Getenv("TEST_DB_URL")
@@ -438,7 +501,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
 	require.NoError(t, err)
 
-	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding, onRampBinding})
+	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding, onRampBinding, routerBinding, feeQuoterBinding})
 	require.NoError(t, err)
 
 	go func() {
@@ -561,6 +624,27 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		log.Debugw("AddressList test completed successfully",
 			"count", retAddressList.Count,
 			"addresses", retAddressList.Addresses)
+	})
+
+	t.Run("GetLatestValue_Address", func(t *testing.T) {
+		var retAddress any
+
+		log.Debugw("Testing get_mock_onramp_address function",
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Router", "get_mock_onramp_address"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed
+			&retAddress,
+		)
+		require.NoError(t, err)
+
+		// Verify the returned struct
+		require.NotNil(t, retAddress)
+		require.Equal(t, "0x0000000000000000000000000000000000000000000000000000000000000001", retAddress, "Expected address to be 0x0000000000000000000000000000000000000000000000000000000000000001")
 	})
 
 	// Verify renamed fields on address list output
@@ -724,6 +808,96 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.NotNil(t, event)
 		log.Debugw("Event data", "counterId", event.CounterID, "newValue", event.NewValue)
 		require.Equal(t, uint64(1), event.NewValue, "Expected counter value to be 1")
+	})
+
+	t.Run("QueryKeyWithMetadata_RenamedFields", func(t *testing.T) {
+		// Increment the counter to emit an event
+		log.Debugw("Emitting UsdPerTokenUpdated event")
+
+		// Use relayerClient to call increment instead of using CLI
+		moveCallReq := client.MoveCallRequest{
+			Signer:          accountAddress,
+			PackageObjectId: packageId,
+			Module:          "fee_quoter",
+			Function:        "emit_usd_per_token_updated_event",
+			TypeArguments: []any{
+				"address",
+				"u256",
+				"u64",
+			},
+			Arguments: []any{
+				"0x0000000000000000000000000000000000000000000000000000000000000001",
+				"1000000000000000000",
+				"1714953600",
+			},
+			GasBudget: 2000000,
+		}
+
+		log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
+
+		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
+		require.NoError(t, testErr)
+
+		_, testErr = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+		require.NoError(t, testErr)
+
+		// Create a filter for events
+		filter := query.KeyFilter{
+			Key: "usd_per_token_updated",
+		}
+
+		// Setup limit and sort
+		limitAndSort := query.LimitAndSort{
+			Limit: query.Limit{
+				Count:  50,
+				Cursor: "",
+			},
+		}
+
+		log.Debugw("Querying for UsdPerTokenUpdated events",
+			"filter", filter.Key,
+			"limit", limitAndSort.Limit.Count,
+			"packageId", packageId,
+			"contract", feeQuoterBinding.Name,
+			"eventType", "UsdPerTokenUpdated")
+
+		sequences := []aptosCRConfig.SequenceWithMetadata{}
+		require.Eventually(t, func() bool {
+			// Query for events
+			var usdPerTokenUpdated any
+			sequences, err = chainReader.(chainreader.ExtendedContractReader).QueryKeyWithMetadata(
+				ctx,
+				feeQuoterBinding,
+				filter,
+				limitAndSort,
+				&usdPerTokenUpdated,
+			)
+			if err != nil {
+				log.Errorw("Failed to query events", err)
+				require.NoError(t, err)
+			}
+
+			return len(sequences) > 0
+		}, 60*time.Second, 1*time.Second, "Event should eventually be indexed and found")
+
+		log.Debugw("Query results", "sequences", sequences)
+
+		// Verify we got at least one event
+		require.NotEmpty(t, sequences, "Expected at least one event")
+
+		// Verify the event data
+		event := sequences[0].Sequence.Data
+		require.NotNil(t, event)
+
+		log.Debugw("Sequence data", "sequenceData", event)
+
+		// Check the fields of the event
+		eventMap, ok := (*event.(*any)).(map[string]any)
+		require.True(t, ok, "Event data should be a map")
+
+		require.Contains(t, eventMap, "myToken")
+		require.Contains(t, eventMap, "dollarPerToken")
+		require.Contains(t, eventMap, "timestamp")
 	})
 
 	t.Run("QueryKey_CCIPMessageSent_concrete_sequenceDataType", func(t *testing.T) {
@@ -1150,6 +1324,8 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		// Verify we got at least one event
 		require.NotEmpty(t, sequences, "Expected at least one event")
+
+		log.Debugw("Event data", "event", sequences[0].Sequence.Data)
 
 		// Verify the event data
 		event := sequences[0].Sequence.Data

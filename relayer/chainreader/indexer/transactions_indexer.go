@@ -124,7 +124,10 @@ func (tIndexer *TransactionsIndexer) Start(ctx context.Context) error {
 // UpdateEventConfig method either edits or inserts the event config into the map of configs
 func (tIndexer *TransactionsIndexer) UpdateEventConfig(eventConfig *config.ChainReaderEvent) {
 	key := fmt.Sprintf("%s::%s", eventConfig.Module, eventConfig.Name)
+
+	tIndexer.mu.Lock()
 	tIndexer.eventConfigs[key] = eventConfig
+	tIndexer.mu.Unlock()
 }
 
 // SetOffRampPackage sets offramp called by chainreader Bind.

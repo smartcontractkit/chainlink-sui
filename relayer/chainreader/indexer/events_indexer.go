@@ -312,13 +312,7 @@ eventLoop:
 				// normalize the data, convert snake case to camel case
 				normalizedData := convertMapKeysToCamelCase(event.ParsedJson)
 
-				// optionally use the initial package ID if it is provided
-				packageIdToInsert := selector.Package
-				if selector.InitialPackageId != nil {
-					packageIdToInsert = *selector.InitialPackageId
-				}
-
-				// Convert the txDigest to hex
+        // Convert the txDigest to hex
 				txDigestHex := event.Id.TxDigest
 				if base64Bytes, err := base64.StdEncoding.DecodeString(txDigestHex); err == nil {
 					hexTxId := hex.EncodeToString(base64Bytes)
@@ -331,10 +325,10 @@ eventLoop:
 					// fallback
 					blockHashBytes = []byte(block.TxDigest)
 				}
-
+        
 				// Convert event to database record
 				record := database.EventRecord{
-					EventAccountAddress: packageIdToInsert,
+					EventAccountAddress: selector.Package,
 					EventHandle:         eventHandle,
 					EventOffset:         offset,
 					TxDigest:            txDigestHex,
@@ -351,10 +345,30 @@ eventLoop:
 			// Insert batch of events into database
 			if len(batchRecords) > 0 {
 				if err := eIndexer.db.InsertEvents(ctx, batchRecords); err != nil {
-					return fmt.Errorf("syncEvent: failed to insert batch of events: %w", err)
+					eIndexer.logger.Errorw("syncEvent: failed to insert batch of events, falling back to per-event insert", "error", err)
+
+					// Fallback: insert each record individually, skip bad ones
+					totalProcessedFallback := 0
+					for _, record := range batchRecords {
+						if err := eIndexer.db.InsertEvents(ctx, []database.EventRecord{record}); err != nil {
+							eIndexer.logger.Errorw("Failed to insert single event, skipping...",
+								"error", err,
+								"handle", eventHandle,
+								"txDigest", record.TxDigest,
+								"offset", record.EventOffset,
+							)
+
+							continue
+						}
+
+						totalProcessedFallback++
+					}
+					eIndexer.logger.Debugw("syncEvent: inserted batch of events", "count", totalProcessedFallback, "handle", eventHandle)
+					totalProcessed += totalProcessedFallback
+				} else {
+					totalProcessed += len(batchRecords)
 				}
 
-				totalProcessed += len(batchRecords)
 				eIndexer.logger.Debugw("syncEvent: saved batch of events",
 					"batch_count", len(batchRecords),
 					"total_processed", totalProcessed,

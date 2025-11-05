@@ -523,32 +523,18 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	// only write contract address, rest will be handled during chainreader config
 	eventConfig.Package = contract.Address
 
-	// repeat the sync call for each package ID (upgrades) of the module
-	// using the contract's own address as signer address since we are only ready
-	packageIds, err := s.client.LoadModulePackageIds(ctx, contract.Address, moduleConfig.Name, contract.Address)
-	if err != nil {
-		return nil, err
+	evIndexer := s.indexer.GetEventIndexer()
+	// create a selector for the initial package ID
+	selector := client.EventSelector{
+		Package: contract.Address,
+		Module:  moduleConfig.Name,
+		Event:   eventConfig.EventType,
 	}
 
-	s.logger.Debugw("Found package IDs", "packageIds", packageIds)
-
-	evIndexer := s.indexer.GetEventIndexer()
-	// create a selector for each package ID including the upgrades and the initial package ID
-	// the `LoadModulePackageIds` will fallback to a single package ID if the module does not have the `get_package_ids` function
-	for _, packageId := range packageIds {
-		selector := client.EventSelector{
-			Package: packageId,
-			Module:  moduleConfig.Name,
-			Event:   eventConfig.EventType,
-			// override the DB insert using the initial package ID
-			InitialPackageId: &contract.Address,
-		}
-
-		// sync the event in case it's not already in the database
-		err = evIndexer.SyncEvent(ctx, &selector)
-		if err != nil {
-			return nil, err
-		}
+	// sync the event in case it's not already in the database
+	err = evIndexer.SyncEvent(ctx, &selector)
+	if err != nil {
+		return nil, err
 	}
 
 	// update the event config in the transactions indexer to ensure that the package ID is known
@@ -644,7 +630,6 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 }
 
 type pointerMapEntry struct {
-	field         string // the field name from the Sui object (pointer field containing parent object ID)
 	derivationKey string // the key used to derive the child object address
 	paramName     string // the parameter name from the function config
 }
@@ -708,10 +693,9 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 			pointerSelectors[appendTag] = readIdentifierForPointer
 		}
 
-		// each entry within the pointersMap contains an entry for the field name,
-		// the derivation key, and the (function config) parameter name
+		// each entry within the pointersMap contains the derivation key and the (function config) parameter name
+		// the parent field name is looked up from common.PointerConfigs when fetching the parent object ID
 		pointersMap[appendTag] = append(pointersMap[appendTag], pointerMapEntry{
-			field:         pointerTag.FieldName,
 			derivationKey: pointerTag.DerivationKey,
 			paramName:     paramConfig.Name,
 		})
@@ -896,6 +880,20 @@ func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.Ch
 		)
 
 		return nil, fmt.Errorf("failed to query events from database: %w", err)
+	}
+
+	// Apply the event field renames to the returned records if specified in the config
+	if len(eventConfig.EventFieldRenames) > 0 {
+		for _, rec := range records {
+			mappedData := rec.Data
+			renameErr := aptosCRUtils.MaybeRenameFields(mappedData, eventConfig.EventFieldRenames)
+			if renameErr != nil {
+				s.logger.Errorw("Failed to rename event data fields", "error", renameErr)
+				continue
+			}
+
+			rec.Data = mappedData
+		}
 	}
 
 	s.logger.Debugw("Successfully queried events from database",

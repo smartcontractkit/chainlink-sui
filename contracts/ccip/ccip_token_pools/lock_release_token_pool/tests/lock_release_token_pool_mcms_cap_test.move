@@ -18,8 +18,7 @@ use lock_release_token_pool::ownable::{Self, OwnerCap};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::bcs;
 use std::string;
-use sui::coin;
-use sui::package;
+use sui::coin::{Self, Coin};
 use sui::test_scenario::{Self as ts, Scenario};
 
 const OWNER: address = @0x123;
@@ -43,11 +42,7 @@ public struct TestEnv {
 // |                      Setup Helpers                           |
 // ================================================================
 
-fun setup(): (
-    TestEnv,
-    OwnerCap,
-    RebalancerCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>,
-) {
+fun setup(): (TestEnv, OwnerCap, RebalancerCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>) {
     let mut scenario = ts::begin(OWNER);
 
     // Setup CCIP environment
@@ -94,8 +89,12 @@ fun setup(): (
     scenario.next_tx(OWNER);
     let mut owner_cap_for_init = ts::take_from_sender<OwnerCap>(&scenario);
     let mut ccip_ref = ts::take_shared<CCIPObjectRef>(&scenario);
-    let coin_metadata = ts::take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(&scenario);
-    let treasury_cap = ts::take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(&scenario);
+    let coin_metadata = ts::take_immutable<
+        coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>,
+    >(&scenario);
+    let treasury_cap = ts::take_from_sender<
+        coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>,
+    >(&scenario);
 
     lock_release_token_pool::initialize(
         &mut owner_cap_for_init,
@@ -176,6 +175,108 @@ fun encode_set_rebalancer_data(
     vector::append(&mut data, bcs::to_bytes(&owner_cap_id));
     vector::append(&mut data, bcs::to_bytes(&rebalancer));
     data
+}
+
+fun encode_provide_liquidity_data(
+    state_id: address,
+    rebalancer_cap_id: address,
+    coin_id: address,
+): vector<u8> {
+    let mut data = vector::empty();
+    vector::append(&mut data, bcs::to_bytes(&state_id));
+    vector::append(&mut data, bcs::to_bytes(&rebalancer_cap_id));
+    vector::append(&mut data, bcs::to_bytes(&coin_id));
+    data
+}
+
+fun encode_withdraw_liquidity_data(
+    state_id: address,
+    rebalancer_cap_id: address,
+    amount: u64,
+    to: address,
+): vector<u8> {
+    let mut data = vector::empty();
+    vector::append(&mut data, bcs::to_bytes(&state_id));
+    vector::append(&mut data, bcs::to_bytes(&rebalancer_cap_id));
+    vector::append(&mut data, bcs::to_bytes(&amount));
+    vector::append(&mut data, bcs::to_bytes(&to));
+    data
+}
+
+fun setup_mcms_ownership(env: &mut TestEnv, owner_cap: OwnerCap) {
+    // Transfer ownership to MCMS
+    env.scenario.next_tx(OWNER);
+    lock_release_token_pool::transfer_ownership(
+        &mut env.state,
+        &owner_cap,
+        mcms_registry::get_multisig_address(),
+        env.scenario.ctx(),
+    );
+
+    // Accept ownership as MCMS
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let state_addr = object::id_address(&env.state);
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"accept_ownership",
+        bcs::to_bytes(&state_addr),
+        x"0000000000000000000000000000000000000000000000000000000000000001",
+        0,
+    );
+    lock_release_token_pool::mcms_accept_ownership(
+        &mut env.state,
+        &mut env.mcms_registry,
+        params,
+        env.scenario.ctx(),
+    );
+
+    // Execute ownership transfer
+    env.scenario.next_tx(OWNER);
+    lock_release_token_pool::execute_ownership_transfer_to_mcms(
+        owner_cap,
+        &mut env.state,
+        &mut env.mcms_registry,
+        mcms_registry::get_multisig_address(),
+        env.scenario.ctx(),
+    );
+}
+
+// Setup MCMS ownership AND take rebalancer control
+fun setup_mcms_with_rebalancer(
+    env: &mut TestEnv,
+    owner_cap: OwnerCap,
+    owner_cap_id: address,
+): address {
+    setup_mcms_ownership(env, owner_cap);
+
+    // MCMS takes rebalancer control
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let mcms_address = mcms_registry::get_multisig_address();
+    let data = encode_set_rebalancer_data(
+        object::id_address(&env.state),
+        owner_cap_id,
+        mcms_address,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"set_rebalancer",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000002",
+        0,
+    );
+    lock_release_token_pool::mcms_set_rebalancer(
+        &mut env.state,
+        &mut env.mcms_registry,
+        params,
+        env.scenario.ctx(),
+    );
+
+    // Return rebalancer cap ID
+    let mcms_cap = mcms_registry::get_cap<McmsCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(
+        &env.mcms_registry,
+        @lock_release_token_pool.to_ascii_string(),
+    );
+    lock_release_token_pool::mcms_rebalancer_cap_address(mcms_cap)
 }
 
 #[test]
@@ -278,65 +379,11 @@ public fun test_execute_ownership_transfer_to_mcms_with_rebalancer() {
     let (mut env, owner_cap, rebalancer_cap) = setup();
     let owner_cap_id = object::id_address(&owner_cap);
 
-    // Transfer ownership to MCMS
-    env.scenario.next_tx(OWNER);
-    lock_release_token_pool::transfer_ownership(
-        &mut env.state,
-        &owner_cap,
-        mcms_registry::get_multisig_address(),
-        env.scenario.ctx(),
-    );
-
-    // Accept ownership as MCMS
-    let state_addr = object::id_address(&env.state);
-    let params = create_mcms_callback_params(
-        @lock_release_token_pool,
-        b"accept_ownership",
-        bcs::to_bytes(&state_addr),
-        x"0000000000000000000000000000000000000000000000000000000000000001",
-        0,
-    );
-    lock_release_token_pool::mcms_accept_ownership(
-        &mut env.state,
-        &mut env.mcms_registry,
-        params,
-        env.scenario.ctx(),
-    );
-
-    // Execute ownership transfer (creates McmsCap with no rebalancer)
-    env.scenario.next_tx(OWNER);
-    lock_release_token_pool::execute_ownership_transfer_to_mcms(
-        owner_cap,
-        &mut env.state,
-        &mut env.mcms_registry,
-        mcms_registry::get_multisig_address(),
-        env.scenario.ctx(),
-    );
+    // Setup MCMS with rebalancer control
+    setup_mcms_with_rebalancer(&mut env, owner_cap, owner_cap_id);
 
     // Verify ownership transferred
     assert!(lock_release_token_pool::owner(&env.state) == mcms_registry::get_multisig_address());
-
-    // Now set the rebalancer via MCMS to include rebalancer cap
-    env.scenario.next_tx(mcms_registry::get_multisig_address());
-    let mcms_address = mcms_registry::get_multisig_address();
-    let data = encode_set_rebalancer_data(
-        object::id_address(&env.state),
-        owner_cap_id, // Use the captured owner_cap ID
-        mcms_address,
-    );
-    let params = create_mcms_callback_params(
-        @lock_release_token_pool,
-        b"set_rebalancer",
-        data,
-        x"0000000000000000000000000000000000000000000000000000000000000002",
-        0,
-    );
-    lock_release_token_pool::mcms_set_rebalancer(
-        &mut env.state,
-        &mut env.mcms_registry,
-        params,
-        env.scenario.ctx(),
-    );
 
     // Assert package is registered
     assert!(
@@ -360,39 +407,8 @@ public fun test_execute_ownership_transfer_to_mcms_with_rebalancer() {
 public fun test_execute_ownership_transfer_to_mcms_without_rebalancer() {
     let (mut env, owner_cap, rebalancer_cap) = setup();
 
-    env.scenario.next_tx(OWNER);
-    lock_release_token_pool::transfer_ownership(
-        &mut env.state,
-        &owner_cap,
-        mcms_registry::get_multisig_address(),
-        env.scenario.ctx(),
-    );
-
-    // Accept ownership as MCMS
-    let state_addr = object::id_address(&env.state);
-    let params = create_mcms_callback_params(
-        @lock_release_token_pool,
-        b"accept_ownership",
-        bcs::to_bytes(&state_addr),
-        x"0000000000000000000000000000000000000000000000000000000000000001",
-        0,
-    );
-    lock_release_token_pool::mcms_accept_ownership(
-        &mut env.state,
-        &mut env.mcms_registry,
-        params,
-        env.scenario.ctx(),
-    );
-
-    // Execute ownership transfer (creates McmsCap with no rebalancer)
-    env.scenario.next_tx(OWNER);
-    lock_release_token_pool::execute_ownership_transfer_to_mcms(
-        owner_cap,
-        &mut env.state,
-        &mut env.mcms_registry,
-        mcms_registry::get_multisig_address(),
-        env.scenario.ctx(),
-    );
+    // Setup MCMS ownership only (no rebalancer)
+    setup_mcms_ownership(&mut env, owner_cap);
 
     // Verify ownership transferred
     assert!(lock_release_token_pool::owner(&env.state) == mcms_registry::get_multisig_address());
@@ -411,63 +427,8 @@ public fun test_mcms_set_rebalancer_to_mcms_address() {
     let (mut env, owner_cap, rebalancer_cap) = setup();
     let owner_cap_id = object::id_address(&owner_cap);
 
-    // First, transfer ownership to MCMS without rebalancer cap
-    env.scenario.next_tx(OWNER);
-    lock_release_token_pool::transfer_ownership(
-        &mut env.state,
-        &owner_cap,
-        mcms_registry::get_multisig_address(),
-        env.scenario.ctx(),
-    );
-
-    env.scenario.next_tx(mcms_registry::get_multisig_address());
-    let state_addr = object::id_address(&env.state);
-    let params = create_mcms_callback_params(
-        @lock_release_token_pool,
-        b"accept_ownership",
-        bcs::to_bytes(&state_addr),
-        x"0000000000000000000000000000000000000000000000000000000000000001",
-        0,
-    );
-    lock_release_token_pool::mcms_accept_ownership(
-        &mut env.state,
-        &mut env.mcms_registry,
-        params,
-        env.scenario.ctx(),
-    );
-
-    env.scenario.next_tx(OWNER);
-    lock_release_token_pool::execute_ownership_transfer_to_mcms(
-        owner_cap,
-        &mut env.state,
-        &mut env.mcms_registry,
-        mcms_registry::get_multisig_address(),
-        env.scenario.ctx(),
-    );
-
-    // Now MCMS sets rebalancer to itself
-    env.scenario.next_tx(mcms_registry::get_multisig_address());
-    let mcms_address = mcms_registry::get_multisig_address();
-    let data = encode_set_rebalancer_data(
-        object::id_address(&env.state),
-        owner_cap_id,
-        mcms_address,
-    );
-
-    let params = create_mcms_callback_params(
-        @lock_release_token_pool,
-        b"set_rebalancer",
-        data,
-        x"0000000000000000000000000000000000000000000000000000000000000002",
-        0,
-    );
-
-    lock_release_token_pool::mcms_set_rebalancer(
-        &mut env.state,
-        &mut env.mcms_registry,
-        params,
-        env.scenario.ctx(),
-    );
+    // Setup MCMS with rebalancer control
+    setup_mcms_with_rebalancer(&mut env, owner_cap, owner_cap_id);
 
     // Verify LockReleaseTokenPoolState rebalancer cap id was updated to MCMS rebalancer cap address
     let mcms_cap = mcms_registry::get_cap<McmsCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(
@@ -488,62 +449,8 @@ public fun test_mcms_retake_rebalancer_after_delegation() {
     let (mut env, owner_cap, rebalancer_cap) = setup();
     let owner_cap_id = object::id_address(&owner_cap);
 
-    // Step 1: Transfer ownership to MCMS
-    env.scenario.next_tx(OWNER);
-    lock_release_token_pool::transfer_ownership(
-        &mut env.state,
-        &owner_cap,
-        mcms_registry::get_multisig_address(),
-        env.scenario.ctx(),
-    );
-
-    // Accept ownership as MCMS
-    env.scenario.next_tx(mcms_registry::get_multisig_address());
-    let state_addr = object::id_address(&env.state);
-    let params = create_mcms_callback_params(
-        @lock_release_token_pool,
-        b"accept_ownership",
-        bcs::to_bytes(&state_addr),
-        x"0000000000000000000000000000000000000000000000000000000000000001",
-        0,
-    );
-    lock_release_token_pool::mcms_accept_ownership(
-        &mut env.state,
-        &mut env.mcms_registry,
-        params,
-        env.scenario.ctx(),
-    );
-
-    env.scenario.next_tx(OWNER);
-    lock_release_token_pool::execute_ownership_transfer_to_mcms(
-        owner_cap,
-        &mut env.state,
-        &mut env.mcms_registry,
-        mcms_registry::get_multisig_address(),
-        env.scenario.ctx(),
-    );
-
-    // Step 2: MCMS takes rebalancer control
-    env.scenario.next_tx(mcms_registry::get_multisig_address());
-    let mcms_address = mcms_registry::get_multisig_address();
-    let data = encode_set_rebalancer_data(
-        object::id_address(&env.state),
-        owner_cap_id,
-        mcms_address,
-    );
-    let params = create_mcms_callback_params(
-        @lock_release_token_pool,
-        b"set_rebalancer",
-        data,
-        x"0000000000000000000000000000000000000000000000000000000000000002",
-        0,
-    );
-    lock_release_token_pool::mcms_set_rebalancer(
-        &mut env.state,
-        &mut env.mcms_registry,
-        params,
-        env.scenario.ctx(),
-    );
+    // Setup MCMS with rebalancer control
+    setup_mcms_with_rebalancer(&mut env, owner_cap, owner_cap_id);
 
     // Verify MCMS has rebalancer control
     let mcms_cap = mcms_registry::get_cap<McmsCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(
@@ -552,6 +459,7 @@ public fun test_mcms_retake_rebalancer_after_delegation() {
     );
     let mcms_rebalancer_cap_addr_1 = lock_release_token_pool::mcms_rebalancer_cap_address(mcms_cap);
     assert!(mcms_rebalancer_cap_addr_1 == lock_release_token_pool::get_rebalancer(&env.state));
+    let mcms_address = mcms_registry::get_multisig_address();
 
     // Step 3: MCMS delegates rebalancer to EOA
     env.scenario.next_tx(mcms_registry::get_multisig_address());
@@ -632,61 +540,10 @@ public fun test_mcms_set_rebalancer_idempotent() {
     let (mut env, owner_cap, rebalancer_cap) = setup();
     let owner_cap_id = object::id_address(&owner_cap);
 
-    // Transfer ownership to MCMS
-    env.scenario.next_tx(OWNER);
-    lock_release_token_pool::transfer_ownership(
-        &mut env.state,
-        &owner_cap,
-        mcms_registry::get_multisig_address(),
-        env.scenario.ctx(),
-    );
+    // Setup MCMS with rebalancer control
+    setup_mcms_with_rebalancer(&mut env, owner_cap, owner_cap_id);
 
-    env.scenario.next_tx(mcms_registry::get_multisig_address());
-    let state_addr = object::id_address(&env.state);
-    let params = create_mcms_callback_params(
-        @lock_release_token_pool,
-        b"accept_ownership",
-        bcs::to_bytes(&state_addr),
-        x"0000000000000000000000000000000000000000000000000000000000000001",
-        0,
-    );
-    lock_release_token_pool::mcms_accept_ownership(
-        &mut env.state,
-        &mut env.mcms_registry,
-        params,
-        env.scenario.ctx(),
-    );
-
-    env.scenario.next_tx(OWNER);
-    lock_release_token_pool::execute_ownership_transfer_to_mcms(
-        owner_cap,
-        &mut env.state,
-        &mut env.mcms_registry,
-        mcms_registry::get_multisig_address(),
-        env.scenario.ctx(),
-    );
-
-    // MCMS takes rebalancer control (first time)
-    env.scenario.next_tx(mcms_registry::get_multisig_address());
     let mcms_address = mcms_registry::get_multisig_address();
-    let data = encode_set_rebalancer_data(
-        object::id_address(&env.state),
-        owner_cap_id,
-        mcms_address,
-    );
-    let params = create_mcms_callback_params(
-        @lock_release_token_pool,
-        b"set_rebalancer",
-        data,
-        x"0000000000000000000000000000000000000000000000000000000000000002",
-        0,
-    );
-    lock_release_token_pool::mcms_set_rebalancer(
-        &mut env.state,
-        &mut env.mcms_registry,
-        params,
-        env.scenario.ctx(),
-    );
 
     // Capture the rebalancer cap ID
     let mcms_cap = mcms_registry::get_cap<McmsCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(
@@ -737,63 +594,12 @@ public fun test_mcms_multiple_delegation_cycles() {
     let (mut env, owner_cap, rebalancer_cap) = setup();
     let owner_cap_id = object::id_address(&owner_cap);
 
-    // Transfer ownership to MCMS
-    env.scenario.next_tx(OWNER);
-    lock_release_token_pool::transfer_ownership(
-        &mut env.state,
-        &owner_cap,
-        mcms_registry::get_multisig_address(),
-        env.scenario.ctx(),
-    );
-
-    env.scenario.next_tx(mcms_registry::get_multisig_address());
-    let state_addr = object::id_address(&env.state);
-    let params = create_mcms_callback_params(
-        @lock_release_token_pool,
-        b"accept_ownership",
-        bcs::to_bytes(&state_addr),
-        x"0000000000000000000000000000000000000000000000000000000000000001",
-        0,
-    );
-    lock_release_token_pool::mcms_accept_ownership(
-        &mut env.state,
-        &mut env.mcms_registry,
-        params,
-        env.scenario.ctx(),
-    );
-
-    env.scenario.next_tx(OWNER);
-    lock_release_token_pool::execute_ownership_transfer_to_mcms(
-        owner_cap,
-        &mut env.state,
-        &mut env.mcms_registry,
-        mcms_registry::get_multisig_address(),
-        env.scenario.ctx(),
-    );
+    // Setup MCMS with rebalancer control
+    setup_mcms_with_rebalancer(&mut env, owner_cap, owner_cap_id);
 
     let mcms_address = mcms_registry::get_multisig_address();
 
-    // Cycle 1: MCMS takes rebalancer control
-    env.scenario.next_tx(mcms_registry::get_multisig_address());
-    let data = encode_set_rebalancer_data(
-        object::id_address(&env.state),
-        owner_cap_id,
-        mcms_address,
-    );
-    let params = create_mcms_callback_params(
-        @lock_release_token_pool,
-        b"set_rebalancer",
-        data,
-        x"0000000000000000000000000000000000000000000000000000000000000002",
-        0,
-    );
-    lock_release_token_pool::mcms_set_rebalancer(
-        &mut env.state,
-        &mut env.mcms_registry,
-        params,
-        env.scenario.ctx(),
-    );
-
+    // Verify Cycle 1: MCMS has rebalancer control
     let mcms_cap = mcms_registry::get_cap<McmsCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(
         &env.mcms_registry,
         @lock_release_token_pool.to_ascii_string(),
@@ -940,6 +746,271 @@ public fun test_mcms_multiple_delegation_cycles() {
 }
 
 // ================================================================
+// |                    Liquidity Management Tests                |
+// ================================================================
+
+#[test]
+public fun test_mcms_provide_liquidity_success() {
+    let (mut env, owner_cap, rebalancer_cap) = setup();
+    let owner_cap_id = object::id_address(&owner_cap);
+
+    // Setup MCMS with rebalancer control
+    let rebalancer_cap_id = setup_mcms_with_rebalancer(&mut env, owner_cap, owner_cap_id);
+
+    // Get initial balance
+    let initial_balance = lock_release_token_pool::get_balance(&env.state);
+
+    // Mint test coins
+    env.scenario.next_tx(OWNER);
+    let mut treasury_cap = ts::take_from_sender<
+        coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>,
+    >(&env.scenario);
+    let test_coin = coin::mint(&mut treasury_cap, 1000000, env.scenario.ctx());
+    let coin_id = object::id_address(&test_coin);
+
+    // Provide liquidity via MCMS
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_provide_liquidity_data(
+        object::id_address(&env.state),
+        rebalancer_cap_id,
+        coin_id,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"provide_liquidity",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000003",
+        0,
+    );
+    lock_release_token_pool::mcms_provide_liquidity(
+        &mut env.state,
+        &mut env.mcms_registry,
+        test_coin,
+        params,
+        env.scenario.ctx(),
+    );
+
+    // Verify balance increased
+    let final_balance = lock_release_token_pool::get_balance(&env.state);
+    assert!(final_balance == initial_balance + 1000000);
+
+    ts::return_to_address(OWNER, treasury_cap);
+    ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
+    tear_down(env);
+}
+
+#[test]
+public fun test_mcms_withdraw_liquidity_success() {
+    let (mut env, owner_cap, rebalancer_cap) = setup();
+    let owner_cap_id = object::id_address(&owner_cap);
+
+    // Setup MCMS with rebalancer control
+    let rebalancer_cap_id = setup_mcms_with_rebalancer(&mut env, owner_cap, owner_cap_id);
+
+    // Provide initial liquidity
+    env.scenario.next_tx(OWNER);
+    let mut treasury_cap = ts::take_from_sender<
+        coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>,
+    >(&env.scenario);
+    let test_coin = coin::mint(&mut treasury_cap, 1000000, env.scenario.ctx());
+    let coin_id = object::id_address(&test_coin);
+
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_provide_liquidity_data(
+        object::id_address(&env.state),
+        rebalancer_cap_id,
+        coin_id,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"provide_liquidity",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000003",
+        0,
+    );
+    lock_release_token_pool::mcms_provide_liquidity(
+        &mut env.state,
+        &mut env.mcms_registry,
+        test_coin,
+        params,
+        env.scenario.ctx(),
+    );
+
+    // Get balance before withdrawal
+    let balance_before = lock_release_token_pool::get_balance(&env.state);
+    assert!(balance_before == 1000000);
+
+    // Withdraw liquidity via MCMS
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_withdraw_liquidity_data(
+        object::id_address(&env.state),
+        rebalancer_cap_id,
+        500000,
+        NEW_OWNER, // recipient
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"withdraw_liquidity",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000004",
+        0,
+    );
+    lock_release_token_pool::mcms_withdraw_liquidity(
+        &mut env.state,
+        &mut env.mcms_registry,
+        params,
+        env.scenario.ctx(),
+    );
+
+    // Verify balance decreased
+    let balance_after = lock_release_token_pool::get_balance(&env.state);
+    assert!(balance_after == 500000);
+
+    // Verify recipient received the coin
+    env.scenario.next_tx(NEW_OWNER);
+    let received_coin = ts::take_from_sender<Coin<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(
+        &env.scenario,
+    );
+    assert!(received_coin.value() == 500000);
+
+    ts::return_to_address(NEW_OWNER, received_coin);
+    ts::return_to_address(OWNER, treasury_cap);
+    ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
+    tear_down(env);
+}
+
+#[test]
+public fun test_mcms_provide_and_withdraw_liquidity_full_cycle() {
+    let (mut env, owner_cap, rebalancer_cap) = setup();
+    let owner_cap_id = object::id_address(&owner_cap);
+
+    // Setup MCMS with rebalancer control
+    let rebalancer_cap_id = setup_mcms_with_rebalancer(&mut env, owner_cap, owner_cap_id);
+
+    // Step 1: Provide initial liquidity (1,000,000)
+    env.scenario.next_tx(OWNER);
+    let mut treasury_cap = ts::take_from_sender<
+        coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>,
+    >(&env.scenario);
+    let test_coin_1 = coin::mint(&mut treasury_cap, 1000000, env.scenario.ctx());
+    let coin_id_1 = object::id_address(&test_coin_1);
+
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_provide_liquidity_data(
+        object::id_address(&env.state),
+        rebalancer_cap_id,
+        coin_id_1,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"provide_liquidity",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000003",
+        0,
+    );
+    lock_release_token_pool::mcms_provide_liquidity(
+        &mut env.state,
+        &mut env.mcms_registry,
+        test_coin_1,
+        params,
+        env.scenario.ctx(),
+    );
+    assert!(lock_release_token_pool::get_balance(&env.state) == 1000000);
+
+    // Step 2: Withdraw some liquidity (300,000)
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_withdraw_liquidity_data(
+        object::id_address(&env.state),
+        rebalancer_cap_id,
+        300000,
+        NEW_OWNER,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"withdraw_liquidity",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000004",
+        0,
+    );
+    lock_release_token_pool::mcms_withdraw_liquidity(
+        &mut env.state,
+        &mut env.mcms_registry,
+        params,
+        env.scenario.ctx(),
+    );
+    assert!(lock_release_token_pool::get_balance(&env.state) == 700000);
+
+    // Step 3: Provide more liquidity (500,000)
+    env.scenario.next_tx(OWNER);
+    let test_coin_2 = coin::mint(&mut treasury_cap, 500000, env.scenario.ctx());
+    let coin_id_2 = object::id_address(&test_coin_2);
+
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_provide_liquidity_data(
+        object::id_address(&env.state),
+        rebalancer_cap_id,
+        coin_id_2,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"provide_liquidity",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000005",
+        0,
+    );
+    lock_release_token_pool::mcms_provide_liquidity(
+        &mut env.state,
+        &mut env.mcms_registry,
+        test_coin_2,
+        params,
+        env.scenario.ctx(),
+    );
+    assert!(lock_release_token_pool::get_balance(&env.state) == 1200000);
+
+    // Step 4: Withdraw to different address
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_withdraw_liquidity_data(
+        object::id_address(&env.state),
+        rebalancer_cap_id,
+        200000,
+        OTHER_USER,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"withdraw_liquidity",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000006",
+        0,
+    );
+    lock_release_token_pool::mcms_withdraw_liquidity(
+        &mut env.state,
+        &mut env.mcms_registry,
+        params,
+        env.scenario.ctx(),
+    );
+    assert!(lock_release_token_pool::get_balance(&env.state) == 1000000);
+
+    // Verify recipients received coins
+    env.scenario.next_tx(NEW_OWNER);
+    let coin_new_owner = ts::take_from_sender<Coin<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(
+        &env.scenario,
+    );
+    assert!(coin_new_owner.value() == 300000);
+
+    env.scenario.next_tx(OTHER_USER);
+    let coin_other_user = ts::take_from_sender<Coin<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(
+        &env.scenario,
+    );
+    assert!(coin_other_user.value() == 200000);
+
+    ts::return_to_address(NEW_OWNER, coin_new_owner);
+    ts::return_to_address(OTHER_USER, coin_other_user);
+    ts::return_to_address(OWNER, treasury_cap);
+    ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
+    tear_down(env);
+}
+
+// ================================================================
 // |                      Negative Tests                          |
 // ================================================================
 
@@ -999,5 +1070,189 @@ public fun test_set_rebalancer_unauthorized() {
     ownable::test_destroy_owner_cap(fake_owner_cap);
     ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
     ts::return_to_address(OWNER, owner_cap);
+    tear_down(env);
+}
+
+#[test]
+#[expected_failure(abort_code = lock_release_token_pool::ERebalancerCapDoesNotExist)]
+public fun test_mcms_provide_liquidity_fails_without_rebalancer_cap() {
+    let (mut env, owner_cap, rebalancer_cap) = setup();
+
+    // Transfer ownership to MCMS but DON'T take rebalancer control
+    setup_mcms_ownership(&mut env, owner_cap);
+
+    // Try to provide liquidity without having rebalancer cap (should fail)
+    env.scenario.next_tx(OWNER);
+    let mut treasury_cap = ts::take_from_sender<
+        coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>,
+    >(&env.scenario);
+    let test_coin = coin::mint(&mut treasury_cap, 1000000, env.scenario.ctx());
+    let coin_id = object::id_address(&test_coin);
+
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_provide_liquidity_data(
+        object::id_address(&env.state),
+        @0x0, // dummy rebalancer cap id
+        coin_id,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"provide_liquidity",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000002",
+        0,
+    );
+    lock_release_token_pool::mcms_provide_liquidity(
+        &mut env.state,
+        &mut env.mcms_registry,
+        test_coin,
+        params,
+        env.scenario.ctx(),
+    );
+
+    ts::return_to_address(OWNER, treasury_cap);
+    ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
+    tear_down(env);
+}
+
+#[test]
+#[expected_failure(abort_code = lock_release_token_pool::ERebalancerCapDoesNotExist)]
+public fun test_mcms_withdraw_liquidity_fails_without_rebalancer_cap() {
+    let (mut env, owner_cap, rebalancer_cap) = setup();
+
+    // Transfer ownership to MCMS but DON'T take rebalancer control
+    setup_mcms_ownership(&mut env, owner_cap);
+
+    // Try to withdraw liquidity without having rebalancer cap (should fail)
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_withdraw_liquidity_data(
+        object::id_address(&env.state),
+        @0x0, // dummy rebalancer cap id
+        100000,
+        NEW_OWNER,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"withdraw_liquidity",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000002",
+        0,
+    );
+    lock_release_token_pool::mcms_withdraw_liquidity(
+        &mut env.state,
+        &mut env.mcms_registry,
+        params,
+        env.scenario.ctx(),
+    );
+
+    ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
+    tear_down(env);
+}
+
+#[test]
+#[expected_failure(abort_code = lock_release_token_pool::ETokenPoolBalanceTooLow)]
+public fun test_mcms_withdraw_liquidity_fails_insufficient_balance() {
+    let (mut env, owner_cap, rebalancer_cap) = setup();
+    let owner_cap_id = object::id_address(&owner_cap);
+
+    // Setup MCMS with rebalancer control
+    let rebalancer_cap_id = setup_mcms_with_rebalancer(&mut env, owner_cap, owner_cap_id);
+
+    // Provide small amount of liquidity
+    env.scenario.next_tx(OWNER);
+    let mut treasury_cap = ts::take_from_sender<
+        coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>,
+    >(&env.scenario);
+    let test_coin = coin::mint(&mut treasury_cap, 100000, env.scenario.ctx());
+    let coin_id = object::id_address(&test_coin);
+
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_provide_liquidity_data(
+        object::id_address(&env.state),
+        rebalancer_cap_id,
+        coin_id,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"provide_liquidity",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000003",
+        0,
+    );
+    lock_release_token_pool::mcms_provide_liquidity(
+        &mut env.state,
+        &mut env.mcms_registry,
+        test_coin,
+        params,
+        env.scenario.ctx(),
+    );
+
+    // Try to withdraw more than available (should fail)
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_withdraw_liquidity_data(
+        object::id_address(&env.state),
+        rebalancer_cap_id,
+        500000, // More than the 100000 provided
+        NEW_OWNER,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"withdraw_liquidity",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000004",
+        0,
+    );
+    lock_release_token_pool::mcms_withdraw_liquidity(
+        &mut env.state,
+        &mut env.mcms_registry,
+        params,
+        env.scenario.ctx(),
+    );
+
+    ts::return_to_address(OWNER, treasury_cap);
+    ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
+    tear_down(env);
+}
+
+#[test]
+#[expected_failure(abort_code = mcms::bcs_stream::EInvalidObjectAddress)]
+public fun test_mcms_provide_liquidity_fails_wrong_coin_id() {
+    let (mut env, owner_cap, rebalancer_cap) = setup();
+    let owner_cap_id = object::id_address(&owner_cap);
+
+    // Setup MCMS with rebalancer control
+    let rebalancer_cap_id = setup_mcms_with_rebalancer(&mut env, owner_cap, owner_cap_id);
+
+    // Mint test coin but encode wrong coin ID
+    env.scenario.next_tx(OWNER);
+    let mut treasury_cap = ts::take_from_sender<
+        coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>,
+    >(&env.scenario);
+    let test_coin = coin::mint(&mut treasury_cap, 1000000, env.scenario.ctx());
+
+    // Provide liquidity with WRONG coin ID in BCS data (should fail during validation)
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_provide_liquidity_data(
+        object::id_address(&env.state),
+        rebalancer_cap_id,
+        @0x999, // Wrong coin ID
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"provide_liquidity",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000003",
+        0,
+    );
+    lock_release_token_pool::mcms_provide_liquidity(
+        &mut env.state,
+        &mut env.mcms_registry,
+        test_coin,
+        params,
+        env.scenario.ctx(),
+    );
+
+    ts::return_to_address(OWNER, treasury_cap);
+    ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
     tear_down(env);
 }
