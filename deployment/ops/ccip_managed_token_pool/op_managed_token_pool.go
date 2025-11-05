@@ -15,12 +15,12 @@ import (
 
 // MTP -- INITIALIZE_WITH_MANAGED_TOKEN
 type ManagedTokenPoolInitializeObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	StateObjectId string
 }
 
 type ManagedTokenPoolInitializeInput struct {
 	ManagedTokenPoolPackageId string
+	OwnerCapObjectId          string
 	CoinObjectTypeArg         string
 	CCIPObjectRefObjectId     string
 	ManagedTokenStateObjectId string
@@ -42,6 +42,7 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.CCIPObjectRefObjectId},
 		bind.Object{Id: input.ManagedTokenStateObjectId},
 		bind.Object{Id: input.ManagedTokenOwnerCapId},
@@ -53,10 +54,8 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute managed token pool initialization: %w", err)
 	}
 
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
-	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "managed_token_pool", "ManagedTokenPoolState")
-
-	if err1 != nil || err2 != nil {
+	stateObj, err := bind.FindObjectIdFromPublishTx(*tx, "managed_token_pool", "ManagedTokenPoolState")
+	if err != nil {
 		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
 	}
 
@@ -64,8 +63,7 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		Digest:    tx.Digest,
 		PackageId: input.ManagedTokenPoolPackageId,
 		Objects: ManagedTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
+			StateObjectId: stateObj,
 		},
 	}, err
 }
@@ -75,65 +73,6 @@ var ManagedTokenPoolInitializeOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Initializes the CCIP Managed Token Pool contract",
 	initMTPHandler,
-)
-
-// MTP -- INITIALIZE BY CCIP ADMIN
-type ManagedTokenPoolInitializeByCcipAdminInput struct {
-	ManagedTokenPoolPackageId string
-	CoinObjectTypeArg         string
-	CCIPObjectRefObjectId     string
-	OwnerCapObjectId          string
-	CoinMetadataObjectId      string
-	MintCapObjectId           string
-	ManagedTokenStateObjectId string
-	TokenPoolAdministrator    string
-}
-
-var initByCcipAdminManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects], err error) {
-	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
-	}
-
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.InitializeByCcipAdmin(
-		b.GetContext(),
-		opts,
-		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		bind.Object{Id: input.CoinMetadataObjectId},
-		bind.Object{Id: input.MintCapObjectId},
-		input.ManagedTokenStateObjectId,
-		input.TokenPoolAdministrator,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute managed token pool initialization by ccip admin: %w", err)
-	}
-
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
-	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "managed_token_pool", "ManagedTokenPoolState")
-
-	if err1 != nil || err2 != nil {
-		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
-	}
-
-	return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{
-		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageId,
-		Objects: ManagedTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
-		},
-	}, err
-}
-
-var ManagedTokenPoolInitializeByCcipAdminOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "managed_token_pool", "initialize_by_ccip_admin"),
-	semver.MustParse("0.1.0"),
-	"Initializes the CCIP Managed Token Pool contract by CCIP admin",
-	initByCcipAdminManagedTokenPoolHandler,
 )
 
 // MTP -- apply_chain_updates
@@ -180,11 +119,7 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Mana
 		remoteTokenAddressesBytes[i] = b32
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.ApplyChainUpdates(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().ApplyChainUpdates(
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
@@ -192,6 +127,30 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Mana
 		input.RemoteChainSelectorsToAdd,
 		remotePoolAddressesBytes,
 		remoteTokenAddressesBytes,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode ApplyChainUpdates call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, []string{input.CoinObjectTypeArg})
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ApplyChainUpdates on ManagedTokenPool as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.ManagedTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool apply chain updates: %w", err)
@@ -203,6 +162,7 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Mana
 		Digest:    tx.Digest,
 		PackageId: input.ManagedTokenPoolPackageId,
 		Objects:   NoObjects{},
+		Call:      call,
 	}, err
 }
 
@@ -229,16 +189,36 @@ var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input M
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.AddRemotePool(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().AddRemotePool(
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		input.RemoteChainSelector,
 		[]byte(input.RemotePoolAddress),
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode AddRemotePool call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, []string{input.CoinObjectTypeArg})
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of AddRemotePool on ManagedTokenPool as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.ManagedTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool add remote pool: %w", err)
@@ -250,6 +230,7 @@ var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input M
 		Digest:    tx.Digest,
 		PackageId: input.ManagedTokenPoolPackageId,
 		Objects:   NoObjects{},
+		Call:      call,
 	}, err
 }
 
@@ -276,16 +257,36 @@ var removeRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.RemoveRemotePool(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().RemoveRemotePool(
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		input.RemoteChainSelector,
 		[]byte(input.RemotePoolAddress),
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode RemoveRemotePool call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, []string{input.CoinObjectTypeArg})
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of RemoveRemotePool on ManagedTokenPool as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.ManagedTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool remove remote pool: %w", err)
@@ -297,6 +298,7 @@ var removeRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		Digest:    tx.Digest,
 		PackageId: input.ManagedTokenPoolPackageId,
 		Objects:   NoObjects{},
+		Call:      call,
 	}, err
 }
 
@@ -328,11 +330,7 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.SetChainRateLimiterConfigs(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().SetChainRateLimiterConfigs(
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
@@ -346,6 +344,30 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		input.InboundRates,
 	)
 	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode SetChainRateLimiterConfigs call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, []string{input.CoinObjectTypeArg})
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of SetChainRateLimiterConfigs on ManagedTokenPool as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.ManagedTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool set configs rate limiter: %w", err)
 	}
 
@@ -355,6 +377,7 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		Digest:    tx.Digest,
 		PackageId: input.ManagedTokenPoolPackageId,
 		Objects:   NoObjects{},
+		Call:      call,
 	}, err
 }
 
@@ -380,15 +403,35 @@ var setAllowlistEnabledHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.SetAllowlistEnabled(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().SetAllowlistEnabled(
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		input.Enabled,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode SetAllowlistEnabled call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, []string{input.CoinObjectTypeArg})
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of SetAllowlistEnabled on ManagedTokenPool as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.ManagedTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool set allowlist enabled: %w", err)
@@ -400,6 +443,7 @@ var setAllowlistEnabledHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		Digest:    tx.Digest,
 		PackageId: input.ManagedTokenPoolPackageId,
 		Objects:   NoObjects{},
+		Call:      call,
 	}, err
 }
 
@@ -426,16 +470,36 @@ var applyAllowlistUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.ApplyAllowlistUpdates(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().ApplyAllowlistUpdates(
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		input.Removes,
 		input.Adds,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode ApplyAllowlistUpdates call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, []string{input.CoinObjectTypeArg})
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ApplyAllowlistUpdates on ManagedTokenPool as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.ManagedTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool apply allowlist updates: %w", err)
@@ -447,6 +511,7 @@ var applyAllowlistUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		Digest:    tx.Digest,
 		PackageId: input.ManagedTokenPoolPackageId,
 		Objects:   NoObjects{},
+		Call:      call,
 	}, err
 }
 
@@ -474,17 +539,37 @@ var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.SetPool(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().SetPool(
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.RefObjectId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		input.CoinMetadataAddress,
 		input.ManagedTokenState,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode SetPool call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, []string{input.CoinObjectTypeArg})
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of SetPool on ManagedTokenPool as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.ManagedTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool set pool: %w", err)
@@ -496,6 +581,7 @@ var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		Digest:    tx.Digest,
 		PackageId: input.ManagedTokenPoolPackageId,
 		Objects:   NoObjects{},
+		Call:      call,
 	}, err
 }
 

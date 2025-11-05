@@ -10,10 +10,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms/types"
+
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
@@ -54,11 +56,16 @@ func TestDeployMCMSSeq(t *testing.T) {
 		},
 	}
 
+	registry := cld_ops.NewOperationRegistry(
+		MCMSAcceptOwnershipOp.AsUntyped(),
+	)
+
 	reporter := cld_ops.NewMemoryReporter()
 	bundle := cld_ops.NewBundle(
 		context.Background,
 		logger.Test(t),
 		reporter,
+		cld_ops.WithOperationRegistry(registry),
 	)
 
 	// Generate sorted signers for testing (similar to Test_Sui_SetConfig)
@@ -172,10 +179,10 @@ func TestDeployMCMSSeq(t *testing.T) {
 	objects := report.Output.Objects
 	require.NotEmpty(t, objects.McmsMultisigStateObjectId, "MCMS Multisig State Object ID should not be empty")
 	require.NotEmpty(t, objects.TimelockObjectId, "MCMS Timelock Object ID should not be empty")
-	require.NotEmpty(t, objects.McmsDeployerObjectId, "MCMS Deployer Object ID should not be empty")
+	require.NotEmpty(t, objects.McmsDeployerStateObjectId, "MCMS Deployer State Object ID should not be empty")
 	require.NotEmpty(t, objects.McmsRegistryObjectId, "MCMS Registry Object ID should not be empty")
 	require.NotEmpty(t, objects.McmsAccountStateObjectId, "MCMS Account State Object ID should not be empty")
 	require.NotEmpty(t, objects.McmsAccountOwnerCapObjectId, "MCMS Account Owner Cap Object ID should not be empty")
-	require.NotEmpty(t, report.Output.Digest, "Transaction digest should not be empty")
 	require.NotEmpty(t, report.Output.PackageId, "Package ID should not be empty")
+	require.NotEmpty(t, report.Output.AcceptOwnershipProposal, "Accept Ownership Proposal should not be empty")
 }

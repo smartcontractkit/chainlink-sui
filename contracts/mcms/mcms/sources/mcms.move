@@ -1,17 +1,17 @@
 module mcms::mcms;
 
-use mcms::bcs_stream;
+use mcms::bcs_stream::{Self, BCSStream};
 use mcms::mcms_account::{Self, OwnerCap, AccountState};
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, ExecutingCallbackParams, Registry};
 use mcms::params;
 use std::string::String;
-use std::type_name::{Self, TypeName};
 use sui::bcs;
 use sui::clock::Clock;
 use sui::ecdsa_k1;
 use sui::event;
 use sui::hash::keccak256;
+use sui::linked_table::{Self, LinkedTable};
 use sui::package::UpgradeTicket;
 use sui::table::{Self, Table};
 use sui::vec_map::{Self, VecMap};
@@ -59,7 +59,7 @@ public struct Multisig has store {
     signers: VecMap<vector<u8>, Signer>,
     config: Config,
     /// Remember signed hashes that this contract has seen. Each signed hash can only be set once.
-    seen_signed_hashes: VecMap<vector<u8>, bool>,
+    seen_signed_hashes: LinkedTable<vector<u8>, bool>,
     expiring_root_and_op_count: ExpiringRootAndOpCount,
     root_metadata: RootMetadata,
 }
@@ -189,16 +189,14 @@ const EUnknownMCMSAccountModuleFunction: u64 = 37;
 const EUnknownMCMSModule: u64 = 38;
 const EUnknownMCMSDeployerModuleFunction: u64 = 39;
 const EInvalidMCMS: u64 = 40;
-const EWrongProofType: u64 = 41;
-const EUnknownMCMSRegistryModuleFunction: u64 = 42;
-const EProofNotRegisteredWithMcms: u64 = 43;
+const EUnknownMCMSRegistryModuleFunction: u64 = 41;
 
 public struct MCMS has drop {}
 
 fun init(_witness: MCMS, ctx: &mut TxContext) {
-    let bypasser = create_multisig(BYPASSER_ROLE);
-    let canceller = create_multisig(CANCELLER_ROLE);
-    let proposer = create_multisig(PROPOSER_ROLE);
+    let bypasser = create_multisig(BYPASSER_ROLE, ctx);
+    let canceller = create_multisig(CANCELLER_ROLE, ctx);
+    let proposer = create_multisig(PROPOSER_ROLE, ctx);
 
     let multisig_state = MultisigState {
         id: object::new(ctx),
@@ -228,7 +226,7 @@ fun init(_witness: MCMS, ctx: &mut TxContext) {
     transfer::share_object(timelock);
 }
 
-fun create_multisig(role: u8): Multisig {
+fun create_multisig(role: u8, ctx: &mut TxContext): Multisig {
     Multisig {
         role,
         signers: vec_map::empty(),
@@ -237,7 +235,7 @@ fun create_multisig(role: u8): Multisig {
             group_quorums: VEC_NUM_GROUPS,
             group_parents: VEC_NUM_GROUPS,
         },
-        seen_signed_hashes: vec_map::empty(),
+        seen_signed_hashes: linked_table::new(ctx),
         expiring_root_and_op_count: ExpiringRootAndOpCount {
             root: vector[],
             valid_until: 0,
@@ -302,12 +300,8 @@ public fun set_root(
     // Validate that `multisig` is a registered multisig for `role`.
     let multisig = borrow_multisig_mut(state, role);
 
-    assert!(!multisig.seen_signed_hashes.contains(&signed_hash), EAlreadySeenHash);
+    assert!(!multisig.seen_signed_hashes.contains(signed_hash), EAlreadySeenHash);
     assert!(get_timestamp_seconds(clock) <= valid_until, EValidUntilExpired);
-
-    // TODO: No support for chain_ids yet
-    // assert!(metadata.chain_id == (chain_ids::get() as u256), EWrongChainId);
-
     assert!(metadata.multisig == mcms_registry::get_multisig_address(), EWrongMultisig);
 
     let op_count = multisig.expiring_root_and_op_count.op_count;
@@ -374,7 +368,7 @@ public fun set_root(
     let root_group_vote_count = group_vote_counts[0];
     assert!(root_group_vote_count >= root_group_quorum, EInsufficientSigners);
 
-    multisig.seen_signed_hashes.insert(signed_hash, true);
+    multisig.seen_signed_hashes.push_back(signed_hash, true);
     multisig.expiring_root_and_op_count =
         ExpiringRootAndOpCount {
             root,
@@ -467,9 +461,6 @@ public fun execute(
                 > multisig.expiring_root_and_op_count.op_count,
         EPostOpCountReached,
     );
-
-    // TODO: No support for chain_ids yet
-    // assert!(chain_id == (chain_ids::get() as u256), EWrongChainId);
     assert!(
         get_timestamp_seconds(clock) <= multisig.expiring_root_and_op_count.valid_until,
         EValidUntilExpired,
@@ -539,6 +530,7 @@ public fun dispatch_timelock_schedule_batch(
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_schedule_batch", EInvalidFunctionName);
 
+    let stream = &mut bcs_stream::new(data);
     let (
         targets,
         module_names,
@@ -547,7 +539,7 @@ public fun dispatch_timelock_schedule_batch(
         predecessor,
         salt,
         delay,
-    ) = deserialize_timelock_schedule_batch(data);
+    ) = deserialize_timelock_schedule_batch(stream);
 
     timelock_schedule_batch(
         timelock,
@@ -582,6 +574,7 @@ public fun dispatch_timelock_execute_batch(
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_execute_batch", EInvalidFunctionName);
 
+    let stream = &mut bcs_stream::new(data);
     let (
         targets,
         module_names,
@@ -589,7 +582,7 @@ public fun dispatch_timelock_execute_batch(
         datas,
         predecessor,
         salt,
-    ) = deserialize_timelock_execute_batch(data);
+    ) = deserialize_timelock_execute_batch(stream);
 
     timelock_execute_batch(
         timelock,
@@ -607,7 +600,6 @@ public fun dispatch_timelock_execute_batch(
 
 public fun dispatch_timelock_bypasser_execute_batch(
     timelock_callback_params: TimelockCallbackParams,
-    registry: &Registry,
     ctx: &mut TxContext,
 ): vector<ExecutingCallbackParams> {
     let TimelockCallbackParams {
@@ -629,7 +621,6 @@ public fun dispatch_timelock_bypasser_execute_batch(
 
     timelock_bypasser_execute_batch(
         role,
-        registry,
         targets,
         module_names,
         function_names,
@@ -649,53 +640,9 @@ public fun dispatch_timelock_cancel(
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_cancel", EInvalidFunctionName);
 
-    let id = deserialize_timelock_cancel(data);
+    let stream = &mut bcs_stream::new(data);
+    let id = deserialize_timelock_cancel(stream);
     timelock_cancel(timelock, role, id, ctx)
-}
-
-public fun dispatch_timelock_update_min_delay(
-    timelock: &mut Timelock,
-    timelock_callback_params: TimelockCallbackParams,
-    ctx: &mut TxContext,
-) {
-    let TimelockCallbackParams { module_name, function_name, data, role } =
-        timelock_callback_params;
-
-    assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
-    assert!(*function_name.as_bytes() == b"timelock_update_min_delay", EInvalidFunctionName);
-
-    let new_min_delay = deserialize_timelock_update_min_delay(data);
-    timelock_update_min_delay(timelock, role, new_min_delay, ctx)
-}
-
-public fun dispatch_timelock_block_function(
-    timelock: &mut Timelock,
-    timelock_callback_params: TimelockCallbackParams,
-    ctx: &mut TxContext,
-) {
-    let TimelockCallbackParams { module_name, function_name, data, role } =
-        timelock_callback_params;
-
-    assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
-    assert!(*function_name.as_bytes() == b"timelock_block_function", EInvalidFunctionName);
-
-    let (target, module_name, function_name) = deserialize_timelock_function_action(data);
-    timelock_block_function(timelock, role, target, module_name, function_name, ctx)
-}
-
-public fun dispatch_timelock_unblock_function(
-    timelock: &mut Timelock,
-    timelock_callback_params: TimelockCallbackParams,
-    ctx: &mut TxContext,
-) {
-    let TimelockCallbackParams { module_name, function_name, data, role } =
-        timelock_callback_params;
-
-    assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
-    assert!(*function_name.as_bytes() == b"timelock_unblock_function", EInvalidFunctionName);
-
-    let (target, module_name, function_name) = deserialize_timelock_function_action(data);
-    timelock_unblock_function(timelock, role, target, module_name, function_name, ctx)
 }
 
 /*
@@ -706,73 +653,64 @@ public fun dispatch_timelock_unblock_function(
     These functions are ready to be executed therefore no validation is needed
     */
 
-/// Internal function that returns the expected proof type for a target package
-/// - For registered packages: returns their registered proof type
-/// - For MCMS: returns McmsProof
-/// - For unregistered packages: Only allows `accept_ownership` function and returns McmsProof
-/// `mcms_registry::get_callback_params` validates the proof type and function name are as expected.
-fun get_expected_proof_type(registry: &Registry, target: address, function_name: String): TypeName {
-    let mcms_address = mcms_registry::get_multisig_address();
-    if (mcms_registry::is_package_registered(registry, target)) {
-        mcms_registry::get_registered_proof_type(registry, target)
-    } else if (
-        target == mcms_address ||
-            (target != mcms_address && function_name.as_bytes() == b"accept_ownership")
-    ) {
-        type_name::with_defining_ids<mcms_registry::McmsProof>()
-    } else {
-        abort EProofNotRegisteredWithMcms
-    }
-}
-
-fun validate_proof_type(
-    registry: &Registry,
-    target: address,
-    function_name: String,
-    proof_type: TypeName,
-) {
-    let expected_proof_type = get_expected_proof_type(registry, target, function_name);
-    assert!(proof_type == expected_proof_type, EWrongProofType);
-}
-
 public fun mcms_dispatch_to_account(
     registry: &mut Registry,
     account_state: &mut AccountState,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-        proof_type,
-    ) = mcms_registry::get_callback_params_from_mcms(
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
     assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms_account", EUnknownMCMSAccountModuleFunction);
-    validate_proof_type(registry, target, function_name, proof_type);
 
     let function_name_bytes = *function_name.as_bytes();
     let mut stream = bcs_stream::new(data);
 
     if (function_name_bytes == b"transfer_ownership") {
+        let cap = mcms_registry::borrow_owner_cap(registry);
+        bcs_stream::validate_obj_addrs(
+            vector[object::id_address(cap), object::id_address(account_state)],
+            &mut stream,
+        );
         let target = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
-        let cap = mcms_registry::borrow_owner_cap(registry);
+
         mcms_account::transfer_ownership(cap, account_state, target, ctx);
     } else if (function_name_bytes == b"accept_ownership_as_timelock") {
+        bcs_stream::validate_obj_addr(object::id_address(account_state), &mut stream);
+        bcs_stream::assert_is_consumed(&stream);
+
         mcms_account::accept_ownership_as_timelock(
             account_state,
             ctx,
         );
     } else if (function_name_bytes == b"execute_ownership_transfer") {
+        let owner_cap = mcms_registry::release_cap(
+            registry,
+            mcms_account::create_mcms_account_proof(),
+        );
+        bcs_stream::validate_obj_addrs(
+            vector[
+                object::id_address(&owner_cap),
+                object::id_address(account_state),
+                object::id_address(registry),
+            ],
+            &mut stream,
+        );
+
         let target = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
-        let owner_cap = mcms_registry::release_cap(registry, mcms_registry::create_mcms_proof());
-        mcms_account::execute_ownership_transfer(owner_cap, account_state, registry, target, ctx);
+
+        mcms_account::execute_ownership_transfer(
+            owner_cap,
+            account_state,
+            registry,
+            target,
+            ctx,
+        );
     } else {
         abort EUnknownMCMSAccountModuleFunction
     }
@@ -784,31 +722,29 @@ public fun mcms_dispatch_to_deployer(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ): UpgradeTicket {
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-        proof_type,
-    ) = mcms_registry::get_callback_params_from_mcms(
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
 
     assert!(target == mcms_registry::get_multisig_address(), EUnknownMCMSModule);
     assert!(*module_name.as_bytes() == b"mcms_deployer", EUnknownMCMSDeployerModuleFunction);
-    validate_proof_type(registry, target, function_name, proof_type);
 
     let function_name_bytes = *function_name.as_bytes();
     let mut stream = bcs_stream::new(data);
 
     if (function_name_bytes == b"authorize_upgrade") {
+        let owner_cap = mcms_registry::borrow_owner_cap(registry);
+        bcs_stream::validate_obj_addrs(
+            vector[object::id_address(owner_cap), object::id_address(deployer_state)],
+            &mut stream,
+        );
+
         let policy = bcs_stream::deserialize_u8(&mut stream);
         let digest = bcs_stream::deserialize_vector_u8(&mut stream);
         let code_address = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
 
-        let owner_cap = mcms_registry::borrow_owner_cap(registry);
         mcms_deployer::authorize_upgrade(
             owner_cap,
             deployer_state,
@@ -827,17 +763,13 @@ public fun mcms_dispatch_to_registry(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-        proof_type,
-    ) = mcms_registry::get_callback_params_from_mcms(registry, executing_callback_params);
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        registry,
+        executing_callback_params,
+    );
 
     assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms_registry", EUnknownMCMSRegistryModuleFunction);
-    validate_proof_type(registry, target, function_name, proof_type);
 
     let function_name_bytes = *function_name.as_bytes();
 
@@ -853,7 +785,7 @@ public fun mcms_dispatch_to_registry(
 
         mcms_registry::add_allowed_modules(
             registry,
-            mcms_registry::create_mcms_proof(),
+            mcms_account::create_mcms_account_proof(),
             new_module_names,
             ctx,
         );
@@ -869,7 +801,7 @@ public fun mcms_dispatch_to_registry(
 
         mcms_registry::remove_allowed_modules(
             registry,
-            mcms_registry::create_mcms_proof(),
+            mcms_account::create_mcms_account_proof(),
             module_names,
             ctx,
         );
@@ -885,19 +817,19 @@ public fun mcms_timelock_schedule_batch(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-        proof_type,
-    ) = mcms_registry::get_callback_params_from_mcms(
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
+    assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_schedule_batch", EInvalidFunctionName);
-    validate_proof_type(registry, target, function_name, proof_type);
+
+    let stream = &mut bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(timelock), object::id_address(clock)],
+        stream,
+    );
 
     let (
         targets,
@@ -907,7 +839,7 @@ public fun mcms_timelock_schedule_batch(
         predecessor,
         salt,
         delay,
-    ) = deserialize_timelock_schedule_batch(data);
+    ) = deserialize_timelock_schedule_batch(stream);
 
     timelock_schedule_batch(
         timelock,
@@ -931,19 +863,23 @@ public fun mcms_timelock_execute_batch(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ): vector<ExecutingCallbackParams> {
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-        proof_type,
-    ) = mcms_registry::get_callback_params_from_mcms(
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
+    assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_execute_batch", EInvalidFunctionName);
-    validate_proof_type(registry, target, function_name, proof_type);
+
+    let stream = &mut bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[
+            object::id_address(timelock),
+            object::id_address(clock),
+            object::id_address(registry),
+        ],
+        stream,
+    );
 
     let (
         targets,
@@ -952,7 +888,7 @@ public fun mcms_timelock_execute_batch(
         datas,
         predecessor,
         salt,
-    ) = deserialize_timelock_execute_batch(data);
+    ) = deserialize_timelock_execute_batch(stream);
 
     timelock_execute_batch(
         timelock,
@@ -973,19 +909,13 @@ public fun mcms_timelock_bypasser_execute_batch(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ): vector<ExecutingCallbackParams> {
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-        proof_type,
-    ) = mcms_registry::get_callback_params_from_mcms(
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
+    assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_bypasser_execute_batch", EInvalidFunctionName);
-    validate_proof_type(registry, target, function_name, proof_type);
 
     let (
         targets,
@@ -996,7 +926,6 @@ public fun mcms_timelock_bypasser_execute_batch(
 
     timelock_bypasser_execute_batch(
         TIMELOCK_ROLE,
-        registry,
         targets,
         module_names,
         function_names,
@@ -1011,21 +940,18 @@ public fun mcms_timelock_cancel(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-        proof_type,
-    ) = mcms_registry::get_callback_params_from_mcms(
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
+    assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_cancel", EInvalidFunctionName);
-    validate_proof_type(registry, target, function_name, proof_type);
 
-    let id = deserialize_timelock_cancel(data);
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(timelock), &mut stream);
+
+    let id = deserialize_timelock_cancel(&mut stream);
     timelock_cancel(timelock, TIMELOCK_ROLE, id, ctx)
 }
 
@@ -1035,21 +961,18 @@ public fun mcms_timelock_update_min_delay(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-        proof_type,
-    ) = mcms_registry::get_callback_params_from_mcms(
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
+    assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_update_min_delay", EInvalidFunctionName);
-    validate_proof_type(registry, target, function_name, proof_type);
 
-    let new_min_delay = deserialize_timelock_update_min_delay(data);
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(timelock), &mut stream);
+
+    let new_min_delay = deserialize_timelock_update_min_delay(&mut stream);
     timelock_update_min_delay(timelock, TIMELOCK_ROLE, new_min_delay, ctx)
 }
 
@@ -1059,21 +982,18 @@ public fun mcms_timelock_block_function(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-        proof_type,
-    ) = mcms_registry::get_callback_params_from_mcms(
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
+    assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_block_function", EInvalidFunctionName);
-    validate_proof_type(registry, target, function_name, proof_type);
 
-    let (target, module_name, function_name) = deserialize_timelock_function_action(data);
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(timelock), &mut stream);
+
+    let (target, module_name, function_name) = deserialize_timelock_function_action(&mut stream);
     timelock_block_function(timelock, TIMELOCK_ROLE, target, module_name, function_name, ctx)
 }
 
@@ -1083,21 +1003,18 @@ public fun mcms_timelock_unblock_function(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-        proof_type,
-    ) = mcms_registry::get_callback_params_from_mcms(
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
+    assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_unblock_function", EInvalidFunctionName);
-    validate_proof_type(registry, target, function_name, proof_type);
 
-    let (target, module_name, function_name) = deserialize_timelock_function_action(data);
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(timelock), &mut stream);
+
+    let (target, module_name, function_name) = deserialize_timelock_function_action(&mut stream);
     timelock_unblock_function(timelock, TIMELOCK_ROLE, target, module_name, function_name, ctx)
 }
 
@@ -1107,22 +1024,24 @@ public fun mcms_set_config(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-        proof_type,
-    ) = mcms_registry::get_callback_params_from_mcms(
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
+    assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"set_config", EInvalidFunctionName);
-    validate_proof_type(registry, target, function_name, proof_type);
+
+    let owner_cap = mcms_registry::borrow_owner_cap(registry);
 
     let stream = &mut bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(owner_cap), object::id_address(state)],
+        stream,
+    );
+
     let role_param = bcs_stream::deserialize_u8(stream);
+    let chain_id = bcs_stream::deserialize_u256(stream);
     let signer_addresses = bcs_stream::deserialize_vector!(
         stream,
         |stream| { bcs_stream::deserialize_vector_u8(stream) },
@@ -1133,12 +1052,11 @@ public fun mcms_set_config(
     let clear_root = bcs_stream::deserialize_bool(stream);
     bcs_stream::assert_is_consumed(stream);
 
-    let owner_cap = mcms_registry::borrow_owner_cap(registry);
     set_config(
         owner_cap,
         state,
         role_param,
-        12,
+        chain_id,
         signer_addresses,
         signer_groups,
         group_quorums,
@@ -1333,7 +1251,7 @@ fun hash_metadata_leaf(metadata: RootMetadata): vector<u8> {
 }
 
 fun deserialize_timelock_schedule_batch(
-    data: vector<u8>,
+    stream: &mut BCSStream,
 ): (
     vector<address>,
     vector<String>,
@@ -1343,7 +1261,6 @@ fun deserialize_timelock_schedule_batch(
     vector<u8>,
     u64,
 ) {
-    let stream = &mut bcs_stream::new(data);
     let targets = bcs_stream::deserialize_vector!(
         stream,
         |stream| bcs_stream::deserialize_address(stream),
@@ -1369,9 +1286,8 @@ fun deserialize_timelock_schedule_batch(
 }
 
 fun deserialize_timelock_execute_batch(
-    data: vector<u8>,
+    stream: &mut BCSStream,
 ): (vector<address>, vector<String>, vector<String>, vector<vector<u8>>, vector<u8>, vector<u8>) {
-    let stream = &mut bcs_stream::new(data);
     let targets = bcs_stream::deserialize_vector!(
         stream,
         |stream| bcs_stream::deserialize_address(stream),
@@ -1420,22 +1336,19 @@ fun deserialize_timelock_bypasser_execute_batch(
     (targets, module_names, function_names, datas)
 }
 
-fun deserialize_timelock_cancel(data: vector<u8>): vector<u8> {
-    let stream = &mut bcs_stream::new(data);
+fun deserialize_timelock_cancel(stream: &mut BCSStream): vector<u8> {
     let id = bcs_stream::deserialize_vector_u8(stream);
     bcs_stream::assert_is_consumed(stream);
     id
 }
 
-fun deserialize_timelock_update_min_delay(data: vector<u8>): u64 {
-    let stream = &mut bcs_stream::new(data);
+fun deserialize_timelock_update_min_delay(stream: &mut BCSStream): u64 {
     let new_min_delay = bcs_stream::deserialize_u64(stream);
     bcs_stream::assert_is_consumed(stream);
     new_min_delay
 }
 
-fun deserialize_timelock_function_action(data: vector<u8>): (address, String, String) {
-    let stream = &mut bcs_stream::new(data);
+fun deserialize_timelock_function_action(stream: &mut BCSStream): (address, String, String) {
     let target = bcs_stream::deserialize_address(stream);
     let module_name = bcs_stream::deserialize_string(stream);
     let function_name = bcs_stream::deserialize_string(stream);
@@ -1444,8 +1357,50 @@ fun deserialize_timelock_function_action(data: vector<u8>): (address, String, St
     (target, module_name, function_name)
 }
 
-public fun seen_signed_hashes(state: &MultisigState, role: u8): VecMap<vector<u8>, bool> {
-    borrow_multisig(state, role).seen_signed_hashes
+public fun seen_signed_hashes(state: &MultisigState, role: u8): vector<vector<u8>> {
+    let multisig = borrow_multisig(state, role);
+    let mut hashes = vector[];
+    let mut current_key = multisig.seen_signed_hashes.front();
+
+    while (current_key.is_some()) {
+        let key = *current_key.borrow();
+        hashes.push_back(key);
+        current_key = multisig.seen_signed_hashes.next(key);
+    };
+
+    hashes
+}
+
+/// Get the N most recent signed hashes for a role (from the back of the list)
+///
+/// @param state - Reference to the MultisigState
+/// @param role - The role to query
+/// @param limit - Maximum number of recent hashes to return
+///
+/// @return: Vector of the most recent signed hashes (newest first)
+public fun recent_seen_signed_hashes(
+    state: &MultisigState,
+    role: u8,
+    limit: u64,
+): vector<vector<u8>> {
+    let multisig = borrow_multisig(state, role);
+    let mut hashes = vector[];
+    let mut current_key = multisig.seen_signed_hashes.back();
+
+    let mut count = 0;
+    while (current_key.is_some() && count < limit) {
+        let key = *current_key.borrow();
+        hashes.push_back(key);
+        current_key = multisig.seen_signed_hashes.prev(key);
+        count = count + 1;
+    };
+
+    hashes
+}
+
+public fun seen_signed_hashes_count(state: &MultisigState, role: u8): u64 {
+    let multisig = borrow_multisig(state, role);
+    multisig.seen_signed_hashes.length()
 }
 
 public fun expiring_root_and_op_count(state: &MultisigState, role: u8): (vector<u8>, u64, u64) {
@@ -1756,8 +1711,6 @@ public fun timelock_execute_batch(
         let function_name = function.function_name;
         let data = calls[i].data;
 
-        let expected_proof_type = get_expected_proof_type(registry, target, function_name);
-
         let params = mcms_registry::create_executing_callback_params(
             target,
             module_name,
@@ -1766,7 +1719,6 @@ public fun timelock_execute_batch(
             id, // batch_id = operation hash
             i, // sequence_number
             calls_len, // total_in_batch
-            expected_proof_type,
         );
         calls_to_execute.push_back(params);
 
@@ -1786,7 +1738,6 @@ public fun timelock_execute_batch(
 
 fun timelock_bypasser_execute_batch(
     role: u8,
-    registry: &Registry,
     targets: vector<address>,
     module_names: vector<String>,
     function_names: vector<String>,
@@ -1809,8 +1760,6 @@ fun timelock_bypasser_execute_batch(
         let function_name = function.function_name;
         let data = calls[i].data;
 
-        let expected_proof_type = get_expected_proof_type(registry, target, function_name);
-
         let params = mcms_registry::create_executing_callback_params(
             target,
             module_name,
@@ -1819,7 +1768,6 @@ fun timelock_bypasser_execute_batch(
             batch_id, // batch_id
             i, // sequence_number
             calls_len, // total_in_batch
-            expected_proof_type,
         );
         calls_to_execute.push_back(params);
 
@@ -1983,7 +1931,7 @@ public fun timelock_get_blocked_functions_count(timelock: &Timelock): u64 {
     timelock.blocked_functions.length()
 }
 
-public fun create_calls(
+public(package) fun create_calls(
     targets: vector<address>,
     module_names: vector<String>,
     function_names: vector<String>,
@@ -2013,7 +1961,7 @@ public fun create_calls(
     calls
 }
 
-public fun hash_operation_batch(
+public(package) fun hash_operation_batch(
     calls: vector<Call>,
     predecessor: vector<u8>,
     salt: vector<u8>,
@@ -2104,7 +2052,11 @@ public fun test_compute_eth_message_hash(root: vector<u8>, valid_until: u64): ve
 #[test_only]
 public fun test_set_hash_seen(state: &mut MultisigState, role: u8, hash: vector<u8>, seen: bool) {
     let multisig = borrow_multisig_mut(state, role);
-    multisig.seen_signed_hashes.insert(hash, seen);
+    if (!multisig.seen_signed_hashes.contains(hash)) {
+        multisig.seen_signed_hashes.push_back(hash, seen);
+    } else {
+        *multisig.seen_signed_hashes.borrow_mut(hash) = seen;
+    };
 }
 
 #[test_only]
@@ -2245,7 +2197,6 @@ public fun test_create_timelock_callback_params(
 #[test_only]
 public fun test_timelock_bypasser_execute_batch(
     role: u8,
-    registry: &Registry,
     targets: vector<address>,
     module_names: vector<String>,
     function_names: vector<String>,
@@ -2254,7 +2205,6 @@ public fun test_timelock_bypasser_execute_batch(
 ): vector<ExecutingCallbackParams> {
     timelock_bypasser_execute_batch(
         role,
-        registry,
         targets,
         module_names,
         function_names,

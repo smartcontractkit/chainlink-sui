@@ -3,7 +3,6 @@
 /// during upgrades.
 module ccip_offramp::offramp;
 
-use ccip::client;
 use ccip::eth_abi;
 use ccip::fee_quoter::{Self, FeeQuoterCap};
 use ccip::merkle_proof;
@@ -26,7 +25,7 @@ use sui::clock;
 use sui::derived_object;
 use sui::event;
 use sui::hash;
-use sui::package::UpgradeCap;
+use sui::package::{Self, UpgradeCap};
 use sui::table::{Self, Table};
 use sui::vec_map::{Self, VecMap};
 
@@ -231,6 +230,7 @@ const ETokenTransferLimitExceeded: u64 = 28;
 const EPackageIdNotFound: u64 = 29;
 const EInvalidOwnerCap: u64 = 30;
 const EUnknownSequenceNumber: u64 = 31;
+const EInvalidReportContextLength: u64 = 32;
 
 const VERSION: u8 = 1;
 
@@ -240,9 +240,9 @@ public fun type_and_version(): String {
 
 public struct OFFRAMP has drop {}
 
-fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
+fun init(otw: OFFRAMP, ctx: &mut TxContext) {
     let mut off_ramp_object = OffRampObject { id: object::new(ctx) };
-    let (ownable_state, owner_cap) = ownable::new(&mut off_ramp_object.id, ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(&mut off_ramp_object.id, ctx);
 
     let state = OffRampState {
         id: derived_object::claim(&mut off_ramp_object.id, b"OffRampState"),
@@ -270,6 +270,9 @@ fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
 
     transfer::share_object(state);
     transfer::share_object(off_ramp_object);
+
+    let publisher = package::claim(otw, ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
 
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
@@ -435,6 +438,7 @@ public fun init_execute(
         string::utf8(b"init_execute"),
         VERSION,
     );
+    assert!(report_context.length() == 2, EInvalidReportContextLength);
     let reports = deserialize_execution_report(report);
 
     ocr3_base::transmit(
@@ -557,6 +561,8 @@ fun deserialize_execution_report(report_bytes: vector<u8>): ExecutionReport {
         |stream| { bcs_stream::deserialize_fixed_vector_u8(stream, 32) },
     );
 
+    bcs_stream::assert_is_consumed(&stream);
+
     ExecutionReport { source_chain_selector, message, offchain_token_data, proofs }
 }
 
@@ -673,15 +679,16 @@ fun pre_execute_single_report(
         (!message.data.is_empty() || message.gas_limit != 0) && receiver_registry::is_registered_receiver(ref, message.receiver);
     // if the message has a valid message receiver and proper data & gas limit
     if (has_valid_message_receiver) {
-        let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
         let any2sui_message = osh::new_any2sui_message(
             state.dest_transfer_cap.borrow(),
             message.header.message_id,
             message.header.source_chain_selector,
             message.sender,
             message.data,
+            message.receiver,
             message.token_receiver,
-            dest_token_amounts,
+            token_addresses,
+            token_amounts,
         );
 
         osh::populate_message(
@@ -994,6 +1001,7 @@ public fun commit(
         string::utf8(b"commit"),
         VERSION,
     );
+    assert!(report_context.length() == 2, EInvalidReportContextLength);
     let commit_report = deserialize_commit_report(report);
 
     if (
@@ -1355,12 +1363,11 @@ public fun mcms_accept_ownership(
         string::utf8(b"accept_ownership"),
         VERSION,
     );
-    let (_, _, function, data) = mcms_registry::get_callback_params(
+    let data = mcms_registry::get_accept_ownership_data(
         registry,
         params,
-        McmsCallback {},
+        McmsAcceptOwnershipProof {},
     );
-    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
@@ -1401,11 +1408,18 @@ public fun execute_ownership_transfer_to_mcms(
         string::utf8(b"execute_ownership_transfer_to_mcms"),
         VERSION,
     );
+
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut state.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback {},
         vector[b"offramp"],
         ctx,
@@ -1438,6 +1452,9 @@ public fun mcms_register_upgrade_cap(
 // ================================================================
 
 public struct McmsCallback has drop {}
+
+/// Proof for MCMS Accept Ownership
+public struct McmsAcceptOwnershipProof has drop {}
 
 public fun mcms_add_package_id(
     state: &mut OffRampState,
@@ -1594,13 +1611,13 @@ public fun mcms_set_ocr3_config(
         &mut stream,
     );
 
-    let config_digest = bcs_stream::deserialize_fixed_vector_u8(&mut stream, 32);
+    let config_digest = bcs_stream::deserialize_vector_u8(&mut stream);
     let ocr_plugin_type = bcs_stream::deserialize_u8(&mut stream);
     let big_f = bcs_stream::deserialize_u8(&mut stream);
     let is_signature_verification_enabled = bcs_stream::deserialize_bool(&mut stream);
     let signers = bcs_stream::deserialize_vector!(
         &mut stream,
-        |stream| bcs_stream::deserialize_fixed_vector_u8(stream, 32),
+        |stream| bcs_stream::deserialize_vector_u8(stream),
     );
     let transmitters = bcs_stream::deserialize_vector!(
         &mut stream,
@@ -1654,6 +1671,7 @@ public fun mcms_execute_ownership_transfer(
     ref: &CCIPObjectRef,
     state: &mut OffRampState,
     registry: &mut Registry,
+    deployer_state: &mut DeployerState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -1674,9 +1692,20 @@ public fun mcms_execute_ownership_transfer(
     );
 
     let to = bcs_stream::deserialize_address(&mut stream);
+    let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback {}
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
     execute_ownership_transfer(ref, owner_cap, state, to, ctx);
 }
 

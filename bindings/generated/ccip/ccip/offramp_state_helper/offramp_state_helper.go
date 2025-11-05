@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"offramp_state_helper","name":"add_dest_token_transfer","parameters":[{"name":"_","type":"DestTransferCap"},{"name":"receiver_params","type":"ReceiverParams"},{"name":"token_receiver","type":"address"},{"name":"remote_chain_selector","type":"u64"},{"name":"source_amount","type":"u256"},{"name":"dest_token_address","type":"address"},{"name":"dest_token_pool_package_id","type":"address"},{"name":"source_pool_address","type":"vector<u8>"},{"name":"source_pool_data","type":"vector<u8>"},{"name":"offchain_data","type":"vector<u8>"}]},{"package":"ccip","module":"offramp_state_helper","name":"complete_token_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"ReceiverParams"},{"name":"token_receiver","type":"address"},{"name":"dest_token_address","type":"address"},{"name":"_","type":"TypeProof"}]},{"package":"ccip","module":"offramp_state_helper","name":"consume_any2sui_message","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"message","type":"Any2SuiMessage"},{"name":"_","type":"TypeProof"}]},{"package":"ccip","module":"offramp_state_helper","name":"create_receiver_params","parameters":[{"name":"_","type":"DestTransferCap"},{"name":"source_chain_selector","type":"u64"}]},{"package":"ccip","module":"offramp_state_helper","name":"deconstruct_receiver_params","parameters":[{"name":"_","type":"DestTransferCap"},{"name":"receiver_params","type":"ReceiverParams"}]},{"package":"ccip","module":"offramp_state_helper","name":"extract_any2sui_message","parameters":[{"name":"receiver_params","type":"ReceiverParams"}]},{"package":"ccip","module":"offramp_state_helper","name":"get_dest_token_transfer_data","parameters":[{"name":"receiver_params","type":"ReceiverParams"}]},{"package":"ccip","module":"offramp_state_helper","name":"get_source_chain_selector","parameters":[{"name":"receiver_params","type":"ReceiverParams"}]},{"package":"ccip","module":"offramp_state_helper","name":"get_token_param_data","parameters":[{"name":"receiver_params","type":"ReceiverParams"}]},{"package":"ccip","module":"offramp_state_helper","name":"new_any2sui_message","parameters":[{"name":"_","type":"DestTransferCap"},{"name":"message_id","type":"vector<u8>"},{"name":"source_chain_selector","type":"u64"},{"name":"sender","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"token_receiver","type":"address"},{"name":"dest_token_amounts","type":"vector<Any2SuiTokenAmount>"}]},{"package":"ccip","module":"offramp_state_helper","name":"new_dest_transfer_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"offramp_state_helper","name":"populate_message","parameters":[{"name":"_","type":"DestTransferCap"},{"name":"receiver_params","type":"ReceiverParams"},{"name":"any2sui_message","type":"Any2SuiMessage"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"offramp_state_helper","name":"add_dest_token_transfer","parameters":[{"name":"_","type":"DestTransferCap"},{"name":"receiver_params","type":"ReceiverParams"},{"name":"token_receiver","type":"address"},{"name":"remote_chain_selector","type":"u64"},{"name":"source_amount","type":"u256"},{"name":"dest_token_address","type":"address"},{"name":"dest_token_pool_package_id","type":"address"},{"name":"source_pool_address","type":"vector<u8>"},{"name":"source_pool_data","type":"vector<u8>"},{"name":"offchain_data","type":"vector<u8>"}]},{"package":"ccip","module":"offramp_state_helper","name":"complete_token_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"ReceiverParams"},{"name":"_","type":"TypeProof"}]},{"package":"ccip","module":"offramp_state_helper","name":"consume_any2sui_message","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"message","type":"Any2SuiMessage"},{"name":"_","type":"TypeProof"}]},{"package":"ccip","module":"offramp_state_helper","name":"create_receiver_params","parameters":[{"name":"_","type":"DestTransferCap"},{"name":"source_chain_selector","type":"u64"}]},{"package":"ccip","module":"offramp_state_helper","name":"deconstruct_receiver_params","parameters":[{"name":"_","type":"DestTransferCap"},{"name":"receiver_params","type":"ReceiverParams"}]},{"package":"ccip","module":"offramp_state_helper","name":"extract_any2sui_message","parameters":[{"name":"receiver_params","type":"ReceiverParams"}]},{"package":"ccip","module":"offramp_state_helper","name":"get_dest_token_transfer_data","parameters":[{"name":"receiver_params","type":"ReceiverParams"}]},{"package":"ccip","module":"offramp_state_helper","name":"get_source_chain_selector","parameters":[{"name":"receiver_params","type":"ReceiverParams"}]},{"package":"ccip","module":"offramp_state_helper","name":"get_token_param_data","parameters":[{"name":"receiver_params","type":"ReceiverParams"}]},{"package":"ccip","module":"offramp_state_helper","name":"new_any2sui_message","parameters":[{"name":"_","type":"DestTransferCap"},{"name":"message_id","type":"vector<u8>"},{"name":"source_chain_selector","type":"u64"},{"name":"sender","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"message_receiver","type":"address"},{"name":"token_receiver","type":"address"},{"name":"token_addresses","type":"vector<address>"},{"name":"token_amounts","type":"vector<u256>"}]},{"package":"ccip","module":"offramp_state_helper","name":"new_dest_transfer_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"offramp_state_helper","name":"populate_message","parameters":[{"name":"_","type":"DestTransferCap"},{"name":"receiver_params","type":"ReceiverParams"},{"name":"any2sui_message","type":"Any2SuiMessage"}]}]`
 
 type IOfframpStateHelper interface {
 	NewDestTransferCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -29,9 +29,9 @@ type IOfframpStateHelper interface {
 	PopulateMessage(ctx context.Context, opts *bind.CallOpts, param bind.Object, receiverParams ReceiverParams, any2suiMessage bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetDestTokenTransferData(ctx context.Context, opts *bind.CallOpts, receiverParams ReceiverParams) (*models.SuiTransactionBlockResponse, error)
 	GetTokenParamData(ctx context.Context, opts *bind.CallOpts, receiverParams ReceiverParams) (*models.SuiTransactionBlockResponse, error)
-	CompleteTokenTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams ReceiverParams, tokenReceiver string, destTokenAddress string, param bind.Object) (*models.SuiTransactionBlockResponse, error)
+	CompleteTokenTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams ReceiverParams, param bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ExtractAny2suiMessage(ctx context.Context, opts *bind.CallOpts, receiverParams ReceiverParams) (*models.SuiTransactionBlockResponse, error)
-	NewAny2suiMessage(ctx context.Context, opts *bind.CallOpts, param bind.Object, messageId []byte, sourceChainSelector uint64, sender []byte, data []byte, tokenReceiver string, destTokenAmounts []bind.Object) (*models.SuiTransactionBlockResponse, error)
+	NewAny2suiMessage(ctx context.Context, opts *bind.CallOpts, param bind.Object, messageId []byte, sourceChainSelector uint64, sender []byte, data []byte, messageReceiver string, tokenReceiver string, tokenAddresses []string, tokenAmounts []*big.Int) (*models.SuiTransactionBlockResponse, error)
 	ConsumeAny2suiMessage(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, message bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DeconstructReceiverParams(ctx context.Context, opts *bind.CallOpts, param bind.Object, receiverParams ReceiverParams) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOfframpStateHelperDevInspect
@@ -46,7 +46,7 @@ type IOfframpStateHelperDevInspect interface {
 	GetDestTokenTransferData(ctx context.Context, opts *bind.CallOpts, receiverParams ReceiverParams) ([]any, error)
 	GetTokenParamData(ctx context.Context, opts *bind.CallOpts, receiverParams ReceiverParams) ([]any, error)
 	ExtractAny2suiMessage(ctx context.Context, opts *bind.CallOpts, receiverParams ReceiverParams) (bind.Object, error)
-	NewAny2suiMessage(ctx context.Context, opts *bind.CallOpts, param bind.Object, messageId []byte, sourceChainSelector uint64, sender []byte, data []byte, tokenReceiver string, destTokenAmounts []bind.Object) (bind.Object, error)
+	NewAny2suiMessage(ctx context.Context, opts *bind.CallOpts, param bind.Object, messageId []byte, sourceChainSelector uint64, sender []byte, data []byte, messageReceiver string, tokenReceiver string, tokenAddresses []string, tokenAmounts []*big.Int) (bind.Object, error)
 	ConsumeAny2suiMessage(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, message bind.Object, param bind.Object) ([]any, error)
 }
 
@@ -65,11 +65,11 @@ type OfframpStateHelperEncoder interface {
 	GetDestTokenTransferDataWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenParamData(receiverParams ReceiverParams) (*bind.EncodedCall, error)
 	GetTokenParamDataWithArgs(args ...any) (*bind.EncodedCall, error)
-	CompleteTokenTransfer(typeArgs []string, ref bind.Object, receiverParams ReceiverParams, tokenReceiver string, destTokenAddress string, param bind.Object) (*bind.EncodedCall, error)
+	CompleteTokenTransfer(typeArgs []string, ref bind.Object, receiverParams ReceiverParams, param bind.Object) (*bind.EncodedCall, error)
 	CompleteTokenTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ExtractAny2suiMessage(receiverParams ReceiverParams) (*bind.EncodedCall, error)
 	ExtractAny2suiMessageWithArgs(args ...any) (*bind.EncodedCall, error)
-	NewAny2suiMessage(param bind.Object, messageId []byte, sourceChainSelector uint64, sender []byte, data []byte, tokenReceiver string, destTokenAmounts []bind.Object) (*bind.EncodedCall, error)
+	NewAny2suiMessage(param bind.Object, messageId []byte, sourceChainSelector uint64, sender []byte, data []byte, messageReceiver string, tokenReceiver string, tokenAddresses []string, tokenAmounts []*big.Int) (*bind.EncodedCall, error)
 	NewAny2suiMessageWithArgs(args ...any) (*bind.EncodedCall, error)
 	ConsumeAny2suiMessage(typeArgs []string, ref bind.Object, message bind.Object, param bind.Object) (*bind.EncodedCall, error)
 	ConsumeAny2suiMessageWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -375,8 +375,8 @@ func (c *OfframpStateHelperContract) GetTokenParamData(ctx context.Context, opts
 }
 
 // CompleteTokenTransfer executes the complete_token_transfer Move function.
-func (c *OfframpStateHelperContract) CompleteTokenTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams ReceiverParams, tokenReceiver string, destTokenAddress string, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampStateHelperEncoder.CompleteTokenTransfer(typeArgs, ref, receiverParams, tokenReceiver, destTokenAddress, param)
+func (c *OfframpStateHelperContract) CompleteTokenTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams ReceiverParams, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampStateHelperEncoder.CompleteTokenTransfer(typeArgs, ref, receiverParams, param)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -395,8 +395,8 @@ func (c *OfframpStateHelperContract) ExtractAny2suiMessage(ctx context.Context, 
 }
 
 // NewAny2suiMessage executes the new_any2sui_message Move function.
-func (c *OfframpStateHelperContract) NewAny2suiMessage(ctx context.Context, opts *bind.CallOpts, param bind.Object, messageId []byte, sourceChainSelector uint64, sender []byte, data []byte, tokenReceiver string, destTokenAmounts []bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampStateHelperEncoder.NewAny2suiMessage(param, messageId, sourceChainSelector, sender, data, tokenReceiver, destTokenAmounts)
+func (c *OfframpStateHelperContract) NewAny2suiMessage(ctx context.Context, opts *bind.CallOpts, param bind.Object, messageId []byte, sourceChainSelector uint64, sender []byte, data []byte, messageReceiver string, tokenReceiver string, tokenAddresses []string, tokenAmounts []*big.Int) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampStateHelperEncoder.NewAny2suiMessage(param, messageId, sourceChainSelector, sender, data, messageReceiver, tokenReceiver, tokenAddresses, tokenAmounts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -553,8 +553,8 @@ func (d *OfframpStateHelperDevInspect) ExtractAny2suiMessage(ctx context.Context
 // NewAny2suiMessage executes the new_any2sui_message Move function using DevInspect to get return values.
 //
 // Returns: Any2SuiMessage
-func (d *OfframpStateHelperDevInspect) NewAny2suiMessage(ctx context.Context, opts *bind.CallOpts, param bind.Object, messageId []byte, sourceChainSelector uint64, sender []byte, data []byte, tokenReceiver string, destTokenAmounts []bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.offrampStateHelperEncoder.NewAny2suiMessage(param, messageId, sourceChainSelector, sender, data, tokenReceiver, destTokenAmounts)
+func (d *OfframpStateHelperDevInspect) NewAny2suiMessage(ctx context.Context, opts *bind.CallOpts, param bind.Object, messageId []byte, sourceChainSelector uint64, sender []byte, data []byte, messageReceiver string, tokenReceiver string, tokenAddresses []string, tokenAmounts []*big.Int) (bind.Object, error) {
+	encoded, err := d.contract.offrampStateHelperEncoder.NewAny2suiMessage(param, messageId, sourceChainSelector, sender, data, messageReceiver, tokenReceiver, tokenAddresses, tokenAmounts)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -581,7 +581,8 @@ func (d *OfframpStateHelperDevInspect) NewAny2suiMessage(ctx context.Context, op
 //	[2]: vector<u8>
 //	[3]: vector<u8>
 //	[4]: address
-//	[5]: vector<Any2SuiTokenAmount>
+//	[5]: address
+//	[6]: vector<Any2SuiTokenAmount>
 func (d *OfframpStateHelperDevInspect) ConsumeAny2suiMessage(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, message bind.Object, param bind.Object) ([]any, error) {
 	encoded, err := d.contract.offrampStateHelperEncoder.ConsumeAny2suiMessage(typeArgs, ref, message, param)
 	if err != nil {
@@ -860,7 +861,7 @@ func (c offrampStateHelperEncoder) GetTokenParamDataWithArgs(args ...any) (*bind
 }
 
 // CompleteTokenTransfer encodes a call to the complete_token_transfer Move function.
-func (c offrampStateHelperEncoder) CompleteTokenTransfer(typeArgs []string, ref bind.Object, receiverParams ReceiverParams, tokenReceiver string, destTokenAddress string, param bind.Object) (*bind.EncodedCall, error) {
+func (c offrampStateHelperEncoder) CompleteTokenTransfer(typeArgs []string, ref bind.Object, receiverParams ReceiverParams, param bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"TypeProof",
@@ -868,14 +869,10 @@ func (c offrampStateHelperEncoder) CompleteTokenTransfer(typeArgs []string, ref 
 	return c.EncodeCallArgsWithGenerics("complete_token_transfer", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
 		"&mut ReceiverParams",
-		"address",
-		"address",
 		"TypeProof",
 	}, []any{
 		ref,
 		receiverParams,
-		tokenReceiver,
-		destTokenAddress,
 		param,
 	}, nil)
 }
@@ -886,8 +883,6 @@ func (c offrampStateHelperEncoder) CompleteTokenTransferWithArgs(typeArgs []stri
 	expectedParams := []string{
 		"&CCIPObjectRef",
 		"&mut ReceiverParams",
-		"address",
-		"address",
 		"TypeProof",
 	}
 
@@ -932,7 +927,7 @@ func (c offrampStateHelperEncoder) ExtractAny2suiMessageWithArgs(args ...any) (*
 }
 
 // NewAny2suiMessage encodes a call to the new_any2sui_message Move function.
-func (c offrampStateHelperEncoder) NewAny2suiMessage(param bind.Object, messageId []byte, sourceChainSelector uint64, sender []byte, data []byte, tokenReceiver string, destTokenAmounts []bind.Object) (*bind.EncodedCall, error) {
+func (c offrampStateHelperEncoder) NewAny2suiMessage(param bind.Object, messageId []byte, sourceChainSelector uint64, sender []byte, data []byte, messageReceiver string, tokenReceiver string, tokenAddresses []string, tokenAmounts []*big.Int) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("new_any2sui_message", typeArgsList, typeParamsList, []string{
@@ -942,15 +937,19 @@ func (c offrampStateHelperEncoder) NewAny2suiMessage(param bind.Object, messageI
 		"vector<u8>",
 		"vector<u8>",
 		"address",
-		"vector<Any2SuiTokenAmount>",
+		"address",
+		"vector<address>",
+		"vector<u256>",
 	}, []any{
 		param,
 		messageId,
 		sourceChainSelector,
 		sender,
 		data,
+		messageReceiver,
 		tokenReceiver,
-		destTokenAmounts,
+		tokenAddresses,
+		tokenAmounts,
 	}, []string{
 		"Any2SuiMessage",
 	})
@@ -966,7 +965,9 @@ func (c offrampStateHelperEncoder) NewAny2suiMessageWithArgs(args ...any) (*bind
 		"vector<u8>",
 		"vector<u8>",
 		"address",
-		"vector<Any2SuiTokenAmount>",
+		"address",
+		"vector<address>",
+		"vector<u256>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -999,6 +1000,7 @@ func (c offrampStateHelperEncoder) ConsumeAny2suiMessage(typeArgs []string, ref 
 		"vector<u8>",
 		"vector<u8>",
 		"address",
+		"address",
 		"vector<Any2SuiTokenAmount>",
 	})
 }
@@ -1024,6 +1026,7 @@ func (c offrampStateHelperEncoder) ConsumeAny2suiMessageWithArgs(typeArgs []stri
 		"u64",
 		"vector<u8>",
 		"vector<u8>",
+		"address",
 		"address",
 		"vector<Any2SuiTokenAmount>",
 	})

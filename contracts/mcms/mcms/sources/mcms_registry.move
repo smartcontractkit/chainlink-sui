@@ -1,11 +1,13 @@
 module mcms::mcms_registry;
 
 use mcms::params;
+use std::ascii;
 use std::string::String;
 use std::type_name::{Self, TypeName};
 use sui::address;
 use sui::bag::{Self, Bag};
 use sui::event;
+use sui::package::Publisher;
 use sui::table::{Self, Table};
 
 public struct Registry has key {
@@ -14,13 +16,21 @@ public struct Registry has key {
     /// Only one cap per account address/package
     package_caps: Bag,
     /// Maps package_address -> proof_type
-    registered_proof_types: Table<address, TypeName>,
+    registered_proof_types: Table<ascii::String, TypeName>,
+    /// Reverse lookup of proof type -> package address
+    proof_type_to_package: Table<TypeName, ascii::String>,
     /// Maps package_address -> allowed module names (as bytes)
-    allowed_modules: Table<address, vector<vector<u8>>>,
+    allowed_modules: Table<ascii::String, vector<vector<u8>>>,
     /// Tracks batch execution state to enforce callback ordering
     batch_execution: Table<vector<u8>, BatchExecutionState>,
     /// Tracks completed batches for predecessor validation
     completed_batches: Table<vector<u8>, bool>,
+}
+
+/// Wrapper for Publisher validation that encodes proof type in type parameter
+/// This allows compile-time enforcement that Publisher matches the proof type
+public struct PublisherWrapper<phantom T: drop> {
+    package_address: ascii::String,
 }
 
 /// Tracks execution progress of a batch to enforce MCMS operation ordering
@@ -38,24 +48,23 @@ public struct ExecutingCallbackParams {
     batch_id: vector<u8>,
     sequence_number: u64,
     total_in_batch: u64,
-    expected_proof_type: TypeName,
 }
 
 public struct EntrypointRegistered has copy, drop {
     registry_id: ID,
-    account_address: address,
+    account_address: ascii::String,
     allowed_modules: vector<vector<u8>>,
 }
 
 public struct ModulesAdded has copy, drop {
     registry_id: ID,
-    package_address: address,
+    package_address: ascii::String,
     module_names: vector<vector<u8>>,
 }
 
 public struct ModulesRemoved has copy, drop {
     registry_id: ID,
-    package_address: address,
+    package_address: ascii::String,
     module_names: vector<vector<u8>>,
 }
 
@@ -70,8 +79,11 @@ const EModuleNotAllowed: u64 = 9;
 const EModuleAlreadyAllowed: u64 = 10;
 const EModuleNotInAllowlist: u64 = 11;
 const EOnlyAcceptOwnershipAllowed: u64 = 12;
-const ENotMcmsAuthorized: u64 = 13;
+const EOnlyMcmsAcceptOwnershipProofAllowed: u64 = 13;
 const EInvalidModuleName: u64 = 14;
+const EProofNotAtPublisherAddressAndModule: u64 = 15;
+const EProofTypeNotRegistered: u64 = 16;
+const ECapAddressMismatch: u64 = 17;
 
 public struct MCMS_REGISTRY has drop {}
 
@@ -80,6 +92,7 @@ fun init(_witness: MCMS_REGISTRY, ctx: &mut TxContext) {
         id: object::new(ctx),
         package_caps: bag::new(ctx),
         registered_proof_types: table::new(ctx),
+        proof_type_to_package: table::new(ctx),
         allowed_modules: table::new(ctx),
         batch_execution: table::new(ctx),
         completed_batches: table::new(ctx),
@@ -120,32 +133,51 @@ fun enforce_execution_order(
     }
 }
 
+/// Having reference to Publisher means you have access to `Publisher` object.
+/// This is only sent to the package deployer, therefore we know only the owner can call this.
+public fun create_publisher_wrapper<T: drop>(
+    publisher: &Publisher,
+    _proof: T,
+): PublisherWrapper<T> {
+    assert!(publisher.from_module<T>(), EProofNotAtPublisherAddressAndModule);
+    PublisherWrapper<T> { package_address: *publisher.package() }
+}
+
+/// Registers a package with MCMS.
+/// `PublisherWrapper` asserts that the proof is at the publisher address and module.
+/// `C` must be the same package as the PublisherWrapper.
 public fun register_entrypoint<T: drop, C: key + store>(
     registry: &mut Registry,
+    publisher_wrapper: PublisherWrapper<T>,
     _proof: T,
     package_cap: C,
     allowed_modules: vector<vector<u8>>,
     _ctx: &mut TxContext,
 ) {
+    let PublisherWrapper { package_address } = publisher_wrapper;
     let proof_type = type_name::with_original_ids<T>();
-    let (proof_account_address, _proof_module_name) = params::get_account_address_and_module_name(
-        proof_type,
-    );
 
-    assert!(!registry.package_caps.contains(proof_account_address), EPackageCapAlreadyRegistered);
+    let cap_address = type_name::with_original_ids<C>().address_string();
+    assert!(cap_address == package_address, ECapAddressMismatch);
 
-    // Register package cap for package address
-    registry.package_caps.add(proof_account_address, package_cap);
+    // Assert publisher is not already registered
+    assert!(!registry.package_caps.contains(package_address), EPackageCapAlreadyRegistered);
+
+    // Register package cap directly (Publisher stays in OwnerCap)
+    registry.package_caps.add(package_address, package_cap);
 
     // Register proof type for package address
-    registry.registered_proof_types.add(proof_account_address, proof_type);
+    registry.registered_proof_types.add(package_address, proof_type);
+
+    // Register proof type to package address (reverse lookup)
+    registry.proof_type_to_package.add(proof_type, package_address);
 
     // Register allowed modules for package address
-    registry.allowed_modules.add(proof_account_address, allowed_modules);
+    registry.allowed_modules.add(package_address, allowed_modules);
 
     event::emit(EntrypointRegistered {
         registry_id: object::id(registry),
-        account_address: proof_account_address,
+        account_address: package_address,
         allowed_modules,
     });
 }
@@ -158,9 +190,7 @@ public fun add_allowed_modules<T: drop>(
     _ctx: &mut TxContext,
 ) {
     let proof_type = type_name::with_original_ids<T>();
-    let (proof_account_address, _) = params::get_account_address_and_module_name(
-        proof_type,
-    );
+    let proof_account_address = proof_type.address_string();
 
     // Validate the package is registered
     assert!(registry.allowed_modules.contains(proof_account_address), EPackageNotRegistered);
@@ -193,9 +223,7 @@ public fun remove_allowed_modules<T: drop>(
     _ctx: &mut TxContext,
 ) {
     let proof_type = type_name::with_original_ids<T>();
-    let (proof_account_address, _) = params::get_account_address_and_module_name(
-        proof_type,
-    );
+    let proof_account_address = proof_type.address_string();
 
     // Validate the package is registered
     assert!(registry.allowed_modules.contains(proof_account_address), EPackageNotRegistered);
@@ -226,7 +254,7 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
     registry: &mut Registry,
     _proof: T,
     params: ExecutingCallbackParams,
-): (&C, String, vector<u8>) {
+): (&mut C, String, vector<u8>) {
     let ExecutingCallbackParams {
         target,
         module_name,
@@ -235,18 +263,16 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
         batch_id,
         sequence_number,
         total_in_batch,
-        expected_proof_type,
     } = params;
 
     enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
 
     let proof_type = type_name::with_original_ids<T>();
-    let (proof_account_address, _proof_module_name) = params::get_account_address_and_module_name(
-        proof_type,
-    );
+    let proof_account_address = proof_type.address_string();
 
+    let expected_proof_type = get_registered_proof_type(registry, proof_account_address);
     assert!(proof_type == expected_proof_type, EWrongProofType);
-    assert!(target == proof_account_address, EPackageIdMismatch);
+    assert!(target.to_ascii_string() == proof_account_address, EPackageIdMismatch);
 
     // Validate the proof comes from same package ID
     assert!(registry.package_caps.contains(proof_account_address), EPackageCapNotRegistered);
@@ -256,35 +282,76 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
     let allowed = registry.allowed_modules.borrow(proof_account_address);
     assert!(allowed.contains(module_name.as_bytes()), EModuleNotAllowed);
 
-    let package_cap = registry.package_caps.borrow(proof_account_address);
+    let package_cap = registry.package_caps.borrow_mut(proof_account_address);
     (package_cap, function_name, data)
 }
 
-public fun release_cap<T: drop, C: key + store>(registry: &mut Registry, _witness: T): C {
+/// Release the package cap for a registered package.
+/// All four states from `Registry` are removed:
+/// - package_caps
+/// - registered_proof_types
+/// - proof_type_to_package
+/// - allowed_modules
+public fun release_cap<T: drop, C: key + store>(registry: &mut Registry, _proof: T): C {
     let proof_type = type_name::with_original_ids<T>();
-    let (proof_account_address, _) = params::get_account_address_and_module_name(
-        proof_type,
-    );
+    let proof_account_address = proof_type.address_string();
 
+    // Assert the package is registered
     assert!(registry.package_caps.contains(proof_account_address), EPackageCapNotRegistered);
+    assert!(registry.proof_type_to_package.contains(proof_type), EProofTypeNotRegistered);
     assert!(registry.registered_proof_types.contains(proof_account_address), EModuleNotRegistered);
 
-    let expected_type = registry.registered_proof_types.borrow(proof_account_address);
-    assert!(proof_type == *expected_type, EWrongProofType);
+    let expected_type = registry.registered_proof_types.remove(proof_account_address);
+    assert!(proof_type == expected_type, EWrongProofType);
 
-    registry.package_caps.remove(proof_account_address)
+    let cap = registry.package_caps.remove(proof_account_address);
+    registry.proof_type_to_package.remove(proof_type);
+    registry.allowed_modules.remove(proof_account_address);
+
+    cap
 }
 
 public(package) fun borrow_owner_cap<C: key + store>(registry: &Registry): &C {
-    registry.package_caps.borrow(get_multisig_address())
+    registry.package_caps.borrow(get_multisig_address_ascii())
 }
 
+/// Only proof with struct name "McmsAcceptOwnershipProof" are allowed to be used with this function.
+/// Validate the target, module name and function name are as expected.
 /// This is only ever called by `mcms_accept_ownership`, precursor to the package being registered with MCMS
-/// Therefore we validate the proof type and function name are as expected.
-public fun get_callback_params<T: drop>(
+/// ExecutingCallbackParams can only be created by MCMS
+public fun get_accept_ownership_data<T: drop>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
     _proof: T,
+): vector<u8> {
+    let ExecutingCallbackParams {
+        target,
+        module_name,
+        function_name,
+        data,
+        batch_id,
+        sequence_number,
+        total_in_batch,
+    } = params;
+
+    enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
+
+    let proof_type = type_name::with_original_ids<T>();
+    let proof_account_address = proof_type.address_string();
+    let proof_module_name = proof_type.module_string();
+    let struct_name = params::get_struct_name(&proof_type);
+
+    assert!(target.to_ascii_string() == proof_account_address, EPackageIdMismatch);
+    assert!(proof_module_name.to_string() == module_name, EInvalidModuleName);
+    assert!(function_name.as_bytes() == b"accept_ownership", EOnlyAcceptOwnershipAllowed);
+    assert!(struct_name == b"McmsAcceptOwnershipProof", EOnlyMcmsAcceptOwnershipProofAllowed);
+
+    data
+}
+
+public(package) fun get_callback_params_from_mcms(
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
 ): (address, String, String, vector<u8>) {
     let ExecutingCallbackParams {
         target,
@@ -294,42 +361,11 @@ public fun get_callback_params<T: drop>(
         batch_id,
         sequence_number,
         total_in_batch,
-        expected_proof_type,
     } = params;
 
     enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
-
-    let proof_type = type_name::with_original_ids<T>();
-    let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
-        proof_type,
-    );
-
-    assert!(target == proof_account_address, EPackageIdMismatch);
-    assert!(proof_module_name == module_name, EInvalidModuleName);
-    assert!(function_name.as_bytes() == b"accept_ownership", EOnlyAcceptOwnershipAllowed);
-    assert!(expected_proof_type == type_name::with_defining_ids<McmsProof>(), ENotMcmsAuthorized);
 
     (target, module_name, function_name, data)
-}
-
-public(package) fun get_callback_params_from_mcms(
-    registry: &mut Registry,
-    params: ExecutingCallbackParams,
-): (address, String, String, vector<u8>, TypeName) {
-    let ExecutingCallbackParams {
-        target,
-        module_name,
-        function_name,
-        data,
-        batch_id,
-        sequence_number,
-        total_in_batch,
-        expected_proof_type,
-    } = params;
-
-    enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
-
-    (target, module_name, function_name, data, expected_proof_type)
 }
 
 public(package) fun create_executing_callback_params(
@@ -340,7 +376,6 @@ public(package) fun create_executing_callback_params(
     batch_id: vector<u8>,
     sequence_number: u64,
     total_in_batch: u64,
-    expected_proof_type: TypeName,
 ): ExecutingCallbackParams {
     ExecutingCallbackParams {
         target,
@@ -350,24 +385,26 @@ public(package) fun create_executing_callback_params(
         batch_id,
         sequence_number,
         total_in_batch,
-        expected_proof_type,
     }
 }
 
-public fun is_package_registered(registry: &Registry, package_address: address): bool {
+public fun is_package_registered(registry: &Registry, package_address: ascii::String): bool {
     registry.package_caps.contains(package_address)
 }
 
 public(package) fun get_registered_proof_type(
     registry: &Registry,
-    package_address: address,
+    package_address: ascii::String,
 ): TypeName {
     assert!(registry.registered_proof_types.contains(package_address), EPackageNotRegistered);
     *registry.registered_proof_types.borrow(package_address)
 }
 
-/// Get the list of allowed module names for a registered package
-public fun get_allowed_modules(registry: &Registry, package_address: address): vector<vector<u8>> {
+/// Returns the list of allowed module names for a registered package
+public fun get_allowed_modules(
+    registry: &Registry,
+    package_address: ascii::String,
+): vector<vector<u8>> {
     assert!(registry.allowed_modules.contains(package_address), EPackageNotRegistered);
     *registry.allowed_modules.borrow(package_address)
 }
@@ -402,15 +439,11 @@ public fun get_next_expected_sequence(registry: &Registry, batch_id: vector<u8>)
 }
 
 public fun get_multisig_address(): address {
-    address::from_ascii_bytes(
-        &type_name::with_defining_ids<McmsProof>().address_string().into_bytes(),
-    )
+    address::from_ascii_bytes(&get_multisig_address_ascii().into_bytes())
 }
 
-public struct McmsProof has drop {}
-
-public(package) fun create_mcms_proof(): McmsProof {
-    McmsProof {}
+public fun get_multisig_address_ascii(): ascii::String {
+    type_name::with_defining_ids<MCMS_REGISTRY>().address_string()
 }
 
 // ===================== TESTS =====================
@@ -431,7 +464,6 @@ public fun test_create_executing_callback_params(
     batch_id: vector<u8>,
     sequence_number: u64,
     total_in_batch: u64,
-    expected_proof_type: TypeName,
 ): ExecutingCallbackParams {
     create_executing_callback_params(
         target,
@@ -441,11 +473,20 @@ public fun test_create_executing_callback_params(
         batch_id,
         sequence_number,
         total_in_batch,
-        expected_proof_type,
     )
 }
 
 #[test_only]
-public fun expected_proof_type(params: &ExecutingCallbackParams): TypeName {
-    params.expected_proof_type
+public fun test_get_cap_address<C: key + store>(
+    registry: &Registry,
+    package_address: ascii::String,
+): address {
+    assert!(registry.package_caps.contains(package_address), EPackageCapNotRegistered);
+    let cap: &C = registry.package_caps.borrow(package_address);
+    object::id_address(cap)
+}
+
+#[test_only]
+public fun get_cap<C: key + store>(registry: &Registry, package_address: ascii::String): &C {
+    registry.package_caps.borrow(package_address)
 }

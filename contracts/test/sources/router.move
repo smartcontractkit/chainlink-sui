@@ -71,6 +71,11 @@ public fun create_test_on_ramp_info_with_version(
     )
 }
 
+/// Create a test OnRampInfo for a specific address
+public fun get_mock_onramp_address(): address {
+    return @0x1
+}
+
 /// Create test chain selectors
 public fun create_test_chain_selectors(): vector<u64> {
     vector[1, 137, 42161, 10]  // Ethereum, Polygon, Arbitrum, Optimism

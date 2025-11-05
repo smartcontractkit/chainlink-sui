@@ -11,6 +11,7 @@ const EInvalidSVMAccountLength: u64 = 2;
 const EInvalidSUITokenReceiverLength: u64 = 3;
 const EInvalidSUIReceiverObjectIdLength: u64 = 4;
 const ETokenAmountMismatch: u64 = 5;
+const EMessageReceiverMismatch: u64 = 6;
 
 public fun generic_extra_args_v2_tag(): vector<u8> {
     GENERIC_EXTRA_ARGS_V2_TAG
@@ -85,11 +86,12 @@ public struct Any2SuiMessage {
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
+    message_receiver: address,
     token_receiver: address,
     dest_token_amounts: vector<Any2SuiTokenAmount>,
 }
 
-public struct Any2SuiTokenAmount has copy, drop, store {
+public struct Any2SuiTokenAmount has copy, drop {
     token: address,
     amount: u256,
 }
@@ -99,6 +101,7 @@ public(package) fun new_any2sui_message(
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
+    message_receiver: address,
     token_receiver: address,
     dest_token_amounts: vector<Any2SuiTokenAmount>,
 ): Any2SuiMessage {
@@ -107,6 +110,7 @@ public(package) fun new_any2sui_message(
         source_chain_selector,
         sender,
         data,
+        message_receiver,
         token_receiver,
         dest_token_amounts,
     }
@@ -114,20 +118,31 @@ public(package) fun new_any2sui_message(
 
 public(package) fun consume_any2sui_message(
     message: Any2SuiMessage,
-): (vector<u8>, u64, vector<u8>, vector<u8>, address, vector<Any2SuiTokenAmount>) {
+    receiver_package_id: address,
+): (vector<u8>, u64, vector<u8>, vector<u8>, address, address, vector<Any2SuiTokenAmount>) {
     let Any2SuiMessage {
         message_id,
         source_chain_selector,
         sender,
         data,
+        message_receiver,
         token_receiver,
         dest_token_amounts,
     } = message;
+    assert!(message_receiver == receiver_package_id, EMessageReceiverMismatch);
 
-    (message_id, source_chain_selector, sender, data, token_receiver, dest_token_amounts)
+    (
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        message_receiver,
+        token_receiver,
+        dest_token_amounts,
+    )
 }
 
-public fun new_dest_token_amounts(
+public(package) fun new_dest_token_amounts(
     token_addresses: vector<address>,
     token_amounts: vector<u256>,
 ): vector<Any2SuiTokenAmount> {

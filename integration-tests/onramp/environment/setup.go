@@ -50,7 +50,7 @@ type EnvironmentSettings struct {
 	OnRampReport               *cld_ops.SequenceReport[onrampops.DeployAndInitCCIPOnRampSeqInput, onrampops.DeployCCIPOnRampSeqOutput]
 	LockReleaseTokenPoolReport *cld_ops.SequenceReport[lockreleaseops.DeployAndInitLockReleaseTokenPoolInput, lockreleaseops.DeployLockReleaseTokenPoolOutput]
 	BurnMintTokenPoolReport    *cld_ops.SequenceReport[burnmintops.DeployAndInitBurnMintTokenPoolInput, burnmintops.DeployBurnMintTokenPoolOutput]
-	ManagedTokenPoolReport     *cld_ops.SequenceReport[managedtokenpoolops.SeqDeployAndInitManagedTokenPoolInput, managedtokenpoolops.DeployManagedTokenPoolOutput]
+	ManagedTokenPoolReport     *cld_ops.SequenceReport[managedtokenpoolops.DeployAndInitManagedTokenPoolInput, managedtokenpoolops.DeployManagedTokenPoolOutput]
 
 	EthereumPoolAddress []byte
 	EthCoins            []string

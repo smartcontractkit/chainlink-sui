@@ -8,7 +8,7 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
 
-type SeqDeployAndInitManagedTokenPoolInput struct {
+type DeployAndInitManagedTokenPoolInput struct {
 	// deploy
 	CCIPPackageId         string
 	ManagedTokenPackageId string
@@ -43,6 +43,7 @@ type DeployManagedTokenPoolObjects struct {
 }
 
 type DeployManagedTokenPoolOutput struct {
+	TokenSymbol        string
 	ManagedTPPackageId string
 	Objects            DeployManagedTokenPoolObjects
 }
@@ -51,7 +52,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 	"sui-deploy-managed-token-pool-seq",
 	semver.MustParse("0.1.0"),
 	"Deploys and sets initial managed token pool configuration",
-	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input SeqDeployAndInitManagedTokenPoolInput) (DeployManagedTokenPoolOutput, error) {
+	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployAndInitManagedTokenPoolInput) (DeployManagedTokenPoolOutput, error) {
 		deployReport, err := cld_ops.ExecuteOperation(env, DeployCCIPManagedTokenPoolOp, deps, ManagedTokenPoolDeployInput{
 			CCIPPackageId:         input.CCIPPackageId,
 			ManagedTokenPackageId: input.ManagedTokenPackageId,
@@ -68,6 +69,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 			deps,
 			ManagedTokenPoolInitializeInput{
 				ManagedTokenPoolPackageId: deployReport.Output.PackageId,
+				OwnerCapObjectId:          deployReport.Output.Objects.OwnerCapObjectId,
 				CoinObjectTypeArg:         input.CoinObjectTypeArg,
 				CCIPObjectRefObjectId:     input.CCIPObjectRefObjectId,
 				ManagedTokenStateObjectId: input.ManagedTokenStateObjectId,
@@ -89,7 +91,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 				ManagedTokenPoolPackageId:    deployReport.Output.PackageId,
 				CoinObjectTypeArg:            input.CoinObjectTypeArg,
 				StateObjectId:                initReport.Output.Objects.StateObjectId,
-				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCap:                     deployReport.Output.Objects.OwnerCapObjectId,
 				RemoteChainSelectorsToRemove: input.RemoteChainSelectorsToRemove,
 				RemoteChainSelectorsToAdd:    input.RemoteChainSelectorsToAdd,
 				RemotePoolAddressesToAdd:     input.RemotePoolAddressesToAdd,
@@ -108,7 +110,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 				ManagedTokenPoolPackageId: deployReport.Output.PackageId,
 				CoinObjectTypeArg:         input.CoinObjectTypeArg,
 				StateObjectId:             initReport.Output.Objects.StateObjectId,
-				OwnerCap:                  initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCap:                  deployReport.Output.Objects.OwnerCapObjectId,
 				RemoteChainSelectors:      input.RemoteChainSelectors,
 				OutboundIsEnableds:        input.OutboundIsEnableds,
 				OutboundCapacities:        input.OutboundCapacities,
@@ -122,10 +124,27 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 			return DeployManagedTokenPoolOutput{}, err
 		}
 
+		// init ownership transfer to MCMS
+		_, err = cld_ops.ExecuteOperation(
+			env,
+			TransferOwnershipManagedTokenPoolOp,
+			deps,
+			TransferOwnershipManagedTokenPoolInput{
+				ManagedTokenPoolPackageId: deployReport.Output.PackageId,
+				TypeArgs:                  []string{input.CoinObjectTypeArg},
+				StateObjectId:             initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectId:          deployReport.Output.Objects.OwnerCapObjectId,
+				To:                        input.MCMSAddress,
+			},
+		)
+		if err != nil {
+			return DeployManagedTokenPoolOutput{}, err
+		}
+
 		return DeployManagedTokenPoolOutput{
 			ManagedTPPackageId: deployReport.Output.PackageId,
 			Objects: DeployManagedTokenPoolObjects{
-				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:    initReport.Output.Objects.StateObjectId,
 			},
 		}, nil

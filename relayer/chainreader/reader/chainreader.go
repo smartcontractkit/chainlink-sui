@@ -281,6 +281,11 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 
 	if functionConfig.ResultTupleToStruct != nil {
 		structResult := make(map[string]any)
+		// Check the length of results to avoid panics
+		if len(results) < len(functionConfig.ResultTupleToStruct) {
+			return fmt.Errorf("expected %d results, got %d", len(functionConfig.ResultTupleToStruct), len(results))
+		}
+
 		for i, mapKey := range functionConfig.ResultTupleToStruct {
 			structResult[mapKey] = results[i]
 		}
@@ -350,7 +355,7 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	}
 
 	// Transform events to sequences
-	sequences, err := s.transformEventsToSequences(eventRecords, sequenceDataType, false)
+	sequences, err := s.transformEventsToSequences(eventRecords, eventConfig.ExpectedEventType, sequenceDataType, false)
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +385,7 @@ func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgt
 	}
 
 	// Transform events to sequences
-	sequences, err := s.transformEventsToSequences(eventRecords, sequenceDataType, true)
+	sequences, err := s.transformEventsToSequences(eventRecords, eventConfig.ExpectedEventType, sequenceDataType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -394,6 +399,7 @@ func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgt
 		}
 
 		seq.Sequence.Cursor = strconv.FormatInt(c.EventOffset, 10)
+
 		transformedSequences = append(transformedSequences, aptosCRConfig.SequenceWithMetadata{
 			Sequence:  seq.Sequence,
 			TxVersion: 0,
@@ -638,7 +644,6 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 }
 
 type pointerMapEntry struct {
-	field         string // the field name from the Sui object (pointer field containing parent object ID)
 	derivationKey string // the key used to derive the child object address
 	paramName     string // the parameter name from the function config
 }
@@ -702,10 +707,9 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 			pointerSelectors[appendTag] = readIdentifierForPointer
 		}
 
-		// each entry within the pointersMap contains an entry for the field name,
-		// the derivation key, and the (function config) parameter name
+		// each entry within the pointersMap contains the derivation key and the (function config) parameter name
+		// the parent field name is looked up from common.PointerConfigs when fetching the parent object ID
 		pointersMap[appendTag] = append(pointersMap[appendTag], pointerMapEntry{
-			field:         pointerTag.FieldName,
 			derivationKey: pointerTag.DerivationKey,
 			paramName:     paramConfig.Name,
 		})
@@ -892,6 +896,20 @@ func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.Ch
 		return nil, fmt.Errorf("failed to query events from database: %w", err)
 	}
 
+	// Apply the event field renames to the returned records if specified in the config
+	if len(eventConfig.EventFieldRenames) > 0 {
+		for _, rec := range records {
+			mappedData := rec.Data
+			renameErr := aptosCRUtils.MaybeRenameFields(mappedData, eventConfig.EventFieldRenames)
+			if renameErr != nil {
+				s.logger.Errorw("Failed to rename event data fields", "error", renameErr)
+				continue
+			}
+
+			rec.Data = mappedData
+		}
+	}
+
 	s.logger.Debugw("Successfully queried events from database",
 		"eventCount", len(records),
 		"eventHandle", eventHandle,
@@ -906,15 +924,20 @@ type SequenceWithRecord struct {
 }
 
 // transformEventsToSequences converts database event records to sequence format
-func (s *suiChainReader) transformEventsToSequences(eventRecords []database.EventRecord, sequenceDataType any, includeRecord bool) ([]SequenceWithRecord, error) {
+func (s *suiChainReader) transformEventsToSequences(eventRecords []database.EventRecord, eventDataType any, sequenceDataType any, includeRecord bool) ([]SequenceWithRecord, error) {
 	sequences := make([]SequenceWithRecord, 0, len(eventRecords))
 
 	s.logger.Debugw("Transforming events to sequences", "eventRecords", eventRecords, "sequenceDataType", sequenceDataType)
 
-	for _, record := range eventRecords {
-		eventData := reflect.New(reflect.TypeOf(sequenceDataType).Elem()).Interface()
+	expectedEventType := sequenceDataType
+	if eventDataType != nil {
+		expectedEventType = eventDataType
+	}
 
-		s.logger.Debugw("Processing database event record", "data", record.Data, "offset", record.EventOffset)
+	for _, record := range eventRecords {
+		eventData := reflect.New(reflect.TypeOf(expectedEventType).Elem()).Interface()
+
+		s.logger.Debugw("Processing database event record", "data", record.Data, "offset", record.EventOffset, "eventDataType", reflect.TypeOf(eventData).Elem())
 
 		// if we are running in loop plugin mode, we will want to decode into JSON and then into JSON bytes always
 		if s.config.IsLoopPlugin {
@@ -926,6 +949,15 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 			eventData = &jsonData
 		} else if err := codec.DecodeSuiJsonValue(record.Data, eventData); err != nil {
 			return nil, fmt.Errorf("failed to decode event data: %w", err)
+		}
+
+		// Transform the data into the original required type
+		if reflect.TypeOf(expectedEventType).Elem() != reflect.TypeOf(sequenceDataType).Elem() {
+			transformedData := reflect.New(reflect.TypeOf(sequenceDataType).Elem()).Interface()
+			if err := codec.DecodeSuiJsonValue(eventData, transformedData); err != nil {
+				return nil, fmt.Errorf("failed to decode event data: %w", err)
+			}
+			eventData = &transformedData
 		}
 
 		// Create cursor from the event offset - this is simpler than the blockchain event ID
@@ -952,13 +984,15 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 			continue
 		}
 
+		// create a copy of the record to ensure correct memory location
+		toSave := record
 		sequences = append(sequences, SequenceWithRecord{
 			Sequence: sequence,
-			Record:   &record,
+			Record:   &toSave,
 		})
 	}
 
-	s.logger.Debugw("Successfully transformed events to sequences", "sequenceCount", len(sequences))
+	s.logger.Debugw("Successfully transformed events to sequences", "sequenceCount", len(sequences), "sequences", sequences)
 
 	return sequences, nil
 }

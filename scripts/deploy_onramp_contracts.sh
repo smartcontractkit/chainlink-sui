@@ -356,14 +356,14 @@ sui client call --package "$MANAGED_TP_PKG_ID" --module managed_token_pool --fun
   --args "$MANAGED_TP_STATE_ID" "$MANAGED_TP_OWNER_CAP_ID" "$CLOCK_ID" "2" "false" "200000000000" "20000000000" "false" "200000000000" "20000000000" \
   --gas-budget "$GAS" --json | tee artifacts.managed_tp.rate_limiters.json >/dev/null
 
-echo "--- Minting USDC tokens for testing ---"
-sui client call --package "$MANAGED_TOKEN_PKG_ID" --module managed_token --function mint_and_transfer \
-  --type-args "$USDC_COIN_T" \
-  --args "$MANAGED_TOKEN_STATE_ID" "$MINT_CAP_ID" "$DENY_LIST_ID" "1000000000000000" "$ACTIVE_ADDR" \
-  --gas-budget "$GAS" --json | tee artifacts.usdc.mint.json >/dev/null
+# echo "--- Minting USDC tokens for testing ---"
+# sui client call --package "$MANAGED_TOKEN_PKG_ID" --module managed_token --function mint_and_transfer \
+#   --type-args "$USDC_COIN_T" \
+#   --args "$MANAGED_TOKEN_STATE_ID" "$MINT_CAP_ID" "$DENY_LIST_ID" "1000000000000000" "$ACTIVE_ADDR" \
+#   --gas-budget "$GAS" --json | tee artifacts.usdc.mint.json >/dev/null
 
-USDC_COIN_ID="$(jq -r '.balanceChanges[] | select(.coinType | contains("mock_eth_token")) | .coinObjectId' artifacts.usdc.mint.json | head -n1)"
-echo "  USDC Coin ID: $USDC_COIN_ID"
+# USDC_COIN_ID="$(jq -r '.balanceChanges[] | select(.coinType | contains("mock_eth_token")) | .coinObjectId' artifacts.usdc.mint.json | head -n1)"
+# echo "  USDC Coin ID: $USDC_COIN_ID"
 
 echo "--- Debugging ---"
 echo "CCIP_PKG_ID: $CCIP_PKG_ID"
@@ -448,7 +448,7 @@ echo ""
 echo "Test Coins:"
 echo "  LINK Coin:               $LINK_COIN_ID"
 echo "  ETH Coin:                $ETH_COIN_ID"
-echo "  USDC Coin:               $USDC_COIN_ID"
+# echo "  USDC Coin:               $USDC_COIN_ID"
 echo "  FEE Coin (LINK):         $FEE_COIN_ID"
 echo ""
 echo "Token Pool Mapping:"

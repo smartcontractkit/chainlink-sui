@@ -7,7 +7,7 @@ use mcms::mcms_account;
 use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry};
 use std::string;
-use std::type_name;
+use sui::address;
 use sui::bcs;
 use sui::test_scenario::{Self, Scenario};
 
@@ -209,11 +209,10 @@ public fun test_add_package_id_with_invalid_owner_cap() {
     // Cleanup
     let TestObject { id } = obj;
     object::delete(id);
-    transfer::public_transfer(ownable_state, @0x0);
     transfer::public_transfer(fake_owner_cap, @0x0);
 
     // Cleanup the original scenario objects
-    test_scenario::return_to_sender(&scenario, owner_cap);
+    ownable::destroy(ownable_state, owner_cap, ctx);
     test_scenario::return_shared(ref);
     test_scenario::end(scenario);
 }
@@ -260,7 +259,7 @@ fun setup_with_mcms_ownership(): (Scenario, Registry, CCIPObjectRef) {
         &mut ref,
         owner_cap,
         &mut registry,
-        @mcms,
+        mcms_registry::get_multisig_address(),
         scenario.ctx(),
     );
 
@@ -274,7 +273,10 @@ fun test_mcms_add_allowed_modules_success() {
     let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
     // Verify initial allowed modules (should have fee_quoter, rmn_remote, state_object, token_admin_registry)
-    let initial_modules = mcms_registry::get_allowed_modules(&registry, @ccip);
+    let initial_modules = mcms_registry::get_allowed_modules(
+        &registry,
+        address::to_ascii_string(@ccip),
+    );
     assert!(initial_modules.contains(&b"fee_quoter"), 0);
     assert!(initial_modules.contains(&b"rmn_remote"), 1);
     assert!(initial_modules.contains(&b"state_object"), 2);
@@ -298,7 +300,6 @@ fun test_mcms_add_allowed_modules_success() {
         x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
         0, // sequence_number
         1, // total_in_batch
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     state_object::mcms_add_allowed_modules(
@@ -308,7 +309,10 @@ fun test_mcms_add_allowed_modules_success() {
     );
 
     // Verify nonce_manager was added
-    let updated_modules = mcms_registry::get_allowed_modules(&registry, @ccip);
+    let updated_modules = mcms_registry::get_allowed_modules(
+        &registry,
+        address::to_ascii_string(@ccip),
+    );
     assert!(updated_modules.contains(&b"nonce_manager"), 5); // Should exist now
 
     // Cleanup
@@ -339,7 +343,6 @@ fun test_mcms_add_allowed_modules_already_exists() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     // This should fail with EModuleAlreadyAllowed
@@ -378,7 +381,6 @@ fun test_mcms_add_allowed_modules_wrong_function_name() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     // This should fail with EInvalidFunction
@@ -417,7 +419,6 @@ fun test_mcms_remove_allowed_modules_success() {
             x"0000000000000000000000000000000000000000000000000000000000000001",
             0,
             1,
-            type_name::with_original_ids<state_object::McmsCallback>(),
         );
 
         state_object::mcms_add_allowed_modules(
@@ -428,7 +429,10 @@ fun test_mcms_remove_allowed_modules_success() {
     };
 
     // Verify nonce_manager was added
-    let modules_before = mcms_registry::get_allowed_modules(&registry, @ccip);
+    let modules_before = mcms_registry::get_allowed_modules(
+        &registry,
+        address::to_ascii_string(@ccip),
+    );
     assert!(modules_before.contains(&b"nonce_manager"), 0);
 
     // Now remove the module
@@ -446,7 +450,6 @@ fun test_mcms_remove_allowed_modules_success() {
             x"0000000000000000000000000000000000000000000000000000000000000002",
             0,
             1,
-            type_name::with_original_ids<state_object::McmsCallback>(),
         );
 
         state_object::mcms_remove_allowed_modules(
@@ -457,7 +460,10 @@ fun test_mcms_remove_allowed_modules_success() {
     };
 
     // Verify nonce_manager was removed
-    let modules_after = mcms_registry::get_allowed_modules(&registry, @ccip);
+    let modules_after = mcms_registry::get_allowed_modules(
+        &registry,
+        address::to_ascii_string(@ccip),
+    );
     assert!(!modules_after.contains(&b"nonce_manager"), 1);
 
     // Cleanup
@@ -485,7 +491,6 @@ fun test_mcms_remove_allowed_modules_not_in_allowlist() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     // This should fail with EModuleNotInAllowlist
@@ -521,7 +526,6 @@ fun test_mcms_remove_allowed_modules_wrong_function_name() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     // This should fail with EInvalidFunction
@@ -532,6 +536,141 @@ fun test_mcms_remove_allowed_modules_wrong_function_name() {
     );
 
     // Cleanup (won't be reached due to expected failure)
+    test_scenario::return_shared(registry);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario);
+}
+
+// ================================================================
+// |         MCMS 3-Step Ownership Transfer Test                 |
+// ================================================================
+
+#[test]
+fun test_mcms_three_step_ownership_transfer() {
+    let (mut scenario, mut registry, mut ref) = setup_with_mcms_ownership();
+
+    // At this point, ownership is with MCMS
+    let initial_owner = state_object::owner(&ref);
+    assert!(initial_owner == mcms_registry::get_multisig_address());
+
+    let new_owner = SENDER_2;
+    scenario.next_tx(OWNER);
+
+    // Step 1: MCMS calls mcms_transfer_ownership to initiate transfer to SENDER_2
+    {
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(
+            &registry,
+            @ccip.to_ascii_string(),
+        );
+
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&owner_cap_address));
+        data.append(bcs::to_bytes(&new_owner));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"state_object"),
+            string::utf8(b"transfer_ownership"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
+            0, // sequence_number
+            1, // total_in_batch
+        );
+
+        state_object::mcms_transfer_ownership(
+            &mut ref,
+            &mut registry,
+            params,
+            scenario.ctx(),
+        );
+    };
+
+    // Verify pending transfer was created
+    let (from, to, accepted) = state_object::pending_transfer(&ref);
+    assert!(from == mcms_registry::get_multisig_address());
+    assert!(to == new_owner);
+    assert!(!accepted);
+
+    // Owner should still be MCMS
+    assert!(state_object::owner(&ref) == mcms_registry::get_multisig_address());
+
+    // Step 2: SENDER_2 (new owner) accepts the ownership transfer
+    scenario.next_tx(new_owner);
+    {
+        state_object::accept_ownership(&mut ref, scenario.ctx());
+    };
+
+    // Verify pending transfer was accepted
+    let (from2, to2, accepted2) = state_object::pending_transfer(&ref);
+    assert!(from2 == mcms_registry::get_multisig_address());
+    assert!(to2 == new_owner);
+    assert!(accepted2); // Now it's accepted
+
+    // Owner should still be MCMS (not yet executed)
+    assert!(state_object::owner(&ref) == mcms_registry::get_multisig_address());
+
+    // Step 3: MCMS calls mcms_execute_ownership_transfer to finalize
+    scenario.next_tx(OWNER);
+    {
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(
+            &registry,
+            @ccip.to_ascii_string(),
+        );
+        let mut deployer_state = test_scenario::take_shared<mcms_deployer::DeployerState>(&scenario);
+
+        // Serialize data: [ref_address][owner_cap_address][to_address][package_address]
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&owner_cap_address));
+        data.append(bcs::to_bytes(&new_owner));
+        data.append(bcs::to_bytes(&@ccip));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"state_object"),
+            string::utf8(b"execute_ownership_transfer"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000002", // different batch_id
+            0, // sequence_number
+            1, // total_in_batch
+        );
+
+        state_object::mcms_execute_ownership_transfer(
+            &mut ref,
+            &mut registry,
+            &mut deployer_state,
+            params,
+            scenario.ctx(),
+        );
+
+        test_scenario::return_shared(deployer_state);
+    };
+
+    // Verify pending transfer was cleared
+    let (from3, to3, accepted3) = state_object::pending_transfer(&ref);
+    assert!(from3 == @0x0);
+    assert!(to3 == @0x0);
+    assert!(!accepted3);
+
+    // Owner should now be SENDER_2
+    assert!(state_object::owner(&ref) == new_owner);
+
+    // Step 4: Verify SENDER_2 received the OwnerCap and can use it
+    scenario.next_tx(new_owner);
+    {
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        // Verify SENDER_2 can perform operations with the OwnerCap
+        let test_obj = TestObject {
+            id: object::new(scenario.ctx()),
+        };
+        state_object::add(&mut ref, &owner_cap, test_obj, scenario.ctx());
+        assert!(state_object::contains<TestObject>(&ref));
+
+        scenario.return_to_sender(owner_cap);
+    };
+
     test_scenario::return_shared(registry);
     test_scenario::return_shared(ref);
     test_scenario::end(scenario);

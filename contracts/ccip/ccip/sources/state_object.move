@@ -2,6 +2,7 @@ module ccip::state_object;
 
 use ccip::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
+use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string;
@@ -9,6 +10,7 @@ use std::type_name;
 use sui::address;
 use sui::derived_object;
 use sui::dynamic_object_field as dof;
+use sui::package::{Self, UpgradeCap};
 
 const EModuleAlreadyExists: u64 = 1;
 const EModuleDoesNotExist: u64 = 2;
@@ -33,9 +35,9 @@ public struct CCIPObjectRefPointer has key, store {
 
 public struct STATE_OBJECT has drop {}
 
-fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
+fun init(otw: STATE_OBJECT, ctx: &mut TxContext) {
     let mut ccip_object = CCIPObject { id: object::new(ctx) };
-    let (ownable_state, owner_cap) = ownable::new(&mut ccip_object.id, ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(&mut ccip_object.id, ctx);
 
     let mut ref = CCIPObjectRef {
         id: derived_object::claim(&mut ccip_object.id, b"CCIPObjectRef"),
@@ -55,6 +57,9 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
 
     transfer::share_object(ref);
     transfer::share_object(ccip_object);
+
+    let publisher = package::claim(otw, ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
 
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
@@ -128,6 +133,14 @@ public fun accept_ownership(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
     ownable::accept_ownership(&mut ref.ownable_state, ctx);
 }
 
+public fun accept_ownership_from_object(
+    ref: &mut CCIPObjectRef,
+    from: &mut UID,
+    ctx: &mut TxContext,
+) {
+    ownable::accept_ownership_from_object(&mut ref.ownable_state, from, ctx);
+}
+
 public fun execute_ownership_transfer(
     ref: &mut CCIPObjectRef,
     owner_cap: OwnerCap,
@@ -144,15 +157,30 @@ public fun execute_ownership_transfer_to_mcms(
     to: address,
     ctx: &mut TxContext,
 ) {
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut ref.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback {},
         vector[b"fee_quoter", b"rmn_remote", b"state_object", b"token_admin_registry"],
         ctx,
     );
+}
+
+public fun mcms_register_upgrade_cap(
+    upgrade_cap: UpgradeCap,
+    registry: &mut Registry,
+    state: &mut DeployerState,
+    ctx: &mut TxContext,
+) {
+    mcms_deployer::register_upgrade_cap(state, registry, upgrade_cap, ctx);
 }
 
 public fun owner(ref: &CCIPObjectRef): address {
@@ -179,10 +207,10 @@ public fun pending_transfer_accepted(ref: &CCIPObjectRef): Option<bool> {
 // |                      MCMS Entrypoint                         |
 // ================================================================
 
-/// Proof for CCIP admin
-public struct CCIPAdminProof has drop {}
-
 public struct McmsCallback has drop {}
+
+/// Proof for MCMS Accept Ownership
+public struct McmsAcceptOwnershipProof has drop {}
 
 public(package) fun mcms_callback(): McmsCallback {
     McmsCallback {}
@@ -272,12 +300,11 @@ public fun mcms_accept_ownership(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function, data) = mcms_registry::get_callback_params(
+    let data = mcms_registry::get_accept_ownership_data(
         registry,
         params,
-        McmsCallback {},
+        McmsAcceptOwnershipProof {},
     );
-    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(ref), &mut stream);
@@ -290,6 +317,7 @@ public fun mcms_accept_ownership(
 public fun mcms_execute_ownership_transfer(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
+    deployer_state: &mut DeployerState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -310,9 +338,20 @@ public fun mcms_execute_ownership_transfer(
     );
 
     let to = bcs_stream::deserialize_address(&mut stream);
+    let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback {},
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
     execute_ownership_transfer(ref, owner_cap, to, ctx);
 }
 
@@ -370,27 +409,6 @@ public fun mcms_remove_allowed_modules(
     mcms_registry::remove_allowed_modules(registry, McmsCallback {}, module_names, ctx);
 }
 
-public fun mcms_proof_entrypoint(
-    registry: &mut Registry,
-    params: ExecutingCallbackParams,
-    _ctx: &mut TxContext,
-): CCIPAdminProof {
-    let (_owner_cap, function, _data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
-        OwnerCap,
-    >(
-        registry,
-        McmsCallback {},
-        params,
-    );
-
-    // We validate that the owner cap is registered
-    // So we can safely provide a proof that CCIP admin is calling
-    assert!(*function.as_bytes() == b"initialize_by_ccip_admin", EInvalidFunction);
-
-    CCIPAdminProof {}
-}
-
 // ================================================================
 // |                      Test Functions                          |
 // ================================================================
@@ -401,15 +419,15 @@ public fun test_init(ctx: &mut TxContext) {
 }
 
 #[test_only]
+public fun test_create_mcms_callback(): McmsCallback {
+    McmsCallback {}
+}
+
+#[test_only]
 public fun pending_transfer(ref: &CCIPObjectRef): (address, address, bool) {
     let from = ownable::pending_transfer_from(&ref.ownable_state);
     let to = ownable::pending_transfer_to(&ref.ownable_state);
     let accepted = ownable::pending_transfer_accepted(&ref.ownable_state);
 
     (from.get_with_default(@0x0), to.get_with_default(@0x0), accepted.get_with_default(false))
-}
-
-#[test_only]
-public fun create_ccip_admin_proof_for_test(): CCIPAdminProof {
-    CCIPAdminProof {}
 }

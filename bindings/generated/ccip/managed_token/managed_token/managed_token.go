@@ -19,15 +19,15 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"managed_token","module":"managed_token","name":"accept_ownership","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"managed_token","module":"managed_token","name":"blocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"borrow_treasury_cap","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"}]},{"package":"managed_token","module":"managed_token","name":"burn","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"coin","type":"Coin<T>"},{"name":"from","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"configure_new_minter","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"minter","type":"address"},{"name":"allowance","type":"u64"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"destroy_managed_token","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"get_all_mint_caps","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"has_pending_transfer","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"increment_mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"allowance_increment","type":"u64"}]},{"package":"managed_token","module":"managed_token","name":"initialize","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"}]},{"package":"managed_token","module":"managed_token","name":"initialize_with_deny_cap","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"deny_cap","type":"DenyCapV2<T>"}]},{"package":"managed_token","module":"managed_token","name":"is_authorized_mint_cap","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"id","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint_and_transfer","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"owner","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_from","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_to","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"set_unlimited_mint_allowances","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"total_supply","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"transfer_ownership","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"new_owner","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"type_and_version","parameters":null},{"package":"managed_token","module":"managed_token","name":"unblocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"unpause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]}]`
+const FunctionInfo = `[{"package":"managed_token","module":"managed_token","name":"accept_ownership","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"managed_token","module":"managed_token","name":"blocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"borrow_treasury_cap","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"}]},{"package":"managed_token","module":"managed_token","name":"burn","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"coin","type":"Coin<T>"},{"name":"from","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"configure_new_minter","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"minter","type":"address"},{"name":"allowance","type":"u64"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"destroy_managed_token","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"get_all_mint_caps","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"has_pending_transfer","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"increment_mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"allowance_increment","type":"u64"}]},{"package":"managed_token","module":"managed_token","name":"initialize","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"publisher","type":"Publisher"}]},{"package":"managed_token","module":"managed_token","name":"initialize_with_deny_cap","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"deny_cap","type":"DenyCapV2<T>"},{"name":"publisher","type":"Publisher"}]},{"package":"managed_token","module":"managed_token","name":"is_minter_cap_allowed","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"id","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint_and_transfer","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"owner","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_from","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_to","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"set_unlimited_mint_allowances","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"total_supply","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"transfer_ownership","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"new_owner","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"type_and_version","parameters":null},{"package":"managed_token","module":"managed_token","name":"unblocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"unpause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]}]`
 
 type IManagedToken interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object) (*models.SuiTransactionBlockResponse, error)
-	InitializeWithDenyCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object, denyCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object, publisher bind.Object) (*models.SuiTransactionBlockResponse, error)
+	InitializeWithDenyCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object, denyCap bind.Object, publisher bind.Object) (*models.SuiTransactionBlockResponse, error)
 	MintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, mintCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	TotalSupply(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	IsAuthorizedMintCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, id bind.Object) (*models.SuiTransactionBlockResponse, error)
+	IsMinterCapAllowed(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, id bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (*models.SuiTransactionBlockResponse, error)
 	IncrementMintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*models.SuiTransactionBlockResponse, error)
 	SetUnlimitedMintAllowances(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, isUnlimited bool) (*models.SuiTransactionBlockResponse, error)
@@ -40,6 +40,7 @@ type IManagedToken interface {
 	Pause(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, denyList bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Unpause(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, denyList bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DestroyManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsDestroyManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	BorrowTreasuryCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -52,6 +53,8 @@ type IManagedToken interface {
 	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsIncrementMintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -71,7 +74,7 @@ type IManagedTokenDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	MintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, mintCap bind.Object) ([]any, error)
 	TotalSupply(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (uint64, error)
-	IsAuthorizedMintCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, id bind.Object) (bool, error)
+	IsMinterCapAllowed(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, id bind.Object) (bool, error)
 	GetAllMintCaps(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]bind.Object, error)
 	Mint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, mintCap bind.Object, denyList bind.Object, amount uint64, recipient string) (any, error)
 	DestroyManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object) ([]any, error)
@@ -86,16 +89,16 @@ type IManagedTokenDevInspect interface {
 type ManagedTokenEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(typeArgs []string, treasuryCap bind.Object) (*bind.EncodedCall, error)
+	Initialize(typeArgs []string, treasuryCap bind.Object, publisher bind.Object) (*bind.EncodedCall, error)
 	InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	InitializeWithDenyCap(typeArgs []string, treasuryCap bind.Object, denyCap bind.Object) (*bind.EncodedCall, error)
+	InitializeWithDenyCap(typeArgs []string, treasuryCap bind.Object, denyCap bind.Object, publisher bind.Object) (*bind.EncodedCall, error)
 	InitializeWithDenyCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	MintAllowance(typeArgs []string, state bind.Object, mintCap bind.Object) (*bind.EncodedCall, error)
 	MintAllowanceWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	TotalSupply(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
 	TotalSupplyWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	IsAuthorizedMintCap(typeArgs []string, state bind.Object, id bind.Object) (*bind.EncodedCall, error)
-	IsAuthorizedMintCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	IsMinterCapAllowed(typeArgs []string, state bind.Object, id bind.Object) (*bind.EncodedCall, error)
+	IsMinterCapAllowedWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ConfigureNewMinter(typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (*bind.EncodedCall, error)
 	ConfigureNewMinterWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	IncrementMintAllowance(typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*bind.EncodedCall, error)
@@ -120,6 +123,8 @@ type ManagedTokenEncoder interface {
 	UnpauseWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	DestroyManagedToken(typeArgs []string, ownerCap bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	DestroyManagedTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsDestroyManagedToken(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsDestroyManagedTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	BorrowTreasuryCap(typeArgs []string, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	BorrowTreasuryCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	Owner(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
@@ -144,6 +149,10 @@ type ManagedTokenEncoder interface {
 	ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsTransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -203,6 +212,9 @@ func (c *ManagedTokenContract) Encoder() ManagedTokenEncoder {
 
 func (c *ManagedTokenContract) DevInspect() IManagedTokenDevInspect {
 	return c.devInspect
+}
+
+type MANAGED_TOKEN struct {
 }
 
 type TokenState struct {
@@ -267,6 +279,9 @@ type MinterUnlimitedAllowanceSet struct {
 }
 
 type McmsCallback struct {
+}
+
+type McmsAcceptOwnershipProof struct {
 }
 
 type bcsMinterConfigured struct {
@@ -343,6 +358,23 @@ func convertUnblocklistedFromBCS(bcs bcsUnblocklisted) (Unblocklisted, error) {
 }
 
 func init() {
+	bind.RegisterStructDecoder("managed_token::managed_token::MANAGED_TOKEN", func(data []byte) (interface{}, error) {
+		var result MANAGED_TOKEN
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for MANAGED_TOKEN
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MANAGED_TOKEN>", func(data []byte) (interface{}, error) {
+		var results []MANAGED_TOKEN
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::TokenState", func(data []byte) (interface{}, error) {
 		var result TokenState
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -634,6 +666,23 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("managed_token::managed_token::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
+		var result McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for McmsAcceptOwnershipProof
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
+		var results []McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -647,8 +696,8 @@ func (c *ManagedTokenContract) TypeAndVersion(ctx context.Context, opts *bind.Ca
 }
 
 // Initialize executes the initialize Move function.
-func (c *ManagedTokenContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.Initialize(typeArgs, treasuryCap)
+func (c *ManagedTokenContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object, publisher bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.Initialize(typeArgs, treasuryCap, publisher)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -657,8 +706,8 @@ func (c *ManagedTokenContract) Initialize(ctx context.Context, opts *bind.CallOp
 }
 
 // InitializeWithDenyCap executes the initialize_with_deny_cap Move function.
-func (c *ManagedTokenContract) InitializeWithDenyCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object, denyCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.InitializeWithDenyCap(typeArgs, treasuryCap, denyCap)
+func (c *ManagedTokenContract) InitializeWithDenyCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object, denyCap bind.Object, publisher bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.InitializeWithDenyCap(typeArgs, treasuryCap, denyCap, publisher)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -686,9 +735,9 @@ func (c *ManagedTokenContract) TotalSupply(ctx context.Context, opts *bind.CallO
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// IsAuthorizedMintCap executes the is_authorized_mint_cap Move function.
-func (c *ManagedTokenContract) IsAuthorizedMintCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, id bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.IsAuthorizedMintCap(typeArgs, state, id)
+// IsMinterCapAllowed executes the is_minter_cap_allowed Move function.
+func (c *ManagedTokenContract) IsMinterCapAllowed(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, id bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.IsMinterCapAllowed(typeArgs, state, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -816,6 +865,16 @@ func (c *ManagedTokenContract) DestroyManagedToken(ctx context.Context, opts *bi
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// McmsDestroyManagedToken executes the mcms_destroy_managed_token Move function.
+func (c *ManagedTokenContract) McmsDestroyManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.McmsDestroyManagedToken(typeArgs, state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // BorrowTreasuryCap executes the borrow_treasury_cap Move function.
 func (c *ManagedTokenContract) BorrowTreasuryCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.managedTokenEncoder.BorrowTreasuryCap(typeArgs, state, ownerCap)
@@ -929,6 +988,26 @@ func (c *ManagedTokenContract) ExecuteOwnershipTransfer(ctx context.Context, opt
 // ExecuteOwnershipTransferToMcms executes the execute_ownership_transfer_to_mcms Move function.
 func (c *ManagedTokenContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.managedTokenEncoder.ExecuteOwnershipTransferToMcms(typeArgs, ownerCap, state, registry, to)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsTransferOwnership executes the mcms_transfer_ownership Move function.
+func (c *ManagedTokenContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.McmsTransferOwnership(typeArgs, state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
+func (c *ManagedTokenContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.McmsExecuteOwnershipTransfer(typeArgs, state, registry, deployerState, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1094,11 +1173,11 @@ func (d *ManagedTokenDevInspect) TotalSupply(ctx context.Context, opts *bind.Cal
 	return result, nil
 }
 
-// IsAuthorizedMintCap executes the is_authorized_mint_cap Move function using DevInspect to get return values.
+// IsMinterCapAllowed executes the is_minter_cap_allowed Move function using DevInspect to get return values.
 //
 // Returns: bool
-func (d *ManagedTokenDevInspect) IsAuthorizedMintCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, id bind.Object) (bool, error) {
-	encoded, err := d.contract.managedTokenEncoder.IsAuthorizedMintCap(typeArgs, state, id)
+func (d *ManagedTokenDevInspect) IsMinterCapAllowed(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, id bind.Object) (bool, error) {
+	encoded, err := d.contract.managedTokenEncoder.IsMinterCapAllowed(typeArgs, state, id)
 	if err != nil {
 		return false, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1327,15 +1406,17 @@ func (c managedTokenEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedC
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c managedTokenEncoder) Initialize(typeArgs []string, treasuryCap bind.Object) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) Initialize(typeArgs []string, treasuryCap bind.Object, publisher bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
 		"TreasuryCap<T>",
+		"Publisher",
 	}, []any{
 		treasuryCap,
+		publisher,
 	}, nil)
 }
 
@@ -1344,6 +1425,7 @@ func (c managedTokenEncoder) Initialize(typeArgs []string, treasuryCap bind.Obje
 func (c managedTokenEncoder) InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"TreasuryCap<T>",
+		"Publisher",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1357,7 +1439,7 @@ func (c managedTokenEncoder) InitializeWithArgs(typeArgs []string, args ...any) 
 }
 
 // InitializeWithDenyCap encodes a call to the initialize_with_deny_cap Move function.
-func (c managedTokenEncoder) InitializeWithDenyCap(typeArgs []string, treasuryCap bind.Object, denyCap bind.Object) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) InitializeWithDenyCap(typeArgs []string, treasuryCap bind.Object, denyCap bind.Object, publisher bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1365,9 +1447,11 @@ func (c managedTokenEncoder) InitializeWithDenyCap(typeArgs []string, treasuryCa
 	return c.EncodeCallArgsWithGenerics("initialize_with_deny_cap", typeArgsList, typeParamsList, []string{
 		"TreasuryCap<T>",
 		"DenyCapV2<T>",
+		"Publisher",
 	}, []any{
 		treasuryCap,
 		denyCap,
+		publisher,
 	}, nil)
 }
 
@@ -1377,6 +1461,7 @@ func (c managedTokenEncoder) InitializeWithDenyCapWithArgs(typeArgs []string, ar
 	expectedParams := []string{
 		"TreasuryCap<T>",
 		"DenyCapV2<T>",
+		"Publisher",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1462,13 +1547,13 @@ func (c managedTokenEncoder) TotalSupplyWithArgs(typeArgs []string, args ...any)
 	})
 }
 
-// IsAuthorizedMintCap encodes a call to the is_authorized_mint_cap Move function.
-func (c managedTokenEncoder) IsAuthorizedMintCap(typeArgs []string, state bind.Object, id bind.Object) (*bind.EncodedCall, error) {
+// IsMinterCapAllowed encodes a call to the is_minter_cap_allowed Move function.
+func (c managedTokenEncoder) IsMinterCapAllowed(typeArgs []string, state bind.Object, id bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("is_authorized_mint_cap", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("is_minter_cap_allowed", typeArgsList, typeParamsList, []string{
 		"&TokenState<T>",
 		"ID",
 	}, []any{
@@ -1479,9 +1564,9 @@ func (c managedTokenEncoder) IsAuthorizedMintCap(typeArgs []string, state bind.O
 	})
 }
 
-// IsAuthorizedMintCapWithArgs encodes a call to the is_authorized_mint_cap Move function using arbitrary arguments.
+// IsMinterCapAllowedWithArgs encodes a call to the is_minter_cap_allowed Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c managedTokenEncoder) IsAuthorizedMintCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) IsMinterCapAllowedWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&TokenState<T>",
 		"ID",
@@ -1494,7 +1579,7 @@ func (c managedTokenEncoder) IsAuthorizedMintCapWithArgs(typeArgs []string, args
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("is_authorized_mint_cap", typeArgsList, typeParamsList, expectedParams, args, []string{
+	return c.EncodeCallArgsWithGenerics("is_minter_cap_allowed", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"bool",
 	})
 }
@@ -1978,6 +2063,42 @@ func (c managedTokenEncoder) DestroyManagedTokenWithArgs(typeArgs []string, args
 	})
 }
 
+// McmsDestroyManagedToken encodes a call to the mcms_destroy_managed_token Move function.
+func (c managedTokenEncoder) McmsDestroyManagedToken(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_managed_token", typeArgsList, typeParamsList, []string{
+		"TokenState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsDestroyManagedTokenWithArgs encodes a call to the mcms_destroy_managed_token Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c managedTokenEncoder) McmsDestroyManagedTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"TokenState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_managed_token", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
 // BorrowTreasuryCap encodes a call to the borrow_treasury_cap Move function.
 func (c managedTokenEncoder) BorrowTreasuryCap(typeArgs []string, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
@@ -2393,6 +2514,81 @@ func (c managedTokenEncoder) ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []s
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.
+func (c managedTokenEncoder) McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, []string{
+		"&mut TokenState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsTransferOwnershipWithArgs encodes a call to the mcms_transfer_ownership Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c managedTokenEncoder) McmsTransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut TokenState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.
+func (c managedTokenEncoder) McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, []string{
+		"&mut TokenState<T>",
+		"&mut Registry",
+		"&mut DeployerState",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		deployerState,
+		params,
+	}, nil)
+}
+
+// McmsExecuteOwnershipTransferWithArgs encodes a call to the mcms_execute_ownership_transfer Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c managedTokenEncoder) McmsExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut TokenState<T>",
+		"&mut Registry",
+		"&mut DeployerState",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsRegisterUpgradeCap encodes a call to the mcms_register_upgrade_cap Move function.

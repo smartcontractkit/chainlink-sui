@@ -5,6 +5,7 @@ package reader
 import (
 	"context"
 	"encoding/json"
+	"math/big"
 	"os"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader"
 	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
 	"github.com/stretchr/testify/require"
@@ -95,6 +97,48 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	counterObjectId, err := testutils.QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
+	type RampMessageHeader struct {
+		MessageId           string
+		SourceChainSelector uint64
+		DestChainSelector   uint64
+		SequenceNumber      uint64
+		Nonce               uint64
+	}
+
+	type Sui2AnyTokenTransfer struct {
+		SourcePoolAddress string
+		DestTokenAddress  string
+		ExtraData         string
+		Amount            uint64
+		DestExecData      string
+	}
+
+	type Sui2AnyRampMessage struct {
+		Header         RampMessageHeader
+		Sender         string
+		Data           string
+		Receiver       string
+		ExtraArgs      string
+		FeeToken       string
+		FeeTokenAmount uint64
+		FeeValueJuels  *big.Int
+		TokenAmounts   []Sui2AnyTokenTransfer
+	}
+
+	type CCIPMessageSent struct {
+		DestChainSelector uint64
+		SequenceNumber    uint64
+		Message           Sui2AnyRampMessage
+	}
+
+	type OfframpExecutionStateChanged struct {
+		SourceChainSelector uint64 `json:"sourceChainSelector"`
+		SequenceNumber      uint64 `json:"sequenceNumber"`
+		MessageId           string `json:"messageId"`
+		MessageHash         string `json:"messageHash"`
+		State               uint8  `json:"state"`
+	}
+
 	// Define pointer tag for counter object derivation
 	pointerTag := &codec.PointerTag{
 		Module:        "counter",
@@ -109,6 +153,28 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		FieldName:     "ccip_object_id",
 		DerivationKey: "CCIPObjectRef",
 		PackageID:     secondaryPackageId,
+	}
+
+	type CounterIncrementedEvent struct {
+		CounterID string `json:"counterId"`
+		NewValue  uint64 `json:"newValue"`
+	}
+
+	type CounterDecrementedEvent struct {
+		EventType string `json:"eventType"`
+		CounterID string `json:"counterId"`
+		NewValue  uint64 `json:"newValue"`
+	}
+
+	type NestedCounterBytesEvent struct {
+		Value uint64 `json:"value"`
+		Bytes string `json:"bytes"`
+	}
+
+	type CounterBytesEvent struct {
+		Bytes  string                  `json:"bytes"`
+		Nested NestedCounterBytesEvent `json:"nested"`
+		Values []uint64                `json:"values"`
 	}
 
 	// Set up the ChainReader
@@ -221,6 +287,10 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 							Module:  "counter",
 							Event:   "CounterIncremented",
 						},
+						EventFieldRenames: map[string]aptosCRConfig.RenamedField{
+							"counter_id": {NewName: "counterId"},
+							"new_value":  {NewName: "newValue"},
+						},
 					},
 					"counter_decremented": {
 						Name:      "counter_decremented",
@@ -230,6 +300,16 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 							Module:  "counter",
 							Event:   "CounterDecremented",
 						},
+					},
+					"counter_bytes": {
+						Name:      "counter_bytes",
+						EventType: "CounterBytes",
+						EventSelector: client.EventSelector{
+							Package: packageId,
+							Module:  "counter",
+							Event:   "CounterBytes",
+						},
+						ExpectedEventType: &CounterBytesEvent{},
 					},
 				},
 			},
@@ -241,8 +321,117 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						SignerAddress: accountAddress,
 						Params:        []codec.SuiFunctionParam{}, // No parameters needed
 					},
+					"emit_execution_state_changed_event": {
+						Name:          "emit_execution_state_changed_event",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type: "u64",
+								Name: "source_chain_selector",
+							},
+							{
+								Type: "u64",
+								Name: "sequence_number",
+							},
+							{
+								Type: "vector<u8>",
+								Name: "message_id",
+							},
+							{
+								Type: "vector<u8>",
+								Name: "message_hash",
+							},
+							{
+								Type: "u8",
+								Name: "state",
+							},
+						},
+					},
+				},
+				Events: map[string]*config.ChainReaderEvent{
+					"execution_state_changed": {
+						Name:      "execution_state_changed",
+						EventType: "ExecutionStateChanged",
+						EventSelector: client.EventSelector{
+							Package: packageId,
+							Module:  "offramp",
+							Event:   "ExecutionStateChanged",
+						},
+						EventFieldRenames: map[string]aptosCRConfig.RenamedField{},
+						ExpectedEventType: &OfframpExecutionStateChanged{},
+					},
+				},
+			},
+			"OnRamp": {
+				Name: "onramp",
+				Functions: map[string]*config.ChainReaderFunction{
+					"emit_sample_ccip_message_sent_event": {
+						Name:          "emit_sample_ccip_message_sent_event",
+						SignerAddress: accountAddress,
+						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+					},
+				},
+				Events: map[string]*config.ChainReaderEvent{
+					"ccip_message_sent": {
+						Name:      "ccip_message_sent",
+						EventType: "CCIPMessageSent",
+						EventSelector: client.EventSelector{
+							Package: packageId,
+							Module:  "onramp",
+							Event:   "CCIPMessageSent",
+						},
+						ExpectedEventType: &CCIPMessageSent{},
+					},
+				},
+			},
+			"Router": {
+				Name: "router",
+				Functions: map[string]*config.ChainReaderFunction{
+					"get_mock_onramp_address": {
+						Name:          "get_mock_onramp_address",
+						SignerAddress: accountAddress,
+						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+					},
 				},
 				Events: map[string]*config.ChainReaderEvent{},
+			},
+			"FeeQuoter": {
+				Name: "fee_quoter",
+				Functions: map[string]*config.ChainReaderFunction{
+					"emit_usd_per_token_updated_event": {
+						Name:          "emit_usd_per_token_updated_event",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type: "address",
+								Name: "token",
+							},
+							{
+								Type: "u256",
+								Name: "usd_per_token",
+							},
+							{
+								Type: "u64",
+								Name: "timestamp",
+							},
+						},
+					},
+				},
+				Events: map[string]*config.ChainReaderEvent{
+					"usd_per_token_updated": {
+						Name:      "usd_per_token_updated",
+						EventType: "UsdPerTokenUpdated",
+						EventSelector: client.EventSelector{
+							Package: packageId,
+							Module:  "fee_quoter",
+							Event:   "UsdPerTokenUpdated",
+						},
+						EventFieldRenames: map[string]aptosCRConfig.RenamedField{
+							"token":       {NewName: "myToken"},
+							"usdPerToken": {NewName: "dollarPerToken"},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -255,6 +444,21 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	offRampBinding := types.BoundContract{
 		Name:    "OffRamp",
 		Address: packageId, // Package ID of the deployed offramp contract
+	}
+
+	onRampBinding := types.BoundContract{
+		Name:    "OnRamp",
+		Address: packageId, // Package ID of the deployed onramp contract
+	}
+
+	routerBinding := types.BoundContract{
+		Name:    "Router",
+		Address: packageId, // Package ID of the deployed router contract
+	}
+
+	feeQuoterBinding := types.BoundContract{
+		Name:    "FeeQuoter",
+		Address: packageId, // Package ID of the deployed fee_quoter contract
 	}
 
 	datastoreUrl := os.Getenv("TEST_DB_URL")
@@ -297,7 +501,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
 	require.NoError(t, err)
 
-	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding})
+	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding, onRampBinding, routerBinding, feeQuoterBinding})
 	require.NoError(t, err)
 
 	go func() {
@@ -420,6 +624,27 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		log.Debugw("AddressList test completed successfully",
 			"count", retAddressList.Count,
 			"addresses", retAddressList.Addresses)
+	})
+
+	t.Run("GetLatestValue_Address", func(t *testing.T) {
+		var retAddress any
+
+		log.Debugw("Testing get_mock_onramp_address function",
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Router", "get_mock_onramp_address"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed
+			&retAddress,
+		)
+		require.NoError(t, err)
+
+		// Verify the returned struct
+		require.NotNil(t, retAddress)
+		require.Equal(t, "0x0000000000000000000000000000000000000000000000000000000000000001", retAddress, "Expected address to be 0x0000000000000000000000000000000000000000000000000000000000000001")
 	})
 
 	// Verify renamed fields on address list output
@@ -585,6 +810,262 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.Equal(t, uint64(1), event.NewValue, "Expected counter value to be 1")
 	})
 
+	t.Run("QueryKeyWithMetadata_RenamedFields", func(t *testing.T) {
+		// Increment the counter to emit an event
+		log.Debugw("Emitting UsdPerTokenUpdated event")
+
+		// Use relayerClient to call increment instead of using CLI
+		moveCallReq := client.MoveCallRequest{
+			Signer:          accountAddress,
+			PackageObjectId: packageId,
+			Module:          "fee_quoter",
+			Function:        "emit_usd_per_token_updated_event",
+			TypeArguments: []any{
+				"address",
+				"u256",
+				"u64",
+			},
+			Arguments: []any{
+				"0x0000000000000000000000000000000000000000000000000000000000000001",
+				"1000000000000000000",
+				"1714953600",
+			},
+			GasBudget: 2000000,
+		}
+
+		log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
+
+		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
+		require.NoError(t, testErr)
+
+		_, testErr = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+		require.NoError(t, testErr)
+
+		// Create a filter for events
+		filter := query.KeyFilter{
+			Key: "usd_per_token_updated",
+		}
+
+		// Setup limit and sort
+		limitAndSort := query.LimitAndSort{
+			Limit: query.Limit{
+				Count:  50,
+				Cursor: "",
+			},
+		}
+
+		log.Debugw("Querying for UsdPerTokenUpdated events",
+			"filter", filter.Key,
+			"limit", limitAndSort.Limit.Count,
+			"packageId", packageId,
+			"contract", feeQuoterBinding.Name,
+			"eventType", "UsdPerTokenUpdated")
+
+		sequences := []aptosCRConfig.SequenceWithMetadata{}
+		require.Eventually(t, func() bool {
+			// Query for events
+			var usdPerTokenUpdated any
+			sequences, err = chainReader.(chainreader.ExtendedContractReader).QueryKeyWithMetadata(
+				ctx,
+				feeQuoterBinding,
+				filter,
+				limitAndSort,
+				&usdPerTokenUpdated,
+			)
+			if err != nil {
+				log.Errorw("Failed to query events", err)
+				require.NoError(t, err)
+			}
+
+			return len(sequences) > 0
+		}, 60*time.Second, 1*time.Second, "Event should eventually be indexed and found")
+
+		log.Debugw("Query results", "sequences", sequences)
+
+		// Verify we got at least one event
+		require.NotEmpty(t, sequences, "Expected at least one event")
+
+		// Verify the event data
+		event := sequences[0].Sequence.Data
+		require.NotNil(t, event)
+
+		log.Debugw("Sequence data", "sequenceData", event)
+
+		// Check the fields of the event
+		eventMap, ok := (*event.(*any)).(map[string]any)
+		require.True(t, ok, "Event data should be a map")
+
+		require.Contains(t, eventMap, "myToken")
+		require.Contains(t, eventMap, "dollarPerToken")
+		require.Contains(t, eventMap, "timestamp")
+	})
+
+	t.Run("QueryKey_CCIPMessageSent_concrete_sequenceDataType", func(t *testing.T) {
+		// Increment the counter to emit an event
+		log.Debugw("Emitting CCIPMessageSent event")
+
+		// Use relayerClient to call increment instead of using CLI
+		moveCallReq := client.MoveCallRequest{
+			Signer:          accountAddress,
+			PackageObjectId: packageId,
+			Module:          "onramp",
+			Function:        "emit_sample_ccip_message_sent_event",
+			TypeArguments:   []any{},
+			Arguments:       []any{},
+			GasBudget:       2000000,
+		}
+
+		log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
+
+		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
+		require.NoError(t, testErr)
+
+		_, testErr = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+		require.NoError(t, testErr)
+
+		// Create a filter for events
+		filter := query.KeyFilter{
+			Key: "ccip_message_sent",
+		}
+
+		// Setup limit and sort
+		limitAndSort := query.LimitAndSort{
+			Limit: query.Limit{
+				Count:  50,
+				Cursor: "",
+			},
+		}
+
+		log.Debugw("Querying for counter events",
+			"filter", filter.Key,
+			"limit", limitAndSort.Limit.Count,
+			"packageId", packageId,
+			"contract", onRampBinding.Name,
+			"eventType", "CCIPMessageSent")
+
+		sequences := []types.Sequence{}
+		require.Eventually(t, func() bool {
+			// Query for events
+			var ccipMessageSent CCIPMessageSent
+			sequences, err = chainReader.QueryKey(
+				ctx,
+				onRampBinding,
+				filter,
+				limitAndSort,
+				&ccipMessageSent,
+			)
+			if err != nil {
+				log.Errorw("Failed to query events", err)
+				require.NoError(t, err)
+			}
+
+			return len(sequences) > 0
+		}, 60*time.Second, 1*time.Second, "Event should eventually be indexed and found")
+
+		log.Debugw("Query results", "sequences", sequences)
+
+		// Verify we got at least one event
+		require.NotEmpty(t, sequences, "Expected at least one event")
+
+		// Verify the event data, it should be castable since we specified a concrete type in the request
+		event := sequences[0].Data.(*CCIPMessageSent)
+		require.NotNil(t, event)
+
+		require.Equal(t, uint64(1), event.SequenceNumber, "Expected sequence number to be 1")
+		require.Equal(t, "0xabcdef123456", event.Message.Data, "Expected data to be 0xabcdef123456")
+		require.Equal(t, "0x0000000000000000000000000000000000000000000000000000000000000789", event.Message.Sender, "Expected sender to be 0x00...0000789")
+		require.Equal(t, "0x0000000000000000000000000000000000000000000000000000000000000abc", event.Message.FeeToken, "Expected feeToken to be 0x00...0000abc")
+		require.Equal(t, uint64(500), event.Message.FeeTokenAmount, "Expected feeTokenAmount to be 500")
+		require.Equal(t, "0xabcdef123456", event.Message.Receiver, "Receiver must be hex encoded")
+	})
+
+	t.Run("QueryKey_CCIPMessageSent_map[string]any_sequenceDataType", func(t *testing.T) {
+		// Increment the counter to emit an event
+		log.Debugw("Emitting CCIPMessageSent event")
+
+		// Use relayerClient to call increment instead of using CLI
+		moveCallReq := client.MoveCallRequest{
+			Signer:          accountAddress,
+			PackageObjectId: packageId,
+			Module:          "onramp",
+			Function:        "emit_sample_ccip_message_sent_event",
+			TypeArguments:   []any{},
+			Arguments:       []any{},
+			GasBudget:       2000000,
+		}
+
+		log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
+
+		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
+		require.NoError(t, testErr)
+
+		_, testErr = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+		require.NoError(t, testErr)
+
+		// Create a filter for events
+		filter := query.KeyFilter{
+			Key: "ccip_message_sent",
+		}
+
+		// Setup limit and sort
+		limitAndSort := query.LimitAndSort{
+			Limit: query.Limit{
+				Count:  50,
+				Cursor: "",
+			},
+		}
+
+		log.Debugw("Querying for counter events",
+			"filter", filter.Key,
+			"limit", limitAndSort.Limit.Count,
+			"packageId", packageId,
+			"contract", onRampBinding.Name,
+			"eventType", "CCIPMessageSent")
+
+		sequences := []types.Sequence{}
+		require.Eventually(t, func() bool {
+			// Query for events
+			var ccipMessageSent map[string]any
+			sequences, err = chainReader.QueryKey(
+				ctx,
+				onRampBinding,
+				filter,
+				limitAndSort,
+				&ccipMessageSent,
+			)
+			if err != nil {
+				log.Errorw("Failed to query events", err)
+				require.NoError(t, err)
+			}
+
+			return len(sequences) > 0
+		}, 60*time.Second, 1*time.Second, "Event should eventually be indexed and found")
+
+		log.Debugw("Query results", "sequences", sequences)
+
+		// Verify we got at least one event
+		require.NotEmpty(t, sequences, "Expected at least one event")
+
+		// Verify the event data
+		event := sequences[0].Data
+		require.NotNil(t, event)
+
+		// Marshal and unmarshal the event data just to check values are correct in a simple way
+		jsonData, err := json.Marshal(event)
+		require.NoError(t, err)
+
+		var typedData CCIPMessageSent
+		err = json.Unmarshal(jsonData, &typedData)
+		require.NoError(t, err)
+
+		require.Equal(t, uint64(1), typedData.SequenceNumber, "Expected sequence number to be 1")
+		require.Equal(t, "0xabcdef123456", typedData.Message.Data, "Expected data to be 0xabcdef123456")
+		require.Equal(t, "0x0000000000000000000000000000000000000000000000000000000000000789", typedData.Message.Sender, "Expected sender to be 0x00...0000789")
+		require.Equal(t, "0x0000000000000000000000000000000000000000000000000000000000000abc", typedData.Message.FeeToken, "Expected feeToken to be 0x00...0000abc")
+		require.Equal(t, uint64(500), typedData.Message.FeeTokenAmount, "Expected feeTokenAmount to be 500")
+		require.Equal(t, "0xabcdef123456", typedData.Message.Receiver, "Receiver must be hex encoded")
+	})
+
 	t.Run("QueryKey_WithFilter", func(t *testing.T) {
 		// Decrement the counter to emit an event (different from what has been previously emitted)
 		log.Debugw("Decrementing counter to emit event", "counterObjectId", counterObjectId)
@@ -688,6 +1169,181 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		log.Debugw("Query results", "sequences", sequences)
 		require.NotEmpty(t, sequences, "Expected at least one event")
+	})
+
+	t.Run("QueryKey_WithMetadata_CCIPMessageSent_untyped", func(t *testing.T) {
+		// Increment the counter to emit an event
+		log.Debugw("Emitting CCIPMessageSent event")
+
+		// Use relayerClient to call increment instead of using CLI
+		moveCallReq := client.MoveCallRequest{
+			Signer:          accountAddress,
+			PackageObjectId: packageId,
+			Module:          "onramp",
+			Function:        "emit_sample_ccip_message_sent_event",
+			TypeArguments:   []any{},
+			Arguments:       []any{},
+			GasBudget:       2000000,
+		}
+
+		log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
+
+		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
+		require.NoError(t, testErr)
+
+		_, testErr = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+		require.NoError(t, testErr)
+
+		// Create a filter for events
+		filter := query.KeyFilter{
+			Key: "ccip_message_sent",
+		}
+
+		// Setup limit and sort
+		limitAndSort := query.LimitAndSort{
+			Limit: query.Limit{
+				Count:  50,
+				Cursor: "",
+			},
+		}
+
+		log.Debugw("Querying for counter events",
+			"filter", filter.Key,
+			"limit", limitAndSort.Limit.Count,
+			"packageId", packageId,
+			"contract", onRampBinding.Name,
+			"eventType", "CCIPMessageSent")
+
+		sequences := []aptosCRConfig.SequenceWithMetadata{}
+		require.Eventually(t, func() bool {
+			// Query for events
+			var ccipMessageSent map[string]any
+			sequences, err = chainReader.(chainreader.ExtendedContractReader).QueryKeyWithMetadata(
+				ctx,
+				onRampBinding,
+				filter,
+				limitAndSort,
+				&ccipMessageSent,
+			)
+			if err != nil {
+				log.Errorw("Failed to query events", err)
+				require.NoError(t, err)
+			}
+
+			return len(sequences) > 0
+		}, 60*time.Second, 1*time.Second, "Event should eventually be indexed and found")
+
+		log.Debugw("Query results", "sequences", sequences)
+
+		// Verify we got at least one event
+		require.NotEmpty(t, sequences, "Expected at least one event")
+
+		// Verify the event data
+		event := sequences[0].Sequence.Data
+		require.NotNil(t, event)
+
+		// Marshal and unmarshal the event data just to check values are correct in a simple way
+		jsonData, err := json.Marshal(event)
+		require.NoError(t, err)
+
+		var typedData CCIPMessageSent
+		err = json.Unmarshal(jsonData, &typedData)
+		require.NoError(t, err)
+
+		require.Equal(t, uint64(1), typedData.SequenceNumber, "Expected sequence number to be 1")
+		require.Equal(t, "0xabcdef123456", typedData.Message.Data, "Expected data to be 0xabcdef123456")
+		require.Equal(t, "0x0000000000000000000000000000000000000000000000000000000000000789", typedData.Message.Sender, "Expected sender to be 0x00...0000789")
+		require.Equal(t, "0x0000000000000000000000000000000000000000000000000000000000000abc", typedData.Message.FeeToken, "Expected feeToken to be 0x00...0000abc")
+		require.Equal(t, uint64(500), typedData.Message.FeeTokenAmount, "Expected feeTokenAmount to be 500")
+		require.Equal(t, "0xabcdef123456", typedData.Message.Receiver, "Receiver must be hex encoded")
+	})
+
+	t.Run("QueryKey_WithMetadata_ExecutionStateChanged_untyped", func(t *testing.T) {
+		// Increment the counter to emit an event
+		log.Debugw("Emitting ExecutionStateChanged event")
+
+		// Use relayerClient to call increment instead of using CLI
+		moveCallReq := client.MoveCallRequest{
+			Signer:          accountAddress,
+			PackageObjectId: packageId,
+			Module:          "offramp",
+			Function:        "emit_sample_execution_state_changed_event",
+			TypeArguments:   []any{},
+			Arguments:       []any{},
+			GasBudget:       2000000,
+		}
+
+		log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
+
+		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
+		require.NoError(t, testErr)
+
+		_, testErr = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+		require.NoError(t, testErr)
+
+		// Create a filter for events
+		filter := query.KeyFilter{
+			Key: "execution_state_changed",
+		}
+
+		// Setup limit and sort
+		limitAndSort := query.LimitAndSort{
+			Limit: query.Limit{
+				Count:  50,
+				Cursor: "",
+			},
+		}
+
+		log.Debugw("Querying for contract events",
+			"filter", filter.Key,
+			"limit", limitAndSort.Limit.Count,
+			"packageId", packageId,
+			"contract", offRampBinding.Name,
+			"eventType", "ExecutionStateChanged")
+
+		sequences := []aptosCRConfig.SequenceWithMetadata{}
+		require.Eventually(t, func() bool {
+			// Query for events
+			var executionStateChanged map[string]any
+			sequences, err = chainReader.(chainreader.ExtendedContractReader).QueryKeyWithMetadata(
+				ctx,
+				offRampBinding,
+				filter,
+				limitAndSort,
+				&executionStateChanged,
+			)
+			if err != nil {
+				log.Errorw("Failed to query events", err)
+				require.NoError(t, err)
+			}
+
+			return len(sequences) > 0
+		}, 60*time.Second, 1*time.Second, "Event should eventually be indexed and found")
+
+		log.Debugw("Query results", "sequences", sequences)
+
+		// Verify we got at least one event
+		require.NotEmpty(t, sequences, "Expected at least one event")
+
+		log.Debugw("Event data", "event", sequences[0].Sequence.Data)
+
+		// Verify the event data
+		event := sequences[0].Sequence.Data
+		require.NotNil(t, event)
+
+		// Marshal and unmarshal the event data just to check values are correct in a simple way
+		jsonData, err := json.Marshal(event)
+		require.NoError(t, err)
+
+		var typedData OfframpExecutionStateChanged
+		err = json.Unmarshal(jsonData, &typedData)
+		require.NoError(t, err)
+
+		require.Equal(t, uint64(12), typedData.SequenceNumber, "Expected sequence number to be 12")
+		require.Equal(t, "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", typedData.MessageId, "Expected message id to be 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+		require.Equal(t, "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", typedData.MessageHash, "Expected message hash to be 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+		require.Equal(t, uint8(1), typedData.State, "Expected state to be 1")
+		require.Equal(t, uint64(24), typedData.SourceChainSelector, "Expected source chain selector to be 24")
 	})
 
 	t.Run("GetLatestValue_PointerTag", func(t *testing.T) {

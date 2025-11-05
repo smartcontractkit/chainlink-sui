@@ -10,7 +10,6 @@ use mcms::mcms_account;
 use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry};
 use std::string;
-use std::type_name;
 use sui::bcs;
 use sui::clock::{Self, Clock};
 use sui::test_scenario::{Self as ts, Scenario};
@@ -132,7 +131,6 @@ public fun test_mcms_apply_fee_token_updates() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     fee_quoter::mcms_apply_fee_token_updates(
@@ -192,7 +190,6 @@ public fun test_mcms_apply_dest_chain_config_updates() {
         x"0000000000000000000000000000000000000000000000000000000000000002",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     fee_quoter::mcms_apply_dest_chain_config_updates(
@@ -279,7 +276,6 @@ public fun test_mcms_apply_token_transfer_fee_config_updates() {
         x"0000000000000000000000000000000000000000000000000000000000000003",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     fee_quoter::mcms_apply_token_transfer_fee_config_updates(
@@ -358,7 +354,6 @@ public fun test_mcms_apply_premium_multiplier_wei_per_eth_updates() {
         x"0000000000000000000000000000000000000000000000000000000000000004",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     fee_quoter::mcms_apply_premium_multiplier_wei_per_eth_updates(
@@ -408,7 +403,6 @@ public fun test_mcms_update_prices_with_owner_cap() {
         x"0000000000000000000000000000000000000000000000000000000000000005",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     {

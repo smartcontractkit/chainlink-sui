@@ -2,6 +2,8 @@ module mcms::mcms_deployer;
 
 use mcms::mcms_account::OwnerCap;
 use mcms::mcms_registry::{Self, Registry};
+use std::type_name;
+use sui::address;
 use sui::event;
 use sui::package::{Self, UpgradeCap, UpgradeTicket, UpgradeReceipt};
 use sui::table::{Self, Table};
@@ -35,6 +37,7 @@ public struct UpgradeReceiptCommitted has copy, drop {
 }
 
 const EPackageAddressNotRegistered: u64 = 1;
+const EWrongProofType: u64 = 2;
 
 public struct MCMS_DEPLOYER has drop {}
 
@@ -59,7 +62,7 @@ public fun register_upgrade_cap(
     let package_address = upgrade_cap.package().to_address();
     // Package must be registered with MCMS
     assert!(
-        mcms_registry::is_package_registered(registry, package_address),
+        mcms_registry::is_package_registered(registry, package_address.to_ascii_string()),
         EPackageAddressNotRegistered,
     );
 
@@ -125,6 +128,40 @@ public fun commit_upgrade(
         old_version,
         new_version,
     });
+}
+
+/// Release the upgrade cap for a registered package
+/// This must be called before calling `mcms_registry::release_cap` as it relies on registered proof types in registry
+public fun release_upgrade_cap<T: drop>(
+    state: &mut DeployerState,
+    registry: &Registry,
+    _proof: T,
+): UpgradeCap {
+    let proof_type = type_name::with_original_ids<T>();
+    let proof_account_address = proof_type.address_string();
+
+    assert!(
+        mcms_registry::is_package_registered(registry, proof_account_address),
+        EPackageAddressNotRegistered,
+    );
+
+    let expected_proof_type = mcms_registry::get_registered_proof_type(
+        registry,
+        proof_account_address,
+    );
+    assert!(proof_type == expected_proof_type, EWrongProofType);
+
+    let package_address = address::from_ascii_bytes(&proof_account_address.into_bytes());
+    assert!(state.upgrade_caps.contains(package_address), EPackageAddressNotRegistered);
+
+    let upgrade_cap = state.upgrade_caps.remove(package_address);
+    state.cap_to_package.remove(object::id(&upgrade_cap));
+
+    upgrade_cap
+}
+
+public fun has_upgrade_cap(state: &DeployerState, package_address: address): bool {
+    state.upgrade_caps.contains(package_address)
 }
 
 #[test_only]

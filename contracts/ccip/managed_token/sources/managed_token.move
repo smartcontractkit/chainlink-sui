@@ -26,8 +26,14 @@ use sui::coin::{
 };
 use sui::deny_list::DenyList;
 use sui::event;
-use sui::package::UpgradeCap;
+use sui::package::{Self, Publisher, UpgradeCap};
 use sui::vec_map::{Self, VecMap};
+
+public struct MANAGED_TOKEN has drop {}
+
+fun init(otw: MANAGED_TOKEN, ctx: &mut TxContext) {
+    package::claim_and_keep(otw, ctx);
+}
 
 public struct TokenState<phantom T> has key, store {
     id: UID,
@@ -107,25 +113,28 @@ public fun type_and_version(): String {
     string::utf8(b"ManagedToken 1.0.0")
 }
 
-public fun initialize<T>(treasury_cap: TreasuryCap<T>, ctx: &mut TxContext) {
-    initialize_internal(treasury_cap, option::none(), ctx);
+public fun initialize<T>(treasury_cap: TreasuryCap<T>, publisher: Publisher, ctx: &mut TxContext) {
+    initialize_internal(treasury_cap, option::none(), publisher, ctx);
 }
 
 public fun initialize_with_deny_cap<T>(
     treasury_cap: TreasuryCap<T>,
     deny_cap: DenyCapV2<T>,
+    publisher: Publisher,
     ctx: &mut TxContext,
 ) {
-    initialize_internal(treasury_cap, option::some(deny_cap), ctx);
+    initialize_internal(treasury_cap, option::some(deny_cap), publisher, ctx);
 }
 
 #[allow(lint(self_transfer))]
 fun initialize_internal<T>(
     treasury_cap: TreasuryCap<T>,
     deny_cap: Option<DenyCapV2<T>>,
+    publisher: Publisher,
     ctx: &mut TxContext,
 ) {
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
 
     let state = TokenState<T> {
         id: object::new(ctx),
@@ -140,7 +149,7 @@ fun initialize_internal<T>(
 }
 
 public fun mint_allowance<T>(state: &TokenState<T>, mint_cap: ID): (u64, bool) {
-    if (!state.is_authorized_mint_cap(mint_cap)) return (0, false);
+    if (!state.is_minter_cap_allowed(mint_cap)) return (0, false);
     state.mint_allowances_map.get(&mint_cap).allowance_info()
 }
 
@@ -150,7 +159,7 @@ public fun total_supply<T>(state: &TokenState<T>): u64 {
 }
 
 /// Checks if a MintCap object is authorized to mint.
-public fun is_authorized_mint_cap<T>(state: &TokenState<T>, id: ID): bool {
+public fun is_minter_cap_allowed<T>(state: &TokenState<T>, id: ID): bool {
     state.mint_allowances_map.contains(&id)
 }
 
@@ -202,7 +211,7 @@ public fun increment_mint_allowance<T>(
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     assert!(!is_paused<T>(deny_list), EPaused);
     assert!(allowance_increment > 0, EZeroAmount);
-    assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
+    assert!(state.is_minter_cap_allowed(mint_cap_id), EUnauthorizedMintCap);
 
     assert!(
         !state.mint_allowances_map.get(&mint_cap_id).is_unlimited(),
@@ -232,7 +241,7 @@ public fun set_unlimited_mint_allowances<T>(
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     assert!(!is_paused<T>(deny_list), EPaused);
-    assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
+    assert!(state.is_minter_cap_allowed(mint_cap_id), EUnauthorizedMintCap);
 
     state.mint_allowances_map.get_mut(&mint_cap_id).set(0, is_unlimited);
 
@@ -305,7 +314,7 @@ fun validate_mint<T>(
     assert!(!is_blocklisted<T>(deny_list, ctx.sender()), EDeniedAddress);
     assert!(!is_blocklisted<T>(deny_list, recipient), EDeniedAddress);
     let mint_cap_id = object::id(mint_cap);
-    assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
+    assert!(state.is_minter_cap_allowed(mint_cap_id), EUnauthorizedMintCap);
     assert!(amount > 0, EZeroAmount);
 
     let mint_allowance = state.mint_allowances_map.get_mut(&mint_cap_id);
@@ -333,7 +342,7 @@ public fun burn<T>(
     assert!(!is_paused<T>(deny_list), EPaused);
     assert!(!is_blocklisted<T>(deny_list, ctx.sender()), EDeniedAddress);
     let mint_cap_id = object::id(mint_cap);
-    assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
+    assert!(state.is_minter_cap_allowed(mint_cap_id), EUnauthorizedMintCap);
 
     let amount = coin.value();
     assert!(amount > 0, EZeroAmount);
@@ -454,6 +463,42 @@ public fun destroy_managed_token<T>(
     (treasury_cap, deny_cap)
 }
 
+public fun mcms_destroy_managed_token<T>(
+    state: TokenState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap<T>,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"destroy_managed_token"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(&state), &mut stream);
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap = mcms_registry::release_cap<McmsCallback, OwnerCap<T>>(
+        registry,
+        McmsCallback {},
+    );
+
+    let (treasury_cap, deny_cap) = destroy_managed_token(owner_cap, state, ctx);
+    transfer::public_transfer(treasury_cap, to);
+    if (deny_cap.is_some()) {
+        transfer::public_transfer(deny_cap.destroy_some(), to);
+    } else {
+        deny_cap.destroy_none();
+    }
+}
+
 /// Access function to get a reference to the treasury cap
 /// This allows other modules to access the treasury cap for registration purposes
 public fun borrow_treasury_cap<T>(state: &TokenState<T>, owner_cap: &OwnerCap<T>): &TreasuryCap<T> {
@@ -523,12 +568,11 @@ public fun mcms_accept_ownership<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function_name, data) = mcms_registry::get_callback_params(
+    let data = mcms_registry::get_accept_ownership_data(
         registry,
         params,
-        McmsCallback {},
+        McmsAcceptOwnershipProof<T> {},
     );
-    assert!(function_name == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
@@ -554,15 +598,90 @@ public fun execute_ownership_transfer_to_mcms<T>(
     to: address,
     ctx: &mut TxContext,
 ) {
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut state.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback {},
         vector[b"managed_token"],
         ctx,
     );
+}
+
+public fun mcms_transfer_ownership<T>(
+    state: &mut TokenState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap<T>,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(owner_cap)],
+        &mut stream,
+    );
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    transfer_ownership(state, owner_cap, to, ctx);
+}
+
+public fun mcms_execute_ownership_transfer<T>(
+    state: &mut TokenState<T>,
+    registry: &mut Registry,
+    deployer_state: &mut DeployerState,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap<T>,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(_owner_cap), object::id_address(state)],
+        &mut stream,
+    );
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    let package_address = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback {},
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
+    execute_ownership_transfer(owner_cap, state, to, ctx);
 }
 
 public fun mcms_register_upgrade_cap(
@@ -584,6 +703,9 @@ public fun mcms_register_upgrade_cap(
 // ================================================================
 
 public struct McmsCallback has drop {}
+
+/// Proof for MCMS Accept Ownership
+public struct McmsAcceptOwnershipProof<phantom T> has drop {}
 
 public fun mcms_configure_new_minter<T>(
     state: &mut TokenState<T>,

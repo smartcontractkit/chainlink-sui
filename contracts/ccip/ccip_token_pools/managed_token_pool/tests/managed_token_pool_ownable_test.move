@@ -3,6 +3,8 @@ module managed_token_pool::managed_token_pool_ownable_test;
 
 use managed_token_pool::ownable;
 
+public struct MANAGED_TOKEN_POOL_OWNABLE_TEST has drop {}
+
 #[test]
 public fun test_ownable_module_functions_exist() {
     // Test that we can create ownable state and cap

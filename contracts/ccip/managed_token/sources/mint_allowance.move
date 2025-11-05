@@ -2,10 +2,11 @@ module managed_token::mint_allowance;
 
 const EOverflow: u64 = 0;
 const EInsufficientAllowance: u64 = 1;
+const EInvalidAllowance: u64 = 2;
 
 /// A MintAllowance for a coin of type T.
 /// Used for minting and burning.
-public struct MintAllowance<phantom T> has copy, drop, store {
+public struct MintAllowance<phantom T> has store {
     value: u64,
     is_unlimited: bool,
 }
@@ -30,6 +31,9 @@ public(package) fun new<T>(): MintAllowance<T> {
 
 /// [Package private] Set allowance to `value`
 public(package) fun set<T>(self: &mut MintAllowance<T>, value: u64, is_unlimited: bool) {
+    // If the allowance is unlimited, the value must be 0
+    // If the allowance is limited, the value can still be 0 (this means disabling a mint cap)
+    assert!(!is_unlimited || value == 0, EInvalidAllowance);
     self.value = value;
     self.is_unlimited = is_unlimited;
 }

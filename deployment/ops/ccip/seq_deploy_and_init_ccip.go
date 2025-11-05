@@ -86,6 +86,20 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			return DeployCCIPSeqOutput{}, err
 		}
 
+		initUpgradeRegistryReport, err := cld_ops.ExecuteOperation(
+			env,
+			UpgradeRegistryInitializeOp,
+			deps,
+			InitUpgradeRegistryInput{
+				CCIPPackageId:    deployReport.Output.PackageId,
+				StateObjectId:    deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
+			},
+		)
+		if err != nil {
+			return DeployCCIPSeqOutput{}, err
+		}
+
 		initFQReport, err := cld_ops.ExecuteOperation(
 			env,
 			FeeQuoterInitializeOp,
@@ -156,20 +170,6 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 				StateObjectId:      deployReport.Output.Objects.CCIPObjectRefObjectId,
 				OwnerCapObjectId:   deployReport.Output.Objects.OwnerCapObjectId,
 				LocalChainSelector: input.LocalChainSelector,
-			},
-		)
-		if err != nil {
-			return DeployCCIPSeqOutput{}, err
-		}
-
-		initUpgradeRegistryReport, err := cld_ops.ExecuteOperation(
-			env,
-			UpgradeRegistryInitializeOp,
-			deps,
-			InitUpgradeRegistryInput{
-				CCIPPackageId:    deployReport.Output.PackageId,
-				StateObjectId:    deployReport.Output.Objects.CCIPObjectRefObjectId,
-				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
 			},
 		)
 		if err != nil {
@@ -250,6 +250,19 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 		if err != nil {
 			return DeployCCIPSeqOutput{}, err
 		}
+
+		// init transfer ownership to MCMS
+		_, err = cld_ops.ExecuteOperation(
+			env,
+			TransferOwnershipStateObjectOp,
+			deps,
+			TransferOwnershipStateObjectInput{
+				CCIPPackageId:         deployReport.Output.PackageId,
+				CCIPObjectRefObjectId: deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:      deployReport.Output.Objects.OwnerCapObjectId,
+				To:                    input.DeployCCIPInput.McmsPackageId,
+			},
+		)
 
 		return DeployCCIPSeqOutput{
 			CCIPPackageId: deployReport.Output.PackageId,
