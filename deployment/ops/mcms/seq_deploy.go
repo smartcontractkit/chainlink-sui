@@ -5,11 +5,12 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	"github.com/smartcontractkit/mcms"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/smartcontractkit/mcms/types"
+
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
 
 // DeployMCMSSeqInput defines the input for deploying MCMS with timelock roles configuration
@@ -94,11 +95,12 @@ var DeployMCMSSequence = cld_ops.NewSequence(
 				},
 			},
 			// MCMS related
-			MmcsPackageID:  deployReport.Output.PackageId,
-			McmsStateObjID: deployReport.Output.Objects.McmsMultisigStateObjectId,
-			TimelockObjID:  deployReport.Output.Objects.TimelockObjectId,
-			AccountObjID:   deployReport.Output.Objects.McmsAccountStateObjectId,
-			RegistryObjID:  deployReport.Output.Objects.McmsRegistryObjectId,
+			MmcsPackageID:      deployReport.Output.PackageId,
+			McmsStateObjID:     deployReport.Output.Objects.McmsMultisigStateObjectId,
+			TimelockObjID:      deployReport.Output.Objects.TimelockObjectId,
+			AccountObjID:       deployReport.Output.Objects.McmsAccountStateObjectId,
+			RegistryObjID:      deployReport.Output.Objects.McmsRegistryObjectId,
+			DeployerStateObjID: deployReport.Output.Objects.McmsDeployerStateObjectId,
 
 			// Proposal
 			Role: suisdk.TimelockRoleProposer,

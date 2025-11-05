@@ -18,6 +18,7 @@ type CCIPChainState struct {
 	MCMSPackageID               string
 	MCMSStateObjectID           string
 	MCMSRegistryObjectID        string
+	MCMSDeployerStateObjectID   string
 	MCMSAccountStateObjectID    string
 	MCMSAccountOwnerCapObjectID string
 	MCMSTimelockObjectID        string
@@ -111,6 +112,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.MCMSAccountOwnerCapObjectID = addr
 		case SuiMcmsTimelockObjectIDType:
 			chainState.MCMSTimelockObjectID = addr
+		case SuiMcmsDeployerObjectIDType:
+			chainState.MCMSDeployerStateObjectID = addr
 
 		// CCIP Router related
 		case SuiCCIPRouterType:

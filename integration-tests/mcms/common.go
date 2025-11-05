@@ -538,11 +538,12 @@ func (s *MCMSTestSuite) RunOwnershipCCIPTransfer() {
 	// 2. Proposal execution with acceptance from MCMS (through bypasser)
 	input := ownershipops.AcceptCCIPOwnershipInput{
 		// MCMS related
-		MCMSPackageId:     s.mcmsPackageID,
-		MCMSStateObjId:    s.mcmsObj,
-		MCMSTimelockObjId: s.timelockObj,
-		MCMSAccountObjId:  s.accountObj,
-		MCMSRegistryObjId: s.registryObj,
+		MCMSPackageId:          s.mcmsPackageID,
+		MCMSStateObjId:         s.mcmsObj,
+		MCMSTimelockObjId:      s.timelockObj,
+		MCMSAccountObjId:       s.accountObj,
+		MCMSRegistryObjId:      s.registryObj,
+		MCMSDeployerStateObjId: s.deployerStateObj,
 
 		CCIPPackageId: s.ccipPackageId,
 		CCIPObjectRef: s.ccipObjects.CCIPObjectRefObjectId,
