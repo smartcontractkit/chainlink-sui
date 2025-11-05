@@ -3,6 +3,9 @@ package changesets
 import (
 	"fmt"
 
+	"github.com/smartcontractkit/mcms"
+	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
+
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -10,8 +13,6 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
 	opregistry "github.com/smartcontractkit/chainlink-sui/deployment/ops/registry"
-	"github.com/smartcontractkit/mcms"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 )
 
 type AcceptOwnershipCCIPConfig struct {
@@ -59,11 +60,12 @@ func (d AcceptOwnershipCCIP) Apply(e cldf.Environment, config AcceptOwnershipCCI
 		ChainSelector: config.SuiChainSelector,
 
 		// MCMS related
-		MCMSPackageId:     state.MCMSPackageID,
-		MCMSStateObjId:    state.MCMSStateObjectID,
-		MCMSTimelockObjId: state.MCMSTimelockObjectID,
-		MCMSAccountObjId:  state.MCMSAccountStateObjectID,
-		MCMSRegistryObjId: state.MCMSRegistryObjectID,
+		MCMSPackageId:          state.MCMSPackageID,
+		MCMSStateObjId:         state.MCMSStateObjectID,
+		MCMSTimelockObjId:      state.MCMSTimelockObjectID,
+		MCMSAccountObjId:       state.MCMSAccountStateObjectID,
+		MCMSRegistryObjId:      state.MCMSRegistryObjectID,
+		MCMSDeployerStateObjId: state.MCMSDeployerStateObjectID,
 
 		CCIPPackageId: state.CCIPAddress,
 		CCIPObjectRef: state.CCIPObjectRef,

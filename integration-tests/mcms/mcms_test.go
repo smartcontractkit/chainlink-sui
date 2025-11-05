@@ -6,9 +6,10 @@ import (
 	"testing"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
-	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/stretchr/testify/require"
+
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
@@ -143,11 +144,12 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 			},
 		},
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
 		// Proposal
 		Role:          suisdk.TimelockRoleBypasser,
 		ChainSelector: uint64(s.chainSelector),
@@ -267,11 +269,12 @@ func RunCCIPRampsProposal(s *CCIPMCMSTestSuite) {
 			},
 		},
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
 		// Proposal
 		Role:          suisdk.TimelockRoleBypasser,
 		ChainSelector: uint64(s.chainSelector),
@@ -363,11 +366,12 @@ func RunTestRouterProposal(s *CCIPMCMSTestSuite) {
 			},
 		},
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
 		// Proposal
 		Role:          suisdk.TimelockRoleBypasser,
 		ChainSelector: uint64(s.chainSelector),
