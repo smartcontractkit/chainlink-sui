@@ -896,6 +896,20 @@ func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.Ch
 		return nil, fmt.Errorf("failed to query events from database: %w", err)
 	}
 
+	// Apply the event field renames to the returned records if specified in the config
+	if len(eventConfig.EventFieldRenames) > 0 {
+		for _, rec := range records {
+			mappedData := rec.Data
+			renameErr := aptosCRUtils.MaybeRenameFields(mappedData, eventConfig.EventFieldRenames)
+			if renameErr != nil {
+				s.logger.Errorw("Failed to rename event data fields", "error", renameErr)
+				continue
+			}
+
+			rec.Data = mappedData
+		}
+	}
+
 	s.logger.Debugw("Successfully queried events from database",
 		"eventCount", len(records),
 		"eventHandle", eventHandle,
