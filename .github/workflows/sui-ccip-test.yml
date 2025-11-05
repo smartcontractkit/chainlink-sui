@@ -174,8 +174,8 @@ jobs:
           echo "=== Running ${{ matrix.test_name }} ==="
           go test ./smoke/ccip \
             -run "${{ matrix.test_name }}" \
-            -timeout 20m \
-            -parallel 4 \
+            -timeout 10m \
+            -parallel 1 \
             -count=1 \
             -v
 
