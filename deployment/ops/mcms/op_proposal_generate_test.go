@@ -7,14 +7,15 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/models"
 	cselectors "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	mocksui "github.com/smartcontractkit/mcms/sdk/sui/mocks/sui"
 	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
@@ -84,6 +85,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 	testTimelockObjID := "0x2222222222222222"
 	testAccountObjID := "0x3333333333333333"
 	testRegistryObjID := "0x4444444444444444"
+	testDeployerStateObjID := "0x5555555555555555"
 	testChainSelector := cselectors.SUI_TESTNET.Selector
 
 	t.Run("Generate Proposal with Multiple Operations - Proposer Role", func(t *testing.T) {
@@ -117,11 +119,12 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			Defs:   defs,
 			Inputs: inputs,
 
-			MmcsPackageID:  testCCIPPackageId,
-			McmsStateObjID: testObjectRefId,
-			TimelockObjID:  testTimelockObjID,
-			AccountObjID:   testAccountObjID,
-			RegistryObjID:  testRegistryObjID,
+			MmcsPackageID:      testCCIPPackageId,
+			McmsStateObjID:     testObjectRefId,
+			TimelockObjID:      testTimelockObjID,
+			AccountObjID:       testAccountObjID,
+			RegistryObjID:      testRegistryObjID,
+			DeployerStateObjID: testDeployerStateObjID,
 
 			Role:  suisdk.TimelockRoleProposer,
 			Delay: time.Hour * 24,
@@ -184,11 +187,12 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			Defs:   defs,
 			Inputs: inputs,
 
-			MmcsPackageID:  testCCIPPackageId,
-			McmsStateObjID: testObjectRefId,
-			TimelockObjID:  testTimelockObjID,
-			AccountObjID:   testAccountObjID,
-			RegistryObjID:  testRegistryObjID,
+			MmcsPackageID:      testCCIPPackageId,
+			McmsStateObjID:     testObjectRefId,
+			TimelockObjID:      testTimelockObjID,
+			AccountObjID:       testAccountObjID,
+			RegistryObjID:      testRegistryObjID,
+			DeployerStateObjID: testDeployerStateObjID,
 
 			Role:  suisdk.TimelockRoleBypasser,
 			Delay: 0, // No delay for bypasser
@@ -235,11 +239,12 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			Defs:   defs,
 			Inputs: inputs,
 
-			MmcsPackageID:  testCCIPPackageId,
-			McmsStateObjID: testObjectRefId,
-			TimelockObjID:  testTimelockObjID,
-			AccountObjID:   testAccountObjID,
-			RegistryObjID:  testRegistryObjID,
+			MmcsPackageID:      testCCIPPackageId,
+			McmsStateObjID:     testObjectRefId,
+			TimelockObjID:      testTimelockObjID,
+			AccountObjID:       testAccountObjID,
+			RegistryObjID:      testRegistryObjID,
+			DeployerStateObjID: testDeployerStateObjID,
 
 			Role:  suisdk.TimelockRole(100), // Invalid role
 			Delay: time.Hour,
@@ -277,11 +282,12 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			Defs:   defs,
 			Inputs: inputs[:1], // Only one input for two definitions
 
-			MmcsPackageID:  testCCIPPackageId,
-			McmsStateObjID: testObjectRefId,
-			TimelockObjID:  testTimelockObjID,
-			AccountObjID:   testAccountObjID,
-			RegistryObjID:  testRegistryObjID,
+			MmcsPackageID:      testCCIPPackageId,
+			McmsStateObjID:     testObjectRefId,
+			TimelockObjID:      testTimelockObjID,
+			AccountObjID:       testAccountObjID,
+			RegistryObjID:      testRegistryObjID,
+			DeployerStateObjID: testDeployerStateObjID,
 
 			Role:  suisdk.TimelockRoleProposer,
 			Delay: time.Hour,

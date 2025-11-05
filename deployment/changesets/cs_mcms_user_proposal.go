@@ -4,21 +4,23 @@ import (
 	"fmt"
 	"time"
 
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	mcmsuser "github.com/smartcontractkit/chainlink-sui/bindings/packages/mcms/mcms_user"
 	"github.com/smartcontractkit/mcms"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/smartcontractkit/mcms/types"
+
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	mcmsuser "github.com/smartcontractkit/chainlink-sui/bindings/packages/mcms/mcms_user"
 )
 
 type InvokeMCMSFunctionOneConfig struct {
 	// MCMS related
-	MmcsPackageID  string `json:"mcmsPackageID"`
-	McmsStateObjID string `json:"mcmsStateObjID"`
-	TimelockObjID  string `json:"timelockObjID"`
-	AccountObjID   string `json:"accountObjID"`
-	RegistryObjID  string `json:"registryObjID"`
+	MmcsPackageID      string `json:"mcmsPackageID"`
+	McmsStateObjID     string `json:"mcmsStateObjID"`
+	TimelockObjID      string `json:"timelockObjID"`
+	AccountObjID       string `json:"accountObjID"`
+	RegistryObjID      string `json:"registryObjID"`
+	DeployerStateObjID string `json:"deployerStateObjID"`
 
 	// Proposal related
 	Role  suisdk.TimelockRole `json:"role"`
@@ -80,7 +82,7 @@ func (d InvokeMCMSFunctionOne) Apply(e cldf.Environment, config InvokeMCMSFuncti
 	}
 
 	validUntilMs := uint32(time.Now().Add(time.Hour * 24).Unix())
-	metadata, err := suisdk.NewChainMetadata(0, config.Role, config.MmcsPackageID, config.McmsStateObjID, config.AccountObjID, config.RegistryObjID, config.TimelockObjID)
+	metadata, err := suisdk.NewChainMetadata(0, config.Role, config.MmcsPackageID, config.McmsStateObjID, config.AccountObjID, config.RegistryObjID, config.TimelockObjID, config.DeployerStateObjID)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create chain metadata: %w", err)
 	}

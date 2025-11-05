@@ -3,9 +3,10 @@ package ownershipops
 import (
 	"github.com/Masterminds/semver/v3"
 
+	"github.com/smartcontractkit/mcms"
+
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/mcms"
 
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 
@@ -19,11 +20,12 @@ import (
 
 type AcceptCCIPOwnershipInput struct {
 	// MCMS related
-	MCMSPackageId     string
-	MCMSStateObjId    string
-	MCMSTimelockObjId string
-	MCMSAccountObjId  string
-	MCMSRegistryObjId string
+	MCMSPackageId          string
+	MCMSStateObjId         string
+	MCMSTimelockObjId      string
+	MCMSAccountObjId       string
+	MCMSRegistryObjId      string
+	MCMSDeployerStateObjId string
 
 	// Proposal
 	Role          suisdk.TimelockRole
@@ -80,11 +82,12 @@ var AcceptCCIPOwnershipSeq = cld_ops.NewSequence(
 				},
 			},
 			// MCMS related
-			MmcsPackageID:  input.MCMSPackageId,
-			McmsStateObjID: input.MCMSStateObjId,
-			TimelockObjID:  input.MCMSTimelockObjId,
-			AccountObjID:   input.MCMSAccountObjId,
-			RegistryObjID:  input.MCMSRegistryObjId,
+			MmcsPackageID:      input.MCMSPackageId,
+			McmsStateObjID:     input.MCMSStateObjId,
+			TimelockObjID:      input.MCMSTimelockObjId,
+			AccountObjID:       input.MCMSAccountObjId,
+			RegistryObjID:      input.MCMSRegistryObjId,
+			DeployerStateObjID: input.MCMSDeployerStateObjId,
 
 			// Proposal
 			Role: input.Role,
