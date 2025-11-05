@@ -112,7 +112,7 @@ func NewPTBClient(
 	client := sui.NewSuiClientWithCustomClient(rpcUrl, httpClient)
 
 	if maxConcurrentRequests <= 0 {
-		maxConcurrentRequests = 100 // Default value
+		maxConcurrentRequests = 500 // Default value
 	}
 
 	return &PTBClient{
