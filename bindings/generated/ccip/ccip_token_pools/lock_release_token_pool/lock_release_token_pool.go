@@ -74,6 +74,8 @@ type ILockReleaseTokenPool interface {
 	McmsSetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsProvideLiquidity(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, coin bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsWithdrawLiquidity(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -215,6 +217,10 @@ type LockReleaseTokenPoolEncoder interface {
 	McmsSetChainRateLimiterConfigWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsSetPool(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsSetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsProvideLiquidity(typeArgs []string, state bind.Object, registry bind.Object, coin bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsProvideLiquidityWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsWithdrawLiquidity(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsWithdrawLiquidityWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsTransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -955,6 +961,26 @@ func (c *LockReleaseTokenPoolContract) McmsSetChainRateLimiterConfig(ctx context
 // McmsSetPool executes the mcms_set_pool Move function.
 func (c *LockReleaseTokenPoolContract) McmsSetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.lockReleaseTokenPoolEncoder.McmsSetPool(typeArgs, ref, state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsProvideLiquidity executes the mcms_provide_liquidity Move function.
+func (c *LockReleaseTokenPoolContract) McmsProvideLiquidity(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, coin bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.McmsProvideLiquidity(typeArgs, state, registry, coin, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsWithdrawLiquidity executes the mcms_withdraw_liquidity Move function.
+func (c *LockReleaseTokenPoolContract) McmsWithdrawLiquidity(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.McmsWithdrawLiquidity(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -3433,6 +3459,81 @@ func (c lockReleaseTokenPoolEncoder) McmsSetPoolWithArgs(typeArgs []string, args
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("mcms_set_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsProvideLiquidity encodes a call to the mcms_provide_liquidity Move function.
+func (c lockReleaseTokenPoolEncoder) McmsProvideLiquidity(typeArgs []string, state bind.Object, registry bind.Object, coin bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_provide_liquidity", typeArgsList, typeParamsList, []string{
+		"&mut LockReleaseTokenPoolState<T>",
+		"&mut Registry",
+		"Coin<T>",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		coin,
+		params,
+	}, nil)
+}
+
+// McmsProvideLiquidityWithArgs encodes a call to the mcms_provide_liquidity Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c lockReleaseTokenPoolEncoder) McmsProvideLiquidityWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut LockReleaseTokenPoolState<T>",
+		"&mut Registry",
+		"Coin<T>",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_provide_liquidity", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsWithdrawLiquidity encodes a call to the mcms_withdraw_liquidity Move function.
+func (c lockReleaseTokenPoolEncoder) McmsWithdrawLiquidity(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_withdraw_liquidity", typeArgsList, typeParamsList, []string{
+		"&mut LockReleaseTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsWithdrawLiquidityWithArgs encodes a call to the mcms_withdraw_liquidity Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c lockReleaseTokenPoolEncoder) McmsWithdrawLiquidityWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut LockReleaseTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_withdraw_liquidity", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.
