@@ -253,11 +253,12 @@ func RunOwnershipTokenPoolProposal(s *TokenPoolTestSuite) {
 		},
 
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
 
 		// Proposal
 		Role: suisdk.TimelockRoleBypasser,
@@ -387,11 +388,12 @@ func RunLnRConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 		},
 
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
 
 		// Proposal
 		Role: suisdk.TimelockRoleBypasser,
@@ -487,11 +489,12 @@ func RunBnMConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 		},
 
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
 
 		// Proposal
 		Role: suisdk.TimelockRoleBypasser,
@@ -587,11 +590,12 @@ func RunManagedConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 		},
 
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
 
 		// Proposal
 		Role: suisdk.TimelockRoleBypasser,
@@ -623,11 +627,12 @@ func RunTransferAdminTokenPoolProposal(s *TokenPoolTestSuite, coinmetadataAddres
 		},
 
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
 
 		// Proposal
 		Role: suisdk.TimelockRoleBypasser,
@@ -686,11 +691,12 @@ func RunTransferAdminTokenPoolProposal(s *TokenPoolTestSuite, coinmetadataAddres
 		},
 
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
 
 		// Proposal
 		Role: suisdk.TimelockRoleBypasser,
@@ -736,11 +742,12 @@ func RunUnregisterLnRTokenPoolProposal(s *TokenPoolTestSuite) {
 		},
 
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
 
 		// Proposal
 		Role: suisdk.TimelockRoleBypasser,
