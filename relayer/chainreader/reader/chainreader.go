@@ -523,32 +523,18 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	// only write contract address, rest will be handled during chainreader config
 	eventConfig.Package = contract.Address
 
-	// repeat the sync call for each package ID (upgrades) of the module
-	// using the contract's own address as signer address since we are only ready
-	packageIds, err := s.client.LoadModulePackageIds(ctx, contract.Address, moduleConfig.Name, contract.Address)
-	if err != nil {
-		return nil, err
+	evIndexer := s.indexer.GetEventIndexer()
+	// create a selector for the initial package ID
+	selector := client.EventSelector{
+		Package: contract.Address,
+		Module:  moduleConfig.Name,
+		Event:   eventConfig.EventType,
 	}
 
-	s.logger.Debugw("Found package IDs", "packageIds", packageIds)
-
-	evIndexer := s.indexer.GetEventIndexer()
-	// create a selector for each package ID including the upgrades and the initial package ID
-	// the `LoadModulePackageIds` will fallback to a single package ID if the module does not have the `get_package_ids` function
-	for _, packageId := range packageIds {
-		selector := client.EventSelector{
-			Package: packageId,
-			Module:  moduleConfig.Name,
-			Event:   eventConfig.EventType,
-			// override the DB insert using the initial package ID
-			InitialPackageId: &contract.Address,
-		}
-
-		// sync the event in case it's not already in the database
-		err = evIndexer.SyncEvent(ctx, &selector)
-		if err != nil {
-			return nil, err
-		}
+	// sync the event in case it's not already in the database
+	err = evIndexer.SyncEvent(ctx, &selector)
+	if err != nil {
+		return nil, err
 	}
 
 	// update the event config in the transactions indexer to ensure that the package ID is known
