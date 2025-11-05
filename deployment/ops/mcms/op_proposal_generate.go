@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/smartcontractkit/mcms/types"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
+
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
@@ -25,11 +26,12 @@ type ProposalGenerateInput struct {
 	Inputs []any // Each element should be the corresponding input type for its operation
 
 	// MCMS related
-	MmcsPackageID  string `json:"mcmsPackageID"`
-	McmsStateObjID string `json:"mcmsStateObjID"`
-	TimelockObjID  string `json:"timelockObjID"`
-	AccountObjID   string `json:"accountObjID"`
-	RegistryObjID  string `json:"registryObjID"`
+	MmcsPackageID      string `json:"mcmsPackageID"`
+	McmsStateObjID     string `json:"mcmsStateObjID"`
+	TimelockObjID      string `json:"timelockObjID"`
+	AccountObjID       string `json:"accountObjID"`
+	RegistryObjID      string `json:"registryObjID"`
+	DeployerStateObjID string `json:"deployerStateObjID"`
 
 	// Proposal related
 	Role  suisdk.TimelockRole `json:"role"`
@@ -137,7 +139,7 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		return mcms.TimelockProposal{}, fmt.Errorf("failed to get op count: %w", err)
 	}
 
-	metadata, err := suisdk.NewChainMetadata(opCount, input.Role, input.MmcsPackageID, input.McmsStateObjID, input.AccountObjID, input.RegistryObjID, input.TimelockObjID)
+	metadata, err := suisdk.NewChainMetadata(opCount, input.Role, input.MmcsPackageID, input.McmsStateObjID, input.AccountObjID, input.RegistryObjID, input.TimelockObjID, input.DeployerStateObjID)
 	if err != nil {
 		return mcms.TimelockProposal{}, fmt.Errorf("failed to create chain metadata: %w", err)
 	}

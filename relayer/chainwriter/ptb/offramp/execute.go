@@ -16,6 +16,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	receiver_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/receiver_registry"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
@@ -103,8 +104,17 @@ func BuildOffRampExecutePTB(
 		return err
 	}
 
+	latestCcipPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.CcipPackageId, "state_object", signerAddress)
+	if err != nil {
+		return err
+	}
+
+	// Update both the offramp and ccip package IDs to the latest versions
+	addressMappings.OffRampPackageId = latestOfframpPackageId
+	addressMappings.CcipPackageId = latestCcipPackageId
+
 	// Set the offramp package interface from bindings
-	offrampPkg, err := offramp.NewOfframp(latestOfframpPackageId, sdkClient)
+	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, sdkClient)
 	if err != nil {
 		return err
 	}
