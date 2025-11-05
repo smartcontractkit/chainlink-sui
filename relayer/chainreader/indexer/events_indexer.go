@@ -330,10 +330,30 @@ eventLoop:
 			// Insert batch of events into database
 			if len(batchRecords) > 0 {
 				if err := eIndexer.db.InsertEvents(ctx, batchRecords); err != nil {
-					return fmt.Errorf("syncEvent: failed to insert batch of events: %w", err)
+					eIndexer.logger.Errorw("syncEvent: failed to insert batch of events, falling back to per-event insert", "error", err)
+
+					// Fallback: insert each record individually, skip bad ones
+					totalProcessedFallback := 0
+					for _, record := range batchRecords {
+						if err := eIndexer.db.InsertEvents(ctx, []database.EventRecord{record}); err != nil {
+							eIndexer.logger.Errorw("Failed to insert single event, skipping...",
+								"error", err,
+								"handle", eventHandle,
+								"txDigest", record.TxDigest,
+								"offset", record.EventOffset,
+							)
+
+							continue
+						}
+
+						totalProcessedFallback++
+					}
+					eIndexer.logger.Debugw("syncEvent: inserted batch of events", "count", totalProcessedFallback, "handle", eventHandle)
+					totalProcessed += totalProcessedFallback
+				} else {
+					totalProcessed += len(batchRecords)
 				}
 
-				totalProcessed += len(batchRecords)
 				eIndexer.logger.Debugw("syncEvent: saved batch of events",
 					"batch_count", len(batchRecords),
 					"total_processed", totalProcessed,
