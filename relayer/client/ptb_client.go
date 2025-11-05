@@ -21,6 +21,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	suiSigner "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
@@ -992,6 +993,10 @@ func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, mo
 	packageIds, err := c.LoadModulePackageIds(ctx, packageId, module, signerAddress)
 	if err != nil {
 		return "", fmt.Errorf("failed to load module package ids: %w", err)
+	}
+
+	if len(packageIds) == 0 {
+		return "", fmt.Errorf("nil or empty package ids found for package %s and module %s", packageId, module)
 	}
 
 	return packageIds[len(packageIds)-1], nil
