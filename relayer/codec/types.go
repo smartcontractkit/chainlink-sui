@@ -21,8 +21,10 @@ type PointerTag struct {
 	Module string `json:"module"`
 	// PointerName is the object type to search for (e.g. "CCIPObjectRefPointer", "OffRampStatePointer")
 	PointerName string `json:"pointerName"`
-	// FieldName is the field within the pointer object containing the parent object ID (e.g. "ccip_object_id", "off_ramp_object_id")
-	FieldName string `json:"fieldName"`
+	// FieldName is OPTIONAL and NOT USED by the implementation. The parent field name is automatically
+	// looked up from the global common.PointerConfigs registry based on the PointerName.
+	// This field exists for backward compatibility or future implementations to override static code but is currently ignored.
+	FieldName string `json:"fieldName,omitempty"`
 	// DerivationKey is the key used to derive the child object ID from the parent object ID (e.g. "CCIPObjectRef", "CCIP_OWNABLE")
 	DerivationKey string `json:"derivationKey"`
 	// PackageID is the package ID for the Pointer object if it differs from the calling contract's package ID
@@ -38,9 +40,7 @@ func (p PointerTag) Validate() error {
 	if p.PointerName == "" {
 		return errors.New("PointerTag.Pointer is required")
 	}
-	if p.FieldName == "" {
-		return errors.New("PointerTag.FieldName is required")
-	}
+	// FieldName is optional - it's looked up from common.PointerConfigs
 	if p.DerivationKey == "" {
 		return errors.New("PointerTag.DerivationKey is required")
 	}
