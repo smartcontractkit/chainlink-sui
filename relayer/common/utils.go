@@ -97,6 +97,8 @@ func GetModuleForContract(contractName string) string {
 	switch contractName {
 	case "offramp", "onramp":
 		return contractName
+	case "Counter", "counter":
+		return "counter"
 	default:
 		// anything under ccip module has to be state_object module
 		return "state_object"
