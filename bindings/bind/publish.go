@@ -26,6 +26,13 @@ func PublishPackage(
 	client sui.ISuiAPI,
 	req PublishRequest,
 ) (PackageID, *models.SuiTransactionBlockResponse, error) {
+	if opts == nil {
+		return "", nil, errors.New("opts cannot be nil")
+	}
+	if opts.Signer == nil {
+		return "", nil, errors.New("opts.Signer cannot be nil")
+	}
+
 	var modules = make([][]byte, 0, len(req.CompiledModules))
 	for _, encodedModule := range req.CompiledModules {
 		decodedModule, err := bindutils.DecodeBase64(encodedModule)
