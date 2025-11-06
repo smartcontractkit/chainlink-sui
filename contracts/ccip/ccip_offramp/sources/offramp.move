@@ -292,6 +292,7 @@ public fun initialize(
     ctx: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
+    assert!(chain_selector != 0, EZeroChainSelector);
     state.chain_selector = chain_selector;
 
     assert!(state.fee_quoter_cap.is_none(), EFeeQuoterCapExists);
@@ -868,8 +869,7 @@ fun calculate_message_hash_internal(
 fun deserialize_commit_report(report_bytes: vector<u8>): CommitReport {
     let mut stream = bcs_stream::new(report_bytes);
     let token_price_updates = bcs_stream::deserialize_vector!(&mut stream, |stream| {
-        let source_token = bcs_stream::deserialize_fixed_vector_u8(stream, 32);
-        let source_token_address = address::from_bytes(source_token);
+        let source_token_address = bcs_stream::deserialize_address(stream);
         TokenPriceUpdate {
             source_token: source_token_address,
             usd_per_token: bcs_stream::deserialize_u256(stream),
@@ -1701,7 +1701,7 @@ public fun mcms_execute_ownership_transfer(
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
             registry,
-            McmsCallback {}
+            McmsCallback {},
         );
         transfer::public_transfer(upgrade_cap, to);
     };
