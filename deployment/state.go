@@ -92,7 +92,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	suiChain := e.BlockChains.SuiChains()[selector]
 	ctx := context.Background()
 
-	// MCMS
+	// TODO: MCMS
 	if s.MCMSStateObjectID != "" {
 		mcmsView, err := view.GenerateMCMSWithTimelockView(s.MCMSStateObjectID)
 		if err != nil {
@@ -102,7 +102,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		lggr.Infow("generated MCMS view", "mcmsStateObjectID", s.MCMSStateObjectID, "chain", chainName)
 	}
 
-	// CCIP
+	// TODO: CCIP
 	if s.CCIPAddress != "" {
 		ccipView, err := view.GenerateCCIPView(s.CCIPAddress)
 		if err != nil {
@@ -122,7 +122,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		lggr.Infow("generated router view", "routerAddress", s.CCIPRouterAddress, "chain", chainName)
 	}
 
-	// OnRamp
+	// TODO: OnRamp
 	if s.OnRampAddress != "" {
 		onRampView, err := view.GenerateOnRampView(s.OnRampAddress, s.CCIPRouterAddress, s.CCIPAddress)
 		if err != nil {
@@ -134,7 +134,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	// OffRamp
 	if s.OffRampAddress != "" {
-		offRampView, err := view.GenerateOffRampView(s.OffRampAddress, s.CCIPRouterAddress)
+		offRampView, err := view.GenerateOffRampView(ctx, suiChain, s.OffRampAddress, s.OffRampStateObjectId, s.CCIPObjectRef)
 		if err != nil {
 			return SuiChainView{}, fmt.Errorf("failed to generate offramp view for offramp %s: %w", s.OffRampAddress, err)
 		}
