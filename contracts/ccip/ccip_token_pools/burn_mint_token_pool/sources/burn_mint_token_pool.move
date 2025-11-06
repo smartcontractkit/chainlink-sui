@@ -10,7 +10,7 @@ use burn_mint_token_pool::token_pool::{Self, TokenPoolState};
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
-use ccip::publisher_wrapper::{Self};
+use ccip::publisher_wrapper;
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use mcms::bcs_stream;
@@ -350,6 +350,7 @@ public fun release_or_mint<T>(
         _,
     ) = offramp_sh::get_dest_token_transfer_data(receiver_params);
 
+    // local_amount is u64 because the token balance in SUI is u64.
     let local_amount = token_pool::calculate_release_or_mint_amount(
         &pool.token_pool_state,
         source_pool_data,

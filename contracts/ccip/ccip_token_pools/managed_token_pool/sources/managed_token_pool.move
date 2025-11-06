@@ -407,6 +407,7 @@ public fun release_or_mint<T>(
         _,
     ) = offramp_sh::get_dest_token_transfer_data(receiver_params);
 
+    // local_amount is u64 because the token balance in SUI is u64.
     let local_amount = token_pool::calculate_release_or_mint_amount(
         &state.token_pool_state,
         source_pool_data,
