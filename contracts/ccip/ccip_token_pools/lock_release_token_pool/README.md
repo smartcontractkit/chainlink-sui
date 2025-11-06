@@ -46,21 +46,12 @@ public struct LockReleaseTokenPoolState<phantom T> has key {
 ```move
 use lock_release_token_pool::lock_release_token_pool;
 
-// Initialize with treasury cap (standard deployment)
+// Initialize the lock release token pool
 lock_release_token_pool::initialize<MyToken>(
+    &mut owner_cap,
     &mut ccip_ref,
     &coin_metadata,
     &treasury_cap,
-    token_pool_administrator,
-    rebalancer_address,
-    ctx
-);
-
-// Initialize by CCIP admin (admin deployment)
-lock_release_token_pool::initialize_by_ccip_admin<MyToken>(
-    &mut ccip_ref,
-    ccip_admin_proof,
-    &coin_metadata,
     token_pool_administrator,
     rebalancer_address,
     ctx
@@ -95,124 +86,158 @@ lock_release_token_pool::release_or_mint<MyToken>(
 
 ### Liquidity Management
 
+#### Direct Operations (Rebalancer)
+
 ```move
-// Add liquidity to the pool (rebalancer only)
+// Add liquidity to the pool (rebalancer cap required)
 lock_release_token_pool::provide_liquidity<MyToken>(
     &mut pool_state,
-    &owner_cap,
+    &rebalancer_cap,
     liquidity_coin,
     ctx
 );
 
-// Withdraw liquidity from the pool (rebalancer only)
+// Withdraw liquidity from the pool (rebalancer cap required)
 let withdrawn_coin = lock_release_token_pool::withdraw_liquidity<MyToken>(
     &mut pool_state,
-    &owner_cap,
+    &rebalancer_cap,
     amount,
     ctx
 );
 ```
 
+#### MCMS Operations (Multi-Sig Governance)
+
+For enhanced security, liquidity operations can be controlled via MCMS:
+
+```move
+// Add liquidity via MCMS (requires RebalancerCap in McmsCap)
+lock_release_token_pool::mcms_provide_liquidity<MyToken>(
+    &mut pool_state,
+    &mut registry,
+    liquidity_coin,
+    params,
+    ctx
+);
+
+// Withdraw liquidity via MCMS (requires RebalancerCap in McmsCap)
+lock_release_token_pool::mcms_withdraw_liquidity<MyToken>(
+    &mut pool_state,
+    &mut registry,
+    params,
+    ctx
+);
+```
+
+**MCMS Liquidity Benefits:**
+
+- **Multi-Sig Security**: Requires multiple signers to approve liquidity changes
+- **Time-Delayed Execution**: Operations go through timelock for additional safety
+
 ## Core Functions Reference
 
 ### Initialization Functions
 
-| Function | Description | Parameters |
-|----------|-------------|------------|
-| `initialize<T>()` | Initialize pool with treasury cap | ccip_ref, coin_metadata, treasury_cap, admin, rebalancer, ctx |
-| `initialize_by_ccip_admin<T>()` | Initialize by CCIP admin | ccip_ref, admin_proof, coin_metadata, admin, rebalancer, ctx |
+| Function          | Description                       | Parameters                                                               |
+| ----------------- | --------------------------------- | ------------------------------------------------------------------------ |
+| `initialize<T>()` | Initialize pool with treasury cap | owner_cap, ccip_ref, coin_metadata, treasury_cap, admin, rebalancer, ctx |
 
 ### Cross-Chain Operations
 
-| Function | Description | Parameters |
-|----------|-------------|------------|
-| `lock_or_burn<T>()` | Lock tokens for outbound transfer | ccip_ref, clock, state, sender, chain, amount, ctx |
+| Function               | Description                         | Parameters                                            |
+| ---------------------- | ----------------------------------- | ----------------------------------------------------- |
+| `lock_or_burn<T>()`    | Lock tokens for outbound transfer   | ccip_ref, clock, state, sender, chain, amount, ctx    |
 | `release_or_mint<T>()` | Release tokens for inbound transfer | ccip_ref, clock, state, recipient, chain, amount, ctx |
 
 ### Liquidity Management
 
-| Function | Description | Parameters |
-|----------|-------------|------------|
-| `provide_liquidity<T>()` | Add liquidity to pool | state, owner_cap, liquidity_coin, ctx |
-| `withdraw_liquidity<T>()` | Withdraw liquidity from pool | state, owner_cap, amount, ctx |
-| `set_rebalancer<T>()` | Set new rebalancer address | state, owner_cap, new_rebalancer, ctx |
-| `get_rebalancer<T>()` | Get current rebalancer | state |
-| `get_balance<T>()` | Get pool reserve balance | state |
+| Function                       | Description                           | Parameters                                   |
+| ------------------------------ | ------------------------------------- | -------------------------------------------- |
+| `provide_liquidity<T>()`       | Add liquidity to pool (direct)        | state, rebalancer_cap, liquidity_coin, ctx   |
+| `withdraw_liquidity<T>()`      | Withdraw liquidity from pool (direct) | state, rebalancer_cap, amount, ctx           |
+| `mcms_provide_liquidity<T>()`  | Add liquidity via MCMS                | state, registry, liquidity_coin, params, ctx |
+| `mcms_withdraw_liquidity<T>()` | Withdraw liquidity via MCMS           | state, registry, params, ctx                 |
+| `set_rebalancer<T>()`          | Set new rebalancer address            | state, owner_cap, new_rebalancer, ctx        |
+| `get_rebalancer<T>()`          | Get current rebalancer                | state                                        |
+| `get_balance<T>()`             | Get pool reserve balance              | state                                        |
 
 ### Chain Management
 
-| Function | Description | Parameters |
-|----------|-------------|------------|
-| `apply_chain_updates<T>()` | Add/remove supported chains | state, chains_to_remove, chains_to_add, pool_addresses, token_addresses |
-| `add_remote_pool<T>()` | Add remote pool address | state, owner_cap, chain_selector, pool_address, ctx |
-| `remove_remote_pool<T>()` | Remove remote pool address | state, owner_cap, chain_selector, pool_address, ctx |
-| `get_supported_chains<T>()` | Get supported chain selectors | state |
-| `is_supported_chain<T>()` | Check if chain is supported | state, chain_selector |
+| Function                    | Description                   | Parameters                                                              |
+| --------------------------- | ----------------------------- | ----------------------------------------------------------------------- |
+| `apply_chain_updates<T>()`  | Add/remove supported chains   | state, chains_to_remove, chains_to_add, pool_addresses, token_addresses |
+| `add_remote_pool<T>()`      | Add remote pool address       | state, owner_cap, chain_selector, pool_address, ctx                     |
+| `remove_remote_pool<T>()`   | Remove remote pool address    | state, owner_cap, chain_selector, pool_address, ctx                     |
+| `get_supported_chains<T>()` | Get supported chain selectors | state                                                                   |
+| `is_supported_chain<T>()`   | Check if chain is supported   | state, chain_selector                                                   |
 
 ### Query Functions
 
-| Function | Description | Returns |
-|----------|-------------|---------|
-| `get_token<T>()` | Get token metadata address | address |
-| `get_token_decimals<T>()` | Get token decimals | u8 |
-| `get_remote_pools<T>()` | Get remote pool addresses | vector<vector<u8>> |
-| `is_remote_pool<T>()` | Check if address is remote pool | bool |
-| `get_remote_token<T>()` | Get remote token address | vector<u8> |
+| Function                  | Description                     | Returns            |
+| ------------------------- | ------------------------------- | ------------------ |
+| `get_token<T>()`          | Get token metadata address      | address            |
+| `get_token_decimals<T>()` | Get token decimals              | u8                 |
+| `get_remote_pools<T>()`   | Get remote pool addresses       | vector<vector<u8>> |
+| `is_remote_pool<T>()`     | Check if address is remote pool | bool               |
+| `get_remote_token<T>()`   | Get remote token address        | vector<u8>         |
 
 ### Allowlist Management
 
-| Function | Description | Parameters |
-|----------|-------------|------------|
-| `get_allowlist_enabled<T>()` | Check if allowlist is enabled | state |
-| `set_allowlist_enabled<T>()` | Enable/disable allowlist | state, owner_cap, enabled, ctx |
-| `get_allowlist<T>()` | Get allowlist addresses | state |
-| `apply_allowlist_updates<T>()` | Update allowlist | state, owner_cap, addresses_to_remove, addresses_to_add, ctx |
+| Function                       | Description                   | Parameters                                                   |
+| ------------------------------ | ----------------------------- | ------------------------------------------------------------ |
+| `get_allowlist_enabled<T>()`   | Check if allowlist is enabled | state                                                        |
+| `set_allowlist_enabled<T>()`   | Enable/disable allowlist      | state, owner_cap, enabled, ctx                               |
+| `get_allowlist<T>()`           | Get allowlist addresses       | state                                                        |
+| `apply_allowlist_updates<T>()` | Update allowlist              | state, owner_cap, addresses_to_remove, addresses_to_add, ctx |
 
 ### Rate Limiting
 
-| Function | Description | Parameters |
-|----------|-------------|------------|
-| `set_chain_rate_limiter_configs<T>()` | Set rate limits for multiple chains | clock, state, owner_cap, configs, ctx |
-| `set_chain_rate_limiter_config<T>()` | Set rate limit for single chain | clock, state, owner_cap, chain_selector, config, ctx |
+| Function                              | Description                         | Parameters                                           |
+| ------------------------------------- | ----------------------------------- | ---------------------------------------------------- |
+| `set_chain_rate_limiter_configs<T>()` | Set rate limits for multiple chains | clock, state, owner_cap, configs, ctx                |
+| `set_chain_rate_limiter_config<T>()`  | Set rate limit for single chain     | clock, state, owner_cap, chain_selector, config, ctx |
 
 ### Ownership Management
 
-| Function | Description | Parameters |
-|----------|-------------|------------|
-| `owner<T>()` | Get current owner | state |
-| `transfer_ownership<T>()` | Transfer ownership | state, owner_cap, new_owner, ctx |
-| `accept_ownership<T>()` | Accept ownership transfer | state, ctx |
-| `has_pending_transfer<T>()` | Check for pending transfer | state |
-| `pending_transfer_from<T>()` | Get pending transfer from | state |
-| `pending_transfer_to<T>()` | Get pending transfer to | state |
-| `pending_transfer_accepted<T>()` | Check if transfer accepted | state |
+| Function                         | Description                | Parameters                       |
+| -------------------------------- | -------------------------- | -------------------------------- |
+| `owner<T>()`                     | Get current owner          | state                            |
+| `transfer_ownership<T>()`        | Transfer ownership         | state, owner_cap, new_owner, ctx |
+| `accept_ownership<T>()`          | Accept ownership transfer  | state, ctx                       |
+| `has_pending_transfer<T>()`      | Check for pending transfer | state                            |
+| `pending_transfer_from<T>()`     | Get pending transfer from  | state                            |
+| `pending_transfer_to<T>()`       | Get pending transfer to    | state                            |
+| `pending_transfer_accepted<T>()` | Check if transfer accepted | state                            |
 
 ### MCMS Integration Functions
 
-| Function | Description | Purpose |
-|----------|-------------|---------|
-| `mcms_accept_ownership<T>()` | Accept ownership via MCMS | Multi-sig ownership transfer |
-| `mcms_register_upgrade_cap()` | Register upgrade capability | Multi-sig upgrade management |
-| `mcms_set_rebalancer<T>()` | Set rebalancer via MCMS | Multi-sig rebalancer management |
-| `mcms_set_allowlist_enabled<T>()` | Set allowlist via MCMS | Multi-sig access control |
-| `mcms_apply_allowlist_updates<T>()` | Update allowlist via MCMS | Multi-sig allowlist management |
-| `mcms_apply_chain_updates<T>()` | Update chains via MCMS | Multi-sig chain management |
-| `mcms_add_remote_pool<T>()` | Add remote pool via MCMS | Multi-sig pool management |
-| `mcms_remove_remote_pool<T>()` | Remove remote pool via MCMS | Multi-sig pool management |
-| `mcms_set_chain_rate_limiter_configs<T>()` | Set rate limits via MCMS | Multi-sig rate limiting |
-| `mcms_set_chain_rate_limiter_config<T>()` | Set rate limit via MCMS | Multi-sig rate limiting |
-| `mcms_transfer_ownership<T>()` | Transfer ownership via MCMS | Multi-sig ownership transfer |
-| `mcms_execute_ownership_transfer<T>()` | Execute transfer via MCMS | Multi-sig ownership transfer |
+| Function                                   | Description                 | Purpose                         |
+| ------------------------------------------ | --------------------------- | ------------------------------- |
+| `mcms_accept_ownership<T>()`               | Accept ownership via MCMS   | Multi-sig ownership transfer    |
+| `mcms_register_upgrade_cap()`              | Register upgrade capability | Multi-sig upgrade management    |
+| `mcms_set_rebalancer<T>()`                 | Set rebalancer via MCMS     | Multi-sig rebalancer management |
+| `mcms_provide_liquidity<T>()`              | Add liquidity via MCMS      | Multi-sig liquidity management  |
+| `mcms_withdraw_liquidity<T>()`             | Withdraw liquidity via MCMS | Multi-sig liquidity management  |
+| `mcms_set_allowlist_enabled<T>()`          | Set allowlist via MCMS      | Multi-sig access control        |
+| `mcms_apply_allowlist_updates<T>()`        | Update allowlist via MCMS   | Multi-sig allowlist management  |
+| `mcms_apply_chain_updates<T>()`            | Update chains via MCMS      | Multi-sig chain management      |
+| `mcms_add_remote_pool<T>()`                | Add remote pool via MCMS    | Multi-sig pool management       |
+| `mcms_remove_remote_pool<T>()`             | Remove remote pool via MCMS | Multi-sig pool management       |
+| `mcms_set_chain_rate_limiter_configs<T>()` | Set rate limits via MCMS    | Multi-sig rate limiting         |
+| `mcms_set_chain_rate_limiter_config<T>()`  | Set rate limit via MCMS     | Multi-sig rate limiting         |
+| `mcms_transfer_ownership<T>()`             | Transfer ownership via MCMS | Multi-sig ownership transfer    |
+| `mcms_execute_ownership_transfer<T>()`     | Execute transfer via MCMS   | Multi-sig ownership transfer    |
 
 ### Utility Functions
 
-| Function | Description | Parameters |
-|----------|-------------|------------|
+| Function                  | Description        | Parameters            |
+| ------------------------- | ------------------ | --------------------- |
 | `destroy_token_pool<T>()` | Destroy pool state | state, owner_cap, ctx |
 
 ## Integration
 
 This module integrates with:
+
 - **CCIPTokenPool**: Base token pool functionality
 - **ChainlinkCCIP**: Core CCIP protocol functionality
 - **MCMS**: Multi-Chain Multi-Sig governance
@@ -234,21 +259,24 @@ This module integrates with:
 - **Package Name**: `LockReleaseTokenPool`
 - **Version**: 1.6.0
 - **Edition**: 2024
-- **Dependencies**: 
+- **Dependencies**:
   - `CCIPTokenPool` (Base token pool functionality)
   - `ChainlinkManyChainMultisig` (MCMS integration)
 
 ### Module Structure
+
 - `lock_release_token_pool.move` - Core lock/release functionality
 
 ## Testing
 
 Run tests with:
+
 ```bash
 sui move test
 ```
 
 The test suite covers:
+
 - Initialization and configuration
 - Lock and release operations
 - Liquidity management
