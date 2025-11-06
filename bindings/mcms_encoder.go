@@ -237,10 +237,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
-		case "set_pool":
-			ccipRefBytes := deserializeFirst32Bytes(data)
-			ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
-			return burnMintTokenPool.Encoder().McmsSetPoolWithArgs(typeArgs, ccipRef, stateObj, registryObj, executingCallbackParams)
 		}
 
 	// LOCK RELEASE TOKEN POOL
@@ -265,11 +261,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
-		case "set_pool":
-			ccipRefBytes := deserializeFirst32Bytes(data)
-			ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
-			return lockReleaseTokenPool.Encoder().McmsSetPoolWithArgs(typeArgs, ccipRef, stateObj, registryObj, executingCallbackParams)
-
 		}
 
 	// MANAGED TOKEN POOL
@@ -294,11 +285,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
-		case "set_pool":
-			ccipRefBytes := deserializeFirst32Bytes(data)
-			ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
-			return managedTokenPool.Encoder().McmsSetPoolWithArgs(typeArgs, ccipRef, stateObj, registryObj, executingCallbackParams)
-
 		}
 
 	// USDC TOKEN POOL
@@ -322,10 +308,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return encodeExecuteOwnershipTransferWithTypeArgs()
 		case "set_chain_rate_limiter_configs", "set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
-		case "set_pool":
-			ccipRefBytes := deserializeFirst32Bytes(data)
-			ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
-			return usdcTokenPool.Encoder().McmsSetPoolWithArgs(typeArgs, ccipRef, stateObj, registryObj, executingCallbackParams)
 		}
 
 	// MANAGED TOKEN
