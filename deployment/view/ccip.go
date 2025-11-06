@@ -1,7 +1,20 @@
 package view
 
 import (
+	"context"
+	"encoding/hex"
 	"fmt"
+	"math/big"
+
+	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
+
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
+	module_nonce_manager "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/nonce_manager"
+	module_receiver_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/receiver_registry"
+	module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
+	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 )
 
 type CCIPView struct {
@@ -75,6 +88,17 @@ type RMNRemoteCurseEntry struct {
 
 type TokenAdminRegistryView struct {
 	ContractMetaData
+	TokenConfigs map[string]TokenConfigView `json:"tokenConfigs"` // Token address => config
+}
+
+type TokenConfigView struct {
+	TokenPoolPackageId  string   `json:"tokenPoolPackageId"`
+	TokenPoolModule     string   `json:"tokenPoolModule"`
+	TokenType           string   `json:"tokenType"`
+	Administrator       string   `json:"administrator"`
+	TokenPoolTypeProof  string   `json:"tokenPoolTypeProof"`
+	LockOrBurnParams    []string `json:"lockOrBurnParams"`
+	ReleaseOrMintParams []string `json:"releaseOrMintParams"`
 }
 
 type NonceManagerView struct {
@@ -85,96 +109,395 @@ type ReceiverRegistryView struct {
 	ContractMetaData
 }
 
-// GenerateCCIPView generates a mocked CCIP view for SUI
-func GenerateCCIPView(ccipAddress string) (CCIPView, error) {
-	if ccipAddress == "" {
-		return CCIPView{}, fmt.Errorf("ccipAddress cannot be empty")
+// GenerateCCIPView generates a CCIP view by querying the on-chain state
+func GenerateCCIPView(
+	ctx context.Context,
+	chain sui.Chain,
+	ccipPackageID string,
+	ccipObjectRef string,
+	routerPackageID string,
+	routerStateObjectID string,
+) (CCIPView, error) {
+	if ccipPackageID == "" || ccipObjectRef == "" {
+		return CCIPView{}, fmt.Errorf("ccipPackageID and ccipObjectRef cannot be empty")
+	}
+	ccipRefObj := bind.Object{Id: ccipObjectRef}
+	callOpts := &bind.CallOpts{Signer: chain.Signer}
+
+	// Create state object contract binding to get owner
+	stateObjectContract, err := module_state_object.NewStateObject(ccipPackageID, chain.Client)
+	if err != nil {
+		return CCIPView{}, fmt.Errorf("failed to create state object contract binding: %w", err)
 	}
 
-	// Mocked implementation - replace with actual on-chain queries later
+	// Get owner
+	owner, err := stateObjectContract.DevInspect().Owner(ctx, callOpts, ccipRefObj)
+	if err != nil {
+		return CCIPView{}, fmt.Errorf("failed to get owner: %w", err)
+	}
+
+	// Generate FeeQuoter view
+	feeQuoterView, err := generateFeeQuoterView(ctx, chain, ccipPackageID, ccipRefObj, callOpts, routerPackageID, routerStateObjectID)
+	feeQuoterView.ContractMetaData.Owner = owner
+	if err != nil {
+		return CCIPView{}, fmt.Errorf("failed to generate fee quoter view: %w", err)
+	}
+
+	// Generate RMNRemote view
+	rmnRemoteView, err := generateRMNRemoteView(ctx, chain, ccipPackageID, ccipRefObj, callOpts)
+	rmnRemoteView.ContractMetaData.Owner = owner
+	if err != nil {
+		return CCIPView{}, fmt.Errorf("failed to generate rmn remote view: %w", err)
+	}
+
+	// Generate Token Admin Registry view
+	tokenAdminRegistryView, err := generateTokenAdminRegistryView(ctx, chain, ccipPackageID, ccipRefObj, callOpts)
+	tokenAdminRegistryView.ContractMetaData.Owner = owner
+	if err != nil {
+		return CCIPView{}, fmt.Errorf("failed to generate token admin registry view: %w", err)
+	}
+
+	// Generate Nonce Manager view
+	nonceManagerView, err := generateNonceManagerView(ctx, chain, ccipPackageID, callOpts)
+	nonceManagerView.ContractMetaData.Owner = owner
+	if err != nil {
+		return CCIPView{}, fmt.Errorf("failed to generate nonce manager view: %w", err)
+	}
+
+	// Generate Receiver Registry view
+	receiverRegistryView, err := generateReceiverRegistryView(ctx, chain, ccipPackageID, callOpts)
+	receiverRegistryView.ContractMetaData.Owner = owner
+	if err != nil {
+		return CCIPView{}, fmt.Errorf("failed to generate receiver registry view: %w", err)
+	}
+
 	return CCIPView{
 		ContractMetaData: ContractMetaData{
-			Address:        ccipAddress,
-			Owner:          "0xmocked_owner_address",
-			TypeAndVersion: "CCIP 1.0.0",
+			Address: ccipPackageID,
+			Owner:   owner,
 		},
-		FeeQuoter: FeeQuoterView{
-			ContractMetaData: ContractMetaData{
-				Address:        ccipAddress,
-				TypeAndVersion: "FeeQuoter 1.0.0",
-			},
-			FeeTokens: []string{
-				"0xmocked_link_token",
-				"0xmocked_sui_token",
-			},
-			StaticConfig: FeeQuoterStaticConfig{
-				MaxFeeJuelsPerMsg:            "1000000000000000000",
-				LinkToken:                    "0xmocked_link_token",
-				TokenPriceStalenessThreshold: 3600,
-			},
-			DestinationChainConfigs: map[uint64]FeeQuoterDestChainConfig{
-				1: {
-					IsEnabled:                         true,
-					MaxNumberOfTokensPerMsg:           10,
-					MaxDataBytes:                      10000,
-					MaxPerMsgGasLimit:                 4000000,
-					DestGasOverhead:                   100000,
-					DestGasPerPayloadByteBase:         16,
-					DestGasPerPayloadByteHigh:         32,
-					DestGasPerPayloadByteThreshold:    1024,
-					DestDataAvailabilityOverheadGas:   50000,
-					DestGasPerDataAvailabilityByte:    100,
-					DestDataAvailabilityMultiplierBps: 10000,
-					ChainFamilySelector:               "evm",
-					EnforceOutOfOrder:                 false,
-					DefaultTokenFeeUsdCents:           50,
-					DefaultTokenDestGasOverhead:       34000,
-					DefaultTxGasLimit:                 200000,
-					GasMultiplierWeiPerEth:            1000000000000000000,
-					GasPriceStalenessThreshold:        3600,
-					NetworkFeeUsdCents:                100,
-				},
-			},
+		FeeQuoter:          feeQuoterView,
+		RMNRemote:          rmnRemoteView,
+		TokenAdminRegistry: tokenAdminRegistryView,
+		NonceManager:       nonceManagerView,
+		ReceiverRegistry:   receiverRegistryView,
+	}, nil
+}
+
+func generateFeeQuoterView(
+	ctx context.Context,
+	chain sui.Chain,
+	ccipPackageID string,
+	ccipRefObj bind.Object,
+	callOpts *bind.CallOpts,
+	routerPackageID string,
+	routerStateObjectID string,
+) (FeeQuoterView, error) {
+	// Create fee quoter contract binding
+	feeQuoterContract, err := module_fee_quoter.NewFeeQuoter(ccipPackageID, chain.Client)
+	if err != nil {
+		return FeeQuoterView{}, fmt.Errorf("failed to create fee quoter contract binding: %w", err)
+	}
+
+	// Get type and version
+	typeAndVersion, err := feeQuoterContract.DevInspect().TypeAndVersion(ctx, callOpts)
+	if err != nil {
+		return FeeQuoterView{}, fmt.Errorf("failed to get type and version: %w", err)
+	}
+
+	// Get fee tokens
+	feeTokens, err := feeQuoterContract.DevInspect().GetFeeTokens(ctx, callOpts, ccipRefObj)
+	if err != nil {
+		return FeeQuoterView{}, fmt.Errorf("failed to get fee tokens: %w", err)
+	}
+
+	// Get static config
+	staticConfig, err := feeQuoterContract.DevInspect().GetStaticConfig(ctx, callOpts, ccipRefObj)
+	if err != nil {
+		return FeeQuoterView{}, fmt.Errorf("failed to get static config: %w", err)
+	}
+
+	// TODO: Mocking this now because contracts deployed are old
+	destChainSelectors := []uint64{16015286601757825753}
+	// // Get destination chains from router to query per-chain configs
+	// var destChainSelectors []uint64
+	// if routerPackageID != "" && routerStateObjectID != "" {
+	// 	routerContract, err := module_router.NewRouter(routerPackageID, chain.Client)
+	// 	if err != nil {
+	// 		return FeeQuoterView{}, fmt.Errorf("failed to create router contract binding: %w", err)
+	// 	}
+
+	// 	routerStateObj := bind.Object{Id: routerStateObjectID}
+	// 	destChainSelectors, err = routerContract.DevInspect().GetDestChains(ctx, callOpts, routerStateObj)
+	// 	if err != nil {
+	// 		return FeeQuoterView{}, fmt.Errorf("failed to get dest chains from router: %w", err)
+	// 	}
+	// }
+
+	// Get destination chain configs for each destination chain
+	destinationChainConfigs := make(map[uint64]FeeQuoterDestChainConfig)
+	for _, destChainSelector := range destChainSelectors {
+		destChainConfig, err := feeQuoterContract.DevInspect().GetDestChainConfig(ctx, callOpts, ccipRefObj, destChainSelector)
+		if err != nil {
+			// Chain might not be configured, skip it
+			continue
+		}
+
+		destinationChainConfigs[destChainSelector] = FeeQuoterDestChainConfig{
+			IsEnabled:                         destChainConfig.IsEnabled,
+			MaxNumberOfTokensPerMsg:           destChainConfig.MaxNumberOfTokensPerMsg,
+			MaxDataBytes:                      destChainConfig.MaxDataBytes,
+			MaxPerMsgGasLimit:                 destChainConfig.MaxPerMsgGasLimit,
+			DestGasOverhead:                   destChainConfig.DestGasOverhead,
+			DestGasPerPayloadByteBase:         destChainConfig.DestGasPerPayloadByteBase,
+			DestGasPerPayloadByteHigh:         destChainConfig.DestGasPerPayloadByteHigh,
+			DestGasPerPayloadByteThreshold:    destChainConfig.DestGasPerPayloadByteThreshold,
+			DestDataAvailabilityOverheadGas:   destChainConfig.DestDataAvailabilityOverheadGas,
+			DestGasPerDataAvailabilityByte:    destChainConfig.DestGasPerDataAvailabilityByte,
+			DestDataAvailabilityMultiplierBps: destChainConfig.DestDataAvailabilityMultiplierBps,
+			ChainFamilySelector:               hex.EncodeToString(destChainConfig.ChainFamilySelector),
+			EnforceOutOfOrder:                 destChainConfig.EnforceOutOfOrder,
+			DefaultTokenFeeUsdCents:           destChainConfig.DefaultTokenFeeUsdCents,
+			DefaultTokenDestGasOverhead:       destChainConfig.DefaultTokenDestGasOverhead,
+			DefaultTxGasLimit:                 destChainConfig.DefaultTxGasLimit,
+			GasMultiplierWeiPerEth:            destChainConfig.GasMultiplierWeiPerEth,
+			GasPriceStalenessThreshold:        destChainConfig.GasPriceStalenessThreshold,
+			NetworkFeeUsdCents:                destChainConfig.NetworkFeeUsdCents,
+		}
+	}
+
+	return FeeQuoterView{
+		ContractMetaData: ContractMetaData{
+			Address:        ccipPackageID,
+			Owner:          "",
+			TypeAndVersion: typeAndVersion,
 		},
-		RMNRemote: RMNRemoteView{
-			ContractMetaData: ContractMetaData{
-				Address:        ccipAddress,
-				TypeAndVersion: "RMNRemote 1.0.0",
-			},
-			IsCursed: false,
-			Config: RMNRemoteVersionedConfig{
-				Version: 1,
-				Signers: []RMNRemoteSigner{
-					{
-						OnchainPublicKey: "0xmocked_signer_1",
-						NodeIndex:        0,
-					},
-					{
-						OnchainPublicKey: "0xmocked_signer_2",
-						NodeIndex:        1,
-					},
-				},
-				Fsign: 2,
-			},
-			CursedSubjectEntries: []RMNRemoteCurseEntry{},
+		FeeTokens: feeTokens,
+		StaticConfig: FeeQuoterStaticConfig{
+			MaxFeeJuelsPerMsg:            staticConfig.MaxFeeJuelsPerMsg.String(),
+			LinkToken:                    staticConfig.LinkToken,
+			TokenPriceStalenessThreshold: staticConfig.TokenPriceStalenessThreshold,
 		},
-		TokenAdminRegistry: TokenAdminRegistryView{
-			ContractMetaData: ContractMetaData{
-				Address:        ccipAddress,
-				TypeAndVersion: "TokenAdminRegistry 1.0.0",
-			},
+		DestinationChainConfigs: destinationChainConfigs,
+	}, nil
+}
+
+func generateRMNRemoteView(
+	ctx context.Context,
+	chain sui.Chain,
+	ccipPackageID string,
+	ccipRefObj bind.Object,
+	callOpts *bind.CallOpts,
+) (RMNRemoteView, error) {
+	// Create RMN remote contract binding
+	rmnRemoteContract, err := module_rmn_remote.NewRmnRemote(ccipPackageID, chain.Client)
+	if err != nil {
+		return RMNRemoteView{}, fmt.Errorf("failed to create rmn remote contract binding: %w", err)
+	}
+
+	// Get type and version
+	typeAndVersion, err := rmnRemoteContract.DevInspect().TypeAndVersion(ctx, callOpts)
+	if err != nil {
+		return RMNRemoteView{}, fmt.Errorf("failed to get type and version: %w", err)
+	}
+
+	// Get cursed status (global)
+	isCursed, err := rmnRemoteContract.DevInspect().IsCursedGlobal(ctx, callOpts, ccipRefObj)
+	if err != nil {
+		return RMNRemoteView{}, fmt.Errorf("failed to get cursed status: %w", err)
+	}
+
+	// Get versioned config
+	// Returns [0]: u32 (version), [1]: Config struct (with signers and f_sign)
+	versionedConfigRaw, err := rmnRemoteContract.DevInspect().GetVersionedConfig(ctx, callOpts, ccipRefObj)
+	if err != nil {
+		return RMNRemoteView{}, fmt.Errorf("failed to get versioned config: %w", err)
+	}
+
+	var versionedConfig RMNRemoteVersionedConfig
+	if len(versionedConfigRaw) >= 2 {
+		version, ok := versionedConfigRaw[0].(uint32)
+		if !ok {
+			return RMNRemoteView{}, fmt.Errorf("unexpected type for version: got %T", versionedConfigRaw[0])
+		}
+		versionedConfig.Version = version
+
+		// Parse the config struct (contains signers and f_sign)
+		// Config is a struct with fields: signers (vector of Signer structs) and f_sign (u64)
+		configData, ok := versionedConfigRaw[1].([]interface{})
+		if ok && len(configData) >= 2 {
+			// Parse signers
+			if signersRaw, ok := configData[0].([]interface{}); ok {
+				signers := make([]RMNRemoteSigner, 0, len(signersRaw))
+				for _, signerRaw := range signersRaw {
+					if signerData, ok := signerRaw.([]interface{}); ok && len(signerData) >= 2 {
+						// Signer struct: [onchain_public_key (vector<u8>), node_index (u64)]
+						pubKeyBytes, pkOk := signerData[0].([]byte)
+						nodeIndex, niOk := signerData[1].(uint64)
+						if pkOk && niOk {
+							signers = append(signers, RMNRemoteSigner{
+								OnchainPublicKey: "0x" + hex.EncodeToString(pubKeyBytes),
+								NodeIndex:        nodeIndex,
+							})
+						}
+					}
+				}
+				versionedConfig.Signers = signers
+			}
+
+			// Parse f_sign
+			if fSign, ok := configData[1].(uint64); ok {
+				versionedConfig.Fsign = fSign
+			}
+		}
+	}
+
+	// Get cursed subjects
+	cursedSubjectsRaw, err := rmnRemoteContract.DevInspect().GetCursedSubjects(ctx, callOpts, ccipRefObj)
+	if err != nil {
+		return RMNRemoteView{}, fmt.Errorf("failed to get cursed subjects: %w", err)
+	}
+
+	cursedSubjectEntries := make([]RMNRemoteCurseEntry, 0, len(cursedSubjectsRaw))
+	for _, subjectBytes := range cursedSubjectsRaw {
+		// Try to parse as chain selector (u128 encoded as bytes)
+		var selector uint64
+		if len(subjectBytes) == 16 {
+			// Convert bytes to u128, then to u64 for chain selector
+			selectorBig := new(big.Int).SetBytes(subjectBytes)
+			if selectorBig.IsUint64() {
+				selector = selectorBig.Uint64()
+			}
+		}
+
+		cursedSubjectEntries = append(cursedSubjectEntries, RMNRemoteCurseEntry{
+			Subject:  "0x" + hex.EncodeToString(subjectBytes),
+			Selector: selector,
+		})
+	}
+
+	return RMNRemoteView{
+		ContractMetaData: ContractMetaData{
+			Address:        ccipPackageID,
+			Owner:          "",
+			TypeAndVersion: typeAndVersion,
 		},
-		NonceManager: NonceManagerView{
-			ContractMetaData: ContractMetaData{
-				Address:        ccipAddress,
-				TypeAndVersion: "NonceManager 1.0.0",
-			},
+		IsCursed:             isCursed,
+		Config:               versionedConfig,
+		CursedSubjectEntries: cursedSubjectEntries,
+	}, nil
+}
+
+func generateTokenAdminRegistryView(
+	ctx context.Context,
+	chain sui.Chain,
+	ccipPackageID string,
+	ccipRefObj bind.Object,
+	callOpts *bind.CallOpts,
+) (TokenAdminRegistryView, error) {
+	// Create token admin registry contract binding
+	tokenAdminRegistryContract, err := module_token_admin_registry.NewTokenAdminRegistry(ccipPackageID, chain.Client)
+	if err != nil {
+		return TokenAdminRegistryView{}, fmt.Errorf("failed to create token admin registry contract binding: %w", err)
+	}
+
+	// Get type and version
+	typeAndVersion, err := tokenAdminRegistryContract.DevInspect().TypeAndVersion(ctx, callOpts)
+	if err != nil {
+		return TokenAdminRegistryView{}, fmt.Errorf("failed to get type and version: %w", err)
+	}
+
+	// Get all configured tokens
+	// GetAllConfiguredTokens returns: [0]: vector<address> (tokens), [1]: address (next_key), [2]: bool (has_next)
+	configuredTokensRaw, err := tokenAdminRegistryContract.DevInspect().GetAllConfiguredTokens(ctx, callOpts, ccipRefObj, "0x0", 1000)
+	if err != nil {
+		return TokenAdminRegistryView{}, fmt.Errorf("failed to get all configured tokens: %w", err)
+	}
+
+	tokenConfigs := make(map[string]TokenConfigView)
+	if len(configuredTokensRaw) >= 1 {
+		if tokens, ok := configuredTokensRaw[0].([]string); ok {
+			// Query each token's config
+			for _, tokenAddr := range tokens {
+				tokenConfig, err := tokenAdminRegistryContract.DevInspect().GetTokenConfigStruct(ctx, callOpts, ccipRefObj, tokenAddr)
+				if err != nil {
+					// Token might not be configured properly, skip it
+					continue
+				}
+
+				tokenConfigs[tokenAddr] = TokenConfigView{
+					TokenPoolPackageId:  tokenConfig.TokenPoolPackageId,
+					TokenPoolModule:     tokenConfig.TokenPoolModule,
+					TokenType:           tokenConfig.TokenType,
+					Administrator:       tokenConfig.Administrator,
+					TokenPoolTypeProof:  tokenConfig.TokenPoolTypeProof,
+					LockOrBurnParams:    tokenConfig.LockOrBurnParams,
+					ReleaseOrMintParams: tokenConfig.ReleaseOrMintParams,
+				}
+			}
+		}
+	}
+
+	return TokenAdminRegistryView{
+		ContractMetaData: ContractMetaData{
+			Address:        ccipPackageID,
+			Owner:          "",
+			TypeAndVersion: typeAndVersion,
 		},
-		ReceiverRegistry: ReceiverRegistryView{
-			ContractMetaData: ContractMetaData{
-				Address:        ccipAddress,
-				TypeAndVersion: "ReceiverRegistry 1.0.0",
-			},
+		TokenConfigs: tokenConfigs,
+	}, nil
+}
+
+func generateNonceManagerView(
+	ctx context.Context,
+	chain sui.Chain,
+	ccipPackageID string,
+	callOpts *bind.CallOpts,
+) (NonceManagerView, error) {
+	// Create nonce manager contract binding
+	nonceManagerContract, err := module_nonce_manager.NewNonceManager(ccipPackageID, chain.Client)
+	if err != nil {
+		return NonceManagerView{}, fmt.Errorf("failed to create nonce manager contract binding: %w", err)
+	}
+
+	// Get type and version
+	typeAndVersion, err := nonceManagerContract.DevInspect().TypeAndVersion(ctx, callOpts)
+	if err != nil {
+		return NonceManagerView{}, fmt.Errorf("failed to get type and version: %w", err)
+	}
+
+	return NonceManagerView{
+		ContractMetaData: ContractMetaData{
+			Address:        ccipPackageID,
+			Owner:          "",
+			TypeAndVersion: typeAndVersion,
+		},
+	}, nil
+}
+
+func generateReceiverRegistryView(
+	ctx context.Context,
+	chain sui.Chain,
+	ccipPackageID string,
+	callOpts *bind.CallOpts,
+) (ReceiverRegistryView, error) {
+	// Create receiver registry contract binding
+	receiverRegistryContract, err := module_receiver_registry.NewReceiverRegistry(ccipPackageID, chain.Client)
+	if err != nil {
+		return ReceiverRegistryView{}, fmt.Errorf("failed to create receiver registry contract binding: %w", err)
+	}
+
+	// Get type and version
+	typeAndVersion, err := receiverRegistryContract.DevInspect().TypeAndVersion(ctx, callOpts)
+	if err != nil {
+		return ReceiverRegistryView{}, fmt.Errorf("failed to get type and version: %w", err)
+	}
+
+	return ReceiverRegistryView{
+		ContractMetaData: ContractMetaData{
+			Address:        ccipPackageID,
+			Owner:          "",
+			TypeAndVersion: typeAndVersion,
 		},
 	}, nil
 }

@@ -102,9 +102,9 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		lggr.Infow("generated MCMS view", "mcmsStateObjectID", s.MCMSStateObjectID, "chain", chainName)
 	}
 
-	// TODO: CCIP
+	// CCIP
 	if s.CCIPAddress != "" {
-		ccipView, err := view.GenerateCCIPView(s.CCIPAddress)
+		ccipView, err := view.GenerateCCIPView(ctx, suiChain, s.CCIPAddress, s.CCIPObjectRef, s.CCIPRouterAddress, s.CCIPRouterStateObjectID)
 		if err != nil {
 			return SuiChainView{}, fmt.Errorf("failed to generate ccip view for ccip %s: %w", s.CCIPAddress, err)
 		}
