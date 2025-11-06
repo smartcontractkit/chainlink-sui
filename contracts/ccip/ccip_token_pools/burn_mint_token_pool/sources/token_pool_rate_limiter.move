@@ -141,7 +141,10 @@ public fun get_current_inbound_rate_limiter_state(
     clock: &Clock,
     remote_chain_selector: u64,
 ): rate_limiter::TokenBucket {
-    assert!(state.inbound_rate_limiter_config.contains(remote_chain_selector), ERateLimiterConfigNotFound);
+    assert!(
+        state.inbound_rate_limiter_config.contains(remote_chain_selector),
+        ERateLimiterConfigNotFound,
+    );
     rate_limiter::get_current_token_bucket_state(
         clock,
         state.inbound_rate_limiter_config.borrow(remote_chain_selector),
@@ -153,7 +156,10 @@ public fun get_current_outbound_rate_limiter_state(
     clock: &Clock,
     remote_chain_selector: u64,
 ): rate_limiter::TokenBucket {
-    assert!(state.outbound_rate_limiter_config.contains(remote_chain_selector), ERateLimiterConfigNotFound);
+    assert!(
+        state.outbound_rate_limiter_config.contains(remote_chain_selector),
+        ERateLimiterConfigNotFound,
+    );
     rate_limiter::get_current_token_bucket_state(
         clock,
         state.outbound_rate_limiter_config.borrow(remote_chain_selector),
@@ -168,4 +174,8 @@ public(package) fun destroy_rate_limiter(state: RateLimitState) {
 
     outbound_rate_limiter_config.drop();
     inbound_rate_limiter_config.drop();
+}
+
+public fun is_zero_config(state: &RateLimitState): bool {
+    state.outbound_rate_limiter_config.is_empty() && state.inbound_rate_limiter_config.is_empty()
 }

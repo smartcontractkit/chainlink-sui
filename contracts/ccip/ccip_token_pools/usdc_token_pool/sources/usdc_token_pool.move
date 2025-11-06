@@ -444,6 +444,7 @@ public fun release_or_mint<T: drop>(
     let mint_recipient = burn_message::mint_recipient(&burn_message);
     assert!(mint_recipient == token_receiver, EInvalidMintRecipient);
     let local_amount = burn_message::amount(&burn_message);
+    // local_amount is u64 because the token balance in SUI is u64.
     let mut amount_op = local_amount.try_as_u64();
     assert!(amount_op.is_some(), ETokenAmountOverflow);
     let amount = amount_op.extract();
