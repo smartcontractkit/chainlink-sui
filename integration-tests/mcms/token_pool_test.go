@@ -319,7 +319,6 @@ func RunLnRConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 			lockreleasetokenpoolops.LockReleaseTokenPoolAddRemotePoolOp.Def(),
 			lockreleasetokenpoolops.LockReleaseTokenPoolRemoveRemotePoolOp.Def(),
 			lockreleasetokenpoolops.LockReleaseTokenPoolSetChainRateLimiterOp.Def(),
-			lockreleasetokenpoolops.LockReleaseTokenPoolSetPoolOp.Def(), // Disabled as TAR caller issue
 		},
 		Inputs: []any{
 			// lnr config ops
@@ -377,14 +376,6 @@ func RunLnRConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 				InboundCapacities:    []uint64{2000000},
 				InboundRates:         []uint64{200000},
 			},
-			lockreleasetokenpoolops.LockReleaseTokenPoolSetPoolInput{
-				LockReleaseTokenPoolPackageId: s.lnrPackageId,
-				CoinObjectTypeArg:             fmt.Sprintf("%s::link::LINK", s.lnrTokenPackageId),
-				RefObjectId:                   s.ccipObjects.CCIPObjectRefObjectId,
-				StateObjectId:                 s.lnrObjects.StateObjectId,
-				OwnerCap:                      s.lnrObjects.OwnerCapObjectId,
-				CoinMetadataAddress:           s.lnrTokenObjects.CoinMetadataObjectId,
-			},
 		},
 
 		// MCMS related
@@ -420,7 +411,6 @@ func RunBnMConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 			burnminttokenpoolops.BurnMintTokenPoolAddRemotePoolOp.Def(),
 			burnminttokenpoolops.BurnMintTokenPoolRemoveRemotePoolOp.Def(),
 			burnminttokenpoolops.BurnMintTokenPoolSetChainRateLimiterOp.Def(),
-			burnminttokenpoolops.BurnMintTokenPoolSetPoolOp.Def(), // Disabled as TAR caller issue
 		},
 		Inputs: []any{
 			// bnm config ops
@@ -478,14 +468,6 @@ func RunBnMConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 				InboundCapacities:    []uint64{2000000},
 				InboundRates:         []uint64{200000},
 			},
-			burnminttokenpoolops.BurnMintTokenPoolSetPoolInput{
-				BurnMintTokenPoolPackageId: s.bnmPackageId,
-				CoinObjectTypeArg:          fmt.Sprintf("%s::link::LINK", s.linkPackageId),
-				RefObjectId:                s.ccipObjects.CCIPObjectRefObjectId,
-				StateObjectId:              s.bnmObjects.StateObjectId,
-				OwnerCap:                   s.bnmObjects.OwnerCapObjectId,
-				CoinMetadataAddress:        s.linkObjects.CoinMetadataObjectId,
-			},
 		},
 
 		// MCMS related
@@ -521,7 +503,6 @@ func RunManagedConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 			managedtokenpoolops.ManagedTokenPoolAddRemotePoolOp.Def(),
 			managedtokenpoolops.ManagedTokenPoolRemoveRemotePoolOp.Def(),
 			managedtokenpoolops.ManagedTokenPoolSetChainRateLimiterOp.Def(),
-			managedtokenpoolops.ManagedTokenPoolSetPoolOp.Def(), // Disabled as TAR caller issue
 		},
 		Inputs: []any{
 			managedtokenpoolops.ManagedTokenPoolSetAllowlistEnabledInput{
@@ -577,15 +558,6 @@ func RunManagedConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 				InboundIsEnableds:         []bool{true},
 				InboundCapacities:         []uint64{2000000},
 				InboundRates:              []uint64{200000},
-			},
-			managedtokenpoolops.ManagedTokenPoolSetPoolInput{
-				ManagedTokenPoolPackageId: s.managedTokenPoolPackageId,
-				CoinObjectTypeArg:         fmt.Sprintf("%s::link::LINK", s.managedTokenLinkPackageId),
-				RefObjectId:               s.ccipObjects.CCIPObjectRefObjectId,
-				StateObjectId:             s.managedTokenPoolObjects.StateObjectId,
-				OwnerCap:                  s.managedTokenPoolObjects.OwnerCapObjectId,
-				CoinMetadataAddress:       s.managedTokenLinkObjects.CoinMetadataObjectId,
-				ManagedTokenState:         s.managedTokenObjects.StateObjectId,
 			},
 		},
 
