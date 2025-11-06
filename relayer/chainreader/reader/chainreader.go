@@ -497,6 +497,7 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	// Get module and event configuration
 	moduleConfig := s.config.Modules[contract.Name]
 	eventConfig, err := s.getEventConfig(moduleConfig, filter.Key)
+
 	// No event config found, construct a config
 	if err == nil && eventConfig == nil {
 		// construct a new config ad-hoc
@@ -536,9 +537,6 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	if err != nil {
 		return nil, err
 	}
-
-	// update the event config in the transactions indexer to ensure that the package ID is known
-	s.indexer.GetTransactionIndexer().UpdateEventConfig(eventConfig)
 
 	return eventConfig, nil
 }
