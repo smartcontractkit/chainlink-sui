@@ -200,7 +200,6 @@ public fun execute_ownership_transfer(
     assert!(new_owner != mcms_registry::get_multisig_address(), ECannotTransferToMcms);
 
     state.owner = to;
-    state.pending_transfer = option::none();
 
     transfer::transfer(owner_cap, to);
 
@@ -233,7 +232,6 @@ public fun execute_ownership_transfer_to_mcms<P: drop>(
     assert!(to == mcms_registry::get_multisig_address(), EMustTransferToMcms);
 
     state.owner = to;
-    state.pending_transfer = option::none();
 
     mcms_registry::register_entrypoint(
         registry,
@@ -271,7 +269,6 @@ public(package) fun execute_ownership_and_cap_transfer_to_mcms<C: key + store, T
     assert!(to == mcms_registry::get_multisig_address(), EMustTransferToMcms);
 
     state.owner = to;
-    state.pending_transfer = option::none();
 
     mcms_registry::register_entrypoint(
         registry,

@@ -14,7 +14,6 @@ use lock_release_token_pool::lock_release_token_pool::{
     RebalancerCap
 };
 use lock_release_token_pool::ownable::OwnerCap;
-use std::ascii;
 use std::bcs;
 use std::string;
 use std::type_name;
@@ -102,8 +101,12 @@ public fun test_initialize_and_basic_functionality() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize the lock release token pool
         lock_release_token_pool::initialize(
@@ -181,8 +184,12 @@ public fun test_chain_configuration_management() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize pool
         lock_release_token_pool::initialize(
@@ -312,8 +319,12 @@ public fun test_liquidity_management() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize pool
         lock_release_token_pool::initialize(
@@ -340,7 +351,9 @@ public fun test_liquidity_management() {
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
         let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let rebalancer_cap = scenario.take_from_sender<RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let rebalancer_cap = scenario.take_from_sender<
+            RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         let initial_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &pool_state,
@@ -371,7 +384,9 @@ public fun test_liquidity_management() {
         let mut pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let rebalancer_cap = scenario.take_from_sender<RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let rebalancer_cap = scenario.take_from_sender<
+            RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         let withdraw_amount = 500000;
         let initial_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(
@@ -436,8 +451,12 @@ public fun test_rebalancer_management() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize pool
         lock_release_token_pool::initialize(
@@ -460,7 +479,9 @@ public fun test_rebalancer_management() {
     // Verify that the rebalancer cap was transferred to the rebalancer address
     scenario.next_tx(REBALANCER);
     {
-        let rebalancer_cap = scenario.take_from_sender<RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let rebalancer_cap = scenario.take_from_sender<
+            RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
         // Return the cap to the rebalancer to keep state consistent
         transfer::public_transfer(rebalancer_cap, REBALANCER);
     };
@@ -500,8 +521,12 @@ public fun test_rate_limiter_configuration() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize pool
         lock_release_token_pool::initialize(
@@ -623,8 +648,12 @@ public fun test_allowlist_management() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize pool
         lock_release_token_pool::initialize(
@@ -732,8 +761,12 @@ public fun test_unauthorized_liquidity_provision() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize pool
         lock_release_token_pool::initialize(
@@ -816,8 +849,12 @@ public fun test_withdraw_exceeds_balance() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize pool
         lock_release_token_pool::initialize(
@@ -845,7 +882,9 @@ public fun test_withdraw_exceeds_balance() {
         >();
         let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
 
-        let rebalancer_cap = scenario.take_from_sender<RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let rebalancer_cap = scenario.take_from_sender<
+            RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
         lock_release_token_pool::provide_liquidity(
             &mut pool_state,
             &rebalancer_cap,
@@ -863,7 +902,9 @@ public fun test_withdraw_exceeds_balance() {
         let mut pool_state = scenario.take_shared<
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
-        let rebalancer_cap = scenario.take_from_sender<RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let rebalancer_cap = scenario.take_from_sender<
+            RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Try to withdraw 200k tokens when only 100k are available
         let withdrawn_coin = lock_release_token_pool::withdraw_liquidity<
@@ -921,8 +962,12 @@ public fun test_unauthorized_withdrawal() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize pool
         lock_release_token_pool::initialize(
@@ -950,7 +995,9 @@ public fun test_unauthorized_withdrawal() {
         >();
         let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
 
-        let rebalancer_cap = scenario.take_from_sender<RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let rebalancer_cap = scenario.take_from_sender<
+            RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
         lock_release_token_pool::provide_liquidity(
             &mut pool_state,
             &rebalancer_cap,
@@ -1028,8 +1075,12 @@ public fun test_destroy_token_pool() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize pool
         lock_release_token_pool::initialize(
@@ -1056,7 +1107,9 @@ public fun test_destroy_token_pool() {
             LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
         >();
         let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let rebalancer_cap = scenario.take_from_sender<RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let rebalancer_cap = scenario.take_from_sender<
+            RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         lock_release_token_pool::provide_liquidity(
             &mut pool_state,
@@ -1142,8 +1195,12 @@ public fun test_edge_cases_and_getters() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize pool
         lock_release_token_pool::initialize(
@@ -1283,8 +1340,12 @@ public fun test_lock_or_burn_functionality() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize pool
         lock_release_token_pool::initialize(
@@ -1405,8 +1466,6 @@ public fun test_lock_or_burn_functionality() {
             dest_token_address,
             extra_data,
         ) = onramp_sh::get_source_token_transfer_data(&token_transfer_params);
-        // TODO: add token package ID to omnramp state helper to continue with this test
-        // assert!(actual_package_id == object::id_from_address(token_pool_package_id));
         assert!(chain_selector == DefaultRemoteChain);
         assert!(token_pool_package_id == actual_package_id);
         assert!(amount == initial_coin_value);
@@ -1477,8 +1536,12 @@ public fun test_release_or_mint_functionality() {
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
 
         // Initialize pool
         lock_release_token_pool::initialize(
@@ -1548,7 +1611,9 @@ public fun test_release_or_mint_functionality() {
         >();
         let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
 
-        let rebalancer_cap = scenario.take_from_sender<RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let rebalancer_cap = scenario.take_from_sender<
+            RebalancerCap<LOCK_RELEASE_TOKEN_POOL_TESTS>,
+        >();
         lock_release_token_pool::provide_liquidity(
             &mut pool_state,
             &rebalancer_cap,
@@ -1658,235 +1723,6 @@ public fun test_release_or_mint_functionality() {
         transfer::public_transfer(released_coin, TOKEN_ADMIN);
     };
 
-    test_scenario::return_shared(ccip_ref);
-    test_scenario::end(scenario);
-}
-
-#[test]
-public fun test_set_pool() {
-    let mut scenario = create_test_scenario(TOKEN_ADMIN);
-
-    // Setup CCIP environment
-    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
-
-    // Create token and initialize pool normally
-    scenario.next_tx(TOKEN_ADMIN);
-    let coin_metadata_address = {
-        let ctx = scenario.ctx();
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            LOCK_RELEASE_TOKEN_POOL_TESTS {},
-            Decimals,
-            b"TEST",
-            b"TestToken",
-            b"test_token",
-            option::none(),
-            ctx,
-        );
-
-        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
-
-        // Initialize normally with lock_release_token_pool
-        // Call test_init to create owner_cap
-        lock_release_token_pool::test_init(ctx);
-
-        transfer::public_freeze_object(coin_metadata);
-        transfer::public_transfer(treasury_cap, TOKEN_ADMIN);
-        coin_metadata_address
-    };
-
-    scenario.next_tx(TOKEN_ADMIN);
-    {
-        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
-        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-
-        // Initialize pool
-        lock_release_token_pool::initialize(
-            &mut owner_cap,
-            &mut ccip_ref,
-            &coin_metadata,
-            &treasury_cap,
-            TOKEN_ADMIN,
-            REBALANCER,
-            scenario.ctx(),
-        );
-
-        transfer::public_transfer(owner_cap, TOKEN_ADMIN);
-        transfer::public_transfer(treasury_cap, TOKEN_ADMIN);
-        test_scenario::return_immutable(coin_metadata);
-    };
-
-    // Verify initial pool registration with lock_release_token_pool configuration
-    scenario.next_tx(TOKEN_ADMIN);
-    {
-        let pool_state = scenario.take_shared<
-            LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
-        >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
-
-        // Verify initial pool registration
-        let initial_pool = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
-        assert!(initial_pool == @lock_release_token_pool);
-
-        // Get initial configuration
-        let (
-            initial_package_id,
-            initial_module,
-            _token_type,
-            administrator,
-            pending_admin,
-            _initial_proof,
-            initial_lock_params,
-            initial_release_params,
-        ) = token_admin_registry::get_token_config_data(&ccip_ref, coin_metadata_address);
-
-        // Verify correct initial registration
-        assert!(initial_package_id == @lock_release_token_pool);
-        assert!(initial_module == string::utf8(b"lock_release_token_pool"));
-        assert!(administrator == TOKEN_ADMIN);
-        assert!(pending_admin == @0x0);
-        assert!(initial_lock_params.length() == 2); // CLOCK_ADDRESS and pool state address
-        assert!(initial_release_params.length() == 2);
-
-        scenario.return_to_sender(owner_cap);
-        test_scenario::return_shared(pool_state);
-    };
-
-    // Manually update the configuration to a different package ID
-    // Must run as the administrator (TOKEN_ADMIN) to unregister
-    scenario.next_tx(TOKEN_ADMIN);
-    {
-        // Use unregister and re-register to change the package ID
-        token_admin_registry::unregister_pool(
-            &mut ccip_ref,
-            coin_metadata_address,
-            scenario.ctx(),
-        );
-    };
-
-    // Register with a different package ID using CCIP owner
-    scenario.next_tx(TOKEN_ADMIN);
-    {
-        // Register with a different package ID using CCIP admin
-        let different_package_id = @0xcafe;
-        let different_type_proof = ascii::string(b"0xcafe::different_pool::DifferentTypeProof");
-        let different_params = vector[@0x6, @0xfade];
-
-        token_admin_registry::register_pool_as_owner(
-            &ccip_owner_cap,
-            &mut ccip_ref,
-            coin_metadata_address,
-            different_package_id,
-            string::utf8(b"different_pool"),
-            type_name::into_string(type_name::with_defining_ids<LOCK_RELEASE_TOKEN_POOL_TESTS>()),
-            TOKEN_ADMIN, // administrator
-            different_type_proof,
-            different_params,
-            different_params,
-            scenario.ctx(),
-        );
-    };
-
-    // Verify the different configuration
-    scenario.next_tx(TOKEN_ADMIN);
-    {
-        let (
-            before_package_id,
-            before_module,
-            before_token_type,
-            _before_administrator,
-            _before_pending_admin,
-            before_proof,
-            before_lock_params,
-            before_release_params,
-        ) = token_admin_registry::get_token_config_data(&ccip_ref, coin_metadata_address);
-
-        // Verify it's different from lock_release_token_pool
-        assert!(before_package_id == @0xcafe);
-        assert!(before_module == string::utf8(b"different_pool"));
-        assert!(
-            before_token_type == type_name::into_string(type_name::with_defining_ids<LOCK_RELEASE_TOKEN_POOL_TESTS>()),
-        );
-        assert!(before_proof == ascii::string(b"0xcafe::different_pool::DifferentTypeProof"));
-        assert!(before_lock_params == vector[@0x6, @0xfade]);
-        assert!(before_release_params == vector[@0x6, @0xfade]);
-    };
-
-    // Now call set_pool as the administrator to update to the correct lock_release_token_pool config
-    scenario.next_tx(TOKEN_ADMIN);
-    {
-        let pool_state = scenario.take_shared<
-            LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>,
-        >();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
-
-        // Get configuration before set_pool
-        let (
-            before_package_id,
-            before_module,
-            before_token_type,
-            _before_admin,
-            _before_pending,
-            before_proof,
-            _before_lock,
-            _before_release,
-        ) = token_admin_registry::get_token_config_data(&ccip_ref, coin_metadata_address);
-
-        assert!(before_package_id == @0xcafe);
-        assert!(before_module == string::utf8(b"different_pool"));
-        assert!(
-            before_token_type == type_name::into_string(type_name::with_defining_ids<LOCK_RELEASE_TOKEN_POOL_TESTS>()),
-        );
-
-        // Call set_pool to update to the actual lock_release_token_pool configuration
-        lock_release_token_pool::set_pool(
-            &mut ccip_ref,
-            &pool_state,
-            &owner_cap,
-            coin_metadata_address,
-            scenario.ctx(),
-        );
-
-        // Verify the pool configuration CHANGED after set_pool
-        let updated_pool = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
-        assert!(updated_pool == @lock_release_token_pool);
-
-        let (
-            after_package_id,
-            after_module,
-            after_token_type,
-            after_administrator,
-            after_pending_admin,
-            after_proof,
-            after_lock_params,
-            after_release_params,
-        ) = token_admin_registry::get_token_config_data(&ccip_ref, coin_metadata_address);
-
-        // Verify the configuration changed to lock_release_token_pool
-        assert!(after_package_id == @lock_release_token_pool);
-        assert!(after_module == string::utf8(b"lock_release_token_pool"));
-        assert!(
-            after_token_type == type_name::into_string(type_name::with_defining_ids<LOCK_RELEASE_TOKEN_POOL_TESTS>()),
-        );
-        assert!(after_administrator == TOKEN_ADMIN);
-        assert!(after_pending_admin == @0x0);
-        assert!(after_lock_params.length() == 2);
-        assert!(after_release_params.length() == 2);
-
-        // Verify package ID, module, and type proof actually changed
-        assert!(before_package_id != after_package_id);
-        assert!(before_module != after_module);
-        assert!(before_proof != after_proof);
-
-        // Note: token type remains the same (LOCK_RELEASE_TOKEN_POOL_TESTS) since we're testing the same token
-        // but with different pool implementations
-        assert!(before_token_type == after_token_type);
-
-        scenario.return_to_sender(owner_cap);
-        test_scenario::return_shared(pool_state);
-    };
-
-    transfer::public_transfer(ccip_owner_cap, @0x0);
     test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }

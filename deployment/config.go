@@ -25,7 +25,7 @@ var DefaultCCIPSeqConfig = ccipops.DeployAndInitCCIPSeqInput{
 	// Fee Quoter destination chain configuration
 	IsEnabled:                         true,
 	MaxNumberOfTokensPerMsg:           1,
-	MaxDataBytes:                      30_000,
+	MaxDataBytes:                      16_000, // the maximum size of a single pure argument in Sui is 16KB
 	MaxPerMsgGasLimit:                 3_000_000,
 	DestGasOverhead:                   300_000,
 	DestGasPerPayloadByteBase:         byte(16),

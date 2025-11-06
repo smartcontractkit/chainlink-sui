@@ -21,6 +21,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	suiSigner "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
@@ -55,6 +56,7 @@ type SuiPTBClient interface {
 	QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error)
+	QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error)
 	EstimateGas(ctx context.Context, txBytes string) (uint64, error)
 	GetReferenceGasPrice(ctx context.Context) (*big.Int, error)
 	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
@@ -111,7 +113,7 @@ func NewPTBClient(
 	client := sui.NewSuiClientWithCustomClient(rpcUrl, httpClient)
 
 	if maxConcurrentRequests <= 0 {
-		maxConcurrentRequests = 100 // Default value
+		maxConcurrentRequests = 500 // Default value
 	}
 
 	return &PTBClient{
@@ -718,13 +720,47 @@ func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]mo
 			Owner: address,
 			Limit: uint64(maxCoinsPageSize),
 		}
+		hasNextPage := true
 
-		response, err := c.client.SuiXGetAllCoins(ctx, coinsReq)
-		if err != nil {
-			return fmt.Errorf("failed to get coins: %w", err)
+		for hasNextPage {
+			response, err := c.client.SuiXGetAllCoins(ctx, coinsReq)
+			if err != nil {
+				return fmt.Errorf("failed to get coins: %w", err)
+			}
+
+			result = append(result, response.Data...)
+
+			hasNextPage = response.HasNextPage
+			coinsReq.Cursor = response.NextCursor
 		}
 
-		result = response.Data
+		return nil
+	})
+
+	return result, err
+}
+
+func (c *PTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error) {
+	var result []models.CoinData
+	err := c.WithRateLimit(ctx, "QueryCoinsByAddress", func(ctx context.Context) error {
+		coinsReq := models.SuiXGetCoinsRequest{
+			Owner:    address,
+			CoinType: coinType,
+			Limit:    uint64(maxCoinsPageSize),
+		}
+		hasNextPage := true
+
+		for hasNextPage {
+			response, err := c.client.SuiXGetCoins(ctx, coinsReq)
+			if err != nil {
+				return fmt.Errorf("failed to get coins: %w", err)
+			}
+
+			result = append(result, response.Data...)
+
+			hasNextPage = response.HasNextPage
+			coinsReq.Cursor = response.NextCursor
+		}
 
 		return nil
 	})
@@ -992,6 +1028,10 @@ func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, mo
 	packageIds, err := c.LoadModulePackageIds(ctx, packageId, module, signerAddress)
 	if err != nil {
 		return "", fmt.Errorf("failed to load module package ids: %w", err)
+	}
+
+	if len(packageIds) == 0 {
+		return "", fmt.Errorf("nil or empty package ids found for package %s and module %s", packageId, module)
 	}
 
 	return packageIds[len(packageIds)-1], nil

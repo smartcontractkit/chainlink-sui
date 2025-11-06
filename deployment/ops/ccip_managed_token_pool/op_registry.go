@@ -17,5 +17,4 @@ var AllOperationsManagedTP = []cld_ops.Operation[any, any, any]{
 	*ManagedTokenPoolSetChainRateLimiterOp.AsUntyped(),
 	*ManagedTokenPoolSetAllowlistEnabledOp.AsUntyped(),
 	*ManagedTokenPoolApplyAllowlistUpdatesOp.AsUntyped(),
-	*ManagedTokenPoolSetPoolOp.AsUntyped(),
 }

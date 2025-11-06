@@ -10,7 +10,7 @@ use burn_mint_token_pool::token_pool::{Self, TokenPoolState};
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
-use ccip::publisher_wrapper::{Self};
+use ccip::publisher_wrapper;
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use mcms::bcs_stream;
@@ -114,44 +114,6 @@ fun initialize_internal<T>(
     };
 
     burn_mint_token_pool
-}
-
-public fun set_pool<T>(
-    ref: &mut CCIPObjectRef,
-    state: &BurnMintTokenPoolState<T>,
-    owner_cap: &OwnerCap,
-    coin_metadata_address: address,
-    ctx: &mut TxContext,
-) {
-    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
-
-    set_pool_internal(
-        ref,
-        state,
-        owner_cap,
-        coin_metadata_address,
-        ctx.sender(),
-    );
-}
-
-fun set_pool_internal<T>(
-    ref: &mut CCIPObjectRef,
-    state: &BurnMintTokenPoolState<T>,
-    owner_cap: &OwnerCap,
-    coin_metadata_address: address,
-    caller: address,
-) {
-    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
-
-    let token_pool_state_address = object::uid_to_address(&state.id);
-    token_admin_registry::set_pool(
-        ref,
-        coin_metadata_address,
-        vector[CLOCK_ADDRESS, token_pool_state_address],
-        vector[CLOCK_ADDRESS, token_pool_state_address],
-        TypeProof {},
-        caller,
-    );
 }
 
 // ================================================================
@@ -350,6 +312,7 @@ public fun release_or_mint<T>(
         _,
     ) = offramp_sh::get_dest_token_transfer_data(receiver_params);
 
+    // local_amount is u64 because the token balance in SUI is u64.
     let local_amount = token_pool::calculate_release_or_mint_amount(
         &pool.token_pool_state,
         source_pool_data,
@@ -940,40 +903,6 @@ public fun mcms_set_chain_rate_limiter_config<T>(
         inbound_is_enabled,
         inbound_capacity,
         inbound_rate,
-    );
-}
-
-public fun mcms_set_pool<T>(
-    ref: &mut CCIPObjectRef,
-    state: &mut BurnMintTokenPoolState<T>,
-    registry: &mut Registry,
-    params: ExecutingCallbackParams,
-    _: &mut TxContext,
-) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback<T>,
-        OwnerCap,
-    >(
-        registry,
-        McmsCallback<T> {},
-        params,
-    );
-    assert!(function == string::utf8(b"set_pool"), EInvalidFunction);
-
-    let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
-        &mut stream,
-    );
-    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
-    bcs_stream::assert_is_consumed(&stream);
-
-    set_pool_internal(
-        ref,
-        state,
-        owner_cap,
-        coin_metadata_address,
-        mcms_registry::get_multisig_address(),
     );
 }
 
