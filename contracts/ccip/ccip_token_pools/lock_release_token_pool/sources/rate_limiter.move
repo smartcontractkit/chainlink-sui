@@ -10,13 +10,15 @@ public struct TokenBucket has drop, store {
     rate: u64,
 }
 
+const TIME_CONVERSION_TO_SECONDS: u64 = 1000;
+
 const ETokenMaxCapacityExceeded: u64 = 1;
 const ETokenRateLimitReached: u64 = 2;
 
 public(package) fun new(clock: &Clock, is_enabled: bool, capacity: u64, rate: u64): TokenBucket {
     TokenBucket {
         tokens: 0,
-        last_updated: clock.timestamp_ms() / 1000,
+        last_updated: clock.timestamp_ms() / TIME_CONVERSION_TO_SECONDS,
         is_enabled,
         capacity,
         rate,
@@ -30,9 +32,9 @@ public(package) fun get_current_token_bucket_state(
     TokenBucket {
         tokens: calculate_refill(
             state,
-            clock.timestamp_ms() / 1000 - state.last_updated,
+            clock.timestamp_ms() / TIME_CONVERSION_TO_SECONDS - state.last_updated,
         ),
-        last_updated: clock.timestamp_ms() / 1000,
+        last_updated: clock.timestamp_ms() / TIME_CONVERSION_TO_SECONDS,
         is_enabled: state.is_enabled,
         capacity: state.capacity,
         rate: state.rate,
@@ -68,7 +70,7 @@ public(package) fun set_token_bucket_config(
 }
 
 fun update_bucket(clock: &Clock, bucket: &mut TokenBucket) {
-    let time_now_seconds = clock.timestamp_ms() / 1000;
+    let time_now_seconds = clock.timestamp_ms() / TIME_CONVERSION_TO_SECONDS;
     let time_diff = time_now_seconds - bucket.last_updated;
 
     if (time_diff > 0) {
@@ -92,6 +94,14 @@ fun calculate_refill(bucket: &TokenBucket, time_diff: u64): u64 {
 
 fun min(a: u64, b: u64): u64 {
     if (a > b) b else a
+}
+
+public fun is_enabled(bucket: &TokenBucket): bool {
+    bucket.is_enabled
+}
+
+public fun get_rate(bucket: &TokenBucket): u64 {
+    bucket.rate
 }
 
 // ================================================================
@@ -119,4 +129,3 @@ public fun test_create_token_bucket(
         rate,
     }
 }
-

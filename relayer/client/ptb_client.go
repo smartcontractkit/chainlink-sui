@@ -56,6 +56,7 @@ type SuiPTBClient interface {
 	QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error)
+	QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error)
 	EstimateGas(ctx context.Context, txBytes string) (uint64, error)
 	GetReferenceGasPrice(ctx context.Context) (*big.Int, error)
 	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
@@ -112,7 +113,7 @@ func NewPTBClient(
 	client := sui.NewSuiClientWithCustomClient(rpcUrl, httpClient)
 
 	if maxConcurrentRequests <= 0 {
-		maxConcurrentRequests = 100 // Default value
+		maxConcurrentRequests = 500 // Default value
 	}
 
 	return &PTBClient{
@@ -719,13 +720,47 @@ func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]mo
 			Owner: address,
 			Limit: uint64(maxCoinsPageSize),
 		}
+		hasNextPage := true
 
-		response, err := c.client.SuiXGetAllCoins(ctx, coinsReq)
-		if err != nil {
-			return fmt.Errorf("failed to get coins: %w", err)
+		for hasNextPage {
+			response, err := c.client.SuiXGetAllCoins(ctx, coinsReq)
+			if err != nil {
+				return fmt.Errorf("failed to get coins: %w", err)
+			}
+
+			result = append(result, response.Data...)
+
+			hasNextPage = response.HasNextPage
+			coinsReq.Cursor = response.NextCursor
 		}
 
-		result = response.Data
+		return nil
+	})
+
+	return result, err
+}
+
+func (c *PTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error) {
+	var result []models.CoinData
+	err := c.WithRateLimit(ctx, "QueryCoinsByAddress", func(ctx context.Context) error {
+		coinsReq := models.SuiXGetCoinsRequest{
+			Owner:    address,
+			CoinType: coinType,
+			Limit:    uint64(maxCoinsPageSize),
+		}
+		hasNextPage := true
+
+		for hasNextPage {
+			response, err := c.client.SuiXGetCoins(ctx, coinsReq)
+			if err != nil {
+				return fmt.Errorf("failed to get coins: %w", err)
+			}
+
+			result = append(result, response.Data...)
+
+			hasNextPage = response.HasNextPage
+			coinsReq.Cursor = response.NextCursor
+		}
 
 		return nil
 	})

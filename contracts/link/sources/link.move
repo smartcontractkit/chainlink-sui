@@ -20,9 +20,6 @@ fun init(witness: LINK, ctx: &mut TxContext) {
         ctx,
     );
 
-    // TODO: do we want to public share or simply freeze?
-    // difference being that we can still update coin metadata after public share
-    // but it's impossible to do that after freezing
     transfer::public_freeze_object(metadata);
     transfer::public_transfer(treasury, ctx.sender());
 }

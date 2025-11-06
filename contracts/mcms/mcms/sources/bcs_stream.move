@@ -302,7 +302,6 @@ public macro fun deserialize_option<$E>(
     }
 }
 
-// TODO: check if there is a more efficient way to implement this function
 // this is the equivalent of vector::trim in Aptos Move
 fun trim<T: copy>(vec: &mut vector<T>, new_len: u64): vector<T> {
     let mut removed = vector::empty<T>();

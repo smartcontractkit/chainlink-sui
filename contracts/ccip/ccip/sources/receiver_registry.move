@@ -15,7 +15,6 @@ public struct ReceiverConfig has copy, drop, store {
     proof_typename: ascii::String,
 }
 
-// TODO: rethink the use of vec_map here, as it is O(N) for lookups. consider a bag or other map-like structure.
 public struct ReceiverRegistry has key, store {
     id: UID,
     // receiver package id -> receiver config
