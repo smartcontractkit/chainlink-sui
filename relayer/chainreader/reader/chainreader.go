@@ -770,6 +770,16 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 		"argTypes", argTypes,
 	)
 
+	// Override the package ID with the latest package ID of the module being called.
+	// This ensure we are always using the latestPkgID in case of upgrades.
+	latestPackageId, err := s.client.GetLatestPackageId(ctx, parsed.address, common.GetModuleForContract(parsed.contractName), "")
+	if err != nil {
+		return []any{}, err
+	}
+
+	// this is the upgraded pkgID
+	parsed.address = latestPackageId
+
 	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, parsed.contractName, parsed.readName, args, argTypes)
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
