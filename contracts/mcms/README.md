@@ -66,6 +66,57 @@ public fun mcms_entrypoint(
 mcms_registry::register_entrypoint(registry, YourProof {}, owner_cap, ctx);
 ```
 
+#### Publisher Requirement
+
+**All contracts registering with MCMS must store `Publisher` in their `OwnerCap` dynamic field.**
+
+```move
+use sui::package::Publisher;
+use sui::dynamic_field as df;
+
+public struct YOURPACKAGE has drop {}
+
+public struct OwnerCap has key, store {
+    id: UID,
+}
+
+public struct PublisherKey has copy, drop, store {}
+
+fun init(otw: YOURPACKAGE, ctx: &mut TxContext) {
+    let mut owner_cap = OwnerCap { id: object::new(ctx) };
+
+    // Store Publisher in OwnerCap - REQUIRED for MCMS
+    let publisher = package::claim(otw, ctx);
+    df::add(&mut owner_cap.id, PublisherKey {}, publisher);
+
+    transfer::transfer(owner_cap, ctx.sender());
+}
+```
+
+**Why Publisher is Required:**
+
+- **Proof of Package Ownership**: `Publisher` is created only once during package deployment, proving you own the package
+- **Security Validation**: MCMS validates that the proof type matches the Publisher's package address
+- **Type Safety**: Ensures only the actual package owner can register with MCMS
+
+During MCMS registration, you'll create a `PublisherWrapper` from your stored Publisher:
+
+```move
+let publisher_wrapper = {
+    let publisher_ref = df::borrow(&owner_cap.id, PublisherKey {});
+    mcms_registry::create_publisher_wrapper(publisher_ref, YourProof {})
+};
+
+mcms_registry::register_entrypoint(
+    registry,
+    publisher_wrapper,
+    YourProof {},
+    owner_cap,
+    allowed_modules,
+    ctx
+);
+```
+
 ### 3. Create and Execute Operations
 
 #### Step 1: Create Operations Off-chain
@@ -286,7 +337,7 @@ sui client call --function set_config \
 
 ### Batch Operations
 
-Execute multiple operations atomically:
+Execute multiple operations atomically with guaranteed ordering:
 
 ```typescript
 const batchOps = [
@@ -301,6 +352,27 @@ const batchOps = [
 
 const tree = new MerkleTree(batchOps);
 // All operations execute together or all fail
+// Operations execute in the exact order specified (0, 1, 2...)
+```
+
+**Ordering Guarantees:**
+
+MCMS enforces strict sequential execution of batched operations:
+
+- **Sequential Execution**: Operations must execute in order (sequence 0, 1, 2...)
+- **Out-of-Order Prevention**: Attempting to execute operation 2 before operation 1 will abort with `EOutOfOrderExecution`
+- **Dependency Safety**: Ensures dependent operations (e.g., config then action) execute correctly
+- **Atomic Completion**: Batch tracks completion state and marks finished when all operations complete
+
+```move
+// MCMS tracks execution state per batch:
+public struct BatchExecutionState has store {
+    total_callbacks: u64,
+    next_expected_sequence: u64,  // Enforces ordering
+}
+
+// Each callback validates sequence before execution
+enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
 ```
 
 ### Operation Dependencies
@@ -341,6 +413,13 @@ let operation2_hash = hash_operation_batch(calls2, operation1_hash, salt2);
 - Timelock delay hasn't passed yet
 - Wait for the full delay period
 - Check operation was properly scheduled
+
+**"EOutOfOrderExecution" (Error 5)**
+
+- Batch operations must execute sequentially (0, 1, 2...)
+- You attempted to execute operation N before operation N-1
+- Ensure callbacks execute in the order returned from `timelock_execute_batch`
+- Check PTB construction maintains operation sequence
 
 ### Debug Commands
 
