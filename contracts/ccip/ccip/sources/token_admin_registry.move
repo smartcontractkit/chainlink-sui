@@ -535,7 +535,6 @@ fun set_pool_internal(
         ENotAllowed,
     );
 
-    // TODO: sort out the UX here
     // the token pool changes, the package id, state address, module, and type proof will change.
     let previous_pool_package_id = token_config.token_pool_package_id;
     if (previous_pool_package_id != token_pool_package_id) {

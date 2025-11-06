@@ -68,12 +68,13 @@ const EUnknownRemoteChainSelector: u64 = 2;
 const ECursedChain: u64 = 3;
 const ERemotePoolAlreadyAdded: u64 = 4;
 const EUnknownRemotePool: u64 = 5;
-const ERemoateChainToAddMismatch: u64 = 6;
+const ERemoteChainToAddMismatch: u64 = 6;
 const ERemoteChainAlreadyExists: u64 = 7;
 const EInvalidRemoteChainDecimals: u64 = 8;
 const EInvalidEncodedAmount: u64 = 9;
 const EUnknownToken: u64 = 10;
 const EDecimalOverflow: u64 = 11;
+const ERateLimiterConfigNotZero: u64 = 12;
 
 // ================================================================
 // |                    Initialize and state                      |
@@ -159,8 +160,8 @@ public(package) fun apply_chain_updates(
     });
 
     let add_len = remote_chain_selectors_to_add.length();
-    assert!(add_len == remote_pool_addresses_to_add.length(), ERemoateChainToAddMismatch);
-    assert!(add_len == remote_token_addresses_to_add.length(), ERemoateChainToAddMismatch);
+    assert!(add_len == remote_pool_addresses_to_add.length(), ERemoteChainToAddMismatch);
+    assert!(add_len == remote_token_addresses_to_add.length(), ERemoteChainToAddMismatch);
 
     let mut i = 0;
     while (i < add_len) {
@@ -517,6 +518,7 @@ public(package) fun destroy_token_pool(state: TokenPoolState) {
         remote_chain_configs: _remote_chain_configs,
         rate_limiter_config,
     } = state;
+    token_pool_rate_limiter::verify_zero_config(&rate_limiter_config);
 
     allowlist::destroy_allowlist(allowlist_state);
     token_pool_rate_limiter::destroy_rate_limiter(rate_limiter_config);

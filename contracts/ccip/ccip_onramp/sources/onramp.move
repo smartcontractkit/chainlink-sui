@@ -255,7 +255,6 @@ public fun get_expected_next_sequence_number(state: &OnRampState, dest_chain_sel
     dest_chain_config.sequence_number + 1
 }
 
-// TODO: verify withdraw fee tokens
 public fun withdraw_fee_tokens<T>(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
@@ -1417,7 +1416,7 @@ public fun mcms_execute_ownership_transfer(
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
             registry,
-            McmsCallback {}
+            McmsCallback {},
         );
         transfer::public_transfer(upgrade_cap, to);
     };
