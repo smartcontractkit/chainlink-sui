@@ -92,9 +92,9 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	suiChain := e.BlockChains.SuiChains()[selector]
 	ctx := context.Background()
 
-	// TODO: MCMS
+	// MCMS
 	if s.MCMSStateObjectID != "" {
-		mcmsView, err := view.GenerateMCMSWithTimelockView(s.MCMSStateObjectID)
+		mcmsView, err := view.GenerateMCMSWithTimelockView(ctx, suiChain, s.MCMSPackageID, s.MCMSStateObjectID, s.MCMSTimelockObjectID, s.MCMSAccountStateObjectID)
 		if err != nil {
 			return SuiChainView{}, fmt.Errorf("failed to generate mcms view for mcms %s: %w", s.MCMSStateObjectID, err)
 		}
