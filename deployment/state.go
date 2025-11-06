@@ -122,9 +122,9 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		lggr.Infow("generated router view", "routerAddress", s.CCIPRouterAddress, "chain", chainName)
 	}
 
-	// TODO: OnRamp
+	// OnRamp
 	if s.OnRampAddress != "" {
-		onRampView, err := view.GenerateOnRampView(s.OnRampAddress, s.CCIPRouterAddress, s.CCIPAddress)
+		onRampView, err := view.GenerateOnRampView(ctx, suiChain, s.OnRampAddress, s.OnRampStateObjectId, s.CCIPRouterAddress, s.CCIPRouterStateObjectID)
 		if err != nil {
 			return SuiChainView{}, fmt.Errorf("failed to generate onramp view for onramp %s: %w", s.OnRampAddress, err)
 		}
