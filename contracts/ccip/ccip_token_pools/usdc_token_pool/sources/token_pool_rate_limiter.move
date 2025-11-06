@@ -27,6 +27,7 @@ public struct ConfigChanged has copy, drop {
 
 const EBucketNotFound: u64 = 1;
 const ERateLimiterConfigNotFound: u64 = 2;
+const ERateLimiterConfigNotZero: u64 = 3;
 
 public(package) fun new(ctx: &mut TxContext): RateLimitState {
     RateLimitState {
@@ -176,6 +177,23 @@ public(package) fun destroy_rate_limiter(state: RateLimitState) {
     inbound_rate_limiter_config.drop();
 }
 
-public fun is_zero_config(state: &RateLimitState): bool {
-    state.outbound_rate_limiter_config.is_empty() && state.inbound_rate_limiter_config.is_empty()
+public fun verify_zero_config(state: &RateLimitState) {
+    let mut i = 0;
+    while (i < state.outbound_rate_limiter_config.length()) {
+        let bucket = state.outbound_rate_limiter_config.borrow(i);
+        assert!(
+            !rate_limiter::is_enabled(bucket) || rate_limiter::get_rate(bucket) == 0,
+            ERateLimiterConfigNotZero,
+        );
+        i = i + 1;
+    };
+    i = 0;
+    while (i < state.inbound_rate_limiter_config.length()) {
+        let bucket = state.inbound_rate_limiter_config.borrow(i);
+        assert!(
+            !rate_limiter::is_enabled(bucket) || rate_limiter::get_rate(bucket) == 0,
+            ERateLimiterConfigNotZero,
+        );
+        i = i + 1;
+    };
 }

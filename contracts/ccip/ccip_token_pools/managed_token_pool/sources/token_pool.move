@@ -518,10 +518,7 @@ public(package) fun destroy_token_pool(state: TokenPoolState) {
         remote_chain_configs: _remote_chain_configs,
         rate_limiter_config,
     } = state;
-    assert!(
-        token_pool_rate_limiter::is_zero_config(&rate_limiter_config),
-        ERateLimiterConfigNotZero,
-    );
+    token_pool_rate_limiter::verify_zero_config(&rate_limiter_config);
 
     allowlist::destroy_allowlist(allowlist_state);
     token_pool_rate_limiter::destroy_rate_limiter(rate_limiter_config);

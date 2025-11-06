@@ -95,3 +95,11 @@ fun calculate_refill(bucket: &TokenBucket, time_diff: u64): u64 {
 fun min(a: u64, b: u64): u64 {
     if (a > b) b else a
 }
+
+public fun is_enabled(bucket: &TokenBucket): bool {
+    bucket.is_enabled
+}
+
+public fun get_rate(bucket: &TokenBucket): u64 {
+    bucket.rate
+}
