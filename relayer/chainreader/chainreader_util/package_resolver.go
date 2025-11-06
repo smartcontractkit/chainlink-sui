@@ -10,6 +10,8 @@ import (
 	cache "github.com/patrickmn/go-cache"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
@@ -53,7 +55,7 @@ func NewPackageResolver(log logger.Logger, client client.SuiPTBClient) *PackageR
 func (pr *PackageResolver) BindPackage(moduleName string, packageAddress string) error {
 	moduleName = common.NormalizeName(moduleName)
 
-	if !isValidSuiAddress(packageAddress) {
+	if !bind.IsSuiAddress(packageAddress) {
 		return fmt.Errorf("invalid Sui package address format: %s", packageAddress)
 	}
 
@@ -191,7 +193,7 @@ func (pr *PackageResolver) ParseIdentifier(identifier string) (*ResolvedIdentifi
 		return nil, fmt.Errorf("identifier parts cannot be empty: %s", identifier)
 	}
 
-	if !isValidSuiAddress(packageID) {
+	if !bind.IsSuiAddress(packageID) {
 		return nil, fmt.Errorf("invalid package ID format: %s", packageID)
 	}
 
@@ -291,11 +293,6 @@ func (pr *PackageResolver) ClearCache() {
 	}
 
 	pr.log.Debug("All package resolver cache entries cleared")
-}
-
-// isValidSuiAddress checks if an address has the proper Sui format (starts with 0x)
-func isValidSuiAddress(address string) bool {
-	return strings.HasPrefix(address, "0x") && len(address) > 2
 }
 
 // String returns string representation of ResolvedIdentifier
