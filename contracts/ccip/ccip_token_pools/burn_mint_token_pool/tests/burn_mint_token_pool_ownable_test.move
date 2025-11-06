@@ -8,7 +8,6 @@ use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 use ccip::upgrade_registry;
 use sui::coin;
-use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 
 public struct BURN_MINT_TOKEN_POOL_OWNABLE_TEST has drop {}
@@ -63,8 +62,12 @@ fun setup(): (TestEnv, OwnerCap) {
     scenario.next_tx(OWNER);
     let mut owner_cap_for_init = scenario.take_from_sender<OwnerCap>();
     let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
-    let coin_metadata = scenario.take_immutable<coin::CoinMetadata<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>>();
-    let treasury_cap = scenario.take_from_sender<coin::TreasuryCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>>();
+    let coin_metadata = scenario.take_immutable<
+        coin::CoinMetadata<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>,
+    >();
+    let treasury_cap = scenario.take_from_sender<
+        coin::TreasuryCap<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>,
+    >();
 
     burn_mint_token_pool::initialize(
         &mut owner_cap_for_init,

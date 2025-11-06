@@ -74,7 +74,6 @@ const EInvalidRemoteChainDecimals: u64 = 8;
 const EInvalidEncodedAmount: u64 = 9;
 const EUnknownToken: u64 = 10;
 const EDecimalOverflow: u64 = 11;
-const ERateLimiterConfigNotZero: u64 = 12;
 
 // ================================================================
 // |                    Initialize and state                      |
