@@ -19,8 +19,9 @@ import (
 	sui "github.com/block-vision/sui-go-sdk/sui"
 	transaction "github.com/block-vision/sui-go-sdk/transaction"
 	cache "github.com/patrickmn/go-cache"
-	client "github.com/smartcontractkit/chainlink-sui/relayer/client"
 	gomock "go.uber.org/mock/gomock"
+
+	client "github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 // MockSuiPTBClient is a mock of SuiPTBClient interface.
@@ -486,4 +487,19 @@ func (m *MockSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, 
 func (mr *MockSuiPTBClientMockRecorder) GetReferenceGasPrice(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReferenceGasPrice", reflect.TypeOf((*MockSuiPTBClient)(nil).GetReferenceGasPrice), ctx)
+}
+
+// QueryCoinsByAddress mocks base method.
+func (m *MockSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address, coinType string) ([]models.CoinData, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryCoinsByAddress", ctx, address, coinType)
+	ret0, _ := ret[0].([]models.CoinData)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueryCoinsByAddress indicates an expected call of QueryCoinsByAddress.
+func (mr *MockSuiPTBClientMockRecorder) QueryCoinsByAddress(ctx, address, coinType any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryCoinsByAddress", reflect.TypeOf((*MockSuiPTBClient)(nil).QueryCoinsByAddress), ctx, address, coinType)
 }

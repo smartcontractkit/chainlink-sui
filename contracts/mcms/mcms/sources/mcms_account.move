@@ -185,7 +185,7 @@ public fun pending_transfer_accepted(state: &AccountState): Option<bool> {
     state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.accepted)
 }
 
-public fun create_mcms_account_proof(): McmsAccountProof {
+public(package) fun create_mcms_account_proof(): McmsAccountProof {
     McmsAccountProof {}
 }
 

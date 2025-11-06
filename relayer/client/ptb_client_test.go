@@ -484,6 +484,45 @@ func TestPTBClient(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, latestPackageId, packageId)
 	})
+
+	t.Run("QueryCoinsByAddress", func(t *testing.T) {
+		// Create and send random coins to the account address for testing
+		// This ensures we have coins to query
+		coinAmount := uint64(1000000) // 1 SUI
+
+		// Create a coin transfer transaction to send SUI to the account
+		transferReq := client.MoveCallRequest{
+			Signer:          accountAddress,
+			PackageObjectId: "0x2",
+			Module:          "pay",
+			Function:        "split_and_transfer",
+			Arguments:       []any{coinAmount, accountAddress},
+			GasBudget:       1000000000,
+		}
+
+		// Execute the coin transfer
+		txnMetadata, err := relayerClient.MoveCall(context.Background(), transferReq)
+		if err == nil && txnMetadata.TxBytes != "" {
+			_, err = relayerClient.SignAndSendTransaction(
+				context.Background(),
+				txnMetadata.TxBytes,
+				publicKeyBytes,
+				"WaitForLocalExecution",
+			)
+			// Ignore errors as this is just setup for the test
+		}
+
+		coins, err := relayerClient.QueryCoinsByAddress(context.Background(), accountAddress, "0x2::sui::SUI")
+		require.NoError(t, err)
+		require.NotNil(t, coins)
+
+		require.True(t, len(coins) > 0)
+		for _, coin := range coins {
+			require.Equal(t, "0x2::sui::SUI", coin.CoinType)
+		}
+
+		utils.PrettyPrint(coins)
+	})
 }
 
 func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) string {
