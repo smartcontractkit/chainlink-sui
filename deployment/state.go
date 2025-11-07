@@ -7,6 +7,9 @@ import (
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
+	module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
+	module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
+	module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
 	"github.com/smartcontractkit/chainlink-sui/deployment/view"
 )
 
@@ -21,8 +24,8 @@ type SuiChainView struct {
 	OffRamp view.OffRampView `json:"offRamp,omitempty"`
 	Router  view.RouterView  `json:"router,omitempty"`
 
-	Tokens     map[string]string            // TODO
-	TokenPools map[string]map[string]string // TODO // TokenSymbol => TokenPool Address => PoolView
+	Tokens     map[string]string                        // TODO
+	TokenPools map[string]map[string]view.TokenPoolView // TokenSymbol => TokenPool Address => PoolView
 }
 
 type CCIPPoolState struct {
@@ -140,6 +143,83 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		}
 		chainView.OffRamp = offRampView
 		lggr.Infow("generated offRamp view", "offRampAddress", s.OffRampAddress, "chain", chainName)
+	}
+
+	// Pools need information from CCIP view
+	tokenConfigs := chainView.CCIP.TokenAdminRegistry.TokenConfigs
+	// BurnMint Token Pools
+	for symbol, pool := range s.BnMTokenPools {
+		if pool.PackageID == "" || pool.StateObjectId == "" {
+			lggr.Warnw("Skipping BnM token pool with missing data", "symbol", symbol, "chain", chainName)
+			continue
+		}
+
+		contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(pool.PackageID, suiChain.Client)
+		if err != nil {
+			lggr.Warnw("Failed to create BnM token pool contract", "symbol", symbol, "error", err)
+			continue
+		}
+
+		poolView, err := view.GenerateTokenPoolView(ctx, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
+		if err != nil {
+			lggr.Warnw("Failed to generate BnM token pool view", "symbol", symbol, "error", err)
+			continue
+		}
+		if chainView.TokenPools[symbol] == nil {
+			chainView.TokenPools[symbol] = make(map[string]view.TokenPoolView)
+		}
+		chainView.TokenPools[symbol][poolView.Address] = poolView
+		lggr.Infow("generated BnM token pool view", "symbol", symbol, "poolAddress", pool.PackageID, "chain", chainName)
+	}
+
+	// LockRelease Token Pools
+	for symbol, pool := range s.LnRTokenPools {
+		if pool.PackageID == "" || pool.StateObjectId == "" {
+			lggr.Warnw("Skipping LnR token pool with missing data", "symbol", symbol, "chain", chainName)
+			continue
+		}
+
+		contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(pool.PackageID, suiChain.Client)
+		if err != nil {
+			lggr.Warnw("Failed to create LnR token pool contract", "symbol", symbol, "error", err)
+			continue
+		}
+
+		poolView, err := view.GenerateTokenPoolView(ctx, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
+		if err != nil {
+			lggr.Warnw("Failed to generate LnR token pool view", "symbol", symbol, "error", err)
+			continue
+		}
+		if chainView.TokenPools[symbol] == nil {
+			chainView.TokenPools[symbol] = make(map[string]view.TokenPoolView)
+		}
+		chainView.TokenPools[symbol][poolView.Address] = poolView
+		lggr.Infow("generated LnR token pool view", "symbol", symbol, "poolAddress", pool.PackageID, "chain", chainName)
+	}
+
+	// Managed Token Pools
+	for symbol, pool := range s.ManagedTokenPools {
+		if pool.PackageID == "" || pool.StateObjectId == "" {
+			lggr.Warnw("Skipping managed token pool with missing data", "symbol", symbol, "chain", chainName)
+			continue
+		}
+
+		contract, err := module_managed_token_pool.NewManagedTokenPool(pool.PackageID, suiChain.Client)
+		if err != nil {
+			lggr.Warnw("Failed to create managed token pool contract", "symbol", symbol, "error", err)
+			continue
+		}
+
+		poolView, err := view.GenerateTokenPoolView(ctx, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
+		if err != nil {
+			lggr.Warnw("Failed to generate managed token pool view", "symbol", symbol, "error", err)
+			continue
+		}
+		if chainView.TokenPools[symbol] == nil {
+			chainView.TokenPools[symbol] = make(map[string]view.TokenPoolView)
+		}
+		chainView.TokenPools[symbol][poolView.Address] = poolView
+		lggr.Infow("generated managed token pool view", "symbol", symbol, "poolAddress", pool.PackageID, "chain", chainName)
 	}
 
 	return chainView, nil

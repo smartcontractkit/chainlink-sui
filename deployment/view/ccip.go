@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
 
@@ -423,6 +424,11 @@ func generateTokenAdminRegistryView(
 				if err != nil {
 					// Token might not be configured properly, skip it
 					continue
+				}
+
+				tokenType := tokenConfig.TokenType
+				if !strings.HasPrefix(tokenType, "0x") {
+					tokenType = "0x" + tokenType
 				}
 
 				tokenConfigs[tokenAddr] = TokenConfigView{
