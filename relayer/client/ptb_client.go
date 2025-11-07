@@ -117,8 +117,7 @@ func NewPTBClient(
 	}
 
 	log.Infof(
-		"PTBClient config maxRetries: %v, transactionTimeout: %s,  maxConcurrentRequests: %d",
-		maxRetries,
+		"PTBClient config configs transactionTimeout: %s,  maxConcurrentRequests: %d",
 		transactionTimeout,
 		maxConcurrentRequests,
 	)
@@ -127,9 +126,9 @@ func NewPTBClient(
 		log:                log,
 		client:             client,
 		maxRetries:         maxRetries,
-		transactionTimeout: 2 * time.Minute,
+		transactionTimeout: transactionTimeout,
 		keystoreService:    keystoreService,
-		rateLimiter:        semaphore.NewWeighted(500),
+		rateLimiter:        semaphore.NewWeighted(maxConcurrentRequests),
 		defaultRequestType: defaultRequestType,
 		normalizedModules:  make(map[string]map[string]models.GetNormalizedMoveModuleResponse),
 		cache:              cache.New(DefaultCacheExpiration, DefaultCacheCleanupInterval),
