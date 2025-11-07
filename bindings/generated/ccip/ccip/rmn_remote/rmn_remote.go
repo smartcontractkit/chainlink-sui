@@ -19,11 +19,10 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"rmn_remote","name":"curse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"rmn_remote","name":"get_arm","parameters":null},{"package":"ccip","module":"rmn_remote","name":"get_cursed_subjects","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_local_chain_selector","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_report_digest_header","parameters":null},{"package":"ccip","module":"rmn_remote","name":"get_versioned_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"local_chain_selector","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_global","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_u128","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject_value","type":"u128"}]},{"package":"ccip","module":"rmn_remote","name":"set_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"rmn_home_contract_config_digest","type":"vector<u8>"},{"name":"signer_onchain_public_keys","type":"vector<vector<u8>>"},{"name":"node_indexes","type":"vector<u64>"},{"name":"f_sign","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"type_and_version","parameters":null},{"package":"ccip","module":"rmn_remote","name":"uncurse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"uncurse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"rmn_remote","name":"curse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"rmn_remote","name":"get_cursed_subjects","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_local_chain_selector","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_report_digest_header","parameters":null},{"package":"ccip","module":"rmn_remote","name":"get_versioned_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"local_chain_selector","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_global","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_u128","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject_value","type":"u128"}]},{"package":"ccip","module":"rmn_remote","name":"set_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"rmn_home_contract_config_digest","type":"vector<u8>"},{"name":"signer_onchain_public_keys","type":"vector<vector<u8>>"},{"name":"node_indexes","type":"vector<u64>"},{"name":"f_sign","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"type_and_version","parameters":null},{"package":"ccip","module":"rmn_remote","name":"uncurse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"uncurse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]}]`
 
 type IRmnRemote interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	GetArm(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	SetConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*models.SuiTransactionBlockResponse, error)
 	GetVersionedConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -49,7 +48,6 @@ type IRmnRemote interface {
 
 type IRmnRemoteDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
-	GetArm(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetVersionedConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([]any, error)
 	GetLocalChainSelector(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (uint64, error)
 	GetReportDigestHeader(ctx context.Context, opts *bind.CallOpts) ([]byte, error)
@@ -62,8 +60,6 @@ type IRmnRemoteDevInspect interface {
 type RmnRemoteEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetArm() (*bind.EncodedCall, error)
-	GetArmWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	SetConfig(ref bind.Object, ownerCap bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*bind.EncodedCall, error)
@@ -289,16 +285,6 @@ func (c *RmnRemoteContract) TypeAndVersion(ctx context.Context, opts *bind.CallO
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// GetArm executes the get_arm Move function.
-func (c *RmnRemoteContract) GetArm(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.GetArm()
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
 // Initialize executes the initialize Move function.
 func (c *RmnRemoteContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.rmnRemoteEncoder.Initialize(ref, ownerCap, localChainSelector)
@@ -501,28 +487,6 @@ func (d *RmnRemoteDevInspect) TypeAndVersion(ctx context.Context, opts *bind.Cal
 	return result, nil
 }
 
-// GetArm executes the get_arm Move function using DevInspect to get return values.
-//
-// Returns: address
-func (d *RmnRemoteDevInspect) GetArm(ctx context.Context, opts *bind.CallOpts) (string, error) {
-	encoded, err := d.contract.rmnRemoteEncoder.GetArm()
-	if err != nil {
-		return "", fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return "", err
-	}
-	if len(results) == 0 {
-		return "", fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
-	}
-	return result, nil
-}
-
 // GetVersionedConfig executes the get_versioned_config Move function using DevInspect to get return values.
 //
 // Returns:
@@ -694,30 +658,6 @@ func (c rmnRemoteEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("type_and_version", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"0x1::string::String",
-	})
-}
-
-// GetArm encodes a call to the get_arm Move function.
-func (c rmnRemoteEncoder) GetArm() (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_arm", typeArgsList, typeParamsList, []string{}, []any{}, []string{
-		"address",
-	})
-}
-
-// GetArmWithArgs encodes a call to the get_arm Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c rmnRemoteEncoder) GetArmWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_arm", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"address",
 	})
 }
 
