@@ -4,7 +4,7 @@ edition = "2024"
 
 [addresses]
 ccip = "_"
-managed_token_pool = "_"
+managed_token_pool = "0x0"
 managed_token = "_"
 mcms = "_"
 mcms_owner = "_"
