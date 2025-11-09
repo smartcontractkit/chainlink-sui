@@ -13,7 +13,7 @@ concurrency:
 jobs:
   ccip_test_sui2evm:
     name: Run Sui <-> EVM Test
-    runs-on: ubuntu-latest
+    runs_on_self_hosted: runs-on/cpu=8/ram=32/family=m6i+m5.*/spot=false/image=ubuntu24-full-x64/extras=s3-cache+tmpfs
 
     strategy:
       fail-fast: false
