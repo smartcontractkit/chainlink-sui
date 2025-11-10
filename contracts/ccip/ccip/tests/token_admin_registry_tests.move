@@ -386,7 +386,7 @@ public fun test_register() {
             local_token,
         );
         assert!(
-            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000002222::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
+            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
         );
         assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
 
@@ -424,7 +424,7 @@ public fun test_register() {
             local_token,
         );
         assert!(
-            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000002222::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
+            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
         );
         // Since TypeProof and TypeProof2 have the same package ID, the type proof should remain as TypeProof
         assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
