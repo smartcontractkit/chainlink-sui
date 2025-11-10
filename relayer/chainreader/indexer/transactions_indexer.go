@@ -49,7 +49,6 @@ type TransactionsIndexer struct {
 
 type TransactionsIndexerApi interface {
 	Start(ctx context.Context) error
-	UpdateEventConfig(eventConfig *config.ChainReaderEvent)
 	SetOffRampPackage(pkg string)
 	Ready() error
 	Close() error
@@ -118,15 +117,6 @@ func (tIndexer *TransactionsIndexer) Start(ctx context.Context) error {
 			return nil
 		}
 	}
-}
-
-// UpdateEventConfig method either edits or inserts the event config into the map of configs
-func (tIndexer *TransactionsIndexer) UpdateEventConfig(eventConfig *config.ChainReaderEvent) {
-	key := fmt.Sprintf("%s::%s", eventConfig.Module, eventConfig.Name)
-
-	tIndexer.mu.Lock()
-	tIndexer.eventConfigs[key] = eventConfig
-	tIndexer.mu.Unlock()
 }
 
 // SetOffRampPackage sets offramp called by chainreader Bind.
@@ -277,7 +267,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 	cursor := tIndexer.transmitters[transmitter]
 	totalProcessed := 0
 
-	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig(moduleKey, eventKey)
+	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig()
 	if err != nil {
 		return 0, fmt.Errorf("failed to get ExecutionStateChanged event config: %w", err)
 	}
@@ -491,7 +481,7 @@ func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]mod
 		eventKey  = tIndexer.configEventKey
 	)
 
-	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig(moduleKey, eventKey)
+	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig()
 	if err != nil {
 		tIndexer.logger.Errorw("Failed to get OCRConfigSet event config", "error", err)
 		return nil, err
@@ -551,7 +541,7 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 		selector  = "sourceChainSelector"
 	)
 
-	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig(moduleKey, eventKey)
+	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get SourceChainConfigSet event config: %w", err)
 	}
@@ -593,8 +583,8 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 	return &configEvent.SourceChainConfig, nil
 }
 
-// Prefer the cached OffRamp package; fall back to map (for completeness).
-func (t *TransactionsIndexer) getEventPackageIdFromConfig(_, _ string) (string, error) {
+// Prefer the cached OffRamp package
+func (t *TransactionsIndexer) getEventPackageIdFromConfig() (string, error) {
 	t.mu.RLock()
 	pkg := t.eventPackageId
 	t.mu.RUnlock()
