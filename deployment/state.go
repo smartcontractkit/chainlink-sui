@@ -105,12 +105,12 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	ctx := context.Background()
 
 	var mu sync.Mutex
-	g, ctx := errgroup.WithContext(ctx)
+	g, ctxG1 := errgroup.WithContext(ctx)
 
 	// MCMS
 	if s.MCMSStateObjectID != "" {
 		g.Go(func() error {
-			mcmsView, err := view.GenerateMCMSWithTimelockView(ctx, suiChain, s.MCMSPackageID, s.MCMSStateObjectID, s.MCMSTimelockObjectID, s.MCMSAccountStateObjectID)
+			mcmsView, err := view.GenerateMCMSWithTimelockView(ctxG1, suiChain, s.MCMSPackageID, s.MCMSStateObjectID, s.MCMSTimelockObjectID, s.MCMSAccountStateObjectID)
 			if err != nil {
 				return fmt.Errorf("failed to generate mcms view for mcms %s: %w", s.MCMSStateObjectID, err)
 			}
@@ -125,7 +125,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	// CCIP
 	if s.CCIPAddress != "" {
 		g.Go(func() error {
-			ccipView, err := view.GenerateCCIPView(ctx, suiChain, s.CCIPAddress, s.CCIPObjectRef, s.CCIPRouterAddress, s.CCIPRouterStateObjectID)
+			ccipView, err := view.GenerateCCIPView(ctxG1, suiChain, s.CCIPAddress, s.CCIPObjectRef, s.CCIPRouterAddress, s.CCIPRouterStateObjectID)
 			if err != nil {
 				return fmt.Errorf("failed to generate ccip view for ccip %s: %w", s.CCIPAddress, err)
 			}
@@ -140,7 +140,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	// Router
 	if s.CCIPRouterAddress != "" && s.CCIPRouterStateObjectID != "" {
 		g.Go(func() error {
-			routerView, err := view.GenerateRouterView(ctx, suiChain, s.CCIPRouterAddress, s.CCIPRouterStateObjectID)
+			routerView, err := view.GenerateRouterView(ctxG1, suiChain, s.CCIPRouterAddress, s.CCIPRouterStateObjectID)
 			if err != nil {
 				return fmt.Errorf("failed to generate router view for router %s: %w", s.CCIPRouterAddress, err)
 			}
@@ -155,7 +155,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	// OnRamp
 	if s.OnRampAddress != "" {
 		g.Go(func() error {
-			onRampView, err := view.GenerateOnRampView(ctx, suiChain, s.OnRampAddress, s.OnRampStateObjectId, s.CCIPRouterAddress, s.CCIPRouterStateObjectID)
+			onRampView, err := view.GenerateOnRampView(ctxG1, suiChain, s.OnRampAddress, s.OnRampStateObjectId, s.CCIPRouterAddress, s.CCIPRouterStateObjectID)
 			if err != nil {
 				return fmt.Errorf("failed to generate onramp view for onramp %s: %w", s.OnRampAddress, err)
 			}
@@ -170,7 +170,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	// OffRamp
 	if s.OffRampAddress != "" {
 		g.Go(func() error {
-			offRampView, err := view.GenerateOffRampView(ctx, suiChain, s.OffRampAddress, s.OffRampStateObjectId, s.CCIPObjectRef)
+			offRampView, err := view.GenerateOffRampView(ctxG1, suiChain, s.OffRampAddress, s.OffRampStateObjectId, s.CCIPObjectRef)
 			if err != nil {
 				return fmt.Errorf("failed to generate offramp view for offramp %s: %w", s.OffRampAddress, err)
 			}
@@ -189,7 +189,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	// Token pools
 	tokenConfigs := chainView.CCIP.TokenAdminRegistry.TokenConfigs
-	g, ctx = errgroup.WithContext(ctx)
+	g, ctxG2 := errgroup.WithContext(ctx)
 
 	// BurnMint Token Pools
 	for symbol, pool := range s.BnMTokenPools {
@@ -206,7 +206,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return nil // Don't fail entire batch
 			}
 
-			poolView, err := view.GenerateTokenPoolView(ctx, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
+			poolView, err := view.GenerateTokenPoolView(ctxG2, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
 			if err != nil {
 				lggr.Warnw("Failed to generate BnM token pool view", "symbol", symbol, "error", err)
 				return nil // Don't fail entire batch
@@ -239,7 +239,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return nil // Don't fail entire batch
 			}
 
-			poolView, err := view.GenerateTokenPoolView(ctx, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
+			poolView, err := view.GenerateTokenPoolView(ctxG2, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
 			if err != nil {
 				lggr.Warnw("Failed to generate LnR token pool view", "symbol", symbol, "error", err)
 				return nil // Don't fail entire batch
@@ -272,7 +272,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return nil // Don't fail entire batch
 			}
 
-			poolView, err := view.GenerateTokenPoolView(ctx, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
+			poolView, err := view.GenerateTokenPoolView(ctxG2, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
 			if err != nil {
 				lggr.Warnw("Failed to generate managed token pool view", "symbol", symbol, "error", err)
 				return nil // Don't fail entire batch

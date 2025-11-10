@@ -16,6 +16,7 @@ import (
 	module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
+	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
 )
 
 type CCIPView struct {
@@ -218,22 +219,20 @@ func generateFeeQuoterView(
 		return FeeQuoterView{}, fmt.Errorf("failed to get static config: %w", err)
 	}
 
-	// TODO: Mocking this now because contracts deployed are old
-	destChainSelectors := []uint64{16015286601757825753}
-	// // Get destination chains from router to query per-chain configs
-	// var destChainSelectors []uint64
-	// if routerPackageID != "" && routerStateObjectID != "" {
-	// 	routerContract, err := module_router.NewRouter(routerPackageID, chain.Client)
-	// 	if err != nil {
-	// 		return FeeQuoterView{}, fmt.Errorf("failed to create router contract binding: %w", err)
-	// 	}
+	// Get destination chains from router to query per-chain configs
+	var destChainSelectors []uint64
+	if routerPackageID != "" && routerStateObjectID != "" {
+		routerContract, err := module_router.NewRouter(routerPackageID, chain.Client)
+		if err != nil {
+			return FeeQuoterView{}, fmt.Errorf("failed to create router contract binding: %w", err)
+		}
 
-	// 	routerStateObj := bind.Object{Id: routerStateObjectID}
-	// 	destChainSelectors, err = routerContract.DevInspect().GetDestChains(ctx, callOpts, routerStateObj)
-	// 	if err != nil {
-	// 		return FeeQuoterView{}, fmt.Errorf("failed to get dest chains from router: %w", err)
-	// 	}
-	// }
+		routerStateObj := bind.Object{Id: routerStateObjectID}
+		destChainSelectors, err = routerContract.DevInspect().GetDestChains(ctx, callOpts, routerStateObj)
+		if err != nil {
+			return FeeQuoterView{}, fmt.Errorf("failed to get dest chains from router: %w", err)
+		}
+	}
 
 	// Get destination chain configs for each destination chain
 	destinationChainConfigs := make(map[uint64]FeeQuoterDestChainConfig)

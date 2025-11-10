@@ -3,20 +3,27 @@ package view
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
+	module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
+	module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
+	module_usdc_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/usdc_token_pool"
 )
 
-// ITokenPool defines the common interface for all token pool types
-type ITokenPool interface {
-	DevInspect() ITokenPoolDevInspect
+type TokenBucketWrapper interface {
+	module_burn_mint_token_pool.TokenBucketWrapper |
+		module_lock_release_token_pool.TokenBucketWrapper |
+		module_managed_token_pool.TokenBucketWrapper |
+		module_usdc_token_pool.TokenBucketWrapper
 }
 
 // ITokenPoolDevInspect defines the common DevInspect methods across pool types
-type ITokenPoolDevInspect interface {
+type ITokenPoolDevInspect[T TokenBucketWrapper] interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
@@ -25,8 +32,8 @@ type ITokenPoolDevInspect interface {
 	GetSupportedChains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]uint64, error)
 	GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([][]byte, error)
 	GetRemoteToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([]byte, error)
-	GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error)
-	GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error)
+	GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (T, error)
+	GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (T, error)
 }
 
 type TokenPoolView struct {
@@ -51,13 +58,13 @@ type RateLimiterConfig struct {
 	Rate      uint64 `json:"rate"`
 }
 
-func GenerateTokenPoolView(
+func GenerateTokenPoolView[T TokenBucketWrapper](
 	ctx context.Context,
 	chain sui.Chain,
 	poolPackageID string,
 	poolStateObjectID string,
 	tokenConfigs map[string]TokenConfigView,
-	poolDevInspect ITokenPoolDevInspect,
+	poolDevInspect ITokenPoolDevInspect[T],
 	lggr logger.Logger,
 ) (TokenPoolView, error) {
 	callOpts := &bind.CallOpts{Signer: chain.Signer}
@@ -175,10 +182,11 @@ func GenerateTokenPoolView(
 	}, nil
 }
 
-// TODO: rate limiter is coming as bind.Object instead of proper struct...
-// parseRateLimiterConfig extracts rate limiter config from the bind.Object
-func parseRateLimiterConfig(rateLimiterObj bind.Object) RateLimiterConfig {
-	config := RateLimiterConfig{}
-
-	return config
+func parseRateLimiterConfig[T TokenBucketWrapper](rateLimiterObj T) RateLimiterConfig {
+	v := reflect.ValueOf(rateLimiterObj)
+	return RateLimiterConfig{
+		IsEnabled: v.FieldByName("IsEnabled").Bool(),
+		Capacity:  v.FieldByName("Capacity").Uint(),
+		Rate:      v.FieldByName("Rate").Uint(),
+	}
 }

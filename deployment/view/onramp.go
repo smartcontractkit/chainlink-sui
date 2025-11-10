@@ -8,6 +8,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
+	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
 )
 
 type OnRampView struct {
@@ -85,22 +86,20 @@ func GenerateOnRampView(
 		return OnRampView{}, fmt.Errorf("failed to get dynamic config: %w", err)
 	}
 
-	// TODO: Mocking this now because contracts deployed are old
-	destChainSelectors := []uint64{16015286601757825753}
 	// Query the router to get destination chains
-	// var destChainSelectors []uint64
-	// if routerPackageID != "" && routerStateObjectID != "" {
-	// 	routerContract, err := module_router.NewRouter(routerPackageID, chain.Client)
-	// 	if err != nil {
-	// 		return OnRampView{}, fmt.Errorf("failed to create router contract binding: %w", err)
-	// 	}
+	var destChainSelectors []uint64
+	if routerPackageID != "" && routerStateObjectID != "" {
+		routerContract, err := module_router.NewRouter(routerPackageID, chain.Client)
+		if err != nil {
+			return OnRampView{}, fmt.Errorf("failed to create router contract binding: %w", err)
+		}
 
-	// 	routerStateObj := bind.Object{Id: routerStateObjectID}
-	// 	destChainSelectors, err = routerContract.DevInspect().GetDestChains(ctx, callOpts, routerStateObj)
-	// 	if err != nil {
-	// 		return OnRampView{}, fmt.Errorf("failed to get dest chains from router: %w", err)
-	// 	}
-	// }
+		routerStateObj := bind.Object{Id: routerStateObjectID}
+		destChainSelectors, err = routerContract.DevInspect().GetDestChains(ctx, callOpts, routerStateObj)
+		if err != nil {
+			return OnRampView{}, fmt.Errorf("failed to get dest chains from router: %w", err)
+		}
+	}
 
 	// Get dest chain specific data for each known destination chain
 	destChainSpecificData := make(map[uint64]DestChainSpecificData)
