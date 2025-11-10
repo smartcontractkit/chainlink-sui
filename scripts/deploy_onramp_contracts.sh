@@ -118,6 +118,10 @@ CCIP_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.obj
 CCIP_SOURCE_TRANSFER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("Source.*Transfer.*Cap|source.*transfer.*cap"; "i"))) | .objectId' artifacts.ccip.publish.json | head -n1)"
 [[ -n "$CCIP_STATE_REF_ID" && -n "$CCIP_OWNER_CAP_ID" ]] || { echo "Missing CCIP state/owner cap"; exit 1; }
 
+sui client call --package "$CCIP_PKG_ID" --module upgrade_registry --function initialize \
+  --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" \
+  --gas-budget "$GAS" --json | tee artifacts.ccip.upgrade_registry.init.json >/dev/null
+  
 # fee_quoter::initialize (uses LINK and SUI as fee tokens)
 sui client call \
   --package "$CCIP_PKG_ID" --module fee_quoter --function initialize \
@@ -143,10 +147,6 @@ sui client call --package "$CCIP_PKG_ID" --module rmn_remote --function initiali
 sui client call --package "$CCIP_PKG_ID" --module token_admin_registry --function initialize \
   --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" \
   --gas-budget "$GAS" --json | tee artifacts.ccip.token_admin_registry.init.json >/dev/null
-
-sui client call --package "$CCIP_PKG_ID" --module upgrade_registry --function initialize \
-  --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" \
-  --gas-budget "$GAS" --json | tee artifacts.ccip.upgrade_registry.init.json >/dev/null
 
 echo "--- Deploying OnRamp ---"
 ONRAMP_DIR="$ROOT_DIR/ccip/ccip_onramp"
@@ -188,13 +188,14 @@ LINK_COIN_T="$(
 
 echo "Detected LINK coin type: $LINK_COIN_T"
 
+LR_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("OwnerCap"))) | .objectId' artifacts.lock_release_tp.publish.json | head -n1)"
+
 # lock_release_token_pool::initialize(ccip_ref, LINK metadata, LINK treasury, package_id, rebalancer)
 sui client call --package "$LR_PKG_ID" --module lock_release_token_pool --function initialize \
   --type-args "$LINK_COIN_T" \
-  --args "$CCIP_STATE_REF_ID" "$LINK_METADATA_ID" "$LINK_TREASURY_CAP_ID" "$LR_PKG_ID" "$REBALANCER_ADDR" \
+  --args "$LR_OWNER_CAP_ID" "$CCIP_STATE_REF_ID" "$LINK_METADATA_ID" "$LINK_TREASURY_CAP_ID" "$LR_PKG_ID" "$REBALANCER_ADDR" \
   --gas-budget "$GAS" --json | tee artifacts.lr_tp.init.json >/dev/null
 LR_STATE_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("LockReleaseTokenPoolState"))) | .objectId' artifacts.lr_tp.init.json | head -n1)"
-LR_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("OwnerCap"))) | .objectId' artifacts.lr_tp.init.json | head -n1)"
 
 # Optional: apply_chain_updates + rate limiter (example: add chain 2)
 sui client call --package "$LR_PKG_ID" --module lock_release_token_pool --function apply_chain_updates \
@@ -254,13 +255,14 @@ ETH_COIN_T="$(
 
 echo "Detected ETH coin type: $ETH_COIN_T"
 
+BM_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("OwnerCap"))) | .objectId' artifacts.burn_mint_tp.publish.json | head -n1)"
+
 # burn_mint_token_pool::initialize(ccip_ref, ETH metadata, ETH treasury cap, package_id) + <T>
 sui client call --package "$BM_PKG_ID" --module burn_mint_token_pool --function initialize \
   --type-args "$ETH_COIN_T" \
-  --args "$CCIP_STATE_REF_ID" "$ETH_METADATA_ID" "$ETH_TREASURY_CAP_ID" "$BM_PKG_ID" \
+  --args "$BM_OWNER_CAP_ID" "$CCIP_STATE_REF_ID" "$ETH_METADATA_ID" "$ETH_TREASURY_CAP_ID" "$BM_PKG_ID" \
   --gas-budget "$GAS" --json | tee artifacts.bm_tp.init.json >/dev/null
 BM_STATE_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("BurnMintTokenPoolState"))) | .objectId' artifacts.bm_tp.init.json | head -n1)"
-BM_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("OwnerCap"))) | .objectId' artifacts.bm_tp.init.json | head -n1)"
 
 # Add chain 2; set basic rate limiters (example values)
 sui client call --package "$BM_PKG_ID" --module burn_mint_token_pool --function apply_chain_updates \
@@ -300,9 +302,10 @@ patch_move_toml "$MANAGED_TOKEN_DIR/Move.toml" "mcms_owner" "$OWNER"
 MANAGED_TOKEN_PKG_ID="$(publish_and_pin "$MANAGED_TOKEN_DIR" "managed_token" "managed_token")"
 
 # Initialize managed_token with the USDC treasury cap
+MANAGED_TOKEN_PUBLISHER_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("Publisher"))) | .objectId' artifacts.managed_token.publish.json | head -n1)"
 sui client call --package "$MANAGED_TOKEN_PKG_ID" --module managed_token --function initialize \
   --type-args "$USDC_COIN_T" \
-  --args "$USDC_TREASURY_CAP_ID" \
+  --args "$USDC_TREASURY_CAP_ID" "$MANAGED_TOKEN_PUBLISHER_ID" \
   --gas-budget "$GAS" --json | tee artifacts.managed_token.init.json >/dev/null
 
 MANAGED_TOKEN_STATE_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("TokenState"))) | .objectId' artifacts.managed_token.init.json | head -n1)"
@@ -332,14 +335,15 @@ MANAGED_TP_PKG_ID="$(publish_and_pin "$MANAGED_TP_DIR" "managed_token_pool" "man
 # Get the token pool administrator address (reusing active address)
 TOKEN_POOL_ADMIN="$ACTIVE_ADDR"
 
+MANAGED_TP_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("OwnerCap"))) | .objectId' artifacts.managed_tp.publish.json | head -n1)"
+
 # Initialize managed token pool with the managed token
 sui client call --package "$MANAGED_TP_PKG_ID" --module managed_token_pool --function initialize_with_managed_token \
   --type-args "$USDC_COIN_T" \
-  --args "$CCIP_STATE_REF_ID" "$MANAGED_TOKEN_STATE_ID" "$MANAGED_TOKEN_OWNER_CAP_ID" "$USDC_METADATA_ID" "$MINT_CAP_ID" "$TOKEN_POOL_ADMIN" \
+  --args "$MANAGED_TP_OWNER_CAP_ID" "$CCIP_STATE_REF_ID" "$MANAGED_TOKEN_STATE_ID" "$MANAGED_TOKEN_OWNER_CAP_ID" "$USDC_METADATA_ID" "$MINT_CAP_ID" "$TOKEN_POOL_ADMIN" \
   --gas-budget "$GAS" --json | tee artifacts.managed_tp.init.json >/dev/null
 
 MANAGED_TP_STATE_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("ManagedTokenPoolState"))) | .objectId' artifacts.managed_tp.init.json | head -n1)"
-MANAGED_TP_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("OwnerCap"))) | .objectId' artifacts.managed_tp.init.json | head -n1)"
 
 echo "  Managed Token Pool State: $MANAGED_TP_STATE_ID"
 echo "  Managed Token Pool Owner Cap: $MANAGED_TP_OWNER_CAP_ID"
@@ -455,3 +459,58 @@ echo "Token Pool Mapping:"
 echo "  LINK   -> Lock/Release Token Pool"
 echo "  ETH    -> Burn/Mint Token Pool"
 echo "  USDC   -> Managed Token Pool"
+
+# Generate .env.localnet file for ts-sdk-examples
+echo ""
+echo "--- Generating .env.localnet file ---"
+ENV_FILE="$SCRIPT_DIR/../ts-sdk-examples/.env.localnet"
+
+# Create ts-sdk-examples directory if it doesn't exist
+mkdir -p "$(dirname "$ENV_FILE")"
+
+# Check if .env.localnet already exists and has a private key
+EXISTING_PRIVATE_KEY=""
+if [[ -f "$ENV_FILE" ]]; then
+  EXISTING_PRIVATE_KEY=$(grep "^SUI_PRIVATE_KEY=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || echo "")
+fi
+
+cat > "$ENV_FILE" << EOF
+SUI_PRIVATE_KEY=${EXISTING_PRIVATE_KEY:-PLEASE_SET_YOUR_PRIVATE_KEY_HERE}
+
+CCIP_PACKAGE_ID=$CCIP_PKG_ID
+ONRAMP_PACKAGE_ID=$ONRAMP_PKG_ID
+LR_POOL_PACKAGE_ID=$LR_PKG_ID
+BM_POOL_PACKAGE_ID=$BM_PKG_ID
+
+LINK_COIN_TYPE=$LINK_COIN_T
+ETH_COIN_TYPE=$ETH_COIN_T
+
+CCIP_STATE_ID=$CCIP_STATE_REF_ID
+CCIP_OWNER_CAP_ID=$CCIP_OWNER_CAP_ID
+ONRAMP_STATE_ID=$ONRAMP_STATE_ID
+
+LR_POOL_STATE_ID=$LR_STATE_ID
+BM_POOL_STATE_ID=$BM_STATE_ID
+
+ETH_TREASURY_CAP_ID=$ETH_TREASURY_CAP_ID
+LINK_TREASURY_CAP_ID=$LINK_TREASURY_CAP_ID
+ETH_METADATA=$ETH_METADATA_ID
+LINK_METADATA=$LINK_METADATA_ID
+ETH_COIN_OBJECT=$ETH_COIN_ID
+LINK_COIN_OBJECT=$LINK_COIN_ID
+
+FEE_TOKEN_OBJECT=$FEE_COIN_ID
+EOF
+
+echo "✅ Generated $ENV_FILE"
+if [[ -z "$EXISTING_PRIVATE_KEY" ]]; then
+  echo ""
+  echo "⚠️  Please set your SUI_PRIVATE_KEY in $ENV_FILE"
+  echo "    You can export it with: sui keytool export --key-identity \$(sui client active-address)"
+else
+  echo "✅ Using existing private key from .env.localnet"
+fi
+echo ""
+echo "You can now use the ts-sdk-examples with:"
+echo "  cd $SCRIPT_DIR/../ts-sdk-examples"
+echo "  bun ccip_send --dest-chain-selector 2 --receiver 0x... --pool-kind lock_release --network localnet"
