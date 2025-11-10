@@ -65,6 +65,12 @@ var (
 	SuiManagedTokenPoolType        deployment.ContractType = "SuiManagedTokenPool"
 	SuiManagedTokenPoolStateType   deployment.ContractType = "SuiManagedTokenPoolState"
 	SuiManagedTokenPoolOwnerIDType deployment.ContractType = "SuiManagedTokenPoolOwnerID"
+
+	// Upgrade Related
+	SuiCCIPMockV2              deployment.ContractType = "SuiCCIPMockV2PackageID"
+	SuiOnRampMockV2            deployment.ContractType = "SuiOnRampMockV2PackageID"
+	SuiOffRampMockV2           deployment.ContractType = "SuiOffRampMockV2PackageID"
+	SuiUpgradeRegistryObjectId deployment.ContractType = "SuiUpgradeRegistryObjectId"
 )
 
 var (

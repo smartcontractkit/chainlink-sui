@@ -87,8 +87,8 @@ type IManagedTokenPoolDevInspect interface {
 	GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([][]byte, error)
 	IsRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (bool, error)
 	GetRemoteToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([]byte, error)
-	GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error)
-	GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error)
+	GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error)
+	GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*string, error)
@@ -245,6 +245,14 @@ type ManagedTokenPoolState struct {
 	OwnableState   bind.Object `move:"OwnableState"`
 }
 
+type TokenBucketWrapper struct {
+	Tokens      uint64 `move:"u64"`
+	LastUpdated uint64 `move:"u64"`
+	IsEnabled   bool   `move:"bool"`
+	Capacity    uint64 `move:"u64"`
+	Rate        uint64 `move:"u64"`
+}
+
 type TypeProof struct {
 }
 
@@ -283,6 +291,23 @@ func init() {
 	// Register vector decoder for ManagedTokenPoolState
 	bind.RegisterStructDecoder("vector<managed_token_pool::managed_token_pool::ManagedTokenPoolState>", func(data []byte) (interface{}, error) {
 		var results []ManagedTokenPoolState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("managed_token_pool::managed_token_pool::TokenBucketWrapper", func(data []byte) (interface{}, error) {
+		var result TokenBucketWrapper
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for TokenBucketWrapper
+	bind.RegisterStructDecoder("vector<managed_token_pool::managed_token_pool::TokenBucketWrapper>", func(data []byte) (interface{}, error) {
+		var results []TokenBucketWrapper
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
@@ -1066,44 +1091,44 @@ func (d *ManagedTokenPoolDevInspect) GetRemoteToken(ctx context.Context, opts *b
 
 // GetCurrentInboundRateLimiterState executes the get_current_inbound_rate_limiter_state Move function using DevInspect to get return values.
 //
-// Returns: rate_limiter::TokenBucket
-func (d *ManagedTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error) {
+// Returns: TokenBucketWrapper
+func (d *ManagedTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error) {
 	encoded, err := d.contract.managedTokenPoolEncoder.GetCurrentInboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
 	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+		return TokenBucketWrapper{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
 	results, err := d.contract.Call(ctx, opts, encoded)
 	if err != nil {
-		return bind.Object{}, err
+		return TokenBucketWrapper{}, err
 	}
 	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
+		return TokenBucketWrapper{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
+	result, ok := results[0].(TokenBucketWrapper)
 	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+		return TokenBucketWrapper{}, fmt.Errorf("unexpected return type: expected TokenBucketWrapper, got %T", results[0])
 	}
 	return result, nil
 }
 
 // GetCurrentOutboundRateLimiterState executes the get_current_outbound_rate_limiter_state Move function using DevInspect to get return values.
 //
-// Returns: rate_limiter::TokenBucket
-func (d *ManagedTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error) {
+// Returns: TokenBucketWrapper
+func (d *ManagedTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error) {
 	encoded, err := d.contract.managedTokenPoolEncoder.GetCurrentOutboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
 	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+		return TokenBucketWrapper{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
 	results, err := d.contract.Call(ctx, opts, encoded)
 	if err != nil {
-		return bind.Object{}, err
+		return TokenBucketWrapper{}, err
 	}
 	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
+		return TokenBucketWrapper{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
+	result, ok := results[0].(TokenBucketWrapper)
 	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+		return TokenBucketWrapper{}, fmt.Errorf("unexpected return type: expected TokenBucketWrapper, got %T", results[0])
 	}
 	return result, nil
 }
@@ -2090,7 +2115,7 @@ func (c managedTokenPoolEncoder) GetCurrentInboundRateLimiterState(typeArgs []st
 		state,
 		remoteChainSelector,
 	}, []string{
-		"rate_limiter::TokenBucket",
+		"managed_token_pool::managed_token_pool::TokenBucketWrapper",
 	})
 }
 
@@ -2111,7 +2136,7 @@ func (c managedTokenPoolEncoder) GetCurrentInboundRateLimiterStateWithArgs(typeA
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("get_current_inbound_rate_limiter_state", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"rate_limiter::TokenBucket",
+		"managed_token_pool::managed_token_pool::TokenBucketWrapper",
 	})
 }
 
@@ -2130,7 +2155,7 @@ func (c managedTokenPoolEncoder) GetCurrentOutboundRateLimiterState(typeArgs []s
 		state,
 		remoteChainSelector,
 	}, []string{
-		"rate_limiter::TokenBucket",
+		"managed_token_pool::managed_token_pool::TokenBucketWrapper",
 	})
 }
 
@@ -2151,7 +2176,7 @@ func (c managedTokenPoolEncoder) GetCurrentOutboundRateLimiterStateWithArgs(type
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("get_current_outbound_rate_limiter_state", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"rate_limiter::TokenBucket",
+		"managed_token_pool::managed_token_pool::TokenBucketWrapper",
 	})
 }
 
