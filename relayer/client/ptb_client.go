@@ -64,8 +64,8 @@ type SuiPTBClient interface {
 	GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error)
 	GetNormalizedModule(ctx context.Context, packageId string, moduleId string) (models.GetNormalizedMoveModuleResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
-	LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error)
-	GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error)
+	LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error)
+	GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error)
 	GetClient() sui.ISuiAPI
 	GetCache() *cache.Cache
 	GetCachedValue(key string) (any, bool)
@@ -921,7 +921,7 @@ func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, m
 
 // LoadModulePackages returns the set of package IDs for a given module using its original package ID
 // This method assumes that module names are unique across all packages
-func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
+func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error) {
 	// Ensure that the module keeps track of its package IDs by checking that it has `add_package_id` function
 	normalizedModule, err := c.GetNormalizedModule(ctx, packageId, module)
 	if err != nil {
@@ -1024,8 +1024,8 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 	return packageIds, nil
 }
 
-func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
-	packageIds, err := c.LoadModulePackageIds(ctx, packageId, module, signerAddress)
+func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error) {
+	packageIds, err := c.LoadModulePackageIds(ctx, packageId, module)
 	if err != nil {
 		return "", fmt.Errorf("failed to load module package ids: %w", err)
 	}

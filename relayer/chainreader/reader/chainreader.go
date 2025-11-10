@@ -153,8 +153,17 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 
 	// If the "OffRamp" package/module is now bound, set the offramp package ID for the tx indexer
 	if pkg, err := s.packageResolver.ResolvePackageAddress(offrampName); err == nil {
+		// Get the latest package ID for the offramp module
+		latestPackageID, err := s.client.GetLatestPackageId(ctx, pkg, "offramp")
+		if err != nil {
+			s.logger.Warnw("Failed to get latest package ID for OffRamp", "error", err)
+		} else {
+			s.indexer.GetTransactionIndexer().SetOffRampPackage(latestPackageID)
+		}
+
 		s.indexer.GetTransactionIndexer().SetOffRampPackage(pkg)
 	}
+
 	return nil
 }
 
@@ -783,7 +792,7 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 
 	// Override the package ID with the latest package ID of the module being called.
 	// This ensure we are always using the latestPkgID in case of upgrades.
-	latestPackageId, err := s.client.GetLatestPackageId(ctx, parsed.address, common.GetModuleForContract(parsed.contractName), "")
+	latestPackageId, err := s.client.GetLatestPackageId(ctx, parsed.address, common.GetModuleForContract(parsed.contractName))
 	if err != nil {
 		return []any{}, err
 	}
