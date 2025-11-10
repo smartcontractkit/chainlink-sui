@@ -38,9 +38,6 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/managed_token --input ./con
 
 # CCIP - Lock Release Token Pool
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/lock_release_token_pool --input ./contracts/ccip/ccip_token_pools/lock_release_token_pool/sources/lock_release_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/lock_release_token_pool
-go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/lock_release_token_pool --input ./contracts/ccip/ccip_token_pools/lock_release_token_pool/sources/rate_limiter.move --output ./bindings/generated/ccip/ccip_token_pools/lock_release_token_pool/rate_limiter
-go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/lock_release_token_pool --input ./contracts/ccip/ccip_token_pools/lock_release_token_pool/sources/token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/lock_release_token_pool/token_pool
-go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/lock_release_token_pool --input ./contracts/ccip/ccip_token_pools/lock_release_token_pool/sources/token_pool_rate_limiter.move --output ./bindings/generated/ccip/ccip_token_pools/lock_release_token_pool/token_pool_rate_limiter
 
 # CCIP - Burn Mint Token Pool
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/burn_mint_token_pool --input ./contracts/ccip/ccip_token_pools/burn_mint_token_pool/sources/burn_mint_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool

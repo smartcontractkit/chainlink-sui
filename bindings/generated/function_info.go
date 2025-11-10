@@ -18,9 +18,6 @@ import (
     module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
     module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
     module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
-    module_rate_limiter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool/rate_limiter"
-    module_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool/token_pool"
-    module_token_pool_rate_limiter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool/token_pool_rate_limiter"
     module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
     module_usdc_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/usdc_token_pool"
     module_managed_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/managed_token/managed_token"
@@ -53,9 +50,6 @@ var FunctionInfoByModule = map[string]string{
     "router": module_router.FunctionInfo,
     "burn_mint_token_pool": module_burn_mint_token_pool.FunctionInfo,
     "lock_release_token_pool": module_lock_release_token_pool.FunctionInfo,
-    "rate_limiter": module_rate_limiter.FunctionInfo,
-    "token_pool": module_token_pool.FunctionInfo,
-    "token_pool_rate_limiter": module_token_pool_rate_limiter.FunctionInfo,
     "managed_token_pool": module_managed_token_pool.FunctionInfo,
     "usdc_token_pool": module_usdc_token_pool.FunctionInfo,
     "managed_token": module_managed_token.FunctionInfo,
