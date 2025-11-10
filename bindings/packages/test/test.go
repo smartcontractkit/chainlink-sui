@@ -72,11 +72,52 @@ func NewTest(address string, client sui.ISuiAPI) (Test, error) {
 	}, nil
 }
 
-func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (Test, *models.SuiTransactionBlockResponse, error) {
+func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, testSecondary string) (Test, *models.SuiTransactionBlockResponse, error) {
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.Test, map[string]string{
 		"test":           "0x0",
-		"test_secondary": "_",
+		"test_secondary": testSecondary,
+
+		"signer": signerAddr,
+	}, false)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+		CompiledModules: artifact.Modules,
+		Dependencies:    artifact.Dependencies,
 	})
+	if err != nil {
+		return nil, nil, err
+	}
+	contract, err := NewTest(packageId, client)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return contract, tx, nil
+}
+
+func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (Test, *models.SuiTransactionBlockResponse, error) {
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	artifact, err := bind.CompilePackage(contracts.TestSecondary, map[string]string{
+		"test_secondary": "0x0",
+
+		"signer": signerAddr,
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

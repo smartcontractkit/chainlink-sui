@@ -52,7 +52,7 @@ func (d DeployDummyReceiver) Apply(e cldf.Environment, config DeployDummyReceive
 		McmsOwner:     config.McmsOwner,
 	})
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy LinkToken for Sui chain %d: %w", config.SuiChainSelector, err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy dummy receiver for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
 
 	// register receiver
