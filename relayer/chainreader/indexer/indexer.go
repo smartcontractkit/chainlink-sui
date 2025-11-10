@@ -2,6 +2,8 @@ package indexer
 
 import (
 	"context"
+	"sync"
+	"sync/atomic"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
@@ -13,15 +15,20 @@ type Indexer struct {
 
 	eventsIndexer       EventsIndexerApi
 	eventsIndexerCancel *context.CancelFunc
+	eventsIndexerErr    atomic.Value // stores error from events indexer goroutine
 
 	transactionIndexer       TransactionsIndexerApi
 	transactionIndexerCancel *context.CancelFunc
+	transactionIndexerErr    atomic.Value // stores error from transaction indexer goroutine
+
+	wg sync.WaitGroup // wait for both indexer goroutines to exit
 }
 
 type IndexerApi interface {
 	Name() string
 	Start(ctx context.Context) error
 	Ready() error
+	HealthReport() map[string]error
 	Close() error
 	GetEventIndexer() EventsIndexerApi
 	GetTransactionIndexer() TransactionsIndexerApi
@@ -47,52 +54,92 @@ func (i *Indexer) Name() string {
 
 func (i *Indexer) Start(_ context.Context) error {
 	return i.starter.StartOnce(i.Name(), func() error {
+		// Events indexer
 		eventsIndexerCtx, eventsIndexerCancel := context.WithCancel(context.Background())
-		// set the cancel function
 		i.eventsIndexerCancel = &eventsIndexerCancel
 
+		i.wg.Add(1)
 		go func() {
+			defer i.wg.Done()
+			defer eventsIndexerCancel()
+
 			if err := i.eventsIndexer.Start(eventsIndexerCtx); err != nil {
-				i.log.Errorw("Events indexer failed to start", "error", err)
-				eventsIndexerCancel()
+				i.log.Errorw("Events indexer failed", "error", err)
+				i.eventsIndexerErr.Store(err)
 				return
 			}
-			i.log.Info("Events indexer started")
+			i.log.Info("Events indexer exited cleanly")
 		}()
 
-		// context.Background() so the TxIndexer’s wait loop isn’t killed by the parent context
+		// Transaction indexer
+		// context.Background() so the TxIndexer's wait loop isn't killed by the parent context
 		txnIndexerCtx, txnIndexerCancel := context.WithCancel(context.Background())
-		// set the cancel function
 		i.transactionIndexerCancel = &txnIndexerCancel
+
+		i.wg.Add(1)
 		go func() {
+			defer i.wg.Done()
+			defer txnIndexerCancel()
+
 			if err := i.transactionIndexer.Start(txnIndexerCtx); err != nil {
-				i.log.Errorw("Transaction indexer failed to start", "error", err)
-				txnIndexerCancel()
+				i.log.Errorw("Transaction indexer failed", "error", err)
+				i.transactionIndexerErr.Store(err)
 				return
 			}
-			i.log.Info("Transactions indexer started")
+			i.log.Info("Transaction indexer exited cleanly")
 		}()
+
 		return nil
 	})
 }
 
 func (i *Indexer) Ready() error {
-	return i.starter.Ready()
+	if err := i.starter.Ready(); err != nil {
+		return err
+	}
+
+	// Check if either indexer has failed
+	if err := i.eventsIndexerErr.Load(); err != nil {
+		return err.(error)
+	}
+	if err := i.transactionIndexerErr.Load(); err != nil {
+		return err.(error)
+	}
+
+	return nil
+}
+
+func (i *Indexer) HealthReport() map[string]error {
+	report := map[string]error{
+		i.Name(): i.starter.Healthy(),
+	}
+
+	if err := i.eventsIndexerErr.Load(); err != nil {
+		report["EventsIndexer"] = err.(error)
+	}
+	if err := i.transactionIndexerErr.Load(); err != nil {
+		report["TransactionIndexer"] = err.(error)
+	}
+
+	return report
 }
 
 func (i *Indexer) Close() error {
 	return i.starter.StopOnce(i.Name(), func() error {
-		// stop events indexer
+		// Signal both indexers to stop
 		if i.eventsIndexerCancel != nil {
 			(*i.eventsIndexerCancel)()
 		}
-		i.log.Info("Events indexer stopped")
-
-		// stop transactions indexer
 		if i.transactionIndexerCancel != nil {
 			(*i.transactionIndexerCancel)()
 		}
-		i.log.Info("Transactions indexer stopped")
+
+		i.log.Info("Waiting for indexers to stop...")
+
+		// Wait for both goroutines to exit
+		i.wg.Wait()
+
+		i.log.Info("All indexers stopped")
 
 		return nil
 	})
