@@ -4,7 +4,7 @@ edition = "2024"
 
 [addresses]
 ccip = "_"
-ccip_onramp = "_"
+ccip_onramp = "0x0"
 mcms = "_"
 mcms_owner = "_"
 

@@ -102,11 +102,17 @@ func NewCCIP(address string, client sui.ISuiAPI) (CCIP, error) {
 }
 
 func PublishCCIP(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, mcmsAddress string, mcmsOwner string) (CCIP, *models.SuiTransactionBlockResponse, error) {
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.CCIP, map[string]string{
 		"mcms":       mcmsAddress,
 		"mcms_owner": mcmsOwner,
 		"ccip":       "0x0",
-	})
+		"signer":     signerAddr,
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}
