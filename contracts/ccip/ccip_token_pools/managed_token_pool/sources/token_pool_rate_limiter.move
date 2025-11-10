@@ -181,19 +181,15 @@ public fun verify_zero_config(state: &RateLimitState) {
     let mut i = 0;
     while (i < state.outbound_rate_limiter_config.length()) {
         let bucket = state.outbound_rate_limiter_config.borrow(i);
-        assert!(
-            !rate_limiter::is_enabled(bucket) || rate_limiter::get_rate(bucket) == 0,
-            ERateLimiterConfigNotZero,
-        );
+        let (_, _, is_enabled, _, rate) = rate_limiter::get_token_bucket_fields(bucket);
+        assert!(!is_enabled || rate == 0, ERateLimiterConfigNotZero);
         i = i + 1;
     };
     i = 0;
     while (i < state.inbound_rate_limiter_config.length()) {
         let bucket = state.inbound_rate_limiter_config.borrow(i);
-        assert!(
-            !rate_limiter::is_enabled(bucket) || rate_limiter::get_rate(bucket) == 0,
-            ERateLimiterConfigNotZero,
-        );
+        let (_, _, is_enabled, _, rate) = rate_limiter::get_token_bucket_fields(bucket);
+        assert!(!is_enabled || rate == 0, ERateLimiterConfigNotZero);
         i = i + 1;
     };
 }

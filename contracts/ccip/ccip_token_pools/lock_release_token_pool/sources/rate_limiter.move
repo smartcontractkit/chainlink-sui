@@ -96,14 +96,6 @@ fun min(a: u64, b: u64): u64 {
     if (a > b) b else a
 }
 
-public fun is_enabled(bucket: &TokenBucket): bool {
-    bucket.is_enabled
-}
-
-public fun get_rate(bucket: &TokenBucket): u64 {
-    bucket.rate
-}
-
 public fun get_token_bucket_fields(bucket: &TokenBucket): (u64, u64, bool, u64, u64) {
     (bucket.tokens, bucket.last_updated, bucket.is_enabled, bucket.capacity, bucket.rate)
 }
