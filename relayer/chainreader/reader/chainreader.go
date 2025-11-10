@@ -106,11 +106,24 @@ func (s *suiChainReader) Name() string {
 }
 
 func (s *suiChainReader) Ready() error {
-	return s.starter.Ready()
+	if err := s.starter.Ready(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *suiChainReader) HealthReport() map[string]error {
-	return map[string]error{s.Name(): s.starter.Healthy()}
+	report := map[string]error{s.Name(): s.starter.Healthy()}
+
+	// Include indexer health status
+	if s.indexer != nil {
+		for k, v := range s.indexer.HealthReport() {
+			report[k] = v
+		}
+	}
+
+	return report
 }
 
 func (s *suiChainReader) Start(ctx context.Context) error {
@@ -497,6 +510,7 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	// Get module and event configuration
 	moduleConfig := s.config.Modules[contract.Name]
 	eventConfig, err := s.getEventConfig(moduleConfig, filter.Key)
+
 	// No event config found, construct a config
 	if err == nil && eventConfig == nil {
 		// construct a new config ad-hoc
@@ -536,9 +550,6 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	if err != nil {
 		return nil, err
 	}
-
-	// update the event config in the transactions indexer to ensure that the package ID is known
-	s.indexer.GetTransactionIndexer().UpdateEventConfig(eventConfig)
 
 	return eventConfig, nil
 }

@@ -52,13 +52,19 @@ func PublishCCIPManagedTokenPool(
 	managedTokenAddress,
 	mcmsAddress,
 	mcmsOwnerAddress string) (ManagedTokenPool, *models.SuiTransactionBlockResponse, error) {
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.ManagedTokenPool, map[string]string{
 		"ccip":               ccipAddress,
 		"managed_token_pool": "0x0",
 		"managed_token":      managedTokenAddress,
 		"mcms":               mcmsAddress,
 		"mcms_owner":         mcmsOwnerAddress,
-	})
+		"signer":             signerAddr,
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

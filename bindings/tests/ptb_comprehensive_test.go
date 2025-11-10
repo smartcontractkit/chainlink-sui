@@ -24,7 +24,6 @@ import (
 // - PTB return value handling (Execute vs DevInspect)
 // - Result chaining with WithArgument methods
 func TestProgrammableTransactionBlocks(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 	signer, client := testenv.SetupEnvironment(t)
 
@@ -34,8 +33,11 @@ func TestProgrammableTransactionBlocks(t *testing.T) {
 		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
+	publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client)
+	require.NoError(t, err)
+
 	// Publish the test package
-	testPackage, tx, err := testpackage.PublishTest(ctx, opts, client)
+	testPackage, tx, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address())
 	require.NoError(t, err)
 	require.NotNil(t, testPackage)
 	require.NotNil(t, tx)
