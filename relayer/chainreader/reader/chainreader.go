@@ -106,11 +106,24 @@ func (s *suiChainReader) Name() string {
 }
 
 func (s *suiChainReader) Ready() error {
-	return s.starter.Ready()
+	if err := s.starter.Ready(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *suiChainReader) HealthReport() map[string]error {
-	return map[string]error{s.Name(): s.starter.Healthy()}
+	report := map[string]error{s.Name(): s.starter.Healthy()}
+
+	// Include indexer health status
+	if s.indexer != nil {
+		for k, v := range s.indexer.HealthReport() {
+			report[k] = v
+		}
+	}
+
+	return report
 }
 
 func (s *suiChainReader) Start(ctx context.Context) error {
