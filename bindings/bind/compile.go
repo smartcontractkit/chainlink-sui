@@ -157,6 +157,18 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		return PackageArtifact{}, fmt.Errorf("copying embedded files to %q: %w", dstRoot, err)
 	}
 
+	if packageName == contracts.Test {
+		testSecondaryAddr := namedAddresses["test_secondary"]
+		if !isZeroAddress(testSecondaryAddr) {
+			testSecondaryDir := filepath.Join(dstRoot, "test_secondary")
+			if err := managePackage(testSecondaryDir, 1, rpcURL, env, testSecondaryAddr, testSecondaryAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage Test Secondary dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for Test Secondary (no published address found)")
+		}
+	}
+
 	if packageName == contracts.ManagedToken {
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
@@ -218,8 +230,8 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 	if packageName == contracts.ManagedTokenPool {
 		managedTokenAddr := namedAddresses["managed_token"]
 		if !isZeroAddress(managedTokenAddr) {
-			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, managedTokenAddr, managedTokenAddr); err != nil {
+			managedTokenDir := filepath.Join(dstRoot, "ccip", "managed_token")
+			if err := managePackage(managedTokenDir, 1, rpcURL, env, managedTokenAddr, managedTokenAddr); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage managed token dependency: %w", err)
 			}
 		} else {
@@ -504,6 +516,7 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		cmd.Dir = packageRoot
 		output, err := cmd.Output()
 		if err != nil {
+
 			return PackageArtifact{}, fmt.Errorf("sui client publish --serialize-unsigned-transaction (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
 		}
 
@@ -655,6 +668,10 @@ func getChainIdentifier(rpcURL string) (string, error) {
 }
 
 func getDynamicSuiRPC() (string, error) {
+	if envRPC := os.Getenv("SUI_RPC_URL"); envRPC != "" {
+		return envRPC, nil
+	}
+
 	cmd := exec.Command("docker", "ps", "--filter", "ancestor=mysten/sui-tools:devnet", "--format", "{{.Ports}}")
 	out, err := cmd.Output()
 	if err != nil {
@@ -723,7 +740,7 @@ func setupSuiEnv(alias, rpcURL string) error {
 	newCmd.Env = os.Environ()
 	newOut, err := newCmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to create sui env '%s': %w\nOutput:\n%s", alias, err, string(newOut))
+		fmt.Printf("failed to create sui env '%s': %v\nOutput:\n%s", alias, err, string(newOut))
 	}
 
 	// Step 4️ — Switch to new env

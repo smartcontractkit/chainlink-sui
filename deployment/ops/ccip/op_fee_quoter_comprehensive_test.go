@@ -23,7 +23,6 @@ import (
 
 func TestFeeQuoterOperations(t *testing.T) {
 	t.Parallel()
-
 	signer, client := testenv.SetupEnvironment(t)
 
 	deps := sui_ops.OpTxDeps{
