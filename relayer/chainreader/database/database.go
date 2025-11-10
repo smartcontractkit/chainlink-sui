@@ -178,6 +178,17 @@ func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, 
 	}, totalCount, nil
 }
 
+// GetTotalCount returns the total number of events recorded in the DB for a given type
+func (store *DBStore) GetTotalCount(ctx context.Context, eventAccountAddress, eventHandle string) (uint64, error) {
+	var totalCount uint64
+	err := store.ds.QueryRowxContext(ctx, CountEvents, eventAccountAddress, eventHandle).Scan(&totalCount)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get total count: %w", err)
+	}
+
+	return totalCount, nil
+}
+
 func (store *DBStore) GetTxDigestByEventId(ctx context.Context, eventID uint64) (string, error) {
 	var txDigest string
 	err := store.ds.QueryRowxContext(ctx, GetTxDigestById, eventID).Scan(&txDigest)
