@@ -1,15 +1,16 @@
 module ccip::ownable;
 
-use mcms::mcms_registry::{Self, Registry};
+use mcms::mcms_registry::{Self, Registry, PublisherWrapper};
 use sui::derived_object;
+use sui::dynamic_field as df;
 use sui::event;
+use sui::package::Publisher;
 
 public struct OwnerCap has key, store {
     id: UID,
 }
 
-public struct OwnableState has key, store {
-    id: UID,
+public struct OwnableState has store {
     owner: address,
     pending_transfer: Option<PendingTransfer>,
     owner_cap_id: ID,
@@ -21,10 +22,11 @@ public struct PendingTransfer has drop, store {
     accepted: bool,
 }
 
+public struct PublisherKey has copy, drop, store {}
+
 // =================== Events =================== //
 
 public struct NewOwnableStateEvent has copy, drop, store {
-    ownable_state_id: ID,
     owner_cap_id: ID,
     owner: address,
 }
@@ -61,32 +63,30 @@ public fun default_key(): vector<u8> {
     DEFAULT_KEY
 }
 
-public fun new(uid: &mut UID, ctx: &mut TxContext): (OwnableState, OwnerCap) {
+public(package) fun new(uid: &mut UID, ctx: &TxContext): (OwnableState, OwnerCap) {
     let owner_cap = OwnerCap { id: derived_object::claim(uid, DEFAULT_KEY) };
     new_internal(owner_cap, ctx)
 }
 
-public fun new_with_key<K: copy + drop + store>(
+public(package) fun new_with_key<K: copy + drop + store>(
     uid: &mut UID,
     key: K,
-    ctx: &mut TxContext,
+    ctx: &TxContext,
 ): (OwnableState, OwnerCap) {
     let owner_cap = OwnerCap { id: derived_object::claim(uid, key) };
     new_internal(owner_cap, ctx)
 }
 
-fun new_internal(owner_cap: OwnerCap, ctx: &mut TxContext): (OwnableState, OwnerCap) {
+fun new_internal(owner_cap: OwnerCap, ctx: &TxContext): (OwnableState, OwnerCap) {
     let owner = ctx.sender();
 
     let state = OwnableState {
-        id: object::new(ctx),
         owner,
         pending_transfer: option::none(),
         owner_cap_id: object::id(&owner_cap),
     };
 
     event::emit(NewOwnableStateEvent {
-        ownable_state_id: object::id(&state),
         owner_cap_id: object::id(&owner_cap),
         owner,
     });
@@ -116,6 +116,14 @@ public fun pending_transfer_to(state: &OwnableState): Option<address> {
 
 public fun pending_transfer_accepted(state: &OwnableState): Option<bool> {
     state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.accepted)
+}
+
+public(package) fun attach_publisher(owner_cap: &mut OwnerCap, publisher: Publisher) {
+    df::add(&mut owner_cap.id, PublisherKey {}, publisher);
+}
+
+public(package) fun borrow_publisher(owner_cap: &OwnerCap): &Publisher {
+    df::borrow(&owner_cap.id, PublisherKey {})
 }
 
 public fun transfer_ownership(
@@ -199,7 +207,6 @@ public fun execute_ownership_transfer(
     assert!(new_owner != mcms_registry::get_multisig_address(), ECannotTransferToMcms);
 
     state.owner = to;
-    state.pending_transfer = option::none();
 
     transfer::transfer(owner_cap, to);
 
@@ -212,6 +219,7 @@ public fun execute_ownership_transfer_to_mcms<T: drop>(
     state: &mut OwnableState,
     registry: &mut Registry,
     to: address,
+    publisher_wrapper: PublisherWrapper<T>,
     proof: T,
     allowed_modules: vector<vector<u8>>,
     ctx: &mut TxContext,
@@ -231,10 +239,10 @@ public fun execute_ownership_transfer_to_mcms<T: drop>(
     assert!(to == mcms_registry::get_multisig_address(), EMustTransferToMcms);
 
     state.owner = to;
-    state.pending_transfer = option::none();
 
     mcms_registry::register_entrypoint(
         registry,
+        publisher_wrapper,
         proof,
         owner_cap,
         allowed_modules,
@@ -246,7 +254,6 @@ public fun execute_ownership_transfer_to_mcms<T: drop>(
 
 public fun destroy(state: OwnableState, owner_cap: OwnerCap, _ctx: &mut TxContext) {
     let OwnableState {
-        id: state_id,
         owner: _,
         pending_transfer: _,
         owner_cap_id: state_owner_cap_id,
@@ -256,6 +263,5 @@ public fun destroy(state: OwnableState, owner_cap: OwnerCap, _ctx: &mut TxContex
 
     assert!(owner_cap_id.uid_to_inner() == state_owner_cap_id, EInvalidOwnerCap);
 
-    object::delete(state_id);
     object::delete(owner_cap_id);
 }

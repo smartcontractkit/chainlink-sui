@@ -3,7 +3,7 @@ module mcms::mcms_account_test;
 
 use mcms::mcms_account::{Self, AccountState, OwnerCap};
 use mcms::mcms_registry::{Self, Registry};
-use sui::test_scenario::{Self as ts};
+use sui::test_scenario as ts;
 
 const OWNER: address = @0x123;
 
@@ -39,7 +39,9 @@ fun test_transfer_ownership_to_self_flow() {
         env.scenario.ctx(),
     );
     assert!(mcms_account::pending_transfer_from(&env.state) == option::some(OWNER));
-    assert!(mcms_account::pending_transfer_to(&env.state) == option::some(mcms_registry::get_multisig_address()));
+    assert!(
+        mcms_account::pending_transfer_to(&env.state) == option::some(mcms_registry::get_multisig_address()),
+    );
     assert!(mcms_account::pending_transfer_accepted(&env.state) == option::some(false));
 
     mcms_account::test_accept_ownership_as_timelock(
@@ -59,7 +61,12 @@ fun test_transfer_ownership_to_self_flow() {
     assert!(mcms_account::pending_transfer_to(&env.state) == option::none());
     assert!(mcms_account::pending_transfer_accepted(&env.state) == option::none());
 
-    assert!(mcms_registry::is_package_registered(&env.registry, mcms_registry::get_multisig_address()));
+    assert!(
+        mcms_registry::is_package_registered(
+            &env.registry,
+            mcms_registry::get_multisig_address_ascii(),
+        ),
+    );
 
     env.destroy();
 }

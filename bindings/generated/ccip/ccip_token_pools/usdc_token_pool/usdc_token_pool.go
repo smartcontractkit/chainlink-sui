@@ -19,12 +19,11 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"usdc_token_pool","module":"usdc_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"destroy_token_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_domain","parameters":[{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_package_auth_caller","parameters":null},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_token","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"ccip_admin_proof","type":"state_object::CCIPAdminProof"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"local_domain_identifier","type":"u32"},{"name":"token_pool_package_id","type":"address"},{"name":"token_pool_administrator","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"deny_list","type":"DenyList"},{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"state","type":"MinterState"},{"name":"message_transmitter_state","type":"MessageTransmitterState"},{"name":"treasury","type":"Treasury<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"owner","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"deny_list","type":"DenyList"},{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"state","type":"MinterState"},{"name":"message_transmitter_state","type":"MessageTransmitterState"},{"name":"treasury","type":"Treasury<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"enabled","type":"bool"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_domains","parameters":[{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"remote_domain_identifiers","type":"vector<u32>"},{"name":"allowed_remote_callers","type":"vector<vector<u8>>"},{"name":"enableds","type":"vector<bool>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"coin_metadata_address","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"usdc_token_pool","module":"usdc_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"destroy_token_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_current_inbound_rate_limiter_state","parameters":[{"name":"clock","type":"Clock"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_current_outbound_rate_limiter_state","parameters":[{"name":"clock","type":"Clock"},{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_domain","parameters":[{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_package_auth_caller","parameters":null},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_token","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"initialize","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"local_domain_identifier","type":"u32"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"deny_list","type":"DenyList"},{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"state","type":"MinterState"},{"name":"message_transmitter_state","type":"MessageTransmitterState"},{"name":"treasury","type":"Treasury<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"owner","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"deny_list","type":"DenyList"},{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"state","type":"MinterState"},{"name":"message_transmitter_state","type":"MessageTransmitterState"},{"name":"treasury","type":"Treasury<T>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"enabled","type":"bool"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"set_domains","parameters":[{"name":"pool","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"remote_domain_identifiers","type":"vector<u32>"},{"name":"allowed_remote_callers","type":"vector<vector<u8>>"},{"name":"enableds","type":"vector<bool>"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"USDCTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"usdc_token_pool","module":"usdc_token_pool","name":"type_and_version","parameters":null}]`
 
 type IUsdcTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32, tokenPoolPackageId string, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error)
-	SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32) (*models.SuiTransactionBlockResponse, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
@@ -44,8 +43,11 @@ type IUsdcTokenPool interface {
 	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, clock bind.Object, denyList bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, treasury bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetDomain(ctx context.Context, opts *bind.CallOpts, typeArgs []string, pool bind.Object, chainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	SetDomains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, pool bind.Object, ownerCap bind.Object, remoteChainSelectors []uint64, remoteDomainIdentifiers []uint32, allowedRemoteCallers [][]byte, enableds []bool) (*models.SuiTransactionBlockResponse, error)
+	McmsSetDomains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, pool bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*models.SuiTransactionBlockResponse, error)
+	GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -66,11 +68,11 @@ type IUsdcTokenPool interface {
 	McmsSetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsDestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsSetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IUsdcTokenPoolDevInspect
 	Encoder() UsdcTokenPoolEncoder
 	Bound() bind.IBoundContract
@@ -89,6 +91,8 @@ type IUsdcTokenPoolDevInspect interface {
 	GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]string, error)
 	GetPackageAuthCaller(ctx context.Context, opts *bind.CallOpts, typeArgs []string) (string, error)
 	GetDomain(ctx context.Context, opts *bind.CallOpts, typeArgs []string, pool bind.Object, chainSelector uint64) (Domain, error)
+	GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error)
+	GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*string, error)
@@ -99,10 +103,8 @@ type IUsdcTokenPoolDevInspect interface {
 type UsdcTokenPoolEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32, tokenPoolPackageId string, tokenPoolAdministrator string) (*bind.EncodedCall, error)
+	Initialize(typeArgs []string, ownerCap bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32) (*bind.EncodedCall, error)
 	InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	SetPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
-	SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetToken(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
 	GetTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetTokenDecimals(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
@@ -141,10 +143,16 @@ type UsdcTokenPoolEncoder interface {
 	GetDomainWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetDomains(typeArgs []string, pool bind.Object, ownerCap bind.Object, remoteChainSelectors []uint64, remoteDomainIdentifiers []uint32, allowedRemoteCallers [][]byte, enableds []bool) (*bind.EncodedCall, error)
 	SetDomainsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsSetDomains(typeArgs []string, pool bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsSetDomainsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfigs(typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfig(typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfigWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	GetCurrentInboundRateLimiterState(typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error)
+	GetCurrentInboundRateLimiterStateWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	GetCurrentOutboundRateLimiterState(typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error)
+	GetCurrentOutboundRateLimiterStateWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	Owner(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
 	OwnerWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	HasPendingTransfer(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
@@ -185,16 +193,16 @@ type UsdcTokenPoolEncoder interface {
 	McmsSetChainRateLimiterConfigWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	DestroyTokenPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	DestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsDestroyTokenPool(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsDestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsTransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	McmsSetPool(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsSetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	McmsAddAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsAddAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsRemoveAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsRemoveAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsAddAllowedModules(typeArgs []string, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsAddAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsRemoveAllowedModules(typeArgs []string, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsRemoveAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 }
 
 type UsdcTokenPoolContract struct {
@@ -236,6 +244,9 @@ func (c *UsdcTokenPoolContract) DevInspect() IUsdcTokenPoolDevInspect {
 	return c.devInspect
 }
 
+type USDC_TOKEN_POOL struct {
+}
+
 type Domain struct {
 	AllowedCaller    []byte `move:"vector<u8>"`
 	DomainIdentifier uint32 `move:"u32"`
@@ -263,7 +274,27 @@ type TypeProof struct {
 type McmsCallback struct {
 }
 
+type McmsAcceptOwnershipProof struct {
+}
+
 func init() {
+	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::USDC_TOKEN_POOL", func(data []byte) (interface{}, error) {
+		var result USDC_TOKEN_POOL
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for USDC_TOKEN_POOL
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::USDC_TOKEN_POOL>", func(data []byte) (interface{}, error) {
+		var results []USDC_TOKEN_POOL
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::Domain", func(data []byte) (interface{}, error) {
 		var result Domain
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -349,6 +380,23 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
+		var result McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for McmsAcceptOwnershipProof
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
+		var results []McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -362,18 +410,8 @@ func (c *UsdcTokenPoolContract) TypeAndVersion(ctx context.Context, opts *bind.C
 }
 
 // Initialize executes the initialize Move function.
-func (c *UsdcTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32, tokenPoolPackageId string, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.usdcTokenPoolEncoder.Initialize(typeArgs, ref, ccipAdminProof, coinMetadata, localDomainIdentifier, tokenPoolPackageId, tokenPoolAdministrator)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// SetPool executes the set_pool Move function.
-func (c *UsdcTokenPoolContract) SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.usdcTokenPoolEncoder.SetPool(typeArgs, ref, state, ownerCap, coinMetadataAddress)
+func (c *UsdcTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.Initialize(typeArgs, ownerCap, coinMetadata, localDomainIdentifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -571,6 +609,16 @@ func (c *UsdcTokenPoolContract) SetDomains(ctx context.Context, opts *bind.CallO
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// McmsSetDomains executes the mcms_set_domains Move function.
+func (c *UsdcTokenPoolContract) McmsSetDomains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, pool bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.McmsSetDomains(typeArgs, pool, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // SetChainRateLimiterConfigs executes the set_chain_rate_limiter_configs Move function.
 func (c *UsdcTokenPoolContract) SetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.usdcTokenPoolEncoder.SetChainRateLimiterConfigs(typeArgs, state, ownerCap, clock, remoteChainSelectors, outboundIsEnableds, outboundCapacities, outboundRates, inboundIsEnableds, inboundCapacities, inboundRates)
@@ -584,6 +632,26 @@ func (c *UsdcTokenPoolContract) SetChainRateLimiterConfigs(ctx context.Context, 
 // SetChainRateLimiterConfig executes the set_chain_rate_limiter_config Move function.
 func (c *UsdcTokenPoolContract) SetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.usdcTokenPoolEncoder.SetChainRateLimiterConfig(typeArgs, state, ownerCap, clock, remoteChainSelector, outboundIsEnabled, outboundCapacity, outboundRate, inboundIsEnabled, inboundCapacity, inboundRate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetCurrentInboundRateLimiterState executes the get_current_inbound_rate_limiter_state Move function.
+func (c *UsdcTokenPoolContract) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.GetCurrentInboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetCurrentOutboundRateLimiterState executes the get_current_outbound_rate_limiter_state Move function.
+func (c *UsdcTokenPoolContract) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.GetCurrentOutboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -791,6 +859,16 @@ func (c *UsdcTokenPoolContract) DestroyTokenPool(ctx context.Context, opts *bind
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// McmsDestroyTokenPool executes the mcms_destroy_token_pool Move function.
+func (c *UsdcTokenPoolContract) McmsDestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.McmsDestroyTokenPool(typeArgs, ref, state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // McmsTransferOwnership executes the mcms_transfer_ownership Move function.
 func (c *UsdcTokenPoolContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.usdcTokenPoolEncoder.McmsTransferOwnership(typeArgs, state, registry, params)
@@ -802,18 +880,8 @@ func (c *UsdcTokenPoolContract) McmsTransferOwnership(ctx context.Context, opts 
 }
 
 // McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
-func (c *UsdcTokenPoolContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.usdcTokenPoolEncoder.McmsExecuteOwnershipTransfer(typeArgs, state, registry, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// McmsSetPool executes the mcms_set_pool Move function.
-func (c *UsdcTokenPoolContract) McmsSetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.usdcTokenPoolEncoder.McmsSetPool(typeArgs, ref, state, registry, params)
+func (c *UsdcTokenPoolContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.McmsExecuteOwnershipTransfer(typeArgs, state, registry, deployerState, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -822,8 +890,8 @@ func (c *UsdcTokenPoolContract) McmsSetPool(ctx context.Context, opts *bind.Call
 }
 
 // McmsAddAllowedModules executes the mcms_add_allowed_modules Move function.
-func (c *UsdcTokenPoolContract) McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.usdcTokenPoolEncoder.McmsAddAllowedModules(registry, params)
+func (c *UsdcTokenPoolContract) McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.McmsAddAllowedModules(typeArgs, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -832,8 +900,8 @@ func (c *UsdcTokenPoolContract) McmsAddAllowedModules(ctx context.Context, opts 
 }
 
 // McmsRemoveAllowedModules executes the mcms_remove_allowed_modules Move function.
-func (c *UsdcTokenPoolContract) McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.usdcTokenPoolEncoder.McmsRemoveAllowedModules(registry, params)
+func (c *UsdcTokenPoolContract) McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.McmsRemoveAllowedModules(typeArgs, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1105,6 +1173,50 @@ func (d *UsdcTokenPoolDevInspect) GetDomain(ctx context.Context, opts *bind.Call
 	return result, nil
 }
 
+// GetCurrentInboundRateLimiterState executes the get_current_inbound_rate_limiter_state Move function using DevInspect to get return values.
+//
+// Returns: rate_limiter::TokenBucket
+func (d *UsdcTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error) {
+	encoded, err := d.contract.usdcTokenPoolEncoder.GetCurrentInboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetCurrentOutboundRateLimiterState executes the get_current_outbound_rate_limiter_state Move function using DevInspect to get return values.
+//
+// Returns: rate_limiter::TokenBucket
+func (d *UsdcTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error) {
+	encoded, err := d.contract.usdcTokenPoolEncoder.GetCurrentOutboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	}
+	return result, nil
+}
+
 // Owner executes the owner Move function using DevInspect to get return values.
 //
 // Returns: address
@@ -1244,25 +1356,19 @@ func (c usdcTokenPoolEncoder) TypeAndVersionWithArgs(args ...any) (*bind.Encoded
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c usdcTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32, tokenPoolPackageId string, tokenPoolAdministrator string) (*bind.EncodedCall, error) {
+func (c usdcTokenPoolEncoder) Initialize(typeArgs []string, ownerCap bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"state_object::CCIPAdminProof",
+		"&mut OwnerCap",
 		"&CoinMetadata<T>",
 		"u32",
-		"address",
-		"address",
 	}, []any{
-		ref,
-		ccipAdminProof,
+		ownerCap,
 		coinMetadata,
 		localDomainIdentifier,
-		tokenPoolPackageId,
-		tokenPoolAdministrator,
 	}, nil)
 }
 
@@ -1270,12 +1376,9 @@ func (c usdcTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, cci
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c usdcTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"&mut CCIPObjectRef",
-		"state_object::CCIPAdminProof",
+		"&mut OwnerCap",
 		"&CoinMetadata<T>",
 		"u32",
-		"address",
-		"address",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1286,45 +1389,6 @@ func (c usdcTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args ...any)
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
-// SetPool encodes a call to the set_pool Move function.
-func (c usdcTokenPoolEncoder) SetPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error) {
-	typeArgsList := typeArgs
-	typeParamsList := []string{
-		"T",
-	}
-	return c.EncodeCallArgsWithGenerics("set_pool", typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
-		"address",
-	}, []any{
-		ref,
-		state,
-		ownerCap,
-		coinMetadataAddress,
-	}, nil)
-}
-
-// SetPoolWithArgs encodes a call to the set_pool Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c usdcTokenPoolEncoder) SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut CCIPObjectRef",
-		"&mut USDCTokenPoolState<T>",
-		"&OwnerCap",
-		"address",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := typeArgs
-	typeParamsList := []string{
-		"T",
-	}
-	return c.EncodeCallArgsWithGenerics("set_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // GetToken encodes a call to the get_token Move function.
@@ -2064,6 +2128,42 @@ func (c usdcTokenPoolEncoder) SetDomainsWithArgs(typeArgs []string, args ...any)
 	return c.EncodeCallArgsWithGenerics("set_domains", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
+// McmsSetDomains encodes a call to the mcms_set_domains Move function.
+func (c usdcTokenPoolEncoder) McmsSetDomains(typeArgs []string, pool bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_set_domains", typeArgsList, typeParamsList, []string{
+		"&mut USDCTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		pool,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsSetDomainsWithArgs encodes a call to the mcms_set_domains Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c usdcTokenPoolEncoder) McmsSetDomainsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut USDCTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_set_domains", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
 // SetChainRateLimiterConfigs encodes a call to the set_chain_rate_limiter_configs Move function.
 func (c usdcTokenPoolEncoder) SetChainRateLimiterConfigs(typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
@@ -2176,6 +2276,86 @@ func (c usdcTokenPoolEncoder) SetChainRateLimiterConfigWithArgs(typeArgs []strin
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("set_chain_rate_limiter_config", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// GetCurrentInboundRateLimiterState encodes a call to the get_current_inbound_rate_limiter_state Move function.
+func (c usdcTokenPoolEncoder) GetCurrentInboundRateLimiterState(typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("get_current_inbound_rate_limiter_state", typeArgsList, typeParamsList, []string{
+		"&Clock",
+		"&USDCTokenPoolState<T>",
+		"u64",
+	}, []any{
+		clock,
+		state,
+		remoteChainSelector,
+	}, []string{
+		"rate_limiter::TokenBucket",
+	})
+}
+
+// GetCurrentInboundRateLimiterStateWithArgs encodes a call to the get_current_inbound_rate_limiter_state Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c usdcTokenPoolEncoder) GetCurrentInboundRateLimiterStateWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&Clock",
+		"&USDCTokenPoolState<T>",
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("get_current_inbound_rate_limiter_state", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"rate_limiter::TokenBucket",
+	})
+}
+
+// GetCurrentOutboundRateLimiterState encodes a call to the get_current_outbound_rate_limiter_state Move function.
+func (c usdcTokenPoolEncoder) GetCurrentOutboundRateLimiterState(typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("get_current_outbound_rate_limiter_state", typeArgsList, typeParamsList, []string{
+		"&Clock",
+		"&USDCTokenPoolState<T>",
+		"u64",
+	}, []any{
+		clock,
+		state,
+		remoteChainSelector,
+	}, []string{
+		"rate_limiter::TokenBucket",
+	})
+}
+
+// GetCurrentOutboundRateLimiterStateWithArgs encodes a call to the get_current_outbound_rate_limiter_state Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c usdcTokenPoolEncoder) GetCurrentOutboundRateLimiterStateWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&Clock",
+		"&USDCTokenPoolState<T>",
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("get_current_outbound_rate_limiter_state", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"rate_limiter::TokenBucket",
+	})
 }
 
 // Owner encodes a call to the owner Move function.
@@ -2884,6 +3064,45 @@ func (c usdcTokenPoolEncoder) DestroyTokenPoolWithArgs(typeArgs []string, args .
 	return c.EncodeCallArgsWithGenerics("destroy_token_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
+// McmsDestroyTokenPool encodes a call to the mcms_destroy_token_pool Move function.
+func (c usdcTokenPoolEncoder) McmsDestroyTokenPool(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_token_pool", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"USDCTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsDestroyTokenPoolWithArgs encodes a call to the mcms_destroy_token_pool Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c usdcTokenPoolEncoder) McmsDestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"USDCTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_token_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
 // McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.
 func (c usdcTokenPoolEncoder) McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
@@ -2921,7 +3140,7 @@ func (c usdcTokenPoolEncoder) McmsTransferOwnershipWithArgs(typeArgs []string, a
 }
 
 // McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.
-func (c usdcTokenPoolEncoder) McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c usdcTokenPoolEncoder) McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2929,10 +3148,12 @@ func (c usdcTokenPoolEncoder) McmsExecuteOwnershipTransfer(typeArgs []string, st
 	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, []string{
 		"&mut USDCTokenPoolState<T>",
 		"&mut Registry",
+		"&mut DeployerState",
 		"ExecutingCallbackParams",
 	}, []any{
 		state,
 		registry,
+		deployerState,
 		params,
 	}, nil)
 }
@@ -2943,6 +3164,7 @@ func (c usdcTokenPoolEncoder) McmsExecuteOwnershipTransferWithArgs(typeArgs []st
 	expectedParams := []string{
 		"&mut USDCTokenPoolState<T>",
 		"&mut Registry",
+		"&mut DeployerState",
 		"ExecutingCallbackParams",
 	}
 
@@ -2956,49 +3178,12 @@ func (c usdcTokenPoolEncoder) McmsExecuteOwnershipTransferWithArgs(typeArgs []st
 	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// McmsSetPool encodes a call to the mcms_set_pool Move function.
-func (c usdcTokenPoolEncoder) McmsSetPool(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := typeArgs
-	typeParamsList := []string{
-		"T",
-	}
-	return c.EncodeCallArgsWithGenerics("mcms_set_pool", typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"&mut USDCTokenPoolState<T>",
-		"&mut Registry",
-		"ExecutingCallbackParams",
-	}, []any{
-		ref,
-		state,
-		registry,
-		params,
-	}, nil)
-}
-
-// McmsSetPoolWithArgs encodes a call to the mcms_set_pool Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c usdcTokenPoolEncoder) McmsSetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut CCIPObjectRef",
-		"&mut USDCTokenPoolState<T>",
-		"&mut Registry",
-		"ExecutingCallbackParams",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := typeArgs
-	typeParamsList := []string{
-		"T",
-	}
-	return c.EncodeCallArgsWithGenerics("mcms_set_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
 // McmsAddAllowedModules encodes a call to the mcms_add_allowed_modules Move function.
-func (c usdcTokenPoolEncoder) McmsAddAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
+func (c usdcTokenPoolEncoder) McmsAddAllowedModules(typeArgs []string, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
 	return c.EncodeCallArgsWithGenerics("mcms_add_allowed_modules", typeArgsList, typeParamsList, []string{
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3010,7 +3195,7 @@ func (c usdcTokenPoolEncoder) McmsAddAllowedModules(registry bind.Object, params
 
 // McmsAddAllowedModulesWithArgs encodes a call to the mcms_add_allowed_modules Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c usdcTokenPoolEncoder) McmsAddAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c usdcTokenPoolEncoder) McmsAddAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3019,15 +3204,19 @@ func (c usdcTokenPoolEncoder) McmsAddAllowedModulesWithArgs(args ...any) (*bind.
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
 	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
 	return c.EncodeCallArgsWithGenerics("mcms_add_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsRemoveAllowedModules encodes a call to the mcms_remove_allowed_modules Move function.
-func (c usdcTokenPoolEncoder) McmsRemoveAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
+func (c usdcTokenPoolEncoder) McmsRemoveAllowedModules(typeArgs []string, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
 	return c.EncodeCallArgsWithGenerics("mcms_remove_allowed_modules", typeArgsList, typeParamsList, []string{
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3039,7 +3228,7 @@ func (c usdcTokenPoolEncoder) McmsRemoveAllowedModules(registry bind.Object, par
 
 // McmsRemoveAllowedModulesWithArgs encodes a call to the mcms_remove_allowed_modules Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c usdcTokenPoolEncoder) McmsRemoveAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c usdcTokenPoolEncoder) McmsRemoveAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3048,7 +3237,9 @@ func (c usdcTokenPoolEncoder) McmsRemoveAllowedModulesWithArgs(args ...any) (*bi
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
 	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
 	return c.EncodeCallArgsWithGenerics("mcms_remove_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

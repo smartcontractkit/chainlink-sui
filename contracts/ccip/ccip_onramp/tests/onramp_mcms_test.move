@@ -8,10 +8,9 @@ use ccip::upgrade_registry;
 use ccip_onramp::onramp::{Self, OnRampState};
 use ccip_onramp::ownable::OwnerCap;
 use mcms::mcms_account;
-use mcms::mcms_deployer;
+use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry};
 use std::string;
-use std::type_name;
 use sui::bcs;
 use sui::test_scenario::{Self as ts, Scenario};
 
@@ -29,6 +28,7 @@ public struct Env {
     scenario: Scenario,
     state: OnRampState,
     registry: Registry,
+    deployer_state: DeployerState,
     ref: CCIPObjectRef,
     clock: sui::clock::Clock,
 }
@@ -51,6 +51,7 @@ fun setup(): (Env, NonceManagerCap, osh::SourceTransferCap) {
     scenario.next_tx(OWNER);
 
     let registry = ts::take_shared<Registry>(&scenario);
+    let deployer_state = ts::take_shared<DeployerState>(&scenario);
     let mut ref = ts::take_shared<CCIPObjectRef>(&scenario);
     let state = ts::take_shared<OnRampState>(&scenario);
 
@@ -68,6 +69,7 @@ fun setup(): (Env, NonceManagerCap, osh::SourceTransferCap) {
         scenario,
         state,
         registry,
+        deployer_state,
         ref,
         clock,
     };
@@ -76,9 +78,10 @@ fun setup(): (Env, NonceManagerCap, osh::SourceTransferCap) {
 }
 
 fun tear_down(env: Env) {
-    let Env { scenario, state, registry, ref, clock } = env;
+    let Env { scenario, state, registry, deployer_state, ref, clock } = env;
     ts::return_shared(state);
     ts::return_shared(registry);
+    ts::return_shared(deployer_state);
     ts::return_shared(ref);
     clock.destroy_for_testing();
     ts::end(scenario);
@@ -128,7 +131,6 @@ fun transfer_to_mcms(
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<mcms_registry::McmsProof>(),
     );
     onramp::mcms_accept_ownership(
         ref,
@@ -173,7 +175,6 @@ public fun test_mcms_set_dynamic_config() {
         x"0000000000000000000000000000000000000000000000000000000000000002",
         0,
         1,
-        type_name::with_original_ids<onramp::McmsCallback>(),
     );
 
     onramp::mcms_set_dynamic_config(
@@ -225,7 +226,6 @@ public fun test_mcms_apply_dest_chain_config_updates() {
         x"0000000000000000000000000000000000000000000000000000000000000003",
         0,
         1,
-        type_name::with_original_ids<onramp::McmsCallback>(),
     );
 
     onramp::mcms_apply_dest_chain_config_updates(
@@ -288,7 +288,6 @@ public fun test_mcms_apply_allowlist_updates() {
         x"0000000000000000000000000000000000000000000000000000000000000004",
         0,
         1,
-        type_name::with_original_ids<onramp::McmsCallback>(),
     );
 
     onramp::mcms_apply_allowlist_updates(
@@ -349,7 +348,6 @@ public fun test_mcms_transfer_ownership_e2e() {
         x"0000000000000000000000000000000000000000000000000000000000000005",
         0,
         1,
-        type_name::with_original_ids<onramp::McmsCallback>(),
     );
 
     onramp::mcms_transfer_ownership(
@@ -369,6 +367,7 @@ public fun test_mcms_transfer_ownership_e2e() {
     data.append(bcs::to_bytes(&owner_cap_address));
     data.append(bcs::to_bytes(&object::id_address(&env.state)));
     data.append(bcs::to_bytes(&new_owner));
+    data.append(bcs::to_bytes(&@ccip_onramp));
 
     let params = mcms_registry::test_create_executing_callback_params(
         @ccip_onramp,
@@ -378,13 +377,13 @@ public fun test_mcms_transfer_ownership_e2e() {
         x"0000000000000000000000000000000000000000000000000000000000000006",
         0,
         1,
-        type_name::with_original_ids<onramp::McmsCallback>(),
     );
 
     onramp::mcms_execute_ownership_transfer(
         &env.ref,
         &mut env.state,
         &mut env.registry,
+        &mut env.deployer_state,
         params,
         env.scenario.ctx(),
     );

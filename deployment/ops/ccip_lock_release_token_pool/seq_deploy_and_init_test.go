@@ -83,7 +83,7 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.TokenAdminRegistryInitializeOp, deps, inputTAR)
 	require.NoError(t, err, "failed to initialize token admin registry")
 
-	// Run BurnMintTokenPool deploy + configure sequence
+	// Run LR TokenPool deploy + configure sequence
 	LRTokenPoolInput := DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: LockReleaseTokenPoolDeployInput{
 			CCIPPackageId:    reportCCIP.Output.PackageId,

@@ -1,7 +1,9 @@
 module mcms::mcms_account;
 
 use mcms::mcms_registry::{Self, Registry};
+use sui::dynamic_field as df;
 use sui::event;
+use sui::package::{Self};
 
 public struct OwnerCap has key, store {
     id: UID,
@@ -46,14 +48,23 @@ const ETransferAlreadyAccepted: u64 = 7;
 
 public struct MCMS_ACCOUNT has drop {}
 
-fun init(_witness: MCMS_ACCOUNT, ctx: &mut TxContext) {
+public struct McmsAccountProof has drop {}
+
+public struct PublisherKey has copy, drop, store {}
+
+fun init(otw: MCMS_ACCOUNT, ctx: &mut TxContext) {
     transfer::share_object(AccountState {
         id: object::new(ctx),
         owner: ctx.sender(),
         pending_transfer: option::none(),
     });
 
-    transfer::transfer(OwnerCap { id: object::new(ctx) }, ctx.sender());
+    let mut owner_cap = OwnerCap { id: object::new(ctx) };
+
+    let publisher = package::claim(otw, ctx);
+    df::add(&mut owner_cap.id, PublisherKey {}, publisher);
+
+    transfer::transfer(owner_cap, ctx.sender());
 }
 
 public fun owner(state: &AccountState): address {
@@ -137,16 +148,22 @@ public fun execute_ownership_transfer(
     assert!(new_owner == to, EProposedOwnerMismatch);
     assert!(pending_transfer.accepted, ETransferNotAccepted);
 
-    // if the new owner is mcms, we need to add the `OwnerCap` to the registry.
     if (new_owner == mcms_registry::get_multisig_address()) {
+        let publisher_wrapper = {
+            let publisher_ref = df::borrow(&owner_cap.id, PublisherKey {});
+            mcms_registry::create_publisher_wrapper(publisher_ref, create_mcms_account_proof())
+        };
+
         mcms_registry::register_entrypoint(
             registry,
-            mcms_registry::create_mcms_proof(),
+            publisher_wrapper,
+            create_mcms_account_proof(),
             owner_cap,
             vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
             ctx,
         );
     } else {
+        // Transfer OwnerCap with Publisher inside to new owner
         transfer::transfer(owner_cap, new_owner);
     };
 
@@ -168,6 +185,10 @@ public fun pending_transfer_accepted(state: &AccountState): Option<bool> {
     state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.accepted)
 }
 
+public(package) fun create_mcms_account_proof(): McmsAccountProof {
+    McmsAccountProof {}
+}
+
 // =================== Test Functions =================== //
 
 #[test_only]
@@ -178,4 +199,13 @@ public fun test_init(ctx: &mut TxContext) {
 #[test_only]
 public fun test_accept_ownership_as_timelock(state: &mut AccountState, ctx: &mut TxContext) {
     accept_ownership_as_timelock(state, ctx);
+}
+
+#[test_only]
+/// Helper to create PublisherWrapper from OwnerCap for testing
+public fun test_create_publisher_wrapper(
+    owner_cap: &OwnerCap,
+): mcms_registry::PublisherWrapper<McmsAccountProof> {
+    let publisher_ref = df::borrow(&owner_cap.id, PublisherKey {});
+    mcms_registry::create_publisher_wrapper(publisher_ref, create_mcms_account_proof())
 }

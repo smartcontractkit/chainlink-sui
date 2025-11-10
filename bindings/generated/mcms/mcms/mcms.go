@@ -19,18 +19,15 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"mcms","module":"mcms","name":"bypasser_role","parameters":null},{"package":"mcms","module":"mcms","name":"canceller_role","parameters":null},{"package":"mcms","module":"mcms","name":"chain_id","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"compute_eth_message_hash","parameters":[{"name":"root","type":"vector<u8>"},{"name":"valid_until","type":"u64"}]},{"package":"mcms","module":"mcms","name":"config_group_parents","parameters":[{"name":"config","type":"Config"}]},{"package":"mcms","module":"mcms","name":"config_group_quorums","parameters":[{"name":"config","type":"Config"}]},{"package":"mcms","module":"mcms","name":"config_signers","parameters":[{"name":"config","type":"Config"}]},{"package":"mcms","module":"mcms","name":"create_calls","parameters":[{"name":"targets","type":"vector<address>"},{"name":"module_names","type":"vector<String>"},{"name":"function_names","type":"vector<String>"},{"name":"datas","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms","name":"data","parameters":[{"name":"call","type":"Call"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_block_function","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_bypasser_execute_batch","parameters":[{"name":"timelock_callback_params","type":"TimelockCallbackParams"},{"name":"registry","type":"Registry"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_cancel","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_execute_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"registry","type":"Registry"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_schedule_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_unblock_function","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_update_min_delay","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute","parameters":[{"name":"state","type":"MultisigState"},{"name":"clock","type":"Clock"},{"name":"role","type":"u8"},{"name":"chain_id","type":"u256"},{"name":"multisig_addr","type":"address"},{"name":"nonce","type":"u64"},{"name":"to","type":"address"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"data","type":"vector<u8>"},{"name":"proof","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms","name":"expiring_root_and_op_count","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"function_name","parameters":[{"name":"function","type":"Function"}]},{"package":"mcms","module":"mcms","name":"get_config","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"get_op_count","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"get_root","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"get_root_metadata","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"hash_op_leaf","parameters":[{"name":"domain_separator","type":"vector<u8>"},{"name":"op","type":"Op"}]},{"package":"mcms","module":"mcms","name":"hash_operation_batch","parameters":[{"name":"calls","type":"vector<Call>"},{"name":"predecessor","type":"vector<u8>"},{"name":"salt","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"is_valid_role","parameters":[{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"max_num_signers","parameters":null},{"package":"mcms","module":"mcms","name":"module_name","parameters":[{"name":"function","type":"Function"}]},{"package":"mcms","module":"mcms","name":"num_groups","parameters":null},{"package":"mcms","module":"mcms","name":"override_previous_root","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"post_op_count","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"pre_op_count","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"proposer_role","parameters":null},{"package":"mcms","module":"mcms","name":"role","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"root_metadata","parameters":[{"name":"multisig","type":"Multisig"}]},{"package":"mcms","module":"mcms","name":"root_metadata_multisig","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"seen_signed_hashes","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"set_config","parameters":[{"name":"_","type":"OwnerCap"},{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"},{"name":"chain_id","type":"u256"},{"name":"signer_addresses","type":"vector<vector<u8>>"},{"name":"signer_groups","type":"vector<u8>"},{"name":"group_quorums","type":"vector<u8>"},{"name":"group_parents","type":"vector<u8>"},{"name":"clear_root","type":"bool"}]},{"package":"mcms","module":"mcms","name":"set_root","parameters":[{"name":"state","type":"MultisigState"},{"name":"clock","type":"Clock"},{"name":"role","type":"u8"},{"name":"root","type":"vector<u8>"},{"name":"valid_until","type":"u64"},{"name":"chain_id","type":"u256"},{"name":"multisig_addr","type":"address"},{"name":"pre_op_count","type":"u64"},{"name":"post_op_count","type":"u64"},{"name":"override_previous_root","type":"bool"},{"name":"metadata_proof","type":"vector<vector<u8>>"},{"name":"signatures","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms","name":"signer_view","parameters":[{"name":"signer_","type":"Signer"}]},{"package":"mcms","module":"mcms","name":"signers","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"target","parameters":[{"name":"function","type":"Function"}]},{"package":"mcms","module":"mcms","name":"timelock_execute_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"registry","type":"Registry"},{"name":"targets","type":"vector<address>"},{"name":"module_names","type":"vector<String>"},{"name":"function_names","type":"vector<String>"},{"name":"datas","type":"vector<vector<u8>>"},{"name":"predecessor","type":"vector<u8>"},{"name":"salt","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_get_blocked_function","parameters":[{"name":"timelock","type":"Timelock"},{"name":"index","type":"u64"}]},{"package":"mcms","module":"mcms","name":"timelock_get_blocked_functions","parameters":[{"name":"timelock","type":"Timelock"}]},{"package":"mcms","module":"mcms","name":"timelock_get_blocked_functions_count","parameters":[{"name":"timelock","type":"Timelock"}]},{"package":"mcms","module":"mcms","name":"timelock_get_timestamp","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation_done","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation_pending","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation_ready","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_min_delay","parameters":[{"name":"timelock","type":"Timelock"}]},{"package":"mcms","module":"mcms","name":"timelock_role","parameters":null},{"package":"mcms","module":"mcms","name":"verify_merkle_proof","parameters":[{"name":"proof","type":"vector<vector<u8>>"},{"name":"root","type":"vector<u8>"},{"name":"leaf","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"zero_hash","parameters":null}]`
+const FunctionInfo = `[{"package":"mcms","module":"mcms","name":"bypasser_role","parameters":null},{"package":"mcms","module":"mcms","name":"canceller_role","parameters":null},{"package":"mcms","module":"mcms","name":"chain_id","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"compute_eth_message_hash","parameters":[{"name":"root","type":"vector<u8>"},{"name":"valid_until","type":"u64"}]},{"package":"mcms","module":"mcms","name":"config_group_parents","parameters":[{"name":"config","type":"Config"}]},{"package":"mcms","module":"mcms","name":"config_group_quorums","parameters":[{"name":"config","type":"Config"}]},{"package":"mcms","module":"mcms","name":"config_signers","parameters":[{"name":"config","type":"Config"}]},{"package":"mcms","module":"mcms","name":"create_calls","parameters":[{"name":"targets","type":"vector<address>"},{"name":"module_names","type":"vector<String>"},{"name":"function_names","type":"vector<String>"},{"name":"datas","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms","name":"data","parameters":[{"name":"call","type":"Call"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_bypasser_execute_batch","parameters":[{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_cancel","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_execute_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"registry","type":"Registry"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_schedule_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute","parameters":[{"name":"state","type":"MultisigState"},{"name":"clock","type":"Clock"},{"name":"role","type":"u8"},{"name":"chain_id","type":"u256"},{"name":"multisig_addr","type":"address"},{"name":"nonce","type":"u64"},{"name":"to","type":"address"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"data","type":"vector<u8>"},{"name":"proof","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms","name":"expiring_root_and_op_count","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"function_name","parameters":[{"name":"function","type":"Function"}]},{"package":"mcms","module":"mcms","name":"get_config","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"get_op_count","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"get_root","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"get_root_metadata","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"hash_op_leaf","parameters":[{"name":"domain_separator","type":"vector<u8>"},{"name":"op","type":"Op"}]},{"package":"mcms","module":"mcms","name":"hash_operation_batch","parameters":[{"name":"calls","type":"vector<Call>"},{"name":"predecessor","type":"vector<u8>"},{"name":"salt","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"is_valid_role","parameters":[{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"max_num_signers","parameters":null},{"package":"mcms","module":"mcms","name":"module_name","parameters":[{"name":"function","type":"Function"}]},{"package":"mcms","module":"mcms","name":"num_groups","parameters":null},{"package":"mcms","module":"mcms","name":"override_previous_root","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"post_op_count","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"pre_op_count","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"proposer_role","parameters":null},{"package":"mcms","module":"mcms","name":"recent_seen_signed_hashes","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"},{"name":"limit","type":"u64"}]},{"package":"mcms","module":"mcms","name":"role","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"root_metadata","parameters":[{"name":"multisig","type":"Multisig"}]},{"package":"mcms","module":"mcms","name":"root_metadata_multisig","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"seen_signed_hashes","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"seen_signed_hashes_count","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"set_config","parameters":[{"name":"_","type":"OwnerCap"},{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"},{"name":"chain_id","type":"u256"},{"name":"signer_addresses","type":"vector<vector<u8>>"},{"name":"signer_groups","type":"vector<u8>"},{"name":"group_quorums","type":"vector<u8>"},{"name":"group_parents","type":"vector<u8>"},{"name":"clear_root","type":"bool"}]},{"package":"mcms","module":"mcms","name":"set_root","parameters":[{"name":"state","type":"MultisigState"},{"name":"clock","type":"Clock"},{"name":"role","type":"u8"},{"name":"root","type":"vector<u8>"},{"name":"valid_until","type":"u64"},{"name":"chain_id","type":"u256"},{"name":"multisig_addr","type":"address"},{"name":"pre_op_count","type":"u64"},{"name":"post_op_count","type":"u64"},{"name":"override_previous_root","type":"bool"},{"name":"metadata_proof","type":"vector<vector<u8>>"},{"name":"signatures","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms","name":"signer_view","parameters":[{"name":"signer_","type":"Signer"}]},{"package":"mcms","module":"mcms","name":"signers","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"target","parameters":[{"name":"function","type":"Function"}]},{"package":"mcms","module":"mcms","name":"timelock_execute_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"registry","type":"Registry"},{"name":"targets","type":"vector<address>"},{"name":"module_names","type":"vector<String>"},{"name":"function_names","type":"vector<String>"},{"name":"datas","type":"vector<vector<u8>>"},{"name":"predecessor","type":"vector<u8>"},{"name":"salt","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_get_blocked_function","parameters":[{"name":"timelock","type":"Timelock"},{"name":"index","type":"u64"}]},{"package":"mcms","module":"mcms","name":"timelock_get_blocked_functions","parameters":[{"name":"timelock","type":"Timelock"}]},{"package":"mcms","module":"mcms","name":"timelock_get_blocked_functions_count","parameters":[{"name":"timelock","type":"Timelock"}]},{"package":"mcms","module":"mcms","name":"timelock_get_timestamp","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation_done","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation_pending","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation_ready","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_min_delay","parameters":[{"name":"timelock","type":"Timelock"}]},{"package":"mcms","module":"mcms","name":"timelock_role","parameters":null},{"package":"mcms","module":"mcms","name":"verify_merkle_proof","parameters":[{"name":"proof","type":"vector<vector<u8>>"},{"name":"root","type":"vector<u8>"},{"name":"leaf","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"zero_hash","parameters":null}]`
 
 type IMcms interface {
 	SetRoot(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId *big.Int, multisigAddr string, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) (*models.SuiTransactionBlockResponse, error)
 	Execute(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr string, nonce uint64, to string, moduleName string, functionName string, data []byte, proof [][]byte) (*models.SuiTransactionBlockResponse, error)
 	DispatchTimelockScheduleBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	DispatchTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
-	DispatchTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelockCallbackParams TimelockCallbackParams, registry bind.Object) (*models.SuiTransactionBlockResponse, error)
+	DispatchTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	DispatchTimelockCancel(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
-	DispatchTimelockUpdateMinDelay(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
-	DispatchTimelockBlockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
-	DispatchTimelockUnblockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	McmsDispatchToAccount(ctx context.Context, opts *bind.CallOpts, registry bind.Object, accountState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsDispatchToRegistry(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -47,6 +44,8 @@ type IMcms interface {
 	ComputeEthMessageHash(ctx context.Context, opts *bind.CallOpts, root []byte, validUntil uint64) (*models.SuiTransactionBlockResponse, error)
 	HashOpLeaf(ctx context.Context, opts *bind.CallOpts, domainSeparator []byte, op Op) (*models.SuiTransactionBlockResponse, error)
 	SeenSignedHashes(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (*models.SuiTransactionBlockResponse, error)
+	RecentSeenSignedHashes(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte, limit uint64) (*models.SuiTransactionBlockResponse, error)
+	SeenSignedHashesCount(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (*models.SuiTransactionBlockResponse, error)
 	ExpiringRootAndOpCount(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (*models.SuiTransactionBlockResponse, error)
 	RootMetadata(ctx context.Context, opts *bind.CallOpts, multisig Multisig) (*models.SuiTransactionBlockResponse, error)
 	GetRootMetadata(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (*models.SuiTransactionBlockResponse, error)
@@ -96,14 +95,16 @@ type IMcms interface {
 type IMcmsDevInspect interface {
 	Execute(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr string, nonce uint64, to string, moduleName string, functionName string, data []byte, proof [][]byte) (TimelockCallbackParams, error)
 	DispatchTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, timelockCallbackParams TimelockCallbackParams) ([]bind.Object, error)
-	DispatchTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelockCallbackParams TimelockCallbackParams, registry bind.Object) ([]bind.Object, error)
+	DispatchTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelockCallbackParams TimelockCallbackParams) ([]bind.Object, error)
 	McmsDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (bind.Object, error)
 	McmsTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) ([]bind.Object, error)
 	McmsTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) ([]bind.Object, error)
 	VerifyMerkleProof(ctx context.Context, opts *bind.CallOpts, proof [][]byte, root []byte, leaf []byte) (bool, error)
 	ComputeEthMessageHash(ctx context.Context, opts *bind.CallOpts, root []byte, validUntil uint64) ([]byte, error)
 	HashOpLeaf(ctx context.Context, opts *bind.CallOpts, domainSeparator []byte, op Op) ([]byte, error)
-	SeenSignedHashes(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (bind.Object, error)
+	SeenSignedHashes(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) ([][]byte, error)
+	RecentSeenSignedHashes(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte, limit uint64) ([][]byte, error)
+	SeenSignedHashesCount(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (uint64, error)
 	ExpiringRootAndOpCount(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) ([]any, error)
 	RootMetadata(ctx context.Context, opts *bind.CallOpts, multisig Multisig) (RootMetadata, error)
 	GetRootMetadata(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (RootMetadata, error)
@@ -156,16 +157,10 @@ type McmsEncoder interface {
 	DispatchTimelockScheduleBatchWithArgs(args ...any) (*bind.EncodedCall, error)
 	DispatchTimelockExecuteBatch(timelock bind.Object, clock bind.Object, registry bind.Object, timelockCallbackParams TimelockCallbackParams) (*bind.EncodedCall, error)
 	DispatchTimelockExecuteBatchWithArgs(args ...any) (*bind.EncodedCall, error)
-	DispatchTimelockBypasserExecuteBatch(timelockCallbackParams TimelockCallbackParams, registry bind.Object) (*bind.EncodedCall, error)
+	DispatchTimelockBypasserExecuteBatch(timelockCallbackParams TimelockCallbackParams) (*bind.EncodedCall, error)
 	DispatchTimelockBypasserExecuteBatchWithArgs(args ...any) (*bind.EncodedCall, error)
 	DispatchTimelockCancel(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*bind.EncodedCall, error)
 	DispatchTimelockCancelWithArgs(args ...any) (*bind.EncodedCall, error)
-	DispatchTimelockUpdateMinDelay(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*bind.EncodedCall, error)
-	DispatchTimelockUpdateMinDelayWithArgs(args ...any) (*bind.EncodedCall, error)
-	DispatchTimelockBlockFunction(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*bind.EncodedCall, error)
-	DispatchTimelockBlockFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
-	DispatchTimelockUnblockFunction(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*bind.EncodedCall, error)
-	DispatchTimelockUnblockFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsDispatchToAccount(registry bind.Object, accountState bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
 	McmsDispatchToAccountWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsDispatchToDeployer(registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
@@ -198,6 +193,10 @@ type McmsEncoder interface {
 	HashOpLeafWithArgs(args ...any) (*bind.EncodedCall, error)
 	SeenSignedHashes(state bind.Object, role byte) (*bind.EncodedCall, error)
 	SeenSignedHashesWithArgs(args ...any) (*bind.EncodedCall, error)
+	RecentSeenSignedHashes(state bind.Object, role byte, limit uint64) (*bind.EncodedCall, error)
+	RecentSeenSignedHashesWithArgs(args ...any) (*bind.EncodedCall, error)
+	SeenSignedHashesCount(state bind.Object, role byte) (*bind.EncodedCall, error)
+	SeenSignedHashesCountWithArgs(args ...any) (*bind.EncodedCall, error)
 	ExpiringRootAndOpCount(state bind.Object, role byte) (*bind.EncodedCall, error)
 	ExpiringRootAndOpCountWithArgs(args ...any) (*bind.EncodedCall, error)
 	RootMetadata(multisig Multisig) (*bind.EncodedCall, error)
@@ -332,7 +331,7 @@ type Multisig struct {
 	Role                   byte                   `move:"u8"`
 	Signers                bind.Object            `move:"VecMap<vector<u8>, Signer>"`
 	Config                 Config                 `move:"Config"`
-	SeenSignedHashes       bind.Object            `move:"VecMap<vector<u8>, bool>"`
+	SeenSignedHashes       bind.Object            `move:"LinkedTable<vector<u8>, bool>"`
 	ExpiringRootAndOpCount ExpiringRootAndOpCount `move:"ExpiringRootAndOpCount"`
 	RootMetadata           RootMetadata           `move:"RootMetadata"`
 }
@@ -1408,8 +1407,8 @@ func (c *McmsContract) DispatchTimelockExecuteBatch(ctx context.Context, opts *b
 }
 
 // DispatchTimelockBypasserExecuteBatch executes the dispatch_timelock_bypasser_execute_batch Move function.
-func (c *McmsContract) DispatchTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelockCallbackParams TimelockCallbackParams, registry bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.DispatchTimelockBypasserExecuteBatch(timelockCallbackParams, registry)
+func (c *McmsContract) DispatchTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.DispatchTimelockBypasserExecuteBatch(timelockCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1420,36 +1419,6 @@ func (c *McmsContract) DispatchTimelockBypasserExecuteBatch(ctx context.Context,
 // DispatchTimelockCancel executes the dispatch_timelock_cancel Move function.
 func (c *McmsContract) DispatchTimelockCancel(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.mcmsEncoder.DispatchTimelockCancel(timelock, timelockCallbackParams)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// DispatchTimelockUpdateMinDelay executes the dispatch_timelock_update_min_delay Move function.
-func (c *McmsContract) DispatchTimelockUpdateMinDelay(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.DispatchTimelockUpdateMinDelay(timelock, timelockCallbackParams)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// DispatchTimelockBlockFunction executes the dispatch_timelock_block_function Move function.
-func (c *McmsContract) DispatchTimelockBlockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.DispatchTimelockBlockFunction(timelock, timelockCallbackParams)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// DispatchTimelockUnblockFunction executes the dispatch_timelock_unblock_function Move function.
-func (c *McmsContract) DispatchTimelockUnblockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.DispatchTimelockUnblockFunction(timelock, timelockCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1610,6 +1579,26 @@ func (c *McmsContract) HashOpLeaf(ctx context.Context, opts *bind.CallOpts, doma
 // SeenSignedHashes executes the seen_signed_hashes Move function.
 func (c *McmsContract) SeenSignedHashes(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.mcmsEncoder.SeenSignedHashes(state, role)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// RecentSeenSignedHashes executes the recent_seen_signed_hashes Move function.
+func (c *McmsContract) RecentSeenSignedHashes(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte, limit uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.RecentSeenSignedHashes(state, role, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// SeenSignedHashesCount executes the seen_signed_hashes_count Move function.
+func (c *McmsContract) SeenSignedHashesCount(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.SeenSignedHashesCount(state, role)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2074,8 +2063,8 @@ func (d *McmsDevInspect) DispatchTimelockExecuteBatch(ctx context.Context, opts 
 // DispatchTimelockBypasserExecuteBatch executes the dispatch_timelock_bypasser_execute_batch Move function using DevInspect to get return values.
 //
 // Returns: vector<ExecutingCallbackParams>
-func (d *McmsDevInspect) DispatchTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelockCallbackParams TimelockCallbackParams, registry bind.Object) ([]bind.Object, error) {
-	encoded, err := d.contract.mcmsEncoder.DispatchTimelockBypasserExecuteBatch(timelockCallbackParams, registry)
+func (d *McmsDevInspect) DispatchTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelockCallbackParams TimelockCallbackParams) ([]bind.Object, error) {
+	encoded, err := d.contract.mcmsEncoder.DispatchTimelockBypasserExecuteBatch(timelockCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2227,22 +2216,66 @@ func (d *McmsDevInspect) HashOpLeaf(ctx context.Context, opts *bind.CallOpts, do
 
 // SeenSignedHashes executes the seen_signed_hashes Move function using DevInspect to get return values.
 //
-// Returns: VecMap<vector<u8>, bool>
-func (d *McmsDevInspect) SeenSignedHashes(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (bind.Object, error) {
+// Returns: vector<vector<u8>>
+func (d *McmsDevInspect) SeenSignedHashes(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) ([][]byte, error) {
 	encoded, err := d.contract.mcmsEncoder.SeenSignedHashes(state, role)
 	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 	results, err := d.contract.Call(ctx, opts, encoded)
 	if err != nil {
-		return bind.Object{}, err
+		return nil, err
 	}
 	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
+		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
+	result, ok := results[0].([][]byte)
 	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+		return nil, fmt.Errorf("unexpected return type: expected [][]byte, got %T", results[0])
+	}
+	return result, nil
+}
+
+// RecentSeenSignedHashes executes the recent_seen_signed_hashes Move function using DevInspect to get return values.
+//
+// Returns: vector<vector<u8>>
+func (d *McmsDevInspect) RecentSeenSignedHashes(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte, limit uint64) ([][]byte, error) {
+	encoded, err := d.contract.mcmsEncoder.RecentSeenSignedHashes(state, role, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([][]byte)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected [][]byte, got %T", results[0])
+	}
+	return result, nil
+}
+
+// SeenSignedHashesCount executes the seen_signed_hashes_count Move function using DevInspect to get return values.
+//
+// Returns: u64
+func (d *McmsDevInspect) SeenSignedHashesCount(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (uint64, error) {
+	encoded, err := d.contract.mcmsEncoder.SeenSignedHashesCount(state, role)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return 0, err
+	}
+	if len(results) == 0 {
+		return 0, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(uint64)
+	if !ok {
+		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
 	}
 	return result, nil
 }
@@ -3322,15 +3355,13 @@ func (c mcmsEncoder) DispatchTimelockExecuteBatchWithArgs(args ...any) (*bind.En
 }
 
 // DispatchTimelockBypasserExecuteBatch encodes a call to the dispatch_timelock_bypasser_execute_batch Move function.
-func (c mcmsEncoder) DispatchTimelockBypasserExecuteBatch(timelockCallbackParams TimelockCallbackParams, registry bind.Object) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) DispatchTimelockBypasserExecuteBatch(timelockCallbackParams TimelockCallbackParams) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("dispatch_timelock_bypasser_execute_batch", typeArgsList, typeParamsList, []string{
 		"mcms::mcms::TimelockCallbackParams",
-		"&Registry",
 	}, []any{
 		timelockCallbackParams,
-		registry,
 	}, []string{
 		"vector<ExecutingCallbackParams>",
 	})
@@ -3341,7 +3372,6 @@ func (c mcmsEncoder) DispatchTimelockBypasserExecuteBatch(timelockCallbackParams
 func (c mcmsEncoder) DispatchTimelockBypasserExecuteBatchWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"mcms::mcms::TimelockCallbackParams",
-		"&Registry",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -3381,93 +3411,6 @@ func (c mcmsEncoder) DispatchTimelockCancelWithArgs(args ...any) (*bind.EncodedC
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("dispatch_timelock_cancel", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
-// DispatchTimelockUpdateMinDelay encodes a call to the dispatch_timelock_update_min_delay Move function.
-func (c mcmsEncoder) DispatchTimelockUpdateMinDelay(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("dispatch_timelock_update_min_delay", typeArgsList, typeParamsList, []string{
-		"&mut Timelock",
-		"mcms::mcms::TimelockCallbackParams",
-	}, []any{
-		timelock,
-		timelockCallbackParams,
-	}, nil)
-}
-
-// DispatchTimelockUpdateMinDelayWithArgs encodes a call to the dispatch_timelock_update_min_delay Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) DispatchTimelockUpdateMinDelayWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut Timelock",
-		"mcms::mcms::TimelockCallbackParams",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("dispatch_timelock_update_min_delay", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
-// DispatchTimelockBlockFunction encodes a call to the dispatch_timelock_block_function Move function.
-func (c mcmsEncoder) DispatchTimelockBlockFunction(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("dispatch_timelock_block_function", typeArgsList, typeParamsList, []string{
-		"&mut Timelock",
-		"mcms::mcms::TimelockCallbackParams",
-	}, []any{
-		timelock,
-		timelockCallbackParams,
-	}, nil)
-}
-
-// DispatchTimelockBlockFunctionWithArgs encodes a call to the dispatch_timelock_block_function Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) DispatchTimelockBlockFunctionWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut Timelock",
-		"mcms::mcms::TimelockCallbackParams",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("dispatch_timelock_block_function", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
-// DispatchTimelockUnblockFunction encodes a call to the dispatch_timelock_unblock_function Move function.
-func (c mcmsEncoder) DispatchTimelockUnblockFunction(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("dispatch_timelock_unblock_function", typeArgsList, typeParamsList, []string{
-		"&mut Timelock",
-		"mcms::mcms::TimelockCallbackParams",
-	}, []any{
-		timelock,
-		timelockCallbackParams,
-	}, nil)
-}
-
-// DispatchTimelockUnblockFunctionWithArgs encodes a call to the dispatch_timelock_unblock_function Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) DispatchTimelockUnblockFunctionWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut Timelock",
-		"mcms::mcms::TimelockCallbackParams",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("dispatch_timelock_unblock_function", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsDispatchToAccount encodes a call to the mcms_dispatch_to_account Move function.
@@ -3997,7 +3940,7 @@ func (c mcmsEncoder) SeenSignedHashes(state bind.Object, role byte) (*bind.Encod
 		state,
 		role,
 	}, []string{
-		"VecMap<vector<u8>, bool>",
+		"vector<vector<u8>>",
 	})
 }
 
@@ -4015,7 +3958,76 @@ func (c mcmsEncoder) SeenSignedHashesWithArgs(args ...any) (*bind.EncodedCall, e
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("seen_signed_hashes", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"VecMap<vector<u8>, bool>",
+		"vector<vector<u8>>",
+	})
+}
+
+// RecentSeenSignedHashes encodes a call to the recent_seen_signed_hashes Move function.
+func (c mcmsEncoder) RecentSeenSignedHashes(state bind.Object, role byte, limit uint64) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("recent_seen_signed_hashes", typeArgsList, typeParamsList, []string{
+		"&MultisigState",
+		"u8",
+		"u64",
+	}, []any{
+		state,
+		role,
+		limit,
+	}, []string{
+		"vector<vector<u8>>",
+	})
+}
+
+// RecentSeenSignedHashesWithArgs encodes a call to the recent_seen_signed_hashes Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsEncoder) RecentSeenSignedHashesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&MultisigState",
+		"u8",
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("recent_seen_signed_hashes", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<vector<u8>>",
+	})
+}
+
+// SeenSignedHashesCount encodes a call to the seen_signed_hashes_count Move function.
+func (c mcmsEncoder) SeenSignedHashesCount(state bind.Object, role byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("seen_signed_hashes_count", typeArgsList, typeParamsList, []string{
+		"&MultisigState",
+		"u8",
+	}, []any{
+		state,
+		role,
+	}, []string{
+		"u64",
+	})
+}
+
+// SeenSignedHashesCountWithArgs encodes a call to the seen_signed_hashes_count Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsEncoder) SeenSignedHashesCountWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&MultisigState",
+		"u8",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("seen_signed_hashes_count", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u64",
 	})
 }
 

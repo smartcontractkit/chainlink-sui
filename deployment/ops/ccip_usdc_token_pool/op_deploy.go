@@ -26,6 +26,7 @@ type USDCTokenPoolDeployInput struct {
 }
 
 type USDCTokenPoolDeployOutput struct {
+	OwnerCapObjectId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDCTokenPoolDeployInput) (output sui_ops.OpTxResult[USDCTokenPoolDeployOutput], err error) {
@@ -49,9 +50,17 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDCToke
 		return sui_ops.OpTxResult[USDCTokenPoolDeployOutput]{}, err
 	}
 
+	ownerCapObj, err := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
+	if err != nil {
+		return sui_ops.OpTxResult[USDCTokenPoolDeployOutput]{}, fmt.Errorf("failed to find OwnerCap object ID: %w", err)
+	}
+
 	return sui_ops.OpTxResult[USDCTokenPoolDeployOutput]{
 		Digest:    tx.Digest,
 		PackageId: tokenPoolPackage.Address(),
+		Objects: USDCTokenPoolDeployOutput{
+			OwnerCapObjectId: ownerCapObj,
+		},
 	}, err
 }
 
@@ -130,7 +139,7 @@ var acceptOwnershipUsdcTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.Op
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipUsdcTokenPoolObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, input.TypeArgs)
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipUsdcTokenPoolObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}

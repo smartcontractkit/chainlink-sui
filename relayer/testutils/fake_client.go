@@ -171,6 +171,10 @@ func (c *FakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, 
 	return big.NewInt(1000), nil
 }
 
+func (c *FakeSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error) {
+	return []models.CoinData{}, nil
+}
+
 // StatefulFakeSuiPTBClient is a more sophisticated fake client that can change behavior
 // based on gas budget and track call counts for testing gas bump scenarios
 type StatefulFakeSuiPTBClient struct {
@@ -337,4 +341,8 @@ func (c *StatefulFakeSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRamp
 
 func (c *StatefulFakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
 	return big.NewInt(1000), nil
+}
+
+func (c *StatefulFakeSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error) {
+	return []models.CoinData{}, nil
 }

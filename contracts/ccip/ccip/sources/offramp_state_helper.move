@@ -167,14 +167,15 @@ public fun get_token_param_data(
 }
 
 /// only the token pool with a proper type proof can call this function to
-/// return a CompletedDestTokenTransfer object.
+/// add a receipt to the receiver params.
 public fun complete_token_transfer<TypeProof: drop>(
     ref: &CCIPObjectRef,
     receiver_params: &mut ReceiverParams,
-    token_receiver: address,
-    dest_token_address: address,
     _: TypeProof,
 ) {
+    let dest_token_transfer = receiver_params.token_transfer.borrow();
+    let token_receiver = dest_token_transfer.token_receiver;
+    let dest_token_address = dest_token_transfer.dest_token_address;
     let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
         ref,
         dest_token_address,
@@ -208,7 +209,8 @@ public fun new_any2sui_message(
     data: vector<u8>,
     message_receiver: address,
     token_receiver: address,
-    dest_token_amounts: vector<Any2SuiTokenAmount>,
+    token_addresses: vector<address>,
+    token_amounts: vector<u256>,
 ): Any2SuiMessage {
     client::new_any2sui_message(
         message_id,
@@ -217,7 +219,7 @@ public fun new_any2sui_message(
         data,
         message_receiver,
         token_receiver,
-        dest_token_amounts,
+        client::new_dest_token_amounts(token_addresses, token_amounts),
     )
 }
 

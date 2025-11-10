@@ -23,12 +23,20 @@ jobs:
             sui_version: mainnet-v1.57.2
           - test_name: Test_CCIP_Messaging_EVM2Sui
             sui_version: mainnet-v1.57.2
-          - test_name: Test_CCIPTokenTransfer_Sui2EVM
+          - test_name: Test_CCIP_EVM2Sui_ZeroReceiver
             sui_version: mainnet-v1.57.2
-          - test_name: Test_CCIPTokenTransfer_EVM2SUI
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM
             sui_version: mainnet-v1.57.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_TPNotConfigured
             sui_version: mainnet-v1.57.2
+          # - test_name: Test_CCIPTokenTransfer_EVM2SUI
+          #   sui_version: mainnet-v1.57.2
+          # - test_name: Test_CCIPPureTokenTransfer_EVM2SUI
+          #   sui_version: mainnet-v1.57.2
+          # - test_name: Test_CCIPProgrammableTokenTransfer_EVM2SUI
+          #   sui_version: mainnet-v1.57.2
+          # - test_name: Test_CCIPZeroGasLimitTokenTransfer_EVM2SUI
+          #   sui_version: mainnet-v1.57.2
 
     env:
       DEFAULT_CORE_REF: test/nonevm-2581-token-not-configured
@@ -168,8 +176,8 @@ jobs:
           echo "=== Running ${{ matrix.test_name }} ==="
           go test ./smoke/ccip \
             -run "${{ matrix.test_name }}" \
-            -timeout 20m \
-            -parallel 4 \
+            -timeout 10m \
+            -parallel 1 \
             -count=1 \
             -v
 

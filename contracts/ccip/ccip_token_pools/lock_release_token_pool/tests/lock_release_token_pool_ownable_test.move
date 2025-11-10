@@ -60,24 +60,44 @@ fun setup(): (TestEnv, OwnerCap) {
         ctx,
     );
 
+    // Call test_init to create owner_cap
+    lock_release_token_pool::test_init(ctx);
+
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(treasury_cap, OWNER);
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+
+    // Now take the owner_cap that was created by test_init and initialize the pool
+    scenario.next_tx(OWNER);
+    let mut owner_cap_for_init = ts::take_from_sender<OwnerCap>(&scenario);
+    let coin_metadata = ts::take_immutable<
+        coin::CoinMetadata<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>,
+    >(&scenario);
+    let treasury_cap = ts::take_from_sender<
+        coin::TreasuryCap<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>,
+    >(&scenario);
+
     lock_release_token_pool::initialize(
+        &mut owner_cap_for_init,
         &mut ccip_ref,
         &coin_metadata,
         &treasury_cap,
         TOKEN_ADMIN,
         REBALANCER,
-        ctx,
+        scenario.ctx(),
     );
 
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(treasury_cap, ctx.sender());
-    transfer::public_transfer(ccip_owner_cap, @0x0);
+    transfer::public_transfer(owner_cap_for_init, OWNER);
+    transfer::public_transfer(treasury_cap, OWNER);
+    ts::return_immutable(coin_metadata);
+    ts::return_shared(ccip_ref);
 
     scenario.next_tx(OWNER);
     let state = ts::take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_OWNABLE_TEST>>(
         &scenario,
     );
     let owner_cap = ts::take_from_sender<OwnerCap>(&scenario);
+    let ccip_ref = ts::take_shared<CCIPObjectRef>(&scenario);
 
     let env = TestEnv {
         scenario,
@@ -181,15 +201,15 @@ public fun test_transfer_ownership_unauthorized() {
 
     // Try to transfer ownership from unauthorized user
     env.scenario.next_tx(OTHER_USER);
-    let other_user_owner_cap = ownable::create_test_owner_cap(env.scenario.ctx());
+    let (other_ownable_state, other_user_owner_cap) = ownable::new(env.scenario.ctx());
     lock_release_token_pool::transfer_ownership(
         &mut env.state,
         &other_user_owner_cap,
         NEW_OWNER,
         env.scenario.ctx(),
     );
-    ownable::test_destroy_owner_cap(other_user_owner_cap);
 
+    ownable::destroy(other_ownable_state, other_user_owner_cap, env.scenario.ctx());
     tear_down(env);
     ts::return_to_address(OWNER, owner_cap);
 }
@@ -257,9 +277,8 @@ public fun test_ownable_functions_with_owner_cap_validation() {
     let (mut env, owner_cap) = setup();
 
     // Test that owner cap validation works in other functions
-    // These should succeed because we have the correct owner cap
-    lock_release_token_pool::set_rebalancer(&owner_cap, &mut env.state, @0x999);
-    assert!(lock_release_token_pool::get_rebalancer(&env.state) == @0x999);
+    // Note: set_rebalancer removed; rebalancer is set on initialization via cap issuance
+    assert!(lock_release_token_pool::get_rebalancer(&env.state) != @0x0);
 
     lock_release_token_pool::set_allowlist_enabled(&mut env.state, &owner_cap, true);
     assert!(lock_release_token_pool::get_allowlist_enabled(&env.state) == true);

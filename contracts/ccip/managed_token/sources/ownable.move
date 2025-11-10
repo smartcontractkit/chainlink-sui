@@ -1,14 +1,15 @@
 module managed_token::ownable;
 
-use mcms::mcms_registry::{Self, Registry};
+use mcms::mcms_registry::{Self, Registry, PublisherWrapper};
+use sui::dynamic_field as df;
 use sui::event;
+use sui::package::Publisher;
 
 public struct OwnerCap<phantom T> has key, store {
     id: UID,
 }
 
-public struct OwnableState<phantom T> has key, store {
-    id: UID,
+public struct OwnableState<phantom T> has store {
     owner: address,
     pending_transfer: Option<PendingTransfer>,
     owner_cap_id: ID,
@@ -20,10 +21,11 @@ public struct PendingTransfer has drop, store {
     accepted: bool,
 }
 
+public struct PublisherKey has copy, drop, store {}
+
 // =================== Events =================== //
 
 public struct NewOwnableStateEvent has copy, drop, store {
-    ownable_state_id: ID,
     owner_cap_id: ID,
     owner: address,
 }
@@ -54,7 +56,7 @@ const ETransferNotAccepted: u64 = 8;
 const ECannotTransferToMcms: u64 = 9;
 const EMustTransferToMcms: u64 = 10;
 
-public fun new<T>(ctx: &mut TxContext): (OwnableState<T>, OwnerCap<T>) {
+public(package) fun new<T>(ctx: &mut TxContext): (OwnableState<T>, OwnerCap<T>) {
     let owner = ctx.sender();
 
     let owner_cap = OwnerCap<T> {
@@ -62,14 +64,12 @@ public fun new<T>(ctx: &mut TxContext): (OwnableState<T>, OwnerCap<T>) {
     };
 
     let state = OwnableState {
-        id: object::new(ctx),
         owner,
         pending_transfer: option::none(),
         owner_cap_id: object::id(&owner_cap),
     };
 
     event::emit(NewOwnableStateEvent {
-        ownable_state_id: object::id(&state),
         owner_cap_id: object::id(&owner_cap),
         owner,
     });
@@ -99,6 +99,14 @@ public fun pending_transfer_to<T>(state: &OwnableState<T>): Option<address> {
 
 public fun pending_transfer_accepted<T>(state: &OwnableState<T>): Option<bool> {
     state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.accepted)
+}
+
+public(package) fun attach_publisher<T>(owner_cap: &mut OwnerCap<T>, publisher: Publisher) {
+    df::add(&mut owner_cap.id, PublisherKey {}, publisher);
+}
+
+public(package) fun borrow_publisher<T>(owner_cap: &OwnerCap<T>): &Publisher {
+    df::borrow(&owner_cap.id, PublisherKey {})
 }
 
 public fun transfer_ownership<T>(
@@ -182,7 +190,6 @@ public fun execute_ownership_transfer<T>(
     assert!(new_owner != mcms_registry::get_multisig_address(), ECannotTransferToMcms);
 
     state.owner = to;
-    state.pending_transfer = option::none();
 
     transfer::transfer(owner_cap, to);
 
@@ -195,6 +202,7 @@ public fun execute_ownership_transfer_to_mcms<T, P: drop>(
     state: &mut OwnableState<T>,
     registry: &mut Registry,
     to: address,
+    publisher_wrapper: PublisherWrapper<P>,
     proof: P,
     allowed_modules: vector<vector<u8>>,
     ctx: &mut TxContext,
@@ -214,10 +222,10 @@ public fun execute_ownership_transfer_to_mcms<T, P: drop>(
     assert!(to == mcms_registry::get_multisig_address(), EMustTransferToMcms);
 
     state.owner = to;
-    state.pending_transfer = option::none();
 
     mcms_registry::register_entrypoint(
         registry,
+        publisher_wrapper,
         proof,
         owner_cap,
         allowed_modules,
@@ -229,7 +237,6 @@ public fun execute_ownership_transfer_to_mcms<T, P: drop>(
 
 public fun destroy<T>(state: OwnableState<T>, owner_cap: OwnerCap<T>, _ctx: &mut TxContext) {
     let OwnableState<T> {
-        id: state_id,
         owner: _,
         pending_transfer: _,
         owner_cap_id: state_owner_cap_id,
@@ -239,6 +246,18 @@ public fun destroy<T>(state: OwnableState<T>, owner_cap: OwnerCap<T>, _ctx: &mut
 
     assert!(owner_cap_id.uid_to_inner() == state_owner_cap_id, EInvalidOwnerCap);
 
-    object::delete(state_id);
     object::delete(owner_cap_id);
+}
+
+// =================== Test-only functions =================== //
+
+#[test_only]
+public fun create_test_owner_cap<T>(ctx: &mut TxContext): OwnerCap<T> {
+    OwnerCap<T> { id: object::new(ctx) }
+}
+
+#[test_only]
+public fun test_destroy_owner_cap<T>(cap: OwnerCap<T>) {
+    let OwnerCap { id } = cap;
+    object::delete(id);
 }

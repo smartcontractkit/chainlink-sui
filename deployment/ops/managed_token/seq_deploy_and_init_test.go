@@ -72,6 +72,7 @@ func TestDeployAndInitManagedToken(t *testing.T) {
 	require.NotEmpty(t, output.Output.ManagedTokenPackageId)
 	require.NotEmpty(t, output.Output.Objects.OwnerCapObjectId)
 	require.NotEmpty(t, output.Output.Objects.StateObjectId)
+	require.NotEmpty(t, output.Output.Objects.PublisherObjectId)
 
 	// Verify the package ID is a valid address
 	require.Len(t, output.Output.ManagedTokenPackageId, 66) // 0x + 64 hex chars
@@ -82,9 +83,12 @@ func TestDeployAndInitManagedToken(t *testing.T) {
 	require.Contains(t, output.Output.Objects.OwnerCapObjectId, "0x")
 	require.Len(t, output.Output.Objects.StateObjectId, 66)
 	require.Contains(t, output.Output.Objects.StateObjectId, "0x")
+	require.Len(t, output.Output.Objects.PublisherObjectId, 66)
+	require.Contains(t, output.Output.Objects.PublisherObjectId, "0x")
 
 	t.Logf("Successfully deployed and initialized ManagedToken")
 	t.Logf("Package ID: %s", output.Output.ManagedTokenPackageId)
 	t.Logf("OwnerCap Object ID: %s", output.Output.Objects.OwnerCapObjectId)
 	t.Logf("State Object ID: %s", output.Output.Objects.StateObjectId)
+	t.Logf("Publisher Object ID: %s", output.Output.Objects.PublisherObjectId)
 }

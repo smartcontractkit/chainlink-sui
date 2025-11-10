@@ -14,6 +14,7 @@ type DeployBurnMintTokenPoolObjects struct {
 }
 
 type DeployBurnMintTokenPoolOutput struct {
+	TokenSymbol         string
 	BurnMintTPPackageID string
 	Objects             DeployBurnMintTokenPoolObjects
 }
@@ -56,8 +57,9 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 			BurnMintTokenPoolInitializeOp,
 			deps,
 			BurnMintTokenPoolInitializeInput{
-				CoinObjectTypeArg:      input.CoinObjectTypeArg,
 				BurnMintPackageId:      deployReport.Output.PackageId,
+				OwnerCapObjectId:       deployReport.Output.Objects.OwnerCapObjectId,
+				CoinObjectTypeArg:      input.CoinObjectTypeArg,
 				StateObjectId:          input.CCIPObjectRefObjectId,
 				CoinMetadataObjectId:   input.CoinMetadataObjectId,
 				TreasuryCapObjectId:    input.TreasuryCapObjectId,
@@ -76,7 +78,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 				BurnMintPackageId:            deployReport.Output.PackageId,
 				CoinObjectTypeArg:            input.CoinObjectTypeArg,
 				StateObjectId:                initReport.Output.Objects.StateObjectId,
-				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCap:                     deployReport.Output.Objects.OwnerCapObjectId,
 				RemoteChainSelectorsToRemove: input.RemoteChainSelectorsToRemove,
 				RemoteChainSelectorsToAdd:    input.RemoteChainSelectorsToAdd,
 				RemotePoolAddressesToAdd:     input.RemotePoolAddressesToAdd,
@@ -95,7 +97,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 				BurnMintPackageId:    deployReport.Output.PackageId,
 				CoinObjectTypeArg:    input.CoinObjectTypeArg,
 				StateObjectId:        initReport.Output.Objects.StateObjectId,
-				OwnerCap:             initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCap:             deployReport.Output.Objects.OwnerCapObjectId,
 				RemoteChainSelectors: input.RemoteChainSelectors,
 				OutboundIsEnableds:   input.OutboundIsEnableds,
 				OutboundCapacities:   input.OutboundCapacities,
@@ -109,10 +111,24 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 			return DeployBurnMintTokenPoolOutput{}, err
 		}
 
+		// transfer ownership to MCMS
+		_, err = cld_ops.ExecuteOperation(
+			env,
+			TransferOwnershipBurnMintTokenPoolOp,
+			deps,
+			TransferOwnershipBurnMintTokenPoolInput{
+				BurnMintTokenPoolPackageId: deployReport.Output.PackageId,
+				TypeArgs:                   []string{input.CoinObjectTypeArg},
+				StateObjectId:              initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectId:           deployReport.Output.Objects.OwnerCapObjectId,
+				To:                         input.BurnMintTokenPoolDeployInput.MCMSAddress,
+			},
+		)
+
 		return DeployBurnMintTokenPoolOutput{
 			BurnMintTPPackageID: deployReport.Output.PackageId,
 			Objects: DeployBurnMintTokenPoolObjects{
-				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:    initReport.Output.Objects.StateObjectId,
 			},
 		}, nil

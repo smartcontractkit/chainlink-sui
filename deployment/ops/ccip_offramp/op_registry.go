@@ -6,4 +6,6 @@ var AllOperationsOfframp = []cld_ops.Operation[any, any, any]{
 	*TransferOwnershipOffRampOp.AsUntyped(),
 	*AcceptOwnershipOffRampOp.AsUntyped(),
 	*ExecuteOwnershipTransferToMcmsOffRampOp.AsUntyped(),
+	*ApplySourceChainConfigUpdatesOp.AsUntyped(),
+	*SetOCR3ConfigOp.AsUntyped(),
 }

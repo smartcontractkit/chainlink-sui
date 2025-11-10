@@ -6,22 +6,35 @@ module managed_token_pool::managed_token_pool;
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
-use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::publisher_wrapper;
+use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 use managed_token::managed_token::{Self, TokenState, MintCap};
 use managed_token::ownable::OwnerCap as ManagedTokenOwnerCap;
 use managed_token_pool::ownable::{Self, OwnerCap, OwnableState};
+use managed_token_pool::rate_limiter;
 use managed_token_pool::token_pool::{Self, TokenPoolState};
 use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+use std::ascii;
 use std::string::{Self, String};
-use std::type_name::{Self, TypeName};
-use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
-use sui::package::UpgradeCap;
+use sui::package::{Self, UpgradeCap};
+
+public struct MANAGED_TOKEN_POOL has drop {}
+
+fun init(otw: MANAGED_TOKEN_POOL, ctx: &mut TxContext) {
+    let (ownable_state, mut owner_cap) = ownable::new(ctx);
+    ownable::attach_ownable_state(&mut owner_cap, ownable_state);
+
+    let publisher = package::claim(otw, ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
+
+    transfer::public_transfer(owner_cap, ctx.sender());
+}
 
 public struct ManagedTokenPoolState<phantom T> has key {
     id: UID,
@@ -53,22 +66,31 @@ public fun type_and_version(): String {
 /// 3. Registering the pool with the token admin registry
 /// Note: The mint_cap must be created beforehand through managed_token::configure_new_minter
 public fun initialize_with_managed_token<T>(
+    owner_cap: &mut OwnerCap,
     ref: &mut CCIPObjectRef,
     managed_token_state: &TokenState<T>,
-    owner_cap: &ManagedTokenOwnerCap<T>,
+    managed_token_owner_cap: &ManagedTokenOwnerCap<T>,
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
     // Get treasury cap reference for registration
-    let treasury_cap_ref = managed_token::borrow_treasury_cap(managed_token_state, owner_cap);
+    let treasury_cap_ref = managed_token::borrow_treasury_cap(
+        managed_token_state,
+        managed_token_owner_cap,
+    );
 
     // Initialize the token pool
-    let (_, managed_token_pool_state_address, _, _) = initialize_internal(
+    let managed_token_pool_state_address = initialize_internal(
+        owner_cap,
         coin_metadata,
         mint_cap,
         ctx,
+    );
+    let publisher_wrapper = publisher_wrapper::create(
+        ownable::borrow_publisher(owner_cap),
+        TypeProof {},
     );
 
     // Register the pool with the token admin registry
@@ -89,115 +111,38 @@ public fun initialize_with_managed_token<T>(
             object::id_to_address(&object::id(managed_token_state)),
             managed_token_pool_state_address,
         ],
+        publisher_wrapper,
         TypeProof {},
-    );
-}
-
-public fun initialize_by_ccip_admin<T>(
-    ref: &mut CCIPObjectRef,
-    ccip_admin_proof: state_object::CCIPAdminProof,
-    coin_metadata: &CoinMetadata<T>,
-    mint_cap: MintCap<T>,
-    managed_token_state: address,
-    token_pool_administrator: address,
-    ctx: &mut TxContext,
-) {
-    let (
-        coin_metadata_address,
-        managed_token_pool_state_address,
-        token_type,
-        type_proof_type_name,
-    ) = initialize_internal(coin_metadata, mint_cap, ctx);
-
-    let type_proof_type_name_address = type_proof_type_name.address_string();
-    let managed_token_pool_package_id = address::from_ascii_bytes(
-        &type_proof_type_name_address.into_bytes(),
-    );
-
-    token_admin_registry::register_pool_by_admin(
-        ref,
-        ccip_admin_proof,
-        coin_metadata_address,
-        managed_token_pool_package_id,
-        string::utf8(b"managed_token_pool"),
-        token_type.into_string(),
-        token_pool_administrator,
-        type_proof_type_name.into_string(),
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            managed_token_state,
-            managed_token_pool_state_address,
-        ],
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            managed_token_state,
-            managed_token_pool_state_address,
-        ],
-        ctx,
     );
 }
 
 #[allow(lint(self_transfer))]
 fun initialize_internal<T>(
+    owner_cap: &mut OwnerCap,
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
     ctx: &mut TxContext,
-): (address, address, TypeName, TypeName) {
+): address {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let ownable_state = ownable::detach_ownable_state(owner_cap);
 
     let managed_token_pool = ManagedTokenPoolState<T> {
         id: object::new(ctx),
         token_pool_state: token_pool::initialize(
             coin_metadata_address,
             coin_metadata.get_decimals(),
+            coin_metadata.get_symbol(),
             vector[],
             ctx,
         ),
         mint_cap,
         ownable_state,
     };
-    let type_proof_type_name = type_name::with_defining_ids<TypeProof>();
-    let token_type = type_name::with_defining_ids<T>();
     let managed_token_pool_state_address = object::uid_to_address(&managed_token_pool.id);
 
     transfer::share_object(managed_token_pool);
-    transfer::public_transfer(owner_cap, ctx.sender());
 
-    (coin_metadata_address, managed_token_pool_state_address, token_type, type_proof_type_name)
-}
-
-public fun set_pool<T>(
-    ref: &mut CCIPObjectRef,
-    state: &mut ManagedTokenPoolState<T>,
-    owner_cap: &OwnerCap,
-    coin_metadata_address: address,
-    managed_token_state: address,
-    ctx: &mut TxContext,
-) {
-    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
-
-    let managed_token_pool_state_address = object::uid_to_address(&state.id);
-    token_admin_registry::set_pool(
-        ref,
-        coin_metadata_address,
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            managed_token_state,
-            managed_token_pool_state_address,
-        ],
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            managed_token_state,
-            managed_token_pool_state_address,
-        ],
-        TypeProof {},
-        ctx,
-    );
+    managed_token_pool_state_address
 }
 
 public fun add_remote_pool<T>(
@@ -295,6 +240,10 @@ public fun get_token<T>(state: &ManagedTokenPoolState<T>): address {
 
 public fun get_token_decimals<T>(state: &ManagedTokenPoolState<T>): u8 {
     state.token_pool_state.get_local_decimals()
+}
+
+public fun get_token_symbol<T>(state: &ManagedTokenPoolState<T>): ascii::String {
+    state.token_pool_state.get_symbol()
 }
 
 public fun get_remote_pools<T>(
@@ -407,6 +356,7 @@ public fun release_or_mint<T>(
         _,
     ) = offramp_sh::get_dest_token_transfer_data(receiver_params);
 
+    // local_amount is u64 because the token balance in SUI is u64.
     let local_amount = token_pool::calculate_release_or_mint_amount(
         &state.token_pool_state,
         source_pool_data,
@@ -443,8 +393,6 @@ public fun release_or_mint<T>(
     offramp_sh::complete_token_transfer(
         ref,
         receiver_params,
-        token_receiver,
-        dest_token_address,
         TypeProof {},
     );
 }
@@ -521,6 +469,30 @@ public fun set_chain_rate_limiter_config<T>(
     );
 }
 
+public fun get_current_inbound_rate_limiter_state<T>(
+    clock: &Clock,
+    state: &ManagedTokenPoolState<T>,
+    remote_chain_selector: u64,
+): rate_limiter::TokenBucket {
+    token_pool::get_current_inbound_rate_limiter_state(
+        &state.token_pool_state,
+        clock,
+        remote_chain_selector,
+    )
+}
+
+public fun get_current_outbound_rate_limiter_state<T>(
+    clock: &Clock,
+    state: &ManagedTokenPoolState<T>,
+    remote_chain_selector: u64,
+): rate_limiter::TokenBucket {
+    token_pool::get_current_outbound_rate_limiter_state(
+        &state.token_pool_state,
+        clock,
+        remote_chain_selector,
+    )
+}
+
 // ================================================================
 // |                      Ownable Functions                       |
 // ================================================================
@@ -572,12 +544,11 @@ public fun mcms_accept_ownership<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function, data) = mcms_registry::get_callback_params(
+    let data = mcms_registry::get_accept_ownership_data(
         registry,
         params,
-        McmsCallback<T> {},
+        McmsAcceptOwnershipProof<T> {},
     );
-    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
@@ -603,11 +574,17 @@ public fun execute_ownership_transfer_to_mcms<T>(
     to: address,
     ctx: &mut TxContext,
 ) {
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback<T> {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut state.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback<T> {},
         vector[b"managed_token_pool"],
         ctx,
@@ -633,6 +610,9 @@ public fun mcms_register_upgrade_cap(
 // ================================================================
 
 public struct McmsCallback<phantom T> has drop {}
+
+/// Proof for MCMS Accept Ownership
+public struct McmsAcceptOwnershipProof<phantom T> has drop {}
 
 public fun mcms_set_allowlist_enabled<T>(
     state: &mut ManagedTokenPoolState<T>,
@@ -945,14 +925,14 @@ public fun destroy_token_pool<T>(
     mint_cap
 }
 
-public fun mcms_set_pool<T>(
+public fun mcms_destroy_token_pool<T>(
     ref: &mut CCIPObjectRef,
-    state: &mut ManagedTokenPoolState<T>,
+    state: ManagedTokenPoolState<T>,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
         OwnerCap,
     >(
@@ -960,18 +940,21 @@ public fun mcms_set_pool<T>(
         McmsCallback<T> {},
         params,
     );
-    assert!(function == string::utf8(b"set_pool"), EInvalidFunction);
+    assert!(function == string::utf8(b"destroy_token_pool"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
-        &mut stream,
-    );
-    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
-    let managed_token_state = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::validate_obj_addr(object::id_address(&state), &mut stream);
+
+    let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    set_pool(ref, state, owner_cap, coin_metadata_address, managed_token_state, ctx);
+    let owner_cap = mcms_registry::release_cap<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+    );
+
+    let mint_cap = destroy_token_pool(ref, state, owner_cap, ctx);
+    transfer::public_transfer(mint_cap, to);
 }
 
 public fun mcms_transfer_ownership<T>(
@@ -1005,6 +988,7 @@ public fun mcms_transfer_ownership<T>(
 public fun mcms_execute_ownership_transfer<T>(
     state: &mut ManagedTokenPoolState<T>,
     registry: &mut Registry,
+    deployer_state: &mut DeployerState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -1025,9 +1009,23 @@ public fun mcms_execute_ownership_transfer<T>(
     );
 
     let to = bcs_stream::deserialize_address(&mut stream);
+    let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let owner_cap: OwnerCap = mcms_registry::release_cap(registry, McmsCallback<T> {});
+    let owner_cap = mcms_registry::release_cap<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+    );
+
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback<T> {},
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }
 
@@ -1083,4 +1081,9 @@ public fun mcms_remove_allowed_modules<T>(
     bcs_stream::assert_is_consumed(&stream);
 
     mcms_registry::remove_allowed_modules(registry, McmsCallback<T> {}, module_names, ctx);
+}
+
+#[test_only]
+public fun test_init(ctx: &mut TxContext) {
+    init(MANAGED_TOKEN_POOL {}, ctx);
 }

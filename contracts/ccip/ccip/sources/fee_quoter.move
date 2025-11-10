@@ -283,6 +283,12 @@ public fun new_fee_quoter_cap(
     owner_cap: &OwnerCap,
     ctx: &mut TxContext,
 ): FeeQuoterCap {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"new_fee_quoter_cap"),
+        VERSION,
+    );
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     FeeQuoterCap {
@@ -1091,6 +1097,7 @@ fun get_token_transfer_cost(
     let mut token_transfer_fee_wei: u256 = 0;
     let mut token_transfer_gas: u32 = 0;
     let mut token_transfer_bytes_overhead: u32 = 0;
+    assert!(local_token_addresses.length() == local_token_amounts.length(), ETokenAmountMismatch);
 
     local_token_addresses.zip_do_ref!(
         &local_token_amounts,
@@ -1156,7 +1163,7 @@ public fun get_token_receiver(
     ref: &CCIPObjectRef,
     dest_chain_selector: u64,
     extra_args: vector<u8>,
-    message_receiver: vector<u8>,
+    default_token_receiver: vector<u8>,
 ): vector<u8> {
     verify_function_allowed(
         ref,
@@ -1174,7 +1181,7 @@ public fun get_token_receiver(
         chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
         || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
     ) {
-        message_receiver
+        default_token_receiver
     } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
         let (
             _gas_limit,
@@ -1344,6 +1351,7 @@ fun process_pool_return_data(
 
     let tokens_len = dest_token_addresses.length();
     assert!(tokens_len == dest_pool_datas.length(), ETokenAmountMismatch);
+    assert!(tokens_len == local_token_addresses.length(), ETokenAmountMismatch);
 
     let mut dest_exec_data_per_token = vector[];
     let mut i = 0;
