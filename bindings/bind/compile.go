@@ -123,11 +123,11 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 	}
 	defer os.RemoveAll(tempConfigDir)
 
-	os.Setenv("SUI_CONFIG", tempConfigDir)
+	os.Setenv("SUI_CONFIG_DIR", tempConfigDir)
 
 	// Initialize config non-interactively
 	initCmd := exec.Command("sui", "client", "--yes", "--json")
-	initCmd.Env = append(os.Environ(), fmt.Sprintf("SUI_CONFIG=%s", tempConfigDir))
+	initCmd.Env = append(os.Environ(), fmt.Sprintf("SUI_CONFIG_DIR=%s", tempConfigDir))
 	if out, err := initCmd.CombinedOutput(); err != nil {
 		return PackageArtifact{}, fmt.Errorf("failed to init sui client: %w\n%s", err, out)
 	}
@@ -759,11 +759,12 @@ func setupSuiEnv(alias, rpcURL string) error {
 }
 
 func removeAliasFromClientYAML(alias string) error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("cannot resolve home directory: %w", err)
+	configDir := os.Getenv("SUI_CONFIG_DIR")
+	if configDir == "" {
+		homeDir, _ := os.UserHomeDir()
+		configDir = filepath.Join(homeDir, ".sui", "sui_config")
 	}
-	configPath := fmt.Sprintf("%s/.sui/sui_config/client.yaml", homeDir)
+	configPath := filepath.Join(configDir, "client.yaml")
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
