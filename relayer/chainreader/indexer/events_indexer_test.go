@@ -358,8 +358,6 @@ func TestEventsIndexer(t *testing.T) {
 		}
 	})
 
-	// Add these test cases to your existing TestEventsIndexer function
-
 	t.Run("TestConcurrentEventIndexerAccess", func(t *testing.T) {
 		log.Infow("Starting concurrent access test")
 
@@ -381,8 +379,6 @@ func TestEventsIndexer(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 
 		t.Run("ConcurrentSyncEventCalls", func(t *testing.T) {
-			// This test simulates multiple goroutines calling SyncEvent concurrently
-			// while the background poller is also running
 			log.Infow("Testing concurrent SyncEvent calls")
 
 			var wg sync.WaitGroup
@@ -392,7 +388,7 @@ func TestEventsIndexer(t *testing.T) {
 			// Track errors from concurrent operations
 			errChan := make(chan error, numConcurrentCallers*numIterations)
 
-			// Launch multiple goroutines that call SyncEvent concurrently
+			// Call SyncEvent concurrently
 			for i := 0; i < numConcurrentCallers; i++ {
 				wg.Add(1)
 				go func(goroutineID int) {
@@ -430,7 +426,6 @@ func TestEventsIndexer(t *testing.T) {
 		})
 
 		t.Run("ConcurrentNewEventSelectors", func(t *testing.T) {
-			// This test simulates multiple goroutines adding new event selectors concurrently
 			log.Infow("Testing concurrent new event selectors")
 
 			var wg sync.WaitGroup
@@ -449,7 +444,7 @@ func TestEventsIndexer(t *testing.T) {
 					newSelector := &client.EventSelector{
 						Package: packageId,
 						Module:  "counter",
-						Event:   "CounterIncremented", // Same event to test deduplication
+						Event:   "CounterIncremented",
 					}
 
 					// Try to sync with this new selector
@@ -478,7 +473,6 @@ func TestEventsIndexer(t *testing.T) {
 		})
 
 		t.Run("ConcurrentReadsAndWrites", func(t *testing.T) {
-			// Stress test: many concurrent operations while background poller runs
 			log.Infow("Testing concurrent reads and writes stress test")
 
 			var wg sync.WaitGroup
@@ -527,7 +521,6 @@ func TestEventsIndexer(t *testing.T) {
 	})
 
 	t.Run("TestRaceDetection", func(t *testing.T) {
-		// This test is specifically designed to trigger race conditions
 		// Run with: go test -race -run TestEventsIndexer/TestRaceDetection
 		log.Infow("Starting race detection test")
 
@@ -537,7 +530,7 @@ func TestEventsIndexer(t *testing.T) {
 			log,
 			relayerClient,
 			[]*client.EventSelector{eventSelector},
-			50*time.Millisecond, // Very short interval to stress test
+			50*time.Millisecond,
 			5*time.Second,
 		)
 
