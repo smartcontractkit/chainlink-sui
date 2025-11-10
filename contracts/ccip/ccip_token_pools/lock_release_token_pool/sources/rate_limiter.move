@@ -104,6 +104,10 @@ public fun get_rate(bucket: &TokenBucket): u64 {
     bucket.rate
 }
 
+public fun get_token_bucket_fields(bucket: &TokenBucket): (u64, u64, bool, u64, u64) {
+    (bucket.tokens, bucket.last_updated, bucket.is_enabled, bucket.capacity, bucket.rate)
+}
+
 // ================================================================
 // |                      Test-only functions                     |
 // ================================================================

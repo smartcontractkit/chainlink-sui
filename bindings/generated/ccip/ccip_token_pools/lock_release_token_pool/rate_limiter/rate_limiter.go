@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"lock_release_token_pool","module":"rate_limiter","name":"consume","parameters":[{"name":"clock","type":"Clock"},{"name":"bucket","type":"TokenBucket"},{"name":"requested_tokens","type":"u64"}]},{"package":"lock_release_token_pool","module":"rate_limiter","name":"get_current_token_bucket_state","parameters":[{"name":"clock","type":"Clock"},{"name":"state","type":"TokenBucket"}]},{"package":"lock_release_token_pool","module":"rate_limiter","name":"get_rate","parameters":[{"name":"bucket","type":"TokenBucket"}]},{"package":"lock_release_token_pool","module":"rate_limiter","name":"is_enabled","parameters":[{"name":"bucket","type":"TokenBucket"}]},{"package":"lock_release_token_pool","module":"rate_limiter","name":"new","parameters":[{"name":"clock","type":"Clock"},{"name":"is_enabled","type":"bool"},{"name":"capacity","type":"u64"},{"name":"rate","type":"u64"}]},{"package":"lock_release_token_pool","module":"rate_limiter","name":"set_token_bucket_config","parameters":[{"name":"clock","type":"Clock"},{"name":"bucket","type":"TokenBucket"},{"name":"is_enabled","type":"bool"},{"name":"capacity","type":"u64"},{"name":"rate","type":"u64"}]}]`
+const FunctionInfo = `[{"package":"lock_release_token_pool","module":"rate_limiter","name":"consume","parameters":[{"name":"clock","type":"Clock"},{"name":"bucket","type":"TokenBucket"},{"name":"requested_tokens","type":"u64"}]},{"package":"lock_release_token_pool","module":"rate_limiter","name":"get_current_token_bucket_state","parameters":[{"name":"clock","type":"Clock"},{"name":"state","type":"TokenBucket"}]},{"package":"lock_release_token_pool","module":"rate_limiter","name":"get_rate","parameters":[{"name":"bucket","type":"TokenBucket"}]},{"package":"lock_release_token_pool","module":"rate_limiter","name":"get_token_bucket_fields","parameters":[{"name":"bucket","type":"TokenBucket"}]},{"package":"lock_release_token_pool","module":"rate_limiter","name":"is_enabled","parameters":[{"name":"bucket","type":"TokenBucket"}]},{"package":"lock_release_token_pool","module":"rate_limiter","name":"new","parameters":[{"name":"clock","type":"Clock"},{"name":"is_enabled","type":"bool"},{"name":"capacity","type":"u64"},{"name":"rate","type":"u64"}]},{"package":"lock_release_token_pool","module":"rate_limiter","name":"set_token_bucket_config","parameters":[{"name":"clock","type":"Clock"},{"name":"bucket","type":"TokenBucket"},{"name":"is_enabled","type":"bool"},{"name":"capacity","type":"u64"},{"name":"rate","type":"u64"}]}]`
 
 type IRateLimiter interface {
 	New(ctx context.Context, opts *bind.CallOpts, clock bind.Object, isEnabled bool, capacity uint64, rate uint64) (*models.SuiTransactionBlockResponse, error)
@@ -28,6 +28,7 @@ type IRateLimiter interface {
 	SetTokenBucketConfig(ctx context.Context, opts *bind.CallOpts, clock bind.Object, bucket bind.Object, isEnabled bool, capacity uint64, rate uint64) (*models.SuiTransactionBlockResponse, error)
 	IsEnabled(ctx context.Context, opts *bind.CallOpts, bucket bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetRate(ctx context.Context, opts *bind.CallOpts, bucket bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetTokenBucketFields(ctx context.Context, opts *bind.CallOpts, bucket bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IRateLimiterDevInspect
 	Encoder() RateLimiterEncoder
 	Bound() bind.IBoundContract
@@ -38,6 +39,7 @@ type IRateLimiterDevInspect interface {
 	GetCurrentTokenBucketState(ctx context.Context, opts *bind.CallOpts, clock bind.Object, state bind.Object) (bind.Object, error)
 	IsEnabled(ctx context.Context, opts *bind.CallOpts, bucket bind.Object) (bool, error)
 	GetRate(ctx context.Context, opts *bind.CallOpts, bucket bind.Object) (uint64, error)
+	GetTokenBucketFields(ctx context.Context, opts *bind.CallOpts, bucket bind.Object) ([]any, error)
 }
 
 type RateLimiterEncoder interface {
@@ -53,6 +55,8 @@ type RateLimiterEncoder interface {
 	IsEnabledWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetRate(bucket bind.Object) (*bind.EncodedCall, error)
 	GetRateWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetTokenBucketFields(bucket bind.Object) (*bind.EncodedCall, error)
+	GetTokenBucketFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type RateLimiterContract struct {
@@ -157,6 +161,16 @@ func (c *RateLimiterContract) GetRate(ctx context.Context, opts *bind.CallOpts, 
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// GetTokenBucketFields executes the get_token_bucket_fields Move function.
+func (c *RateLimiterContract) GetTokenBucketFields(ctx context.Context, opts *bind.CallOpts, bucket bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rateLimiterEncoder.GetTokenBucketFields(bucket)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // New executes the new Move function using DevInspect to get return values.
 //
 // Returns: TokenBucket
@@ -243,6 +257,23 @@ func (d *RateLimiterDevInspect) GetRate(ctx context.Context, opts *bind.CallOpts
 		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
 	}
 	return result, nil
+}
+
+// GetTokenBucketFields executes the get_token_bucket_fields Move function using DevInspect to get return values.
+//
+// Returns:
+//
+//	[0]: u64
+//	[1]: u64
+//	[2]: bool
+//	[3]: u64
+//	[4]: u64
+func (d *RateLimiterDevInspect) GetTokenBucketFields(ctx context.Context, opts *bind.CallOpts, bucket bind.Object) ([]any, error) {
+	encoded, err := d.contract.rateLimiterEncoder.GetTokenBucketFields(bucket)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	return d.contract.Call(ctx, opts, encoded)
 }
 
 type rateLimiterEncoder struct {
@@ -447,6 +478,44 @@ func (c rateLimiterEncoder) GetRateWithArgs(args ...any) (*bind.EncodedCall, err
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_rate", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u64",
+	})
+}
+
+// GetTokenBucketFields encodes a call to the get_token_bucket_fields Move function.
+func (c rateLimiterEncoder) GetTokenBucketFields(bucket bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_bucket_fields", typeArgsList, typeParamsList, []string{
+		"&TokenBucket",
+	}, []any{
+		bucket,
+	}, []string{
+		"u64",
+		"u64",
+		"bool",
+		"u64",
+		"u64",
+	})
+}
+
+// GetTokenBucketFieldsWithArgs encodes a call to the get_token_bucket_fields Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rateLimiterEncoder) GetTokenBucketFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&TokenBucket",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_bucket_fields", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u64",
+		"u64",
+		"bool",
+		"u64",
 		"u64",
 	})
 }
