@@ -33,6 +33,8 @@ const CCIP_ADMIN: address = @0x1000;
 const TOKEN_ADMIN_ADDRESS: address = @0x1;
 const TOKEN_ADMIN_ADDRESS_2: address = @0x2;
 const RANDOM_USER: address = @0x3;
+const TOKEN_POOL_STATE_ADDRESS: address =
+    @0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
 
 // === Helper Functions ===
 
@@ -83,6 +85,7 @@ fun register_test_pool<T>(
     ref: &mut CCIPObjectRef,
     treasury_cap: &coin::TreasuryCap<T>,
     coin_metadata: &coin::CoinMetadata<T>,
+    token_pool_state_address: address,
     admin: address,
     ctx: &mut TxContext,
 ) {
@@ -93,6 +96,7 @@ fun register_test_pool<T>(
         ref,
         treasury_cap,
         coin_metadata,
+        token_pool_state_address,
         admin,
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
@@ -106,6 +110,7 @@ fun register_test_pool<T>(
 fun assert_empty_token_config(ref: &CCIPObjectRef, token_address: address) {
     let (
         token_pool_package_id,
+        _token_pool_state_address,
         token_pool_module,
         token_type,
         administrator,
@@ -134,6 +139,7 @@ fun assert_token_config(
 ) {
     let (
         token_pool_package_id,
+        _token_pool_state_address,
         token_pool_module,
         token_type,
         administrator,
@@ -197,6 +203,7 @@ public fun test_get_pool() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS,
             scenario.ctx(),
         );
@@ -234,6 +241,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
             &mut ref,
             @0xABC1, // coin_metadata_address #1
             @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+            TOKEN_POOL_STATE_ADDRESS,
             string::utf8(b"dup_pool"),
             ascii::string(b"TypeOne"),
             TOKEN_ADMIN_ADDRESS,
@@ -264,6 +272,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
             &mut ref,
             @0xABC2, // coin_metadata_address #2
             @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA, // duplicate package id
+            TOKEN_POOL_STATE_ADDRESS,
             string::utf8(b"dup_pool_2"),
             ascii::string(b"TypeTwo"),
             TOKEN_ADMIN_ADDRESS,
@@ -298,6 +307,7 @@ public fun test_register_and_unregister() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS_2,
             scenario.ctx(),
         );
@@ -346,6 +356,7 @@ public fun test_register() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS,
             scenario.ctx(),
         );
@@ -370,12 +381,12 @@ public fun test_register() {
             @0x0,
         );
 
-        let (_, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(
+        let (_, _, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(
             &ref,
             local_token,
         );
         assert!(
-            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
+            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000002222::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
         );
         assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
 
@@ -408,12 +419,12 @@ public fun test_register() {
             TOKEN_ADMIN_ADDRESS_2,
         );
 
-        let (_, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(
+        let (_, _, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(
             &ref,
             local_token,
         );
         assert!(
-            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
+            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000002222::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
         );
         // Since TypeProof and TypeProof2 have the same package ID, the type proof should remain as TypeProof
         assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
@@ -616,6 +627,7 @@ public fun test_register_and_unregister_as_non_admin() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS_2,
             scenario.ctx(),
         );
@@ -710,6 +722,7 @@ public fun test_register_pool_already_registered() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS,
             scenario.ctx(),
         );
@@ -719,6 +732,7 @@ public fun test_register_pool_already_registered() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS,
             scenario.ctx(),
         );
@@ -750,6 +764,7 @@ public fun test_transfer_admin_role_not_administrator() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS,
             scenario.ctx(),
         );
@@ -792,6 +807,7 @@ public fun test_accept_admin_role_not_pending() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS,
             scenario.ctx(),
         );
@@ -838,6 +854,7 @@ public fun test_accept_admin_role_no_pending_transfer() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS,
             scenario.ctx(),
         );
@@ -895,6 +912,7 @@ public fun test_mcms_transfer_admin_role() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS,
             scenario.ctx(),
         );
@@ -952,6 +970,7 @@ public fun test_mcms_accept_admin_role() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS,
             scenario.ctx(),
         );
@@ -1028,6 +1047,7 @@ public fun test_mcms_full_admin_transfer_flow() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS,
             scenario.ctx(),
         );
@@ -1112,6 +1132,7 @@ public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS,
             scenario.ctx(),
         );
@@ -1239,6 +1260,7 @@ public fun test_register_pool_function_not_allowed() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
+            TOKEN_POOL_STATE_ADDRESS,
             TOKEN_ADMIN_ADDRESS,
             scenario.ctx(),
         );
