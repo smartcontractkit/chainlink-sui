@@ -3,7 +3,7 @@ name = "MockETHToken"
 edition = "2024"
 
 [addresses]
-mock_eth_token = "_"
+mock_eth_token = "0x0"
 
 [dev-addresses]
 mock_eth_token = "0x1112"
