@@ -85,6 +85,11 @@ type CCIPChainState struct {
 	LnRTokenPools     map[string]CCIPPoolState
 	BnMTokenPools     map[string]CCIPPoolState
 	ManagedTokenPools map[string]CCIPPoolState
+
+	// mock upgrade related
+	OnRampMockV2PackageId  string
+	OffRampMockV2PackageId string
+	CCIPMockV2PackageId    string
 }
 
 func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chainName string) (SuiChainView, error) {
@@ -395,6 +400,14 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.ManagedTokenStateObjectID = addr
 		case SuiManagedTokenMinterCapID:
 			chainState.ManagedTokenMinterCapID = addr
+
+		// mock upgrade related
+		case SuiOnRampMockV2:
+			chainState.OnRampMockV2PackageId = addr
+		case SuiOffRampMockV2:
+			chainState.OffRampMockV2PackageId = addr
+		case SuiCCIPMockV2:
+			chainState.CCIPMockV2PackageId = addr
 
 		// BnM Token pools related
 		case SuiBnMTokenPoolType:

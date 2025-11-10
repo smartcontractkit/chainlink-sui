@@ -21,7 +21,7 @@ import (
 )
 
 func TestDeployAndInitCCIPSeq(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 
 	signer, client := testenv.SetupEnvironment(t)
 

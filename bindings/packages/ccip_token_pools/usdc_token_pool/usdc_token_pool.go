@@ -57,6 +57,11 @@ func PublishCCIPUSDCTokenPool(
 	treasuryObjectId,
 	mcmsAddress,
 	mcmsOwnerAddress string) (USDCTokenPool, *models.SuiTransactionBlockResponse, error) {
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.USDCTokenPool, map[string]string{
 		"ccip":                              ccipAddress,
 		"usdc_token_pool":                   "0x0",
@@ -68,7 +73,9 @@ func PublishCCIPUSDCTokenPool(
 		"treasury":                          treasuryObjectId,
 		"mcms":                              mcmsAddress,
 		"mcms_owner":                        mcmsOwnerAddress,
-	})
+
+		"signer": signerAddr,
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

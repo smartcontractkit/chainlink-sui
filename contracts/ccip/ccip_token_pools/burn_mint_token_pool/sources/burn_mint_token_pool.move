@@ -41,6 +41,14 @@ public struct BurnMintTokenPoolState<phantom T> has key {
     ownable_state: OwnableState,
 }
 
+public struct TokenBucketWrapper has drop {
+    tokens: u64,
+    last_updated: u64,
+    is_enabled: bool,
+    capacity: u64,
+    rate: u64,
+}
+
 const EInvalidArguments: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 const EInvalidFunction: u64 = 3;
@@ -75,14 +83,16 @@ public fun initialize<T>(
         ownable::borrow_publisher(owner_cap),
         TypeProof {},
     );
+    let burn_mint_token_pool_state_address = object::uid_to_address(&burn_mint_token_pool.id);
 
     token_admin_registry::register_pool(
         ref,
         &burn_mint_token_pool.treasury_cap,
         coin_metadata,
+        burn_mint_token_pool_state_address,
         token_pool_administrator,
-        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
-        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
+        vector[CLOCK_ADDRESS, burn_mint_token_pool_state_address],
+        vector[CLOCK_ADDRESS, burn_mint_token_pool_state_address],
         publisher_wrapper,
         TypeProof {},
     );
@@ -114,44 +124,6 @@ fun initialize_internal<T>(
     };
 
     burn_mint_token_pool
-}
-
-public fun set_pool<T>(
-    ref: &mut CCIPObjectRef,
-    state: &BurnMintTokenPoolState<T>,
-    owner_cap: &OwnerCap,
-    coin_metadata_address: address,
-    ctx: &mut TxContext,
-) {
-    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
-
-    set_pool_internal(
-        ref,
-        state,
-        owner_cap,
-        coin_metadata_address,
-        ctx.sender(),
-    );
-}
-
-fun set_pool_internal<T>(
-    ref: &mut CCIPObjectRef,
-    state: &BurnMintTokenPoolState<T>,
-    owner_cap: &OwnerCap,
-    coin_metadata_address: address,
-    caller: address,
-) {
-    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
-
-    let token_pool_state_address = object::uid_to_address(&state.id);
-    token_admin_registry::set_pool(
-        ref,
-        coin_metadata_address,
-        vector[CLOCK_ADDRESS, token_pool_state_address],
-        vector[CLOCK_ADDRESS, token_pool_state_address],
-        TypeProof {},
-        caller,
-    );
 }
 
 // ================================================================
@@ -464,24 +436,32 @@ public fun get_current_inbound_rate_limiter_state<T>(
     clock: &Clock,
     state: &BurnMintTokenPoolState<T>,
     remote_chain_selector: u64,
-): rate_limiter::TokenBucket {
-    token_pool::get_current_inbound_rate_limiter_state(
+): TokenBucketWrapper {
+    let token_bucket = token_pool::get_current_inbound_rate_limiter_state(
         &state.token_pool_state,
         clock,
         remote_chain_selector,
-    )
+    );
+    let (tokens, last_updated, is_enabled, capacity, rate) = rate_limiter::get_token_bucket_fields(
+        &token_bucket,
+    );
+    TokenBucketWrapper { tokens, last_updated, is_enabled, capacity, rate }
 }
 
 public fun get_current_outbound_rate_limiter_state<T>(
     clock: &Clock,
     state: &BurnMintTokenPoolState<T>,
     remote_chain_selector: u64,
-): rate_limiter::TokenBucket {
-    token_pool::get_current_outbound_rate_limiter_state(
+): TokenBucketWrapper {
+    let token_bucket = token_pool::get_current_outbound_rate_limiter_state(
         &state.token_pool_state,
         clock,
         remote_chain_selector,
-    )
+    );
+    let (tokens, last_updated, is_enabled, capacity, rate) = rate_limiter::get_token_bucket_fields(
+        &token_bucket,
+    );
+    TokenBucketWrapper { tokens, last_updated, is_enabled, capacity, rate }
 }
 
 // destroy the burn mint token pool state and the owner cap, return the treasury cap to the owner
@@ -941,40 +921,6 @@ public fun mcms_set_chain_rate_limiter_config<T>(
         inbound_is_enabled,
         inbound_capacity,
         inbound_rate,
-    );
-}
-
-public fun mcms_set_pool<T>(
-    ref: &mut CCIPObjectRef,
-    state: &mut BurnMintTokenPoolState<T>,
-    registry: &mut Registry,
-    params: ExecutingCallbackParams,
-    _: &mut TxContext,
-) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback<T>,
-        OwnerCap,
-    >(
-        registry,
-        McmsCallback<T> {},
-        params,
-    );
-    assert!(function == string::utf8(b"set_pool"), EInvalidFunction);
-
-    let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
-        &mut stream,
-    );
-    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
-    bcs_stream::assert_is_consumed(&stream);
-
-    set_pool_internal(
-        ref,
-        state,
-        owner_cap,
-        coin_metadata_address,
-        mcms_registry::get_multisig_address(),
     );
 }
 

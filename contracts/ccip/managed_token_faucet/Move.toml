@@ -7,7 +7,7 @@ ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
 ManagedToken = { local = "../managed_token" }
 
 [addresses]
-managed_token_faucet = "_"
+managed_token_faucet = "0x0"
 managed_token = "_"
 mcms = "_"
 mcms_owner = "_"

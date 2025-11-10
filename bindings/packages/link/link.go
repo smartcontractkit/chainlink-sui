@@ -50,9 +50,15 @@ func NewLink(address string, client sui.ISuiAPI) (Link, error) {
 }
 
 func PublishLink(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (Link, *models.SuiTransactionBlockResponse, error) {
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.LINK, map[string]string{
-		"link": "0x0",
-	})
+		"link":   "0x0",
+		"signer": signerAddr,
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

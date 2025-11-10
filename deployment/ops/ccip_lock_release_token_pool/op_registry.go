@@ -16,7 +16,6 @@ var AllOperationsLockReleaseTP = []cld_ops.Operation[any, any, any]{
 	*LockReleaseTokenPoolSetChainRateLimiterOp.AsUntyped(),
 	*LockReleaseTokenPoolProvideLiquidityOp.AsUntyped(),
 	*LockReleaseTokenPoolAddRemotePoolOp.AsUntyped(),
-	*LockReleaseTokenPoolSetPoolOp.AsUntyped(),
 	*LockReleaseTokenPoolSetAllowlistEnabledOp.AsUntyped(),
 	*LockReleaseTokenPoolApplyAllowlistUpdatesOp.AsUntyped(),
 	*LockReleaseTokenPoolRemoveRemotePoolOp.AsUntyped(),
