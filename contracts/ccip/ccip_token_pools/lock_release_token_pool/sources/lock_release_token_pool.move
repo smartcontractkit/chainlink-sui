@@ -49,7 +49,7 @@ public struct RebalancerSet<phantom T> has copy, drop {
     new_rebalancer_cap_id: ID,
 }
 
-public struct TokenBucketWrapper has drop, store {
+public struct TokenBucketWrapper has drop {
     tokens: u64,
     last_updated: u64,
     is_enabled: bool,
@@ -103,6 +103,7 @@ public fun initialize<T>(
         ref,
         treasury_cap,
         coin_metadata,
+        lock_release_token_pool_state_address,
         token_pool_administrator,
         vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
         vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],

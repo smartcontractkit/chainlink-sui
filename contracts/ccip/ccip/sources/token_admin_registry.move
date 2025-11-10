@@ -24,6 +24,7 @@ public struct TokenAdminRegistryState has key, store {
 
 public struct TokenConfig has copy, drop, store {
     token_pool_package_id: address,
+    token_pool_state_address: address,
     token_pool_module: String,
     // the type of the token, this should be the full type name of the token, e.g. "0x2::token::Token<0x1::sui::SUI>"
     token_type: ascii::String,
@@ -160,6 +161,7 @@ public fun get_token_config_struct(
     } else {
         TokenConfig {
             token_pool_package_id: @0x0,
+            token_pool_state_address: @0x0,
             token_pool_module: string::utf8(b""),
             token_type: ascii::string(b""),
             administrator: @0x0,
@@ -216,6 +218,7 @@ public fun get_token_config_data(
     coin_metadata_address: address,
 ): (
     address,
+    address,
     String,
     ascii::String,
     address,
@@ -236,6 +239,7 @@ public fun get_token_config_data(
         let token_config = state.token_configs.borrow(coin_metadata_address);
         (
             token_config.token_pool_package_id,
+            token_config.token_pool_state_address,
             token_config.token_pool_module,
             token_config.token_type,
             token_config.administrator,
@@ -246,6 +250,7 @@ public fun get_token_config_data(
         )
     } else {
         (
+            @0x0,
             @0x0,
             string::utf8(b""),
             ascii::string(b""),
@@ -330,6 +335,7 @@ public fun register_pool<T, TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
     coin_metadata: &CoinMetadata<T>,
+    token_pool_state_address: address,
     initial_administrator: address,
     lock_or_burn_params: vector<address>,
     release_or_mint_params: vector<address>,
@@ -353,6 +359,7 @@ public fun register_pool<T, TypeProof: drop>(
         ref,
         coin_metadata_address,
         package_address,
+        token_pool_state_address,
         token_pool_module,
         token_type,
         initial_administrator,
@@ -368,6 +375,7 @@ public fun register_pool_as_owner(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
     package_address: address,
+    token_pool_state_address: address,
     token_pool_module: String,
     token_type: ascii::String,
     initial_administrator: address,
@@ -387,6 +395,7 @@ public fun register_pool_as_owner(
         ref,
         coin_metadata_address,
         package_address,
+        token_pool_state_address,
         token_pool_module,
         token_type,
         initial_administrator,
@@ -400,6 +409,7 @@ fun register_pool_internal(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
     token_pool_package_id: address,
+    token_pool_state_address: address,
     token_pool_module: String,
     token_type: ascii::String,
     initial_administrator: address,
@@ -412,6 +422,7 @@ fun register_pool_internal(
 
     let token_config = TokenConfig {
         token_pool_package_id,
+        token_pool_state_address,
         token_pool_module,
         token_type,
         administrator: initial_administrator,
@@ -627,6 +638,7 @@ public fun mcms_register_pool(
 
     let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
     let token_pool_package_id = bcs_stream::deserialize_address(&mut stream);
+    let token_pool_state_address = bcs_stream::deserialize_address(&mut stream);
     let token_pool_module = bcs_stream::deserialize_string(&mut stream);
     let token_type_string = bcs_stream::deserialize_string(&mut stream);
     let initial_administrator = bcs_stream::deserialize_address(&mut stream);
@@ -650,6 +662,7 @@ public fun mcms_register_pool(
         ref,
         coin_metadata_address,
         token_pool_package_id,
+        token_pool_state_address,
         token_pool_module,
         token_type,
         initial_administrator,
@@ -762,6 +775,7 @@ public fun insert_token_configs_for_test<TypeProof: drop>(
     while (i < coin_metadata_addresses.length()) {
         let token_config = TokenConfig {
             token_pool_package_id: @0x0,
+            token_pool_state_address: @0x0,
             token_pool_module: string::utf8(b"TestModule"),
             token_type: ascii::string(b"TestType"),
             administrator,
