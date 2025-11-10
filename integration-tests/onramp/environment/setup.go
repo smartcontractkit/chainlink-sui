@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -298,7 +299,7 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 	lggr.Debugw("Starting Sui node")
 
 	os.Setenv("SUI_RPC_URL", testutils.LocalUrl)
-	t.Logf("SUI_RPC_URL=%s", os.Getenv("SUI_RPC_URL"))
+	os.Setenv("SUI_CONFIG_DIR", filepath.Join(os.Getenv("HOME"), ".sui", "sui_config"))
 
 	accountAddress, _, signer, client, deps, bundle := BasicSetUp(t, lggr, keystoreInstance)
 	signerAddr, err := signer.GetAddress()

@@ -116,6 +116,9 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 	}
 	fmt.Printf("Using dynamic Sui RPC: %s\n", rpcURL)
 
+	// before you set the temp dir
+	prevConfigDir := os.Getenv("SUI_CONFIG_DIR")
+
 	// Create isolated config
 	tempConfigDir, err := os.MkdirTemp("", "sui-config-*")
 	if err != nil {
@@ -124,6 +127,15 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 	defer os.RemoveAll(tempConfigDir)
 
 	os.Setenv("SUI_CONFIG_DIR", tempConfigDir)
+
+	// ➜ IMPORTANT: restore when we leave CompilePackage
+	defer func() {
+		if prevConfigDir == "" {
+			_ = os.Unsetenv("SUI_CONFIG_DIR")
+		} else {
+			_ = os.Setenv("SUI_CONFIG_DIR", prevConfigDir)
+		}
+	}()
 
 	// Initialize config non-interactively
 	initCmd := exec.Command("sui", "client", "--yes", "--json")
@@ -697,8 +709,6 @@ type suiEnv struct {
 }
 
 func setupSuiEnv(alias, rpcURL string) error {
-	fmt.Printf("Setting up Sui env alias '%s' for RPC: %s\n", alias, rpcURL)
-
 	// Step 1 — Fetch all current envs via CLI
 	cmd := exec.Command("sui", "client", "envs", "--json")
 	out, err := cmd.Output()
