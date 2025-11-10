@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -21,14 +22,20 @@ import (
 )
 
 type EventsIndexer struct {
-	db                  *database.DBStore
-	client              client.SuiPTBClient
-	logger              logger.Logger
-	pollingInterval     time.Duration
-	syncTimeout         time.Duration
+	db              *database.DBStore
+	client          client.SuiPTBClient
+	logger          logger.Logger
+	pollingInterval time.Duration
+	syncTimeout     time.Duration
+
+	// Protected by configMutex
 	eventConfigurations []*client.EventSelector
+	configMutex         sync.RWMutex
+
+	// Protected by cursorMutex
 	// a map of event handles to the last processed cursor
 	lastProcessedCursors map[string]*models.EventId
+	cursorMutex          sync.RWMutex
 }
 
 type EventsIndexerApi interface {
@@ -106,8 +113,14 @@ func (eIndexer *EventsIndexer) SyncAllEvents(ctx context.Context) error {
 	errorCount := 0
 	var lastErr error
 
+	// Avoid holding lock during iteration by making a copy of the selectors
+	eIndexer.configMutex.RLock()
+	selectors := make([]*client.EventSelector, len(eIndexer.eventConfigurations))
+	copy(selectors, eIndexer.eventConfigurations)
+	eIndexer.configMutex.RUnlock()
+
 	// Iterate through all configured modules and their events
-	for _, selector := range eIndexer.eventConfigurations {
+	for _, selector := range selectors {
 		packageAddress, moduleName, eventName := selector.Package, selector.Module, selector.Event
 
 		select {
@@ -224,13 +237,20 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 
 	// check if the event selector is already tracked, if not add it to the list
 	if !eIndexer.isEventSelectorAdded(*selector) {
-		eIndexer.eventConfigurations = append(eIndexer.eventConfigurations, selector)
+		eIndexer.configMutex.Lock()
+		// Double-check after acquiring write lock (avoid race with concurrent adds)
+		if !eIndexer.isEventSelectorAddedLocked(*selector) {
+			eIndexer.eventConfigurations = append(eIndexer.eventConfigurations, selector)
+		}
+		eIndexer.configMutex.Unlock()
 	}
 
 	eIndexer.logger.Debugw("syncEvent: searching for event", "handle", eventHandle)
 
 	// Get the cursor for pagination - either from memory or start fresh
+	eIndexer.cursorMutex.RLock()
 	cursor := eIndexer.lastProcessedCursors[eventHandle]
+	eIndexer.cursorMutex.RUnlock()
 	var totalCount uint64
 	var err error
 	if cursor == nil {
@@ -370,7 +390,10 @@ eventLoop:
 					TxDigest: eventsPage.NextCursor.TxDigest,
 					EventSeq: eventsPage.NextCursor.EventSeq,
 				}
+
+				eIndexer.cursorMutex.Lock()
 				eIndexer.lastProcessedCursors[eventHandle] = cursor
+				eIndexer.cursorMutex.Unlock()
 			} else {
 				// No more events to process
 				break eventLoop
@@ -386,9 +409,15 @@ eventLoop:
 	return nil
 }
 
-// IsEventSelectorAdded checks if a specific event selector has already been included in the list of events
-// to sync
+// IsEventSelectorAdded checks if a specific event selector has already been included in the list of events to sync
 func (eIndexer *EventsIndexer) isEventSelectorAdded(eConfig client.EventSelector) bool {
+	eIndexer.configMutex.RLock()
+	defer eIndexer.configMutex.RUnlock()
+	return eIndexer.isEventSelectorAddedLocked(eConfig)
+}
+
+// isEventSelectorAddedLocked assumes the lock is already held
+func (eIndexer *EventsIndexer) isEventSelectorAddedLocked(eConfig client.EventSelector) bool {
 	for _, selector := range eIndexer.eventConfigurations {
 		if selector.Package == eConfig.Package && selector.Module == eConfig.Module && selector.Event == eConfig.Event {
 			return true
