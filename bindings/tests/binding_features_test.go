@@ -19,7 +19,6 @@ import (
 )
 
 func TestBindingFeatures(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 	signer, client := testenv.SetupEnvironment(t)
 
@@ -29,7 +28,10 @@ func TestBindingFeatures(t *testing.T) {
 		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
-	testPackage, tx, err := testpackage.PublishTest(ctx, opts, client)
+	publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client)
+	require.NoError(t, err)
+
+	testPackage, tx, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address())
 	require.NoError(t, err)
 	require.NotNil(t, testPackage)
 	require.NotNil(t, tx)

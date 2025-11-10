@@ -3,7 +3,7 @@ name = "ManagedToken"
 edition = "2024"
 
 [addresses]
-managed_token = "_"
+managed_token = "0x0"
 mcms = "_"
 mcms_owner = "_"
 

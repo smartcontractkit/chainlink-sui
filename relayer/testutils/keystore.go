@@ -167,7 +167,11 @@ func addSuiCLIAccountsToKeystore(testKeystore *TestKeystore, keystorePath string
 // GetActiveAddressFromSuiConfig retrieves the active address from the Sui client configuration file
 // located at ~/.sui/sui_config/client.yaml
 func GetActiveAddressFromSuiConfig() (string, error) {
-	configPath := filepath.Join(os.Getenv("HOME"), ".sui", "sui_config", "client.yaml")
+	configDir := os.Getenv("SUI_CONFIG_DIR")
+	if configDir == "" {
+		configDir = filepath.Join(os.Getenv("HOME"), ".sui", "sui_config")
+	}
+	configPath := filepath.Join(configDir, "client.yaml")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read config file: %w", err)

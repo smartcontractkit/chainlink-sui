@@ -76,7 +76,6 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 		txm.lggr.Infow("Broadcasting transaction", "txID", tx.TransactionID, "payload", tx)
 
 		resp, err := txm.suiGateway.SendTransaction(loopCtx, payload)
-		txm.lggr.Infow("Transaction broadcasted", "txID", tx.TransactionID, "resp", resp)
 
 		// We increment the attempts here regardless of the error
 		// This is because we want to keep track of how many times we tried to broadcast the transaction
@@ -108,7 +107,14 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 			txm.lggr.Errorw("Failed to update transaction digest", "txID", tx.TransactionID, "error", err)
 			continue
 		}
-		_ = txm.transactionRepository.ChangeState(tx.TransactionID, StateSubmitted)
+
+		err = txm.transactionRepository.ChangeState(tx.TransactionID, StateSubmitted)
+		if err != nil {
+			txm.lggr.Errorw("Failed to change transaction state to Submitted", "txID", tx.TransactionID, "error", err)
+			continue
+		}
+
+		txm.lggr.Infow("Transaction state updated to Submitted", "txID", tx.TransactionID)
 	}
 }
 

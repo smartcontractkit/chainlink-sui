@@ -52,12 +52,18 @@ func PublishCCIPLockReleaseTokenPool(
 	ccipAddress string,
 	mcmsAddress,
 	mcmsOwnerAddress string) (LockReleaseTokenPool, *models.SuiTransactionBlockResponse, error) {
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.LockReleaseTokenPool, map[string]string{
 		"ccip":                    ccipAddress,
 		"lock_release_token_pool": "0x0",
 		"mcms":                    mcmsAddress,
 		"mcms_owner":              mcmsOwnerAddress,
-	})
+		"signer":                  signerAddr,
+	}, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to compile package: %w", err)
 	}
