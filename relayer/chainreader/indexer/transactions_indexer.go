@@ -320,6 +320,13 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				continue
 			}
 
+			if moveAbort.Location.Module.Address != tIndexer.eventPackageId {
+				tIndexer.logger.Debugw("Skipping transaction with different package address",
+					"transmitter", transmitter, "packageAddress", moveAbort.Location.Module.Address)
+
+				continue
+			}
+
 			if moveAbort.Location.Module.Name != moduleKey {
 				tIndexer.logger.Debugw("Skipping transaction with different module",
 					"transmitter", transmitter, "module", moveAbort.Location.Module.Name)
