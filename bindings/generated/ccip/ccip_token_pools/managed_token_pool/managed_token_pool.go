@@ -238,6 +238,10 @@ func (c *ManagedTokenPoolContract) DevInspect() IManagedTokenPoolDevInspect {
 type MANAGED_TOKEN_POOL struct {
 }
 
+type ManagedTokenPoolObject struct {
+	Id string `move:"sui::object::UID"`
+}
+
 type ManagedTokenPoolState struct {
 	Id             string      `move:"sui::object::UID"`
 	TokenPoolState bind.Object `move:"TokenPoolState"`
@@ -274,6 +278,23 @@ func init() {
 	// Register vector decoder for MANAGED_TOKEN_POOL
 	bind.RegisterStructDecoder("vector<managed_token_pool::managed_token_pool::MANAGED_TOKEN_POOL>", func(data []byte) (interface{}, error) {
 		var results []MANAGED_TOKEN_POOL
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("managed_token_pool::managed_token_pool::ManagedTokenPoolObject", func(data []byte) (interface{}, error) {
+		var result ManagedTokenPoolObject
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for ManagedTokenPoolObject
+	bind.RegisterStructDecoder("vector<managed_token_pool::managed_token_pool::ManagedTokenPoolObject>", func(data []byte) (interface{}, error) {
+		var results []ManagedTokenPoolObject
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err

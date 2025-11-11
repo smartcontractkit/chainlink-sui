@@ -238,6 +238,10 @@ func (c *BurnMintTokenPoolContract) DevInspect() IBurnMintTokenPoolDevInspect {
 type BURN_MINT_TOKEN_POOL struct {
 }
 
+type BurnMintTokenPoolObject struct {
+	Id string `move:"sui::object::UID"`
+}
+
 type BurnMintTokenPoolState struct {
 	Id             string      `move:"sui::object::UID"`
 	TokenPoolState bind.Object `move:"TokenPoolState"`
@@ -274,6 +278,23 @@ func init() {
 	// Register vector decoder for BURN_MINT_TOKEN_POOL
 	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::BURN_MINT_TOKEN_POOL>", func(data []byte) (interface{}, error) {
 		var results []BURN_MINT_TOKEN_POOL
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolObject", func(data []byte) (interface{}, error) {
+		var result BurnMintTokenPoolObject
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for BurnMintTokenPoolObject
+	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolObject>", func(data []byte) (interface{}, error) {
+		var results []BurnMintTokenPoolObject
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err

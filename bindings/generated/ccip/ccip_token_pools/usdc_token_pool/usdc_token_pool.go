@@ -247,6 +247,10 @@ func (c *UsdcTokenPoolContract) DevInspect() IUsdcTokenPoolDevInspect {
 type USDC_TOKEN_POOL struct {
 }
 
+type USDCTokenPoolObject struct {
+	Id string `move:"sui::object::UID"`
+}
+
 type Domain struct {
 	AllowedCaller    []byte `move:"vector<u8>"`
 	DomainIdentifier uint32 `move:"u32"`
@@ -297,6 +301,23 @@ func init() {
 	// Register vector decoder for USDC_TOKEN_POOL
 	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::USDC_TOKEN_POOL>", func(data []byte) (interface{}, error) {
 		var results []USDC_TOKEN_POOL
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::USDCTokenPoolObject", func(data []byte) (interface{}, error) {
+		var result USDCTokenPoolObject
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for USDCTokenPoolObject
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::USDCTokenPoolObject>", func(data []byte) (interface{}, error) {
+		var results []USDCTokenPoolObject
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err

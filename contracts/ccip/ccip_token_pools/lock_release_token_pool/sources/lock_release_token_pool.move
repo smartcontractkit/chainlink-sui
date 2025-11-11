@@ -16,10 +16,15 @@ use std::ascii;
 use std::string::{Self, String};
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
+use sui::derived_object;
 use sui::event;
 use sui::package::{Self, UpgradeCap};
 
 public struct LOCK_RELEASE_TOKEN_POOL has drop {}
+
+public struct LockReleaseTokenPoolObject has key {
+    id: UID,
+}
 
 fun init(otw: LOCK_RELEASE_TOKEN_POOL, ctx: &mut TxContext) {
     let (ownable_state, mut owner_cap) = ownable::new(ctx);
@@ -88,16 +93,32 @@ public fun initialize<T>(
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let lock_release_token_pool_state_address = initialize_internal(
-        owner_cap,
-        coin_metadata,
-        rebalancer,
-        ctx,
-    );
+    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
+    let ownable_state = ownable::detach_ownable_state(owner_cap);
+    let mut lock_release_token_pool_object = LockReleaseTokenPoolObject { id: object::new(ctx) };
+    let rebalancer_cap = RebalancerCap<T> { id: object::new(ctx) };
+    let lock_release_token_pool = LockReleaseTokenPoolState<T> {
+        id: derived_object::claim(
+            &mut lock_release_token_pool_object.id,
+            b"LockReleaseTokenPoolState",
+        ),
+        token_pool_state: token_pool::initialize(
+            coin_metadata_address,
+            coin_metadata.get_decimals(),
+            coin_metadata.get_symbol(),
+            vector[],
+            ctx,
+        ),
+        reserve: coin::zero<T>(ctx),
+        rebalancer_cap_id: object::id(&rebalancer_cap),
+        ownable_state,
+    };
+
     let publisher_wrapper = publisher_wrapper::create(
         ownable::borrow_publisher(owner_cap),
         TypeProof {},
     );
+    let lock_release_token_pool_state_address = object::uid_to_address(&lock_release_token_pool.id);
 
     token_admin_registry::register_pool(
         ref,
@@ -110,41 +131,10 @@ public fun initialize<T>(
         publisher_wrapper,
         TypeProof {},
     );
-}
-
-#[allow(lint(self_transfer))]
-fun initialize_internal<T>(
-    owner_cap: &mut OwnerCap,
-    coin_metadata: &CoinMetadata<T>,
-    rebalancer: address,
-    ctx: &mut TxContext,
-): address {
-    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    let ownable_state = ownable::detach_ownable_state(owner_cap);
-
-    let rebalancer_cap = RebalancerCap<T> {
-        id: object::new(ctx),
-    };
-
-    let lock_release_token_pool = LockReleaseTokenPoolState<T> {
-        id: object::new(ctx),
-        token_pool_state: token_pool::initialize(
-            coin_metadata_address,
-            coin_metadata.get_decimals(),
-            coin_metadata.get_symbol(),
-            vector[],
-            ctx,
-        ),
-        reserve: coin::zero<T>(ctx),
-        rebalancer_cap_id: object::id(&rebalancer_cap),
-        ownable_state,
-    };
-    let token_pool_state_address = object::uid_to_address(&lock_release_token_pool.id);
 
     transfer::share_object(lock_release_token_pool);
+    transfer::share_object(lock_release_token_pool_object);
     transfer::public_transfer(rebalancer_cap, rebalancer);
-
-    token_pool_state_address
 }
 
 // ================================================================

@@ -19,6 +19,7 @@ use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
+use sui::derived_object;
 use sui::event;
 use sui::package::{Self, UpgradeCap};
 use sui::table::{Self, Table};
@@ -31,6 +32,10 @@ use usdc_token_pool::rate_limiter;
 use usdc_token_pool::token_pool::{Self, TokenPoolState};
 
 public struct USDC_TOKEN_POOL has drop {}
+
+public struct USDCTokenPoolObject has key {
+    id: UID,
+}
 
 fun init(otw: USDC_TOKEN_POOL, ctx: &mut TxContext) {
     let (ownable_state, mut owner_cap) = ownable::new(ctx);
@@ -116,8 +121,9 @@ public fun initialize<T: drop>(
     assert!(coin_metadata_address == @usdc_coin_metadata_object_id, EInvalidCoinMetadata);
 
     let ownable_state = ownable::detach_ownable_state(owner_cap);
+    let mut usdc_token_pool_object = USDCTokenPoolObject { id: object::new(ctx) };
     let usdc_token_pool = USDCTokenPoolState<T> {
-        id: object::new(ctx),
+        id: derived_object::claim(&mut usdc_token_pool_object.id, b"USDCTokenPoolState"),
         token_pool_state: token_pool::initialize(
             coin_metadata_address,
             coin_metadata.get_decimals(),
@@ -131,6 +137,7 @@ public fun initialize<T: drop>(
     };
 
     transfer::share_object(usdc_token_pool);
+    transfer::share_object(usdc_token_pool_object);
 }
 
 // ================================================================

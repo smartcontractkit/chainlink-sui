@@ -22,9 +22,14 @@ use std::string::{Self, String};
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
+use sui::derived_object;
 use sui::package::{Self, UpgradeCap};
 
 public struct MANAGED_TOKEN_POOL has drop {}
+
+public struct ManagedTokenPoolObject has key {
+    id: UID,
+}
 
 fun init(otw: MANAGED_TOKEN_POOL, ctx: &mut TxContext) {
     let (ownable_state, mut owner_cap) = ownable::new(ctx);
@@ -89,17 +94,28 @@ public fun initialize_with_managed_token<T>(
         managed_token_owner_cap,
     );
 
+    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
+    let ownable_state = ownable::detach_ownable_state(owner_cap);
+    let mut managed_token_pool_object = ManagedTokenPoolObject { id: object::new(ctx) };
+
     // Initialize the token pool
-    let managed_token_pool_state_address = initialize_internal(
-        owner_cap,
-        coin_metadata,
+    let managed_token_pool = ManagedTokenPoolState<T> {
+        id: derived_object::claim(&mut managed_token_pool_object.id, b"ManagedTokenPoolState"),
+        token_pool_state: token_pool::initialize(
+            coin_metadata_address,
+            coin_metadata.get_decimals(),
+            coin_metadata.get_symbol(),
+            vector[],
+            ctx,
+        ),
         mint_cap,
-        ctx,
-    );
+        ownable_state,
+    };
     let publisher_wrapper = publisher_wrapper::create(
         ownable::borrow_publisher(owner_cap),
         TypeProof {},
     );
+    let managed_token_pool_state_address = object::uid_to_address(&managed_token_pool.id);
 
     // Register the pool with the token admin registry
     token_admin_registry::register_pool(
@@ -123,36 +139,39 @@ public fun initialize_with_managed_token<T>(
         publisher_wrapper,
         TypeProof {},
     );
-}
-
-#[allow(lint(self_transfer))]
-fun initialize_internal<T>(
-    owner_cap: &mut OwnerCap,
-    coin_metadata: &CoinMetadata<T>,
-    mint_cap: MintCap<T>,
-    ctx: &mut TxContext,
-): address {
-    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    let ownable_state = ownable::detach_ownable_state(owner_cap);
-
-    let managed_token_pool = ManagedTokenPoolState<T> {
-        id: object::new(ctx),
-        token_pool_state: token_pool::initialize(
-            coin_metadata_address,
-            coin_metadata.get_decimals(),
-            coin_metadata.get_symbol(),
-            vector[],
-            ctx,
-        ),
-        mint_cap,
-        ownable_state,
-    };
-    let managed_token_pool_state_address = object::uid_to_address(&managed_token_pool.id);
 
     transfer::share_object(managed_token_pool);
-
-    managed_token_pool_state_address
+    transfer::share_object(managed_token_pool_object);
 }
+
+// #[allow(lint(self_transfer))]
+// fun initialize_internal<T>(
+//     owner_cap: &mut OwnerCap,
+//     coin_metadata: &CoinMetadata<T>,
+//     mint_cap: MintCap<T>,
+//     ctx: &mut TxContext,
+// ): address {
+//     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
+//     let ownable_state = ownable::detach_ownable_state(owner_cap);
+
+//     let managed_token_pool = ManagedTokenPoolState<T> {
+//         id: object::new(ctx),
+//         token_pool_state: token_pool::initialize(
+//             coin_metadata_address,
+//             coin_metadata.get_decimals(),
+//             coin_metadata.get_symbol(),
+//             vector[],
+//             ctx,
+//         ),
+//         mint_cap,
+//         ownable_state,
+//     };
+//     let managed_token_pool_state_address = object::uid_to_address(&managed_token_pool.id);
+
+//     transfer::share_object(managed_token_pool);
+
+//     managed_token_pool_state_address
+// }
 
 public fun add_remote_pool<T>(
     state: &mut ManagedTokenPoolState<T>,

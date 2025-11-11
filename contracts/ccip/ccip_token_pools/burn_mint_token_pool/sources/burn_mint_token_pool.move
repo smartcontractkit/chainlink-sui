@@ -20,9 +20,14 @@ use std::ascii;
 use std::string::{Self, String};
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
+use sui::derived_object;
 use sui::package::{Self, UpgradeCap};
 
 public struct BURN_MINT_TOKEN_POOL has drop {}
+
+public struct BurnMintTokenPoolObject has key {
+    id: UID,
+}
 
 fun init(otw: BURN_MINT_TOKEN_POOL, ctx: &mut TxContext) {
     let (ownable_state, mut owner_cap) = ownable::new(ctx);
@@ -73,12 +78,22 @@ public fun initialize<T>(
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
-    let burn_mint_token_pool = initialize_internal(
-        owner_cap,
-        coin_metadata,
+    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
+    let ownable_state = ownable::detach_ownable_state(owner_cap);
+    let mut burn_mint_token_pool_object = BurnMintTokenPoolObject { id: object::new(ctx) };
+    let burn_mint_token_pool = BurnMintTokenPoolState<T> {
+        id: derived_object::claim(&mut burn_mint_token_pool_object.id, b"BurnMintTokenPoolState"),
+        token_pool_state: token_pool::initialize(
+            coin_metadata_address,
+            coin_metadata.get_decimals(),
+            coin_metadata.get_symbol(),
+            vector[],
+            ctx,
+        ),
         treasury_cap,
-        ctx,
-    );
+        ownable_state,
+    };
+
     let publisher_wrapper = publisher_wrapper::create(
         ownable::borrow_publisher(owner_cap),
         TypeProof {},
@@ -98,32 +113,7 @@ public fun initialize<T>(
     );
 
     transfer::share_object(burn_mint_token_pool);
-}
-
-#[allow(lint(self_transfer))]
-fun initialize_internal<T>(
-    owner_cap: &mut OwnerCap,
-    coin_metadata: &CoinMetadata<T>,
-    treasury_cap: TreasuryCap<T>,
-    ctx: &mut TxContext,
-): BurnMintTokenPoolState<T> {
-    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    let ownable_state = ownable::detach_ownable_state(owner_cap);
-
-    let burn_mint_token_pool = BurnMintTokenPoolState<T> {
-        id: object::new(ctx),
-        token_pool_state: token_pool::initialize(
-            coin_metadata_address,
-            coin_metadata.get_decimals(),
-            coin_metadata.get_symbol(),
-            vector[],
-            ctx,
-        ),
-        treasury_cap,
-        ownable_state,
-    };
-
-    burn_mint_token_pool
+    transfer::share_object(burn_mint_token_pool_object);
 }
 
 // ================================================================
