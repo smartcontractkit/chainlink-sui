@@ -88,14 +88,23 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 		if err != nil {
 			// In the case there is an error submitting
 			txm.lggr.Errorw("Failed to broadcast transaction", "txID", tx.TransactionID, "function inputs", tx.Functions, "error", err)
-			// Update the transaction state to Failed if the digest is empty
-			// An empty digest indicates a total failure of the transaction
-			if resp.TxDigest == "" {
+
+			var newState TransactionState
+			if resp.Effects.Status.Status == "" {
+				// If there is no status reported, we assume the transaction failed due to a network error or
+				// an issue not related to the transaction itself. We mark it as retriable.
+				txm.lggr.Errorw("Transaction failed without a status", "txID", tx.TransactionID, "function inputs", tx.Functions)
+				newState = StateRetriable
+			} else if resp.TxDigest == "" {
+				// Update the transaction state to Failed if the digest is empty
+				// An empty digest indicates a total failure of the transaction
 				txm.lggr.Errorw("Transaction failed without a digest", "txID", tx.TransactionID, "function inputs", tx.Functions)
-				err = txm.transactionRepository.ChangeState(tx.TransactionID, StateFailed)
-				if err != nil {
-					txm.lggr.Errorw("Failed to change transaction state to Failed", "txID", tx.TransactionID, "error", err)
-				}
+				newState = StateFailed
+			}
+
+			err = txm.transactionRepository.ChangeState(tx.TransactionID, newState)
+			if err != nil {
+				txm.lggr.Errorw("Failed to change transaction state", "txID", tx.TransactionID, "error", err)
 			}
 
 			continue
