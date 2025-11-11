@@ -1149,7 +1149,6 @@ public fun test_initialize_with_managed_token_function() {
 
         let (
             pool_package_id,
-            _pool_state_address,
             pool_module,
             token_type,
             admin,
