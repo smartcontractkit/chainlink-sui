@@ -13,7 +13,7 @@ import (
 	module_mcms_account "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms_account"
 )
 
-const typeAndVersion = "MCMS 1.6.0" // TODO: define correctly type and version for MCMS contracts
+const mcmsTypeAndVersion = "MCMS 1.6.0" // TODO: define correctly type and version for MCMS contracts
 
 type MCMSWithTimelockView struct {
 	ContractMetaData
@@ -95,10 +95,6 @@ func GenerateMCMSWithTimelockView(
 		return MCMSWithTimelockView{}, fmt.Errorf("failed to transform config for role %d: %w", bypasserRole, err)
 	}
 
-	if err != nil {
-		return MCMSWithTimelockView{}, fmt.Errorf("failed to get bypasser config: %w", err)
-	}
-
 	proposerConfig, err := mcmsContract.DevInspect().GetConfig(ctx, callOpts, mcmsStateObj, proposerRole)
 	if err != nil {
 		return MCMSWithTimelockView{}, fmt.Errorf("failed to get proposer config: %w", err)
@@ -150,7 +146,7 @@ func GenerateMCMSWithTimelockView(
 		ContractMetaData: ContractMetaData{
 			Address:        mcmsPackageID,
 			Owner:          owner,
-			TypeAndVersion: typeAndVersion,
+			TypeAndVersion: mcmsTypeAndVersion,
 		},
 		Bypasser:                 *tBypasserCfg,
 		Proposer:                 *tProposerCfg,

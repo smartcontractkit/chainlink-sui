@@ -50,6 +50,20 @@ func GenerateRouterView(
 		return RouterView{}, fmt.Errorf("failed to get type and version: %w", err)
 	}
 
+	destChainSelectors, err := routerContract.DevInspect().GetDestChains(ctx, callOpts, routerStateObj)
+	if err != nil {
+		return RouterView{}, fmt.Errorf("failed to get destination chain selectors: %w", err)
+	}
+
+	onRamps := make(map[uint64]string)
+	for _, selector := range destChainSelectors {
+		onRamp, err := routerContract.DevInspect().GetOnRamp(ctx, callOpts, routerStateObj, selector)
+		if err != nil {
+			return RouterView{}, fmt.Errorf("failed to get onRamp for selector %d: %w", selector, err)
+		}
+		onRamps[selector] = onRamp
+	}
+
 	return RouterView{
 		ContractMetaData: ContractMetaData{
 			Address:        routerPackageID,
@@ -57,6 +71,6 @@ func GenerateRouterView(
 			TypeAndVersion: typeAndVersion,
 		},
 		IsTestRouter: false, // TODO: Determine from contract state or config
-		// TODO: Populate OnRamps and OffRamps list
+		OnRamps:      onRamps,
 	}, nil
 }

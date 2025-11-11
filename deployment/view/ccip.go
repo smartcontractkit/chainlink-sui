@@ -219,6 +219,7 @@ func generateFeeQuoterView(
 		return FeeQuoterView{}, fmt.Errorf("failed to get static config: %w", err)
 	}
 
+	// TODO: Changesets are not configuring router, any configuration that requires GetDestChains will be empty
 	// Get destination chains from router to query per-chain configs
 	var destChainSelectors []uint64
 	if routerPackageID != "" && routerStateObjectID != "" {

@@ -142,7 +142,7 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 					LinkToken:                    state.LinkTokenCoinMetadataId,
 					TokenPriceStalenessThreshold: deployment.DefaultCCIPSeqConfig.TokenPriceStalenessThreshold,
 				},
-				DestinationChainConfigs: map[uint64]view.FeeQuoterDestChainConfig{},
+				DestinationChainConfigs: map[uint64]view.FeeQuoterDestChainConfig{}, // TODO: Changesets are not configuring router, any configuration that requires GetDestChains will be empty
 			},
 			RMNRemote: view.RMNRemoteView{
 				ContractMetaData: view.ContractMetaData{
@@ -235,10 +235,9 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				TypeAndVersion: "Router 1.6.0",
 			},
 			IsTestRouter: false,
-			OnRamps:      nil,
+			OnRamps:      map[uint64]string{},
 			OffRamps:     nil,
 		},
-		Tokens: nil,
 		TokenPools: map[string]map[string]view.TokenPoolView{
 			"LINK": {
 				state.BnMTokenPools["LINK"].PackageID: {

@@ -86,6 +86,7 @@ func GenerateOnRampView(
 		return OnRampView{}, fmt.Errorf("failed to get dynamic config: %w", err)
 	}
 
+	// TODO: Changesets are not configuring router, any configuration that requires GetDestChains will be empty
 	// Query the router to get destination chains
 	var destChainSelectors []uint64
 	if routerPackageID != "" && routerStateObjectID != "" {

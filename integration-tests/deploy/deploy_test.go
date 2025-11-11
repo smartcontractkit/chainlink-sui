@@ -18,7 +18,7 @@ import (
 )
 
 // TestDeployAndConfigureSuiChain tests the deployment and configuration of a Sui chain, lane and BnM TP
-// using views to verify the deployments.
+// using changesets and using views to verify the deployments.
 func TestDeployAndConfigureSuiChain(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(DeployTestSuite))

@@ -27,7 +27,6 @@ type SuiChainView struct {
 	OffRamp view.OffRampView `json:"offRamp,omitempty"`
 	Router  view.RouterView  `json:"router,omitempty"`
 
-	Tokens     map[string]string                        // TODO
 	TokenPools map[string]map[string]view.TokenPoolView // TokenSymbol => TokenPool Address => PoolView
 }
 
