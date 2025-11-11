@@ -126,29 +126,25 @@ func GenerateTokenPoolView[T TokenBucketWrapper](
 		// Get Remote Pools
 		remotePools, err := poolDevInspect.GetRemotePools(ctx, callOpts, typeArgs, poolStateObj, chainSelector)
 		if err != nil {
-			lggr.Warnw("Failed to get remote pools", "chainSelector", chainSelector, "error", err)
-			continue
+			return TokenPoolView{}, fmt.Errorf("failed to get remote pools for chain %d: %w", chainSelector, err)
 		}
 
 		// Get Remote Token
 		remoteToken, err := poolDevInspect.GetRemoteToken(ctx, callOpts, typeArgs, poolStateObj, chainSelector)
 		if err != nil {
-			lggr.Warnw("Failed to get remote token", "chainSelector", chainSelector, "error", err)
-			continue
+			return TokenPoolView{}, fmt.Errorf("failed to get remote token for chain %d: %w", chainSelector, err)
 		}
 
 		// Get Inbound Rate Limiter State
 		inboundRateLimiter, err := poolDevInspect.GetCurrentInboundRateLimiterState(ctx, callOpts, typeArgs, clockObj, poolStateObj, chainSelector)
 		if err != nil {
-			lggr.Warnw("Failed to get inbound rate limiter", "chainSelector", chainSelector, "error", err)
-			// TODO: should we continue?
+			return TokenPoolView{}, fmt.Errorf("failed to get inbound rate limiter for chain %d: %w", chainSelector, err)
 		}
 
 		// Get Outbound Rate Limiter State
 		outboundRateLimiter, err := poolDevInspect.GetCurrentOutboundRateLimiterState(ctx, callOpts, typeArgs, clockObj, poolStateObj, chainSelector)
 		if err != nil {
-			lggr.Warnw("Failed to get outbound rate limiter", "chainSelector", chainSelector, "error", err)
-			// TODO: should we continue?
+			return TokenPoolView{}, fmt.Errorf("failed to get outbound rate limiter for chain %d: %w", chainSelector, err)
 		}
 
 		// Convert remote pools to hex strings

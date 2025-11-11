@@ -52,7 +52,7 @@ func GenerateRouterView(
 
 	return RouterView{
 		ContractMetaData: ContractMetaData{
-			Address:        routerStateObjectID,
+			Address:        routerPackageID,
 			Owner:          owner,
 			TypeAndVersion: typeAndVersion,
 		},

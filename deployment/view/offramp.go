@@ -116,7 +116,7 @@ func GenerateOffRampView(
 
 	return OffRampView{
 		ContractMetaData: ContractMetaData{
-			Address:        offRampStateObjectID,
+			Address:        offRampPackageID,
 			Owner:          owner,
 			TypeAndVersion: typeAndVersion,
 		},

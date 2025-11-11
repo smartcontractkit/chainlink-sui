@@ -2,10 +2,11 @@ package view
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
+	suimcms "github.com/smartcontractkit/mcms/sdk/sui"
+	mcmstypes "github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_mcms "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms"
@@ -17,25 +18,12 @@ const typeAndVersion = "MCMS 1.6.0" // TODO: define correctly type and version f
 type MCMSWithTimelockView struct {
 	ContractMetaData
 
-	Bypasser  MCMSConfig `json:"bypasser"`
-	Proposer  MCMSConfig `json:"proposer"`
-	Canceller MCMSConfig `json:"canceller"`
+	Bypasser  mcmstypes.Config `json:"bypasser"`
+	Proposer  mcmstypes.Config `json:"proposer"`
+	Canceller mcmstypes.Config `json:"canceller"`
 
 	TimelockMinDelay         uint64                    `json:"timelockMinDelay"`
 	TimelockBlockedFunctions []TimelockBlockedFunction `json:"timelockBlockedFunctions"`
-}
-
-type MCMSConfig struct {
-	Signers     []MCMSSigner `json:"signers"`
-	GroupQuorum []uint8      `json:"group_quorum"`
-	GroupParent []uint8      `json:"group_parent"`
-}
-
-type MCMSSigner struct {
-	Signer     string `json:"signer"`
-	EvmSigner  string `json:"evm_signer"`
-	Index      uint8  `json:"index"`
-	GroupIndex uint8  `json:"group_index"`
 }
 
 type TimelockBlockedFunction struct {
@@ -95,20 +83,38 @@ func GenerateMCMSWithTimelockView(
 		return MCMSWithTimelockView{}, fmt.Errorf("failed to get canceller role: %w", err)
 	}
 
+	configTransformer := suimcms.NewConfigTransformer()
+
 	// Get config for each role
-	bypasserConfig, err := getMCMSConfig(ctx, mcmsContract, callOpts, mcmsStateObj, bypasserRole)
+	bypasserCfg, err := mcmsContract.DevInspect().GetConfig(ctx, callOpts, mcmsStateObj, bypasserRole)
+	if err != nil {
+		return MCMSWithTimelockView{}, fmt.Errorf("failed to get config for role %d: %w", bypasserRole, err)
+	}
+	tBypasserCfg, err := configTransformer.ToConfig(bypasserCfg)
+	if err != nil {
+		return MCMSWithTimelockView{}, fmt.Errorf("failed to transform config for role %d: %w", bypasserRole, err)
+	}
+
 	if err != nil {
 		return MCMSWithTimelockView{}, fmt.Errorf("failed to get bypasser config: %w", err)
 	}
 
-	proposerConfig, err := getMCMSConfig(ctx, mcmsContract, callOpts, mcmsStateObj, proposerRole)
+	proposerConfig, err := mcmsContract.DevInspect().GetConfig(ctx, callOpts, mcmsStateObj, proposerRole)
 	if err != nil {
 		return MCMSWithTimelockView{}, fmt.Errorf("failed to get proposer config: %w", err)
 	}
+	tProposerCfg, err := configTransformer.ToConfig(proposerConfig)
+	if err != nil {
+		return MCMSWithTimelockView{}, fmt.Errorf("failed to transform config for role %d: %w", proposerRole, err)
+	}
 
-	cancellerConfig, err := getMCMSConfig(ctx, mcmsContract, callOpts, mcmsStateObj, cancellerRole)
+	cancellerConfig, err := mcmsContract.DevInspect().GetConfig(ctx, callOpts, mcmsStateObj, cancellerRole)
 	if err != nil {
 		return MCMSWithTimelockView{}, fmt.Errorf("failed to get canceller config: %w", err)
+	}
+	tCancellerCfg, err := configTransformer.ToConfig(cancellerConfig)
+	if err != nil {
+		return MCMSWithTimelockView{}, fmt.Errorf("failed to transform config for role %d: %w", cancellerRole, err)
 	}
 
 	// Get timelock data if available
@@ -146,41 +152,10 @@ func GenerateMCMSWithTimelockView(
 			Owner:          owner,
 			TypeAndVersion: typeAndVersion,
 		},
-		Bypasser:                 bypasserConfig,
-		Proposer:                 proposerConfig,
-		Canceller:                cancellerConfig,
+		Bypasser:                 *tBypasserCfg,
+		Proposer:                 *tProposerCfg,
+		Canceller:                *tCancellerCfg,
 		TimelockMinDelay:         timelockMinDelay,
 		TimelockBlockedFunctions: timelockBlockedFunctions,
-	}, nil
-}
-
-func getMCMSConfig(
-	ctx context.Context,
-	mcmsContract module_mcms.IMcms,
-	callOpts *bind.CallOpts,
-	mcmsStateObj bind.Object,
-	role byte,
-) (MCMSConfig, error) {
-	// Get config for the role
-	config, err := mcmsContract.DevInspect().GetConfig(ctx, callOpts, mcmsStateObj, role)
-	if err != nil {
-		return MCMSConfig{}, fmt.Errorf("failed to get config for role %d: %w", role, err)
-	}
-
-	// Parse signers
-	signers := make([]MCMSSigner, 0, len(config.Signers))
-	for _, signer := range config.Signers {
-		signers = append(signers, MCMSSigner{
-			Signer:     "0x" + hex.EncodeToString(signer.Addr),
-			EvmSigner:  "0x" + hex.EncodeToString(signer.Addr), // In Sui MCMS, both are the same address bytes
-			Index:      signer.Index,
-			GroupIndex: signer.Group,
-		})
-	}
-
-	return MCMSConfig{
-		Signers:     signers,
-		GroupQuorum: config.GroupQuorums,
-		GroupParent: config.GroupParents,
 	}, nil
 }

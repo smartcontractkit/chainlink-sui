@@ -4,16 +4,13 @@ package e2e
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
-	"slices"
+	"strings"
 	"testing"
 
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	cldfsui "github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/suite"
 
@@ -30,43 +27,36 @@ import (
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	opregistry "github.com/smartcontractkit/chainlink-sui/deployment/ops/registry"
+	"github.com/smartcontractkit/chainlink-sui/deployment/view"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 )
 
-type RoleConfig struct {
-	Role   suisdk.TimelockRole
-	Count  int
-	Quorum uint8
-	Keys   []*ecdsa.PrivateKey
-	Config *types.Config
-}
+// Test configuration constants
+var (
+	// Chain selectors
+	SuiChainSelector = cselectors.SUI_LOCALNET.Selector
+	EVMChainSelector = cselectors.ETHEREUM_TESTNET_SEPOLIA.Selector
 
-func CreateConfig(role suisdk.TimelockRole, count int, quorum uint8) *RoleConfig {
-	signers := make([]common.Address, count)
-	signerKeys := make([]*ecdsa.PrivateKey, count)
+	// EVM addresses for destination chain (examples from Sepolia testnet)
+	DestChainOnRampAddress      = "000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+	DestChainOnRampAddressBytes = common.Hex2Bytes(DestChainOnRampAddress)
+	DestChainRouterAddress      = "0x0000000000000000000000000000000000000000000000000000000000000001"
+	EVMPoolAddress              = "0x80226fc0ee2b096224eeac085bb9a8cba1146f7d"
+	EVMTokenAddress             = "779877a7b0d9e8603169ddbd7836e478b4624789" // LINK on Sepolia
 
-	for i := range signers {
-		signerKeys[i], _ = crypto.GenerateKey()
-		signers[i] = crypto.PubkeyToAddress(signerKeys[i].PublicKey)
+	// Token pool rate limiter configs
+	RateLimiterCapacity = uint64(1000000000000000000) // 1B LINK (18 decimals)
+	RateLimiterRate     = uint64(100000000000000)     // 100k LINK per second
+
+	// Mock MCMS Signers
+	MCMSMockSigners = []common.Address{
+		common.HexToAddress("0xa000000000000000000000000000000000000001"),
+		common.HexToAddress("0xa000000000000000000000000000000000000002"),
 	}
-	slices.SortFunc(signers[:], func(a, b common.Address) int {
-		return a.Cmp(b)
-	})
-
-	return &RoleConfig{
-		Role:   role,
-		Count:  count,
-		Quorum: quorum,
-		Keys:   signerKeys,
-		Config: &types.Config{
-			Quorum:  quorum,
-			Signers: signers[:],
-		},
-	}
-}
+)
 
 type DeployTestSuite struct {
 	suite.Suite
@@ -74,6 +64,15 @@ type DeployTestSuite struct {
 	signer bindutils.SuiSigner
 	client sui.ISuiAPI
 	env    cldf.Environment
+
+	// Cached deployment addresses
+	linkTokenPackageID     string
+	linkTokenMetadataID    string
+	linkTokenTreasuryCapID string
+	ccipPackageID          string
+	ccipObjectRef          string
+	mcmsPackageID          string
+	deployerAddr           string
 }
 
 func (s *DeployTestSuite) SetupSuite() {
@@ -132,25 +131,214 @@ func (s *DeployTestSuite) TestDeployAndConfigureSuiChain() {
 	s.DeployTokenPools()
 
 	// Load view and check deployments
-	state, err := deployment.LoadOnchainStatesui(s.env)
+	states, err := deployment.LoadOnchainStatesui(s.env)
+	state := states[cselectors.SUI_LOCALNET.Selector]
 	s.Require().NoError(err, "failed to load on-chain state")
-	view, err := state[cselectors.SUI_LOCALNET.Selector].GenerateView(&s.env, cselectors.SUI_LOCALNET.Selector, "sui_localnet")
+	actualView, err := state.GenerateView(&s.env, cselectors.SUI_LOCALNET.Selector, "sui_localnet")
 	s.Require().NoError(err, "failed to generate on-chain view")
-	_ = view
-	// TODO: Add assertions to verify deployed contracts and configurations
+	owner, err := s.signer.GetAddress()
+	s.Require().NoError(err, "failed to get signer address")
+	_ = owner
+	expectedView := deployment.SuiChainView{
+		ChainSelector: SuiChainSelector,
+		ChainID:       "",
+		MCMSWithTimelock: view.MCMSWithTimelockView{
+			ContractMetaData: view.ContractMetaData{
+				Address:        state.MCMSPackageID,
+				Owner:          owner,
+				TypeAndVersion: "MCMS 1.6.0",
+			},
+			Bypasser: types.Config{
+				Quorum:       1,
+				Signers:      MCMSMockSigners,
+				GroupSigners: []types.Config{},
+			},
+			Proposer: types.Config{
+				Quorum:       1,
+				Signers:      MCMSMockSigners,
+				GroupSigners: []types.Config{},
+			},
+			Canceller: types.Config{
+				Quorum:       2,
+				Signers:      MCMSMockSigners,
+				GroupSigners: []types.Config{},
+			},
+			TimelockMinDelay:         0,
+			TimelockBlockedFunctions: []view.TimelockBlockedFunction{},
+		},
+		CCIP: view.CCIPView{
+			ContractMetaData: view.ContractMetaData{
+				Address:        state.CCIPAddress,
+				Owner:          owner,
+				TypeAndVersion: "",
+			},
+			FeeQuoter: view.FeeQuoterView{
+				ContractMetaData: view.ContractMetaData{
+					Address:        state.CCIPAddress,
+					Owner:          owner,
+					TypeAndVersion: "FeeQuoter 1.6.0",
+				},
+				FeeTokens: []string{state.LinkTokenCoinMetadataId},
+				StaticConfig: view.FeeQuoterStaticConfig{
+					MaxFeeJuelsPerMsg:            deployment.DefaultCCIPSeqConfig.MaxFeeJuelsPerMsg,
+					LinkToken:                    state.LinkTokenCoinMetadataId,
+					TokenPriceStalenessThreshold: deployment.DefaultCCIPSeqConfig.TokenPriceStalenessThreshold,
+				},
+				DestinationChainConfigs: map[uint64]view.FeeQuoterDestChainConfig{}, // TODO: this is not being populated somehow, fix
+			},
+			RMNRemote: view.RMNRemoteView{
+				ContractMetaData: view.ContractMetaData{
+					Address:        state.CCIPAddress,
+					Owner:          owner,
+					TypeAndVersion: "RMNRemote 1.6.0",
+				},
+				IsCursed:             false,
+				Config:               view.RMNRemoteVersionedConfig{},
+				CursedSubjectEntries: []view.RMNRemoteCurseEntry{},
+			},
+			TokenAdminRegistry: view.TokenAdminRegistryView{
+				ContractMetaData: view.ContractMetaData{
+					Address:        state.CCIPAddress,
+					Owner:          owner,
+					TypeAndVersion: "TokenAdminRegistry 1.6.0",
+				},
+				TokenConfigs: map[string]view.TokenConfigView{
+					state.LinkTokenCoinMetadataId: {
+						TokenPoolPackageId:  state.BnMTokenPools["LINK"].PackageID,
+						TokenPoolModule:     "burn_mint_token_pool",
+						TokenType:           fmt.Sprintf("%s::link::LINK", strings.Replace(state.LinkTokenAddress, "0x", "", 1)),
+						Administrator:       owner,
+						TokenPoolTypeProof:  fmt.Sprintf("%s::burn_mint_token_pool::TypeProof", strings.Replace(state.BnMTokenPools["LINK"].PackageID, "0x", "", 1)),
+						LockOrBurnParams:    []string{"0x0000000000000000000000000000000000000000000000000000000000000006", state.BnMTokenPools["LINK"].StateObjectId},
+						ReleaseOrMintParams: []string{"0x0000000000000000000000000000000000000000000000000000000000000006", state.BnMTokenPools["LINK"].StateObjectId},
+					},
+				},
+			},
+			NonceManager: view.NonceManagerView{
+				ContractMetaData: view.ContractMetaData{
+					Address:        state.CCIPAddress,
+					Owner:          owner,
+					TypeAndVersion: "NonceManager 1.6.0",
+				},
+			},
+			ReceiverRegistry: view.ReceiverRegistryView{
+				ContractMetaData: view.ContractMetaData{
+					Address:        state.CCIPAddress,
+					Owner:          owner,
+					TypeAndVersion: "ReceiverRegistry 1.6.0",
+				},
+			},
+		},
+		OnRamp: view.OnRampView{
+			ContractMetaData: view.ContractMetaData{
+				Address:        state.OnRampAddress,
+				Owner:          owner,
+				TypeAndVersion: "OnRamp 1.6.0",
+			},
+			StaticConfig: view.OnRampStaticConfig{
+				ChainSelector: SuiChainSelector,
+			},
+			DynamicConfig: view.OnRampDynamicConfig{
+				FeeAggregator:  owner,
+				AllowlistAdmin: owner,
+			},
+			DestChainSpecificData: map[uint64]view.DestChainSpecificData{}, // TODO: find out why this is not being populated
+		},
+		OffRamp: view.OffRampView{
+			ContractMetaData: view.ContractMetaData{
+				Address:        state.OffRampAddress,
+				Owner:          owner,
+				TypeAndVersion: "OffRamp 1.6.0",
+			},
+			StaticConfig: view.OffRampStaticConfig{
+				ChainSelector:      SuiChainSelector,
+				RMNRemote:          state.CCIPAddress,
+				TokenAdminRegistry: state.CCIPAddress,
+				NonceManager:       state.CCIPAddress,
+			},
+			DynamicConfig: view.OffRampDynamicConfig{
+				FeeQuoter:                               state.CCIPAddress,
+				PermissionlessExecutionThresholdSeconds: 28800, // TODO: why does it defaulting to this value?
+			},
+			SourceChainConfigs: map[uint64]view.OffRampSourceChainConfig{
+				EVMChainSelector: {
+					Router:                    state.CCIPAddress,
+					IsEnabled:                 true,
+					MinSeqNr:                  1,
+					IsRMNVerificationDisabled: true,
+					OnRamp:                    fmt.Sprintf("0x%s", DestChainOnRampAddress),
+				},
+			},
+		},
+		Router: view.RouterView{
+			ContractMetaData: view.ContractMetaData{
+				Address:        state.CCIPRouterAddress,
+				Owner:          owner,
+				TypeAndVersion: "Router 1.6.0",
+			},
+			IsTestRouter: false,
+			OnRamps:      nil,
+			OffRamps:     nil,
+		},
+		Tokens: nil,
+		TokenPools: map[string]map[string]view.TokenPoolView{
+			"LINK": {
+				state.BnMTokenPools["LINK"].PackageID: {
+					ContractMetaData: view.ContractMetaData{
+						Address:        state.BnMTokenPools["LINK"].PackageID,
+						Owner:          owner,
+						TypeAndVersion: "BurnMintTokenPool 1.6.0",
+					},
+					Token: s.linkTokenMetadataID,
+					RemoteChainConfigs: map[uint64]view.RemoteChainConfig{
+						EVMChainSelector: {
+							RemoteTokenAddress:  fmt.Sprintf("0x000000000000000000000000%s", EVMTokenAddress),
+							RemotePoolAddresses: []string{EVMPoolAddress},
+							InboundRateLimiterConfig: view.RateLimiterConfig{
+								IsEnabled: false,
+								Capacity:  RateLimiterCapacity,
+								Rate:      RateLimiterRate,
+							},
+							OutboundRateLimiterConfig: view.RateLimiterConfig{
+								IsEnabled: false,
+								Capacity:  RateLimiterCapacity,
+								Rate:      RateLimiterRate,
+							},
+						},
+					},
+					AllowList:        []string{},
+					AllowListEnabled: false,
+				},
+			},
+		},
+	}
+
+	s.Require().Equal(expectedView, actualView)
 }
 
 func (s *DeployTestSuite) DeployMCMS() {
 	s.T().Log("Phase 1: Deploying MCMS...")
 
-	deployInput := mcmsops.DeployMCMSSeqInput{
-		ChainSelector: cselectors.SUI_LOCALNET.Selector,
-	}
-
-	// Execute MCMS deployment changeset
-	out, err := changesets.DeployMCMS{}.Apply(s.env, deployInput)
+	out, err := changesets.DeployMCMS{}.Apply(s.env, mcmsops.DeployMCMSSeqInput{
+		ChainSelector: SuiChainSelector,
+		Bypasser: &types.Config{
+			Quorum:       1,
+			Signers:      MCMSMockSigners,
+			GroupSigners: []types.Config{},
+		},
+		Proposer: &types.Config{
+			Quorum:       1,
+			Signers:      MCMSMockSigners,
+			GroupSigners: []types.Config{},
+		},
+		Canceller: &types.Config{
+			Quorum:       2,
+			Signers:      MCMSMockSigners,
+			GroupSigners: []types.Config{},
+		},
+	})
 	s.Require().NoError(err, "failed to deploy MCMS")
-	// Update existing addresses
+
 	err = s.env.ExistingAddresses.Merge(out.AddressBook)
 	s.Require().NoError(err, "failed to merge MCMS addresses")
 }
@@ -158,14 +346,11 @@ func (s *DeployTestSuite) DeployMCMS() {
 func (s *DeployTestSuite) DeployLink() {
 	s.T().Log("Phase 2: Deploying LINK Token...")
 
-	deployInput := changesets.DeployLinkTokenConfig{
-		ChainSelector: cselectors.SUI_LOCALNET.Selector,
-	}
-
-	// Execute LINK token deployment changeset
-	out, err := changesets.DeployLinkToken{}.Apply(s.env, deployInput)
-	// Update existing addresses
+	out, err := changesets.DeployLinkToken{}.Apply(s.env, changesets.DeployLinkTokenConfig{
+		ChainSelector: SuiChainSelector,
+	})
 	s.Require().NoError(err, "failed to deploy LINK token")
+
 	err = s.env.ExistingAddresses.Merge(out.AddressBook)
 	s.Require().NoError(err, "failed to merge LINK token addresses")
 }
@@ -173,36 +358,26 @@ func (s *DeployTestSuite) DeployLink() {
 func (s *DeployTestSuite) DeployCCIPCore() {
 	s.T().Log("Phase 3: Deploying Core CCIP Infrastructure...")
 
-	// Get LINK token CoinMetadata from address book
-	addresses, err := s.env.ExistingAddresses.AddressesForChain(cselectors.SUI_LOCALNET.Selector)
+	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
 	s.Require().NoError(err, "failed to get addresses")
 
-	var linkCoinMetadataObjectId string
+	var linkCoinMetadataObjectID string
 	for addr, typeAndVersion := range addresses {
 		if typeAndVersion.Type == deployment.SuiLinkTokenObjectMetadataID {
-			linkCoinMetadataObjectId = addr
+			linkCoinMetadataObjectID = addr
 			break
 		}
 	}
-	s.Require().NotEmpty(linkCoinMetadataObjectId, "LINK CoinMetadata not found")
+	s.Require().NotEmpty(linkCoinMetadataObjectID, "LINK CoinMetadata not found")
 
-	// For testing, use dummy values for destination chain
-	// In real deployment, these would come from the EVM chain deployment
-	destChainSelector := uint64(11155111) // Sepolia
-	// Use a valid dummy EVM address for the destination onramp (20 bytes padded to 32 bytes)
-	destChainOnRampBytes := common.Hex2Bytes("000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48")
-
-	deployInput := changesets.DeploySuiChainConfig{
-		SuiChainSelector:              cselectors.SUI_LOCALNET.Selector,
-		DestChainSelector:             destChainSelector,
-		DestChainOnRampAddressBytes:   destChainOnRampBytes,
-		LinkTokenCoinMetadataObjectId: linkCoinMetadataObjectId,
-	}
-
-	// Execute CCIP deployment changeset
-	out, err := changesets.DeploySuiChain{}.Apply(s.env, deployInput)
+	out, err := changesets.DeploySuiChain{}.Apply(s.env, changesets.DeploySuiChainConfig{
+		SuiChainSelector:              SuiChainSelector,
+		DestChainSelector:             EVMChainSelector,
+		DestChainOnRampAddressBytes:   DestChainOnRampAddressBytes,
+		LinkTokenCoinMetadataObjectId: linkCoinMetadataObjectID,
+	})
 	s.Require().NoError(err, "failed to deploy CCIP")
-	// Update existing addresses
+
 	err = s.env.ExistingAddresses.Merge(out.AddressBook)
 	s.Require().NoError(err, "failed to merge CCIP addresses")
 }
@@ -210,30 +385,24 @@ func (s *DeployTestSuite) DeployCCIPCore() {
 func (s *DeployTestSuite) ConnectLanes() {
 	s.T().Log("Phase 4: Connecting Lanes...")
 
-	destChainSelector := uint64(11155111) // Sepolia
-
-	// Use default configs from deployment package
 	ccipConfig := deployment.DefaultCCIPSeqConfig
 	offrampConfig := deployment.DefaultOffRampSeqConfig
 
-	// Dummy onramp address bytes for testing
-	destChainOnRampBytes := common.Hex2Bytes("000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48")
-
-	connectInput := changesets.ConnectSuiToEVMConfig{
-		SuiChainSelector: cselectors.SUI_LOCALNET.Selector,
+	_, err := changesets.ConnectSuiToEVM{}.Apply(s.env, changesets.ConnectSuiToEVMConfig{
+		SuiChainSelector: SuiChainSelector,
 		FeeQuoterApplyTokenTransferFeeConfigUpdatesInput: ccipops.FeeQuoterApplyTokenTransferFeeConfigUpdatesInput{
-			DestChainSelector:    destChainSelector,
-			AddTokens:            []string{}, // Empty - tokens will be configured after pool deployment
-			AddMinFeeUsdCents:    []uint32{}, // Empty
-			AddMaxFeeUsdCents:    []uint32{}, // Empty
-			AddDeciBps:           []uint16{}, // Empty
-			AddDestGasOverhead:   []uint32{}, // Empty
-			AddDestBytesOverhead: []uint32{}, // Empty
-			AddIsEnabled:         []bool{},   // Empty
-			RemoveTokens:         []string{}, // Empty
+			DestChainSelector:    EVMChainSelector,
+			AddTokens:            []string{},
+			AddMinFeeUsdCents:    []uint32{},
+			AddMaxFeeUsdCents:    []uint32{},
+			AddDeciBps:           []uint16{},
+			AddDestGasOverhead:   []uint32{},
+			AddDestBytesOverhead: []uint32{},
+			AddIsEnabled:         []bool{},
+			RemoveTokens:         []string{},
 		},
 		FeeQuoterApplyDestChainConfigUpdatesInput: ccipops.FeeQuoterApplyDestChainConfigUpdatesInput{
-			DestChainSelector:                 destChainSelector,
+			DestChainSelector:                 EVMChainSelector,
 			IsEnabled:                         ccipConfig.IsEnabled,
 			MaxNumberOfTokensPerMsg:           ccipConfig.MaxNumberOfTokensPerMsg,
 			MaxDataBytes:                      ccipConfig.MaxDataBytes,
@@ -255,119 +424,96 @@ func (s *DeployTestSuite) ConnectLanes() {
 			ChainFamilySelector:               ccipConfig.ChainFamilySelector,
 		},
 		FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput: ccipops.FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput{
-			Tokens:                     []string{}, // Empty - tokens will be configured after pool deployment
-			PremiumMultiplierWeiPerEth: []uint64{}, // Empty - must match Tokens length
+			Tokens:                     []string{},
+			PremiumMultiplierWeiPerEth: []uint64{},
 		},
 		ApplyDestChainConfigureOnRampInput: onrampops.ApplyDestChainConfigureOnRampInput{
-			DestChainSelector:         []uint64{destChainSelector},
-			DestChainAllowListEnabled: []bool{false},                                                                  // Single destination chain, allowlist disabled
-			DestChainRouters:          []string{"0x0000000000000000000000000000000000000000000000000000000000000001"}, // Placeholder router address
+			DestChainSelector:         []uint64{EVMChainSelector},
+			DestChainAllowListEnabled: []bool{false},
+			DestChainRouters:          []string{DestChainRouterAddress},
 		},
 		ApplySourceChainConfigUpdateInput: offrampops.ApplySourceChainConfigUpdateInput{
-			SourceChainsSelectors:                 []uint64{destChainSelector},
-			SourceChainsOnRamp:                    [][]byte{destChainOnRampBytes},
+			SourceChainsSelectors:                 []uint64{EVMChainSelector},
+			SourceChainsOnRamp:                    [][]byte{DestChainOnRampAddressBytes},
 			SourceChainsIsEnabled:                 offrampConfig.InitializeOffRampInput.SourceChainsIsEnabled,
 			SourceChainsIsRMNVerificationDisabled: offrampConfig.InitializeOffRampInput.SourceChainsIsRMNVerificationDisabled,
 		},
+	})
+	s.Require().NoError(err, "failed to connect lanes")
+}
+
+func (s *DeployTestSuite) loadDeploymentAddresses() {
+	s.T().Log("Loading deployment addresses...")
+
+	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
+	s.Require().NoError(err, "failed to get addresses")
+
+	for addr, typeAndVersion := range addresses {
+		switch typeAndVersion.Type {
+		case deployment.SuiLinkTokenType:
+			s.linkTokenPackageID = addr
+		case deployment.SuiLinkTokenObjectMetadataID:
+			s.linkTokenMetadataID = addr
+		case deployment.SuiLinkTokenTreasuryCapID:
+			s.linkTokenTreasuryCapID = addr
+		case deployment.SuiCCIPType:
+			s.ccipPackageID = addr
+		case deployment.SuiCCIPObjectRefType:
+			s.ccipObjectRef = addr
+		case deployment.SuiMcmsPackageIDType:
+			s.mcmsPackageID = addr
+		}
 	}
 
-	// Execute lane connection changeset
-	_, err := changesets.ConnectSuiToEVM{}.Apply(s.env, connectInput)
-	s.Require().NoError(err, "failed to connect lanes")
+	s.deployerAddr, err = s.signer.GetAddress()
+	s.Require().NoError(err, "failed to get deployer address")
+
+	s.Require().NotEmpty(s.linkTokenPackageID, "LINK token package ID not found")
+	s.Require().NotEmpty(s.linkTokenMetadataID, "LINK token metadata ID not found")
+	s.Require().NotEmpty(s.linkTokenTreasuryCapID, "LINK token treasury cap ID not found")
+	s.Require().NotEmpty(s.ccipPackageID, "CCIP package ID not found")
+	s.Require().NotEmpty(s.ccipObjectRef, "CCIP object ref not found")
+	s.Require().NotEmpty(s.mcmsPackageID, "MCMS package ID not found")
 }
 
 func (s *DeployTestSuite) DeployTokenPools() {
 	s.T().Log("Phase 5: Deploying Token Pools...")
 
-	// Get LINK token details from address book
-	s.T().Log("Retrieving LINK token information...")
+	s.loadDeploymentAddresses()
 
-	addresses, err := s.env.ExistingAddresses.AddressesForChain(cselectors.SUI_LOCALNET.Selector)
-	s.Require().NoError(err, "failed to get addresses")
+	coinTypeArg := fmt.Sprintf("%s::link::LINK", s.linkTokenPackageID)
 
-	var (
-		linkTokenPackageId     string
-		linkTokenMetadataId    string
-		linkTokenTreasuryCapId string
-		ccipPackageId          string
-		ccipObjectRef          string
-		mcmsPackageId          string
-	)
-
-	// Extract addresses from address book
-	for addr, typeAndVersion := range addresses {
-		switch typeAndVersion.Type {
-		case deployment.SuiLinkTokenType:
-			linkTokenPackageId = addr
-		case deployment.SuiLinkTokenObjectMetadataID:
-			linkTokenMetadataId = addr
-		case deployment.SuiLinkTokenTreasuryCapID:
-			linkTokenTreasuryCapId = addr
-		case deployment.SuiCCIPType:
-			ccipPackageId = addr
-		case deployment.SuiCCIPObjectRefType:
-			ccipObjectRef = addr
-		case deployment.SuiMcmsPackageIDType:
-			mcmsPackageId = addr
-		}
-	}
-
-	s.Require().NotEmpty(linkTokenPackageId, "LINK token package ID not found")
-	s.Require().NotEmpty(linkTokenMetadataId, "LINK token metadata ID not found")
-	s.Require().NotEmpty(linkTokenTreasuryCapId, "LINK token treasury cap ID not found")
-	s.Require().NotEmpty(ccipPackageId, "CCIP package ID not found")
-	s.Require().NotEmpty(ccipObjectRef, "CCIP object ref not found")
-	s.Require().NotEmpty(mcmsPackageId, "MCMS package ID not found")
-
-	// Get deployer address
-	deployerAddr, err := s.signer.GetAddress()
-	s.Require().NoError(err, "failed to get deployer address")
-
-	// Get the coin type argument for LINK token
-	coinTypeArg := fmt.Sprintf("%s::link::LINK", linkTokenPackageId)
-
-	// Deploy BurnMint token pool for LINK
-	s.T().Log("Deploying BurnMint token pool for LINK...")
-
-	destChainSelector := uint64(11155111) // Sepolia
-
-	// Use real EVM addresses for pool and token (examples from Sepolia testnet)
-	// In production, these would be the actual deployed pool and token addresses on the destination chain
-	evmPoolAddress := "0x80226fc0ee2b096224eeac085bb9a8cba1146f7d"  // Example EVM pool address
-	evmTokenAddress := "0x779877a7b0d9e8603169ddbd7836e478b4624789" // Example LINK token address on Sepolia
-
-	tokenPoolInput := changesets.DeployTPAndConfigureConfig{
-		SuiChainSelector: cselectors.SUI_LOCALNET.Selector,
+	tokenPoolOut, err := changesets.DeployTPAndConfigure{}.Apply(s.env, changesets.DeployTPAndConfigureConfig{
+		SuiChainSelector: SuiChainSelector,
 		TokenPoolTypes:   []string{"bnm"},
 		BurnMintTpInput: burnminttokenpoolops.DeployAndInitBurnMintTokenPoolInput{
 			BurnMintTokenPoolDeployInput: burnminttokenpoolops.BurnMintTokenPoolDeployInput{
-				CCIPPackageId:    ccipPackageId,
-				MCMSAddress:      mcmsPackageId,
-				MCMSOwnerAddress: deployerAddr,
+				CCIPPackageId:    s.ccipPackageID,
+				MCMSAddress:      s.mcmsPackageID,
+				MCMSOwnerAddress: s.deployerAddr,
 			},
 			CoinObjectTypeArg:      coinTypeArg,
-			CCIPObjectRefObjectId:  ccipObjectRef,
-			CoinMetadataObjectId:   linkTokenMetadataId,
-			TreasuryCapObjectId:    linkTokenTreasuryCapId,
-			TokenPoolAdministrator: deployerAddr,
-			// Configure remote chain connections
+			CCIPObjectRefObjectId:  s.ccipObjectRef,
+			CoinMetadataObjectId:   s.linkTokenMetadataID,
+			TreasuryCapObjectId:    s.linkTokenTreasuryCapID,
+			TokenPoolAdministrator: s.deployerAddr,
+			// Remote chain configuration
 			RemoteChainSelectorsToRemove: []uint64{},
-			RemoteChainSelectorsToAdd:    []uint64{destChainSelector},
-			RemotePoolAddressesToAdd:     [][]string{{evmPoolAddress}}, // Real EVM pool address
-			RemoteTokenAddressesToAdd:    []string{evmTokenAddress},    // Real EVM token address
+			RemoteChainSelectorsToAdd:    []uint64{EVMChainSelector},
+			RemotePoolAddressesToAdd:     [][]string{{EVMPoolAddress}},
+			RemoteTokenAddressesToAdd:    []string{fmt.Sprintf("0x%s", EVMTokenAddress)},
 			// Rate limiter configs
-			RemoteChainSelectors: []uint64{destChainSelector},
-			OutboundIsEnableds:   []bool{false},                 // Disabled for testing
-			OutboundCapacities:   []uint64{1000000000000000000}, // 1B LINK (18 decimals)
-			OutboundRates:        []uint64{100000000000000},     // 100k LINK per second
-			InboundIsEnableds:    []bool{false},                 // Disabled for testing
-			InboundCapacities:    []uint64{1000000000000000000}, // 1B LINK (18 decimals)
-			InboundRates:         []uint64{100000000000000},     // 100k LINK per second
+			RemoteChainSelectors: []uint64{EVMChainSelector},
+			OutboundIsEnableds:   []bool{false},
+			OutboundCapacities:   []uint64{RateLimiterCapacity},
+			OutboundRates:        []uint64{RateLimiterRate},
+			InboundIsEnableds:    []bool{false},
+			InboundCapacities:    []uint64{RateLimiterCapacity},
+			InboundRates:         []uint64{RateLimiterRate},
 		},
-	}
-
-	tokenPoolOut, err := changesets.DeployTPAndConfigure{}.Apply(s.env, tokenPoolInput)
+	})
 	s.Require().NoError(err, "failed to deploy LINK token pool")
+
 	err = s.env.ExistingAddresses.Merge(tokenPoolOut.AddressBook)
 	s.Require().NoError(err, "failed to merge LINK token pool addresses")
 }

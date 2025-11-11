@@ -193,7 +193,6 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	// BurnMint Token Pools
 	for symbol, pool := range s.BnMTokenPools {
-		symbol, pool := symbol, pool // Capture loop variables
 		if pool.PackageID == "" || pool.StateObjectId == "" {
 			lggr.Warnw("Skipping BnM token pool with missing data", "symbol", symbol, "chain", chainName)
 			continue
@@ -202,14 +201,12 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		g.Go(func() error {
 			contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(pool.PackageID, suiChain.Client)
 			if err != nil {
-				lggr.Warnw("Failed to create BnM token pool contract", "symbol", symbol, "error", err)
-				return nil // Don't fail entire batch
+				return fmt.Errorf("failed to create BnM token pool contract for symbol %s: %w", symbol, err)
 			}
 
 			poolView, err := view.GenerateTokenPoolView(ctxG2, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
 			if err != nil {
-				lggr.Warnw("Failed to generate BnM token pool view", "symbol", symbol, "error", err)
-				return nil // Don't fail entire batch
+				return fmt.Errorf("failed to generate BnM token pool view for symbol %s: %w", symbol, err)
 			}
 
 			mu.Lock()
@@ -226,7 +223,6 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	// LockRelease Token Pools
 	for symbol, pool := range s.LnRTokenPools {
-		symbol, pool := symbol, pool // Capture loop variables
 		if pool.PackageID == "" || pool.StateObjectId == "" {
 			lggr.Warnw("Skipping LnR token pool with missing data", "symbol", symbol, "chain", chainName)
 			continue
@@ -235,14 +231,12 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		g.Go(func() error {
 			contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(pool.PackageID, suiChain.Client)
 			if err != nil {
-				lggr.Warnw("Failed to create LnR token pool contract", "symbol", symbol, "error", err)
-				return nil // Don't fail entire batch
+				return fmt.Errorf("failed to create LnR token pool contract for symbol %s: %w", symbol, err)
 			}
 
 			poolView, err := view.GenerateTokenPoolView(ctxG2, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
 			if err != nil {
-				lggr.Warnw("Failed to generate LnR token pool view", "symbol", symbol, "error", err)
-				return nil // Don't fail entire batch
+				return fmt.Errorf("failed to generate LnR token pool view for symbol %s: %w", symbol, err)
 			}
 
 			mu.Lock()
@@ -259,7 +253,6 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	// Managed Token Pools
 	for symbol, pool := range s.ManagedTokenPools {
-		symbol, pool := symbol, pool // Capture loop variables
 		if pool.PackageID == "" || pool.StateObjectId == "" {
 			lggr.Warnw("Skipping managed token pool with missing data", "symbol", symbol, "chain", chainName)
 			continue
@@ -268,14 +261,12 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		g.Go(func() error {
 			contract, err := module_managed_token_pool.NewManagedTokenPool(pool.PackageID, suiChain.Client)
 			if err != nil {
-				lggr.Warnw("Failed to create managed token pool contract", "symbol", symbol, "error", err)
-				return nil // Don't fail entire batch
+				return fmt.Errorf("failed to create managed token pool contract for symbol %s: %w", symbol, err)
 			}
 
 			poolView, err := view.GenerateTokenPoolView(ctxG2, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
 			if err != nil {
-				lggr.Warnw("Failed to generate managed token pool view", "symbol", symbol, "error", err)
-				return nil // Don't fail entire batch
+				return fmt.Errorf("failed to generate managed token pool view for symbol %s: %w", symbol, err)
 			}
 
 			mu.Lock()

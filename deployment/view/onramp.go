@@ -164,7 +164,7 @@ func GenerateOnRampView(
 
 	return OnRampView{
 		ContractMetaData: ContractMetaData{
-			Address:        onRampStateObjectID,
+			Address:        onRampPackageID,
 			Owner:          owner,
 			TypeAndVersion: typeAndVersion,
 		},
