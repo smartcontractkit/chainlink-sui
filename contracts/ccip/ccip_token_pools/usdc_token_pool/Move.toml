@@ -11,7 +11,7 @@ TokenMessengerMinter = { local = "../../../vendored/circlefin/sui-cctp/packages/
 
 [addresses]
 ccip = "_"
-usdc_token_pool = "_"
+usdc_token_pool = "0x0"
 usdc_coin_metadata_object_id = "_"
 token_messenger_minter = "_"
 token_messenger_minter_state = "_"

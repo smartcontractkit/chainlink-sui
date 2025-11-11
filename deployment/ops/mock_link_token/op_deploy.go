@@ -23,9 +23,15 @@ var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyI
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return sui_ops.OpTxResult[DeployMockLinkTokenObjects]{}, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.MockLinkToken, map[string]string{
 		"mock_link_token": "0x0",
-	})
+		"signer":          signerAddr,
+	}, false)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployMockLinkTokenObjects]{}, err
 	}

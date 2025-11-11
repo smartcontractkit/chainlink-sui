@@ -50,9 +50,15 @@ func NewMockEthToken(address string, client sui.ISuiAPI) (MockEthToken, error) {
 }
 
 func PublishMockEthToken(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (MockEthToken, *models.SuiTransactionBlockResponse, error) {
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.MockEthToken, map[string]string{
 		"mock_eth_token": "0x0",
-	})
+		"signer":         signerAddr,
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

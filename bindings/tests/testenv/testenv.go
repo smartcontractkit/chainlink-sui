@@ -169,6 +169,10 @@ func (te *TestEnvironment) initialize() error {
 			client := sui.NewSuiClient(fmt.Sprintf("http://localhost:%d", te.rpcPort))
 			_, err := client.SuiGetChainIdentifier(context.Background())
 			if err == nil {
+				os.Setenv("SUI_RPC_URL", fmt.Sprintf("http://localhost:%d", te.rpcPort))
+				os.Setenv("SUI_FAUCET_URL", fmt.Sprintf("http://localhost:%d", te.faucetPort))
+				te.logger.Infof("SUI_RPC_URL=%s", os.Getenv("SUI_RPC_URL"))
+				te.logger.Infof("SUI_FAUCET_URL=%s", os.Getenv("SUI_FAUCET_URL"))
 				return nil
 			}
 			time.Sleep(NodeReadyPollInterval)

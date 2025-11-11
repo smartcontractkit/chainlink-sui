@@ -7,7 +7,7 @@ const (
 	DefaultConfirmPollSecs = 2
 
 	// DefaultRequestType is the default request type for transactions.
-	DefaultRequestType = "WaitForLocalExecution"
+	DefaultRequestType = "WaitForEffectsCert"
 
 	DefaultMaxGasAmount             = 200000
 	DefaultMaxTxRetryAttempts       = 5
