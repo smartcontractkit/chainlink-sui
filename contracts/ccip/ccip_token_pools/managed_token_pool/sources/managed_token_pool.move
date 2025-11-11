@@ -144,35 +144,6 @@ public fun initialize_with_managed_token<T>(
     transfer::share_object(managed_token_pool_object);
 }
 
-// #[allow(lint(self_transfer))]
-// fun initialize_internal<T>(
-//     owner_cap: &mut OwnerCap,
-//     coin_metadata: &CoinMetadata<T>,
-//     mint_cap: MintCap<T>,
-//     ctx: &mut TxContext,
-// ): address {
-//     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-//     let ownable_state = ownable::detach_ownable_state(owner_cap);
-
-//     let managed_token_pool = ManagedTokenPoolState<T> {
-//         id: object::new(ctx),
-//         token_pool_state: token_pool::initialize(
-//             coin_metadata_address,
-//             coin_metadata.get_decimals(),
-//             coin_metadata.get_symbol(),
-//             vector[],
-//             ctx,
-//         ),
-//         mint_cap,
-//         ownable_state,
-//     };
-//     let managed_token_pool_state_address = object::uid_to_address(&managed_token_pool.id);
-
-//     transfer::share_object(managed_token_pool);
-
-//     managed_token_pool_state_address
-// }
-
 public fun add_remote_pool<T>(
     state: &mut ManagedTokenPoolState<T>,
     owner_cap: &OwnerCap,
