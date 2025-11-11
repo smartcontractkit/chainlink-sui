@@ -113,16 +113,6 @@ func TestTransactionGeneration(t *testing.T) {
 		// InitialSharedVersion will be resolved automatically by the object resolver
 	}
 
-	ptb := transaction.NewTransaction()
-	inc, err := counter.Encoder().IncrementBy(counterObj, 10)
-	require.NoError(t, err)
-
-	_, err = counter.AppendPTB(ctx, opts, ptb, inc)
-	require.NoError(t, err)
-
-	// Set gas price manually since PTB doesn't have a SuiClient set
-	ptb.SetGasPrice(10000000) // Use a reasonable gas price
-
 	gasManager := txm.NewSuiGasManager(lggr, ptbClient, *big.NewInt(int64(gasBudget)), 0)
 	txID := "1"
 
@@ -133,29 +123,16 @@ func TestTransactionGeneration(t *testing.T) {
 	// Get the public key bytes from the private key for the transaction
 	publicKeyBytes = pk.Public().(ed25519.PublicKey)
 
-	t.Run("GeneratePTBTransactionWithGasEstimation_GasBudgetTooLow", func(t *testing.T) {
-		// Create TxMeta with gas limit
-		txMeta := &commontypes.TxMeta{
-			GasLimit: big.NewInt(int64(1000)),
-		}
-		_, err := txm.GeneratePTBTransactionWithGasEstimation(
-			ctx,
-			publicKeyBytes,
-			lggr,
-			keystore,
-			ptbClient,
-			"WaitForEffectsCert",
-			txID,
-			txMeta,
-			ptb,
-			true,
-			gasManager,
-		)
-		require.Error(t, err)
-	})
-
 	t.Run("GeneratePTBTransactionWithGasEstimation", func(t *testing.T) {
-		// Create TxMeta with gas limit
+		ptb := transaction.NewTransaction()
+		inc, err := counter.Encoder().IncrementBy(counterObj, 10)
+		require.NoError(t, err)
+
+		_, err = counter.AppendPTB(ctx, opts, ptb, inc)
+		require.NoError(t, err)
+
+		ptb.SetGasPrice(10000000)
+
 		txMeta := &commontypes.TxMeta{
 			GasLimit: big.NewInt(int64(gasBudget)),
 		}

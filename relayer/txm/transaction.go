@@ -203,8 +203,7 @@ func GeneratePTBTransactionWithGasEstimation(
 	// Step 3: Estimate gas using the gas manager
 	estimatedGas, err := gasManager.EstimateGasBudget(ctx, preliminaryTx)
 	if err != nil {
-		lggr.Warnw("Gas estimation failed, falling back to metadata/default",
-			"error", err, "fallbackBudget", preliminaryGasBudget)
+		lggr.Warnw("Gas estimation failed, falling back to metadata/default", "error", err, "fallbackBudget", preliminaryGasBudget)
 		finalGasBudget = preliminaryGasBudget
 	} else {
 		// If the estimate is bigger than the provided budget, we need to abort
