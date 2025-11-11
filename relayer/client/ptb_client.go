@@ -371,7 +371,11 @@ func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, er
 			if err != nil {
 				return fmt.Errorf("failed to parse storage cost: %w", err)
 			}
-			result = computationCost + storageCost
+			storageRebate, err := strconv.ParseUint(response.Effects.GasUsed.StorageRebate, 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse storage rebate: %w", err)
+			}
+			result = computationCost + storageCost - storageRebate
 		}
 
 		return nil
