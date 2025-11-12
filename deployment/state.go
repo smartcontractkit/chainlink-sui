@@ -61,11 +61,6 @@ type CCIPChainState struct {
 
 	// Managed Token related
 	ManagedTokens map[string]ManagedTokenState
-	// ManagedToken                  string
-	// ManagedTokenOwnerCapObjectID  string
-	// ManagedTokenStateObjectID     string
-	// ManagedTokenMinterCapID       string
-	// ManagedTokenPublisherObjectId string
 
 	// Token pools related
 	LnRTokenPools     map[string]CCIPPoolState
