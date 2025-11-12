@@ -247,6 +247,15 @@ func (c *UsdcTokenPoolContract) DevInspect() IUsdcTokenPoolDevInspect {
 type USDC_TOKEN_POOL struct {
 }
 
+type USDCTokenPoolObject struct {
+	Id string `move:"sui::object::UID"`
+}
+
+type USDCTokenPoolStatePointer struct {
+	Id                    string `move:"sui::object::UID"`
+	UsdcTokenPoolObjectId string `move:"address"`
+}
+
 type Domain struct {
 	AllowedCaller    []byte `move:"vector<u8>"`
 	DomainIdentifier uint32 `move:"u32"`
@@ -285,6 +294,19 @@ type McmsCallback struct {
 type McmsAcceptOwnershipProof struct {
 }
 
+type bcsUSDCTokenPoolStatePointer struct {
+	Id                    string
+	UsdcTokenPoolObjectId [32]byte
+}
+
+func convertUSDCTokenPoolStatePointerFromBCS(bcs bcsUSDCTokenPoolStatePointer) (USDCTokenPoolStatePointer, error) {
+
+	return USDCTokenPoolStatePointer{
+		Id:                    bcs.Id,
+		UsdcTokenPoolObjectId: fmt.Sprintf("0x%x", bcs.UsdcTokenPoolObjectId),
+	}, nil
+}
+
 func init() {
 	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::USDC_TOKEN_POOL", func(data []byte) (interface{}, error) {
 		var result USDC_TOKEN_POOL
@@ -300,6 +322,54 @@ func init() {
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::USDCTokenPoolObject", func(data []byte) (interface{}, error) {
+		var result USDCTokenPoolObject
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for USDCTokenPoolObject
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::USDCTokenPoolObject>", func(data []byte) (interface{}, error) {
+		var results []USDCTokenPoolObject
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::USDCTokenPoolStatePointer", func(data []byte) (interface{}, error) {
+		var temp bcsUSDCTokenPoolStatePointer
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertUSDCTokenPoolStatePointerFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for USDCTokenPoolStatePointer
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::USDCTokenPoolStatePointer>", func(data []byte) (interface{}, error) {
+		var temps []bcsUSDCTokenPoolStatePointer
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]USDCTokenPoolStatePointer, len(temps))
+		for i, temp := range temps {
+			result, err := convertUSDCTokenPoolStatePointerFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
 		}
 		return results, nil
 	})
