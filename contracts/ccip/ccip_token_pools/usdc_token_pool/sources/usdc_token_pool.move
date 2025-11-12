@@ -72,7 +72,7 @@ public struct USDCTokenPoolState<phantom T> has key {
     ownable_state: OwnableState,
 }
 
-public struct TokenBucketWrapper has drop {
+public struct TokenBucketWrapper has drop, store {
     tokens: u64,
     last_updated: u64,
     is_enabled: bool,
