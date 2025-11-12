@@ -21,6 +21,12 @@ const (
 	);
     `
 
+	CreateIndices = `
+	CREATE INDEX IF NOT EXISTS idx_events_account_handle_timestamp ON sui.events(event_account_address, event_handle, block_timestamp DESC);
+	CREATE INDEX IF NOT EXISTS idx_events_offset ON sui.events(event_account_address, event_handle, event_offset);
+	CREATE INDEX IF NOT EXISTS idx_events_data_gin ON sui.events USING gin(data);
+	`
+
 	InsertEvent = `
 	INSERT INTO sui.events (
 		event_account_address,

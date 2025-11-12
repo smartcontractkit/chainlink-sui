@@ -40,6 +40,11 @@ func (store *DBStore) EnsureSchema(ctx context.Context) error {
 		return fmt.Errorf("failed to create sui.events table: %w", err)
 	}
 
+	_, err = store.ds.ExecContext(ctx, CreateIndices)
+	if err != nil {
+		return fmt.Errorf("failed to create sui indexes: %w", err)
+	}
+
 	return nil
 }
 

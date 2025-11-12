@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"managed_token","module":"managed_token","name":"accept_ownership","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"managed_token","module":"managed_token","name":"blocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"borrow_treasury_cap","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"}]},{"package":"managed_token","module":"managed_token","name":"burn","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"coin","type":"Coin<T>"},{"name":"from","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"configure_new_minter","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"minter","type":"address"},{"name":"allowance","type":"u64"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"destroy_managed_token","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"get_all_mint_caps","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"has_pending_transfer","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"increment_mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"allowance_increment","type":"u64"}]},{"package":"managed_token","module":"managed_token","name":"initialize","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"publisher","type":"Publisher"}]},{"package":"managed_token","module":"managed_token","name":"initialize_with_deny_cap","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"deny_cap","type":"DenyCapV2<T>"},{"name":"publisher","type":"Publisher"}]},{"package":"managed_token","module":"managed_token","name":"is_minter_cap_allowed","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"id","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint_and_transfer","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"owner","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_from","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_to","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"set_unlimited_mint_allowances","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"total_supply","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"transfer_ownership","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"new_owner","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"type_and_version","parameters":null},{"package":"managed_token","module":"managed_token","name":"unblocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"unpause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]}]`
+const FunctionInfo = `[{"package":"managed_token","module":"managed_token","name":"accept_ownership","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"managed_token","module":"managed_token","name":"blocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"borrow_treasury_cap","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"}]},{"package":"managed_token","module":"managed_token","name":"burn","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"coin","type":"Coin<T>"},{"name":"from","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"configure_new_minter","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"minter","type":"address"},{"name":"allowance","type":"u64"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"configure_new_minter_and_return","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"minter","type":"address"},{"name":"allowance","type":"u64"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"destroy_managed_token","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"get_all_mint_caps","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"has_pending_transfer","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"increment_mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"allowance_increment","type":"u64"}]},{"package":"managed_token","module":"managed_token","name":"initialize","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"publisher","type":"Publisher"}]},{"package":"managed_token","module":"managed_token","name":"initialize_with_deny_cap","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"deny_cap","type":"DenyCapV2<T>"},{"name":"publisher","type":"Publisher"}]},{"package":"managed_token","module":"managed_token","name":"is_minter_cap_allowed","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"id","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint_and_transfer","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"owner","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_from","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_to","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"set_unlimited_mint_allowances","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"total_supply","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"transfer_ownership","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"new_owner","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"type_and_version","parameters":null},{"package":"managed_token","module":"managed_token","name":"unblocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"unpause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]}]`
 
 type IManagedToken interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -29,6 +29,7 @@ type IManagedToken interface {
 	TotalSupply(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	IsMinterCapAllowed(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, id bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (*models.SuiTransactionBlockResponse, error)
+	ConfigureNewMinterAndReturn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (*models.SuiTransactionBlockResponse, error)
 	IncrementMintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*models.SuiTransactionBlockResponse, error)
 	SetUnlimitedMintAllowances(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, isUnlimited bool) (*models.SuiTransactionBlockResponse, error)
 	GetAllMintCaps(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -75,6 +76,7 @@ type IManagedTokenDevInspect interface {
 	MintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, mintCap bind.Object) ([]any, error)
 	TotalSupply(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (uint64, error)
 	IsMinterCapAllowed(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, id bind.Object) (bool, error)
+	ConfigureNewMinterAndReturn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (any, error)
 	GetAllMintCaps(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]bind.Object, error)
 	Mint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, mintCap bind.Object, denyList bind.Object, amount uint64, recipient string) (any, error)
 	DestroyManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object) ([]any, error)
@@ -101,6 +103,8 @@ type ManagedTokenEncoder interface {
 	IsMinterCapAllowedWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ConfigureNewMinter(typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (*bind.EncodedCall, error)
 	ConfigureNewMinterWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	ConfigureNewMinterAndReturn(typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (*bind.EncodedCall, error)
+	ConfigureNewMinterAndReturnWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	IncrementMintAllowance(typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*bind.EncodedCall, error)
 	IncrementMintAllowanceWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetUnlimitedMintAllowances(typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, isUnlimited bool) (*bind.EncodedCall, error)
@@ -755,6 +759,16 @@ func (c *ManagedTokenContract) ConfigureNewMinter(ctx context.Context, opts *bin
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// ConfigureNewMinterAndReturn executes the configure_new_minter_and_return Move function.
+func (c *ManagedTokenContract) ConfigureNewMinterAndReturn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.ConfigureNewMinterAndReturn(typeArgs, state, ownerCap, minter, allowance, isUnlimited)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // IncrementMintAllowance executes the increment_mint_allowance Move function.
 func (c *ManagedTokenContract) IncrementMintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.managedTokenEncoder.IncrementMintAllowance(typeArgs, state, ownerCap, mintCapId, denyList, allowanceIncrement)
@@ -1195,6 +1209,24 @@ func (d *ManagedTokenDevInspect) IsMinterCapAllowed(ctx context.Context, opts *b
 	return result, nil
 }
 
+// ConfigureNewMinterAndReturn executes the configure_new_minter_and_return Move function using DevInspect to get return values.
+//
+// Returns: MintCap<T>
+func (d *ManagedTokenDevInspect) ConfigureNewMinterAndReturn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (any, error) {
+	encoded, err := d.contract.managedTokenEncoder.ConfigureNewMinterAndReturn(typeArgs, state, ownerCap, minter, allowance, isUnlimited)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	return results[0], nil
+}
+
 // GetAllMintCaps executes the get_all_mint_caps Move function using DevInspect to get return values.
 //
 // Returns: vector<ID>
@@ -1624,6 +1656,52 @@ func (c managedTokenEncoder) ConfigureNewMinterWithArgs(typeArgs []string, args 
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("configure_new_minter", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// ConfigureNewMinterAndReturn encodes a call to the configure_new_minter_and_return Move function.
+func (c managedTokenEncoder) ConfigureNewMinterAndReturn(typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("configure_new_minter_and_return", typeArgsList, typeParamsList, []string{
+		"&mut TokenState<T>",
+		"&OwnerCap<T>",
+		"address",
+		"u64",
+		"bool",
+	}, []any{
+		state,
+		ownerCap,
+		minter,
+		allowance,
+		isUnlimited,
+	}, []string{
+		"MintCap<T>",
+	})
+}
+
+// ConfigureNewMinterAndReturnWithArgs encodes a call to the configure_new_minter_and_return Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c managedTokenEncoder) ConfigureNewMinterAndReturnWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut TokenState<T>",
+		"&OwnerCap<T>",
+		"address",
+		"u64",
+		"bool",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("configure_new_minter_and_return", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"MintCap<T>",
+	})
 }
 
 // IncrementMintAllowance encodes a call to the increment_mint_allowance Move function.
