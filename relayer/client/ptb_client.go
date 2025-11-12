@@ -50,7 +50,7 @@ type SuiPTBClient interface {
 	ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error)
 	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]models.SuiObjectData, error)
 	ReadObjectId(ctx context.Context, objectId string) (models.SuiObjectData, error)
-	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error)
+	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error)
 	QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error)
@@ -393,13 +393,23 @@ func (c *PTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) 
 	return result, err
 }
 
-func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error) {
+func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	var results []any
 	err := c.WithRateLimit(ctx, "ReadFunction", func(ctx context.Context) error {
 		txn := transaction.NewTransaction()
 
 		var txnArgs []transaction.Argument
 		var txnTypeArgs []transaction.TypeTag
+
+		// Process type arguments
+		for _, typeArg := range typeArgs {
+			typeTag, err := c.createTypeTag(typeArg)
+			if err != nil {
+				return fmt.Errorf("failed to create type tag for %s: %w", typeArg, err)
+			}
+			txnTypeArgs = append(txnTypeArgs, typeTag)
+		}
+
 		for i, arg := range args {
 			argType, ok := common.ValueAt(argTypes, i)
 			if !ok {
@@ -1167,4 +1177,40 @@ func (c *PTBClient) GetParentObjectID(ctx context.Context, packageID string, mod
 	}
 
 	return "", fmt.Errorf("pointer object %s not found in package %s", qualifiedName, packageID)
+}
+
+// Add helper method to create type tags
+func (c *PTBClient) createTypeTag(typeStr string) (transaction.TypeTag, error) {
+	if typeStr == "" {
+		return transaction.TypeTag{}, fmt.Errorf("type string cannot be empty")
+	}
+
+	// Handle struct types (package::module::name)
+	if strings.Contains(typeStr, "::") {
+		parts := strings.Split(typeStr, "::")
+		if len(parts) != 3 {
+			return transaction.TypeTag{}, fmt.Errorf("invalid struct type format %q, expected package::module::name", typeStr)
+		}
+
+		packageID, module, name := parts[0], parts[1], parts[2]
+
+		// Convert package ID to address bytes
+		packageAddr := models.SuiAddress(packageID)
+		addressBytes, err := transaction.ConvertSuiAddressStringToBytes(packageAddr)
+		if err != nil {
+			return transaction.TypeTag{}, fmt.Errorf("failed to convert package address %q: %w", packageID, err)
+		}
+
+		return transaction.TypeTag{
+			Struct: &transaction.StructTag{
+				Address:    *addressBytes,
+				Module:     module,
+				Name:       name,
+				TypeParams: []*transaction.TypeTag{},
+			},
+		}, nil
+	}
+
+	// TODO: Handle primitive types if needed
+	return transaction.TypeTag{}, fmt.Errorf("unsupported type format: %s", typeStr)
 }

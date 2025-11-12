@@ -376,18 +376,18 @@ func (mr *MockSuiPTBClientMockRecorder) ReadFilterOwnedObjectIds(ctx, ownerAddre
 }
 
 // ReadFunction mocks base method.
-func (m *MockSuiPTBClient) ReadFunction(ctx context.Context, signerAddress, packageId, module, function string, args []any, argTypes []string) ([]any, error) {
+func (m *MockSuiPTBClient) ReadFunction(ctx context.Context, signerAddress, packageId, module, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadFunction", ctx, signerAddress, packageId, module, function, args, argTypes)
+	ret := m.ctrl.Call(m, "ReadFunction", ctx, signerAddress, packageId, module, function, args, argTypes, typeArgs)
 	ret0, _ := ret[0].([]any)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ReadFunction indicates an expected call of ReadFunction.
-func (mr *MockSuiPTBClientMockRecorder) ReadFunction(ctx, signerAddress, packageId, module, function, args, argTypes any) *gomock.Call {
+func (mr *MockSuiPTBClientMockRecorder) ReadFunction(ctx, signerAddress, packageId, module, function, args, argTypes, typeArgs any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFunction", reflect.TypeOf((*MockSuiPTBClient)(nil).ReadFunction), ctx, signerAddress, packageId, module, function, args, argTypes)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFunction", reflect.TypeOf((*MockSuiPTBClient)(nil).ReadFunction), ctx, signerAddress, packageId, module, function, args, argTypes, typeArgs)
 }
 
 // ReadObjectId mocks base method.
