@@ -27,6 +27,7 @@ public struct ConfigChanged has copy, drop {
 
 const EBucketNotFound: u64 = 1;
 const ERateLimiterConfigNotFound: u64 = 2;
+const ERateLimiterConfigNotZero: u64 = 3;
 
 public(package) fun new(ctx: &mut TxContext): RateLimitState {
     RateLimitState {
@@ -141,7 +142,10 @@ public fun get_current_inbound_rate_limiter_state(
     clock: &Clock,
     remote_chain_selector: u64,
 ): rate_limiter::TokenBucket {
-    assert!(state.inbound_rate_limiter_config.contains(remote_chain_selector), ERateLimiterConfigNotFound);
+    assert!(
+        state.inbound_rate_limiter_config.contains(remote_chain_selector),
+        ERateLimiterConfigNotFound,
+    );
     rate_limiter::get_current_token_bucket_state(
         clock,
         state.inbound_rate_limiter_config.borrow(remote_chain_selector),
@@ -153,7 +157,10 @@ public fun get_current_outbound_rate_limiter_state(
     clock: &Clock,
     remote_chain_selector: u64,
 ): rate_limiter::TokenBucket {
-    assert!(state.outbound_rate_limiter_config.contains(remote_chain_selector), ERateLimiterConfigNotFound);
+    assert!(
+        state.outbound_rate_limiter_config.contains(remote_chain_selector),
+        ERateLimiterConfigNotFound,
+    );
     rate_limiter::get_current_token_bucket_state(
         clock,
         state.outbound_rate_limiter_config.borrow(remote_chain_selector),
@@ -168,4 +175,21 @@ public(package) fun destroy_rate_limiter(state: RateLimitState) {
 
     outbound_rate_limiter_config.drop();
     inbound_rate_limiter_config.drop();
+}
+
+public fun verify_zero_config(state: &RateLimitState) {
+    let mut i = 0;
+    while (i < state.outbound_rate_limiter_config.length()) {
+        let bucket = state.outbound_rate_limiter_config.borrow(i);
+        let (_, _, is_enabled, _, rate) = rate_limiter::get_token_bucket_fields(bucket);
+        assert!(!is_enabled || rate == 0, ERateLimiterConfigNotZero);
+        i = i + 1;
+    };
+    i = 0;
+    while (i < state.inbound_rate_limiter_config.length()) {
+        let bucket = state.inbound_rate_limiter_config.borrow(i);
+        let (_, _, is_enabled, _, rate) = rate_limiter::get_token_bucket_fields(bucket);
+        assert!(!is_enabled || rate == 0, ERateLimiterConfigNotZero);
+        i = i + 1;
+    };
 }

@@ -90,7 +90,6 @@ public fun encode_selector(out: &mut vector<u8>, value: vector<u8>) {
     out.append(value);
 }
 
-// TODO: not used onchain. verify if used offchain
 public fun encode_packed_address(out: &mut vector<u8>, value: address) {
     out.append(bcs::to_bytes(&value));
 }

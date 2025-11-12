@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -278,6 +280,9 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 
 	lggr := logger.Test(t)
 	lggr.Debugw("Starting Sui node")
+
+	os.Setenv("SUI_RPC_URL", testutils.LocalUrl)
+	os.Setenv("SUI_CONFIG_DIR", filepath.Join(os.Getenv("HOME"), ".sui", "sui_config"))
 
 	accountAddress, _, signer, client, deps, bundle := BasicSetUp(t, lggr, keystoreInstance)
 	signerAddr, err := signer.GetAddress()

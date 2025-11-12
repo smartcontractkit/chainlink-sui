@@ -40,6 +40,11 @@ func (store *DBStore) EnsureSchema(ctx context.Context) error {
 		return fmt.Errorf("failed to create sui.events table: %w", err)
 	}
 
+	_, err = store.ds.ExecContext(ctx, CreateIndices)
+	if err != nil {
+		return fmt.Errorf("failed to create sui indexes: %w", err)
+	}
+
 	return nil
 }
 
@@ -176,6 +181,17 @@ func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, 
 		// We use (txDigest, eventSeq) as the pagination cursor to resume fetching events reliably.
 		EventSeq: "0",
 	}, totalCount, nil
+}
+
+// GetTotalCount returns the total number of events recorded in the DB for a given type
+func (store *DBStore) GetTotalCount(ctx context.Context, eventAccountAddress, eventHandle string) (uint64, error) {
+	var totalCount uint64
+	err := store.ds.QueryRowxContext(ctx, CountEvents, eventAccountAddress, eventHandle).Scan(&totalCount)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get total count: %w", err)
+	}
+
+	return totalCount, nil
 }
 
 func (store *DBStore) GetTxDigestByEventId(ctx context.Context, eventID uint64) (string, error) {

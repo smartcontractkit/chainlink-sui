@@ -18,6 +18,7 @@ type CCIPChainState struct {
 	MCMSPackageID               string
 	MCMSStateObjectID           string
 	MCMSRegistryObjectID        string
+	MCMSDeployerStateObjectID   string
 	MCMSAccountStateObjectID    string
 	MCMSAccountOwnerCapObjectID string
 	MCMSTimelockObjectID        string
@@ -60,6 +61,11 @@ type CCIPChainState struct {
 	LnRTokenPools     map[string]CCIPPoolState
 	BnMTokenPools     map[string]CCIPPoolState
 	ManagedTokenPools map[string]CCIPPoolState
+
+	// mock upgrade related
+	OnRampMockV2PackageId  string
+	OffRampMockV2PackageId string
+	CCIPMockV2PackageId    string
 }
 
 // LoadOnchainStatesui loads chain state for sui chains from env
@@ -111,6 +117,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.MCMSAccountOwnerCapObjectID = addr
 		case SuiMcmsTimelockObjectIDType:
 			chainState.MCMSTimelockObjectID = addr
+		case SuiMcmsDeployerObjectIDType:
+			chainState.MCMSDeployerStateObjectID = addr
 
 		// CCIP Router related
 		case SuiCCIPRouterType:
@@ -167,6 +175,14 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.ManagedTokenStateObjectID = addr
 		case SuiManagedTokenMinterCapID:
 			chainState.ManagedTokenMinterCapID = addr
+
+		// mock upgrade related
+		case SuiOnRampMockV2:
+			chainState.OnRampMockV2PackageId = addr
+		case SuiOffRampMockV2:
+			chainState.OffRampMockV2PackageId = addr
+		case SuiCCIPMockV2:
+			chainState.CCIPMockV2PackageId = addr
 
 		// BnM Token pools related
 		case SuiBnMTokenPoolType:

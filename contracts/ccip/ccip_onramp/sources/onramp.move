@@ -8,6 +8,7 @@ use ccip::nonce_manager::{Self, NonceManagerCap};
 use ccip::onramp_state_helper::{Self as osh, TokenTransferParams};
 use ccip::rmn_remote;
 use ccip::state_object::CCIPObjectRef;
+use ccip::token_admin_registry;
 use ccip::upgrade_registry::verify_function_allowed;
 use ccip_onramp::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
@@ -152,6 +153,7 @@ const EInvalidFunction: u64 = 18;
 const EPackageIdNotFound: u64 = 19;
 const EInvalidOwnerCap: u64 = 20;
 const EInvalidTokenReceiver: u64 = 21;
+const ESourcePoolMismatch: u64 = 22;
 
 const VERSION: u8 = 1;
 
@@ -255,7 +257,6 @@ public fun get_expected_next_sequence_number(state: &OnRampState, dest_chain_sel
     dest_chain_config.sequence_number + 1
 }
 
-// TODO: verify withdraw fee tokens
 public fun withdraw_fee_tokens<T>(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
@@ -808,6 +809,11 @@ public fun ccip_send<T>(
         ) = osh::get_source_token_transfer_data(&token_params);
         assert!(remote_chain_selector == dest_chain_selector, EInvalidRemoteChainSelector);
         assert!(amount > 0, ECannotSendZeroTokens);
+        let registered_source_pool_package_id = token_admin_registry::get_pool(
+            ref,
+            source_token_coin_metadata_address,
+        );
+        assert!(registered_source_pool_package_id == source_pool_package_id, ESourcePoolMismatch);
 
         // validate that the token receiver from the hot potato is the same as the token receiver from the extra args
         let token_receiver = osh::get_token_receiver(&token_params);
@@ -1417,7 +1423,7 @@ public fun mcms_execute_ownership_transfer(
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
             registry,
-            McmsCallback {}
+            McmsCallback {},
         );
         transfer::public_transfer(upgrade_cap, to);
     };

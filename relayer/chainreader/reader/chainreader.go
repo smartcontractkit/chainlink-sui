@@ -106,11 +106,24 @@ func (s *suiChainReader) Name() string {
 }
 
 func (s *suiChainReader) Ready() error {
-	return s.starter.Ready()
+	if err := s.starter.Ready(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *suiChainReader) HealthReport() map[string]error {
-	return map[string]error{s.Name(): s.starter.Healthy()}
+	report := map[string]error{s.Name(): s.starter.Healthy()}
+
+	// Include indexer health status
+	if s.indexer != nil {
+		for k, v := range s.indexer.HealthReport() {
+			report[k] = v
+		}
+	}
+
+	return report
 }
 
 func (s *suiChainReader) Start(ctx context.Context) error {
@@ -497,6 +510,7 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	// Get module and event configuration
 	moduleConfig := s.config.Modules[contract.Name]
 	eventConfig, err := s.getEventConfig(moduleConfig, filter.Key)
+
 	// No event config found, construct a config
 	if err == nil && eventConfig == nil {
 		// construct a new config ad-hoc
@@ -523,36 +537,19 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	// only write contract address, rest will be handled during chainreader config
 	eventConfig.Package = contract.Address
 
-	// repeat the sync call for each package ID (upgrades) of the module
-	// using the contract's own address as signer address since we are only ready
-	packageIds, err := s.client.LoadModulePackageIds(ctx, contract.Address, moduleConfig.Name, contract.Address)
+	evIndexer := s.indexer.GetEventIndexer()
+	// create a selector for the initial package ID
+	selector := client.EventSelector{
+		Package: contract.Address,
+		Module:  moduleConfig.Name,
+		Event:   eventConfig.EventType,
+	}
+
+	// sync the event in case it's not already in the database
+	err = evIndexer.SyncEvent(ctx, &selector)
 	if err != nil {
 		return nil, err
 	}
-
-	s.logger.Debugw("Found package IDs", "packageIds", packageIds)
-
-	evIndexer := s.indexer.GetEventIndexer()
-	// create a selector for each package ID including the upgrades and the initial package ID
-	// the `LoadModulePackageIds` will fallback to a single package ID if the module does not have the `get_package_ids` function
-	for _, packageId := range packageIds {
-		selector := client.EventSelector{
-			Package: packageId,
-			Module:  moduleConfig.Name,
-			Event:   eventConfig.EventType,
-			// override the DB insert using the initial package ID
-			InitialPackageId: &contract.Address,
-		}
-
-		// sync the event in case it's not already in the database
-		err = evIndexer.SyncEvent(ctx, &selector)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// update the event config in the transactions indexer to ensure that the package ID is known
-	s.indexer.GetTransactionIndexer().UpdateEventConfig(eventConfig)
 
 	return eventConfig, nil
 }
@@ -784,6 +781,16 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 		"argTypes", argTypes,
 	)
 
+	// Override the package ID with the latest package ID of the module being called.
+	// This ensure we are always using the latestPkgID in case of upgrades.
+	latestPackageId, err := s.client.GetLatestPackageId(ctx, parsed.address, common.GetModuleForContract(parsed.contractName), "")
+	if err != nil {
+		return []any{}, err
+	}
+
+	// this is the upgraded pkgID
+	parsed.address = latestPackageId
+
 	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, parsed.contractName, parsed.readName, args, argTypes)
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
@@ -881,6 +888,12 @@ func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.Ch
 	if eventConfig.EventFilterRenames != nil {
 		expressions = aptosCRUtils.ApplyEventFilterRenames(expressions, eventConfig.EventFilterRenames)
 	}
+
+	s.logger.Debugw("QueryKey received request",
+		"contract", eventConfig.Package,
+		"eventHandle", eventHandle,
+		"expressions", expressions,
+		"limitAndSort", limitAndSort)
 
 	// Query events from database
 	records, err := s.dbStore.QueryEvents(ctx, eventConfig.Package, eventHandle, expressions, limitAndSort)

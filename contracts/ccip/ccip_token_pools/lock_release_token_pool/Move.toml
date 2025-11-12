@@ -8,7 +8,7 @@ ChainlinkManyChainMultisig = { local = "../../../mcms/mcms" }
 
 [addresses]
 ccip = "_"
-lock_release_token_pool = "_"
+lock_release_token_pool = "0x0"
 mcms = "_"
 mcms_owner = "_"
 

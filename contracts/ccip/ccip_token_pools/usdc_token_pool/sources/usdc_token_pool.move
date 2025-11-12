@@ -19,6 +19,7 @@ use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
+use sui::derived_object;
 use sui::event;
 use sui::package::{Self, UpgradeCap};
 use sui::table::{Self, Table};
@@ -32,6 +33,15 @@ use usdc_token_pool::token_pool::{Self, TokenPoolState};
 
 public struct USDC_TOKEN_POOL has drop {}
 
+public struct USDCTokenPoolObject has key {
+    id: UID,
+}
+
+public struct USDCTokenPoolStatePointer has key, store {
+    id: UID,
+    usdc_token_pool_object_id: address,
+}
+
 fun init(otw: USDC_TOKEN_POOL, ctx: &mut TxContext) {
     let (ownable_state, mut owner_cap) = ownable::new(ctx);
     ownable::attach_ownable_state(&mut owner_cap, ownable_state);
@@ -44,9 +54,6 @@ fun init(otw: USDC_TOKEN_POOL, ctx: &mut TxContext) {
 
 // We restrict to the first version. New pool may be required for subsequent versions.
 const SUPPORTED_USDC_VERSION_U64: u64 = 0;
-
-const CLOCK_ADDRESS: address = @0x6;
-const DENY_LIST_ADDRESS: address = @0x403;
 
 /// A domain is a USDC representation of a destination chain.
 /// @dev Zero is a valid domain identifier.
@@ -73,6 +80,14 @@ public struct USDCTokenPoolState<phantom T> has key {
     chain_to_domain: Table<u64, Domain>,
     local_domain_identifier: u32,
     ownable_state: OwnableState,
+}
+
+public struct TokenBucketWrapper has drop, store {
+    tokens: u64,
+    last_updated: u64,
+    is_enabled: bool,
+    capacity: u64,
+    rate: u64,
 }
 
 const EInvalidCoinMetadata: u64 = 1;
@@ -111,8 +126,18 @@ public fun initialize<T: drop>(
     assert!(coin_metadata_address == @usdc_coin_metadata_object_id, EInvalidCoinMetadata);
 
     let ownable_state = ownable::detach_ownable_state(owner_cap);
-    let usdc_token_pool = USDCTokenPoolState<T> {
+    let mut usdc_token_pool_object = USDCTokenPoolObject { id: object::new(ctx) };
+    let usdc_token_pool_state_pointer = USDCTokenPoolStatePointer {
         id: object::new(ctx),
+        usdc_token_pool_object_id: object::id_address(&usdc_token_pool_object),
+    };
+    
+    let tn = type_name::with_original_ids<USDC_TOKEN_POOL>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
+    let package_id = address::from_ascii_bytes(&package_bytes);
+    
+    let usdc_token_pool = USDCTokenPoolState<T> {
+        id: derived_object::claim(&mut usdc_token_pool_object.id, b"USDCTokenPoolState"),
         token_pool_state: token_pool::initialize(
             coin_metadata_address,
             coin_metadata.get_decimals(),
@@ -126,50 +151,8 @@ public fun initialize<T: drop>(
     };
 
     transfer::share_object(usdc_token_pool);
-}
-
-public fun set_pool<T>(
-    ref: &mut CCIPObjectRef,
-    state: &mut USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
-    coin_metadata_address: address,
-    ctx: &mut TxContext,
-) {
-    set_pool_internal(ref, state, owner_cap, coin_metadata_address, ctx.sender());
-}
-
-fun set_pool_internal<T>(
-    ref: &mut CCIPObjectRef,
-    state: &USDCTokenPoolState<T>,
-    owner_cap: &OwnerCap,
-    coin_metadata_address: address,
-    caller: address,
-) {
-    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
-
-    let token_pool_state_address = object::uid_to_address(&state.id);
-    token_admin_registry::set_pool(
-        ref,
-        coin_metadata_address,
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            token_pool_state_address,
-            @token_messenger_minter_state,
-            @message_transmitter_state,
-            @treasury,
-        ],
-        vector[
-            CLOCK_ADDRESS,
-            DENY_LIST_ADDRESS,
-            token_pool_state_address,
-            @token_messenger_minter_state,
-            @message_transmitter_state,
-            @treasury,
-        ],
-        TypeProof {},
-        caller,
-    );
+    transfer::share_object(usdc_token_pool_object);
+    transfer::transfer(usdc_token_pool_state_pointer, package_id);
 }
 
 // ================================================================
@@ -444,6 +427,7 @@ public fun release_or_mint<T: drop>(
     let mint_recipient = burn_message::mint_recipient(&burn_message);
     assert!(mint_recipient == token_receiver, EInvalidMintRecipient);
     let local_amount = burn_message::amount(&burn_message);
+    // local_amount is u64 because the token balance in SUI is u64.
     let mut amount_op = local_amount.try_as_u64();
     assert!(amount_op.is_some(), ETokenAmountOverflow);
     let amount = amount_op.extract();
@@ -693,24 +677,32 @@ public fun get_current_inbound_rate_limiter_state<T>(
     clock: &Clock,
     state: &USDCTokenPoolState<T>,
     remote_chain_selector: u64,
-): rate_limiter::TokenBucket {
-    token_pool::get_current_inbound_rate_limiter_state(
+): TokenBucketWrapper {
+    let token_bucket = token_pool::get_current_inbound_rate_limiter_state(
         &state.token_pool_state,
         clock,
         remote_chain_selector,
-    )
+    );
+    let (tokens, last_updated, is_enabled, capacity, rate) = rate_limiter::get_token_bucket_fields(
+        &token_bucket,
+    );
+    TokenBucketWrapper { tokens, last_updated, is_enabled, capacity, rate }
 }
 
 public fun get_current_outbound_rate_limiter_state<T>(
     clock: &Clock,
     state: &USDCTokenPoolState<T>,
     remote_chain_selector: u64,
-): rate_limiter::TokenBucket {
-    token_pool::get_current_outbound_rate_limiter_state(
+): TokenBucketWrapper {
+    let token_bucket = token_pool::get_current_outbound_rate_limiter_state(
         &state.token_pool_state,
         clock,
         remote_chain_selector,
-    )
+    );
+    let (tokens, last_updated, is_enabled, capacity, rate) = rate_limiter::get_token_bucket_fields(
+        &token_bucket,
+    );
+    TokenBucketWrapper { tokens, last_updated, is_enabled, capacity, rate }
 }
 
 // ================================================================
@@ -1252,40 +1244,6 @@ fun get_package_address<T>(): address {
     let tn = type_name::with_defining_ids<McmsCallback<T>>();
     let addr_bytes = tn.address_string().into_bytes();
     address::from_ascii_bytes(&addr_bytes)
-}
-
-public fun mcms_set_pool<T>(
-    ref: &mut CCIPObjectRef,
-    state: &USDCTokenPoolState<T>,
-    registry: &mut Registry,
-    params: ExecutingCallbackParams,
-    _: &mut TxContext,
-) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback<T>,
-        OwnerCap,
-    >(
-        registry,
-        McmsCallback<T> {},
-        params,
-    );
-    assert!(function == string::utf8(b"set_pool"), EInvalidFunction);
-
-    let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
-        &mut stream,
-    );
-    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
-    bcs_stream::assert_is_consumed(&stream);
-
-    set_pool_internal(
-        ref,
-        state,
-        owner_cap,
-        coin_metadata_address,
-        mcms_registry::get_multisig_address(),
-    );
 }
 
 public fun mcms_add_allowed_modules<T>(

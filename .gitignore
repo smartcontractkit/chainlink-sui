@@ -1,5 +1,6 @@
 # secrets
 *.env
+.env.*
 
 
 # misc

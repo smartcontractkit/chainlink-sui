@@ -311,15 +311,9 @@ eventLoop:
 				// normalize the data, convert snake case to camel case
 				normalizedData := convertMapKeysToCamelCase(event.ParsedJson)
 
-				// optionally use the initial package ID if it is provided
-				packageIdToInsert := selector.Package
-				if selector.InitialPackageId != nil {
-					packageIdToInsert = *selector.InitialPackageId
-				}
-
 				// Convert event to database record
 				record := database.EventRecord{
-					EventAccountAddress: packageIdToInsert,
+					EventAccountAddress: selector.Package,
 					EventHandle:         eventHandle,
 					EventOffset:         offset,
 					TxDigest:            event.Id.TxDigest,
@@ -336,17 +330,37 @@ eventLoop:
 			// Insert batch of events into database
 			if len(batchRecords) > 0 {
 				if err := eIndexer.db.InsertEvents(ctx, batchRecords); err != nil {
-					return fmt.Errorf("syncEvent: failed to insert batch of events: %w", err)
+					eIndexer.logger.Errorw("syncEvent: failed to insert batch of events, falling back to per-event insert", "error", err)
+
+					// Fallback: insert each record individually, skip bad ones
+					totalProcessedFallback := 0
+					for _, record := range batchRecords {
+						if err := eIndexer.db.InsertEvents(ctx, []database.EventRecord{record}); err != nil {
+							eIndexer.logger.Errorw("Failed to insert single event, skipping...",
+								"error", err,
+								"handle", eventHandle,
+								"txDigest", record.TxDigest,
+								"offset", record.EventOffset,
+							)
+
+							continue
+						}
+
+						totalProcessedFallback++
+					}
+					eIndexer.logger.Debugw("syncEvent: inserted batch of events", "count", totalProcessedFallback, "handle", eventHandle)
+					totalProcessed += totalProcessedFallback
+				} else {
+					totalProcessed += len(batchRecords)
 				}
 
-				totalProcessed += len(batchRecords)
 				eIndexer.logger.Debugw("syncEvent: saved batch of events",
 					"batch_count", len(batchRecords),
 					"total_processed", totalProcessed,
 					"handle", eventHandle)
 			}
 
-			// Update cursor for next iteration
+			// Update cursor for next iteration and the total count of events processed so far
 			if eventsPage.HasNextPage && eventsPage.NextCursor.TxDigest != "" && eventsPage.NextCursor.EventSeq != "" {
 				cursor = &models.EventId{
 					TxDigest: eventsPage.NextCursor.TxDigest,
@@ -357,6 +371,11 @@ eventLoop:
 					EventSeq: eventsPage.NextCursor.EventSeq,
 				}
 				eIndexer.lastProcessedCursors[eventHandle] = cursor
+
+				totalCount, err = eIndexer.db.GetTotalCount(ctx, selector.Package, eventHandle)
+				if err != nil {
+					return fmt.Errorf("syncEvent: failed to get total count: %w", err)
+				}
 			} else {
 				// No more events to process
 				break eventLoop

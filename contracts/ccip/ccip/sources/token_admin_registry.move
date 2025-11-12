@@ -9,7 +9,6 @@ use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
-use sui::address;
 use sui::coin::{CoinMetadata, TreasuryCap};
 use sui::event;
 use sui::linked_table::{Self, LinkedTable};
@@ -26,7 +25,7 @@ public struct TokenAdminRegistryState has key, store {
 public struct TokenConfig has copy, drop, store {
     token_pool_package_id: address,
     token_pool_module: String,
-    // the type of the token, this should be the full type name of the token, e.g. "0x2::token::Token<0x1::sui::SUI>"
+    // the type of the token, this should be the full type name of the token, e.g. "link_package_id::link::LINK"
     token_type: ascii::String,
     administrator: address,
     pending_administrator: address,
@@ -437,6 +436,15 @@ fun register_pool_internal(
         administrator: initial_administrator,
         token_pool_type_proof,
     });
+
+    event::emit(PoolSet {
+        coin_metadata_address,
+        previous_pool_package_id: @0x0,
+        new_pool_package_id: token_pool_package_id,
+        token_pool_type_proof,
+        lock_or_burn_params,
+        release_or_mint_params,
+    });
 }
 
 public fun unregister_pool(
@@ -482,95 +490,6 @@ fun unregister_pool_internal(
         coin_metadata_address,
         previous_pool_address,
     });
-}
-
-public fun set_pool<TypeProof: drop>(
-    ref: &mut CCIPObjectRef,
-    coin_metadata_address: address,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
-    _: TypeProof,
-    caller: address,
-) {
-    let proof_tn = type_name::with_defining_ids<TypeProof>();
-    let proof_package_id = address::from_ascii_bytes(&proof_tn.address_string().into_bytes());
-    let token_pool_module = proof_tn.module_string().into_bytes().to_string();
-    let token_pool_type_proof_str = type_name::into_string(proof_tn);
-    set_pool_internal(
-        ref,
-        coin_metadata_address,
-        proof_package_id,
-        token_pool_module,
-        lock_or_burn_params,
-        release_or_mint_params,
-        token_pool_type_proof_str,
-        caller,
-    );
-}
-
-fun set_pool_internal(
-    ref: &mut CCIPObjectRef,
-    coin_metadata_address: address,
-    token_pool_package_id: address,
-    token_pool_module: String,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
-    token_pool_type_proof: ascii::String,
-    caller: address,
-) {
-    verify_function_allowed(
-        ref,
-        string::utf8(b"token_admin_registry"),
-        string::utf8(b"set_pool"),
-        VERSION,
-    );
-    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
-
-    assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
-
-    let token_config = state.token_configs.borrow_mut(coin_metadata_address);
-
-    assert!(
-        token_config.administrator == caller || token_config.administrator == mcms_registry::get_multisig_address(),
-        ENotAllowed,
-    );
-
-    // TODO: sort out the UX here
-    // the token pool changes, the package id, state address, module, and type proof will change.
-    let previous_pool_package_id = token_config.token_pool_package_id;
-    if (previous_pool_package_id != token_pool_package_id) {
-        token_config.token_pool_package_id = token_pool_package_id;
-        token_config.token_pool_module = token_pool_module;
-        token_config.lock_or_burn_params = lock_or_burn_params;
-        token_config.release_or_mint_params = release_or_mint_params;
-        token_config.token_pool_type_proof = token_pool_type_proof;
-
-        // Update the package ID mapping
-        // First remove the old mapping
-        assert!(
-            state.token_pool_package_id_to_coin_metadata.contains(previous_pool_package_id),
-            ETokenPoolPackageIdNotRegistered,
-        );
-        state.token_pool_package_id_to_coin_metadata.remove(previous_pool_package_id);
-
-        // Then update or add the new mapping
-        assert!(
-            !state.token_pool_package_id_to_coin_metadata.contains(token_pool_package_id),
-            ETokenPoolPackageIdAlreadyRegistered,
-        );
-        state
-            .token_pool_package_id_to_coin_metadata
-            .push_back(token_pool_package_id, coin_metadata_address);
-
-        event::emit(PoolSet {
-            coin_metadata_address,
-            previous_pool_package_id,
-            new_pool_package_id: token_pool_package_id,
-            token_pool_type_proof,
-            lock_or_burn_params,
-            release_or_mint_params,
-        });
-    }
 }
 
 public fun transfer_admin_role(
@@ -767,56 +686,6 @@ public fun mcms_unregister_pool(
     bcs_stream::assert_is_consumed(&stream);
 
     unregister_pool_internal(ref, coin_metadata_address, mcms_registry::get_multisig_address());
-}
-
-public fun mcms_set_pool(
-    ref: &mut CCIPObjectRef,
-    registry: &mut Registry,
-    params: ExecutingCallbackParams,
-    _ctx: &mut TxContext,
-) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        state_object::McmsCallback,
-        OwnerCap,
-    >(
-        registry,
-        state_object::mcms_callback(),
-        params,
-    );
-    assert!(function == string::utf8(b"set_pool"), EInvalidFunction);
-
-    let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref)],
-        &mut stream,
-    );
-
-    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
-    let token_pool_package_id = bcs_stream::deserialize_address(&mut stream);
-    let token_pool_module = bcs_stream::deserialize_string(&mut stream);
-    let lock_or_burn_params = bcs_stream::deserialize_vector!(
-        &mut stream,
-        |stream| bcs_stream::deserialize_address(stream),
-    );
-    let release_or_mint_params = bcs_stream::deserialize_vector!(
-        &mut stream,
-        |stream| bcs_stream::deserialize_address(stream),
-    );
-    let token_pool_type_proof = ascii::string(bcs_stream::deserialize_string(
-        &mut stream,
-    ).into_bytes());
-    bcs_stream::assert_is_consumed(&stream);
-
-    set_pool_internal(
-        ref,
-        coin_metadata_address,
-        token_pool_package_id,
-        token_pool_module,
-        lock_or_burn_params,
-        release_or_mint_params,
-        token_pool_type_proof,
-        mcms_registry::get_multisig_address(),
-    );
 }
 
 public fun mcms_transfer_admin_role(
