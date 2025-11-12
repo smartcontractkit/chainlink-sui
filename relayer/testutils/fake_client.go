@@ -43,7 +43,7 @@ func (c *FakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress st
 	return []models.SuiObjectResponse{}, nil
 }
 
-func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error) {
+func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	return []any{}, nil
 }
 
@@ -206,7 +206,7 @@ func (c *StatefulFakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAd
 	return []models.SuiObjectResponse{}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error) {
+func (c *StatefulFakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	return []any{}, nil
 }
 
