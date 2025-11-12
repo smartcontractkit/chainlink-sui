@@ -52,10 +52,11 @@ type CCIPChainState struct {
 	LinkTokenTreasuryCapId  string
 
 	// Token related
-	ManagedToken                 string
-	ManagedTokenOwnerCapObjectID string
-	ManagedTokenStateObjectID    string
-	ManagedTokenMinterCapID      string
+	ManagedToken                  string
+	ManagedTokenOwnerCapObjectID  string
+	ManagedTokenStateObjectID     string
+	ManagedTokenMinterCapID       string
+	ManagedTokenPublisherObjectId string
 
 	// Token pools related
 	LnRTokenPools     map[string]CCIPPoolState
@@ -175,6 +176,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.ManagedTokenStateObjectID = addr
 		case SuiManagedTokenMinterCapID:
 			chainState.ManagedTokenMinterCapID = addr
+		case SuiManagedTokenPublisherObjectId:
+			chainState.ManagedTokenPublisherObjectId = addr
 
 		// mock upgrade related
 		case SuiOnRampMockV2:

@@ -76,6 +76,13 @@ func (d DeployManagedToken) Apply(e cldf.Environment, config DeployManagedTokenC
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken StateObjectId address %s for Sui chain %d: %w", managedTokenReport.Output.Objects.StateObjectId, config.ChainSelector, err)
 	}
 
+	// save PublisherObjectId address to the addressbook
+	typeAndVersionPublisherObjectId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPublisherObjectId, deployment.Version1_0_0)
+	err = ab.Save(config.ChainSelector, managedTokenReport.Output.Objects.PublisherObjectId, typeAndVersionPublisherObjectId)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken PublisherObjectId address %s for Sui chain %d: %w", managedTokenReport.Output.Objects.PublisherObjectId, config.ChainSelector, err)
+	}
+
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
 		Reports:     seqReports,
