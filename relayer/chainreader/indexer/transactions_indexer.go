@@ -30,8 +30,10 @@ type TransactionsIndexer struct {
 	logger          logger.Logger
 	pollingInterval time.Duration
 	syncTimeout     time.Duration
+
 	// map of transmitter address to cursor (the last processed transaction digest)
 	transmitters map[models.SuiAddress]string
+
 	// event selectors
 	eventPackageId          string
 	executionEventModuleKey string
@@ -39,6 +41,7 @@ type TransactionsIndexer struct {
 	configEventModuleKey    string
 	configEventKey          string
 	executeFunctions        []string
+
 	// configs
 	eventConfigs map[string]*config.ChainReaderEvent
 
@@ -286,6 +289,12 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			return totalProcessed, nil
 		}
 
+		lastDigest := queryResponse.Data[len(queryResponse.Data)-1].Digest
+		defer func() {
+			// Update the cursor to the last transaction digest regardless of the code path below
+			tIndexer.transmitters[transmitter] = lastDigest
+		}()
+
 		var records []database.EventRecord
 		for _, transactionRecord := range queryResponse.Data {
 			if transactionRecord.Effects.Status.Status == "success" {
@@ -469,8 +478,6 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				return totalProcessedFallback, nil
 			}
 
-			// update the cursor to the last transaction digest
-			tIndexer.transmitters[transmitter] = queryResponse.Data[len(queryResponse.Data)-1].Digest
 			tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events",
 				"count", len(records), "transmitter", transmitter)
 		}
