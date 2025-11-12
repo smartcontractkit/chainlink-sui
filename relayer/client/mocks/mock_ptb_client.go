@@ -21,6 +21,7 @@ import (
 	cache "github.com/patrickmn/go-cache"
 	gomock "go.uber.org/mock/gomock"
 
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	client "github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -502,4 +503,19 @@ func (m *MockSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address, coi
 func (mr *MockSuiPTBClientMockRecorder) QueryCoinsByAddress(ctx, address, coinType any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryCoinsByAddress", reflect.TypeOf((*MockSuiPTBClient)(nil).QueryCoinsByAddress), ctx, address, coinType)
+}
+
+// GetTokenPoolConfigByPackageAddress mocks base method.
+func (m *MockSuiPTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTokenPoolConfigByPackageAddress", ctx, accountAddress, tokenPoolAddress, ccipPackageAddress)
+	ret0, _ := ret[0].(module_token_admin_registry.TokenConfig)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTokenPoolConfigByPackageAddress indicates an expected call of GetTokenPoolConfigByPackageAddress.
+func (mr *MockSuiPTBClientMockRecorder) GetTokenPoolConfigByPackageAddress(ctx, accountAddress, tokenPoolAddress, ccipPackageAddress any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTokenPoolConfigByPackageAddress", reflect.TypeOf((*MockSuiPTBClient)(nil).GetTokenPoolConfigByPackageAddress), ctx, accountAddress, tokenPoolAddress, ccipPackageAddress)
 }
