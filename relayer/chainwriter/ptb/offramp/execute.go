@@ -223,6 +223,8 @@ func ProcessTokenPools(
 		tokenConfig, err := tokenAdminRegistryDevInspect.GetTokenConfigStruct(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get token configs for offramp execution: %w", err)
+		} else if !IsValidTokenPoolConfig(&tokenConfig) {
+			return nil, fmt.Errorf("invalid token pool config for token metadata address: %s: %+v", coinMetadataAddress, tokenConfig)
 		}
 
 		lggr.Debugw("fetched token configs via dev inspect call", "tokenConfig", tokenConfig)
