@@ -101,6 +101,7 @@ func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error
 
 func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (CCIPChainState, error) {
 	chainState := CCIPChainState{
+		ManagedTokens:     make(map[string]ManagedTokenState),
 		BnMTokenPools:     make(map[string]CCIPPoolState),
 		LnRTokenPools:     make(map[string]CCIPPoolState),
 		ManagedTokenPools: make(map[string]CCIPPoolState),
