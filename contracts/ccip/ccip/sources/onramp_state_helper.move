@@ -61,7 +61,7 @@ public fun add_token_transfer_param<TypeProof: drop>(
     extra_data: vector<u8>,
     _: TypeProof,
 ) {
-    let (token_pool_package_id, _, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
+    let (token_pool_package_id, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
         ref,
         source_token_coin_metadata_address,
     );
