@@ -161,6 +161,12 @@ func TestTransactionsIndexer(t *testing.T) {
 							},
 						},
 					},
+				},
+			},
+			"offramp": {
+				Name:     "offramp",
+				ModuleID: packageId,
+				Functions: map[string]*cwConfig.ChainWriterFunction{
 					"offramp_execution_with_error": {
 						Name:      "offramp_execution_with_error",
 						PublicKey: publicKeyBytes,
@@ -348,7 +354,7 @@ func TestTransactionsIndexer(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("TestBasicFailedTransactionIndexing", func(t *testing.T) {
-		t.Skip("Skipping basic failed transaction indexing test")
+		t.Skip("Skipping basic failed transaction indexing test, need to use valid report bytes")
 		ctx := context.Background()
 
 		// 1. Create a few transactions
@@ -382,7 +388,7 @@ func TestTransactionsIndexer(t *testing.T) {
 		require.NoError(t, err)
 
 		ptb := cwPTB.NewPTBConstructor(chainWriterConfig, relayerClient, log)
-		ptbTx, err := ptb.BuildPTBCommands(context.Background(), "counter", "offramp_execution_with_error", cwConfig.Arguments{
+		ptbTx, err := ptb.BuildPTBCommands(context.Background(), "offramp", "offramp_execution_with_error", cwConfig.Arguments{
 			Args: map[string]any{
 				"ref":            ccipObjectRefId,
 				"state":          offrampStateObjectId,
@@ -390,11 +396,12 @@ func TestTransactionsIndexer(t *testing.T) {
 				"report_context": [][]byte{},
 				"report":         reportBytes,
 			},
-		}, packageId, chainWriterConfig.Modules["counter"].Functions["offramp_execution_with_error"])
+		}, packageId, chainWriterConfig.Modules["offramp"].Functions["offramp_execution_with_error"])
 		require.NoError(t, err)
 
 		// Execute the PTB command using the PTB client, we don't check errors because we expect a failure
-		_, _ = relayerClient.FinishPTBAndSend(ctx, txnSigner, ptbTx, client.WaitForLocalExecution)
+		response, _ := relayerClient.FinishPTBAndSend(ctx, txnSigner, ptbTx, client.WaitForLocalExecution)
+		require.Equal(t, "failure", response.Status.Status)
 
 		// helper: returns true if at least one event with the given key exists for the contract
 		hasEvent := func(contract types.BoundContract, key string) bool {
@@ -403,7 +410,15 @@ func TestTransactionsIndexer(t *testing.T) {
 				log.Errorw("Error querying events", "contract", contract.Name, "key", key, "error", err)
 				return false
 			}
-			return len(events) > 0
+			found := len(events) > 0
+
+			if found {
+				log.Debugw("Event found")
+			} else {
+				log.Debugw("Event not found", events)
+			}
+
+			return found
 		}
 
 		// wait for all three
