@@ -3,10 +3,10 @@ name = "ChainlinkCCIPDummyReceiver"
 edition = "2024"
 
 [addresses]
-ccip = "_"
+ccip = "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
 ccip_dummy_receiver = "0x0"
-mcms = "_"
-mcms_owner = "_"
+mcms = "0x7dd8c89002aa29bd802da52b8b5dd92eed1d94b5a1daa6e9f80ae9599f656e8d"
+mcms_owner = "0x4010"
 
 [dev-addresses]
 ccip = "0x1000"

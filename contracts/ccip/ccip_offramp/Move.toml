@@ -1,6 +1,7 @@
 [package]
 name = "ChainlinkCCIPOfframp"
 edition = "2024"
+published-at = "0xdec6eef8180d0a62a1dab9182c28bb854cfe0cf013d24344c3e6cb3de6b10572"
 
 [addresses]
 ccip = "_"

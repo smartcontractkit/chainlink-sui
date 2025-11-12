@@ -1,6 +1,7 @@
 [package]
 name = "LinkToken"
 edition = "2024"
+published-at = "0xaef62620165a45d842da3bfc8c7f31f6c39fc66d06d138ecfd60e599c8c1a44e"
 
 [addresses]
 link = "0x0"
