@@ -25,7 +25,7 @@ public struct TokenAdminRegistryState has key, store {
 public struct TokenConfig has copy, drop, store {
     token_pool_package_id: address,
     token_pool_module: String,
-    // the type of the token, this should be the full type name of the token, e.g. "0x2::token::Token<0x1::sui::SUI>"
+    // the type of the token, this should be the full type name of the token, e.g. "link_package_id::link::LINK"
     token_type: ascii::String,
     administrator: address,
     pending_administrator: address,
