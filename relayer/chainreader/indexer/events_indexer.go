@@ -360,7 +360,7 @@ eventLoop:
 					"handle", eventHandle)
 			}
 
-			// Update cursor for next iteration
+			// Update cursor for next iteration and the total count of events processed so far
 			if eventsPage.HasNextPage && eventsPage.NextCursor.TxDigest != "" && eventsPage.NextCursor.EventSeq != "" {
 				cursor = &models.EventId{
 					TxDigest: eventsPage.NextCursor.TxDigest,
@@ -371,6 +371,11 @@ eventLoop:
 					EventSeq: eventsPage.NextCursor.EventSeq,
 				}
 				eIndexer.lastProcessedCursors[eventHandle] = cursor
+
+				totalCount, err = eIndexer.db.GetTotalCount(ctx, selector.Package, eventHandle)
+				if err != nil {
+					return fmt.Errorf("syncEvent: failed to get total count: %w", err)
+				}
 			} else {
 				// No more events to process
 				break eventLoop
