@@ -4,7 +4,6 @@ package reader
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -27,6 +26,9 @@ import (
 func TestChainReaderTestnet(t *testing.T) {
 	log := logger.Test(t)
 	rpcUrl := testutils.TestnetUrl
+
+	tokenAdminRegistryContractName := "TokenAdminRegistry"
+	tokenAdminRegistryPackageId := "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
 
 	burnMintTokenPoolContractName := "BurnMintTokenPool"
 	burnMintTokenPoolPackageId := "0xfeff675b624e55da49f80fda3b676fe1ef5a957a8334cb675ca35de8918f612d"
@@ -52,6 +54,10 @@ func TestChainReaderTestnet(t *testing.T) {
 			SyncTimeout:     10 * time.Second,
 		},
 		Modules: map[string]*config.ChainReaderModule{
+			tokenAdminRegistryContractName: {
+				Name:      "token_admin_registry",
+				Functions: map[string]*config.ChainReaderFunction{},
+			},
 			burnMintTokenPoolContractName: {
 				Name: "burn_mint_token_pool",
 				Functions: map[string]*config.ChainReaderFunction{
@@ -60,17 +66,17 @@ func TestChainReaderTestnet(t *testing.T) {
 						SignerAddress: accountAddress,
 						Params: []codec.SuiFunctionParam{
 							{
-								Type: "object_id",
-								Name: "state_pointer",
+								Type:              "object_id",
+								Name:              "state_pointer",
+								GenericDependency: testutils.StringPointer("get_token_pool_state_type"),
 								PointerTag: &codec.PointerTag{
 									Module:        "burn_mint_token_pool",
 									PointerName:   "BurnMintTokenPoolStatePointer",
 									DerivationKey: "BurnMintTokenPoolState",
 									FieldName:     "burn_mint_token_pool_object_id",
 								},
-								Required:    true,
-								IsMutable:   testutils.BoolPointer(true),
-								GenericType: testutils.StringPointer("0x406964d837bc10f14e26a40b4462c58cce0b9e57fc5265a6272dd2aba57e15a4::link::LINK"),
+								Required:  true,
+								IsMutable: testutils.BoolPointer(true),
 							},
 						},
 					},
@@ -121,6 +127,9 @@ func TestChainReaderTestnet(t *testing.T) {
 	require.NoError(t, err)
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{{
+		Name:    tokenAdminRegistryContractName,
+		Address: tokenAdminRegistryPackageId,
+	}, {
 		Name:    burnMintTokenPoolContractName,
 		Address: burnMintTokenPoolPackageId,
 	}})
@@ -129,6 +138,5 @@ func TestChainReaderTestnet(t *testing.T) {
 	var retAddress string
 	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, map[string]any{}, &retAddress)
 	require.NoError(t, err)
-
-	fmt.Println(retAddress)
+	require.Equal(t, len(retAddress), 66)
 }

@@ -581,7 +581,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 	}
 
 	// Extract generic type tags from function params
-	typeArgs, err := s.extractGenericTypeTags(functionConfig)
+	typeArgs, err := s.extractGenericTypeTags(ctx, parsed, functionConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract generic type tags: %w", err)
 	}
@@ -595,7 +595,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 }
 
 // Helper function to extract generic type tags
-func (s *suiChainReader) extractGenericTypeTags(functionConfig *config.ChainReaderFunction) ([]string, error) {
+func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction) ([]string, error) {
 	if functionConfig.Params == nil {
 		return []string{}, nil
 	}
@@ -612,10 +612,41 @@ func (s *suiChainReader) extractGenericTypeTags(functionConfig *config.ChainRead
 				keyOrder = append(keyOrder, genericType)
 				uniqueTags[genericType] = struct{}{}
 			}
+		} else if param.GenericDependency != nil && *param.GenericDependency != "" {
+			genericType, err := s.fetchGenericDependency(ctx, functionConfig.SignerAddress, parsed, &param)
+			if err != nil {
+				return nil, fmt.Errorf("failed to fetch generic dependency: %w", err)
+			}
+			if _, exists := uniqueTags[genericType]; !exists {
+				keyOrder = append(keyOrder, genericType)
+				uniqueTags[genericType] = struct{}{}
+			}
 		}
 	}
 
 	return keyOrder, nil
+}
+
+func (s *suiChainReader) fetchGenericDependency(ctx context.Context, signerAddress string, parsed *readIdentifier, param *codec.SuiFunctionParam) (string, error) {
+	if param == nil || param.GenericDependency == nil || *param.GenericDependency == "" {
+		return "", fmt.Errorf("generic dependency is not set")
+	}
+
+	switch *param.GenericDependency {
+	case "get_token_pool_state_type":
+		// Try to get the CCIP / TokenAdminRegistry package address from the package resolver (requires that it has been bound to CR)
+		ccipPackageAddress, err := s.packageResolver.ResolvePackageAddress("token_admin_registry")
+		if err != nil {
+			return "", fmt.Errorf("get_token_pool_state_type requires that the CCIP / TokenAdminRegistry package has been bound to ChainReader: %w", err)
+		}
+		tokenConfig, err := s.client.GetTokenPoolConfigByPackageAddress(ctx, signerAddress, parsed.address, ccipPackageAddress)
+		if err != nil {
+			return "", fmt.Errorf("failed to get token pool state type: %w", err)
+		}
+		return tokenConfig.TokenType, nil
+	default:
+		return "", fmt.Errorf("unknown generic dependency: %s", *param.GenericDependency)
+	}
 }
 
 // parseParams parses input parameters based on whether we're running as a LOOP plugin

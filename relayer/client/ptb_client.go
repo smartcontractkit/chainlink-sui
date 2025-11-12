@@ -22,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	suiSigner "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
@@ -76,6 +77,7 @@ type SuiPTBClient interface {
 	GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error)
 	GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error)
 	GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error)
+	GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error)
 }
 
 // PTBClient implements SuiClient interface using the blockvision SDK
@@ -1177,6 +1179,70 @@ func (c *PTBClient) GetParentObjectID(ctx context.Context, packageID string, mod
 	}
 
 	return "", fmt.Errorf("pointer object %s not found in package %s", qualifiedName, packageID)
+}
+
+// A helper to abstract away having to provide the generic type of a token pool state. Requires a CCIP / StateObject package binding.
+func (c *PTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error) {
+	devInspectSigner := suiSigner.NewDevInspectSigner(accountAddress)
+	tokenAdminRegistry, err := module_token_admin_registry.NewTokenAdminRegistry(ccipPackageAddress, c.GetClient())
+	if err != nil {
+		return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
+	}
+
+	// Obtain the CCIPObjectRef ID from the CCIP package
+	ccipPointerConfigs := common.GetPointerConfigsByContract("ccip")
+	if len(ccipPointerConfigs) == 0 {
+		return module_token_admin_registry.TokenConfig{}, fmt.Errorf("ccip pointer config not found")
+	}
+
+	ccipPointerConfig := ccipPointerConfigs[0]
+
+	var ccipObjectRefID string
+	if cached, ok := c.GetCachedValue(ccipPointerConfig.ParentFieldName); ok {
+		ccipObjectRefID = cached.(string)
+	} else {
+		ccipObjectID, err := c.GetParentObjectID(ctx, ccipPackageAddress, "state_object", ccipPointerConfig.Pointer)
+		if err != nil {
+			return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to get ccip parent object ID: %w", err)
+		}
+
+		ccipObjectRefID, err = bind.DeriveObjectIDWithVectorU8Key(ccipObjectID, []byte("CCIPObjectRef"))
+		if err != nil {
+			return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to derive ccip object ref ID: %w", err)
+		}
+
+		c.SetCachedValue(ccipPointerConfig.ParentFieldName, ccipObjectID)
+	}
+
+	// Obtain the pool token metadata using the token pool package ID by calling into TokenAdminRegistry
+	poolTokenMetadataAddress, err := tokenAdminRegistry.DevInspect().GetPoolLocalToken(ctx, &bind.CallOpts{
+		WaitForExecution: true,
+		Signer:           devInspectSigner,
+	}, bind.Object{
+		Id: ccipObjectRefID,
+	}, tokenPoolAddress)
+
+	if err != nil {
+		return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to get pool local token: %w", err)
+	} else if poolTokenMetadataAddress == "" {
+		return module_token_admin_registry.TokenConfig{}, fmt.Errorf("pool token metadata address not found")
+	}
+
+	// Obtain the token pool config using the token pool metadata address by calling into TokenAdminRegistry
+	tokenPoolConfig, err := tokenAdminRegistry.DevInspect().GetTokenConfigStruct(ctx, &bind.CallOpts{
+		WaitForExecution: true,
+		Signer:           devInspectSigner,
+	}, bind.Object{
+		Id: ccipObjectRefID,
+	}, poolTokenMetadataAddress)
+
+	if err != nil {
+		return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to get token pool config: %w", err)
+	} else if tokenPoolConfig.TokenType == "" || tokenPoolConfig.TokenPoolPackageId == "" {
+		return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to get token pool config: empty response fields")
+	}
+
+	return tokenPoolConfig, nil
 }
 
 // Add helper method to create type tags

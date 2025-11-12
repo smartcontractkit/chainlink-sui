@@ -10,6 +10,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/patrickmn/go-cache"
 
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -173,6 +174,10 @@ func (c *FakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, 
 
 func (c *FakeSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error) {
 	return []models.CoinData{}, nil
+}
+
+func (c *FakeSuiPTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error) {
+	return module_token_admin_registry.TokenConfig{}, nil
 }
 
 // StatefulFakeSuiPTBClient is a more sophisticated fake client that can change behavior
@@ -345,4 +350,8 @@ func (c *StatefulFakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*b
 
 func (c *StatefulFakeSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error) {
 	return []models.CoinData{}, nil
+}
+
+func (c *StatefulFakeSuiPTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error) {
+	return module_token_admin_registry.TokenConfig{}, nil
 }
