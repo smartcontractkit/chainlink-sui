@@ -13,17 +13,24 @@ use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
+use std::type_name;
 use std::string::{Self, String};
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::derived_object;
 use sui::event;
 use sui::package::{Self, UpgradeCap};
+use sui::address;
 
 public struct LOCK_RELEASE_TOKEN_POOL has drop {}
 
 public struct LockReleaseTokenPoolObject has key {
     id: UID,
+}
+
+public struct LockReleaseTokenPoolStatePointer has key, store {
+    id: UID,
+    lock_release_token_pool_object_id: address,
 }
 
 fun init(otw: LOCK_RELEASE_TOKEN_POOL, ctx: &mut TxContext) {
@@ -96,6 +103,10 @@ public fun initialize<T>(
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     let ownable_state = ownable::detach_ownable_state(owner_cap);
     let mut lock_release_token_pool_object = LockReleaseTokenPoolObject { id: object::new(ctx) };
+    let lock_release_token_pool_state_pointer = LockReleaseTokenPoolStatePointer {
+        id: object::new(ctx),
+        lock_release_token_pool_object_id: object::id_address(&lock_release_token_pool_object),
+    };
     let rebalancer_cap = RebalancerCap<T> { id: object::new(ctx) };
     let lock_release_token_pool = LockReleaseTokenPoolState<T> {
         id: derived_object::claim(
@@ -113,6 +124,10 @@ public fun initialize<T>(
         rebalancer_cap_id: object::id(&rebalancer_cap),
         ownable_state,
     };
+
+    let tn = type_name::with_original_ids<LOCK_RELEASE_TOKEN_POOL>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
+    let package_id = address::from_ascii_bytes(&package_bytes);
 
     let publisher_wrapper = publisher_wrapper::create(
         ownable::borrow_publisher(owner_cap),
@@ -135,6 +150,7 @@ public fun initialize<T>(
     transfer::share_object(lock_release_token_pool);
     transfer::share_object(lock_release_token_pool_object);
     transfer::public_transfer(rebalancer_cap, rebalancer);
+    transfer::transfer(lock_release_token_pool_state_pointer, package_id);
 }
 
 // ================================================================

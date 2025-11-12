@@ -19,16 +19,23 @@ use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string::{Self, String};
+use std::type_name;
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
 use sui::derived_object;
 use sui::package::{Self, UpgradeCap};
+use sui::address;
 
 public struct MANAGED_TOKEN_POOL has drop {}
 
 public struct ManagedTokenPoolObject has key {
     id: UID,
+}
+
+public struct ManagedTokenPoolStatePointer has key, store {
+    id: UID,
+    managed_token_pool_object_id: address,
 }
 
 fun init(otw: MANAGED_TOKEN_POOL, ctx: &mut TxContext) {
@@ -97,6 +104,10 @@ public fun initialize_with_managed_token<T>(
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     let ownable_state = ownable::detach_ownable_state(owner_cap);
     let mut managed_token_pool_object = ManagedTokenPoolObject { id: object::new(ctx) };
+    let managed_token_pool_state_pointer = ManagedTokenPoolStatePointer {
+        id: object::new(ctx),
+        managed_token_pool_object_id: object::id_address(&managed_token_pool_object),
+    };
 
     // Initialize the token pool
     let managed_token_pool = ManagedTokenPoolState<T> {
@@ -140,8 +151,13 @@ public fun initialize_with_managed_token<T>(
         TypeProof {},
     );
 
+    let tn = type_name::with_original_ids<MANAGED_TOKEN_POOL>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
+    let package_id = address::from_ascii_bytes(&package_bytes);
+
     transfer::share_object(managed_token_pool);
     transfer::share_object(managed_token_pool_object);
+    transfer::transfer(managed_token_pool_state_pointer, package_id);
 }
 
 public fun add_remote_pool<T>(

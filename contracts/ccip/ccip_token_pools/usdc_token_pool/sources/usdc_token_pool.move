@@ -37,6 +37,11 @@ public struct USDCTokenPoolObject has key {
     id: UID,
 }
 
+public struct USDCTokenPoolStatePointer has key, store {
+    id: UID,
+    usdc_token_pool_object_id: address,
+}
+
 fun init(otw: USDC_TOKEN_POOL, ctx: &mut TxContext) {
     let (ownable_state, mut owner_cap) = ownable::new(ctx);
     ownable::attach_ownable_state(&mut owner_cap, ownable_state);
@@ -122,6 +127,15 @@ public fun initialize<T: drop>(
 
     let ownable_state = ownable::detach_ownable_state(owner_cap);
     let mut usdc_token_pool_object = USDCTokenPoolObject { id: object::new(ctx) };
+    let usdc_token_pool_state_pointer = USDCTokenPoolStatePointer {
+        id: object::new(ctx),
+        usdc_token_pool_object_id: object::id_address(&usdc_token_pool_object),
+    };
+    
+    let tn = type_name::with_original_ids<USDC_TOKEN_POOL>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
+    let package_id = address::from_ascii_bytes(&package_bytes);
+    
     let usdc_token_pool = USDCTokenPoolState<T> {
         id: derived_object::claim(&mut usdc_token_pool_object.id, b"USDCTokenPoolState"),
         token_pool_state: token_pool::initialize(
@@ -138,6 +152,7 @@ public fun initialize<T: drop>(
 
     transfer::share_object(usdc_token_pool);
     transfer::share_object(usdc_token_pool_object);
+    transfer::transfer(usdc_token_pool_state_pointer, package_id);
 }
 
 // ================================================================

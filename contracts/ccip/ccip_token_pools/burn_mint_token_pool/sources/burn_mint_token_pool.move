@@ -22,11 +22,18 @@ use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::derived_object;
 use sui::package::{Self, UpgradeCap};
+use std::type_name;
+use sui::address;
 
 public struct BURN_MINT_TOKEN_POOL has drop {}
 
 public struct BurnMintTokenPoolObject has key {
     id: UID,
+}
+
+public struct BurnMintTokenPoolStatePointer has key, store {
+    id: UID,
+    burn_mint_token_pool_object_id: address,
 }
 
 fun init(otw: BURN_MINT_TOKEN_POOL, ctx: &mut TxContext) {
@@ -81,6 +88,10 @@ public fun initialize<T>(
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     let ownable_state = ownable::detach_ownable_state(owner_cap);
     let mut burn_mint_token_pool_object = BurnMintTokenPoolObject { id: object::new(ctx) };
+    let burn_mint_token_pool_state_pointer = BurnMintTokenPoolStatePointer {
+        id: object::new(ctx),
+        burn_mint_token_pool_object_id: object::id_address(&burn_mint_token_pool_object),
+    };
     let burn_mint_token_pool = BurnMintTokenPoolState<T> {
         id: derived_object::claim(&mut burn_mint_token_pool_object.id, b"BurnMintTokenPoolState"),
         token_pool_state: token_pool::initialize(
@@ -112,8 +123,13 @@ public fun initialize<T>(
         TypeProof {},
     );
 
+    let tn = type_name::with_original_ids<BURN_MINT_TOKEN_POOL>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
+    let package_id = address::from_ascii_bytes(&package_bytes);
+
     transfer::share_object(burn_mint_token_pool);
     transfer::share_object(burn_mint_token_pool_object);
+    transfer::transfer(burn_mint_token_pool_state_pointer, package_id);
 }
 
 // ================================================================
