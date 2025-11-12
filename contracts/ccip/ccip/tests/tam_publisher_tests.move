@@ -21,8 +21,6 @@ public struct TestTypeProof2 has drop {}
 
 const ADMIN: address = @0xADDD;
 const DECIMALS: u8 = 18;
-const TOKEN_POOL_STATE_ADDRESS: address =
-    @0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
 
 fun setup_ccip_environment(scenario: &mut ts::Scenario): (OwnerCap, CCIPObjectRef) {
     scenario.next_tx(ADMIN);
@@ -72,7 +70,6 @@ public fun test_registered_type_proof_package_matches() {
             &mut ccip_ref,
             &treasury_cap,
             &coin_metadata,
-            TOKEN_POOL_STATE_ADDRESS,
             ADMIN,
             vector<address>[],
             vector<address>[],
@@ -84,7 +81,6 @@ public fun test_registered_type_proof_package_matches() {
             registered_package_id,
             _module,
             _token_type,
-            _token_pool_state_address,
             _admin,
             _pending_admin,
             _type_proof,
@@ -132,7 +128,6 @@ public fun test_register_pool_with_valid_publisher_wrapper() {
             &mut ccip_ref,
             &treasury_cap,
             &coin_metadata,
-            TOKEN_POOL_STATE_ADDRESS,
             ADMIN,
             vector<address>[@0x1, @0x2],
             vector<address>[@0x3, @0x4],
@@ -145,7 +140,6 @@ public fun test_register_pool_with_valid_publisher_wrapper() {
 
         let (
             package_id,
-            _token_pool_state_address,
             module_name,
             _token_type,
             administrator,
@@ -205,7 +199,6 @@ public fun test_publisher_wrapper_stores_correct_package_address() {
             &mut ccip_ref,
             &treasury_cap,
             &coin_metadata,
-            TOKEN_POOL_STATE_ADDRESS,
             ADMIN,
             vector<address>[],
             vector<address>[],
@@ -213,7 +206,7 @@ public fun test_publisher_wrapper_stores_correct_package_address() {
             TestTypeProof {},
         );
 
-        let (stored_address, _, _, _, _, _, _, _, _) = registry::get_token_config_data(
+        let (stored_address, _, _, _, _, _, _, _) = registry::get_token_config_data(
             &ccip_ref,
             coin_metadata_address,
         );
