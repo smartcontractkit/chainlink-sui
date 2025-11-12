@@ -45,12 +45,18 @@ func NewCCIPRouter(address string, client sui.ISuiAPI) (CCIPRouter, error) {
 }
 
 func PublishCCIPRouter(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, mcmsAddress string, mcmsOwner string) (CCIPRouter, *models.SuiTransactionBlockResponse, error) {
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.CCIPRouter, map[string]string{
 		"ccip_router":               "0x0",
 		"mcms":                      mcmsAddress,
 		"mcms_owner":                mcmsOwner,
 		"mcms_register_entrypoints": "0x2",
-	})
+		"signer":                    signerAddr,
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

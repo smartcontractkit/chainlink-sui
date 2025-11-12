@@ -3,7 +3,7 @@ name = "MockLINKToken"
 edition = "2024"
 
 [addresses]
-mock_link_token = "_"
+mock_link_token = "0x0"
 
 [dev-addresses]
 mock_link_token = "0x1111"

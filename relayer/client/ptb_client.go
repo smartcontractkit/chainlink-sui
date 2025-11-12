@@ -38,7 +38,7 @@ const (
 	DefaultGasBudget            uint64        = 1_000_000_000
 	DefaultCacheExpiration      time.Duration = 120 * time.Minute
 	DefaultCacheCleanupInterval time.Duration = 240 * time.Minute
-	DefaultHTTPTimeout          time.Duration = 15 * time.Second
+	DefaultHTTPTimeout          time.Duration = 120 * time.Second
 )
 
 // var since it's passed via pointer
@@ -115,6 +115,12 @@ func NewPTBClient(
 	if maxConcurrentRequests <= 0 {
 		maxConcurrentRequests = 500 // Default value
 	}
+
+	log.Infof(
+		"PTBClient config configs transactionTimeout: %s,  maxConcurrentRequests: %d",
+		transactionTimeout,
+		maxConcurrentRequests,
+	)
 
 	return &PTBClient{
 		log:                log,
