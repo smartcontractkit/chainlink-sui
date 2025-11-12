@@ -580,12 +580,42 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 		return nil, fmt.Errorf("failed to prepare arguments: %w", err)
 	}
 
-	responseValues, err := s.executeFunction(ctx, parsed, functionConfig, args, argTypes)
+	// Extract generic type tags from function params
+	typeArgs, err := s.extractGenericTypeTags(functionConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract generic type tags: %w", err)
+	}
+
+	responseValues, err := s.executeFunction(ctx, parsed, functionConfig, args, argTypes, typeArgs)
 	if err != nil {
 		return nil, err
 	}
 
 	return responseValues, nil
+}
+
+// Helper function to extract generic type tags
+func (s *suiChainReader) extractGenericTypeTags(functionConfig *config.ChainReaderFunction) ([]string, error) {
+	if functionConfig.Params == nil {
+		return []string{}, nil
+	}
+
+	// Use a map to track unique type tags and preserve order
+	uniqueTags := make(map[string]struct{})
+	keyOrder := make([]string, 0)
+
+	for _, param := range functionConfig.Params {
+		if param.GenericType != nil && *param.GenericType != "" {
+			genericType := *param.GenericType
+			// Only add if not already present
+			if _, exists := uniqueTags[genericType]; !exists {
+				keyOrder = append(keyOrder, genericType)
+				uniqueTags[genericType] = struct{}{}
+			}
+		}
+	}
+
+	return keyOrder, nil
 }
 
 // parseParams parses input parameters based on whether we're running as a LOOP plugin
@@ -772,13 +802,14 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 }
 
 // executeFunction executes the actual function call
-func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction, args []any, argTypes []string) ([]any, error) {
+func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	s.logger.Debugw("Calling ReadFunction",
 		"address", parsed.address,
 		"module", parsed.contractName,
 		"method", parsed.readName,
 		"encodedArgs", args,
 		"argTypes", argTypes,
+		"typeArgs", typeArgs,
 	)
 
 	// Override the package ID with the latest package ID of the module being called.
@@ -791,7 +822,7 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 	// this is the upgraded pkgID
 	parsed.address = latestPackageId
 
-	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, parsed.contractName, parsed.readName, args, argTypes)
+	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, parsed.contractName, parsed.readName, args, argTypes, typeArgs)
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
 			"error", err,
@@ -800,6 +831,7 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 			"method", parsed.readName,
 			"args", args,
 			"argTypes", argTypes,
+			"typeArgs", typeArgs,
 		)
 
 		return nil, fmt.Errorf("failed to call function %s: %w", parsed.readName, err)
