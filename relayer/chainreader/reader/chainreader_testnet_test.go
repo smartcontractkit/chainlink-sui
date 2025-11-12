@@ -4,7 +4,6 @@ package reader
 
 import (
 	"context"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -86,15 +85,7 @@ func TestChainReaderTestnet(t *testing.T) {
 		},
 	}
 
-	datastoreUrl := os.Getenv("TEST_DB_URL")
-	if datastoreUrl == "" {
-		t.Skip("Skipping persistent tests as TEST_DB_URL is not set in CI")
-	}
-	db := sqltest.NewDB(t, datastoreUrl)
-
-	// attempt to connect
-	_, err := db.Connx(ctx)
-	require.NoError(t, err)
+	db := sqltest.NewNoOpDataSource()
 
 	// Create the indexers
 	txnIndexer := indexer.NewTransactionsIndexer(
