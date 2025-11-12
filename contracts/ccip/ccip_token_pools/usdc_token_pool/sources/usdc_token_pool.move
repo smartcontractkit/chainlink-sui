@@ -19,6 +19,7 @@ use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
+use sui::derived_object;
 use sui::event;
 use sui::package::{Self, UpgradeCap};
 use sui::table::{Self, Table};
@@ -31,6 +32,15 @@ use usdc_token_pool::rate_limiter;
 use usdc_token_pool::token_pool::{Self, TokenPoolState};
 
 public struct USDC_TOKEN_POOL has drop {}
+
+public struct USDCTokenPoolObject has key {
+    id: UID,
+}
+
+public struct USDCTokenPoolStatePointer has key, store {
+    id: UID,
+    usdc_token_pool_object_id: address,
+}
 
 fun init(otw: USDC_TOKEN_POOL, ctx: &mut TxContext) {
     let (ownable_state, mut owner_cap) = ownable::new(ctx);
@@ -72,7 +82,7 @@ public struct USDCTokenPoolState<phantom T> has key {
     ownable_state: OwnableState,
 }
 
-public struct TokenBucketWrapper has drop {
+public struct TokenBucketWrapper has drop, store {
     tokens: u64,
     last_updated: u64,
     is_enabled: bool,
@@ -116,8 +126,18 @@ public fun initialize<T: drop>(
     assert!(coin_metadata_address == @usdc_coin_metadata_object_id, EInvalidCoinMetadata);
 
     let ownable_state = ownable::detach_ownable_state(owner_cap);
-    let usdc_token_pool = USDCTokenPoolState<T> {
+    let mut usdc_token_pool_object = USDCTokenPoolObject { id: object::new(ctx) };
+    let usdc_token_pool_state_pointer = USDCTokenPoolStatePointer {
         id: object::new(ctx),
+        usdc_token_pool_object_id: object::id_address(&usdc_token_pool_object),
+    };
+    
+    let tn = type_name::with_original_ids<USDC_TOKEN_POOL>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
+    let package_id = address::from_ascii_bytes(&package_bytes);
+    
+    let usdc_token_pool = USDCTokenPoolState<T> {
+        id: derived_object::claim(&mut usdc_token_pool_object.id, b"USDCTokenPoolState"),
         token_pool_state: token_pool::initialize(
             coin_metadata_address,
             coin_metadata.get_decimals(),
@@ -131,6 +151,8 @@ public fun initialize<T: drop>(
     };
 
     transfer::share_object(usdc_token_pool);
+    transfer::share_object(usdc_token_pool_object);
+    transfer::transfer(usdc_token_pool_state_pointer, package_id);
 }
 
 // ================================================================
