@@ -55,7 +55,7 @@ public struct ManagedTokenPoolState<phantom T> has key {
     ownable_state: OwnableState,
 }
 
-public struct TokenBucketWrapper has drop {
+public struct TokenBucketWrapper has drop, store {
     tokens: u64,
     last_updated: u64,
     is_enabled: bool,
@@ -133,7 +133,6 @@ public fun initialize_with_managed_token<T>(
         ref,
         treasury_cap_ref,
         coin_metadata,
-        managed_token_pool_state_address,
         token_pool_administrator,
         vector[
             CLOCK_ADDRESS,

@@ -53,7 +53,7 @@ public struct BurnMintTokenPoolState<phantom T> has key {
     ownable_state: OwnableState,
 }
 
-public struct TokenBucketWrapper has drop {
+public struct TokenBucketWrapper has drop, store {
     tokens: u64,
     last_updated: u64,
     is_enabled: bool,
@@ -109,16 +109,14 @@ public fun initialize<T>(
         ownable::borrow_publisher(owner_cap),
         TypeProof {},
     );
-    let burn_mint_token_pool_state_address = object::uid_to_address(&burn_mint_token_pool.id);
 
     token_admin_registry::register_pool(
         ref,
         &burn_mint_token_pool.treasury_cap,
         coin_metadata,
-        burn_mint_token_pool_state_address,
         token_pool_administrator,
-        vector[CLOCK_ADDRESS, burn_mint_token_pool_state_address],
-        vector[CLOCK_ADDRESS, burn_mint_token_pool_state_address],
+        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
+        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
         publisher_wrapper,
         TypeProof {},
     );
