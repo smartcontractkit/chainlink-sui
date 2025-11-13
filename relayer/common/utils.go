@@ -101,6 +101,14 @@ func GetModuleForContract(contractName string) string {
 		return "counter"
 	case "Router", "router":
 		return "router"
+	case "BurnMintTokenPool", "burn_mint_token_pool", "burnminttokenpool":
+		return "burn_mint_token_pool"
+	case "ManagedTokenPool", "managed_token_pool", "managedtokenpool":
+		return "managed_token_pool"
+	case "USDCTokenPool", "usdc_token_pool", "usdctokenpool":
+		return "usdc_token_pool"
+	case "LockReleaseTokenPool", "lock_release_token_pool", "lockreleasetokenpool":
+		return "lock_release_token_pool"
 	default:
 		// anything under ccip module has to be state_object module
 		return "state_object"

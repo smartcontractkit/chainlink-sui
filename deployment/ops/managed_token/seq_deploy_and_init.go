@@ -1,11 +1,14 @@
 package managedtokenops
 
 import (
+	"fmt"
+
 	"github.com/Masterminds/semver/v3"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	coin_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/coin"
 )
 
 type DeployManagedTokenObjects struct {
@@ -17,6 +20,7 @@ type DeployManagedTokenObjects struct {
 
 type DeployManagedTokenOutput struct {
 	ManagedTokenPackageId string
+	TokenSymbol           string
 	Objects               DeployManagedTokenObjects
 }
 
@@ -84,8 +88,14 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 
 		}
 
+		symbol, err := getSymbol(env, deps, input.CoinObjectTypeArg)
+		if err != nil {
+			return DeployManagedTokenOutput{}, fmt.Errorf("failed to get coin symbol: %w", err)
+		}
+
 		return DeployManagedTokenOutput{
 			ManagedTokenPackageId: deployReport.Output.PackageId,
+			TokenSymbol:           symbol,
 			Objects: DeployManagedTokenObjects{
 				OwnerCapObjectId:  initReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:     initReport.Output.Objects.StateObjectId,
@@ -95,3 +105,11 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 		}, nil
 	},
 )
+
+func getSymbol(env cld_ops.Bundle, deps sui_ops.OpTxDeps, coinObjectTypeArg string) (string, error) {
+	symbolReport, err := cld_ops.ExecuteOperation(env, coin_ops.GetCoinSymbolOp, deps, coinObjectTypeArg)
+	if err != nil {
+		return "", err
+	}
+	return symbolReport.Output.Symbol, nil
+}
