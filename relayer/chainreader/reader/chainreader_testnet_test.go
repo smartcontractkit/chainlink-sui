@@ -130,4 +130,9 @@ func TestChainReaderTestnet(t *testing.T) {
 	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retAddress)
 	require.NoError(t, err)
 	require.Equal(t, len(retAddress), 66)
+
+	var retAddress2 string
+	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retAddress2)
+	require.NoError(t, err)
+	require.Equal(t, len(retAddress2), 66)
 }

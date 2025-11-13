@@ -1211,7 +1211,7 @@ func (c *PTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, acco
 			return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to derive ccip object ref ID: %w", err)
 		}
 
-		c.SetCachedValue(ccipPointerConfig.ParentFieldName, ccipObjectID)
+		c.SetCachedValue(ccipPointerConfig.ParentFieldName, ccipObjectRefID)
 	}
 
 	// Obtain the pool token metadata using the token pool package ID by calling into TokenAdminRegistry
