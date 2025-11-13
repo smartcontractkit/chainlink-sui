@@ -731,7 +731,12 @@ func (tIndexer *TransactionsIndexer) extractCommandCallArgs(transactionRecord *m
 		argIndex, ok := argEntry["Input"].(float64)
 		if !ok {
 			return nil, fmt.Errorf("failed to read arg index for failed transaction")
+		} else if argIndex >= float64(len(inputCallArgs)) {
+			return nil, fmt.Errorf("arg index out of range for failed transaction, argIndex: %d, inputCallArgs length: %d", int(argIndex), len(inputCallArgs))
+		} else if inputCallArgs[uint64(argIndex)] == nil {
+			return nil, fmt.Errorf("arg value is nil for failed transaction, argIndex: %d", int(argIndex))
 		}
+
 		commandArgs = append(commandArgs, inputCallArgs[uint64(argIndex)])
 	}
 
