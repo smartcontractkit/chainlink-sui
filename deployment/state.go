@@ -13,6 +13,14 @@ type CCIPPoolState struct {
 	OwnerCapObjectId string
 }
 
+type ManagedTokenState struct {
+	PackageID          string
+	StateObjectId      string
+	OwnerCapObjectId   string
+	MinterCapObjectIds []string
+	PublisherObjectId  string
+}
+
 type CCIPChainState struct {
 	// MCMS related
 	MCMSPackageID               string
@@ -51,11 +59,8 @@ type CCIPChainState struct {
 	LinkTokenCoinMetadataId string
 	LinkTokenTreasuryCapId  string
 
-	// Token related
-	ManagedToken                 string
-	ManagedTokenOwnerCapObjectID string
-	ManagedTokenStateObjectID    string
-	ManagedTokenMinterCapID      string
+	// Managed Token related
+	ManagedTokens map[string]ManagedTokenState
 
 	// Token pools related
 	LnRTokenPools     map[string]CCIPPoolState
@@ -96,6 +101,7 @@ func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error
 
 func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (CCIPChainState, error) {
 	chainState := CCIPChainState{
+		ManagedTokens:     make(map[string]ManagedTokenState),
 		BnMTokenPools:     make(map[string]CCIPPoolState),
 		LnRTokenPools:     make(map[string]CCIPPoolState),
 		ManagedTokenPools: make(map[string]CCIPPoolState),
@@ -166,15 +172,47 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		case SuiLinkTokenTreasuryCapID:
 			chainState.LinkTokenTreasuryCapId = addr
 
-		// Token related
+		// Managed Token related
 		case SuiManagedTokenType:
-			chainState.ManagedToken = addr
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.PackageID = addr
+			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenOwnerCapObjectID:
-			chainState.ManagedTokenOwnerCapObjectID = addr
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.OwnerCapObjectId = addr
+			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenStateObjectID:
-			chainState.ManagedTokenStateObjectID = addr
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.StateObjectId = addr
+			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenMinterCapID:
-			chainState.ManagedTokenMinterCapID = addr
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.MinterCapObjectIds = append(managed_token.MinterCapObjectIds, addr)
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenPublisherObjectId:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.PublisherObjectId = addr
+			chainState.ManagedTokens[symbol] = managed_token
 
 		// mock upgrade related
 		case SuiOnRampMockV2:
