@@ -19,7 +19,7 @@ import (
 
 type DeployTPAndConfigureConfig struct {
 	SuiChainSelector   uint64
-	TokenPoolTypes     []string
+	TokenPoolTypes     []deployment.TokenPoolType
 	ManagedTPInput     managedtokenpoolops.DeployAndInitManagedTokenPoolInput
 	LockReleaseTPInput lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput
 	BurnMintTpInput    burnminttokenpoolops.DeployAndInitBurnMintTokenPoolInput
@@ -63,20 +63,20 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 	// Populate state information for each token pool type
 	for _, tokenPoolType := range config.TokenPoolTypes {
 		switch tokenPoolType {
-		case "bnm":
+		case deployment.TokenPoolTypeBurnMint:
 			config.BurnMintTpInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.BurnMintTpInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
 			// TODO: MCMSOwner address should come state
 			config.BurnMintTpInput.MCMSOwnerAddress = deployerAddr
 			config.BurnMintTpInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.BurnMintTpInput.TokenPoolAdministrator = deployerAddr
-		case "lnr":
+		case deployment.TokenPoolTypeLockRelease:
 			config.LockReleaseTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.LockReleaseTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
 			config.LockReleaseTPInput.MCMSOwnerAddress = deployerAddr
 			config.LockReleaseTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.LockReleaseTPInput.TokenPoolAdministrator = deployerAddr
-		case "managed":
+		case deployment.TokenPoolTypeManaged:
 			symbolReport, err := cld_ops.ExecuteOperation(e.OperationsBundle, coin_ops.GetCoinSymbolOp, deps, config.ManagedTPInput.CoinObjectTypeArg)
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to get coin symbol: %w", err)
@@ -111,7 +111,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 	// Save addresses to the address book based on what was deployed
 	for _, tokenPoolType := range config.TokenPoolTypes {
 		switch tokenPoolType {
-		case "bnm":
+		case deployment.TokenPoolTypeBurnMint:
 			// save BnM Pool to the addressbook
 			typeAndVersionBurnMintTokenPool := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolType, deployment.Version1_0_0)
 			typeAndVersionBurnMintTokenPool.AddLabel(tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.TokenSymbol)
@@ -136,7 +136,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolOwnerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
 
-		case "lnr":
+		case deployment.TokenPoolTypeLockRelease:
 			// save LnR Pool to the addressbook
 			typeAndVersionLnRTokenPool := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolType, deployment.Version1_0_0)
 			typeAndVersionLnRTokenPool.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
@@ -161,7 +161,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPoolOwnerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
 
-		case "managed":
+		case deployment.TokenPoolTypeManaged:
 			// save Managed Pool to the addressbook
 			typeAndVersionManagedTokenPool := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPoolType, deployment.Version1_0_0)
 			typeAndVersionManagedTokenPool.AddLabel(tokenPoolReport.Output.DeployManagedTokenPoolOutput.TokenSymbol)

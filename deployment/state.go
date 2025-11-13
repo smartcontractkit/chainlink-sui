@@ -7,6 +7,14 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 )
 
+type TokenPoolType string
+
+const (
+	TokenPoolTypeBurnMint    TokenPoolType = "bnm"
+	TokenPoolTypeLockRelease TokenPoolType = "lnr"
+	TokenPoolTypeManaged     TokenPoolType = "managed"
+)
+
 type CCIPPoolState struct {
 	PackageID        string
 	StateObjectId    string
