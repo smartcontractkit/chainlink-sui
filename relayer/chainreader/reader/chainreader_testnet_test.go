@@ -127,7 +127,7 @@ func TestChainReaderTestnet(t *testing.T) {
 	require.NoError(t, err)
 
 	var retAddress string
-	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, map[string]any{}, &retAddress)
+	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retAddress)
 	require.NoError(t, err)
 	require.Equal(t, len(retAddress), 66)
 }
