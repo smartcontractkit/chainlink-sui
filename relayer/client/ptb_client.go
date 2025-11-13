@@ -1004,6 +1004,14 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 		derivationKey = "CCIPObjectRef"
 	case "router":
 		derivationKey = "RouterState"
+	case "burn_mint_token_pool":
+		derivationKey = "BurnMintTokenPoolState"
+	case "lock_release_token_pool":
+		derivationKey = "LockReleaseTokenPoolState"
+	case "managed_token_pool":
+		derivationKey = "ManagedTokenPoolState"
+	case "usdc_token_pool":
+		derivationKey = "USDCTokenPoolState"
 	case "counter":
 		derivationKey = "Counter"
 	}

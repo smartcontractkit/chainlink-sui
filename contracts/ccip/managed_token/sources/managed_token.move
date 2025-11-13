@@ -176,6 +176,44 @@ public fun configure_new_minter<T>(
     is_unlimited: bool,
     ctx: &mut TxContext,
 ) {
+    let mint_cap = configure_new_minter_internal(
+        state,
+        owner_cap,
+        minter,
+        allowance,
+        is_unlimited,
+        ctx,
+    );
+
+    transfer::transfer(mint_cap, minter);
+}
+
+public fun configure_new_minter_and_return<T>(
+    state: &mut TokenState<T>,
+    owner_cap: &OwnerCap<T>,
+    minter: address,
+    allowance: u64,
+    is_unlimited: bool,
+    ctx: &mut TxContext,
+): MintCap<T> {
+    configure_new_minter_internal(
+        state,
+        owner_cap,
+        minter,
+        allowance,
+        is_unlimited,
+        ctx,
+    )
+}
+
+fun configure_new_minter_internal<T>(
+    state: &mut TokenState<T>,
+    owner_cap: &OwnerCap<T>,
+    minter: address,
+    allowance: u64,
+    is_unlimited: bool,
+    ctx: &mut TxContext,
+): MintCap<T> {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
 
     let mint_cap = MintCap<T> { id: object::new(ctx) };
@@ -194,7 +232,7 @@ public fun configure_new_minter<T>(
         is_unlimited,
     });
 
-    transfer::transfer(mint_cap, minter);
+    mint_cap
 }
 
 /// Increment allowance for a MintCap
