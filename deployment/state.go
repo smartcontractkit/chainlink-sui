@@ -14,11 +14,11 @@ type CCIPPoolState struct {
 }
 
 type ManagedTokenState struct {
-	PackageID         string
-	StateObjectId     string
-	OwnerCapObjectId  string
-	MinterCapObjectId []string
-	PublisherObjectId string
+	PackageID          string
+	StateObjectId      string
+	OwnerCapObjectId   string
+	MinterCapObjectIds []string
+	PublisherObjectId  string
 }
 
 type CCIPChainState struct {
@@ -203,7 +203,7 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
 			}
 			managed_token := chainState.ManagedTokens[symbol]
-			managed_token.MinterCapObjectId = append(managed_token.MinterCapObjectId, addr)
+			managed_token.MinterCapObjectIds = append(managed_token.MinterCapObjectIds, addr)
 			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenPublisherObjectId:
 			symbol, err := getTokenSymbol(typeAndVersion)
