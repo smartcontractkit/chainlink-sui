@@ -81,8 +81,12 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to get coin symbol: %w", err)
 			}
+			managedTokenState, ok := state[config.SuiChainSelector].ManagedTokens[symbolReport.Output.Symbol]
+			if !ok {
+				return cldf.ChangesetOutput{}, fmt.Errorf("managed token not found for coin object type arg: %s with symbol: %s", config.ManagedTPInput.CoinObjectTypeArg, symbolReport.Output.Symbol)
+			}
 			config.ManagedTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
-			config.ManagedTPInput.ManagedTokenPackageId = state[config.SuiChainSelector].ManagedTokens[symbolReport.Output.Symbol].PackageID
+			config.ManagedTPInput.ManagedTokenPackageId = managedTokenState.PackageID
 			config.ManagedTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
 			config.ManagedTPInput.MCMSOwnerAddress = deployerAddr
 			config.ManagedTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
