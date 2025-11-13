@@ -141,6 +141,11 @@ func NewPTBClient(
 
 	httpClient := &http.Client{
 		Timeout: DefaultHTTPTimeout,
+		Transport: &http.Transport{
+			MaxConnsPerHost:     int(maxConcurrentRequests) * 2,
+			MaxIdleConns:        int(maxConcurrentRequests) * 2,
+			MaxIdleConnsPerHost: int(maxConcurrentRequests) * 2,
+		},
 	}
 	client := sui.NewSuiClientWithCustomClient(rpcUrl, httpClient)
 
@@ -175,16 +180,14 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 		weight = weightValue
 	}
 
+	workCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
+	defer cancel()
+
 	// If rate limiter is disabled or weight is 0, skip semaphore entirely.
 	// This will skip adding to the semaphore queue and prevent unnecessary queuing.
 	if c.rateLimiter == nil || weight == 0 {
-		workCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
-		defer cancel()
 		return f(workCtx)
 	}
-
-	workCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
-	defer cancel()
 
 	// acquire with the timeout context so it can't hang forever
 	if err := c.rateLimiter.Acquire(ctx, weight); err != nil {
