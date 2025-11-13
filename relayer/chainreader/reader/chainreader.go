@@ -669,6 +669,11 @@ func (s *suiChainReader) parseParams(params any, functionConfig *config.ChainRea
 		return nil, fmt.Errorf("failed to decode parameters: %w", err)
 	}
 
+	// Ensure that the argMap is not nil
+	if len(argMap) == 0 {
+		argMap = make(map[string]any)
+	}
+
 	return argMap, nil
 }
 

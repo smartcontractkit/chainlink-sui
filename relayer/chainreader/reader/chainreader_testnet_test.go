@@ -79,6 +79,30 @@ func TestChainReaderTestnet(t *testing.T) {
 							},
 						},
 					},
+					"type_and_version": {
+						Name:          "type_and_version",
+						SignerAddress: accountAddress,
+						Params:        []codec.SuiFunctionParam{},
+					},
+					"get_supported_chains": {
+						Name:          "get_supported_chains",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:              "object_id",
+								Name:              "state_pointer",
+								GenericDependency: testutils.StringPointer("get_token_pool_state_type"),
+								PointerTag: &codec.PointerTag{
+									Module:        "burn_mint_token_pool",
+									PointerName:   "BurnMintTokenPoolStatePointer",
+									DerivationKey: "BurnMintTokenPoolState",
+									FieldName:     "burn_mint_token_pool_object_id",
+								},
+								Required:  true,
+								IsMutable: testutils.BoolPointer(true),
+							},
+						},
+					},
 				},
 				Events: map[string]*config.ChainReaderEvent{},
 			},
@@ -141,4 +165,15 @@ func TestChainReaderTestnet(t *testing.T) {
 	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, &nilParams, &retAddress3)
 	require.NoError(t, err)
 	require.Equal(t, len(retAddress3), 66)
+
+	var retAddress4 string
+	var params map[string]any
+	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, &params, &retAddress4)
+	require.NoError(t, err)
+	require.Equal(t, len(retAddress4), 66)
+
+	var retSupportedChains string
+	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retSupportedChains)
+	require.NoError(t, err)
+	testutils.PrettyPrintDebug(log, retSupportedChains, "retSupportedChains")
 }
