@@ -176,7 +176,7 @@ public fun complete_token_transfer<TypeProof: drop>(
     let dest_token_transfer = receiver_params.token_transfer.borrow();
     let token_receiver = dest_token_transfer.token_receiver;
     let dest_token_address = dest_token_transfer.dest_token_address;
-    let (_, _, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
+    let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
         ref,
         dest_token_address,
     );

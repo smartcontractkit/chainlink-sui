@@ -8,6 +8,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -310,4 +311,12 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 	}
 
 	return paramTypes, nil
+}
+
+// IsValidTokenPoolConfig does a basic check to ensure that the token pool config contains enough
+// data to be used for offramp execution
+func IsValidTokenPoolConfig(tokenConfig *module_token_admin_registry.TokenConfig) bool {
+	return tokenConfig.TokenPoolPackageId != "" &&
+		tokenConfig.TokenPoolModule != "" &&
+		tokenConfig.TokenType != ""
 }

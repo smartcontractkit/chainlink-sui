@@ -20,8 +20,6 @@ const OWNER: address = @0x1000;
 const TOKEN_ADDRESS_1: address =
     @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
 const DESTINATION_CHAIN_SELECTOR: u64 = 1000;
-const TOKEN_POOL_STATE_ADDRESS: address =
-    @0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
 
 fun setup_test(): (Scenario, OwnerCap, CCIPObjectRef, SourceTransferCap) {
     let mut scenario = ts::begin(OWNER);
@@ -76,7 +74,6 @@ public fun test_create_token_transfer_params() {
         &mut ref,
         TOKEN_ADDRESS_1,
         @0x1,
-        TOKEN_POOL_STATE_ADDRESS,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER, // administrator
@@ -134,7 +131,6 @@ public fun test_create_token_transfer_params_basic() {
         &mut ref,
         TOKEN_ADDRESS_1,
         @0x1,
-        TOKEN_POOL_STATE_ADDRESS,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -174,7 +170,6 @@ public fun test_get_remote_chain_selector() {
         &mut ref,
         TOKEN_ADDRESS_1,
         @0x1,
-        TOKEN_POOL_STATE_ADDRESS,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -242,7 +237,6 @@ public fun test_create_and_verify_token_transfer() {
         &mut ref,
         TOKEN_ADDRESS_1,
         @0x1,
-        TOKEN_POOL_STATE_ADDRESS,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER, // administrator
@@ -314,7 +308,6 @@ public fun test_add_multiple_token_transfers_should_fail() {
         &mut ref,
         TOKEN_ADDRESS_1,
         @0x1,
-        TOKEN_POOL_STATE_ADDRESS,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -391,7 +384,6 @@ public fun test_get_source_token_transfer_data() {
         &mut ref,
         TOKEN_ADDRESS_1,
         @0x1,
-        TOKEN_POOL_STATE_ADDRESS,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -449,7 +441,6 @@ public fun test_edge_case_large_amounts() {
         &mut ref,
         TOKEN_ADDRESS_1,
         @0x1,
-        TOKEN_POOL_STATE_ADDRESS,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -497,7 +488,6 @@ public fun test_edge_case_empty_data() {
         &mut ref,
         TOKEN_ADDRESS_1,
         @0x1,
-        TOKEN_POOL_STATE_ADDRESS,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -550,7 +540,6 @@ public fun test_zero_amount_transfer() {
         &mut ref,
         TOKEN_ADDRESS_1,
         @0x1,
-        TOKEN_POOL_STATE_ADDRESS,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -597,7 +586,6 @@ public fun test_source_transfer_cap_permission() {
         &mut ref,
         TOKEN_ADDRESS_1,
         @0x1,
-        TOKEN_POOL_STATE_ADDRESS,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,

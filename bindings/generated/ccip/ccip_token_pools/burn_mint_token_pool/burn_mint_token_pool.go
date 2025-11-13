@@ -238,6 +238,15 @@ func (c *BurnMintTokenPoolContract) DevInspect() IBurnMintTokenPoolDevInspect {
 type BURN_MINT_TOKEN_POOL struct {
 }
 
+type BurnMintTokenPoolObject struct {
+	Id string `move:"sui::object::UID"`
+}
+
+type BurnMintTokenPoolStatePointer struct {
+	Id                        string `move:"sui::object::UID"`
+	BurnMintTokenPoolObjectId string `move:"address"`
+}
+
 type BurnMintTokenPoolState struct {
 	Id             string      `move:"sui::object::UID"`
 	TokenPoolState bind.Object `move:"TokenPoolState"`
@@ -262,6 +271,19 @@ type McmsCallback struct {
 type McmsAcceptOwnershipProof struct {
 }
 
+type bcsBurnMintTokenPoolStatePointer struct {
+	Id                        string
+	BurnMintTokenPoolObjectId [32]byte
+}
+
+func convertBurnMintTokenPoolStatePointerFromBCS(bcs bcsBurnMintTokenPoolStatePointer) (BurnMintTokenPoolStatePointer, error) {
+
+	return BurnMintTokenPoolStatePointer{
+		Id:                        bcs.Id,
+		BurnMintTokenPoolObjectId: fmt.Sprintf("0x%x", bcs.BurnMintTokenPoolObjectId),
+	}, nil
+}
+
 func init() {
 	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BURN_MINT_TOKEN_POOL", func(data []byte) (interface{}, error) {
 		var result BURN_MINT_TOKEN_POOL
@@ -277,6 +299,54 @@ func init() {
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolObject", func(data []byte) (interface{}, error) {
+		var result BurnMintTokenPoolObject
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for BurnMintTokenPoolObject
+	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolObject>", func(data []byte) (interface{}, error) {
+		var results []BurnMintTokenPoolObject
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolStatePointer", func(data []byte) (interface{}, error) {
+		var temp bcsBurnMintTokenPoolStatePointer
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertBurnMintTokenPoolStatePointerFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for BurnMintTokenPoolStatePointer
+	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolStatePointer>", func(data []byte) (interface{}, error) {
+		var temps []bcsBurnMintTokenPoolStatePointer
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]BurnMintTokenPoolStatePointer, len(temps))
+		for i, temp := range temps {
+			result, err := convertBurnMintTokenPoolStatePointerFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
 		}
 		return results, nil
 	})
