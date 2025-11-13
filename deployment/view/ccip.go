@@ -175,8 +175,9 @@ func GenerateCCIPView(
 
 	return CCIPView{
 		ContractMetaData: ContractMetaData{
-			Address: ccipPackageID,
-			Owner:   owner,
+			Address:       ccipPackageID,
+			Owner:         owner,
+			StateObjectID: ccipObjectRef,
 		},
 		FeeQuoter:          feeQuoterView,
 		RMNRemote:          rmnRemoteView,
@@ -272,6 +273,7 @@ func generateFeeQuoterView(
 			Address:        ccipPackageID,
 			Owner:          "",
 			TypeAndVersion: typeAndVersion,
+			StateObjectID:  ccipRefObj.Id,
 		},
 		FeeTokens: feeTokens,
 		StaticConfig: FeeQuoterStaticConfig{
@@ -382,6 +384,7 @@ func generateRMNRemoteView(
 			Address:        ccipPackageID,
 			Owner:          "",
 			TypeAndVersion: typeAndVersion,
+			StateObjectID:  ccipRefObj.Id,
 		},
 		IsCursed:             isCursed,
 		Config:               versionedConfig,
@@ -449,6 +452,7 @@ func generateTokenAdminRegistryView(
 			Address:        ccipPackageID,
 			Owner:          "",
 			TypeAndVersion: typeAndVersion,
+			StateObjectID:  ccipRefObj.Id,
 		},
 		TokenConfigs: tokenConfigs,
 	}, nil

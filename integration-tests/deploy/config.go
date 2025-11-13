@@ -117,6 +117,7 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				Address:        state.MCMSPackageID,
 				Owner:          owner,
 				TypeAndVersion: "MCMS 1.6.0",
+				StateObjectID:  state.MCMSStateObjectID,
 			},
 			Bypasser:                 *GetMCMSConfig(1),
 			Proposer:                 *GetMCMSConfig(1),
@@ -129,12 +130,14 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				Address:        state.CCIPAddress,
 				Owner:          owner,
 				TypeAndVersion: "",
+				StateObjectID:  state.CCIPObjectRef,
 			},
 			FeeQuoter: view.FeeQuoterView{
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
 					TypeAndVersion: "FeeQuoter 1.6.0",
+					StateObjectID:  state.CCIPObjectRef,
 				},
 				FeeTokens: []string{state.LinkTokenCoinMetadataId},
 				StaticConfig: view.FeeQuoterStaticConfig{
@@ -149,6 +152,7 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 					Address:        state.CCIPAddress,
 					Owner:          owner,
 					TypeAndVersion: "RMNRemote 1.6.0",
+					StateObjectID:  state.CCIPObjectRef,
 				},
 				IsCursed:             false,
 				Config:               view.RMNRemoteVersionedConfig{},
@@ -159,6 +163,7 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 					Address:        state.CCIPAddress,
 					Owner:          owner,
 					TypeAndVersion: "TokenAdminRegistry 1.6.0",
+					StateObjectID:  state.CCIPObjectRef,
 				},
 				TokenConfigs: map[string]view.TokenConfigView{
 					state.LinkTokenCoinMetadataId: {
@@ -192,6 +197,7 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				Address:        state.OnRampAddress,
 				Owner:          owner,
 				TypeAndVersion: "OnRamp 1.6.0",
+				StateObjectID:  state.OnRampStateObjectId,
 			},
 			StaticConfig: view.OnRampStaticConfig{
 				ChainSelector: SuiChainSelector,
@@ -207,6 +213,7 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				Address:        state.OffRampAddress,
 				Owner:          owner,
 				TypeAndVersion: "OffRamp 1.6.0",
+				StateObjectID:  state.OffRampStateObjectId,
 			},
 			StaticConfig: view.OffRampStaticConfig{
 				ChainSelector:      SuiChainSelector,
@@ -233,6 +240,7 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				Address:        state.CCIPRouterAddress,
 				Owner:          owner,
 				TypeAndVersion: "Router 1.6.0",
+				StateObjectID:  state.CCIPRouterStateObjectID,
 			},
 			IsTestRouter: false,
 			OnRamps:      map[uint64]string{},
@@ -245,6 +253,7 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 						Address:        state.BnMTokenPools["LINK"].PackageID,
 						Owner:          owner,
 						TypeAndVersion: "BurnMintTokenPool 1.6.0",
+						StateObjectID:  state.BnMTokenPools["LINK"].StateObjectId,
 					},
 					Token: s.linkTokenMetadataID,
 					RemoteChainConfigs: map[uint64]view.RemoteChainConfig{

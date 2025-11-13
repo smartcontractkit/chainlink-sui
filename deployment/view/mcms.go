@@ -147,6 +147,7 @@ func GenerateMCMSWithTimelockView(
 			Address:        mcmsPackageID,
 			Owner:          owner,
 			TypeAndVersion: mcmsTypeAndVersion,
+			StateObjectID:  mcmsStateObjectID,
 		},
 		Bypasser:                 *tBypasserCfg,
 		Proposer:                 *tProposerCfg,

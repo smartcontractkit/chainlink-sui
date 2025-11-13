@@ -170,6 +170,7 @@ func GenerateTokenPoolView[T TokenBucketWrapper](
 			TypeAndVersion: typeAndVersion,
 			Owner:          owner,
 			Address:        poolPackageID,
+			StateObjectID:  poolStateObjectID,
 		},
 		Token:              token,
 		RemoteChainConfigs: remoteChainConfigs,

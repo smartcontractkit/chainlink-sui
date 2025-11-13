@@ -168,6 +168,7 @@ func GenerateOnRampView(
 			Address:        onRampPackageID,
 			Owner:          owner,
 			TypeAndVersion: typeAndVersion,
+			StateObjectID:  onRampStateObjectID,
 		},
 		StaticConfig: OnRampStaticConfig{
 			ChainSelector: staticConfig.ChainSelector,
