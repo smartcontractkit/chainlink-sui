@@ -28,7 +28,7 @@ import (
 
 func TestChainReaderTestnet(t *testing.T) {
 	log := logger.Test(t)
-	rpcUrl := testutils.TestnetUrl
+	rpcUrl := "https://sui-testnet-rpc.publicnode.com" // testutils.TestnetUrl
 
 	offrampContractName := "OffRamp"
 	offrampPackageId := "0x50ff1c5a49f012f9360de2fa5065efe7185c22bbeee6254e68ef695b0b0d0f40"
@@ -274,7 +274,54 @@ func TestChainReaderTestnet(t *testing.T) {
 		testutils.PrettyPrintDebug(log, retCurrentInboundRateLimiterState, "retCurrentInboundRateLimiterState")
 	})
 
-	t.Run("high load test", func(t *testing.T) {
+	t.Run("client load test GetObjectId", func(t *testing.T) {
+		numRequests := 10
+		if envNumRequests := os.Getenv("NUM_REQUESTS"); envNumRequests != "" {
+			if parsed, err := strconv.Atoi(envNumRequests); err == nil {
+				numRequests = parsed
+			}
+		}
+		errChan := make(chan error, numRequests)
+
+		for i := range numRequests {
+			go func() {
+				// Random sleep to simulate real-world load
+				sleepDuration := time.Duration(100+rand.Intn(1500)) * time.Millisecond
+				time.Sleep(sleepDuration)
+
+				start := time.Now()
+				response, err := relayerClient.ReadObjectId(ctx, burnMintTokenPoolPackageId)
+				if err != nil {
+					elapsed := time.Since(start)
+					log.Infow("Request completed", "request", i, "elapsed", elapsed)
+
+					errChan <- fmt.Errorf("failed to get value at request %d: %w", i, err)
+					return
+				}
+
+				elapsed := time.Since(start)
+				log.Infow("Request completed", "request", i, "elapsed", elapsed, "response", response.ObjectId)
+
+				errChan <- nil
+			}()
+		}
+
+		// Collect all results
+		errorCount := 0
+		processedCount := 0
+		for range numRequests {
+			err := <-errChan
+			if err != nil {
+				errorCount++
+				log.Errorw("ReadObjectId Test Error", "error", err)
+			}
+			processedCount++
+		}
+
+		log.Infof("Completed %d requests, %d errors", processedCount, errorCount)
+	})
+
+	t.Run("chainreader load test GetLatestValue", func(t *testing.T) {
 		numRequests := 10
 		if envNumRequests := os.Getenv("NUM_REQUESTS"); envNumRequests != "" {
 			if parsed, err := strconv.Atoi(envNumRequests); err == nil {
@@ -291,11 +338,18 @@ func TestChainReaderTestnet(t *testing.T) {
 				sleepDuration := time.Duration(100+rand.Intn(1500)) * time.Millisecond
 				time.Sleep(sleepDuration)
 
+				start := time.Now()
 				err := chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retAddress)
 				if err != nil {
+					elapsed := time.Since(start)
+					log.Infow("Request completed", "request", i, "elapsed", elapsed)
+
 					errChan <- fmt.Errorf("failed to get value at request %d: %w", i, err)
 					return
 				}
+
+				elapsed := time.Since(start)
+				log.Infow("Request completed", "request", i, "elapsed", elapsed)
 
 				errChan <- nil
 			}()
