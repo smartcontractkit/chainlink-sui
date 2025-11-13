@@ -437,7 +437,7 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 		}
 
 		response, err := c.client.SuiDevInspectTransactionBlock(ctx, devInspectReq)
-		if err != nil && response.Effects.Status.Status != "success" {
+		if err != nil || response.Effects.Status.Status != "success" {
 			return fmt.Errorf("failed to read function: %w", err)
 		}
 
@@ -1008,6 +1008,14 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 		derivationKey = "CCIPObjectRef"
 	case "router":
 		derivationKey = "RouterState"
+	case "burn_mint_token_pool":
+		derivationKey = "BurnMintTokenPoolState"
+	case "lock_release_token_pool":
+		derivationKey = "LockReleaseTokenPoolState"
+	case "managed_token_pool":
+		derivationKey = "ManagedTokenPoolState"
+	case "usdc_token_pool":
+		derivationKey = "USDCTokenPoolState"
 	case "counter":
 		derivationKey = "Counter"
 	}

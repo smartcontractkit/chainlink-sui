@@ -11,10 +11,11 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
@@ -138,20 +139,20 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			status:          commontypes.Finalized,
 			numberAttemps:   3,
 		},
-		// {
-		// 	name:            "Test ChainWriter with low gas budget requiring gas bump",
-		// 	txID:            "test-ptb-gas-management",
-		// 	txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(smallGasLimit)}, // Use small limit to trigger gas bumping
-		// 	sender:          accountAddress,
-		// 	signerPublicKey: publicKeyBytes,
-		// 	contractName:    config.PTBChainWriterModuleName,
-		// 	functionName:    "ptb_call",
-		// 	args:            map[string]any{"counter": objectId},
-		// 	expectError:     nil,
-		// 	expectedResult:  "4",
-		// 	status:          commontypes.Finalized,
-		// 	numberAttemps:   3, // Should succeed after gas bumps
-		// },
+		{
+			name:            "Test ChainWriter with low gas budget requiring gas bump",
+			txID:            "test-ptb-gas-management",
+			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(1000000000)}, // Use small limit to trigger gas bumping
+			sender:          accountAddress,
+			signerPublicKey: publicKeyBytes,
+			contractName:    config.PTBChainWriterModuleName,
+			functionName:    "ptb_call",
+			args:            map[string]any{"counter": objectId},
+			expectError:     nil,
+			expectedResult:  "4",
+			status:          commontypes.Finalized,
+			numberAttemps:   3, // Should succeed after gas bumps
+		},
 	}
 
 	err := txManager.Start(ctx)
