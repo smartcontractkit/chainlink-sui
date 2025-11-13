@@ -104,12 +104,16 @@ func (d ConnectSuiToEVM) Apply(e cldf.Environment, config ConnectSuiToEVMConfig)
 	seqReports = append(seqReports, []operations.Report[any, any]{reportApplySourceChainConfigUpdatesOp.ToGenericReport()}...)
 
 	// Configure Router
+	onrampAddresses := make([]string, len(config.ApplyDestChainConfigureOnRampInput.DestChainSelector))
+	for i := range config.ApplyDestChainConfigureOnRampInput.DestChainSelector {
+		onrampAddresses[i] = config.ApplyDestChainConfigureOnRampInput.OnRampPackageId
+	}
 	reportConfigureRouterOp, err := operations.ExecuteOperation(e.OperationsBundle, ccip_router_ops.SetOnRampsOp, deps, ccip_router_ops.SetOnRampsInput{
 		RouterPackageId:     state[config.SuiChainSelector].CCIPRouterAddress,
 		RouterStateObjectId: state[config.SuiChainSelector].CCIPRouterStateObjectID,
-		OwnerCapObjectId:    state[config.SuiChainSelector].CCIPRouterOwnerCapObjectId, // TODO: this value is not stored in onchain state
-		DestChainSelectors:  []uint64{},
-		OnRampAddresses:     []string{},
+		OwnerCapObjectId:    state[config.SuiChainSelector].CCIPRouterOwnerCapObjectId,
+		DestChainSelectors:  config.ApplyDestChainConfigureOnRampInput.DestChainSelector,
+		OnRampAddresses:     onrampAddresses,
 	})
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to run ConfigureRouterOp for Sui chain %d: %w", config.SuiChainSelector, err)

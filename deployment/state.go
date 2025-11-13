@@ -62,8 +62,9 @@ type CCIPChainState struct {
 	FeeQuoterCapId         string
 
 	// CCIP Router related
-	CCIPRouterAddress       string
-	CCIPRouterStateObjectID string
+	CCIPRouterAddress          string
+	CCIPRouterStateObjectID    string
+	CCIPRouterOwnerCapObjectId string
 
 	// OnRamp related
 	OnRampAddress          string
@@ -346,6 +347,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.CCIPRouterAddress = addr
 		case SuiCCIPRouterStateObjectType:
 			chainState.CCIPRouterStateObjectID = addr
+		case SuiCCIPRouterOwnerCapObjectIDType:
+			chainState.CCIPRouterOwnerCapObjectId = addr
 
 		// CCIP related
 		case SuiCCIPType:
