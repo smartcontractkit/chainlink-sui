@@ -4,6 +4,10 @@ package reader
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -26,12 +30,20 @@ func TestChainReaderTestnet(t *testing.T) {
 	log := logger.Test(t)
 	rpcUrl := testutils.TestnetUrl
 
+	offrampContractName := "OffRamp"
+	offrampPackageId := "0x50ff1c5a49f012f9360de2fa5065efe7185c22bbeee6254e68ef695b0b0d0f40"
+
 	tokenAdminRegistryContractName := "TokenAdminRegistry"
 	tokenAdminRegistryPackageId := "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
 
 	burnMintTokenPoolContractName := "BurnMintTokenPool"
 	burnMintTokenPoolPackageId := "0xfeff675b624e55da49f80fda3b676fe1ef5a957a8334cb675ca35de8918f612d"
 	burnMintTokenPoolIdentifier := strings.Join([]string{burnMintTokenPoolPackageId, burnMintTokenPoolContractName, "get_token"}, "-")
+	burnMintTokenPoolGetSupportedChainsIdentifier := strings.Join([]string{burnMintTokenPoolPackageId, burnMintTokenPoolContractName, "get_supported_chains"}, "-")
+	burnMintTokenPoolGetRemotePoolsIdentifier := strings.Join([]string{burnMintTokenPoolPackageId, burnMintTokenPoolContractName, "get_remote_pools"}, "-")
+	burnMintTokenPoolGetCurrentInboundRateLimiterStateIdentifier := strings.Join([]string{
+		burnMintTokenPoolPackageId, burnMintTokenPoolContractName, "get_current_inbound_rate_limiter_state",
+	}, "-")
 
 	t.Helper()
 	ctx := context.Background()
@@ -39,7 +51,13 @@ func TestChainReaderTestnet(t *testing.T) {
 	keystoreInstance := testutils.NewTestKeystore(t)
 	accountAddress, _ := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
-	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	clientMaxConcurrentRequests := int64(10)
+	if envClientMaxConcurrentRequests := os.Getenv("MAX_CONCURRENT_REQUESTS"); envClientMaxConcurrentRequests != "" {
+		if parsed, err := strconv.Atoi(envClientMaxConcurrentRequests); err == nil {
+			clientMaxConcurrentRequests = int64(parsed)
+		}
+	}
+	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
 	require.NoError(t, clientErr)
 
 	chainReaderConfig := config.ChainReaderConfig{
@@ -55,6 +73,10 @@ func TestChainReaderTestnet(t *testing.T) {
 		Modules: map[string]*config.ChainReaderModule{
 			tokenAdminRegistryContractName: {
 				Name:      "token_admin_registry",
+				Functions: map[string]*config.ChainReaderFunction{},
+			},
+			offrampContractName: {
+				Name:      "offramp",
 				Functions: map[string]*config.ChainReaderFunction{},
 			},
 			burnMintTokenPoolContractName: {
@@ -103,6 +125,60 @@ func TestChainReaderTestnet(t *testing.T) {
 							},
 						},
 					},
+					"get_remote_pools": {
+						Name:          "get_remote_pools",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:              "object_id",
+								Name:              "state_pointer",
+								GenericDependency: testutils.StringPointer("get_token_pool_state_type"),
+								PointerTag: &codec.PointerTag{
+									Module:        "burn_mint_token_pool",
+									PointerName:   "BurnMintTokenPoolStatePointer",
+									DerivationKey: "BurnMintTokenPoolState",
+									FieldName:     "burn_mint_token_pool_object_id",
+								},
+								Required:  true,
+								IsMutable: testutils.BoolPointer(true),
+							},
+							{
+								Type:     "u64",
+								Name:     "remote_chain_selector",
+								Required: true,
+							},
+						},
+					},
+					"get_current_inbound_rate_limiter_state": {
+						Name:          "get_current_inbound_rate_limiter_state",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:         "object_id",
+								Name:         "clock",
+								Required:     false,
+								DefaultValue: "0x06",
+							},
+							{
+								Type:              "object_id",
+								Name:              "state_pointer",
+								GenericDependency: testutils.StringPointer("get_token_pool_state_type"),
+								PointerTag: &codec.PointerTag{
+									Module:        "burn_mint_token_pool",
+									PointerName:   "BurnMintTokenPoolStatePointer",
+									DerivationKey: "BurnMintTokenPoolState",
+									FieldName:     "burn_mint_token_pool_object_id",
+								},
+								Required:  true,
+								IsMutable: testutils.BoolPointer(true),
+							},
+							{
+								Type:     "u64",
+								Name:     "remote_chain_selector",
+								Required: true,
+							},
+						},
+					},
 				},
 				Events: map[string]*config.ChainReaderEvent{},
 			},
@@ -142,38 +218,101 @@ func TestChainReaderTestnet(t *testing.T) {
 	require.NoError(t, err)
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{{
-		Name:    tokenAdminRegistryContractName,
-		Address: tokenAdminRegistryPackageId,
+		Name:    offrampContractName,
+		Address: offrampPackageId,
 	}, {
 		Name:    burnMintTokenPoolContractName,
 		Address: burnMintTokenPoolPackageId,
+	}, {
+		Name:    tokenAdminRegistryContractName,
+		Address: tokenAdminRegistryPackageId,
 	}})
 	require.NoError(t, err)
 
-	var retAddress string
-	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retAddress)
-	require.NoError(t, err)
-	require.Equal(t, len(retAddress), 66)
+	t.Run("get_token_pool_state_type generic dependency for BurnMintTokenPool", func(t *testing.T) {
+		var retAddress string
+		err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retAddress)
+		require.NoError(t, err)
+		require.Equal(t, len(retAddress), 66)
 
-	var retAddress2 string
-	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retAddress2)
-	require.NoError(t, err)
-	require.Equal(t, len(retAddress2), 66)
+		var retAddress2 string
+		err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retAddress2)
+		require.NoError(t, err)
+		require.Equal(t, len(retAddress2), 66)
 
-	var retAddress3 string
-	nilParams := make(map[string]any)
-	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, &nilParams, &retAddress3)
-	require.NoError(t, err)
-	require.Equal(t, len(retAddress3), 66)
+		var retAddress3 string
+		nilParams := make(map[string]any)
+		err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, &nilParams, &retAddress3)
+		require.NoError(t, err)
+		require.Equal(t, len(retAddress3), 66)
 
-	var retAddress4 string
-	var params map[string]any
-	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, &params, &retAddress4)
-	require.NoError(t, err)
-	require.Equal(t, len(retAddress4), 66)
+		var retAddress4 string
+		var params map[string]any
+		err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, &params, &retAddress4)
+		require.NoError(t, err)
+		require.Equal(t, len(retAddress4), 66)
 
-	var retSupportedChains string
-	err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retSupportedChains)
-	require.NoError(t, err)
-	testutils.PrettyPrintDebug(log, retSupportedChains, "retSupportedChains")
+		var retSupportedChains []uint64
+		err = chainReader.GetLatestValue(ctx, burnMintTokenPoolGetSupportedChainsIdentifier, primitives.Finalized, nil, &retSupportedChains)
+		require.NoError(t, err)
+		testutils.PrettyPrintDebug(log, retSupportedChains, "retSupportedChains")
+
+		var retRemotePools any
+		params = map[string]any{
+			"remote_chain_selector": uint64(14767482510784806043),
+		}
+		err = chainReader.GetLatestValue(ctx, burnMintTokenPoolGetRemotePoolsIdentifier, primitives.Finalized, &params, &retRemotePools)
+		require.NoError(t, err)
+		testutils.PrettyPrintDebug(log, retRemotePools, "retRemotePools")
+
+		var retCurrentInboundRateLimiterState any
+		params = map[string]any{
+			"remote_chain_selector": uint64(14767482510784806043),
+		}
+		err = chainReader.GetLatestValue(ctx, burnMintTokenPoolGetCurrentInboundRateLimiterStateIdentifier, primitives.Finalized, &params, &retCurrentInboundRateLimiterState)
+		require.NoError(t, err)
+		testutils.PrettyPrintDebug(log, retCurrentInboundRateLimiterState, "retCurrentInboundRateLimiterState")
+	})
+
+	t.Run("high load test", func(t *testing.T) {
+		numRequests := 10
+		if envNumRequests := os.Getenv("NUM_REQUESTS"); envNumRequests != "" {
+			if parsed, err := strconv.Atoi(envNumRequests); err == nil {
+				numRequests = parsed
+			}
+		}
+		errChan := make(chan error, numRequests)
+
+		for i := range numRequests {
+			go func() {
+				var retAddress string
+
+				// Random sleep to simulate real-world load
+				sleepDuration := time.Duration(100+rand.Intn(1500)) * time.Millisecond
+				time.Sleep(sleepDuration)
+
+				err := chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retAddress)
+				if err != nil {
+					errChan <- fmt.Errorf("failed to get value at request %d: %w", i, err)
+					return
+				}
+
+				errChan <- nil
+			}()
+		}
+
+		// Collect all results
+		errorCount := 0
+		processedCount := 0
+		for range numRequests {
+			err := <-errChan
+			if err != nil {
+				errorCount++
+				log.Errorw("Error", "error", err)
+			}
+			processedCount++
+		}
+
+		log.Infof("Completed %d requests, %d errors", processedCount, errorCount)
+	})
 }
