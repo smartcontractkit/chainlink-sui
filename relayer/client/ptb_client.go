@@ -38,7 +38,7 @@ const (
 	DefaultGasBudget            uint64        = 1_000_000_000
 	DefaultCacheExpiration      time.Duration = 120 * time.Minute
 	DefaultCacheCleanupInterval time.Duration = 240 * time.Minute
-	DefaultHTTPTimeout          time.Duration = 15 * time.Second
+	DefaultHTTPTimeout          time.Duration = 120 * time.Second
 )
 
 // var since it's passed via pointer
@@ -115,6 +115,12 @@ func NewPTBClient(
 	if maxConcurrentRequests <= 0 {
 		maxConcurrentRequests = 500 // Default value
 	}
+
+	log.Infof(
+		"PTBClient config configs transactionTimeout: %s,  maxConcurrentRequests: %d",
+		transactionTimeout,
+		maxConcurrentRequests,
+	)
 
 	return &PTBClient{
 		log:                log,
@@ -427,7 +433,7 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 		}
 
 		response, err := c.client.SuiDevInspectTransactionBlock(ctx, devInspectReq)
-		if err != nil && response.Effects.Status.Status != "success" {
+		if err != nil || response.Effects.Status.Status != "success" {
 			return fmt.Errorf("failed to read function: %w", err)
 		}
 
@@ -998,6 +1004,14 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 		derivationKey = "CCIPObjectRef"
 	case "router":
 		derivationKey = "RouterState"
+	case "burn_mint_token_pool":
+		derivationKey = "BurnMintTokenPoolState"
+	case "lock_release_token_pool":
+		derivationKey = "LockReleaseTokenPoolState"
+	case "managed_token_pool":
+		derivationKey = "ManagedTokenPoolState"
+	case "usdc_token_pool":
+		derivationKey = "USDCTokenPoolState"
 	case "counter":
 		derivationKey = "Counter"
 	}

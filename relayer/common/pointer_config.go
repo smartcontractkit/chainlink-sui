@@ -49,6 +49,34 @@ var PointerConfigs = map[string][]PointerConfig{
 			ParentFieldName: "router_object_id",
 		},
 	},
+	"burn_mint_token_pool": {
+		{
+			Module:          "burn_mint_token_pool",
+			Pointer:         "BurnMintTokenPoolStatePointer",
+			ParentFieldName: "burn_mint_token_pool_object_id",
+		},
+	},
+	"managed_token_pool": {
+		{
+			Module:          "managed_token_pool",
+			Pointer:         "ManagedTokenPoolStatePointer",
+			ParentFieldName: "managed_token_pool_object_id",
+		},
+	},
+	"usdc_token_pool": {
+		{
+			Module:          "usdc_token_pool",
+			Pointer:         "USDCTokenPoolStatePointer",
+			ParentFieldName: "usdc_token_pool_object_id",
+		},
+	},
+	"lock_release_token_pool": {
+		{
+			Module:          "lock_release_token_pool",
+			Pointer:         "LockReleaseTokenPoolStatePointer",
+			ParentFieldName: "lock_release_token_pool_object_id",
+		},
+	},
 	"counter": { // Test contract
 		{
 			Module:          "counter",

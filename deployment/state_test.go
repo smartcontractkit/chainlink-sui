@@ -93,6 +93,15 @@ func getExpectedSuiChainState() CCIPChainState {
 		LinkTokenAddress:            "0x59d6fe83c19eb26733acb19cd32522277319a7f2accd360af7c04285c015375d",
 		LinkTokenCoinMetadataId:     "0x8afb916ec72b91d28f519539659ebb1200b1824ff1f8d4c8f433acbb03017f2f",
 		LinkTokenTreasuryCapId:      "0x60f35af35748a3f2f4324c2646cf9187d111ed17cb204043c1cf85c0f83dde0f",
+		ManagedTokens: map[string]ManagedTokenState{
+			"LINK": {
+				PackageID:          "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29",
+				StateObjectId:      "0xd93ceb06feeab8b0b5333a7f76f2e9d0d79e71063b8a71bce654954f7bfd631d",
+				OwnerCapObjectId:   "0x0eac90f883ea0902156b340c41e0d178af3f012fe63c33f9663b7be245bee4fe",
+				MinterCapObjectIds: []string{"0xe25afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f72"},
+				PublisherObjectId:  "0x52f33e4724128431084e207406304383c05660042000016240438147268f184e",
+			},
+		},
 		LnRTokenPools: map[string]CCIPPoolState{
 			"CCIP-LnR": {
 				PackageID:        "0x90f10215a219a1f2e30f746e68c1e4f2b39f593d83a1980c7cf4e4738591a7e6",
