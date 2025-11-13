@@ -5,6 +5,7 @@ import (
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
@@ -13,6 +14,7 @@ import (
 	lockreleasetokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
 	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_managed_token_pool"
 	tokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
+	coin_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/coin"
 )
 
 type DeployTPAndConfigureConfig struct {
@@ -75,7 +77,12 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			config.LockReleaseTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.LockReleaseTPInput.TokenPoolAdministrator = deployerAddr
 		case "managed":
+			symbolReport, err := cld_ops.ExecuteOperation(e.OperationsBundle, coin_ops.GetCoinSymbolOp, deps, config.ManagedTPInput.CoinObjectTypeArg)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to get coin symbol: %w", err)
+			}
 			config.ManagedTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
+			config.ManagedTPInput.ManagedTokenPackageId = state[config.SuiChainSelector].ManagedTokens[symbolReport.Output.Symbol].PackageID
 			config.ManagedTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
 			config.ManagedTPInput.MCMSOwnerAddress = deployerAddr
 			config.ManagedTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef

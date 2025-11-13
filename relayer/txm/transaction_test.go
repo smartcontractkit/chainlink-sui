@@ -113,16 +113,6 @@ func TestTransactionGeneration(t *testing.T) {
 		// InitialSharedVersion will be resolved automatically by the object resolver
 	}
 
-	ptb := transaction.NewTransaction()
-	inc, err := counter.Encoder().IncrementBy(counterObj, 10)
-	require.NoError(t, err)
-
-	_, err = counter.AppendPTB(ctx, opts, ptb, inc)
-	require.NoError(t, err)
-
-	// Set gas price manually since PTB doesn't have a SuiClient set
-	ptb.SetGasPrice(10000000) // Use a reasonable gas price
-
 	gasManager := txm.NewSuiGasManager(lggr, ptbClient, *big.NewInt(int64(gasBudget)), 0)
 	txID := "1"
 
@@ -133,81 +123,90 @@ func TestTransactionGeneration(t *testing.T) {
 	// Get the public key bytes from the private key for the transaction
 	publicKeyBytes = pk.Public().(ed25519.PublicKey)
 
-	// Create TxMeta with gas limit
-	txMeta := &commontypes.TxMeta{
-		GasLimit: big.NewInt(int64(gasBudget)),
-	}
+	t.Run("GeneratePTBTransactionWithGasEstimation", func(t *testing.T) {
+		ptb := transaction.NewTransaction()
+		inc, err := counter.Encoder().IncrementBy(counterObj, 10)
+		require.NoError(t, err)
 
-	tx, err := txm.GeneratePTBTransactionWithGasEstimation(
-		ctx,
-		publicKeyBytes,
-		lggr,
-		keystore,
-		ptbClient,
-		"WaitForEffectsCert",
-		txID,
-		txMeta,
-		ptb,
-		true,
-		gasManager,
-	)
+		_, err = counter.AppendPTB(ctx, opts, ptb, inc)
+		require.NoError(t, err)
 
-	finalGasBudget := tx.GasBudget
-	lggr.Debugw("Final gas budget", "finalGasBudget", finalGasBudget)
+		ptb.SetGasPrice(10000000)
 
-	require.NoError(t, err)
-	lggr.Debugw("PTB transaction generated", "tx", tx)
-
-	payload := client.TransactionBlockRequest{
-		TxBytes:    tx.Payload,
-		Signatures: tx.Signatures,
-		Options: client.TransactionBlockOptions{
-			ShowInput:          true,
-			ShowRawInput:       true,
-			ShowEffects:        true,
-			ShowObjectChanges:  true,
-			ShowBalanceChanges: true,
-			ShowEvents:         true,
-		},
-		RequestType: tx.RequestType,
-	}
-
-	resp, err := ptbClient.SendTransaction(ctx, payload)
-	require.NoError(t, err)
-
-	gasUsed := resp.Effects.GasUsed
-	lggr.Debugw("Gas used", "gasUsed", gasUsed)
-	computationCost, err := strconv.ParseInt(gasUsed.ComputationCost, 10, 64)
-	require.NoError(t, err)
-	storageCost, err := strconv.ParseInt(gasUsed.StorageCost, 10, 64)
-	require.NoError(t, err)
-	totalGasUsed := computationCost + storageCost
-	require.Greater(t, totalGasUsed, int64(0))
-	require.Equal(t, totalGasUsed, int64(finalGasBudget))
-
-	objectChanges := resp.ObjectChanges
-	usedCoins := []transaction.SuiObjectRef{}
-	for _, objectChange := range objectChanges {
-		if objectChange.Type == "mutated" && objectChange.ObjectType == "0x2::coin::Coin<0x2::sui::SUI>" {
-			version, err := strconv.ParseUint(objectChange.PreviousVersion, 10, 64)
-			require.NoError(t, err)
-
-			objectIdBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(objectChange.ObjectId))
-
-			usedCoins = append(usedCoins, transaction.SuiObjectRef{
-				ObjectId: *objectIdBytes,
-				Version:  version,
-				Digest:   nil,
-			})
+		txMeta := &commontypes.TxMeta{
+			GasLimit: big.NewInt(int64(gasBudget)),
 		}
-	}
 
-	lggr.Debugw("Transaction broadcasted", "resp", resp)
-	lggr.Debugw("Used coins", "usedCoins", usedCoins)
+		tx, err := txm.GeneratePTBTransactionWithGasEstimation(
+			ctx,
+			publicKeyBytes,
+			lggr,
+			keystore,
+			ptbClient,
+			"WaitForEffectsCert",
+			txID,
+			txMeta,
+			ptb,
+			true,
+			gasManager,
+		)
 
-	// Test that the used coins in a single element, to confirm that gas smashing was used
-	require.Len(t, usedCoins, 1)
+		finalGasBudget := tx.GasBudget
+		lggr.Debugw("Final gas budget", "finalGasBudget", finalGasBudget)
 
+		require.NoError(t, err)
+		lggr.Debugw("PTB transaction generated", "tx", tx)
+
+		payload := client.TransactionBlockRequest{
+			TxBytes:    tx.Payload,
+			Signatures: tx.Signatures,
+			Options: client.TransactionBlockOptions{
+				ShowInput:          true,
+				ShowRawInput:       true,
+				ShowEffects:        true,
+				ShowObjectChanges:  true,
+				ShowBalanceChanges: true,
+				ShowEvents:         true,
+			},
+			RequestType: tx.RequestType,
+		}
+
+		resp, err := ptbClient.SendTransaction(ctx, payload)
+		require.NoError(t, err)
+
+		gasUsed := resp.Effects.GasUsed
+		lggr.Debugw("Gas used", "gasUsed", gasUsed)
+		computationCost, err := strconv.ParseInt(gasUsed.ComputationCost, 10, 64)
+		require.NoError(t, err)
+		storageCost, err := strconv.ParseInt(gasUsed.StorageCost, 10, 64)
+		require.NoError(t, err)
+		totalGasUsed := computationCost + storageCost
+		require.Greater(t, totalGasUsed, int64(0))
+		require.Equal(t, totalGasUsed, int64(finalGasBudget))
+
+		objectChanges := resp.ObjectChanges
+		usedCoins := []transaction.SuiObjectRef{}
+		for _, objectChange := range objectChanges {
+			if objectChange.Type == "mutated" && objectChange.ObjectType == "0x2::coin::Coin<0x2::sui::SUI>" {
+				version, err := strconv.ParseUint(objectChange.PreviousVersion, 10, 64)
+				require.NoError(t, err)
+
+				objectIdBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(objectChange.ObjectId))
+
+				usedCoins = append(usedCoins, transaction.SuiObjectRef{
+					ObjectId: *objectIdBytes,
+					Version:  version,
+					Digest:   nil,
+				})
+			}
+		}
+
+		lggr.Debugw("Transaction broadcasted", "resp", resp)
+		lggr.Debugw("Used coins", "usedCoins", usedCoins)
+
+		// Test that the used coins in a single element, to confirm that gas smashing was used
+		require.Len(t, usedCoins, 1)
+	})
 }
 
 // TestCoinSelectionEdgeCases tests edge cases in coin selection logic
