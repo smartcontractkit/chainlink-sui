@@ -258,6 +258,10 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		return err
 	}
 
+	if params == nil {
+		params = make(map[string]any)
+	}
+
 	// this ensures we are using values from chain-reader config set in core
 	moduleConfig, ok := s.config.Modules[contractName]
 	if !ok {
