@@ -258,7 +258,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		return err
 	}
 
-	if params == nil {
+	if params == nil || reflect.ValueOf(params).IsNil() {
 		params = make(map[string]any)
 	}
 
