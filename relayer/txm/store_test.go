@@ -97,6 +97,7 @@ func TestInvalidStateTransition(t *testing.T) {
 	store := NewTxmStoreImpl(lggr)
 
 	tx := GetTransaction()
+	tx.State = StateSubmitted
 	_ = store.AddTransaction(tx)
 
 	err := store.ChangeState("1", StatePending)

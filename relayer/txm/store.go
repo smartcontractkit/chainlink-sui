@@ -171,10 +171,6 @@ func (s *InMemoryStore) ChangeState(transactionID string, newState TransactionSt
 
 	oldState := tx.State
 
-	if newState == oldState {
-		return nil // do nothing, it is already in the same state
-	}
-
 	// Check if the state transition is valid
 	switch oldState {
 	case StatePending:

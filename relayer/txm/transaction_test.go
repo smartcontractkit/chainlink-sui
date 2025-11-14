@@ -180,6 +180,11 @@ func TestTransactionGeneration(t *testing.T) {
 		require.NoError(t, err)
 		storageCost, err := strconv.ParseInt(gasUsed.StorageCost, 10, 64)
 		require.NoError(t, err)
+		storageRebate, _ := strconv.ParseInt(gasUsed.StorageRebate, 10, 64)
+		if storageRebate != 0 {
+			storageCost = storageCost - storageRebate
+		}
+
 		totalGasUsed := computationCost + storageCost
 		require.Greater(t, totalGasUsed, int64(0))
 		require.Equal(t, totalGasUsed, int64(finalGasBudget))
