@@ -19,9 +19,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - test_name: Test_CCIP_Messaging_Sui2EVM_BurnMintTokenPool
+          - test_name: Test_CCIP_Messaging_Sui2EVM
             sui_version: mainnet-v1.57.2
-          - test_name: Test_CCIP_Messaging_EVM2Sui_BurnMintTokenPool
+          - test_name: Test_CCIP_Messaging_EVM2Sui
             sui_version: mainnet-v1.57.2
           - test_name: Test_CCIP_EVM2Sui_ZeroReceiver_BurnMintTokenPool
             sui_version: mainnet-v1.57.2
