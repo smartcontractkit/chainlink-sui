@@ -7,8 +7,7 @@ import (
 )
 
 var (
-	SuiCCIPRouterType                deployment.ContractType = "SuiRouter"
-	SuiCCIPRouterStateObjectType     deployment.ContractType = "SuiRouterStateObjectID"
+	// CCIP
 	SuiCCIPType                      deployment.ContractType = "SuiCCIP"
 	SuiCCIPObjectRefType             deployment.ContractType = "SuiCCIPObjectRef"
 	SuiCCIPOwnerCapObjectIDType      deployment.ContractType = "SuiCCIPOwnerCapObjectID"
@@ -24,6 +23,11 @@ var (
 	SuiOffRampStateObjectIDType      deployment.ContractType = "SuiOffRampStateObjectID"
 	SuiLockReleaseTPType             deployment.ContractType = "SuiLockReleaseToken"
 	SuiLockReleaseTPStateType        deployment.ContractType = "SuiLockReleaseTokenState"
+
+	// CCIP Router
+	SuiCCIPRouterType                 deployment.ContractType = "SuiRouter"
+	SuiCCIPRouterStateObjectType      deployment.ContractType = "SuiRouterStateObjectID"
+	SuiCCIPRouterOwnerCapObjectIDType deployment.ContractType = "SuiCCIPRouterOwnerCapObjectID"
 
 	// MCMS Related
 	SuiMcmsPackageIDType               deployment.ContractType = "SuiManyChainMultisigPackageID"
