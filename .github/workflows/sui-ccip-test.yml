@@ -19,21 +19,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - test_name: Test_CCIP_Messaging_Sui2EVM
+          - test_name: Test_CCIP_Messaging_Sui2EVM_BurnMintTokenPool
             sui_version: mainnet-v1.57.2
-          - test_name: Test_CCIP_Messaging_EVM2Sui
+          - test_name: Test_CCIP_Messaging_EVM2Sui_BurnMintTokenPool
             sui_version: mainnet-v1.57.2
-          - test_name: Test_CCIP_EVM2Sui_ZeroReceiver
+          - test_name: Test_CCIP_EVM2Sui_ZeroReceiver_BurnMintTokenPool
             sui_version: mainnet-v1.57.2
-          - test_name: Test_CCIPTokenTransfer_Sui2EVM
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool
             sui_version: mainnet-v1.57.2
-          # - test_name: Test_CCIPTokenTransfer_EVM2SUI
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_ManagedTokenPool
+            sui_version: mainnet-v1.60.1
+          # - test_name: Test_CCIPTokenTransfer_EVM2SUI_BurnMintTokenPool
           #   sui_version: mainnet-v1.57.2
-          # - test_name: Test_CCIPPureTokenTransfer_EVM2SUI
+          # - test_name: Test_CCIPPureTokenTransfer_EVM2SUI_BurnMintTokenPool
           #   sui_version: mainnet-v1.57.2
-          # - test_name: Test_CCIPProgrammableTokenTransfer_EVM2SUI
+          # - test_name: Test_CCIPProgrammableTokenTransfer_EVM2SUI_BurnMintTokenPool
           #   sui_version: mainnet-v1.57.2
-          # - test_name: Test_CCIPZeroGasLimitTokenTransfer_EVM2SUI
+          # - test_name: Test_CCIPZeroGasLimitTokenTransfer_EVM2SUI_BurnMintTokenPool
           #   sui_version: mainnet-v1.57.2
 
     env:

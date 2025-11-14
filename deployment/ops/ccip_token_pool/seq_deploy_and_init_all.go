@@ -6,6 +6,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
 	lockreleasetokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
@@ -19,7 +20,7 @@ import (
 type DeployAndInitAllTokenPoolsInput struct {
 	// Common configuration
 	SuiChainSelector uint64
-	TokenPoolTypes   []string // supported: "bnm", "lnr", "managed"
+	TokenPoolTypes   []deployment.TokenPoolType
 
 	// Token pool specific inputs
 	ManagedTPInput     managedtokenpoolops.DeployAndInitManagedTokenPoolInput
@@ -49,7 +50,7 @@ func deployAndInitAllTokenPoolsSeq(env cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 	output := DeployAndInitAllTokenPoolsOutput{}
 	for _, tokenPoolType := range input.TokenPoolTypes {
 		switch tokenPoolType {
-		case "bnm":
+		case deployment.TokenPoolTypeBurnMint:
 			burnMintReport, err := cld_ops.ExecuteSequence(env, burnminttokenpoolops.DeployAndInitBurnMintTokenPoolSequence, deps, input.BurnMintTpInput)
 			if err != nil {
 				return DeployAndInitAllTokenPoolsOutput{}, fmt.Errorf("failed to deploy burn mint token pool: %w", err)
@@ -60,7 +61,7 @@ func deployAndInitAllTokenPoolsSeq(env cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 				return DeployAndInitAllTokenPoolsOutput{}, fmt.Errorf("failed to get coin symbol: %w", err)
 			}
 			output.DeployBurnMintTokenPoolOutput.TokenSymbol = symbol
-		case "lnr":
+		case deployment.TokenPoolTypeLockRelease:
 			lockReleaseReport, err := cld_ops.ExecuteSequence(env, lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolSequence, deps, input.LockReleaseTPInput)
 			if err != nil {
 				return DeployAndInitAllTokenPoolsOutput{}, fmt.Errorf("failed to deploy lock release token pool: %w", err)
@@ -71,7 +72,7 @@ func deployAndInitAllTokenPoolsSeq(env cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 				return DeployAndInitAllTokenPoolsOutput{}, fmt.Errorf("failed to get coin symbol: %w", err)
 			}
 			output.DeployLockReleaseTokenPoolOutput.TokenSymbol = symbol
-		case "managed":
+		case deployment.TokenPoolTypeManaged:
 			managedReport, err := cld_ops.ExecuteSequence(env, managedtokenpoolops.DeployAndInitManagedTokenPoolSequence, deps, input.ManagedTPInput)
 			if err != nil {
 				return DeployAndInitAllTokenPoolsOutput{}, fmt.Errorf("failed to deploy managed token pool: %w", err)

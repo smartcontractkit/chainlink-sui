@@ -285,7 +285,7 @@ func (s *DeployTestSuite) GetDeployTPAndConfigureConfig() changesets.DeployTPAnd
 
 	return changesets.DeployTPAndConfigureConfig{
 		SuiChainSelector: SuiChainSelector,
-		TokenPoolTypes:   []string{"bnm"},
+		TokenPoolTypes:   []deployment.TokenPoolType{deployment.TokenPoolTypeBurnMint},
 		BurnMintTpInput: burnminttokenpoolops.DeployAndInitBurnMintTokenPoolInput{
 			BurnMintTokenPoolDeployInput: burnminttokenpoolops.BurnMintTokenPoolDeployInput{
 				CCIPPackageId:    s.ccipPackageID,
