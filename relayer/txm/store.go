@@ -8,6 +8,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
 )
@@ -169,6 +170,10 @@ func (s *InMemoryStore) ChangeState(transactionID string, newState TransactionSt
 	}
 
 	oldState := tx.State
+
+	if newState == oldState {
+		return nil // do nothing, it is already in the same state
+	}
 
 	// Check if the state transition is valid
 	switch oldState {
