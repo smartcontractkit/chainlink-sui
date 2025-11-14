@@ -16,6 +16,14 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/deployment/view"
 )
 
+type TokenPoolType string
+
+const (
+	TokenPoolTypeBurnMint    TokenPoolType = "bnm"
+	TokenPoolTypeLockRelease TokenPoolType = "lnr"
+	TokenPoolTypeManaged     TokenPoolType = "managed"
+)
+
 type SuiChainView struct {
 	ChainSelector uint64 `json:"chainSelector,omitempty"`
 	ChainID       string `json:"chainID,omitempty"`
