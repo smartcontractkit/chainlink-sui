@@ -13,20 +13,20 @@ concurrency:
 jobs:
   ccip_test_sui2evm:
     name: Run Sui <-> EVM Test
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
         include:
           - test_name: Test_CCIP_Messaging_Sui2EVM
-            sui_version: mainnet-v1.57.2
+            sui_version: mainnet-v1.60.1
           - test_name: Test_CCIP_Messaging_EVM2Sui
-            sui_version: mainnet-v1.57.2
+            sui_version: mainnet-v1.60.1
           - test_name: Test_CCIP_EVM2Sui_ZeroReceiver_BurnMintTokenPool
-            sui_version: mainnet-v1.57.2
+            sui_version: mainnet-v1.60.1
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool
-            sui_version: mainnet-v1.57.2
+            sui_version: mainnet-v1.60.1
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_ManagedTokenPool
             sui_version: mainnet-v1.60.1
           # - test_name: Test_CCIPTokenTransfer_EVM2SUI_BurnMintTokenPool
