@@ -51,7 +51,7 @@ func PublishCCIPLockReleaseTokenPool(
 	client sui.ISuiAPI,
 	ccipAddress string,
 	mcmsAddress,
-	mcmsOwnerAddress string) (LockReleaseTokenPool, *models.SuiTransactionBlockResponse, error) {
+	mcmsOwnerAddress, suiRPC string) (LockReleaseTokenPool, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -63,7 +63,7 @@ func PublishCCIPLockReleaseTokenPool(
 		"mcms":                    mcmsAddress,
 		"mcms_owner":              mcmsOwnerAddress,
 		"signer":                  signerAddr,
-	}, false)
+	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to compile package: %w", err)
 	}

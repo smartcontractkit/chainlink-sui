@@ -35,6 +35,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedT
 		input.ManagedTokenPackageId,
 		input.MCMSAddress,
 		input.MCMSOwnerAddress,
+		deps.SuiRPC,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[ManagedTokenPoolDeployOutput]{}, err

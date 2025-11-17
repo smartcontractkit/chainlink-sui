@@ -33,6 +33,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRele
 		input.CCIPPackageId,
 		input.MCMSAddress,
 		input.MCMSOwnerAddress,
+		deps.SuiRPC,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[LockReleaseTokenPoolDeployOutput]{}, err
