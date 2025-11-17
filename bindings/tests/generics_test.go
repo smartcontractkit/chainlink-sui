@@ -27,7 +27,7 @@ func TestGenerics(t *testing.T) {
 	publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client)
 	require.NoError(t, err)
 
-	testPackage, tx, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address())
+	testPackage, tx, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address(), "")
 	require.NoError(t, err)
 	require.NotNil(t, testPackage)
 	require.NotNil(t, tx)

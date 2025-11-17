@@ -37,7 +37,7 @@ func TestProgrammableTransactionBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	// Publish the test package
-	testPackage, tx, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address())
+	testPackage, tx, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address(), "")
 	require.NoError(t, err)
 	require.NotNil(t, testPackage)
 	require.NotNil(t, tx)

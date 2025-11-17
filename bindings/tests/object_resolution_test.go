@@ -27,7 +27,7 @@ func TestObjectResolution(t *testing.T) {
 	publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client)
 	require.NoError(t, err)
 
-	testContract, _, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address())
+	testContract, _, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address(), "")
 	require.NoError(t, err)
 
 	t.Run("SharedObjectResolution", func(t *testing.T) {
@@ -137,7 +137,7 @@ func TestObjectResolution(t *testing.T) {
 		require.NoError(t, err)
 
 		// Deploy a fresh contract to get a test object
-		_, initTx, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address())
+		_, initTx, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address(), "")
 		require.NoError(t, err)
 
 		// Find any created object from the transaction
