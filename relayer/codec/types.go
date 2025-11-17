@@ -65,6 +65,8 @@ type SuiFunctionParam struct {
 	DefaultValue any
 	// Result from a previous PTB Command (optional). It is used for expressive construction of PTB commands
 	PTBDependency *PTBCommandDependency
+	// GenericDependency maps to internal helpers for fetching an unknown generic type required by the parameter
+	GenericDependency *string
 }
 
 type SuiPTBCommandType string
