@@ -33,7 +33,7 @@ func TestProgrammableTransactionBlocks(t *testing.T) {
 		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
-	publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client)
+	publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client, "")
 	require.NoError(t, err)
 
 	// Publish the test package

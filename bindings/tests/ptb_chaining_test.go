@@ -25,7 +25,7 @@ func TestPTBChaining(t *testing.T) {
 		Signer:           signer,
 		WaitForExecution: true,
 		GasBudget:        &DEFAULT_GAS_BUDGET,
-	}, client)
+	}, client, "")
 	require.NoError(t, err)
 
 	testPackage, tx, err := testpackage.PublishTest(ctx, &bind.CallOpts{

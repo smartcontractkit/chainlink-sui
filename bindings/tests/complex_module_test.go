@@ -24,7 +24,7 @@ func TestComplexModule(t *testing.T) {
 		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
-	publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client)
+	publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client, "")
 	require.NoError(t, err)
 
 	testPackage, tx, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address(), "")

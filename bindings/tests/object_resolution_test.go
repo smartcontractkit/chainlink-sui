@@ -24,7 +24,7 @@ func TestObjectResolution(t *testing.T) {
 		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
-	publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client)
+	publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client, "")
 	require.NoError(t, err)
 
 	testContract, _, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address(), "")
@@ -133,7 +133,7 @@ func TestObjectResolution(t *testing.T) {
 	t.Run("ObjectResolverCaching", func(t *testing.T) {
 		resolver := bind.NewObjectResolver(client)
 
-		publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client)
+		publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client, "")
 		require.NoError(t, err)
 
 		// Deploy a fresh contract to get a test object
