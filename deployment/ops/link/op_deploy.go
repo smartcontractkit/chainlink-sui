@@ -31,7 +31,7 @@ var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyI
 	artifact, err := bind.CompilePackage(contracts.LINK, map[string]string{
 		"link":   "0x0",
 		"signer": signerAddr,
-	}, false)
+	}, false, deps.SuiRPC)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployLinkObjects]{}, err
 	}

@@ -39,6 +39,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		deps.Client,
 		input.McmsPackageId,
 		input.McmsOwner,
+		deps.SuiRPC,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPObjects]{}, err
