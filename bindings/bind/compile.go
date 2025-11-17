@@ -108,13 +108,20 @@ type GasData struct {
 	Budget  uint64          `json:"budget"`
 }
 
-func CompilePackage(packageName contracts.Package, namedAddresses map[string]string, isUpgrade bool) (PackageArtifact, error) {
+func CompilePackage(packageName contracts.Package, namedAddresses map[string]string, isUpgrade bool, suiRPC string) (PackageArtifact, error) {
+	var rpcURL string
 	// 1️. Detect dynamic RPC from Docker
-	rpcURL, err := getDynamicSuiRPC()
-	if err != nil {
-		return PackageArtifact{}, fmt.Errorf("failed to detect sui rpc url: %w", err)
+	if suiRPC == "" {
+		var err error
+		rpcURL, err = getDynamicSuiRPC()
+		if err != nil {
+			return PackageArtifact{}, fmt.Errorf("failed to detect sui rpc url: %w", err)
+		}
+	} else {
+		rpcURL = suiRPC
 	}
-	fmt.Printf("Using dynamic Sui RPC: %s\n", rpcURL)
+
+	fmt.Printf("Using Sui RPC: %s\n", rpcURL)
 
 	// before you set the temp dir
 	prevConfigDir := os.Getenv("SUI_CONFIG_DIR")
@@ -314,8 +321,6 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
 				return PackageArtifact{}, fmt.Errorf("replacing feequoter.move inside sui-temp workspace: %w", err)
 			}
-
-			fmt.Printf(" Using upgraded feequoter.move inside sui-temp workspace:\n  SRC: %s\n  DST: %s\n", upgradeSrc, upgradeDst)
 
 			ccipAddr := namedAddresses["original_ccip_pkg"]
 			if !isZeroAddress(mcmsAddr) {
@@ -680,6 +685,7 @@ func getChainIdentifier(rpcURL string) (string, error) {
 }
 
 func getDynamicSuiRPC() (string, error) {
+	// only used for internal tests
 	if envRPC := os.Getenv("SUI_RPC_URL"); envRPC != "" {
 		return envRPC, nil
 	}
@@ -760,6 +766,7 @@ func setupSuiEnv(alias, rpcURL string) error {
 	if err != nil {
 		return fmt.Errorf("failed to switch to env '%s': %w\nOutput:\n%s", alias, err, string(switchOut))
 	}
+
 	fmt.Printf("Switched active Sui env to '%s'\n", alias)
 
 	// Step 5️ — Verify
