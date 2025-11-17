@@ -48,6 +48,7 @@ func (d DeployManagedToken) Apply(e cldf.Environment, config DeployManagedTokenC
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	config.MCMSAddress = state[config.ChainSelector].MCMSPackageID

@@ -42,6 +42,7 @@ func (d MCMSProposalGenerate) Apply(e cldf.Environment, config mcmsops.ProposalG
 		GetCallOpts: func() *bind.CallOpts {
 			return &bind.CallOpts{}
 		},
+		SuiRPC: suiChain.URL,
 	}
 	result, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, config)
 	if err != nil {

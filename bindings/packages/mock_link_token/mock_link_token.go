@@ -49,7 +49,7 @@ func NewMockLinkToken(address string, client sui.ISuiAPI) (MockLinkToken, error)
 	}, nil
 }
 
-func PublishMockLinkToken(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (MockLinkToken, *models.SuiTransactionBlockResponse, error) {
+func PublishMockLinkToken(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, suiRPC string) (MockLinkToken, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -58,7 +58,7 @@ func PublishMockLinkToken(ctx context.Context, opts *bind.CallOpts, client sui.I
 	artifact, err := bind.CompilePackage(contracts.MockLinkToken, map[string]string{
 		"mock_link_token": "0x0",
 		"signer":          signerAddr,
-	}, false)
+	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err
 	}

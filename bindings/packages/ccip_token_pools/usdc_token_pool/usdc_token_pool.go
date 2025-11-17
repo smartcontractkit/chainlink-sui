@@ -56,7 +56,7 @@ func PublishCCIPUSDCTokenPool(
 	messageTransmitterStateObjectId,
 	treasuryObjectId,
 	mcmsAddress,
-	mcmsOwnerAddress string) (USDCTokenPool, *models.SuiTransactionBlockResponse, error) {
+	mcmsOwnerAddress, suiRPC string) (USDCTokenPool, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -75,7 +75,7 @@ func PublishCCIPUSDCTokenPool(
 		"mcms_owner":                        mcmsOwnerAddress,
 
 		"signer": signerAddr,
-	}, false)
+	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err
 	}
