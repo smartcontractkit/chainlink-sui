@@ -38,6 +38,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		input.CCIPPackageId,
 		input.MCMSPackageId,
 		input.MCMSOwnerPackageId,
+		deps.SuiRPC,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err

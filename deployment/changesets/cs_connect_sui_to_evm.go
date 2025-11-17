@@ -51,6 +51,7 @@ func (d ConnectSuiToEVM) Apply(e cldf.Environment, config ConnectSuiToEVMConfig)
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	// Configure FeeQuoter

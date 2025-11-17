@@ -43,6 +43,7 @@ func (d DeployDummyReceiver) Apply(e cldf.Environment, config DeployDummyReceive
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	// Run DummyReceiver Operation

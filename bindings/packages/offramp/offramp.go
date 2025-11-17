@@ -49,7 +49,7 @@ func NewOfframp(address string, client sui.ISuiAPI) (Offramp, error) {
 	}, nil
 }
 
-func PublishOfframp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, ccipAddress string, mcmsAddress string) (Offramp, *models.SuiTransactionBlockResponse, error) {
+func PublishOfframp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, ccipAddress string, mcmsAddress, suiRPC string) (Offramp, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -62,7 +62,7 @@ func PublishOfframp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI
 		"mcms_owner":                "0x1",
 		"mcms_register_entrypoints": "0x2",
 		"signer":                    signerAddr,
-	}, false)
+	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err
 	}

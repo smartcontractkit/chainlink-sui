@@ -36,6 +36,7 @@ func (d DeployMCMS) Apply(e cldf.Environment, config mcmsops.DeployMCMSSeqInput)
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	// Run DeployMCMS Sequence
