@@ -767,8 +767,6 @@ func setupSuiEnv(alias, rpcURL string) error {
 		return fmt.Errorf("failed to switch to env '%s': %w\nOutput:\n%s", alias, err, string(switchOut))
 	}
 
-	fmt.Printf("Switched active Sui env to '%s'\n", alias)
-
 	// Step 5️ — Verify
 	activeCmd := exec.Command("sui", "client", "active-env")
 	activeCmd.Env = os.Environ()
