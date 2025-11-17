@@ -252,6 +252,9 @@ public fun execute_ownership_transfer_to_mcms<T: drop>(
     event::emit(OwnershipTransferred { from: current_owner, to: new_owner });
 }
 
+// ============================== Test Functions ============================== //
+
+#[test_only]
 public fun destroy(state: OwnableState, owner_cap: OwnerCap, _ctx: &mut TxContext) {
     let OwnableState {
         owner: _,
