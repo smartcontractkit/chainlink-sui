@@ -44,7 +44,7 @@ func NewCCIPRouter(address string, client sui.ISuiAPI) (CCIPRouter, error) {
 	}, nil
 }
 
-func PublishCCIPRouter(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, mcmsAddress string, mcmsOwner string) (CCIPRouter, *models.SuiTransactionBlockResponse, error) {
+func PublishCCIPRouter(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, mcmsAddress string, mcmsOwner, suiRPC string) (CCIPRouter, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -56,7 +56,7 @@ func PublishCCIPRouter(ctx context.Context, opts *bind.CallOpts, client sui.ISui
 		"mcms_owner":                mcmsOwner,
 		"mcms_register_entrypoints": "0x2",
 		"signer":                    signerAddr,
-	}, false)
+	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err
 	}

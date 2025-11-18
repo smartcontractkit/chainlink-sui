@@ -72,7 +72,7 @@ func NewTest(address string, client sui.ISuiAPI) (Test, error) {
 	}, nil
 }
 
-func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, testSecondary string) (Test, *models.SuiTransactionBlockResponse, error) {
+func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, testSecondary, suiRPC string) (Test, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -83,7 +83,7 @@ func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, t
 		"test_secondary": testSecondary,
 
 		"signer": signerAddr,
-	}, false)
+	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -107,7 +107,7 @@ func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, t
 	return contract, tx, nil
 }
 
-func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (Test, *models.SuiTransactionBlockResponse, error) {
+func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, suiRPC string) (Test, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -117,7 +117,7 @@ func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, client sui.I
 		"test_secondary": "0x0",
 
 		"signer": signerAddr,
-	}, false)
+	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err
 	}
