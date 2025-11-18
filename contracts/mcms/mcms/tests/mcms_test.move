@@ -1419,7 +1419,7 @@ fun test_schedule_batch() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function")], // function_names
         vector[b"test_data"], // datas
-        vector<u8>[], // predecessor
+        x"a1b2c3d4e5f60718293804a5b6c7d8e9f0a1b2c3d4e5f6071829384a5b6c7d8e", // predecessor
         vector<u8>[], // salt
         MIN_DELAY, // delay
         env.scenario.ctx(),
@@ -1444,7 +1444,7 @@ fun test_cancel_operation() {
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[data], // datas
-        vector[], // predecessor
+        x"bb2adb5b9907ea8042c90eb159f31f68c53ae174499bd16a1d1308876399fbac3d8e", // predecessor
         vector[1u8], // salt
         0u64, // delay
         env.scenario.ctx(),
@@ -1598,7 +1598,7 @@ fun test_execute_batch_not_ready() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function")], // function_names
         vector[vector[0u8]], // datas
-        vector[], // predecessor
+        x"3f7a2d9e4c1b8a5f0e3d7c6b9a8f5e4d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f", // predecessor
         vector[1u8], // salt
         delay,
         env.scenario.ctx(),
@@ -1653,7 +1653,7 @@ fun test_execute_batch_after_completion() {
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[data], // datas
-        vector[], // predecessor
+        x"8d4e2f1a0b9c3e5d7f8a2b4c6d1e3f5a7b9c0d2e4f6a8b1c3d5e7f9a0b2c4d6e", // predecessor
         vector[1u8], // salt
         0u64, // delay
         env.scenario.ctx(),
@@ -1757,7 +1757,7 @@ fun test_schedule_batch_invalid_parameters() {
         vector[string::utf8(b"test_module")], // But only 1 module name
         vector[string::utf8(b"test_function")],
         vector[vector[0u8]],
-        vector[], // predecessor
+        x"f1e2d3c4b5a6978685746352413021f0e9d8c7b6a5948372615049382716f5e4", // predecessor
         vector[1u8], // salt
         0, // delay
         env.scenario.ctx(),
@@ -1789,7 +1789,7 @@ fun test_schedule_insufficient_delay() {
         vector[string::utf8(b"test_module")],
         vector[string::utf8(b"test_function")],
         vector[vector[0u8]],
-        vector[], // predecessor
+        x"2c9b8e7f6a5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b", // predecessor
         vector[1u8], // salt
         MIN_DELAY - 1, // delay lower than minimum
         env.scenario.ctx(),
@@ -1813,7 +1813,7 @@ fun test_schedule_already_scheduled() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function")], // function_names
         vector[vector[0u8]], // datas
-        vector[], // predecessor
+        x"7f3e9d2c1b0a8f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e", // predecessor
         vector[1u8], // salt
         0u64, // delay
         env.scenario.ctx(),
@@ -1828,7 +1828,7 @@ fun test_schedule_already_scheduled() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function")], // function_names
         vector[vector[0u8]], // datas
-        vector[], // predecessor
+        x"7f3e9d2c1b0a8f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e", // predecessor
         vector[1u8], // salt
         0u64, // delay
         env.scenario.ctx(),
@@ -1865,7 +1865,7 @@ fun test_schedule_blocked_function() {
         vector[test_module],
         vector[test_function],
         vector[vector[0u8]],
-        vector[], // predecessor
+        x"5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c", // predecessor
         vector[1u8], // salt
         0, // delay
         env.scenario.ctx(),
@@ -2071,7 +2071,7 @@ fun test_operation_status_functions() {
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[bcs::to_bytes(&MIN_DELAY)], // datas
-        vector[], // predecessor
+        x"c4b3a29f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b", // predecessor
         vector[1u8], // salt
         0u64, // delay
         env.scenario.ctx(),
@@ -2368,7 +2368,7 @@ fun test_timelock_dispatching_system() {
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[bcs::to_bytes(&even_newer_delay)], // datas
-        vector<u8>[], // predecessor
+        x"9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d", // predecessor
         vector<u8>[2u8], // salt
         schedule_delay,
         env.scenario.ctx(),
@@ -2436,7 +2436,7 @@ fun test_execute_batch_missing_dependency() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function1")], // function_names
         vector[vector[0u8]], // datas
-        vector[], // predecessor (no dependency)
+        x"6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d", // predecessor (no dependency)
         vector[1u8], // salt
         0u64, // delay (immediate execution)
         env.scenario.ctx(),
