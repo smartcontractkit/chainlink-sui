@@ -16,7 +16,7 @@ import (
 type NewFeeTokenConfig struct {
 	SuiChainSelector  uint64
 	FeeTokensToRemove []string
-	FeeTokensToAdd    []string
+	FeeTokensToAdd    []string // should be the objectID
 
 	// update price
 	SourceUsdPerToken []*big.Int
@@ -70,6 +70,7 @@ func (d NewFeeToken) Apply(e cldf.Environment, config NewFeeTokenConfig) (cldf.C
 
 	seqReports = append(seqReports, []operations.Report[any, any]{applyFeeTokenUpdateOP.ToGenericReport()}...)
 
+	// Run ApplyPremiumMultiplier
 	applyPremiumMultiplierOP, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp, deps, ccipops.FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput{
 		CCIPPackageId:              state[suiChain.Selector].CCIPAddress,
 		StateObjectId:              state[suiChain.Selector].CCIPObjectRef,
