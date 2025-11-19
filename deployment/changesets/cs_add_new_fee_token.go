@@ -20,6 +20,9 @@ type NewFeeTokenConfig struct {
 
 	// update price
 	SourceUsdPerToken []*big.Int
+
+	// premium multiplier wei per eth
+	PremiumMultiplierWeiPerEth []uint64
 }
 
 // ConnectSuiToEVM connects sui chain with EVM
@@ -66,6 +69,19 @@ func (d NewFeeToken) Apply(e cldf.Environment, config NewFeeTokenConfig) (cldf.C
 	}
 
 	seqReports = append(seqReports, []operations.Report[any, any]{applyFeeTokenUpdateOP.ToGenericReport()}...)
+
+	applyPremiumMultiplierOP, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp, deps, ccipops.FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput{
+		CCIPPackageId:              state[suiChain.Selector].CCIPAddress,
+		StateObjectId:              state[suiChain.Selector].CCIPObjectRef,
+		OwnerCapObjectId:           state[suiChain.Selector].CCIPOwnerCapObjectId,
+		Tokens:                     config.FeeTokensToAdd,
+		PremiumMultiplierWeiPerEth: config.PremiumMultiplierWeiPerEth,
+	})
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to register receiver for Sui chain %d: %w", config.SuiChainSelector, err)
+	}
+
+	seqReports = append(seqReports, []operations.Report[any, any]{applyPremiumMultiplierOP.ToGenericReport()}...)
 
 	// Run UpdateTokenPrice Operation
 	updateTokenPriceOP, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.FeeQuoterUpdateTokenPricesWithOwnerCapOp, deps, ccipops.FeeQuoterUpdateTokenPricesInput{
