@@ -456,6 +456,7 @@ var updateTokenPricesWithOwnerCap = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
+	fmt.Println("INPUTSS: ", input)
 	tx, err := contract.UpdatePricesWithOwnerCap(
 		b.GetContext(),
 		opts,
