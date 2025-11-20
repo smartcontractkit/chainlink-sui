@@ -359,14 +359,36 @@ func preparePTBTransaction(
 	gasBudget uint64,
 	lggr logger.Logger,
 ) (txBytes string, paymentCoins []transaction.SuiObjectRef, err error) {
+	// Get current epoch
+	suiSystemState, err := suiClient.GetClient().SuiXGetLatestSuiSystemState(ctx)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get current epoch: %w", err)
+	}
+
+	lggr.Debugw("Current epoch", "epoch", suiSystemState.Epoch)
+
+	// Parse epoch into uint64
+	epochUint, err := strconv.ParseUint(suiSystemState.Epoch, 10, 64)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to parse epoch: %w", err)
+	}
+
 	// Get available coins for gas
 	coinData, err := suiClient.GetCoinsByAddress(ctx, signerAddress)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get coins by address: %w", err)
 	}
 
+	// Filter coins that are not locked
+	filteredCoinData := make([]models.CoinData, 0)
+	for _, coin := range coinData {
+		if coin.LockedUntilEpoch == 0 || coin.LockedUntilEpoch < epochUint {
+			filteredCoinData = append(filteredCoinData, coin)
+		}
+	}
+
 	// Select coins for gas budget
-	gasBudgetCoins, err := SelectCoinsForGasBudget(gasBudget, coinData)
+	gasBudgetCoins, err := SelectCoinsForGasBudget(gasBudget, filteredCoinData)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to select coins for gas budget: %w", err)
 	}
