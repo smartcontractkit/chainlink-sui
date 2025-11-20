@@ -18,12 +18,12 @@ use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string::{Self, String};
+use std::type_name;
+use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::derived_object;
 use sui::package::{Self, UpgradeCap};
-use std::type_name;
-use sui::address;
 
 public struct BURN_MINT_TOKEN_POOL has drop {}
 
