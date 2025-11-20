@@ -13,7 +13,7 @@ concurrency:
 jobs:
   ccip_test_sui2evm:
     name: Run Sui <-> EVM Test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     strategy:
       fail-fast: false
