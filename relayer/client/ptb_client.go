@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/aptos-labs/aptos-go-sdk/bcs"
@@ -831,7 +831,7 @@ func (c *PTBClient) QueryCoinsByAddress(ctx context.Context, address string, coi
 // IMPORTANT: This method is only used for testing purposes.
 func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error) {
 	// This method should only be used in test environments
-	if !strings.Contains(os.Getenv("ENV"), "test") {
+	if !testing.Testing() {
 		return SuiTransactionBlockResponse{}, fmt.Errorf("FinishPTBAndSend is only available in test environments")
 	}
 
