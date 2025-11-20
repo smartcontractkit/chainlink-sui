@@ -84,22 +84,6 @@ func (d NewFeeToken) Apply(e cldf.Environment, config NewFeeTokenConfig) (cldf.C
 
 	seqReports = append(seqReports, []operations.Report[any, any]{applyPremiumMultiplierOP.ToGenericReport()}...)
 
-	// Run UpdateTokenPrice Operation
-	updateTokenPriceOP, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.FeeQuoterUpdateTokenPricesWithOwnerCapOp, deps, ccipops.FeeQuoterUpdateTokenPricesInput{
-		CCIPPackageId:         state[suiChain.Selector].CCIPAddress,
-		CCIPObjectRef:         state[suiChain.Selector].CCIPObjectRef,
-		SourceTokens:          config.FeeTokensToAdd,
-		SourceUsdPerToken:     config.SourceUsdPerToken,
-		GasDestChainSelectors: []uint64{},
-		GasUsdPerUnitGas:      []*big.Int{},
-		OwnerCapId:            state[suiChain.Selector].CCIPOwnerCapObjectId,
-	})
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to register receiver for Sui chain %d: %w", config.SuiChainSelector, err)
-	}
-
-	seqReports = append(seqReports, []operations.Report[any, any]{updateTokenPriceOP.ToGenericReport()}...)
-
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
 		Reports:     seqReports,
