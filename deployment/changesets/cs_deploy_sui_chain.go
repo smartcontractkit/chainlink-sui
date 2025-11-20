@@ -51,6 +51,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	// in case the registry is not loaded with all operations. Needed to build accept ownership proposals
@@ -117,6 +118,12 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	err = ab.Save(config.SuiChainSelector, routerReport.Output.Objects.RouterStateObjectId, typeAndVersionRouterObject)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save Router state object Id %s for Sui chain %d: %w", routerReport.Output.Objects.RouterStateObjectId, config.SuiChainSelector, err)
+	}
+
+	typeAndVersionRouterOwnerCap := cldf.NewTypeAndVersion(deployment.SuiCCIPRouterOwnerCapObjectIDType, deployment.Version1_0_0)
+	err = ab.Save(config.SuiChainSelector, routerReport.Output.Objects.OwnerCapObjectId, typeAndVersionRouterOwnerCap)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save Router owner cap object Id %s for Sui chain %d: %w", routerReport.Output.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 	}
 
 	// --------------------------

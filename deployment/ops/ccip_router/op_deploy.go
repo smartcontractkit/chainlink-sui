@@ -57,6 +57,13 @@ type DeployCCIPRouterObjects struct {
 	RouterStatePointerObjectId string
 }
 
+var DeployCCIPRouterOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-router", "package", "deploy"),
+	semver.MustParse("0.1.0"),
+	"Deploys the CCIP router package",
+	deployHandler,
+)
+
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPRouterInput) (output sui_ops.OpTxResult[DeployCCIPRouterObjects], err error) {
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
@@ -66,6 +73,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		deps.Client,
 		input.McmsPackageId,
 		input.McmsOwner,
+		deps.SuiRPC,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, err
@@ -171,6 +179,13 @@ type SetOnRampsObjects struct {
 	// No specific objects are returned from set_on_ramps
 }
 
+var SetOnRampsOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-router", "package", "set-on-ramps"),
+	semver.MustParse("0.1.0"),
+	"Sets on-ramp addresses for destination chains in the CCIP router",
+	setOnRampsHandler,
+)
+
 var setOnRampsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetOnRampsInput) (output sui_ops.OpTxResult[SetOnRampsObjects], err error) {
 	routerPackage, err := module_router.NewRouter(input.RouterPackageId, deps.Client)
 	if err != nil {
@@ -225,20 +240,6 @@ var setOnRampsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetO
 	}, nil
 }
 
-var DeployCCIPRouterOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-router", "package", "deploy"),
-	semver.MustParse("0.1.0"),
-	"Deploys the CCIP router package",
-	deployHandler,
-)
-
-var SetOnRampsOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-router", "package", "set-on-ramps"),
-	semver.MustParse("0.1.0"),
-	"Sets on-ramp addresses for destination chains in the CCIP router",
-	setOnRampsHandler,
-)
-
 // NoObjects is used for operations that don't return any specific objects
 type NoObjects struct{}
 
@@ -250,6 +251,13 @@ type AcceptOwnershipInput struct {
 	RouterPackageId     string
 	RouterStateObjectId string
 }
+
+var AcceptOwnershipOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-router", "package", "accept-ownership"),
+	semver.MustParse("0.1.0"),
+	"Accepts ownership transfer for the CCIP router",
+	acceptOwnershipHandler,
+)
 
 var acceptOwnershipHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptOwnershipInput) (output sui_ops.OpTxResult[NoObjects], err error) {
 	routerContract, err := module_router.NewRouter(input.RouterPackageId, deps.Client)
@@ -295,13 +303,6 @@ var acceptOwnershipHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 	}, nil
 }
 
-var AcceptOwnershipOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-router", "package", "accept-ownership"),
-	semver.MustParse("0.1.0"),
-	"Accepts ownership transfer for the CCIP router",
-	acceptOwnershipHandler,
-)
-
 // ================================================================
 // |                  Transfer Ownership                         |
 // ================================================================
@@ -312,6 +313,13 @@ type TransferOwnershipInput struct {
 	OwnerCapObjectId    string
 	NewOwner            string
 }
+
+var TransferOwnershipOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-router", "package", "transfer-ownership"),
+	semver.MustParse("0.1.0"),
+	"Transfers ownership of the CCIP router to a new owner",
+	transferOwnershipHandler,
+)
 
 var transferOwnershipHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input TransferOwnershipInput) (output sui_ops.OpTxResult[NoObjects], err error) {
 	routerContract, err := module_router.NewRouter(input.RouterPackageId, deps.Client)
@@ -341,13 +349,6 @@ var transferOwnershipHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	}, nil
 }
 
-var TransferOwnershipOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-router", "package", "transfer-ownership"),
-	semver.MustParse("0.1.0"),
-	"Transfers ownership of the CCIP router to a new owner",
-	transferOwnershipHandler,
-)
-
 // ================================================================
 // |               Execute Ownership Transfer                     |
 // ================================================================
@@ -358,6 +359,13 @@ type ExecuteOwnershipTransferInput struct {
 	OwnerCapObjectId    string
 	To                  string
 }
+
+var ExecuteOwnershipTransferOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-router", "package", "execute-ownership-transfer"),
+	semver.MustParse("0.1.0"),
+	"Executes ownership transfer for the CCIP router",
+	executeOwnershipTransferHandler,
+)
 
 var executeOwnershipTransferHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ExecuteOwnershipTransferInput) (output sui_ops.OpTxResult[NoObjects], err error) {
 	routerContract, err := module_router.NewRouter(input.RouterPackageId, deps.Client)
@@ -386,10 +394,3 @@ var executeOwnershipTransferHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDe
 		Objects:   NoObjects{},
 	}, nil
 }
-
-var ExecuteOwnershipTransferOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-router", "package", "execute-ownership-transfer"),
-	semver.MustParse("0.1.0"),
-	"Executes ownership transfer for the CCIP router",
-	executeOwnershipTransferHandler,
-)

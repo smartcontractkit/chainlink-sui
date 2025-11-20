@@ -50,6 +50,7 @@ func (d ManagedTokenConfigureNewMinter) Apply(e cldf.Environment, config Managed
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	configureNewMinterReport, err := operations.ExecuteOperation(e.OperationsBundle, managedtokenops.ManagedTokenConfigureNewMinterOp, deps, managedtokenops.ManagedTokenConfigureNewMinterInput{

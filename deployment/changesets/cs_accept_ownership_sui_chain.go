@@ -39,6 +39,7 @@ func (d AcceptOwnershipCCIP) Apply(e cldf.Environment, config AcceptOwnershipCCI
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	// in case the registry is not loaded with all operations. Needed to build accept ownership proposals

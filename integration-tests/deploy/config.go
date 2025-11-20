@@ -145,7 +145,29 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 					LinkToken:                    state.LinkTokenCoinMetadataId,
 					TokenPriceStalenessThreshold: deployment.DefaultCCIPSeqConfig.TokenPriceStalenessThreshold,
 				},
-				DestinationChainConfigs: map[uint64]view.FeeQuoterDestChainConfig{}, // TODO: Changesets are not configuring router, any configuration that requires GetDestChains will be empty
+				DestinationChainConfigs: map[uint64]view.FeeQuoterDestChainConfig{
+					EVMChainSelector: {
+						IsEnabled:                         ccipConfig.IsEnabled,
+						MaxNumberOfTokensPerMsg:           ccipConfig.MaxNumberOfTokensPerMsg,
+						MaxDataBytes:                      ccipConfig.MaxDataBytes,
+						MaxPerMsgGasLimit:                 ccipConfig.MaxPerMsgGasLimit,
+						DestGasOverhead:                   ccipConfig.DestGasOverhead,
+						DestGasPerPayloadByteBase:         ccipConfig.DestGasPerPayloadByteBase,
+						DestGasPerPayloadByteHigh:         ccipConfig.DestGasPerPayloadByteHigh,
+						DestGasPerPayloadByteThreshold:    ccipConfig.DestGasPerPayloadByteThreshold,
+						DestDataAvailabilityOverheadGas:   ccipConfig.DestDataAvailabilityOverheadGas,
+						DestGasPerDataAvailabilityByte:    ccipConfig.DestGasPerDataAvailabilityByte,
+						DestDataAvailabilityMultiplierBps: ccipConfig.DestDataAvailabilityMultiplierBps,
+						ChainFamilySelector:               fmt.Sprintf("%x", ccipConfig.ChainFamilySelector),
+						EnforceOutOfOrder:                 ccipConfig.EnforceOutOfOrder,
+						DefaultTokenFeeUsdCents:           ccipConfig.DefaultTokenFeeUsdCents,
+						DefaultTokenDestGasOverhead:       ccipConfig.DefaultTokenDestGasOverhead,
+						DefaultTxGasLimit:                 ccipConfig.DefaultTxGasLimit,
+						GasMultiplierWeiPerEth:            ccipConfig.GasMultiplierWeiPerEth,
+						GasPriceStalenessThreshold:        ccipConfig.GasPriceStalenessThreshold,
+						NetworkFeeUsdCents:                ccipConfig.NetworkFeeUsdCents,
+					},
+				},
 			},
 			RMNRemote: view.RMNRemoteView{
 				ContractMetaData: view.ContractMetaData{
@@ -206,7 +228,17 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				FeeAggregator:  owner,
 				AllowlistAdmin: owner,
 			},
-			DestChainSpecificData: map[uint64]view.DestChainSpecificData{},
+			DestChainSpecificData: map[uint64]view.DestChainSpecificData{
+				EVMChainSelector: {
+					AllowedSendersList: []string{},
+					DestChainConfig: view.OnRampDestChainConfig{
+						SequenceNumber:   0,
+						AllowlistEnabled: DestChainConfigureOnRamp.DestChainAllowListEnabled[0],
+						Router:           DestChainConfigureOnRamp.DestChainRouters[0],
+					},
+					ExpectedNextSeqNum: 1,
+				},
+			},
 		},
 		OffRamp: view.OffRampView{
 			ContractMetaData: view.ContractMetaData{
@@ -243,7 +275,7 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				StateObjectID:  state.CCIPRouterStateObjectID,
 			},
 			IsTestRouter: false,
-			OnRamps:      map[uint64]string{},
+			OnRamps:      map[uint64]string{EVMChainSelector: state.OnRampAddress},
 			OffRamps:     nil,
 		},
 		TokenPools: map[string]map[string]view.TokenPoolView{
