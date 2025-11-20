@@ -32,6 +32,7 @@ var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyI
 		b.GetContext(),
 		opts,
 		deps.Client,
+		deps.SuiRPC,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployMCMSObjects]{}, err

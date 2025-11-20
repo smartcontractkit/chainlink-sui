@@ -22,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	suiSigner "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
@@ -38,8 +39,38 @@ const (
 	DefaultGasBudget            uint64        = 1_000_000_000
 	DefaultCacheExpiration      time.Duration = 120 * time.Minute
 	DefaultCacheCleanupInterval time.Duration = 240 * time.Minute
-	DefaultHTTPTimeout          time.Duration = 120 * time.Second
+	DefaultHTTPTimeout          time.Duration = 30 * time.Second
 )
+
+var RateLimitWeights = map[string]int64{
+	"MoveCall":                             1,
+	"SendTransaction":                      1,
+	"ReadFunction":                         1,
+	"SignAndSendTransaction":               1,
+	"QueryEvents":                          1,
+	"QueryTransactions":                    1,
+	"GetCoinsByAddress":                    1,
+	"QueryCoinsByAddress":                  1,
+	"EstimateGas":                          1,
+	"GetTransactionStatus":                 1,
+	"GetBlockById":                         1,
+	"GetNormalizedModule":                  1,
+	"GetSUIBalance":                        1,
+	"GetValuesFromPackageOwnedObjectField": 1,
+	"GetReferenceGasPrice":                 1,
+	"FinishPTBAndSend":                     1,
+	"BlockByDigest":                        1,
+	// Keep 0, these methods are often called at the same time as ReadFunction
+	// from ChainReader, high load of GetLatestValue calls could cause a deadlock.
+	"ReadFilterOwnedObjectIds":           0,
+	"ReadOwnedObjects":                   0,
+	"ReadObjectId":                       0,
+	"GetLatestPackageId":                 0,
+	"LoadModulePackageIds":               0,
+	"GetParentObjectID":                  0,
+	"GetCCIPPackageID":                   0,
+	"GetTokenPoolConfigByPackageAddress": 0,
+}
 
 // var since it's passed via pointer
 var maxPageSize uint = 50
@@ -50,7 +81,7 @@ type SuiPTBClient interface {
 	ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error)
 	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]models.SuiObjectData, error)
 	ReadObjectId(ctx context.Context, objectId string) (models.SuiObjectData, error)
-	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error)
+	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error)
 	QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error)
@@ -76,6 +107,7 @@ type SuiPTBClient interface {
 	GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error)
 	GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error)
 	GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error)
+	GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error)
 }
 
 // PTBClient implements SuiClient interface using the blockvision SDK
@@ -109,6 +141,11 @@ func NewPTBClient(
 
 	httpClient := &http.Client{
 		Timeout: DefaultHTTPTimeout,
+		Transport: &http.Transport{
+			MaxConnsPerHost:     int(maxConcurrentRequests) * 2,
+			MaxIdleConns:        int(maxConcurrentRequests) * 2,
+			MaxIdleConnsPerHost: int(maxConcurrentRequests) * 2,
+		},
 	}
 	client := sui.NewSuiClientWithCustomClient(rpcUrl, httpClient)
 
@@ -138,47 +175,36 @@ func NewPTBClient(
 func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
 	start := time.Now()
 
-	// Keep track of the number of times WithRateLimit is called
-	_, ok := c.cache.Get("WithRateLimitCount")
-	if !ok {
-		c.cache.SetDefault("WithRateLimitCount", uint(0))
+	weight := int64(1)
+	if weightValue, ok := RateLimitWeights[methodName]; ok {
+		weight = weightValue
 	}
-	newCount, err := c.cache.IncrementUint("WithRateLimitCount", 1)
-	c.log.Debugw("WithRateLimit count", "count", newCount, "error", err)
-	c.log.Debugw("WithRateLimit starting", "methodName", methodName, "timestamp", start.Format(time.RFC3339))
 
-	// the work itself should time out by transactionTimeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
+	workCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
-	if c.rateLimiter == nil {
-		c.log.Debugw("WithRateLimit no rate limiter", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
-		return f(timeoutCtx)
+	// If rate limiter is disabled or weight is 0, skip semaphore entirely.
+	// This will skip adding to the semaphore queue and prevent unnecessary queuing.
+	if c.rateLimiter == nil || weight == 0 {
+		return f(workCtx)
 	}
 
 	// acquire with the timeout context so it can't hang forever
-	if err := c.rateLimiter.Acquire(timeoutCtx, 1); err != nil {
+	if err := c.rateLimiter.Acquire(ctx, weight); err != nil {
 		return fmt.Errorf("failed to acquire rate limit for %s: %w", methodName, err)
 	}
 
-	// ensure cleanup on exit and panic recovery
+	// ensure cleanup on exit
 	defer func() {
-		c.rateLimiter.Release(1)
-		c.log.Debugw("WithRateLimit released", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
-
-		// bubble up panic after releasing
-		if r := recover(); r != nil {
-			c.log.Debugw("WithRateLimit panicked", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
-			panic(r)
-		}
-
-		newCount, err := c.cache.DecrementUint("WithRateLimitCount", 1)
-		c.log.Debugw("WithRateLimit count", "count", newCount, "error", err)
+		c.rateLimiter.Release(weight)
+		c.log.Debugw("WithRateLimit released", "methodName", methodName, "duration", time.Since(start))
 	}()
+
+	c.log.Debugw("WithRateLimit starting work")
 
 	// run the user function with the timeout context
 	// if the function respects the context, it will return and lock will be released in defer
-	return f(timeoutCtx)
+	return f(workCtx)
 }
 
 func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error) {
@@ -249,32 +275,36 @@ func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBloc
 func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (models.SuiObjectData, error) {
 	var result models.SuiObjectData
 	err := c.WithRateLimit(ctx, "ReadObjectId", func(ctx context.Context) error {
-		objectReq := models.SuiGetObjectRequest{
-			ObjectId: objectId,
-			Options: models.SuiObjectDataOptions{
-				ShowContent: true,
-				ShowType:    true,
-				ShowOwner:   true,
-			},
-		}
-
-		response, err := c.client.SuiGetObject(ctx, objectReq)
-		if err != nil {
-			return fmt.Errorf("failed to read object: %w", err)
-		}
-
-		c.log.Infow("ReadObjectId response", "response", response)
-
-		if response.Data == nil || response.Data.Content == nil {
-			return fmt.Errorf("object has no content")
-		}
-
-		result = *response.Data
-
-		return nil
+		var err error
+		result, err = c.readObjectIdInternal(ctx, objectId)
+		return err
 	})
-
 	return result, err
+}
+
+// readObjectIdInternal is the internal implementation without rate limiting
+func (c *PTBClient) readObjectIdInternal(ctx context.Context, objectId string) (models.SuiObjectData, error) {
+	objectReq := models.SuiGetObjectRequest{
+		ObjectId: objectId,
+		Options: models.SuiObjectDataOptions{
+			ShowContent: true,
+			ShowType:    true,
+			ShowOwner:   true,
+		},
+	}
+
+	response, err := c.client.SuiGetObject(ctx, objectReq)
+	if err != nil {
+		return models.SuiObjectData{}, fmt.Errorf("failed to read object: %w", err)
+	}
+
+	c.log.Infow("ReadObjectId response", "response", response)
+
+	if response.Data == nil || response.Data.Content == nil {
+		return models.SuiObjectData{}, fmt.Errorf("object has no content")
+	}
+
+	return *response.Data, nil
 }
 
 func (c *PTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]models.SuiObjectData, error) {
@@ -318,34 +348,38 @@ func (c *PTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress s
 func (c *PTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error) {
 	var result []models.SuiObjectResponse
 	err := c.WithRateLimit(ctx, "ReadOwnedObjects", func(ctx context.Context) error {
-		ownedObjectsReq := models.SuiXGetOwnedObjectsRequest{
-			Address: ownerAddress,
-			Query: models.SuiObjectResponseQuery{
-				Options: models.SuiObjectDataOptions{
-					ShowContent: true,
-					ShowType:    true,
-					ShowOwner:   true,
-				},
-			},
-			Limit: uint64(maxPageSize),
-		}
-
-		if cursor != nil {
-			cursorHex := cursor
-			ownedObjectsReq.Cursor = string(cursorHex.Data())
-		}
-
-		response, err := c.client.SuiXGetOwnedObjects(ctx, ownedObjectsReq)
-		if err != nil {
-			return fmt.Errorf("failed to read owned objects: %w", err)
-		}
-
-		result = response.Data
-
-		return nil
+		var err error
+		result, err = c.readOwnedObjectsInternal(ctx, ownerAddress, cursor)
+		return err
 	})
-
 	return result, err
+}
+
+// readOwnedObjectsInternal is the internal implementation without rate limiting
+func (c *PTBClient) readOwnedObjectsInternal(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error) {
+	ownedObjectsReq := models.SuiXGetOwnedObjectsRequest{
+		Address: ownerAddress,
+		Query: models.SuiObjectResponseQuery{
+			Options: models.SuiObjectDataOptions{
+				ShowContent: true,
+				ShowType:    true,
+				ShowOwner:   true,
+			},
+		},
+		Limit: uint64(maxPageSize),
+	}
+
+	if cursor != nil {
+		cursorHex := cursor
+		ownedObjectsReq.Cursor = string(cursorHex.Data())
+	}
+
+	response, err := c.client.SuiXGetOwnedObjects(ctx, ownedObjectsReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read owned objects: %w", err)
+	}
+
+	return response.Data, nil
 }
 
 func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
@@ -397,183 +431,200 @@ func (c *PTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) 
 	return result, err
 }
 
-func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error) {
+func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	var results []any
 	err := c.WithRateLimit(ctx, "ReadFunction", func(ctx context.Context) error {
-		txn := transaction.NewTransaction()
+		var err error
+		results, err = c.readFunctionInternal(ctx, signerAddress, packageId, module, function, args, argTypes, typeArgs)
+		return err
+	})
+	return results, err
+}
 
-		var txnArgs []transaction.Argument
-		var txnTypeArgs []transaction.TypeTag
-		for i, arg := range args {
-			argType, ok := common.ValueAt(argTypes, i)
-			if !ok {
-				argType = common.InferArgumentType(arg)
-			}
+// readFunctionInternal is the internal implementation without rate limiting
+func (c *PTBClient) readFunctionInternal(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+	var results []any
+	txn := transaction.NewTransaction()
 
-			arg, err := c.TransformTransactionArg(ctx, txn, arg, argType, true)
-			if err != nil {
-				return fmt.Errorf("failed to transform transaction arg: %w", err)
-			}
-			txnArgs = append(txnArgs, *arg)
-		}
+	var txnArgs []transaction.Argument
+	var txnTypeArgs []transaction.TypeTag
 
-		txn.SetSuiClient(c.client.(*sui.Client))
-		txn.SetSender(models.SuiAddress(signerAddress))
-		txn.SetGasBudget(DefaultGasBudget)
-		txn.SetGasPrice(DefaultGasPrice)
-		txn.MoveCall(models.SuiAddress(packageId), module, function, txnTypeArgs, txnArgs)
-
-		// Get transaction bytes
-		bcsEncodedMsg, err := txn.Data.V1.Kind.Marshal()
+	// Process type arguments
+	for _, typeArg := range typeArgs {
+		typeTag, err := c.createTypeTag(typeArg)
 		if err != nil {
-			return fmt.Errorf("failed to marshal transaction: %w", err)
+			return nil, fmt.Errorf("failed to create type tag for %s: %w", typeArg, err)
 		}
-		txBytes := mystenbcs.ToBase64(bcsEncodedMsg)
+		txnTypeArgs = append(txnTypeArgs, typeTag)
+	}
 
-		// Use dev inspect for read-only function calls
-		devInspectReq := models.SuiDevInspectTransactionBlockRequest{
-			Sender:  signerAddress,
-			TxBytes: txBytes,
-		}
-
-		response, err := c.client.SuiDevInspectTransactionBlock(ctx, devInspectReq)
-		if err != nil || response.Effects.Status.Status != "success" {
-			return fmt.Errorf("failed to read function: %w", err)
+	for i, arg := range args {
+		argType, ok := common.ValueAt(argTypes, i)
+		if !ok {
+			argType = common.InferArgumentType(arg)
 		}
 
-		c.log.Debugw("ReadFunction RPC response", "RPC response", response, "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function))
-
-		if len(response.Results) == 0 {
-			return fmt.Errorf("no results from function call: %+v", response)
-		}
-
-		resultsMarshalled, err := response.Results.MarshalJSON()
+		arg, err := c.TransformTransactionArg(ctx, txn, arg, argType, true)
 		if err != nil {
-			return fmt.Errorf("failed to marshal results: %w", err)
+			return nil, fmt.Errorf("failed to transform transaction arg: %w", err)
 		}
-		var functionReadResponse []FunctionReadResponse
-		err = json.Unmarshal(resultsMarshalled, &functionReadResponse)
+		txnArgs = append(txnArgs, *arg)
+	}
+
+	txn.SetSuiClient(c.client.(*sui.Client))
+	txn.SetSender(models.SuiAddress(signerAddress))
+	txn.SetGasBudget(DefaultGasBudget)
+	txn.SetGasPrice(DefaultGasPrice)
+	txn.MoveCall(models.SuiAddress(packageId), module, function, txnTypeArgs, txnArgs)
+
+	// Get transaction bytes
+	bcsEncodedMsg, err := txn.Data.V1.Kind.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal transaction: %w", err)
+	}
+	txBytes := mystenbcs.ToBase64(bcsEncodedMsg)
+
+	// Use dev inspect for read-only function calls
+	devInspectReq := models.SuiDevInspectTransactionBlockRequest{
+		Sender:  signerAddress,
+		TxBytes: txBytes,
+	}
+
+	response, err := c.client.SuiDevInspectTransactionBlock(ctx, devInspectReq)
+	if err != nil || response.Effects.Status.Status != "success" {
+		return nil, fmt.Errorf("failed to read function: %w", err)
+	}
+
+	c.log.Debugw("ReadFunction RPC response", "RPC response", response, "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function))
+
+	if len(response.Results) == 0 {
+		return nil, fmt.Errorf("no results from function call: %+v", response)
+	}
+
+	resultsMarshalled, err := response.Results.MarshalJSON()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal results: %w", err)
+	}
+	var functionReadResponse []FunctionReadResponse
+	err = json.Unmarshal(resultsMarshalled, &functionReadResponse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal results: %w", err)
+	}
+
+	results = make([]any, len(functionReadResponse[0].ReturnValues))
+
+	// parse one or more results
+	for i, returnedValue := range functionReadResponse[0].ReturnValues {
+		returnedValue := returnedValue.([]any)
+		structTag := returnedValue[1].(string)
+		structPartsLen := 3
+
+		// create a bcs decoder from the return value
+		bcsBytes, err := codec.AnySliceToBytes(returnedValue[0].([]any))
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal results: %w", err)
+			return nil, fmt.Errorf("failed to convert return value to bytes: %w", err)
+		}
+		bcsDecoder := bcs.NewDeserializer(bcsBytes)
+
+		// This is a special case for Sui strings as they are represented as a struct with tag "0x1::string::String"
+		// Since we use the tag to fetch the normalized module, it causes a failure since a module "string" does not exist.
+		// We parse the value separately here. The BCS decoder is not actually needed for this case but we are already initializing it for the complex structs
+		// so we can use it to read the string value.
+		if structTag == "0x1::string::String" {
+			strValue := bcsDecoder.ReadString()
+			results[i] = strValue
+			continue
 		}
 
-		results = make([]any, len(functionReadResponse[0].ReturnValues))
+		// Handle vector<T> types. We need to distinguish between vectors of structs
+		// (e.g. vector<0x123::module::MyStruct>) and vectors of primitive values
+		// (e.g. vector<u8>, vector<u64>).
+		//
+		// - For vector<Struct>, fetch the normalized module metadata and decode each
+		//   element into a JSON object using DecodeVectorOfStructs.
+		// - For vector<primitive>, fall back to DecodeSuiPrimative to decode the raw
+		//   values.
+		// In both cases, run the result through ConvertBytesToHex so that any []byte
+		// fields (vector<u8> especially) are hex-encoded instead of base64 when
+		// marshalled to JSON.
+		if strings.HasPrefix(structTag, "vector<") && strings.HasSuffix(structTag, ">") {
+			// Extract inner type to determine if it's a vector of structs or primitives
+			innerType := strings.TrimSuffix(strings.TrimPrefix(structTag, "vector<"), ">")
+			innerStructParts := strings.Split(innerType, "::")
 
-		// parse one or more results
-		for i, returnedValue := range functionReadResponse[0].ReturnValues {
-			returnedValue := returnedValue.([]any)
-			structTag := returnedValue[1].(string)
-			structPartsLen := 3
+			// Check if inner type is a struct (3 parts: package::module::struct)
+			if len(innerStructParts) == structPartsLen {
+				// This is vector<Struct> - get normalized module for the inner struct
+				innerPackageId := innerStructParts[0]
+				innerModuleName := innerStructParts[1]
 
-			// create a bcs decoder from the return value
-			bcsBytes, err := codec.AnySliceToBytes(returnedValue[0].([]any))
-			if err != nil {
-				return fmt.Errorf("failed to convert return value to bytes: %w", err)
-			}
-			bcsDecoder := bcs.NewDeserializer(bcsBytes)
-
-			// This is a special case for Sui strings as they are represented as a struct with tag "0x1::string::String"
-			// Since we use the tag to fetch the normalized module, it causes a failure since a module "string" does not exist.
-			// We parse the value separately here. The BCS decoder is not actually needed for this case but we are already initializing it for the complex structs
-			// so we can use it to read the string value.
-			if structTag == "0x1::string::String" {
-				strValue := bcsDecoder.ReadString()
-				results[i] = strValue
-				continue
-			}
-
-			// Handle vector<T> types. We need to distinguish between vectors of structs
-			// (e.g. vector<0x123::module::MyStruct>) and vectors of primitive values
-			// (e.g. vector<u8>, vector<u64>).
-			//
-			// - For vector<Struct>, fetch the normalized module metadata and decode each
-			//   element into a JSON object using DecodeVectorOfStructs.
-			// - For vector<primitive>, fall back to DecodeSuiPrimative to decode the raw
-			//   values.
-			// In both cases, run the result through ConvertBytesToHex so that any []byte
-			// fields (vector<u8> especially) are hex-encoded instead of base64 when
-			// marshalled to JSON.
-			if strings.HasPrefix(structTag, "vector<") && strings.HasSuffix(structTag, ">") {
-				// Extract inner type to determine if it's a vector of structs or primitives
-				innerType := strings.TrimSuffix(strings.TrimPrefix(structTag, "vector<"), ">")
-				innerStructParts := strings.Split(innerType, "::")
-
-				// Check if inner type is a struct (3 parts: package::module::struct)
-				if len(innerStructParts) == structPartsLen {
-					// This is vector<Struct> - get normalized module for the inner struct
-					innerPackageId := innerStructParts[0]
-					innerModuleName := innerStructParts[1]
-
-					normalizedModule, err := c.GetNormalizedModule(ctx, innerPackageId, innerModuleName)
-					if err != nil {
-						return fmt.Errorf("failed to get normalized module for vector struct: %w", err)
-					}
-
-					// Use the new DecodeVectorOfStructs function
-					jsonResult, err := codec.DecodeVectorOfStructs(bcsDecoder, structTag, normalizedModule.Structs)
-					if err != nil {
-						return fmt.Errorf("failed to decode vector of structs: %w", err)
-					}
-
-					results[i] = jsonResult
-				} else {
-					// This is vector<primitive> - use existing primitive vector handling
-					primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
-					if err != nil {
-						return fmt.Errorf("failed to decode primitive vector: %w", err)
-					}
-					results[i] = primitive
+				normalizedModule, err := c.getNormalizedModuleInternal(ctx, innerPackageId, innerModuleName)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get normalized module for vector struct: %w", err)
 				}
-				continue
-			}
 
-			// Handle non-vector types (existing logic)
-			structParts := strings.Split(structTag, "::")
+				// Use the new DecodeVectorOfStructs function
+				jsonResult, err := codec.DecodeVectorOfStructs(bcsDecoder, structTag, normalizedModule.Structs)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decode vector of structs: %w", err)
+				}
 
-			// if the response type is not a struct (primitive type), skip the result (keep it as is)
-			if len(structParts) != structPartsLen {
+				results[i] = jsonResult
+			} else {
+				// This is vector<primitive> - use existing primitive vector handling
 				primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
 				if err != nil {
-					return fmt.Errorf("failed to decode primitive: %w", err)
+					return nil, fmt.Errorf("failed to decode primitive vector: %w", err)
 				}
-				// Normalize large ints to decimal strings to be LOOP/JSON friendly
-				if structTag == "u128" || structTag == "u256" {
-					switch v := primitive.(type) {
-					case *big.Int:
-						results[i] = v.String()
-					case big.Int:
-						vv := v
-						results[i] = vv.String()
-					default:
-						results[i] = fmt.Sprint(v)
-					}
-				} else {
-					results[i] = primitive
-				}
-			} else {
-				// otherwise, get the normalized struct and attempt turning the result into JSON
-				normalizedModule, err := c.GetNormalizedModule(ctx, packageId, structParts[1])
-				if err != nil {
-					return fmt.Errorf("failed to get normalized struct: %w", err)
-				}
-
-				jsonResult, err := codec.DecodeSuiStructToJSON(normalizedModule.Structs, structParts[2], bcsDecoder)
-				if err != nil {
-					return fmt.Errorf("failed to parse struct into JSON: %w", err)
-				}
-
-				// convert any []uint8 fields to hex strings
-				hexified := common.ConvertBytesToHex(jsonResult)
-				results[i] = hexified
+				results[i] = primitive
 			}
+			continue
 		}
 
-		c.log.Debugw("ReadFunction results", "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function), "results", results)
+		// Handle non-vector types (existing logic)
+		structParts := strings.Split(structTag, "::")
 
-		return nil
-	})
+		// if the response type is not a struct (primitive type), skip the result (keep it as is)
+		if len(structParts) != structPartsLen {
+			primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode primitive: %w", err)
+			}
+			// Normalize large ints to decimal strings to be LOOP/JSON friendly
+			if structTag == "u128" || structTag == "u256" {
+				switch v := primitive.(type) {
+				case *big.Int:
+					results[i] = v.String()
+				case big.Int:
+					vv := v
+					results[i] = vv.String()
+				default:
+					results[i] = fmt.Sprint(v)
+				}
+			} else {
+				results[i] = primitive
+			}
+		} else {
+			// otherwise, get the normalized struct and attempt turning the result into JSON
+			normalizedModule, err := c.getNormalizedModuleInternal(ctx, packageId, structParts[1])
+			if err != nil {
+				return nil, fmt.Errorf("failed to get normalized struct: %w", err)
+			}
 
-	return results, err
+			jsonResult, err := codec.DecodeSuiStructToJSON(normalizedModule.Structs, structParts[2], bcsDecoder)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse struct into JSON: %w", err)
+			}
+
+			// convert any []uint8 fields to hex strings
+			hexified := common.ConvertBytesToHex(jsonResult)
+			results[i] = hexified
+		}
+	}
+
+	c.log.Debugw("ReadFunction results", "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function), "results", results)
+
+	return results, nil
 }
 
 func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error) {
@@ -899,8 +950,17 @@ func (c *PTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int
 }
 
 func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, module string) (models.GetNormalizedMoveModuleResponse, error) {
-	c.log.Debugw("Getting normalized module", "packageId", packageId, "module", module)
+	var result models.GetNormalizedMoveModuleResponse
+	err := c.WithRateLimit(ctx, "GetNormalizedModule", func(ctx context.Context) error {
+		var err error
+		result, err = c.getNormalizedModuleInternal(ctx, packageId, module)
+		return err
+	})
+	return result, err
+}
 
+// getNormalizedModuleInternal is the internal implementation without rate limiting
+func (c *PTBClient) getNormalizedModuleInternal(ctx context.Context, packageId string, module string) (models.GetNormalizedMoveModuleResponse, error) {
 	// check if the normalized module is already cached
 	normalizedModule, ok := c.normalizedModules[packageId][module]
 	if ok {
@@ -915,8 +975,6 @@ func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, m
 		return models.GetNormalizedMoveModuleResponse{}, fmt.Errorf("failed to get normalized module: %w", err)
 	}
 
-	c.log.Debugw("Normalized module response", "normalizedModule", normalizedModule, "packageId", packageId, "module", module)
-
 	if _, ok := c.normalizedModules[packageId]; !ok {
 		c.normalizedModules[packageId] = make(map[string]models.GetNormalizedMoveModuleResponse)
 	}
@@ -924,16 +982,25 @@ func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, m
 	// cache the normalized module
 	c.normalizedModules[packageId][module] = normalizedModule
 
-	c.log.Debugw("Normalized module cached", "packageId", packageId, "module", module)
-
 	return normalizedModule, nil
 }
 
 // LoadModulePackages returns the set of package IDs for a given module using its original package ID
 // This method assumes that module names are unique across all packages
 func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
+	var result []string
+	err := c.WithRateLimit(ctx, "LoadModulePackageIds", func(ctx context.Context) error {
+		var err error
+		result, err = c.loadModulePackageIdsInternal(ctx, packageId, module, signerAddress)
+		return err
+	})
+	return result, err
+}
+
+// loadModulePackageIdsInternal is the internal implementation without rate limiting
+func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
 	// Ensure that the module keeps track of its package IDs by checking that it has `add_package_id` function
-	normalizedModule, err := c.GetNormalizedModule(ctx, packageId, module)
+	normalizedModule, err := c.getNormalizedModuleInternal(ctx, packageId, module)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get normalized module: %w", err)
 	}
@@ -960,8 +1027,8 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 		return nil, fmt.Errorf("pointer struct name not found for package %s and module %s", packageId, module)
 	}
 
-	// Read the owned objects to get the pointer object's ID
-	ownedObjects, err := c.ReadOwnedObjects(ctx, packageId, nil)
+	// Read the owned objects to get the pointer object's ID - use internal method
+	ownedObjects, err := c.readOwnedObjectsInternal(ctx, packageId, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get owned objects: %w", err)
 	}
@@ -985,7 +1052,8 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 
 	c.log.Debugw("pointer ref object", "pointerObject", pointerObject)
 
-	parentObjectID, err := c.GetParentObjectID(ctx, packageId, module, pointerStructName)
+	// Use internal method to avoid nested semaphore acquisition
+	parentObjectID, err := c.getParentObjectIDInternal(ctx, packageId, module, pointerStructName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get parent object ID in LoadModulePackageIds: %w", err)
 	}
@@ -1027,8 +1095,8 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 
 	c.log.Debugw("stateObjectId", "stateObjectId", stateObjectID, "derivationKey", derivationKey)
 
-	// Read the state object
-	stateObject, err := c.ReadObjectId(ctx, stateObjectID)
+	// Read the state object - use internal method
+	stateObject, err := c.readObjectIdInternal(ctx, stateObjectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get state object: %w", err)
 	}
@@ -1043,7 +1111,19 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 }
 
 func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
-	packageIds, err := c.LoadModulePackageIds(ctx, packageId, module, signerAddress)
+	var result string
+	err := c.WithRateLimit(ctx, "GetLatestPackageId", func(ctx context.Context) error {
+		var err error
+		result, err = c.getLatestPackageIdInternal(ctx, packageId, module, signerAddress)
+		return err
+	})
+	return result, err
+}
+
+// getLatestPackageIdInternal is the internal implementation without rate limiting
+func (c *PTBClient) getLatestPackageIdInternal(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
+	// Use internal method to avoid nested semaphore acquisition
+	packageIds, err := c.loadModulePackageIdsInternal(ctx, packageId, module, signerAddress)
 	if err != nil {
 		return "", fmt.Errorf("failed to load module package ids: %w", err)
 	}
@@ -1114,7 +1194,19 @@ func (c *PTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID strin
 // This is used to get addresses stored within pointer objects on-chain. For example, the state object ID of a package is stored in the pointer object,
 // so we need to get the value of the pointer object's field to get the state object ID.
 func (c *PTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error) {
-	ownedObjects, err := c.ReadOwnedObjects(ctx, packageID, nil)
+	var result map[string]string
+	err := c.WithRateLimit(ctx, "GetValuesFromPackageOwnedObjectField", func(ctx context.Context) error {
+		var err error
+		result, err = c.getValuesFromPackageOwnedObjectFieldInternal(ctx, packageID, moduleID, objectName, fieldKeys)
+		return err
+	})
+	return result, err
+}
+
+// getValuesFromPackageOwnedObjectFieldInternal is the internal implementation without rate limiting
+func (c *PTBClient) getValuesFromPackageOwnedObjectFieldInternal(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error) {
+	// Use internal method to avoid nested semaphore acquisition
+	ownedObjects, err := c.readOwnedObjectsInternal(ctx, packageID, nil)
 	if err != nil {
 		c.log.Errorw("Error reading owned objects", "error", err)
 		return nil, err
@@ -1144,7 +1236,19 @@ func (c *PTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, pa
 // With derived objects, pointers now store a reference to the parent "Object" struct (e.g., OffRampObject, CCIPObject).
 // e.g. OffRampStatePointer contains "off_ramp_object_id" field pointing to OffRampObject.
 func (c *PTBClient) GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error) {
-	ownedObjects, err := c.ReadOwnedObjects(ctx, packageID, nil)
+	var result string
+	err := c.WithRateLimit(ctx, "GetParentObjectID", func(ctx context.Context) error {
+		var err error
+		result, err = c.getParentObjectIDInternal(ctx, packageID, moduleID, pointerObjectName)
+		return err
+	})
+	return result, err
+}
+
+// getParentObjectIDInternal is the internal implementation without rate limiting
+func (c *PTBClient) getParentObjectIDInternal(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error) {
+	// Use internal method to avoid nested semaphore acquisition
+	ownedObjects, err := c.readOwnedObjectsInternal(ctx, packageID, nil)
 	if err != nil {
 		c.log.Errorw("Error reading owned objects", "error", err)
 		return "", err
@@ -1171,4 +1275,105 @@ func (c *PTBClient) GetParentObjectID(ctx context.Context, packageID string, mod
 	}
 
 	return "", fmt.Errorf("pointer object %s not found in package %s", qualifiedName, packageID)
+}
+
+// A helper to abstract away having to provide the generic type of a token pool state. Requires a CCIP / StateObject package binding.
+func (c *PTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error) {
+	devInspectSigner := suiSigner.NewDevInspectSigner(accountAddress)
+	tokenAdminRegistry, err := module_token_admin_registry.NewTokenAdminRegistry(ccipPackageAddress, c.GetClient())
+	if err != nil {
+		return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
+	}
+
+	// Obtain the CCIPObjectRef ID from the CCIP package
+	ccipPointerConfigs := common.GetPointerConfigsByContract("ccip")
+	if len(ccipPointerConfigs) == 0 {
+		return module_token_admin_registry.TokenConfig{}, fmt.Errorf("ccip pointer config not found")
+	}
+
+	ccipPointerConfig := ccipPointerConfigs[0]
+
+	var ccipObjectRefID string
+	if cached, ok := c.GetCachedValue(ccipPointerConfig.ParentFieldName); ok {
+		ccipObjectRefID = cached.(string)
+	} else {
+		// Use internal method to avoid nested semaphore acquisition
+		ccipObjectID, err := c.getParentObjectIDInternal(ctx, ccipPackageAddress, "state_object", ccipPointerConfig.Pointer)
+		if err != nil {
+			return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to get ccip parent object ID: %w", err)
+		}
+
+		ccipObjectRefID, err = bind.DeriveObjectIDWithVectorU8Key(ccipObjectID, []byte("CCIPObjectRef"))
+		if err != nil {
+			return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to derive ccip object ref ID: %w", err)
+		}
+
+		c.SetCachedValue(ccipPointerConfig.ParentFieldName, ccipObjectRefID)
+	}
+
+	// Obtain the pool token metadata using the token pool package ID by calling into TokenAdminRegistry
+	poolTokenMetadataAddress, err := tokenAdminRegistry.DevInspect().GetPoolLocalToken(ctx, &bind.CallOpts{
+		WaitForExecution: true,
+		Signer:           devInspectSigner,
+	}, bind.Object{
+		Id: ccipObjectRefID,
+	}, tokenPoolAddress)
+
+	if err != nil {
+		return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to get pool local token: %w", err)
+	} else if poolTokenMetadataAddress == "" {
+		return module_token_admin_registry.TokenConfig{}, fmt.Errorf("pool token metadata address not found")
+	}
+
+	// Obtain the token pool config using the token pool metadata address by calling into TokenAdminRegistry
+	tokenPoolConfig, err := tokenAdminRegistry.DevInspect().GetTokenConfigStruct(ctx, &bind.CallOpts{
+		WaitForExecution: true,
+		Signer:           devInspectSigner,
+	}, bind.Object{
+		Id: ccipObjectRefID,
+	}, poolTokenMetadataAddress)
+
+	if err != nil {
+		return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to get token pool config: %w", err)
+	} else if tokenPoolConfig.TokenType == "" || tokenPoolConfig.TokenPoolPackageId == "" {
+		return module_token_admin_registry.TokenConfig{}, fmt.Errorf("failed to get token pool config: empty response fields")
+	}
+
+	return tokenPoolConfig, nil
+}
+
+// Add helper method to create type tags
+func (c *PTBClient) createTypeTag(typeStr string) (transaction.TypeTag, error) {
+	if typeStr == "" {
+		return transaction.TypeTag{}, fmt.Errorf("type string cannot be empty")
+	}
+
+	// Handle struct types (package::module::name)
+	if strings.Contains(typeStr, "::") {
+		parts := strings.Split(typeStr, "::")
+		if len(parts) != 3 {
+			return transaction.TypeTag{}, fmt.Errorf("invalid struct type format %q, expected package::module::name", typeStr)
+		}
+
+		packageID, module, name := parts[0], parts[1], parts[2]
+
+		// Convert package ID to address bytes
+		packageAddr := models.SuiAddress(packageID)
+		addressBytes, err := transaction.ConvertSuiAddressStringToBytes(packageAddr)
+		if err != nil {
+			return transaction.TypeTag{}, fmt.Errorf("failed to convert package address %q: %w", packageID, err)
+		}
+
+		return transaction.TypeTag{
+			Struct: &transaction.StructTag{
+				Address:    *addressBytes,
+				Module:     module,
+				Name:       name,
+				TypeParams: []*transaction.TypeTag{},
+			},
+		}, nil
+	}
+
+	// TODO: Handle primitive types if needed
+	return transaction.TypeTag{}, fmt.Errorf("unsupported type format: %s", typeStr)
 }
