@@ -1419,7 +1419,7 @@ fun test_schedule_batch() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function")], // function_names
         vector[b"test_data"], // datas
-        vector<u8>[], // predecessor
+        x"a1b2c3d4e5f60718293804a5b6c7d8e9f0a1b2c3d4e5f6071829384a5b6c7d8e", // predecessor
         vector<u8>[], // salt
         MIN_DELAY, // delay
         env.scenario.ctx(),
@@ -1436,6 +1436,7 @@ fun test_cancel_operation() {
     let data = bcs::to_bytes(&MIN_DELAY);
 
     // Schedule the batch first
+    let predecessor = x"bb2adb5b9907ea8042c90eb159f31f68c53ae174499bd16a1d1308876399fbac";
     mcms::test_timelock_schedule_batch(
         &mut env.timelock,
         clock,
@@ -1444,7 +1445,7 @@ fun test_cancel_operation() {
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[data], // datas
-        vector[], // predecessor
+        predecessor, // predecessor (32 bytes)
         vector[1u8], // salt
         0u64, // delay
         env.scenario.ctx(),
@@ -1457,7 +1458,11 @@ fun test_cancel_operation() {
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[data], // datas
     );
-    let id = mcms::hash_operation_batch(calls, vector[], vector[1u8]);
+    let id = mcms::hash_operation_batch(
+        calls,
+        predecessor, // Must match the predecessor used in scheduling
+        vector[1u8],
+    );
 
     // Verify operation is pending
     assert!(mcms::timelock_is_operation_pending(&env.timelock, id));
@@ -1590,6 +1595,7 @@ fun test_execute_batch_not_ready() {
     );
 
     let clock = &env.clock;
+    let predecessor = x"3f7a2d9e4c1b8a5f0e3d7c6b9a8f5e4d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f";
     mcms::test_timelock_schedule_batch(
         &mut env.timelock,
         clock,
@@ -1598,7 +1604,7 @@ fun test_execute_batch_not_ready() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function")], // function_names
         vector[vector[0u8]], // datas
-        vector[], // predecessor
+        predecessor, // predecessor (32 bytes)
         vector[1u8], // salt
         delay,
         env.scenario.ctx(),
@@ -1611,7 +1617,7 @@ fun test_execute_batch_not_ready() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function")], // function_names
         vector[vector[0u8]], // datas
-        vector[], // predecessor
+        predecessor, // Must match the one used in scheduling
         vector[1u8], // salt
     );
 
@@ -1630,7 +1636,7 @@ fun test_execute_unscheduled_operation() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function")], // function_names
         vector[vector[0u8]], // datas
-        vector[], // predecessor
+        x"0000000000000000000000000000000000000000000000000000000000000000", // predecessor (32 bytes)
         vector[1u8], // salt
     );
 
@@ -1643,6 +1649,7 @@ fun test_execute_batch_after_completion() {
     let mut env = setup();
     let clock = &env.clock;
     let data = bcs::to_bytes(&1000u64);
+    let predecessor = x"8d4e2f1a0b9c3e5d7f8a2b4c6d1e3f5a7b9c0d2e4f6a8b1c3d5e7f9a0b2c4d6e";
 
     // Schedule the batch
     mcms::test_timelock_schedule_batch(
@@ -1653,7 +1660,7 @@ fun test_execute_batch_after_completion() {
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[data], // datas
-        vector[], // predecessor
+        predecessor, // predecessor (32 bytes)
         vector[1u8], // salt
         0u64, // delay
         env.scenario.ctx(),
@@ -1666,7 +1673,7 @@ fun test_execute_batch_after_completion() {
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[data], // datas
-        vector[], // predecessor
+        predecessor, // Must match the one used in scheduling
         vector[1u8], // salt
     );
 
@@ -1677,7 +1684,7 @@ fun test_execute_batch_after_completion() {
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[data], // datas
-        vector[], // predecessor
+        predecessor, // Must match the one used in scheduling
         vector[1u8], // salt
     );
 
@@ -1757,7 +1764,7 @@ fun test_schedule_batch_invalid_parameters() {
         vector[string::utf8(b"test_module")], // But only 1 module name
         vector[string::utf8(b"test_function")],
         vector[vector[0u8]],
-        vector[], // predecessor
+        x"f1e2d3c4b5a6978685746352413021f0e9d8c7b6a5948372615049382716f5e4", // predecessor
         vector[1u8], // salt
         0, // delay
         env.scenario.ctx(),
@@ -1789,7 +1796,7 @@ fun test_schedule_insufficient_delay() {
         vector[string::utf8(b"test_module")],
         vector[string::utf8(b"test_function")],
         vector[vector[0u8]],
-        vector[], // predecessor
+        x"2c9b8e7f6a5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b", // predecessor
         vector[1u8], // salt
         MIN_DELAY - 1, // delay lower than minimum
         env.scenario.ctx(),
@@ -1813,7 +1820,7 @@ fun test_schedule_already_scheduled() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function")], // function_names
         vector[vector[0u8]], // datas
-        vector[], // predecessor
+        x"7f3e9d2c1b0a8f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e", // predecessor
         vector[1u8], // salt
         0u64, // delay
         env.scenario.ctx(),
@@ -1828,7 +1835,7 @@ fun test_schedule_already_scheduled() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function")], // function_names
         vector[vector[0u8]], // datas
-        vector[], // predecessor
+        x"7f3e9d2c1b0a8f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e", // predecessor
         vector[1u8], // salt
         0u64, // delay
         env.scenario.ctx(),
@@ -1865,7 +1872,7 @@ fun test_schedule_blocked_function() {
         vector[test_module],
         vector[test_function],
         vector[vector[0u8]],
-        vector[], // predecessor
+        x"5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c", // predecessor
         vector[1u8], // salt
         0, // delay
         env.scenario.ctx(),
@@ -2056,7 +2063,11 @@ fun test_operation_status_functions() {
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[bcs::to_bytes(&MIN_DELAY)], // datas
     );
-    let id = mcms::hash_operation_batch(calls, vector[], vector[1u8]);
+    let id = mcms::hash_operation_batch(
+        calls,
+        x"c4b3a29f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b",
+        vector[1u8],
+    );
 
     // Initially operation should not exist
     assert!(!mcms::timelock_is_operation_pending(&env.timelock, id));
@@ -2071,7 +2082,7 @@ fun test_operation_status_functions() {
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[bcs::to_bytes(&MIN_DELAY)], // datas
-        vector[], // predecessor
+        x"c4b3a29f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b", // predecessor
         vector[1u8], // salt
         0u64, // delay
         env.scenario.ctx(),
@@ -2368,7 +2379,7 @@ fun test_timelock_dispatching_system() {
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[bcs::to_bytes(&even_newer_delay)], // datas
-        vector<u8>[], // predecessor
+        x"9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d", // predecessor
         vector<u8>[2u8], // salt
         schedule_delay,
         env.scenario.ctx(),
@@ -2381,7 +2392,11 @@ fun test_timelock_dispatching_system() {
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[bcs::to_bytes(&even_newer_delay)], // datas
     );
-    let operation_id = mcms::hash_operation_batch(calls, vector<u8>[], vector<u8>[2u8]);
+    let operation_id = mcms::hash_operation_batch(
+        calls,
+        x"9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d",
+        vector<u8>[2u8],
+    );
     assert!(mcms::timelock_is_operation_pending(&env.timelock, operation_id), 1);
 
     // 3. Test creating ExecutingCallbackParams directly
@@ -2436,13 +2451,15 @@ fun test_execute_batch_missing_dependency() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function1")], // function_names
         vector[vector[0u8]], // datas
-        vector[], // predecessor (no dependency)
+        x"6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d", // predecessor (no dependency)
         vector[1u8], // salt
         0u64, // delay (immediate execution)
         env.scenario.ctx(),
     );
 
     // Schedule second batch with dependency on non-existent operation
+    let nonexistent_predecessor =
+        x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
     mcms::test_timelock_schedule_batch(
         &mut env.timelock,
         clock,
@@ -2451,7 +2468,7 @@ fun test_execute_batch_missing_dependency() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function2")], // function_names
         vector[vector[0u8]], // datas
-        x"deadbeef", // predecessor (non-existent operation ID)
+        nonexistent_predecessor, // predecessor (non-existent operation ID, 32 bytes)
         vector[2u8], // salt
         0u64, // delay (immediate execution)
         env.scenario.ctx(),
@@ -2464,7 +2481,7 @@ fun test_execute_batch_missing_dependency() {
         vector[string::utf8(b"test_module")], // module_names
         vector[string::utf8(b"test_function2")], // function_names
         vector[vector[0u8]], // datas
-        x"deadbeef", // predecessor (non-existent)
+        nonexistent_predecessor, // Must match the one used in scheduling
         vector[2u8], // salt
     );
 
@@ -3176,6 +3193,7 @@ fun test_dispatch_timelock_cancel() {
     // First schedule an operation so we have something to cancel
     let clock = &env.clock;
     let salt = vector[2];
+    let predecessor = x"1a2b3c4d5e6f708192a3b4c5d6e7f809102a3b4c5d6e7f809102a3b4c5d6e7f8";
 
     mcms::test_timelock_schedule_batch(
         &mut env.timelock,
@@ -3185,7 +3203,7 @@ fun test_dispatch_timelock_cancel() {
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
         vector[bcs::to_bytes(&3000)], // datas - new min delay
-        mcms::zero_hash(), // predecessor
+        predecessor, // predecessor (32 bytes)
         salt, // salt
         1000, // delay (so it's pending, not immediate)
         env.scenario.ctx(),
@@ -3198,7 +3216,11 @@ fun test_dispatch_timelock_cancel() {
         vector[string::utf8(b"timelock_update_min_delay")],
         vector[bcs::to_bytes(&3000)],
     );
-    let operation_id = mcms::hash_operation_batch(calls, mcms::zero_hash(), salt);
+    let operation_id = mcms::hash_operation_batch(
+        calls,
+        predecessor, // Must match the one used in scheduling
+        salt,
+    );
 
     // Verify the operation is pending before cancellation
     assert!(mcms::timelock_is_operation_pending(&env.timelock, operation_id));
@@ -3373,7 +3395,7 @@ fun test_dispatch_timelock_schedule_batch() {
     let module_names = vector[string::utf8(b"mcms")];
     let function_names = vector[string::utf8(b"timelock_update_min_delay")];
     let datas = vector[bcs::to_bytes(&5000)]; // new min delay
-    let predecessor = mcms::zero_hash();
+    let predecessor = x"5f6e7d8c9baa0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c";
     let salt = vector[3];
     let delay = 1000;
 
@@ -3405,7 +3427,11 @@ fun test_dispatch_timelock_schedule_batch() {
 
     // Verify the operation was scheduled by checking if it's pending
     let calls = mcms::create_calls(targets, module_names, function_names, datas);
-    let operation_id = mcms::hash_operation_batch(calls, predecessor, salt);
+    let operation_id = mcms::hash_operation_batch(
+        calls,
+        predecessor, // Must match the one used in scheduling
+        salt,
+    );
     assert!(mcms::timelock_is_operation_pending(&env.timelock, operation_id));
 
     env.destroy();
