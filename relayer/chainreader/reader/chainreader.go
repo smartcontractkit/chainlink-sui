@@ -164,10 +164,12 @@ func (s *suiChainReader) Unbind(ctx context.Context, bindings []pkgtypes.BoundCo
 			return fmt.Errorf("failed to unbind package %s: %w", binding.Name, err)
 		}
 
+		modulePrefix := fmt.Sprintf("%s::%s::", binding.Address, binding.Name)
+
 		// Clear cached parent object IDs for this unbound contract
 		s.parentObjectIDsMutex.Lock()
 		for key := range s.parentObjectIDs {
-			if strings.HasPrefix(key, binding.Address+"::") {
+			if strings.HasPrefix(key, modulePrefix) {
 				delete(s.parentObjectIDs, key)
 			}
 		}
@@ -1047,7 +1049,11 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 	}
 
 	for _, record := range eventRecords {
-		eventData := reflect.New(reflect.TypeOf(expectedEventType).Elem()).Interface()
+		t := reflect.TypeOf(expectedEventType)
+		if t == nil || t.Kind() != reflect.Ptr {
+			return nil, fmt.Errorf("sequenceDataType must be a non-nil pointer type")
+		}
+		eventData := reflect.New(t.Elem()).Interface()
 
 		s.logger.Debugw("Processing database event record", "data", record.Data, "offset", record.EventOffset, "eventDataType", reflect.TypeOf(eventData).Elem())
 

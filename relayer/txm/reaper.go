@@ -13,6 +13,7 @@ func (txm *SuiTxm) reaperLoop() {
 
 	basePeriod := txm.configuration.ReaperPollSecs
 	ticker, jitteredDuration := GetTicker(uint(basePeriod))
+	defer ticker.Stop()
 
 	txm.lggr.Infow("Created reaper ticker",
 		"basePeriod", basePeriod,
@@ -46,6 +47,11 @@ func cleanupTransactions(txm *SuiTxm) {
 	}
 
 	currentTimestamp := GetCurrentUnixTimestamp()
+
+	if currentTimestamp == 0 {
+		txm.lggr.Errorw("Found a 0 timestamp, skipping cleanup")
+		return
+	}
 
 	for _, tx := range finalizedTransactions {
 		txm.lggr.Debugw("Cleaning up finalized transaction", "transactionID", tx.TransactionID)

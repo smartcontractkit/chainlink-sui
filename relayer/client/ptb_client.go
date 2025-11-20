@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -139,6 +140,11 @@ func NewPTBClient(
 ) (*PTBClient, error) {
 	log.Infof("Creating new SUI client with blockvision SDK")
 
+	if maxConcurrentRequests <= 0 {
+		log.Warnw("maxConcurrentRequests is less than 0, setting to default value", "maxConcurrentRequests", maxConcurrentRequests)
+		maxConcurrentRequests = 500 // Default value
+	}
+
 	httpClient := &http.Client{
 		Timeout: DefaultHTTPTimeout,
 		Transport: &http.Transport{
@@ -148,10 +154,6 @@ func NewPTBClient(
 		},
 	}
 	client := sui.NewSuiClientWithCustomClient(rpcUrl, httpClient)
-
-	if maxConcurrentRequests <= 0 {
-		maxConcurrentRequests = 500 // Default value
-	}
 
 	log.Infof(
 		"PTBClient config configs transactionTimeout: %s,  maxConcurrentRequests: %d",
@@ -825,7 +827,14 @@ func (c *PTBClient) QueryCoinsByAddress(ctx context.Context, address string, coi
 	return result, err
 }
 
+// FinishPTBAndSend finishes the PTB transaction and sends it to the network.
+// IMPORTANT: This method is only used for testing purposes.
 func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error) {
+	// This method should only be used in test environments
+	if !strings.Contains(os.Getenv("ENV"), "test") {
+		return SuiTransactionBlockResponse{}, fmt.Errorf("FinishPTBAndSend is only available in test environments")
+	}
+
 	gasPrice, err := c.GetReferenceGasPrice(ctx)
 	if err != nil {
 		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get reference gas price: %w", err)
