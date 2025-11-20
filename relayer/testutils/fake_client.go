@@ -108,7 +108,7 @@ func (c *FakeSuiPTBClient) GetNormalizedModule(ctx context.Context, packageId st
 }
 
 func (c *FakeSuiPTBClient) GetClient() sui.ISuiAPI {
-	return nil
+	return sui.NewSuiClient(LocalUrl)
 }
 
 func (c *FakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error) {
@@ -126,6 +126,12 @@ func (c *FakeSuiPTBClient) HashTxBytes(txBytes []byte) []byte {
 func (c *FakeSuiPTBClient) SuiXGetReferenceGasPrice(ctx context.Context) (string, error) {
 	// Return a default gas price for testing
 	return "1000", nil
+}
+
+func (c *FakeSuiPTBClient) SuiXGetLatestSuiSystemState(ctx context.Context) (models.SuiSystemStateSummary, error) {
+	return models.SuiSystemStateSummary{
+		Epoch: "1000",
+	}, nil
 }
 
 func (c *FakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
@@ -295,7 +301,7 @@ func (c *StatefulFakeSuiPTBClient) GetNormalizedModule(ctx context.Context, pack
 }
 
 func (c *StatefulFakeSuiPTBClient) GetClient() sui.ISuiAPI {
-	return nil
+	return sui.NewSuiClient(LocalUrl)
 }
 
 func (c *StatefulFakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error) {
@@ -312,6 +318,12 @@ func (c *StatefulFakeSuiPTBClient) HashTxBytes(txBytes []byte) []byte {
 
 func (c *StatefulFakeSuiPTBClient) SuiXGetReferenceGasPrice(ctx context.Context) (string, error) {
 	return "1000", nil
+}
+
+func (c *StatefulFakeSuiPTBClient) SuiXGetLatestSuiSystemState(ctx context.Context) (models.SuiSystemStateSummary, error) {
+	return models.SuiSystemStateSummary{
+		Epoch: "1000",
+	}, nil
 }
 
 func (c *StatefulFakeSuiPTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error) {
