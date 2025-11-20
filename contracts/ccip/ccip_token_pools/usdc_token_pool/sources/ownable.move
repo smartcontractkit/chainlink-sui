@@ -119,11 +119,11 @@ public(package) fun borrow_publisher(owner_cap: &OwnerCap): &Publisher {
     df::borrow(&owner_cap.id, PublisherKey {})
 }
 
-public fun transfer_ownership(
+public(package) fun transfer_ownership(
     owner_cap: &OwnerCap,
     state: &mut OwnableState,
     to: address,
-    _ctx: &mut TxContext,
+    _ctx: &TxContext,
 ) {
     assert!(object::id(owner_cap) == state.owner_cap_id, EInvalidOwnerCap);
     assert!(state.owner != to, ECannotTransferToSelf);
@@ -138,15 +138,15 @@ public fun transfer_ownership(
     event::emit(OwnershipTransferRequested { from: state.owner, to });
 }
 
-public fun accept_ownership(state: &mut OwnableState, ctx: &mut TxContext) {
+public(package) fun accept_ownership(state: &mut OwnableState, ctx: &TxContext) {
     accept_ownership_internal(state, ctx.sender());
 }
 
 /// UID is a privileged type that is only accessible by the object owner.
-public fun accept_ownership_from_object(
+public(package) fun accept_ownership_from_object(
     state: &mut OwnableState,
-    from: &mut UID,
-    _ctx: &mut TxContext,
+    from: &UID,
+    _ctx: &TxContext,
 ) {
     accept_ownership_internal(state, from.to_address());
 }
@@ -177,11 +177,11 @@ fun accept_ownership_internal(state: &mut OwnableState, caller: address) {
 }
 
 #[allow(lint(custom_state_change))]
-public fun execute_ownership_transfer(
+public(package) fun execute_ownership_transfer(
     owner_cap: OwnerCap,
     state: &mut OwnableState,
     to: address,
-    _ctx: &mut TxContext,
+    _ctx: &TxContext,
 ) {
     assert!(object::id(&owner_cap) == state.owner_cap_id, EInvalidOwnerCap);
     assert!(state.pending_transfer.is_some(), ENoPendingTransfer);
@@ -207,7 +207,7 @@ public fun execute_ownership_transfer(
 }
 
 #[allow(lint(custom_state_change))]
-public fun execute_ownership_transfer_to_mcms<P: drop>(
+public(package) fun execute_ownership_transfer_to_mcms<P: drop>(
     owner_cap: OwnerCap,
     state: &mut OwnableState,
     registry: &mut Registry,
@@ -246,7 +246,7 @@ public fun execute_ownership_transfer_to_mcms<P: drop>(
     event::emit(OwnershipTransferred { from: current_owner, to: new_owner });
 }
 
-public fun destroy(state: OwnableState, owner_cap: OwnerCap, _ctx: &mut TxContext) {
+public fun destroy(state: OwnableState, owner_cap: OwnerCap, _ctx: &TxContext) {
     let OwnableState {
         owner: _,
         pending_transfer: _,

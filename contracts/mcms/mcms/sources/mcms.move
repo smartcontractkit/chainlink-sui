@@ -190,6 +190,7 @@ const EUnknownMCMSModule: u64 = 38;
 const EUnknownMCMSDeployerModuleFunction: u64 = 39;
 const EInvalidMCMS: u64 = 40;
 const EUnknownMCMSRegistryModuleFunction: u64 = 41;
+const EInvalidPredecessorLen: u64 = 42;
 
 public struct MCMS has drop {}
 
@@ -1966,6 +1967,7 @@ public(package) fun hash_operation_batch(
     predecessor: vector<u8>,
     salt: vector<u8>,
 ): vector<u8> {
+    assert!(predecessor.length() == 32, EInvalidPredecessorLen);
     let mut packed = vector[];
     packed.append(bcs::to_bytes(&calls));
     packed.append(predecessor);

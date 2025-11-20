@@ -13,6 +13,7 @@ use message_transmitter::message;
 use message_transmitter::receive_message::{Self, Receipt, ReceiveMessageTicket};
 use message_transmitter::state::State as MessageTransmitterState;
 use stablecoin::treasury::Treasury;
+use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
 use sui::address;
@@ -131,11 +132,11 @@ public fun initialize<T: drop>(
         id: object::new(ctx),
         usdc_token_pool_object_id: object::id_address(&usdc_token_pool_object),
     };
-    
+
     let tn = type_name::with_original_ids<USDC_TOKEN_POOL>();
     let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
-    
+
     let usdc_token_pool = USDCTokenPoolState<T> {
         id: derived_object::claim(&mut usdc_token_pool_object.id, b"USDCTokenPoolState"),
         token_pool_state: token_pool::initialize(
