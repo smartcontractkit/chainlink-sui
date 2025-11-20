@@ -11,12 +11,13 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commonTypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartcontractkit/chainlink-sui/integration-tests/onramp/environment"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
-	"github.com/stretchr/testify/require"
 )
 
 type ContractAddresses struct {
@@ -53,8 +54,6 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	// Wait for the node to be fully ready
 	time.Sleep(3 * time.Second)
 
-	envSettings := environment.SetupTestEnvironment(t, localChainSelector, destChainSelector, keystoreInstance)
-
 	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 	lggr.Infow("Using account", "address", accountAddress)
 
@@ -64,14 +63,15 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
-	ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
-
 	c := context.Background()
 	ctx, cancel := context.WithCancel(c)
 	defer cancel()
 
 	t.Run("CCIP SUI messaging", func(t *testing.T) {
+		envSettings := environment.SetupTestEnvironment(t, localChainSelector, destChainSelector, keystoreInstance)
+		linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
+		ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
+
 		_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
 		tokenPoolDetails := testutils.TokenToolDetails{
 			TokenPoolPackageId: envSettings.LockReleaseTokenPoolReport.Output.LockReleaseTPPackageID,
@@ -112,7 +112,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		tokenAmount := uint64(500000) // 500K tokens for transfer
 		feeAmount := uint64(100000)   // 100K tokens for fee payment
 
-		gasBudget := int64(500_000_000)
+		gasBudget := int64(500_000_000_000)
 
 		mintedCoinId1, mintedCoinId2 := environment.GetLinkCoins(t, envSettings, linkTokenType, accountAddress, lggr, tokenAmount, feeAmount)
 
@@ -189,6 +189,10 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	})
 
 	t.Run("CCIP SUI messaging with Lock Release Token Pool", func(t *testing.T) {
+		envSettings := environment.SetupTestEnvironment(t, localChainSelector, destChainSelector, keystoreInstance)
+		linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
+		ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
+
 		_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
 
 		tokenAmount := uint64(500000) // 500K tokens for transfer
@@ -268,6 +272,10 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	})
 
 	t.Run("CCIP SUI messaging with Burn Mint Token Pool", func(t *testing.T) {
+		envSettings := environment.SetupTestEnvironment(t, localChainSelector, destChainSelector, keystoreInstance)
+		linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
+		ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
+
 		_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
 
 		tokenAmount := uint64(500000) // 500K tokens for transfer
@@ -345,6 +353,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		require.Eventually(t, func() bool {
 			status, statusErr := bmChainWriter.GetTransactionStatus(ctx, txID)
 			if statusErr != nil {
+				t.Logf("Failed to get transaction status: %v, retrying...", statusErr)
 				return false
 			}
 
