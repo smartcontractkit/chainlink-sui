@@ -364,7 +364,7 @@ public fun register_pool<T, TypeProof: drop>(
 
 /// Only owner of CCIP can call this function to register a token pool.
 public fun register_pool_as_owner(
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
     package_address: address,
@@ -382,6 +382,7 @@ public fun register_pool_as_owner(
         string::utf8(b"register_pool_as_owner"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     register_pool_internal(
         ref,
