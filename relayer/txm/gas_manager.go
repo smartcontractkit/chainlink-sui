@@ -218,8 +218,8 @@ func (s *SuiGasManager) GasBump(ctx context.Context, tx *SuiTx) (big.Int, error)
 
 	s.lggr.Debugw("GasBump", "txGasLimit", txGasLimit, "maxGasLimit", maxGasLimit)
 
-	// Check if the current gas limit is at or above the maximum allowed budget.
-	if txGasLimit.Cmp(maxGasLimit) >= 0 {
+	// Check if the current gas limit is greater than the maximum allowed budget.
+	if txGasLimit.Cmp(maxGasLimit) > 0 {
 		return *big.NewInt(0), errors.New("gas budget is already at max gas limit")
 	}
 
