@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,7 +18,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
 type EventsIndexer struct {
@@ -205,30 +203,6 @@ func convertMapKeysToCamelCaseWithPath(input any, path string) any {
 	return input
 }
 
-func convertBytesToHex(input any) any {
-	kind := reflect.ValueOf(input).Kind()
-
-	switch kind {
-	case reflect.Map:
-		result := make(map[string]any)
-		for k, v := range input.(map[string]any) {
-			result[k] = convertBytesToHex(v)
-		}
-
-		return result
-
-	case reflect.Slice:
-		bytes, err := codec.AnySliceToBytes(input.([]any))
-		if err != nil {
-			return input
-		}
-
-		return "0x" + hex.EncodeToString(bytes)
-	}
-
-	return input
-}
-
 func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.EventSelector) error {
 	if selector == nil {
 		return fmt.Errorf("unspecified selector for SyncEvent call")
@@ -253,15 +227,31 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 	cursor := eIndexer.lastProcessedCursors[eventHandle]
 	eIndexer.cursorMutex.RUnlock()
 	var totalCount uint64
-	var err error
+
 	if cursor == nil {
 		// attempt to get the latest event sync of the given type and use its data to construct a cursor
-		cursor, totalCount, err = eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
-		if err != nil {
-			return err
+		dbOffsetCursor, dbTotalCount, offsetErr := eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
+		if offsetErr != nil {
+			eIndexer.logger.Errorw("syncEvent: failed to get latest offset", "error", offsetErr)
+			return offsetErr
 		}
 
-		eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle, "cursor", cursor)
+		if dbOffsetCursor != nil {
+			txDigestBytes, err := hex.DecodeString(strings.TrimPrefix(dbOffsetCursor.TxDigest, "0x"))
+			if err != nil {
+				eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err)
+				return err
+			}
+			// convert the db offset cursor digest from hex (the format stored in the DB) to base64 (the format expected by the client)
+			cursor = &models.EventId{
+				TxDigest: base64.StdEncoding.EncodeToString(txDigestBytes),
+				EventSeq: dbOffsetCursor.EventSeq,
+			}
+
+			totalCount = dbTotalCount
+		} else {
+			eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle)
+		}
 	}
 
 	batchSize := uint(batchSizeRecords)
@@ -332,7 +322,7 @@ eventLoop:
 				// normalize the data, convert snake case to camel case
 				normalizedData := convertMapKeysToCamelCase(event.ParsedJson)
 
-        // Convert the txDigest to hex
+				// Convert the txDigest to hex
 				txDigestHex := event.Id.TxDigest
 				if base64Bytes, err := base64.StdEncoding.DecodeString(txDigestHex); err == nil {
 					hexTxId := hex.EncodeToString(base64Bytes)
@@ -345,7 +335,7 @@ eventLoop:
 					// fallback
 					blockHashBytes = []byte(block.TxDigest)
 				}
-        
+
 				// Convert event to database record
 				record := database.EventRecord{
 					EventAccountAddress: selector.Package,
