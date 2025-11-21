@@ -98,8 +98,8 @@ type SuiPTBClient interface {
 	GetLatestEpoch(ctx context.Context) (string, error)
 	GetNormalizedModule(ctx context.Context, packageId string, moduleId string) (models.GetNormalizedMoveModuleResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
-	LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error)
-	GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error)
+	LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error)
+	GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error)
 	GetClient() sui.ISuiAPI
 	GetCache() *cache.Cache
 	GetCachedValue(key string) (any, bool)
@@ -1011,18 +1011,18 @@ func (c *PTBClient) getNormalizedModuleInternal(ctx context.Context, packageId s
 
 // LoadModulePackages returns the set of package IDs for a given module using its original package ID
 // This method assumes that module names are unique across all packages
-func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
+func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error) {
 	var result []string
 	err := c.WithRateLimit(ctx, "LoadModulePackageIds", func(ctx context.Context) error {
 		var err error
-		result, err = c.loadModulePackageIdsInternal(ctx, packageId, module, signerAddress)
+		result, err = c.loadModulePackageIdsInternal(ctx, packageId, module)
 		return err
 	})
 	return result, err
 }
 
 // loadModulePackageIdsInternal is the internal implementation without rate limiting
-func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
+func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId string, module string) ([]string, error) {
 	// Ensure that the module keeps track of its package IDs by checking that it has `add_package_id` function
 	normalizedModule, err := c.getNormalizedModuleInternal(ctx, packageId, module)
 	if err != nil {
@@ -1134,20 +1134,20 @@ func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId 
 	return packageIds, nil
 }
 
-func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
+func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error) {
 	var result string
 	err := c.WithRateLimit(ctx, "GetLatestPackageId", func(ctx context.Context) error {
 		var err error
-		result, err = c.getLatestPackageIdInternal(ctx, packageId, module, signerAddress)
+		result, err = c.getLatestPackageIdInternal(ctx, packageId, module)
 		return err
 	})
 	return result, err
 }
 
 // getLatestPackageIdInternal is the internal implementation without rate limiting
-func (c *PTBClient) getLatestPackageIdInternal(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
+func (c *PTBClient) getLatestPackageIdInternal(ctx context.Context, packageId string, module string) (string, error) {
 	// Use internal method to avoid nested semaphore acquisition
-	packageIds, err := c.loadModulePackageIdsInternal(ctx, packageId, module, signerAddress)
+	packageIds, err := c.loadModulePackageIdsInternal(ctx, packageId, module)
 	if err != nil {
 		return "", fmt.Errorf("failed to load module package ids: %w", err)
 	}

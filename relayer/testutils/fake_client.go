@@ -137,12 +137,12 @@ func (c *FakeSuiPTBClient) SuiXGetReferenceGasPrice(ctx context.Context) (string
 	return "1000", nil
 }
 
-func (c *FakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
+func (c *FakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error) {
 	// Return the provided package ID as the latest for testing
 	return packageId, nil
 }
 
-func (c *FakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
+func (c *FakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error) {
 	// Return a single package ID for testing
 	return []string{packageId}, nil
 }
@@ -291,11 +291,11 @@ func (c *StatefulFakeSuiPTBClient) FinishPTBAndSend(ctx context.Context, txnSign
 	return client.SuiTransactionBlockResponse{}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
+func (c *StatefulFakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error) {
 	return "", nil
 }
 
-func (c *StatefulFakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
+func (c *StatefulFakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error) {
 	return []string{}, nil
 }
 
