@@ -44,7 +44,7 @@ func NewOnramp(address string, client sui.ISuiAPI) (Onramp, error) {
 	}, nil
 }
 
-func PublishOnramp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, ccipAddress, mcmsAddress, mcmsOwnerAddress string) (Onramp, *models.SuiTransactionBlockResponse, error) {
+func PublishOnramp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, ccipAddress, mcmsAddress, mcmsOwnerAddress, suiRPC string) (Onramp, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -56,7 +56,7 @@ func PublishOnramp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI,
 		"mcms":        mcmsAddress,
 		"mcms_owner":  mcmsOwnerAddress,
 		"signer":      signerAddr,
-	}, false)
+	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err
 	}

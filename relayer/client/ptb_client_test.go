@@ -69,6 +69,7 @@ func TestPTBClient(t *testing.T) {
 			"get_count",
 			args,
 			argTypes,
+			[]string{},
 		)
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -318,6 +319,7 @@ func TestPTBClient(t *testing.T) {
 			"get_result_struct",
 			[]any{},
 			[]string{},
+			[]string{},
 		)
 		require.NoError(t, err)
 		utils.PrettyPrint(response)
@@ -331,6 +333,7 @@ func TestPTBClient(t *testing.T) {
 			"counter",
 			"type_and_version",
 			[]any{},
+			[]string{},
 			[]string{},
 		)
 		require.NoError(t, err)
@@ -346,6 +349,7 @@ func TestPTBClient(t *testing.T) {
 			"get_nested_result_struct",
 			[]any{},
 			[]string{},
+			[]string{},
 		)
 		require.NoError(t, err)
 		utils.PrettyPrint(response)
@@ -359,6 +363,7 @@ func TestPTBClient(t *testing.T) {
 			"counter",
 			"get_multi_nested_result_struct",
 			[]any{},
+			[]string{},
 			[]string{},
 		)
 		require.NoError(t, err)
@@ -374,6 +379,7 @@ func TestPTBClient(t *testing.T) {
 			"get_tuple_struct",
 			[]any{},
 			[]string{},
+			[]string{},
 		)
 		require.NoError(t, err)
 		utils.PrettyPrint(response)
@@ -387,6 +393,7 @@ func TestPTBClient(t *testing.T) {
 			"counter",
 			"get_ocr_config",
 			[]any{},
+			[]string{},
 			[]string{},
 		)
 		require.NoError(t, err)
@@ -402,6 +409,7 @@ func TestPTBClient(t *testing.T) {
 			"get_vector_of_u8",
 			[]any{},
 			[]string{},
+			[]string{},
 		)
 		require.NoError(t, err)
 		utils.PrettyPrint(values)
@@ -415,6 +423,7 @@ func TestPTBClient(t *testing.T) {
 			"counter",
 			"get_vector_of_addresses",
 			[]any{},
+			[]string{},
 			[]string{},
 		)
 		require.NoError(t, err)

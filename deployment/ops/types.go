@@ -35,6 +35,7 @@ type OpTxDeps struct {
 	Signer rel.SuiSigner
 	// We could have some logic to modify the gas based on input
 	GetCallOpts func() *bind.CallOpts
+	SuiRPC      string
 }
 
 func NewSuiOperationName(pkg string, module string, action string) string {

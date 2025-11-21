@@ -7,8 +7,7 @@ import (
 )
 
 var (
-	SuiCCIPRouterType                deployment.ContractType = "SuiRouter"
-	SuiCCIPRouterStateObjectType     deployment.ContractType = "SuiRouterStateObjectID"
+	// CCIP
 	SuiCCIPType                      deployment.ContractType = "SuiCCIP"
 	SuiCCIPObjectRefType             deployment.ContractType = "SuiCCIPObjectRef"
 	SuiCCIPOwnerCapObjectIDType      deployment.ContractType = "SuiCCIPOwnerCapObjectID"
@@ -24,6 +23,11 @@ var (
 	SuiOffRampStateObjectIDType      deployment.ContractType = "SuiOffRampStateObjectID"
 	SuiLockReleaseTPType             deployment.ContractType = "SuiLockReleaseToken"
 	SuiLockReleaseTPStateType        deployment.ContractType = "SuiLockReleaseTokenState"
+
+	// CCIP Router
+	SuiCCIPRouterType                 deployment.ContractType = "SuiRouter"
+	SuiCCIPRouterStateObjectType      deployment.ContractType = "SuiRouterStateObjectID"
+	SuiCCIPRouterOwnerCapObjectIDType deployment.ContractType = "SuiCCIPRouterOwnerCapObjectID"
 
 	// MCMS Related
 	SuiMcmsPackageIDType               deployment.ContractType = "SuiManyChainMultisigPackageID"
@@ -46,10 +50,11 @@ var (
 	SuiLinkTokenType             deployment.ContractType = "SuiLinkToken"
 
 	// Managed Token related
-	SuiManagedTokenType             deployment.ContractType = "SuiManagedToken"
-	SuiManagedTokenOwnerCapObjectID deployment.ContractType = "SuiManagedTokenOwnerCapObjectID"
-	SuiManagedTokenStateObjectID    deployment.ContractType = "SuiManagedTokenStateObjectID"
-	SuiManagedTokenMinterCapID      deployment.ContractType = "SuiManagedTokenMinterCapID"
+	SuiManagedTokenType              deployment.ContractType = "SuiManagedToken"
+	SuiManagedTokenOwnerCapObjectID  deployment.ContractType = "SuiManagedTokenOwnerCapObjectID"
+	SuiManagedTokenStateObjectID     deployment.ContractType = "SuiManagedTokenStateObjectID"
+	SuiManagedTokenMinterCapID       deployment.ContractType = "SuiManagedTokenMinterCapID"
+	SuiManagedTokenPublisherObjectId deployment.ContractType = "SuiManagedTokenPublisherObjectId"
 
 	// BnM Token Pool related
 	SuiBnMTokenPoolType        deployment.ContractType = "SuiBnMTokenPool"

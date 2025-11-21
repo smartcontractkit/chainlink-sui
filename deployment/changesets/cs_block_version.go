@@ -40,6 +40,7 @@ func (d BlockVersion) Apply(e cldf.Environment, config BlockVersionConfig) (cldf
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	BlockVersionInitializeOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.BlockVersionOp, deps, ccipops.BlockVersionInput{

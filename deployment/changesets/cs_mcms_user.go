@@ -39,6 +39,7 @@ func (d DeployMCMSUser) Apply(e cldf.Environment, config DeployMCMSUserConfig) (
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	// Run DeployMCMSUser Sequence

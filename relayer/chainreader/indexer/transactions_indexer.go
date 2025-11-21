@@ -30,8 +30,10 @@ type TransactionsIndexer struct {
 	logger          logger.Logger
 	pollingInterval time.Duration
 	syncTimeout     time.Duration
+
 	// map of transmitter address to cursor (the last processed transaction digest)
 	transmitters map[models.SuiAddress]string
+
 	// event selectors
 	eventPackageId          string
 	executionEventModuleKey string
@@ -39,6 +41,7 @@ type TransactionsIndexer struct {
 	configEventModuleKey    string
 	configEventKey          string
 	executeFunctions        []string
+
 	// configs
 	eventConfigs map[string]*config.ChainReaderEvent
 
@@ -286,6 +289,12 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			return totalProcessed, nil
 		}
 
+		lastDigest := queryResponse.Data[len(queryResponse.Data)-1].Digest
+		defer func() {
+			// Update the cursor to the last transaction digest regardless of the code path below
+			tIndexer.transmitters[transmitter] = lastDigest
+		}()
+
 		var records []database.EventRecord
 		for _, transactionRecord := range queryResponse.Data {
 			if transactionRecord.Effects.Status.Status == "success" {
@@ -317,6 +326,13 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			moveAbort, err := tIndexer.parseMoveAbort(errMessage)
 			if err != nil {
 				tIndexer.logger.Errorw("Failed to parse move abort", "error", err)
+				continue
+			}
+
+			if moveAbort.Location.Module.Address != tIndexer.eventPackageId {
+				tIndexer.logger.Debugw("Skipping transaction with different package address",
+					"transmitter", transmitter, "packageAddress", moveAbort.Location.Module.Address)
+
 				continue
 			}
 
@@ -462,8 +478,6 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				return totalProcessedFallback, nil
 			}
 
-			// update the cursor to the last transaction digest
-			tIndexer.transmitters[transmitter] = queryResponse.Data[len(queryResponse.Data)-1].Digest
 			tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events",
 				"count", len(records), "transmitter", transmitter)
 		}
@@ -717,7 +731,12 @@ func (tIndexer *TransactionsIndexer) extractCommandCallArgs(transactionRecord *m
 		argIndex, ok := argEntry["Input"].(float64)
 		if !ok {
 			return nil, fmt.Errorf("failed to read arg index for failed transaction")
+		} else if argIndex >= float64(len(inputCallArgs)) {
+			return nil, fmt.Errorf("arg index out of range for failed transaction, argIndex: %d, inputCallArgs length: %d", int(argIndex), len(inputCallArgs))
+		} else if inputCallArgs[uint64(argIndex)] == nil {
+			return nil, fmt.Errorf("arg value is nil for failed transaction, argIndex: %d", int(argIndex))
 		}
+
 		commandArgs = append(commandArgs, inputCallArgs[uint64(argIndex)])
 	}
 
