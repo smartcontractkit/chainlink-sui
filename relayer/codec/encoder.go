@@ -92,9 +92,21 @@ func encodeAddress(value any) (string, error) {
 			v = "0x" + v
 		}
 
-		return v, nil
+		normalizedAddress, err := bind.ToSuiAddress(v)
+		if err != nil {
+			return "", fmt.Errorf("failed to convert address to Sui address: %w", err)
+		}
+
+		return normalizedAddress, nil
 	case []byte:
-		return "0x" + hex.EncodeToString(v), nil
+		stringAddr := "0x" + hex.EncodeToString(v)
+
+		normalizedAddress, err := bind.ToSuiAddress(stringAddr)
+		if err != nil {
+			return "", fmt.Errorf("failed to convert address to Sui address: %w", err)
+		}
+
+		return normalizedAddress, nil
 	default:
 		return "", fmt.Errorf("cannot convert %T to address", value)
 	}
@@ -298,9 +310,17 @@ func encodeVector(typeName string, value any) ([]any, error) {
 	}
 	innerType := typeName[len("vector<") : len(typeName)-1]
 
-	// Use reflection to ensure 'value' is a slice or array
+	if value == nil {
+		return nil, fmt.Errorf("nil value cannot be encoded in encodeVector")
+	}
 	rv := reflect.ValueOf(value)
+
+	if !rv.IsValid() {
+		return nil, fmt.Errorf("invalid reflect value for vector type %s in encodeVector", typeName)
+	}
 	kind := rv.Kind()
+
+	// Use reflection to ensure 'value' is a slice or array
 	if kind != reflect.Slice && kind != reflect.Array {
 		return nil, fmt.Errorf("expected a slice/array for vector type %s, got %T", typeName, value)
 	}
