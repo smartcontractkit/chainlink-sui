@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/mr-tron/base58"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
@@ -242,9 +243,9 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 				eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err)
 				return err
 			}
-			// convert the db offset cursor digest from hex (the format stored in the DB) to base64 (the format expected by the client)
+			// convert the db offset cursor digest from hex (the format stored in the DB) to base58 (the format expected by the client)
 			cursor = &models.EventId{
-				TxDigest: base64.StdEncoding.EncodeToString(txDigestBytes),
+				TxDigest: base58.Encode(txDigestBytes),
 				EventSeq: dbOffsetCursor.EventSeq,
 			}
 
@@ -324,8 +325,8 @@ eventLoop:
 
 				// Convert the txDigest to hex
 				txDigestHex := event.Id.TxDigest
-				if base64Bytes, err := base64.StdEncoding.DecodeString(txDigestHex); err == nil {
-					hexTxId := hex.EncodeToString(base64Bytes)
+				if base58Bytes, err := base58.Decode(txDigestHex); err == nil {
+					hexTxId := hex.EncodeToString(base58Bytes)
 					txDigestHex = "0x" + hexTxId
 				}
 
