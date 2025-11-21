@@ -371,7 +371,16 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			tIndexer.logger.Debugw("Report arg", "reportArg", reportArg)
 
 			// Handle the conversion from []interface{} to []byte
-			reportValue := reportArg["value"].([]any)
+			reportValue, ok := reportArg["value"].([]any)
+			if !ok {
+				tIndexer.logger.Errorw("Expected report value to be a []any",
+					"transmitter", transmitter,
+					"txDigest", transactionRecord.Digest,
+					"reportArg", reportArg,
+					"valueType", fmt.Sprintf("%T", reportArg["value"]))
+				continue
+			}
+
 			reportBytes := make([]byte, len(reportValue))
 			for i, val := range reportValue {
 				num, ok := val.(float64)

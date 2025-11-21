@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"log"
 
 	"golang.org/x/crypto/blake2b"
 )
@@ -104,7 +103,7 @@ func (s *PrivateKeySigner) Sign(message []byte) ([]string, error) {
 	var noHash crypto.Hash
 	sigBytes, err := s.privateKey.Sign(nil, digest[:], noHash)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("failed to sign message with ed25519: %w", err)
 	}
 	pubKey := s.privateKey.Public().(ed25519.PublicKey)
 	serializedSignature := SerializeSuiSignature(sigBytes, pubKey)
