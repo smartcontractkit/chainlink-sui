@@ -82,6 +82,10 @@ func (h *MessageHasherV1) Hash(ctx context.Context, report *codec.ExecutionRepor
 		return [32]byte{}, fmt.Errorf("compute metadata hash: %w", err)
 	}
 
+	if len(report.Message.Header.MessageID) != 32 {
+		h.lggr.Warnw("Invalid message ID length, messageID will be padded or truncated", "messageID", report.Message.Header.MessageID)
+	}
+
 	var messageID [32]byte
 	copy(messageID[:], report.Message.Header.MessageID)
 
@@ -169,13 +173,21 @@ func computeMessageDataHash(
 
 	// Manually encode tokens to match the Move implementation
 	var tokenHashData []byte
-	tokenHashData = append(tokenHashData, encodeUint256(big.NewInt(int64(len(tokenAmounts))))...)
+	encodedLen, err := encodeUint256(big.NewInt(int64(len(tokenAmounts))))
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to encode token length: %w", err)
+	}
+	tokenHashData = append(tokenHashData, encodedLen...)
 	for _, token := range tokenAmounts {
 		tokenHashData = append(tokenHashData, encodeBytes(token.SourcePoolAddress)...)
 		tokenHashData = append(tokenHashData, token.DestTokenAddress[:]...)
 		tokenHashData = append(tokenHashData, encodeUint32(token.DestGasAmount)...)
 		tokenHashData = append(tokenHashData, encodeBytes(token.ExtraData)...)
-		tokenHashData = append(tokenHashData, encodeUint256(token.Amount)...)
+		encodedAmount, err := encodeUint256(token.Amount)
+		if err != nil {
+			return [32]byte{}, fmt.Errorf("failed to encode token amount: %w", err)
+		}
+		tokenHashData = append(tokenHashData, encodedAmount...)
 	}
 	tokenAmountsHash := crypto.Keccak256Hash(tokenHashData)
 
@@ -242,8 +254,12 @@ func computeMetadataHash(
 	return metadataHash, nil
 }
 
-func encodeUint256(n *big.Int) []byte {
-	return common.LeftPadBytes(n.Bytes(), 32)
+func encodeUint256(n *big.Int) ([]byte, error) {
+	if n == nil {
+		return []byte{}, fmt.Errorf("nil big.Int cannot be encoded")
+	}
+
+	return common.LeftPadBytes(n.Bytes(), 32), nil
 }
 
 func encodeUint32(n uint32) []byte {

@@ -89,6 +89,7 @@ func checkConfirmations(loopCtx context.Context, txm *SuiTxm) {
 		txm.lggr.Errorw("Error getting in-flight transactions", "error", err)
 		return
 	}
+
 	for _, tx := range inFlightTransactions {
 		txm.lggr.Debugw("Checking transaction confirmations", "transactionID", tx.TransactionID)
 		switch tx.State {
@@ -115,10 +116,7 @@ func checkConfirmations(loopCtx context.Context, txm *SuiTxm) {
 			default:
 				txm.lggr.Infow("Unknown transaction status", "transactionID", tx.TransactionID, "status", resp.Status)
 			}
-		case StateRetriable:
-			// TODO check if the transaction is still retriable
-			txm.lggr.Debugw("Transaction is still retriable")
-		case StatePending, StateFinalized, StateFailed:
+		case StateRetriable, StatePending, StateFinalized, StateFailed:
 			// Do nothing for pending, finalized and failed transactions
 		}
 	}
@@ -149,8 +147,8 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 		txm.lggr.Infow("Transaction is retriable", "transactionID", tx.TransactionID, "strategy", strategy)
 		switch strategy {
 		case ExponentialBackoff:
-			// TODO: for another PR implement exponential backoff
-			txm.lggr.Infow("Exponential backoff strategy not implemented")
+			txm.lggr.Errorw("Exponential backoff strategy not implemented", "transactionID", tx.TransactionID)
+			return errors.New("exponential backoff strategy not implemented")
 		case GasBump:
 			txm.lggr.Infow("Gas bump strategy", "transactionID", tx.TransactionID)
 			updatedGas, err := txm.gasManager.GasBump(ctx, &tx)
