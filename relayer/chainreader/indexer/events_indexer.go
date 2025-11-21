@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -330,7 +329,7 @@ eventLoop:
 					txDigestHex = "0x" + hexTxId
 				}
 
-				blockHashBytes, err := base64.StdEncoding.DecodeString(block.TxDigest)
+				blockHashBytes, err := base58.Decode(block.TxDigest)
 				if err != nil {
 					eIndexer.logger.Errorw("Failed to decode block hash", "error", err)
 					// fallback
