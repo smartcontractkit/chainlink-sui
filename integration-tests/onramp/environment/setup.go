@@ -64,40 +64,23 @@ type EnvironmentSettings struct {
 	Client sui.ISuiAPI
 }
 
-// SetupClients creates and configures Sui client and signer for testing.
-// It generates a new key pair, creates a signer, and funds the signer address.
-func SetupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI) {
-	t.Helper()
-
-	client := sui.NewSuiClient(testutils.LocalUrl)
-
-	// Generate key pair and create a signer.
-	pk, _, _, err := testutils.GenerateAccountKeyPair(t)
-	require.NoError(t, err)
-	signer := rel.NewPrivateKeySigner(pk)
-
-	// Fund the signer for contract deployment
-	signerAddress, err := signer.GetAddress()
-	require.NoError(t, err)
-	for range 3 {
-		err = testutils.FundWithFaucet(lggr, "localnet", signerAddress)
-		require.NoError(t, err)
-	}
-
-	return signer, client
-}
-
 // BasicSetUp performs basic environment setup including account creation, client setup,
 // and bundle initialization. This is the foundation for all test environments.
 func BasicSetUp(t *testing.T, lggr logger.Logger, keystoreInstance *testutils.TestKeystore) (string, []byte, rel.SuiSigner, sui.ISuiAPI, sui_ops.OpTxDeps, cld_ops.Bundle) {
 	t.Helper()
 
-	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
+	gasLimit := int64(200000000000)
+	ptbClient, _, _, accountAddress, _, publicKeyBytes, _, _ := testutils.SetupTestEnv(t, context.Background(), lggr, gasLimit)
 
-	signer, client := SetupClients(t, lggr)
+	// Generate key pair and create a signer - use the same key for both signer and keystore
+	pk, _, _, err := testutils.GenerateAccountKeyPair(t)
+	require.NoError(t, err)
+	signer := rel.NewPrivateKeySigner(pk)
+	accountAddress, err = signer.GetAddress()
+	require.NoError(t, err)
 
 	deps := sui_ops.OpTxDeps{
-		Client: client,
+		Client: ptbClient.GetClient(),
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
 			b := uint64(500_000_000)
@@ -116,7 +99,7 @@ func BasicSetUp(t *testing.T, lggr logger.Logger, keystoreInstance *testutils.Te
 		reporter,
 	)
 
-	return accountAddress, publicKeyBytes, signer, client, deps, bundle
+	return accountAddress, publicKeyBytes, signer, ptbClient.GetClient(), deps, bundle
 }
 
 // UpdatePrices sets token prices in the fee quoter contract.
