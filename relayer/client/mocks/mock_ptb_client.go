@@ -490,6 +490,21 @@ func (mr *MockSuiPTBClientMockRecorder) GetReferenceGasPrice(ctx any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReferenceGasPrice", reflect.TypeOf((*MockSuiPTBClient)(nil).GetReferenceGasPrice), ctx)
 }
 
+// GetLatestEpoch mocks base method.
+func (m *MockSuiPTBClient) GetLatestEpoch(ctx context.Context) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLatestEpoch", ctx)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLatestEpoch indicates an expected call of GetLatestEpoch.
+func (mr *MockSuiPTBClientMockRecorder) GetLatestEpoch(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestEpoch", reflect.TypeOf((*MockSuiPTBClient)(nil).GetLatestEpoch), ctx)
+}
+
 // QueryCoinsByAddress mocks base method.
 func (m *MockSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address, coinType string) ([]models.CoinData, error) {
 	m.ctrl.T.Helper()

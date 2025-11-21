@@ -360,15 +360,15 @@ func preparePTBTransaction(
 	lggr logger.Logger,
 ) (txBytes string, paymentCoins []transaction.SuiObjectRef, err error) {
 	// Get current epoch
-	suiSystemState, err := suiClient.GetClient().SuiXGetLatestSuiSystemState(ctx)
+	epoch, err := suiClient.GetLatestEpoch(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get current epoch: %w", err)
 	}
 
-	lggr.Debugw("Current epoch", "epoch", suiSystemState.Epoch)
+	lggr.Debugw("Current epoch", "epoch", epoch)
 
 	// Parse epoch into uint64
-	epochUint, err := strconv.ParseUint(suiSystemState.Epoch, 10, 64)
+	epochUint, err := strconv.ParseUint(epoch, 10, 64)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to parse epoch: %w", err)
 	}

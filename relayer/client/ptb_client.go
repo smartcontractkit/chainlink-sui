@@ -70,6 +70,7 @@ var RateLimitWeights = map[string]int64{
 	"GetParentObjectID":                  0,
 	"GetCCIPPackageID":                   0,
 	"GetTokenPoolConfigByPackageAddress": 0,
+	"GetLatestEpoch":                     0,
 }
 
 // var since it's passed via pointer
@@ -93,6 +94,7 @@ type SuiPTBClient interface {
 	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
 	GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error)
+	GetLatestEpoch(ctx context.Context) (string, error)
 	GetNormalizedModule(ctx context.Context, packageId string, moduleId string) (models.GetNormalizedMoveModuleResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
 	LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error)
@@ -921,6 +923,19 @@ func (c *PTBClient) GetBlockById(ctx context.Context, checkpointId string) (mode
 		return nil
 	})
 
+	return result, err
+}
+
+func (c *PTBClient) GetLatestEpoch(ctx context.Context) (string, error) {
+	var result string
+	err := c.WithRateLimit(ctx, "GetLatestEpoch", func(ctx context.Context) error {
+		response, err := c.client.SuiXGetLatestSuiSystemState(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get latest epoch: %w", err)
+		}
+		result = response.Epoch
+		return nil
+	})
 	return result, err
 }
 
