@@ -14,6 +14,8 @@ import (
 	"github.com/holiman/uint256"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	mockethtoken "github.com/smartcontractkit/chainlink-sui/bindings/packages/mock_eth_token"
 	mocklinktoken "github.com/smartcontractkit/chainlink-sui/bindings/packages/mock_link_token"
@@ -29,7 +31,6 @@ import (
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_link_token"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
-	"github.com/stretchr/testify/require"
 )
 
 // Constants used across the environment setup
@@ -66,28 +67,24 @@ type EnvironmentSettings struct {
 
 // BasicSetUp performs basic environment setup including account creation, client setup,
 // and bundle initialization. This is the foundation for all test environments.
-func BasicSetUp(t *testing.T, lggr logger.Logger, keystoreInstance *testutils.TestKeystore) (string, []byte, rel.SuiSigner, sui.ISuiAPI, sui_ops.OpTxDeps, cld_ops.Bundle) {
+func BasicSetUp(t *testing.T, lggr logger.Logger, gasLimit int64) (string, []byte, rel.SuiSigner, *testutils.TestKeystore, sui.ISuiAPI, sui_ops.OpTxDeps, cld_ops.Bundle) {
 	t.Helper()
 
-	gasLimit := int64(200000000000)
-	ptbClient, _, _, accountAddress, _, publicKeyBytes, _, _ := testutils.SetupTestEnv(t, context.Background(), lggr, gasLimit)
+	keystoreInstance, accountAddress, publicKeyBytes := testutils.SetupTestSigner(t, context.Background(), lggr, gasLimit)
+	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasLimit)
 
-	// Generate key pair and create a signer - use the same key for both signer and keystore
-	pk, _, _, err := testutils.GenerateAccountKeyPair(t)
-	require.NoError(t, err)
-	signer := rel.NewPrivateKeySigner(pk)
-	accountAddress, err = signer.GetAddress()
-	require.NoError(t, err)
+	signer := keystoreInstance.GetSuiSigner(context.Background(), fmt.Sprintf("%064x", publicKeyBytes))
+	privateKeySigner := rel.NewPrivateKeySigner(signer.PriKey)
 
+	gasBudget := uint64(gasLimit)
 	deps := sui_ops.OpTxDeps{
 		Client: ptbClient.GetClient(),
-		Signer: signer,
+		Signer: privateKeySigner,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
 			return &bind.CallOpts{
-				Signer:           signer,
+				Signer:           privateKeySigner,
 				WaitForExecution: true,
-				GasBudget:        &b,
+				GasBudget:        &gasBudget,
 			}
 		},
 	}
@@ -99,7 +96,7 @@ func BasicSetUp(t *testing.T, lggr logger.Logger, keystoreInstance *testutils.Te
 		reporter,
 	)
 
-	return accountAddress, publicKeyBytes, signer, ptbClient.GetClient(), deps, bundle
+	return accountAddress, publicKeyBytes, privateKeySigner, keystoreInstance, ptbClient.GetClient(), deps, bundle
 }
 
 // UpdatePrices sets token prices in the fee quoter contract.
@@ -275,7 +272,7 @@ func DeployCCIPAndOnrampAndTokens(
 
 // SetupTestEnvironment sets up a complete test environment with CCIP infrastructure
 // and both lock/release and burn/mint token pools.
-func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSelector uint64, keystoreInstance *testutils.TestKeystore) *EnvironmentSettings {
+func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSelector uint64, gasLimit int64) *EnvironmentSettings {
 	t.Helper()
 
 	lggr := logger.Test(t)
@@ -284,7 +281,7 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 	os.Setenv("SUI_RPC_URL", testutils.LocalUrl)
 	os.Setenv("SUI_CONFIG_DIR", filepath.Join(os.Getenv("HOME"), ".sui", "sui_config"))
 
-	accountAddress, _, signer, client, deps, bundle := BasicSetUp(t, lggr, keystoreInstance)
+	accountAddress, _, signer, keystoreInstance, client, deps, bundle := BasicSetUp(t, lggr, gasLimit)
 	signerAddr, err := signer.GetAddress()
 	require.NoError(t, err)
 

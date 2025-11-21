@@ -37,9 +37,6 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 
 	gasBudget := int64(500_000_000)
 
-	// Create keystore and get account
-	keystoreInstance := testutils.NewTestKeystore(t)
-
 	// Start dedicated Sui node for this test
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
@@ -54,7 +51,11 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	// Wait for the node to be fully ready
 	time.Sleep(3 * time.Second)
 
-	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
+	c := context.Background()
+	ctx, cancel := context.WithCancel(c)
+	defer cancel()
+
+	keystoreInstance, accountAddress, publicKeyBytes := testutils.SetupTestSigner(t, context.Background(), lggr, gasBudget)
 	lggr.Infow("Using account", "address", accountAddress)
 
 	// Fund the account for gas payments
@@ -63,12 +64,8 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	c := context.Background()
-	ctx, cancel := context.WithCancel(c)
-	defer cancel()
-
 	t.Run("CCIP SUI messaging", func(t *testing.T) {
-		envSettings := environment.SetupTestEnvironment(t, localChainSelector, destChainSelector, keystoreInstance)
+		envSettings := environment.SetupTestEnvironment(t, localChainSelector, destChainSelector, gasBudget)
 		linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
 		ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
 
@@ -189,7 +186,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	})
 
 	t.Run("CCIP SUI messaging with Lock Release Token Pool", func(t *testing.T) {
-		envSettings := environment.SetupTestEnvironment(t, localChainSelector, destChainSelector, keystoreInstance)
+		envSettings := environment.SetupTestEnvironment(t, localChainSelector, destChainSelector, gasBudget)
 		linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
 		ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
 
@@ -272,7 +269,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	})
 
 	t.Run("CCIP SUI messaging with Burn Mint Token Pool", func(t *testing.T) {
-		envSettings := environment.SetupTestEnvironment(t, localChainSelector, destChainSelector, keystoreInstance)
+		envSettings := environment.SetupTestEnvironment(t, localChainSelector, destChainSelector, gasBudget)
 		linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
 		ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
 
@@ -370,9 +367,6 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 
 	gasBudget := int64(500_000_000)
 
-	// Create keystore and get account
-	keystoreInstance := testutils.NewTestKeystore(t)
-
 	// Wait a bit to ensure previous test's node is fully shut down
 	time.Sleep(2 * time.Second)
 
@@ -390,7 +384,7 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 	// Wait for the node to be fully ready
 	time.Sleep(3 * time.Second)
 
-	accountAddress, publicKeyBytes, signer, client, deps, bundle := environment.BasicSetUp(t, lggr, keystoreInstance)
+	accountAddress, publicKeyBytes, signer, keystoreInstance, client, deps, bundle := environment.BasicSetUp(t, lggr, gasBudget)
 
 	// Fund the account for gas payments
 	for range 3 {
