@@ -663,7 +663,7 @@ func (s *suiChainReader) fetchGenericDependency(ctx context.Context, signerAddre
 				return "", fmt.Errorf("failed to get CCIP package ID from offramp package address in fetchGenericDependency: %w", err)
 			}
 
-			latestCcipPackageAddress, err := s.client.GetLatestPackageId(ctx, ccipPackageAddress, "state_object", signerAddress)
+			latestCcipPackageAddress, err := s.client.GetLatestPackageId(ctx, ccipPackageAddress, "state_object")
 			if err != nil {
 				return "", fmt.Errorf("failed to get latest CCIP package address from offramp package address in fetchGenericDependency: %w", err)
 			}

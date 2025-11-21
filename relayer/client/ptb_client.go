@@ -1138,7 +1138,7 @@ func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, mo
 // getLatestPackageIdInternal is the internal implementation without rate limiting
 func (c *PTBClient) getLatestPackageIdInternal(ctx context.Context, packageId string, module string) (string, error) {
 	// Use internal method to avoid nested semaphore acquisition
-	packageIds, err := c.loadModulePackageIdsInternal(ctx, packageId, module, signerAddress)
+	packageIds, err := c.loadModulePackageIdsInternal(ctx, packageId, module)
 	if err != nil {
 		return "", fmt.Errorf("failed to load module package ids: %w", err)
 	}
