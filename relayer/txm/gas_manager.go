@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -194,6 +195,11 @@ func (s *SuiGasManager) GasBump(ctx context.Context, tx *SuiTx) (big.Int, error)
 	// The max amount of the gas that the Gas manager will allow
 	gasManagerMaxGasBudget := big.NewInt(int64(s.maxGasBudget.Uint64()))
 
+	// Check if tx.GasBudget exceeds int64 max value to prevent overflow
+	if tx.GasBudget > math.MaxInt64 {
+		return *big.NewInt(0), fmt.Errorf("tx.GasBudget %d exceeds maximum int64 value", tx.GasBudget)
+	}
+
 	// the max amount of the gas that the transaction will allow
 	txGasBudget := big.NewInt(int64(tx.GasBudget))
 
@@ -212,7 +218,7 @@ func (s *SuiGasManager) GasBump(ctx context.Context, tx *SuiTx) (big.Int, error)
 
 	s.lggr.Debugw("GasBump", "txGasLimit", txGasLimit, "maxGasLimit", maxGasLimit)
 
-	// Check if the current gas limit is at or above the maximum allowed budget.
+	// Check if the current gas limit is greater than the maximum allowed budget.
 	if txGasLimit.Cmp(maxGasLimit) > 0 {
 		return *big.NewInt(0), errors.New("gas budget is already at max gas limit")
 	}
