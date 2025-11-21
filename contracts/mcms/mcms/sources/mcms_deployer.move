@@ -102,7 +102,7 @@ public fun authorize_upgrade(
     package::authorize_upgrade(cap, policy, digest)
 }
 
-/// Commit the upgrade by consuming the `UpgradeTicket`
+/// Commit the upgrade by consuming the `UpgradeReceipt`
 public fun commit_upgrade(
     state: &mut DeployerState,
     receipt: UpgradeReceipt,

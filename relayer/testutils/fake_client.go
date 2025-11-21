@@ -10,6 +10,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/patrickmn/go-cache"
 
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -43,7 +44,7 @@ func (c *FakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress st
 	return []models.SuiObjectResponse{}, nil
 }
 
-func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error) {
+func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	return []any{}, nil
 }
 
@@ -175,6 +176,10 @@ func (c *FakeSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address stri
 	return []models.CoinData{}, nil
 }
 
+func (c *FakeSuiPTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error) {
+	return module_token_admin_registry.TokenConfig{}, nil
+}
+
 // StatefulFakeSuiPTBClient is a more sophisticated fake client that can change behavior
 // based on gas budget and track call counts for testing gas bump scenarios
 type StatefulFakeSuiPTBClient struct {
@@ -206,7 +211,7 @@ func (c *StatefulFakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAd
 	return []models.SuiObjectResponse{}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error) {
+func (c *StatefulFakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	return []any{}, nil
 }
 
@@ -345,4 +350,8 @@ func (c *StatefulFakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*b
 
 func (c *StatefulFakeSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error) {
 	return []models.CoinData{}, nil
+}
+
+func (c *StatefulFakeSuiPTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error) {
+	return module_token_admin_registry.TokenConfig{}, nil
 }

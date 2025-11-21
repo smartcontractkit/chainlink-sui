@@ -41,6 +41,7 @@ func (d MintLinkToken) Apply(e cldf.Environment, config MintLinkTokenConfig) (cl
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	// Run MintLinkToken Operation

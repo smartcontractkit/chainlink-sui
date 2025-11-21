@@ -13,13 +13,25 @@ use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
+use std::type_name;
 use std::string::{Self, String};
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
+use sui::derived_object;
 use sui::event;
 use sui::package::{Self, UpgradeCap};
+use sui::address;
 
 public struct LOCK_RELEASE_TOKEN_POOL has drop {}
+
+public struct LockReleaseTokenPoolObject has key {
+    id: UID,
+}
+
+public struct LockReleaseTokenPoolStatePointer has key, store {
+    id: UID,
+    lock_release_token_pool_object_id: address,
+}
 
 fun init(otw: LOCK_RELEASE_TOKEN_POOL, ctx: &mut TxContext) {
     let (ownable_state, mut owner_cap) = ownable::new(ctx);
@@ -47,6 +59,14 @@ public struct RebalancerCap<phantom T> has key, store {
 public struct RebalancerSet<phantom T> has copy, drop {
     old_rebalancer_cap_id: ID,
     new_rebalancer_cap_id: ID,
+}
+
+public struct TokenBucketWrapper has drop, store {
+    tokens: u64,
+    last_updated: u64,
+    is_enabled: bool,
+    capacity: u64,
+    rate: u64,
 }
 
 const CLOCK_ADDRESS: address = @0x6;
@@ -80,45 +100,19 @@ public fun initialize<T>(
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let lock_release_token_pool_state_address = initialize_internal(
-        owner_cap,
-        coin_metadata,
-        rebalancer,
-        ctx,
-    );
-    let publisher_wrapper = publisher_wrapper::create(
-        ownable::borrow_publisher(owner_cap),
-        TypeProof {},
-    );
-
-    token_admin_registry::register_pool(
-        ref,
-        treasury_cap,
-        coin_metadata,
-        token_pool_administrator,
-        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
-        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
-        publisher_wrapper,
-        TypeProof {},
-    );
-}
-
-#[allow(lint(self_transfer))]
-fun initialize_internal<T>(
-    owner_cap: &mut OwnerCap,
-    coin_metadata: &CoinMetadata<T>,
-    rebalancer: address,
-    ctx: &mut TxContext,
-): address {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     let ownable_state = ownable::detach_ownable_state(owner_cap);
-
-    let rebalancer_cap = RebalancerCap<T> {
+    let mut lock_release_token_pool_object = LockReleaseTokenPoolObject { id: object::new(ctx) };
+    let lock_release_token_pool_state_pointer = LockReleaseTokenPoolStatePointer {
         id: object::new(ctx),
+        lock_release_token_pool_object_id: object::id_address(&lock_release_token_pool_object),
     };
-
+    let rebalancer_cap = RebalancerCap<T> { id: object::new(ctx) };
     let lock_release_token_pool = LockReleaseTokenPoolState<T> {
-        id: object::new(ctx),
+        id: derived_object::claim(
+            &mut lock_release_token_pool_object.id,
+            b"LockReleaseTokenPoolState",
+        ),
         token_pool_state: token_pool::initialize(
             coin_metadata_address,
             coin_metadata.get_decimals(),
@@ -130,12 +124,32 @@ fun initialize_internal<T>(
         rebalancer_cap_id: object::id(&rebalancer_cap),
         ownable_state,
     };
-    let token_pool_state_address = object::uid_to_address(&lock_release_token_pool.id);
+
+    let tn = type_name::with_original_ids<LOCK_RELEASE_TOKEN_POOL>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
+    let package_id = address::from_ascii_bytes(&package_bytes);
+
+    let publisher_wrapper = publisher_wrapper::create(
+        ownable::borrow_publisher(owner_cap),
+        TypeProof {},
+    );
+    let lock_release_token_pool_state_address = object::uid_to_address(&lock_release_token_pool.id);
+
+    token_admin_registry::register_pool(
+        ref,
+        treasury_cap,
+        coin_metadata,
+        token_pool_administrator,
+        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
+        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
+        publisher_wrapper,
+        TypeProof {},
+    );
 
     transfer::share_object(lock_release_token_pool);
+    transfer::share_object(lock_release_token_pool_object);
     transfer::public_transfer(rebalancer_cap, rebalancer);
-
-    token_pool_state_address
+    transfer::transfer(lock_release_token_pool_state_pointer, package_id);
 }
 
 // ================================================================
@@ -449,24 +463,32 @@ public fun get_current_inbound_rate_limiter_state<T>(
     clock: &Clock,
     state: &LockReleaseTokenPoolState<T>,
     remote_chain_selector: u64,
-): rate_limiter::TokenBucket {
-    token_pool::get_current_inbound_rate_limiter_state(
+): TokenBucketWrapper {
+    let token_bucket = token_pool::get_current_inbound_rate_limiter_state(
         &state.token_pool_state,
         clock,
         remote_chain_selector,
-    )
+    );
+    let (tokens, last_updated, is_enabled, capacity, rate) = rate_limiter::get_token_bucket_fields(
+        &token_bucket,
+    );
+    TokenBucketWrapper { tokens, last_updated, is_enabled, capacity, rate }
 }
 
 public fun get_current_outbound_rate_limiter_state<T>(
     clock: &Clock,
     state: &LockReleaseTokenPoolState<T>,
     remote_chain_selector: u64,
-): rate_limiter::TokenBucket {
-    token_pool::get_current_outbound_rate_limiter_state(
+): TokenBucketWrapper {
+    let token_bucket = token_pool::get_current_outbound_rate_limiter_state(
         &state.token_pool_state,
         clock,
         remote_chain_selector,
-    )
+    );
+    let (tokens, last_updated, is_enabled, capacity, rate) = rate_limiter::get_token_bucket_fields(
+        &token_bucket,
+    );
+    TokenBucketWrapper { tokens, last_updated, is_enabled, capacity, rate }
 }
 
 // ================================================================

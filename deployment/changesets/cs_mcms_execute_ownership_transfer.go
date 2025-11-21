@@ -63,6 +63,7 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	input := ownershipops.ExecuteOwnershipTransferToMcmsSeqInput{}

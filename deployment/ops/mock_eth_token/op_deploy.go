@@ -23,9 +23,15 @@ var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyI
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return sui_ops.OpTxResult[DeployMockEthTokenObjects]{}, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.MockEthToken, map[string]string{
 		"mock_eth_token": "0x0",
-	})
+		"signer":         signerAddr,
+	}, false, deps.SuiRPC)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployMockEthTokenObjects]{}, err
 	}

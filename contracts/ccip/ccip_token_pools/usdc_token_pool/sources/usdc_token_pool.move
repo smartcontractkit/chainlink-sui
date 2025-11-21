@@ -13,12 +13,14 @@ use message_transmitter::message;
 use message_transmitter::receive_message::{Self, Receipt, ReceiveMessageTicket};
 use message_transmitter::state::State as MessageTransmitterState;
 use stablecoin::treasury::Treasury;
+use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
 use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
+use sui::derived_object;
 use sui::event;
 use sui::package::{Self, UpgradeCap};
 use sui::table::{Self, Table};
@@ -31,6 +33,15 @@ use usdc_token_pool::rate_limiter;
 use usdc_token_pool::token_pool::{Self, TokenPoolState};
 
 public struct USDC_TOKEN_POOL has drop {}
+
+public struct USDCTokenPoolObject has key {
+    id: UID,
+}
+
+public struct USDCTokenPoolStatePointer has key, store {
+    id: UID,
+    usdc_token_pool_object_id: address,
+}
 
 fun init(otw: USDC_TOKEN_POOL, ctx: &mut TxContext) {
     let (ownable_state, mut owner_cap) = ownable::new(ctx);
@@ -72,6 +83,14 @@ public struct USDCTokenPoolState<phantom T> has key {
     ownable_state: OwnableState,
 }
 
+public struct TokenBucketWrapper has drop, store {
+    tokens: u64,
+    last_updated: u64,
+    is_enabled: bool,
+    capacity: u64,
+    rate: u64,
+}
+
 const EInvalidCoinMetadata: u64 = 1;
 const EInvalidArguments: u64 = 2;
 const EInvalidOwnerCap: u64 = 3;
@@ -108,8 +127,18 @@ public fun initialize<T: drop>(
     assert!(coin_metadata_address == @usdc_coin_metadata_object_id, EInvalidCoinMetadata);
 
     let ownable_state = ownable::detach_ownable_state(owner_cap);
-    let usdc_token_pool = USDCTokenPoolState<T> {
+    let mut usdc_token_pool_object = USDCTokenPoolObject { id: object::new(ctx) };
+    let usdc_token_pool_state_pointer = USDCTokenPoolStatePointer {
         id: object::new(ctx),
+        usdc_token_pool_object_id: object::id_address(&usdc_token_pool_object),
+    };
+
+    let tn = type_name::with_original_ids<USDC_TOKEN_POOL>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
+    let package_id = address::from_ascii_bytes(&package_bytes);
+
+    let usdc_token_pool = USDCTokenPoolState<T> {
+        id: derived_object::claim(&mut usdc_token_pool_object.id, b"USDCTokenPoolState"),
         token_pool_state: token_pool::initialize(
             coin_metadata_address,
             coin_metadata.get_decimals(),
@@ -123,6 +152,8 @@ public fun initialize<T: drop>(
     };
 
     transfer::share_object(usdc_token_pool);
+    transfer::share_object(usdc_token_pool_object);
+    transfer::transfer(usdc_token_pool_state_pointer, package_id);
 }
 
 // ================================================================
@@ -647,24 +678,32 @@ public fun get_current_inbound_rate_limiter_state<T>(
     clock: &Clock,
     state: &USDCTokenPoolState<T>,
     remote_chain_selector: u64,
-): rate_limiter::TokenBucket {
-    token_pool::get_current_inbound_rate_limiter_state(
+): TokenBucketWrapper {
+    let token_bucket = token_pool::get_current_inbound_rate_limiter_state(
         &state.token_pool_state,
         clock,
         remote_chain_selector,
-    )
+    );
+    let (tokens, last_updated, is_enabled, capacity, rate) = rate_limiter::get_token_bucket_fields(
+        &token_bucket,
+    );
+    TokenBucketWrapper { tokens, last_updated, is_enabled, capacity, rate }
 }
 
 public fun get_current_outbound_rate_limiter_state<T>(
     clock: &Clock,
     state: &USDCTokenPoolState<T>,
     remote_chain_selector: u64,
-): rate_limiter::TokenBucket {
-    token_pool::get_current_outbound_rate_limiter_state(
+): TokenBucketWrapper {
+    let token_bucket = token_pool::get_current_outbound_rate_limiter_state(
         &state.token_pool_state,
         clock,
         remote_chain_selector,
-    )
+    );
+    let (tokens, last_updated, is_enabled, capacity, rate) = rate_limiter::get_token_bucket_fields(
+        &token_bucket,
+    );
+    TokenBucketWrapper { tokens, last_updated, is_enabled, capacity, rate }
 }
 
 // ================================================================

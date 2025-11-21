@@ -50,13 +50,19 @@ func PublishCCIPBurnMintTokenPool(
 	client sui.ISuiAPI,
 	ccipAddress,
 	mcmsAddress,
-	mcmsOwnerAddress string) (BurnMintTokenPool, *models.SuiTransactionBlockResponse, error) {
+	mcmsOwnerAddress, suiRPC string) (BurnMintTokenPool, *models.SuiTransactionBlockResponse, error) {
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.BurnMintTokenPool, map[string]string{
 		"ccip":                 ccipAddress,
 		"burn_mint_token_pool": "0x0",
 		"mcms":                 mcmsAddress,
 		"mcms_owner":           mcmsOwnerAddress,
-	})
+		"signer":               signerAddr,
+	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -87,8 +87,8 @@ type IBurnMintTokenPoolDevInspect interface {
 	GetSupportedChains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]uint64, error)
 	GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
 	GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]string, error)
-	GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error)
-	GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error)
+	GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error)
+	GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error)
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (any, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
@@ -238,11 +238,28 @@ func (c *BurnMintTokenPoolContract) DevInspect() IBurnMintTokenPoolDevInspect {
 type BURN_MINT_TOKEN_POOL struct {
 }
 
+type BurnMintTokenPoolObject struct {
+	Id string `move:"sui::object::UID"`
+}
+
+type BurnMintTokenPoolStatePointer struct {
+	Id                        string `move:"sui::object::UID"`
+	BurnMintTokenPoolObjectId string `move:"address"`
+}
+
 type BurnMintTokenPoolState struct {
 	Id             string      `move:"sui::object::UID"`
 	TokenPoolState bind.Object `move:"TokenPoolState"`
 	TreasuryCap    bind.Object `move:"TreasuryCap<T>"`
 	OwnableState   bind.Object `move:"OwnableState"`
+}
+
+type TokenBucketWrapper struct {
+	Tokens      uint64 `move:"u64"`
+	LastUpdated uint64 `move:"u64"`
+	IsEnabled   bool   `move:"bool"`
+	Capacity    uint64 `move:"u64"`
+	Rate        uint64 `move:"u64"`
 }
 
 type TypeProof struct {
@@ -252,6 +269,19 @@ type McmsCallback struct {
 }
 
 type McmsAcceptOwnershipProof struct {
+}
+
+type bcsBurnMintTokenPoolStatePointer struct {
+	Id                        string
+	BurnMintTokenPoolObjectId [32]byte
+}
+
+func convertBurnMintTokenPoolStatePointerFromBCS(bcs bcsBurnMintTokenPoolStatePointer) (BurnMintTokenPoolStatePointer, error) {
+
+	return BurnMintTokenPoolStatePointer{
+		Id:                        bcs.Id,
+		BurnMintTokenPoolObjectId: fmt.Sprintf("0x%x", bcs.BurnMintTokenPoolObjectId),
+	}, nil
 }
 
 func init() {
@@ -272,6 +302,54 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolObject", func(data []byte) (interface{}, error) {
+		var result BurnMintTokenPoolObject
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for BurnMintTokenPoolObject
+	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolObject>", func(data []byte) (interface{}, error) {
+		var results []BurnMintTokenPoolObject
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolStatePointer", func(data []byte) (interface{}, error) {
+		var temp bcsBurnMintTokenPoolStatePointer
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertBurnMintTokenPoolStatePointerFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for BurnMintTokenPoolStatePointer
+	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolStatePointer>", func(data []byte) (interface{}, error) {
+		var temps []bcsBurnMintTokenPoolStatePointer
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]BurnMintTokenPoolStatePointer, len(temps))
+		for i, temp := range temps {
+			result, err := convertBurnMintTokenPoolStatePointerFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolState", func(data []byte) (interface{}, error) {
 		var result BurnMintTokenPoolState
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -283,6 +361,23 @@ func init() {
 	// Register vector decoder for BurnMintTokenPoolState
 	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolState>", func(data []byte) (interface{}, error) {
 		var results []BurnMintTokenPoolState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::TokenBucketWrapper", func(data []byte) (interface{}, error) {
+		var result TokenBucketWrapper
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for TokenBucketWrapper
+	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::TokenBucketWrapper>", func(data []byte) (interface{}, error) {
+		var results []TokenBucketWrapper
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
@@ -1066,44 +1161,44 @@ func (d *BurnMintTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts *bi
 
 // GetCurrentInboundRateLimiterState executes the get_current_inbound_rate_limiter_state Move function using DevInspect to get return values.
 //
-// Returns: rate_limiter::TokenBucket
-func (d *BurnMintTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error) {
+// Returns: TokenBucketWrapper
+func (d *BurnMintTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error) {
 	encoded, err := d.contract.burnMintTokenPoolEncoder.GetCurrentInboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
 	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+		return TokenBucketWrapper{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
 	results, err := d.contract.Call(ctx, opts, encoded)
 	if err != nil {
-		return bind.Object{}, err
+		return TokenBucketWrapper{}, err
 	}
 	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
+		return TokenBucketWrapper{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
+	result, ok := results[0].(TokenBucketWrapper)
 	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+		return TokenBucketWrapper{}, fmt.Errorf("unexpected return type: expected TokenBucketWrapper, got %T", results[0])
 	}
 	return result, nil
 }
 
 // GetCurrentOutboundRateLimiterState executes the get_current_outbound_rate_limiter_state Move function using DevInspect to get return values.
 //
-// Returns: rate_limiter::TokenBucket
-func (d *BurnMintTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error) {
+// Returns: TokenBucketWrapper
+func (d *BurnMintTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error) {
 	encoded, err := d.contract.burnMintTokenPoolEncoder.GetCurrentOutboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
 	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+		return TokenBucketWrapper{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
 	results, err := d.contract.Call(ctx, opts, encoded)
 	if err != nil {
-		return bind.Object{}, err
+		return TokenBucketWrapper{}, err
 	}
 	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
+		return TokenBucketWrapper{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
+	result, ok := results[0].(TokenBucketWrapper)
 	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+		return TokenBucketWrapper{}, fmt.Errorf("unexpected return type: expected TokenBucketWrapper, got %T", results[0])
 	}
 	return result, nil
 }
@@ -2072,7 +2167,7 @@ func (c burnMintTokenPoolEncoder) GetCurrentInboundRateLimiterState(typeArgs []s
 		state,
 		remoteChainSelector,
 	}, []string{
-		"rate_limiter::TokenBucket",
+		"burn_mint_token_pool::burn_mint_token_pool::TokenBucketWrapper",
 	})
 }
 
@@ -2093,7 +2188,7 @@ func (c burnMintTokenPoolEncoder) GetCurrentInboundRateLimiterStateWithArgs(type
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("get_current_inbound_rate_limiter_state", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"rate_limiter::TokenBucket",
+		"burn_mint_token_pool::burn_mint_token_pool::TokenBucketWrapper",
 	})
 }
 
@@ -2112,7 +2207,7 @@ func (c burnMintTokenPoolEncoder) GetCurrentOutboundRateLimiterState(typeArgs []
 		state,
 		remoteChainSelector,
 	}, []string{
-		"rate_limiter::TokenBucket",
+		"burn_mint_token_pool::burn_mint_token_pool::TokenBucketWrapper",
 	})
 }
 
@@ -2133,7 +2228,7 @@ func (c burnMintTokenPoolEncoder) GetCurrentOutboundRateLimiterStateWithArgs(typ
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("get_current_outbound_rate_limiter_state", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"rate_limiter::TokenBucket",
+		"burn_mint_token_pool::burn_mint_token_pool::TokenBucketWrapper",
 	})
 }
 

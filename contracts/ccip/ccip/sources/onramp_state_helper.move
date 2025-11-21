@@ -49,8 +49,7 @@ public fun create_token_transfer_params(token_receiver: vector<u8>): TokenTransf
     }
 }
 
-/// populate the token transfer option in the TokenTransferParams object, which is done within onramp.
-/// this is permissioned by the SourceTransferCap, which is stored in the onramp state.
+/// populate the token transfer option in the TokenTransferParams object, which should be called by token pools.
 public fun add_token_transfer_param<TypeProof: drop>(
     ref: &CCIPObjectRef,
     token_transfer_params: &mut TokenTransferParams,

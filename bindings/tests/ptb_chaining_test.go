@@ -18,15 +18,21 @@ import (
 )
 
 func TestPTBChaining(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 	signer, client := testenv.SetupEnvironment(t)
+
+	publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, &bind.CallOpts{
+		Signer:           signer,
+		WaitForExecution: true,
+		GasBudget:        &DEFAULT_GAS_BUDGET,
+	}, client, "")
+	require.NoError(t, err)
 
 	testPackage, tx, err := testpackage.PublishTest(ctx, &bind.CallOpts{
 		Signer:           signer,
 		WaitForExecution: true,
 		GasBudget:        &DEFAULT_GAS_BUDGET,
-	}, client)
+	}, client, publishTestSecondary.Address(), "")
 	require.NoError(t, err)
 	require.NotNil(t, testPackage)
 	require.NotNil(t, tx)

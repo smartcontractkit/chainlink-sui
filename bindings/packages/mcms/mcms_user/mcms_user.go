@@ -49,12 +49,19 @@ func NewMCMSUser(address string, client sui.ISuiAPI) (MCMSUser, error) {
 	}, nil
 }
 
-func PublishMCMSUser(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, mcmsAddress, mcmsOwnerAddress string) (MCMSUser, *models.SuiTransactionBlockResponse, error) {
+func PublishMCMSUser(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, mcmsAddress, mcmsOwnerAddress, suiRPC string) (MCMSUser, *models.SuiTransactionBlockResponse, error) {
+
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.MCMSUser, map[string]string{
 		"mcms_test":  "0x0",
 		"mcms":       mcmsAddress,
 		"mcms_owner": mcmsOwnerAddress,
-	})
+		"signer":     signerAddr,
+	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err
 	}

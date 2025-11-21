@@ -76,7 +76,6 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 		txm.lggr.Infow("Broadcasting transaction", "txID", tx.TransactionID, "payload", tx)
 
 		resp, err := txm.suiGateway.SendTransaction(loopCtx, payload)
-		txm.lggr.Infow("Transaction broadcasted", "txID", tx.TransactionID, "resp", resp)
 
 		// We increment the attempts here regardless of the error
 		// This is because we want to keep track of how many times we tried to broadcast the transaction
@@ -89,14 +88,20 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 		if err != nil {
 			// In the case there is an error submitting
 			txm.lggr.Errorw("Failed to broadcast transaction", "txID", tx.TransactionID, "function inputs", tx.Functions, "error", err)
-			// Update the transaction state to Failed if the digest is empty
-			// An empty digest indicates a total failure of the transaction
-			if resp.TxDigest == "" {
+
+			// Default to retrying the transaction
+			newState := StateRetriable
+
+			if resp.Effects.Status.Status != "" && resp.TxDigest == "" {
+				// Update the transaction state to Failed if the digest is empty
+				// An empty digest indicates a total failure of the transaction
 				txm.lggr.Errorw("Transaction failed without a digest", "txID", tx.TransactionID, "function inputs", tx.Functions)
-				err = txm.transactionRepository.ChangeState(tx.TransactionID, StateFailed)
-				if err != nil {
-					txm.lggr.Errorw("Failed to change transaction state to Failed", "txID", tx.TransactionID, "error", err)
-				}
+				newState = StateFailed
+			}
+
+			err = txm.transactionRepository.ChangeState(tx.TransactionID, newState)
+			if err != nil {
+				txm.lggr.Errorw("Failed to change transaction state", "txID", tx.TransactionID, "error", err)
 			}
 
 			continue
@@ -108,7 +113,14 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 			txm.lggr.Errorw("Failed to update transaction digest", "txID", tx.TransactionID, "error", err)
 			continue
 		}
-		_ = txm.transactionRepository.ChangeState(tx.TransactionID, StateSubmitted)
+
+		err = txm.transactionRepository.ChangeState(tx.TransactionID, StateSubmitted)
+		if err != nil {
+			txm.lggr.Errorw("Failed to change transaction state to Submitted", "txID", tx.TransactionID, "error", err)
+			continue
+		}
+
+		txm.lggr.Infow("Transaction state updated to Submitted", "txID", tx.TransactionID)
 	}
 }
 

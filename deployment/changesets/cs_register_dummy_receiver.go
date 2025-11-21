@@ -38,6 +38,7 @@ func (d RegisterDummyReceiver) Apply(e cldf.Environment, config RegisterDummyRec
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	// Run RegisterReceiver Operation

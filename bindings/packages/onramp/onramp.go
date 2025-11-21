@@ -44,13 +44,19 @@ func NewOnramp(address string, client sui.ISuiAPI) (Onramp, error) {
 	}, nil
 }
 
-func PublishOnramp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, ccipAddress, mcmsAddress, mcmsOwnerAddress string) (Onramp, *models.SuiTransactionBlockResponse, error) {
+func PublishOnramp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, ccipAddress, mcmsAddress, mcmsOwnerAddress, suiRPC string) (Onramp, *models.SuiTransactionBlockResponse, error) {
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.CCIPOnramp, map[string]string{
 		"ccip":        ccipAddress,
 		"ccip_onramp": "0x0",
 		"mcms":        mcmsAddress,
 		"mcms_owner":  mcmsOwnerAddress,
-	})
+		"signer":      signerAddr,
+	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err
 	}

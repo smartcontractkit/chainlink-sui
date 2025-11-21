@@ -97,8 +97,8 @@ type ILockReleaseTokenPoolDevInspect interface {
 	GetSupportedChains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]uint64, error)
 	GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
 	GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]string, error)
-	GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error)
-	GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error)
+	GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error)
+	GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error)
 	WithdrawLiquidity(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, rebalancerCap bind.Object, amount uint64) (any, error)
 	GetBalance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (uint64, error)
 	GetRebalancer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
@@ -271,6 +271,15 @@ func (c *LockReleaseTokenPoolContract) DevInspect() ILockReleaseTokenPoolDevInsp
 type LOCK_RELEASE_TOKEN_POOL struct {
 }
 
+type LockReleaseTokenPoolObject struct {
+	Id string `move:"sui::object::UID"`
+}
+
+type LockReleaseTokenPoolStatePointer struct {
+	Id                           string `move:"sui::object::UID"`
+	LockReleaseTokenPoolObjectId string `move:"address"`
+}
+
 type LockReleaseTokenPoolState struct {
 	Id              string      `move:"sui::object::UID"`
 	TokenPoolState  bind.Object `move:"TokenPoolState"`
@@ -288,6 +297,14 @@ type RebalancerSet struct {
 	NewRebalancerCapId bind.Object `move:"ID"`
 }
 
+type TokenBucketWrapper struct {
+	Tokens      uint64 `move:"u64"`
+	LastUpdated uint64 `move:"u64"`
+	IsEnabled   bool   `move:"bool"`
+	Capacity    uint64 `move:"u64"`
+	Rate        uint64 `move:"u64"`
+}
+
 type TypeProof struct {
 }
 
@@ -301,6 +318,19 @@ type McmsCallback struct {
 }
 
 type McmsAcceptOwnershipProof struct {
+}
+
+type bcsLockReleaseTokenPoolStatePointer struct {
+	Id                           string
+	LockReleaseTokenPoolObjectId [32]byte
+}
+
+func convertLockReleaseTokenPoolStatePointerFromBCS(bcs bcsLockReleaseTokenPoolStatePointer) (LockReleaseTokenPoolStatePointer, error) {
+
+	return LockReleaseTokenPoolStatePointer{
+		Id:                           bcs.Id,
+		LockReleaseTokenPoolObjectId: fmt.Sprintf("0x%x", bcs.LockReleaseTokenPoolObjectId),
+	}, nil
 }
 
 func init() {
@@ -318,6 +348,54 @@ func init() {
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("lock_release_token_pool::lock_release_token_pool::LockReleaseTokenPoolObject", func(data []byte) (interface{}, error) {
+		var result LockReleaseTokenPoolObject
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for LockReleaseTokenPoolObject
+	bind.RegisterStructDecoder("vector<lock_release_token_pool::lock_release_token_pool::LockReleaseTokenPoolObject>", func(data []byte) (interface{}, error) {
+		var results []LockReleaseTokenPoolObject
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("lock_release_token_pool::lock_release_token_pool::LockReleaseTokenPoolStatePointer", func(data []byte) (interface{}, error) {
+		var temp bcsLockReleaseTokenPoolStatePointer
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertLockReleaseTokenPoolStatePointerFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for LockReleaseTokenPoolStatePointer
+	bind.RegisterStructDecoder("vector<lock_release_token_pool::lock_release_token_pool::LockReleaseTokenPoolStatePointer>", func(data []byte) (interface{}, error) {
+		var temps []bcsLockReleaseTokenPoolStatePointer
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]LockReleaseTokenPoolStatePointer, len(temps))
+		for i, temp := range temps {
+			result, err := convertLockReleaseTokenPoolStatePointerFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
 		}
 		return results, nil
 	})
@@ -366,6 +444,23 @@ func init() {
 	// Register vector decoder for RebalancerSet
 	bind.RegisterStructDecoder("vector<lock_release_token_pool::lock_release_token_pool::RebalancerSet>", func(data []byte) (interface{}, error) {
 		var results []RebalancerSet
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("lock_release_token_pool::lock_release_token_pool::TokenBucketWrapper", func(data []byte) (interface{}, error) {
+		var result TokenBucketWrapper
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for TokenBucketWrapper
+	bind.RegisterStructDecoder("vector<lock_release_token_pool::lock_release_token_pool::TokenBucketWrapper>", func(data []byte) (interface{}, error) {
+		var results []TokenBucketWrapper
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
@@ -1266,44 +1361,44 @@ func (d *LockReleaseTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts 
 
 // GetCurrentInboundRateLimiterState executes the get_current_inbound_rate_limiter_state Move function using DevInspect to get return values.
 //
-// Returns: rate_limiter::TokenBucket
-func (d *LockReleaseTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error) {
+// Returns: TokenBucketWrapper
+func (d *LockReleaseTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error) {
 	encoded, err := d.contract.lockReleaseTokenPoolEncoder.GetCurrentInboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
 	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+		return TokenBucketWrapper{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
 	results, err := d.contract.Call(ctx, opts, encoded)
 	if err != nil {
-		return bind.Object{}, err
+		return TokenBucketWrapper{}, err
 	}
 	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
+		return TokenBucketWrapper{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
+	result, ok := results[0].(TokenBucketWrapper)
 	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+		return TokenBucketWrapper{}, fmt.Errorf("unexpected return type: expected TokenBucketWrapper, got %T", results[0])
 	}
 	return result, nil
 }
 
 // GetCurrentOutboundRateLimiterState executes the get_current_outbound_rate_limiter_state Move function using DevInspect to get return values.
 //
-// Returns: rate_limiter::TokenBucket
-func (d *LockReleaseTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (bind.Object, error) {
+// Returns: TokenBucketWrapper
+func (d *LockReleaseTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error) {
 	encoded, err := d.contract.lockReleaseTokenPoolEncoder.GetCurrentOutboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
 	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+		return TokenBucketWrapper{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
 	results, err := d.contract.Call(ctx, opts, encoded)
 	if err != nil {
-		return bind.Object{}, err
+		return TokenBucketWrapper{}, err
 	}
 	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
+		return TokenBucketWrapper{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
+	result, ok := results[0].(TokenBucketWrapper)
 	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+		return TokenBucketWrapper{}, fmt.Errorf("unexpected return type: expected TokenBucketWrapper, got %T", results[0])
 	}
 	return result, nil
 }
@@ -2337,7 +2432,7 @@ func (c lockReleaseTokenPoolEncoder) GetCurrentInboundRateLimiterState(typeArgs 
 		state,
 		remoteChainSelector,
 	}, []string{
-		"rate_limiter::TokenBucket",
+		"lock_release_token_pool::lock_release_token_pool::TokenBucketWrapper",
 	})
 }
 
@@ -2358,7 +2453,7 @@ func (c lockReleaseTokenPoolEncoder) GetCurrentInboundRateLimiterStateWithArgs(t
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("get_current_inbound_rate_limiter_state", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"rate_limiter::TokenBucket",
+		"lock_release_token_pool::lock_release_token_pool::TokenBucketWrapper",
 	})
 }
 
@@ -2377,7 +2472,7 @@ func (c lockReleaseTokenPoolEncoder) GetCurrentOutboundRateLimiterState(typeArgs
 		state,
 		remoteChainSelector,
 	}, []string{
-		"rate_limiter::TokenBucket",
+		"lock_release_token_pool::lock_release_token_pool::TokenBucketWrapper",
 	})
 }
 
@@ -2398,7 +2493,7 @@ func (c lockReleaseTokenPoolEncoder) GetCurrentOutboundRateLimiterStateWithArgs(
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("get_current_outbound_rate_limiter_state", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"rate_limiter::TokenBucket",
+		"lock_release_token_pool::lock_release_token_pool::TokenBucketWrapper",
 	})
 }
 

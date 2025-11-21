@@ -13,6 +13,7 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
+	"github.com/smartcontractkit/chainlink-sui/deployment"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
 	lockreleasetokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
@@ -101,7 +102,7 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 	// Deploy a token pool of each class
 	deployInput := tokenpoolops.DeployAndInitAllTokenPoolsInput{
 		SuiChainSelector: uint64(s.chainSelector),
-		TokenPoolTypes:   []string{"bnm", "lnr", "managed"},
+		TokenPoolTypes:   []deployment.TokenPoolType{deployment.TokenPoolTypeBurnMint, deployment.TokenPoolTypeLockRelease, deployment.TokenPoolTypeManaged},
 		LockReleaseTPInput: lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput{
 			LockReleaseTokenPoolDeployInput: lockreleasetokenpoolops.LockReleaseTokenPoolDeployInput{
 				CCIPPackageId:    s.ccipPackageId,
