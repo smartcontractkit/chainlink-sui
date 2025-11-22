@@ -11,7 +11,7 @@ require (
 	github.com/aptos-labs/aptos-go-sdk v1.7.1-0.20250602153733-bb1facae1d43
 	github.com/aptos-labs/tree-sitter-move-on-aptos v0.0.0-20250321090037-c820eb4716e1
 	github.com/block-vision/sui-go-sdk v1.1.2
-	github.com/ethereum/go-ethereum v1.15.7
+	github.com/ethereum/go-ethereum v1.16.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-plugin v1.6.3
 	github.com/mitchellh/mapstructure v1.5.1-0.20220423185008-bf980b35cac4
