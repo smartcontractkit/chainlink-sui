@@ -243,6 +243,12 @@ func (pr *PackageResolver) InvalidateCache(moduleName string) {
 	packageAddress := pr.packageAddresses[moduleName]
 	pr.mutex.RUnlock()
 
+	// If the package address is not found, do not invalidate the cache
+	if packageAddress == "" {
+		pr.log.Debugw("Package address not found for module, skipping cache invalidation", "module", moduleName)
+		return
+	}
+
 	keys := []string{
 		packageAddressCachePrefix + moduleName,
 		packageIDsCachePrefix + packageAddress + ":" + moduleName,
