@@ -54,6 +54,7 @@ public struct EntrypointRegistered has copy, drop {
     registry_id: ID,
     account_address: ascii::String,
     allowed_modules: vector<vector<u8>>,
+    proof_type: TypeName,
 }
 
 public struct ModulesAdded has copy, drop {
@@ -179,6 +180,7 @@ public fun register_entrypoint<T: drop, C: key + store>(
         registry_id: object::id(registry),
         account_address: package_address,
         allowed_modules,
+        proof_type,
     });
 }
 
