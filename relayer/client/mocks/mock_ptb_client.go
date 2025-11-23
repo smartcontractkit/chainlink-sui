@@ -362,18 +362,18 @@ func (mr *MockSuiPTBClientMockRecorder) QueryTransactions(ctx, fromAddress, curs
 }
 
 // ReadFilterOwnedObjectIds mocks base method.
-func (m *MockSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress, structType string, limit *uint) ([]models.SuiObjectData, error) {
+func (m *MockSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress, structType string, cursor string) ([]models.SuiObjectData, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadFilterOwnedObjectIds", ctx, ownerAddress, structType, limit)
+	ret := m.ctrl.Call(m, "ReadFilterOwnedObjectIds", ctx, ownerAddress, structType, cursor)
 	ret0, _ := ret[0].([]models.SuiObjectData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ReadFilterOwnedObjectIds indicates an expected call of ReadFilterOwnedObjectIds.
-func (mr *MockSuiPTBClientMockRecorder) ReadFilterOwnedObjectIds(ctx, ownerAddress, structType, limit any) *gomock.Call {
+func (mr *MockSuiPTBClientMockRecorder) ReadFilterOwnedObjectIds(ctx, ownerAddress, structType, cursor any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFilterOwnedObjectIds", reflect.TypeOf((*MockSuiPTBClient)(nil).ReadFilterOwnedObjectIds), ctx, ownerAddress, structType, limit)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFilterOwnedObjectIds", reflect.TypeOf((*MockSuiPTBClient)(nil).ReadFilterOwnedObjectIds), ctx, ownerAddress, structType, cursor)
 }
 
 // ReadFunction mocks base method.

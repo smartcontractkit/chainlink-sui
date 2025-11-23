@@ -80,7 +80,7 @@ type SuiPTBClient interface {
 	MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error)
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (SuiTransactionBlockResponse, error)
 	ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error)
-	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]models.SuiObjectData, error)
+	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor string) ([]models.SuiObjectData, error)
 	ReadObjectId(ctx context.Context, objectId string) (models.SuiObjectData, error)
 	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error)
@@ -202,8 +202,6 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 		c.log.Debugw("WithRateLimit released", "methodName", methodName, "duration", time.Since(start))
 	}()
 
-	c.log.Debugw("WithRateLimit starting work")
-
 	// run the user function with the timeout context
 	// if the function respects the context, it will return and lock will be released in defer
 	return f(workCtx)
@@ -309,42 +307,57 @@ func (c *PTBClient) readObjectIdInternal(ctx context.Context, objectId string) (
 	return *response.Data, nil
 }
 
-func (c *PTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]models.SuiObjectData, error) {
+func (c *PTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor string) ([]models.SuiObjectData, error) {
 	var result []models.SuiObjectData
+
 	err := c.WithRateLimit(ctx, "ReadFilterOwnedObjectIds", func(ctx context.Context) error {
-		limitVal := uint64(maxPageSize)
-		if limit != nil {
-			limitVal = uint64(*limit)
-		}
-
-		ownedObjectsReq := models.SuiXGetOwnedObjectsRequest{
-			Address: ownerAddress,
-			Query: models.SuiObjectResponseQuery{
-				Filter: models.ObjectFilterByStructType{
-					StructType: structType,
-				},
-				Options: models.SuiObjectDataOptions{
-					ShowType: true,
-				},
-			},
-			Limit: limitVal,
-		}
-
-		response, err := c.client.SuiXGetOwnedObjects(ctx, ownedObjectsReq)
+		response, err := c.readFilterOwnedObjectIdsInternal(ctx, ownerAddress, structType, cursor)
 		if err != nil {
-			return fmt.Errorf("failed to read owned objects: %w", err)
+			return fmt.Errorf("failed to read filter owned object ids: %w", err)
 		}
 
 		for _, obj := range response.Data {
-			if obj.Data != nil {
-				result = append(result, *obj.Data)
-			}
+			result = append(result, *obj.Data)
 		}
 
-		return nil
+		return err
 	})
 
 	return result, err
+}
+
+func (c *PTBClient) readFilterOwnedObjectIdsInternal(ctx context.Context, ownerAddress string, structType string, cursor string) (models.PaginatedObjectsResponse, error) {
+	ownedObjectsReq := models.SuiXGetOwnedObjectsRequest{
+		Address: ownerAddress,
+		Query: models.SuiObjectResponseQuery{
+			Filter: models.ObjectFilterByStructType{
+				StructType: structType,
+			},
+			Options: models.SuiObjectDataOptions{
+				ShowType: true,
+			},
+		},
+		Limit: uint64(maxPageSize),
+	}
+
+	if cursor != "" {
+		ownedObjectsReq.Cursor = cursor
+	}
+
+	response, err := c.client.SuiXGetOwnedObjects(ctx, ownedObjectsReq)
+	if err != nil {
+		return models.PaginatedObjectsResponse{}, fmt.Errorf("failed to read owned objects: %w", err)
+	}
+
+	if response.HasNextPage {
+		nextPage, err := c.readFilterOwnedObjectIdsInternal(ctx, ownerAddress, structType, response.NextCursor)
+		if err != nil {
+			return models.PaginatedObjectsResponse{}, fmt.Errorf("failed to read next page of owned objects: %w", err)
+		}
+		response.Data = append(response.Data, nextPage.Data...)
+	}
+
+	return response, nil
 }
 
 func (c *PTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error) {
