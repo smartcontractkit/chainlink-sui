@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	DefaultEventsQueryLimit = 1000
+	MaxEventsQueryLimit = 2000
 )
 
 type DBStore struct {
@@ -126,12 +126,15 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 		baseSQL += " ORDER BY event_offset ASC"
 	}
 
-	if limitAndSort.Limit.Count > 0 {
-		baseSQL += fmt.Sprintf(" LIMIT %d", limitAndSort.Limit.Count)
-	} else {
-		// default to a large limit if no limit is provided
-		baseSQL += fmt.Sprintf(" LIMIT %d", DefaultEventsQueryLimit)
+	limit := limitAndSort.Limit.Count
+	if limit > MaxEventsQueryLimit {
+		store.lgr.Warnw("query limit is greater than max limit, using max limit", "limit", limit, "maxLimit", MaxEventsQueryLimit)
+		limit = MaxEventsQueryLimit
+	} else if limit == 0 {
+		store.lgr.Warnw("query limit is 0, using default max limit", "limit", limit, "maxLimit", MaxEventsQueryLimit)
+		limit = MaxEventsQueryLimit
 	}
+	baseSQL += fmt.Sprintf(" LIMIT %d", limit)
 
 	store.lgr.Debugw("querying events", "sql", baseSQL, "args", args)
 
