@@ -17,6 +17,10 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 )
 
+const (
+	DefaultEventsQueryLimit = 1000
+)
+
 type DBStore struct {
 	ds  sqlutil.DataSource
 	lgr logger.Logger
@@ -124,6 +128,9 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 
 	if limitAndSort.Limit.Count > 0 {
 		baseSQL += fmt.Sprintf(" LIMIT %d", limitAndSort.Limit.Count)
+	} else {
+		// default to a large limit if no limit is provided
+		baseSQL += fmt.Sprintf(" LIMIT %d", DefaultEventsQueryLimit)
 	}
 
 	store.lgr.Debugw("querying events", "sql", baseSQL, "args", args)
