@@ -490,7 +490,7 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, signerAddress stri
 
 	response, err := c.client.SuiDevInspectTransactionBlock(ctx, devInspectReq)
 	if err != nil || response.Effects.Status.Status != "success" {
-		errorLog := fmt.Sprintf("%s: %s", err.Error(), response.Effects.Status.Error)
+		errorLog := fmt.Sprintf("%s: %s", err, response.Effects.Status.Error)
 		return nil, fmt.Errorf("failed to read function: %s", errorLog)
 	}
 
