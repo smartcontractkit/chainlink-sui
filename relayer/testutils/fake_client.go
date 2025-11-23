@@ -36,7 +36,7 @@ func (c *FakeSuiPTBClient) ReadObjectId(ctx context.Context, objectId string) (m
 	return models.SuiObjectData{}, nil
 }
 
-func (c *FakeSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]models.SuiObjectData, error) {
+func (c *FakeSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor string) ([]models.SuiObjectData, error) {
 	return []models.SuiObjectData{}, nil
 }
 
@@ -203,7 +203,7 @@ func (c *StatefulFakeSuiPTBClient) ReadObjectId(ctx context.Context, objectId st
 	return models.SuiObjectData{}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]models.SuiObjectData, error) {
+func (c *StatefulFakeSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor string) ([]models.SuiObjectData, error) {
 	return []models.SuiObjectData{}, nil
 }
 
