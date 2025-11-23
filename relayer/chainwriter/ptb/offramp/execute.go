@@ -444,7 +444,7 @@ func AppendPTBCommandForReceiver(
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	paramTypes := []string{
-		"&object",
+		"&mut object",
 	}
 	paramValues := []any{
 		receiverParams,
