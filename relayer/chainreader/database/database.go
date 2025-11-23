@@ -131,7 +131,7 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 		store.lgr.Warnw("query limit is greater than max limit, using max limit", "limit", limit, "maxLimit", MaxEventsQueryLimit)
 		limit = MaxEventsQueryLimit
 	} else if limit == 0 {
-		store.lgr.Warnw("query limit is 0, using default max limit", "limit", limit, "maxLimit", MaxEventsQueryLimit)
+		// use max limit if no limit is provided
 		limit = MaxEventsQueryLimit
 	}
 	baseSQL += fmt.Sprintf(" LIMIT %d", limit)
