@@ -302,6 +302,8 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 				for k, v := range m {
 					if s, ok := v.(string); ok {
 						at[k] = s
+					} else {
+						return nil, fmt.Errorf("expected string for arg type for param %s, got %T", k, v)
 					}
 				}
 				arguments.ArgTypes = at
