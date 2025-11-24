@@ -123,7 +123,7 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 		baseSQL += " ORDER BY event_offset " + direction
 	} else {
 		// default to descending order if no sort is provided
-		baseSQL += " ORDER BY event_offset ASC"
+		baseSQL += " ORDER BY event_offset DESC"
 	}
 
 	limit := limitAndSort.Limit.Count
