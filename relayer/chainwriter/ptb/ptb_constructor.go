@@ -3,7 +3,6 @@ package ptb
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
@@ -404,46 +403,4 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 	}
 
 	return processedArgs, nil
-}
-
-// FetchPrereqObjects fetches each pre-requisite object and its details, then populates the args map with its values
-func (p *PTBConstructor) FetchPrereqObjects(ctx context.Context, prereqObjects []cwConfig.PrerequisiteObject, args *map[string]any, ownerFallback *string) error {
-	for _, prereq := range prereqObjects {
-		// set the owner fallback if the ownerId is not provided
-		if prereq.OwnerId == nil {
-			if ownerFallback == nil {
-				return fmt.Errorf("ownerId or ownerFallback required for pre-requisite object %s", prereq.Name)
-			}
-
-			prereq.OwnerId = ownerFallback
-		}
-		// fetch owned objects
-		ownedObjects, err := p.client.ReadOwnedObjects(ctx, *prereq.OwnerId, nil)
-		if err != nil {
-			return err
-		}
-
-		// check each returned object
-		for _, ownedObject := range ownedObjects {
-			// object tag matches
-			if ownedObject.Data != nil && ownedObject.Data.Type != "" && strings.Contains(ownedObject.Data.Type, prereq.Tag) {
-				p.log.Debugw("Found pre-requisite object", "Object", ownedObject.Data, "Prereq", prereq)
-				// object must be parsed and its keys added to the args map
-				if prereq.SetKeys {
-					// parse the object into a map
-					if ownedObject.Data.Content != nil && ownedObject.Data.Content.Fields != nil {
-						// add each key and value to the args map
-						for key, value := range ownedObject.Data.Content.Fields {
-							(*args)[key] = value
-						}
-					}
-				} else {
-					// add the object id to the args map
-					(*args)[prereq.Name] = ownedObject.Data.ObjectId
-				}
-			}
-		}
-	}
-
-	return nil
 }
