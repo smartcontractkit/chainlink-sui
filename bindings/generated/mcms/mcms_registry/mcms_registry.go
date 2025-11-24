@@ -186,6 +186,7 @@ type EntrypointRegistered struct {
 	RegistryId     bind.Object `move:"ID"`
 	AccountAddress string      `move:"ascii::String"`
 	AllowedModules [][]byte    `move:"vector<vector<u8>>"`
+	ProofType      bind.Object `move:"TypeName"`
 }
 
 type ModulesAdded struct {

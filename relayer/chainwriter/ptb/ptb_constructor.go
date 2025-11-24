@@ -211,7 +211,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 			// Override the package ID with the latest package ID of the module being called,
 			// fallback to the provided package ID if the module does not have the `get_latest_package_id` function
 			if cmd.PackageId != nil && cmd.ModuleId != nil {
-				latestPackageId, err := p.client.GetLatestPackageId(ctx, *cmd.PackageId, *cmd.ModuleId, signerAddress)
+				latestPackageId, err := p.client.GetLatestPackageId(ctx, *cmd.PackageId, *cmd.ModuleId)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get latest package id: %w", err)
 				}
