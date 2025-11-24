@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -24,29 +23,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
-
-// SetupClients creates and configures Sui client and signer for testing.
-// It generates a new key pair, creates a signer, and funds the signer address.
-func SetupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI) {
-	t.Helper()
-
-	client := sui.NewSuiClient(testutils.LocalUrl)
-
-	// Generate key pair and create a signer.
-	pk, _, _, err := testutils.GenerateAccountKeyPair(t)
-	require.NoError(t, err)
-	signer := rel.NewPrivateKeySigner(pk)
-
-	// Fund the signer for contract deployment
-	signerAddress, err := signer.GetAddress()
-	require.NoError(t, err)
-	for range 3 {
-		err = testutils.FundWithFaucet(lggr, "localnet", signerAddress)
-		require.NoError(t, err)
-	}
-
-	return signer, client
-}
 
 // TestTransactionGeneration tests the complete flow of generating and executing a Sui transaction
 // using PTBs. This integration test verifies:
@@ -180,6 +156,11 @@ func TestTransactionGeneration(t *testing.T) {
 		require.NoError(t, err)
 		storageCost, err := strconv.ParseInt(gasUsed.StorageCost, 10, 64)
 		require.NoError(t, err)
+		storageRebate, _ := strconv.ParseInt(gasUsed.StorageRebate, 10, 64)
+		if storageRebate != 0 {
+			storageCost = storageCost - storageRebate
+		}
+
 		totalGasUsed := computationCost + storageCost
 		require.Greater(t, totalGasUsed, int64(0))
 		require.Equal(t, totalGasUsed, int64(finalGasBudget))

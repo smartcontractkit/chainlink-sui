@@ -99,9 +99,13 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 				newState = StateFailed
 			}
 
-			err = txm.transactionRepository.ChangeState(tx.TransactionID, newState)
-			if err != nil {
-				txm.lggr.Errorw("Failed to change transaction state", "txID", tx.TransactionID, "error", err)
+			// Attempt updating the state if it has changed
+			if tx.State != newState {
+				err = txm.transactionRepository.ChangeState(tx.TransactionID, newState)
+
+				if err != nil {
+					txm.lggr.Errorw("Failed to change transaction state", "txID", tx.TransactionID, "error", err)
+				}
 			}
 
 			continue
