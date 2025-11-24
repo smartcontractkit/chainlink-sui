@@ -14,6 +14,8 @@ import (
 	"github.com/holiman/uint256"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	mockethtoken "github.com/smartcontractkit/chainlink-sui/bindings/packages/mock_eth_token"
 	mocklinktoken "github.com/smartcontractkit/chainlink-sui/bindings/packages/mock_link_token"
@@ -29,7 +31,6 @@ import (
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_link_token"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
-	"github.com/stretchr/testify/require"
 )
 
 // Constants used across the environment setup
@@ -64,47 +65,26 @@ type EnvironmentSettings struct {
 	Client sui.ISuiAPI
 }
 
-// SetupClients creates and configures Sui client and signer for testing.
-// It generates a new key pair, creates a signer, and funds the signer address.
-func SetupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI) {
-	t.Helper()
-
-	client := sui.NewSuiClient(testutils.LocalUrl)
-
-	// Generate key pair and create a signer.
-	pk, _, _, err := testutils.GenerateAccountKeyPair(t)
-	require.NoError(t, err)
-	signer := rel.NewPrivateKeySigner(pk)
-
-	// Fund the signer for contract deployment
-	signerAddress, err := signer.GetAddress()
-	require.NoError(t, err)
-	for range 3 {
-		err = testutils.FundWithFaucet(lggr, "localnet", signerAddress)
-		require.NoError(t, err)
-	}
-
-	return signer, client
-}
-
 // BasicSetUp performs basic environment setup including account creation, client setup,
 // and bundle initialization. This is the foundation for all test environments.
-func BasicSetUp(t *testing.T, lggr logger.Logger, keystoreInstance *testutils.TestKeystore) (string, []byte, rel.SuiSigner, sui.ISuiAPI, sui_ops.OpTxDeps, cld_ops.Bundle) {
+func BasicSetUp(t *testing.T, lggr logger.Logger, gasLimit int64) (string, []byte, rel.SuiSigner, *testutils.TestKeystore, sui.ISuiAPI, sui_ops.OpTxDeps, cld_ops.Bundle) {
 	t.Helper()
 
-	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
+	keystoreInstance, accountAddress, publicKeyBytes := testutils.SetupTestSigner(t, context.Background(), lggr, gasLimit)
+	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasLimit)
 
-	signer, client := SetupClients(t, lggr)
+	signer := keystoreInstance.GetSuiSigner(context.Background(), fmt.Sprintf("%064x", publicKeyBytes))
+	privateKeySigner := rel.NewPrivateKeySigner(signer.PriKey)
 
+	gasBudget := uint64(gasLimit)
 	deps := sui_ops.OpTxDeps{
-		Client: client,
-		Signer: signer,
+		Client: ptbClient.GetClient(),
+		Signer: privateKeySigner,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
 			return &bind.CallOpts{
-				Signer:           signer,
+				Signer:           privateKeySigner,
 				WaitForExecution: true,
-				GasBudget:        &b,
+				GasBudget:        &gasBudget,
 			}
 		},
 	}
@@ -116,7 +96,7 @@ func BasicSetUp(t *testing.T, lggr logger.Logger, keystoreInstance *testutils.Te
 		reporter,
 	)
 
-	return accountAddress, publicKeyBytes, signer, client, deps, bundle
+	return accountAddress, publicKeyBytes, privateKeySigner, keystoreInstance, ptbClient.GetClient(), deps, bundle
 }
 
 // UpdatePrices sets token prices in the fee quoter contract.
@@ -292,7 +272,7 @@ func DeployCCIPAndOnrampAndTokens(
 
 // SetupTestEnvironment sets up a complete test environment with CCIP infrastructure
 // and both lock/release and burn/mint token pools.
-func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSelector uint64, keystoreInstance *testutils.TestKeystore) *EnvironmentSettings {
+func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSelector uint64, gasLimit int64) *EnvironmentSettings {
 	t.Helper()
 
 	lggr := logger.Test(t)
@@ -301,7 +281,7 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 	os.Setenv("SUI_RPC_URL", testutils.LocalUrl)
 	os.Setenv("SUI_CONFIG_DIR", filepath.Join(os.Getenv("HOME"), ".sui", "sui_config"))
 
-	accountAddress, _, signer, client, deps, bundle := BasicSetUp(t, lggr, keystoreInstance)
+	accountAddress, _, signer, keystoreInstance, client, deps, bundle := BasicSetUp(t, lggr, gasLimit)
 	signerAddr, err := signer.GetAddress()
 	require.NoError(t, err)
 

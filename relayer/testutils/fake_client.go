@@ -19,7 +19,8 @@ type FakeSuiPTBClient struct {
 	// Status controls the simulated response for GetTransactionStatus
 	Status client.TransactionResult
 	// CoinsData controls the simulated response for GetCoinsByAddress
-	CoinsData []models.CoinData
+	CoinsData  []models.CoinData
+	MockClient sui.ISuiAPI
 }
 
 var _ client.SuiPTBClient = (*FakeSuiPTBClient)(nil)
@@ -108,11 +109,19 @@ func (c *FakeSuiPTBClient) GetNormalizedModule(ctx context.Context, packageId st
 }
 
 func (c *FakeSuiPTBClient) GetClient() sui.ISuiAPI {
-	return nil
+	// Return the mock client if set, otherwise nil.
+	// Tests that need specific ISuiAPI behavior should set MockClient explicitly.
+	// Note: Returning nil is acceptable since most tests don't use GetClient(),
+	// and those that do should provide their own mock implementation.
+	return c.MockClient
 }
 
 func (c *FakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error) {
 	return models.CheckpointResponse{}, nil
+}
+
+func (c *FakeSuiPTBClient) GetLatestEpoch(ctx context.Context) (string, error) {
+	return "1000", nil
 }
 
 func (c *FakeSuiPTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error) {
@@ -128,12 +137,12 @@ func (c *FakeSuiPTBClient) SuiXGetReferenceGasPrice(ctx context.Context) (string
 	return "1000", nil
 }
 
-func (c *FakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
+func (c *FakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error) {
 	// Return the provided package ID as the latest for testing
 	return packageId, nil
 }
 
-func (c *FakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
+func (c *FakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error) {
 	// Return a single package ID for testing
 	return []string{packageId}, nil
 }
@@ -187,6 +196,10 @@ type StatefulFakeSuiPTBClient struct {
 	GasBudgetThreshold uint64 // Minimum gas budget required for success
 	CallCount          int    // Track number of calls to GetTransactionStatus
 	CurrentGasBudget   uint64 // Track the current gas budget being tested
+	// MockClient allows tests to inject custom ISuiAPI behavior when GetClient() is called.
+	// If nil, GetClient() will return nil, which is fine for most tests that don't use it.
+	// Tests that need specific ISuiAPI behavior should set this field explicitly.
+	MockClient sui.ISuiAPI
 }
 
 var _ client.SuiPTBClient = (*StatefulFakeSuiPTBClient)(nil)
@@ -278,11 +291,11 @@ func (c *StatefulFakeSuiPTBClient) FinishPTBAndSend(ctx context.Context, txnSign
 	return client.SuiTransactionBlockResponse{}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
+func (c *StatefulFakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error) {
 	return "", nil
 }
 
-func (c *StatefulFakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
+func (c *StatefulFakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error) {
 	return []string{}, nil
 }
 
@@ -295,11 +308,19 @@ func (c *StatefulFakeSuiPTBClient) GetNormalizedModule(ctx context.Context, pack
 }
 
 func (c *StatefulFakeSuiPTBClient) GetClient() sui.ISuiAPI {
-	return nil
+	// Return the mock client if set, otherwise nil.
+	// Tests that need specific ISuiAPI behavior should set MockClient explicitly.
+	// Note: Returning nil is acceptable since most tests don't use GetClient(),
+	// and those that do should provide their own mock implementation.
+	return c.MockClient
 }
 
 func (c *StatefulFakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error) {
 	return models.CheckpointResponse{}, nil
+}
+
+func (c *StatefulFakeSuiPTBClient) GetLatestEpoch(ctx context.Context) (string, error) {
+	return "1000", nil
 }
 
 func (c *StatefulFakeSuiPTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error) {
