@@ -166,7 +166,9 @@ func (te *TestEnvironment) initialize() error {
 			te.cleanup()
 			return fmt.Errorf("timeout waiting for Sui node to be ready")
 		default:
-			client := sui.NewSuiClient(fmt.Sprintf("http://localhost:%d", te.rpcPort))
+			client := sui.NewSuiClientWithCustomClient(fmt.Sprintf("http://localhost:%d", te.rpcPort), &http.Client{
+				Timeout: HTTPClientTimeout,
+			})
 			_, err := client.SuiGetChainIdentifier(context.Background())
 			if err == nil {
 				os.Setenv("SUI_RPC_URL", fmt.Sprintf("http://localhost:%d", te.rpcPort))
@@ -196,7 +198,9 @@ func (te *TestEnvironment) cleanup() {
 }
 
 func createClient() sui.ISuiAPI {
-	return sui.NewSuiClient(fmt.Sprintf("http://localhost:%d", instance.rpcPort))
+	return sui.NewSuiClientWithCustomClient(fmt.Sprintf("http://localhost:%d", instance.rpcPort), &http.Client{
+		Timeout: HTTPClientTimeout,
+	})
 }
 
 func createAccount(t *testing.T) (utils.SuiSigner, error) {
