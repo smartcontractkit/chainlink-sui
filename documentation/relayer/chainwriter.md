@@ -208,46 +208,6 @@ The PTB Constructor processes commands in a specific sequence to handle dependen
 4. **Handles PTB dependencies** between commands
 5. **Constructs the final PTB** with all commands and their arguments
 
-```go
-// File: /relayer/chainwriter/ptb/ptb_constructor.go
-
-func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, arguments cwConfig.Arguments, configOverrides *cwConfig.ConfigOverrides) (*transaction.Transaction, error) {
-    // Look up the module and function configuration
-    module, ok := p.config.Modules[moduleName]
-    if !ok {
-        return nil, fmt.Errorf("missing module %s not found in configuration", moduleName)
-    }
-
-    txnConfig, ok := module.Functions[function]
-    if !ok {
-        return nil, fmt.Errorf("missing function config (%s) not found in module (%s)", function, moduleName)
-    }
-
-    // Create a new transaction builder
-    ptb := transaction.NewTransaction()
-    ptb.SetSuiClient(p.client.GetClient().(*sui.Client))
-
-    // Fetch prerequisite objects if needed
-    err := p.FetchPrereqObjects(ctx, txnConfig.PrerequisiteObjects, &arguments.Args, overrideToAddress)
-    if err != nil {
-        return nil, err
-    }
-
-    // Process each command in the PTB
-    for _, cmd := range ptbCommands {
-        switch cmd.Type {
-        case codec.SuiPTBCommandMoveCall:
-            _, err := p.ProcessMoveCall(ctx, ptb, cmd, &arguments, &cachedArgs)
-            if err != nil {
-                return nil, err
-            }
-        // Other command types...
-        }
-    }
-
-    return ptb, nil
-}
-```
 
 ### PTB Command Dependencies
 
