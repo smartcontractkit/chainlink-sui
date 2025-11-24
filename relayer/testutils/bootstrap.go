@@ -128,3 +128,15 @@ func SetupTestEnv(
 
 	return suiClient, txManager, transactionRepository, accountAddress, keystoreInstance, publicKeyBytes, packageId, counterObjectId
 }
+
+func SetupTestSigner(
+	t *testing.T,
+	ctx context.Context,
+	lgr logger.Logger,
+	gasLimit int64,
+) (*TestKeystore, string, []byte) {
+	keystoreInstance := NewTestKeystore(t)
+	accountAddress, publicKeyBytes := GetAccountAndKeyFromSui(keystoreInstance)
+
+	return keystoreInstance, accountAddress, publicKeyBytes
+}

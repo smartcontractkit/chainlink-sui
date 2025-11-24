@@ -99,12 +99,12 @@ func BuildOffRampExecutePTB(
 	}
 
 	// Get the latest package ID from the offramp module
-	latestOfframpPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.OffRampPackageId, "offramp", signerAddress)
+	latestOfframpPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.OffRampPackageId, "offramp")
 	if err != nil {
 		return err
 	}
 
-	latestCcipPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.CcipPackageId, "state_object", signerAddress)
+	latestCcipPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.CcipPackageId, "state_object")
 	if err != nil {
 		return err
 	}
