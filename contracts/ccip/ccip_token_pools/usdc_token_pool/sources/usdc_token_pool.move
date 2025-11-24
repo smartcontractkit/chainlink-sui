@@ -1156,7 +1156,10 @@ public fun mcms_destroy_token_pool<T>(
     assert!(function == string::utf8(b"destroy_token_pool"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addr(object::id_address(&state), &mut stream);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(&state)],
+        &mut stream,
+    );
 
     let _to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
