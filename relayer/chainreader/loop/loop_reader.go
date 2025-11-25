@@ -75,12 +75,6 @@ func (s *loopChainReader) GetLatestValue(ctx context.Context, readIdentifier str
 		return fmt.Errorf("failed to marshal params: %+w", err)
 	}
 
-	// we always bind before calling query functions, because the LOOP plugin may have restarted.
-	err = s.reader.Bind(ctx, s.getBindings())
-	if err != nil {
-		return fmt.Errorf("failed to re-bind before GetLatestValue: %w", err)
-	}
-
 	err = s.reader.GetLatestValue(ctx, readIdentifier, confidenceLevel, &jsonParamBytes, &convertedResult)
 	if err != nil {
 		return fmt.Errorf("failed to call GetLatestValue over LOOP: %w", err)
@@ -110,12 +104,6 @@ func (s *loopChainReader) BatchGetLatestValues(ctx context.Context, request type
 			})
 		}
 		convertedRequest[contract] = convertedBatch
-	}
-
-	// we always bind before calling query functions, because the LOOP plugin may have restarted.
-	err := s.reader.Bind(ctx, s.getBindings())
-	if err != nil {
-		return nil, fmt.Errorf("failed to re-bind before BatchGetLatestValues: %w", err)
 	}
 
 	result, err := s.reader.BatchGetLatestValues(ctx, convertedRequest)
@@ -150,11 +138,6 @@ func (s *loopChainReader) BatchGetLatestValues(ctx context.Context, request type
 }
 
 func (s *loopChainReader) QueryKey(ctx context.Context, contract types.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]types.Sequence, error) {
-	err := s.reader.Bind(ctx, s.getBindings())
-	if err != nil {
-		return nil, fmt.Errorf("failed to re-bind before BatchGetLatestValues: %w", err)
-	}
-
 	convertedExpressions, err := loop.SerializeExpressions(filter.Expressions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize QueryKey expressions: %w", err)
@@ -191,40 +174,14 @@ func (s *loopChainReader) QueryKey(ctx context.Context, contract types.BoundCont
 }
 
 func (s *loopChainReader) Bind(ctx context.Context, bindings []types.BoundContract) error {
-	for _, binding := range bindings {
-		s.moduleAddresses[binding.Name] = binding.Address
-	}
-
 	return s.reader.Bind(ctx, bindings)
 }
 
 func (s *loopChainReader) Unbind(ctx context.Context, bindings []types.BoundContract) error {
-	for _, binding := range bindings {
-		key := binding.Name
-		if _, ok := s.moduleAddresses[key]; !ok {
-			return fmt.Errorf("no such binding: %s", key)
-		}
-
-		delete(s.moduleAddresses, key)
-	}
-
 	// we ignore unbind errors, because if the LOOP plugin restarted, the binding would not exist.
 	_ = s.reader.Unbind(ctx, bindings)
 
 	return nil
-}
-
-func (s *loopChainReader) getBindings() []types.BoundContract {
-	bindings := []types.BoundContract{}
-
-	for name, address := range s.moduleAddresses {
-		bindings = append(bindings, types.BoundContract{
-			Address: address,
-			Name:    name,
-		})
-	}
-
-	return bindings
 }
 
 func (s *loopChainReader) decodeGLVReturnValue(label string, jsonBytes []byte, returnVal any) error {
