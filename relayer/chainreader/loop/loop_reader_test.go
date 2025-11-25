@@ -251,11 +251,8 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	// Wrap the base chain reader with loop chain reader
 	loopReader := NewLoopChainReader(log, chainReader)
 
-	// Bind the contracts to the loop reader
-	err = loopReader.Bind(context.Background(), []types.BoundContract{echoBinding})
-	require.NoError(t, err)
-
-	err = loopReader.Bind(context.Background(), []types.BoundContract{counterBinding})
+	// Bind the contracts
+	err = loopReader.Bind(context.Background(), []types.BoundContract{echoBinding, counterBinding})
 	require.NoError(t, err)
 
 	log.Debugw("LoopChainReader setup complete")
