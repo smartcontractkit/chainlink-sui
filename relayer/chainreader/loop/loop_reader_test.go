@@ -510,36 +510,4 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		require.NotEmpty(t, retOCRConfig, "Expected to find OCRConfig")
 		log.Debugw("retOCRConfig", "retOCRConfig", retOCRConfig)
 	})
-
-	t.Run("LoopReader_GetLatestValue_GetOCRConfig", func(t *testing.T) {
-		type ConfigInfo struct {
-			ConfigDigest                   []byte `json:"config_digest"`
-			BigF                           uint64 `json:"big_f"`
-			N                              uint64 `json:"n"`
-			IsSignatureVerificationEnabled bool   `json:"is_signature_verification_enabled"`
-		}
-
-		type OCRConfig struct {
-			ConfigInfo   ConfigInfo `json:"config_info"`
-			Signers      [][]byte   `json:"signers"`
-			Transmitters [][]byte   `json:"transmitters"`
-		}
-
-		type OCRConfigWrapped struct {
-			OCRConfig OCRConfig `json:"OCRConfig"`
-		}
-
-		var retOCRConfig OCRConfigWrapped
-		err = loopReader.GetLatestValue(
-			context.Background(),
-			strings.Join([]string{packageId, counterBinding.Name, "get_ocr_config"}, "-"),
-			primitives.Finalized,
-			map[string]any{},
-			&retOCRConfig,
-		)
-
-		require.NoError(t, err)
-		require.NotEmpty(t, retOCRConfig, "Expected to find OCRConfig")
-		log.Debugw("retOCRConfig", "retOCRConfig", retOCRConfig)
-	})
 }
