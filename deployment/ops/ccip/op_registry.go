@@ -37,4 +37,11 @@ var AllOperationsCCIP = []cld_ops.Operation[any, any, any]{
 	*GetModuleRestrictionsOp.AsUntyped(),
 	*IsFunctionAllowedOp.AsUntyped(),
 	*VerifyFunctionAllowedOp.AsUntyped(),
+	// RMN Remote Operations
+	*RMNRemoteInitializeOp.AsUntyped(),
+	*RMNRemoteSetConfigOp.AsUntyped(),
+	*RMNRemoteCurseOp.AsUntyped(),
+	*RMNRemoteCurseMultipleOp.AsUntyped(),
+	*RMNRemoteUncurseOp.AsUntyped(),
+	*RMNRemoteUncurseMultipleOp.AsUntyped(),
 }

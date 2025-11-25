@@ -486,7 +486,6 @@ func TestPTBClient(t *testing.T) {
 			context.Background(),
 			packageId,
 			"counter",
-			packageId,
 		)
 
 		// The latest package ID should be the same as the provided package ID
