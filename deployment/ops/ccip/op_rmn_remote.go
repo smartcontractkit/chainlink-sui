@@ -108,3 +108,163 @@ var RMNRemoteSetConfigOp = cld_ops.NewOperation(
 	"Sets config the CCIP RMN Remote contract",
 	handlerSetconfig,
 )
+
+type RMNRemoteCurseInput struct {
+	CCIPPackageId    string
+	StateObjectId    string
+	OwnerCapObjectId string
+	Subject          []byte
+}
+
+var handlerCurse = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RMNRemoteCurseInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Curse(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.Subject,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute curse in RMN Remote: %w", err)
+	}
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   NoObjects{},
+	}, err
+}
+
+var RMNRemoteCurseOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "rmn_remote", "curse"),
+	semver.MustParse("0.1.0"),
+	"Curses a subject in the CCIP RMN Remote contract",
+	handlerCurse,
+)
+
+type RMNRemoteCurseMultipleInput struct {
+	CCIPPackageId    string
+	StateObjectId    string
+	OwnerCapObjectId string
+	Subjects         [][]byte
+}
+
+var handlerCurseMultiple = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RMNRemoteCurseMultipleInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.CurseMultiple(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.Subjects,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute curse multiple in RMN Remote: %w", err)
+	}
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   NoObjects{},
+	}, err
+}
+
+var RMNRemoteCurseMultipleOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "rmn_remote", "curse_multiple"),
+	semver.MustParse("0.1.0"),
+	"Curses multiple subjects in the CCIP RMN Remote contract",
+	handlerCurseMultiple,
+)
+
+type RMNRemoteUncurseInput struct {
+	CCIPPackageId    string
+	StateObjectId    string
+	OwnerCapObjectId string
+	Subject          []byte
+}
+
+var handlerUncurse = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RMNRemoteUncurseInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Uncurse(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.Subject,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute uncurse in RMN Remote: %w", err)
+	}
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   NoObjects{},
+	}, err
+}
+
+var RMNRemoteUncurseOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "rmn_remote", "uncurse"),
+	semver.MustParse("0.1.0"),
+	"Uncurses a subject in the CCIP RMN Remote contract",
+	handlerUncurse,
+)
+
+type RMNRemoteUncurseMultipleInput struct {
+	CCIPPackageId    string
+	StateObjectId    string
+	OwnerCapObjectId string
+	Subjects         [][]byte
+}
+
+var handlerUncurseMultiple = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RMNRemoteUncurseMultipleInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.UncurseMultiple(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.Subjects,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute uncurse multiple in RMN Remote: %w", err)
+	}
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   NoObjects{},
+	}, err
+}
+
+var RMNRemoteUncurseMultipleOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "rmn_remote", "uncurse_multiple"),
+	semver.MustParse("0.1.0"),
+	"Uncurses multiple subjects in the CCIP RMN Remote contract",
+	handlerUncurseMultiple,
+)
