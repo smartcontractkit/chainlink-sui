@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
@@ -56,18 +55,6 @@ func (s *loopChainReader) Close() error {
 }
 
 func (s *loopChainReader) GetLatestValue(ctx context.Context, readIdentifier string, confidenceLevel primitives.ConfidenceLevel, params, returnVal any) error {
-	readComponents := strings.Split(readIdentifier, "-")
-	if len(readComponents) != READ_COMPONENTS_COUNT {
-		return fmt.Errorf("invalid read identifier: %s", readIdentifier)
-	}
-
-	_, contractName, _ := readComponents[0], readComponents[1], readComponents[2]
-
-	_, ok := s.moduleAddresses[contractName]
-	if !ok {
-		return fmt.Errorf("no such contract: %s", contractName)
-	}
-
 	convertedResult := []byte{}
 
 	jsonParamBytes, err := json.Marshal(params)
