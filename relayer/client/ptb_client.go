@@ -302,6 +302,10 @@ func (c *PTBClient) readObjectIdInternal(ctx context.Context, objectId string) (
 
 	c.log.Infow("ReadObjectId response", "response", response)
 
+	if response.Error != nil {
+		return models.SuiObjectData{}, fmt.Errorf("failed to read object: %v", response.Error)
+	}
+
 	if response.Data == nil || response.Data.Content == nil {
 		return models.SuiObjectData{}, fmt.Errorf("object has no content")
 	}
