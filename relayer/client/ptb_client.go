@@ -500,7 +500,7 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, signerAddress stri
 
 	response, err := c.client.SuiDevInspectTransactionBlock(ctx, devInspectReq)
 	if err != nil || response.Effects.Status.Status != "success" {
-		return nil, fmt.Errorf("failed to read function: %w", err)
+		return nil, fmt.Errorf("failed to read function: %w (%s)", err, response.Effects.Status.Error)
 	}
 
 	c.log.Debugw("ReadFunction RPC response", "RPC response", response, "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function))
