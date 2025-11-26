@@ -182,7 +182,7 @@ func GeneratePTBTransactionWithGasEstimation(
 
 	// Step 1: Determine initial gas budget for preliminary transaction
 	var preliminaryGasBudget uint64
-	if txMetadata.GasLimit != nil {
+	if txMetadata != nil && txMetadata.GasLimit != nil {
 		preliminaryGasBudget = txMetadata.GasLimit.Uint64()
 	} else {
 		preliminaryGasBudget = uint64(defaultGasBudget)
