@@ -195,7 +195,11 @@ func TestChainReaderTestnet(t *testing.T) {
 		},
 	}
 
-	db := sqltest.NewDB(t, os.Getenv("TEST_DB_URL"))
+	datastoreUrl := os.Getenv("TEST_DB_URL")
+	if datastoreUrl == "" {
+		t.Skip("Skipping persistent tests as TEST_DB_URL is not set in CI")
+	}
+	db := sqltest.NewDB(t, datastoreUrl)
 
 	// Create the indexers
 	txnIndexer := indexer.NewTransactionsIndexer(
