@@ -346,7 +346,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 
 			if moveAbort.Location.FunctionName == nil || !slices.Contains(tIndexer.executeFunctions, *moveAbort.Location.FunctionName) {
 				tIndexer.logger.Debugw("Skipping transaction for non-execute function",
-					"transmitter", transmitter, "function", *moveAbort.Location.FunctionName)
+					"transmitter", transmitter, "location", moveAbort.Location)
 
 				continue
 			}
