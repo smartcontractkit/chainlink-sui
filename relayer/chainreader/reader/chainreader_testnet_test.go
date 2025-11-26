@@ -17,6 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
@@ -28,7 +29,7 @@ import (
 
 func TestChainReaderTestnet(t *testing.T) {
 	log := logger.Test(t)
-	rpcUrl := "https://sui-testnet-rpc.publicnode.com" // testutils.TestnetUrl
+	rpcUrl := testutils.TestnetUrl
 
 	offrampContractName := "OffRamp"
 	offrampPackageId := "0x50ff1c5a49f012f9360de2fa5065efe7185c22bbeee6254e68ef695b0b0d0f40"
@@ -80,7 +81,7 @@ func TestChainReaderTestnet(t *testing.T) {
 				Functions: map[string]*config.ChainReaderFunction{},
 			},
 			burnMintTokenPoolContractName: {
-				Name: "burn_mint_token_pool",
+				Name: "token_pool",
 				Functions: map[string]*config.ChainReaderFunction{
 					"get_token": {
 						Name:          "get_token",
@@ -180,12 +181,21 @@ func TestChainReaderTestnet(t *testing.T) {
 						},
 					},
 				},
-				Events: map[string]*config.ChainReaderEvent{},
+				Events: map[string]*config.ChainReaderEvent{
+					"released_or_minted": {
+						Name:      "released_or_minted",
+						EventType: "ReleasedOrMinted",
+						EventSelector: client.EventFilterByMoveEventModule{
+							Module: "token_pool",
+							Event:  "ReleasedOrMinted",
+						},
+					},
+				},
 			},
 		},
 	}
 
-	db := sqltest.NewNoOpDataSource()
+	db := sqltest.NewDB(t, os.Getenv("TEST_DB_URL"))
 
 	// Create the indexers
 	txnIndexer := indexer.NewTransactionsIndexer(
@@ -368,5 +378,23 @@ func TestChainReaderTestnet(t *testing.T) {
 		}
 
 		log.Infof("Completed %d requests, %d errors", processedCount, errorCount)
+	})
+
+	t.Run("token pool events", func(t *testing.T) {
+		var retReleasedOrMinted map[string]any
+
+		sequences, err := chainReader.QueryKey(ctx, types.BoundContract{
+			Name:    burnMintTokenPoolContractName,
+			Address: burnMintTokenPoolPackageId,
+		}, query.KeyFilter{
+			Key: "released_or_minted",
+		}, query.LimitAndSort{
+			Limit: query.Limit{
+				Count: 100,
+			},
+		}, &retReleasedOrMinted)
+
+		testutils.PrettyPrintDebug(log, sequences, "sequences")
+		require.NoError(t, err)
 	})
 }
