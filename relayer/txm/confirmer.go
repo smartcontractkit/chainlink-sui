@@ -193,6 +193,10 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 				txm.lggr.Errorw("Failed to update transaction state", "transactionID", tx.TransactionID, "error", err)
 				return err
 			}
+			err = txm.transactionRepository.UpdateTransactionError(tx.TransactionID, txError)
+			if err != nil {
+				txm.lggr.Errorw("Failed to update transaction error", "transactionID", tx.TransactionID, "error", err)
+			}
 		}
 	} else {
 		txm.lggr.Infow("Transaction is not retriable", "transactionID", tx.TransactionID, "result", result)
