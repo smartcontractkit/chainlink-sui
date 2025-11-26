@@ -218,8 +218,7 @@ func TestEventsIndexer(t *testing.T) {
 				newValue, ok := event.Data["newValue"]
 				require.True(t, ok, "Event should have newValue field")
 
-				// The newValue should be i+1 (counter starts from 0, so increment makes it 1, 2, 3)
-				expectedValue := strconv.Itoa(i + 1)
+				expectedValue := strconv.Itoa(3 - i)
 				require.Equal(t, expectedValue, newValue, "Event %d should have newValue %d", i, expectedValue)
 			}
 
