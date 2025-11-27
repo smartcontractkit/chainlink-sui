@@ -31,6 +31,10 @@ public struct ReceivedMessage has copy, drop {
     dest_token_amounts: vector<TokenAmount>,
 }
 
+public struct AlwaysAbortToggled has copy, drop {
+    always_abort: bool,
+}
+
 public struct CCIPReceiverState has key {
     id: UID,
     counter: u64,
@@ -42,6 +46,7 @@ public struct CCIPReceiverState has key {
     token_receiver: address,
     dest_token_transfer_length: u64,
     dest_token_amounts: vector<TokenAmount>,
+    always_abort: bool,
 }
 
 public struct DummyReceiverProof has drop {}
@@ -69,6 +74,7 @@ fun init(otw: DUMMY_RECEIVER, ctx: &mut TxContext) {
         token_receiver: @0x0,
         dest_token_transfer_length: 0,
         dest_token_amounts: vector[],
+        always_abort: false,
     };
 
     let mut owner_cap = OwnerCap {
@@ -151,6 +157,9 @@ public fun ccip_receive(
     _: &Clock, // this is a precompile, but remain the same across all messages
     state: &mut CCIPReceiverState, // this is a singleton, but remain the same across all messages
 ) {
+    // Check if always_abort is enabled
+    assert!(!state.always_abort, 1);
+
     let (
         message_id,
         source_chain_selector,
@@ -162,6 +171,11 @@ public fun ccip_receive(
     ) = osh::consume_any2sui_message(ref, message, DummyReceiverProof {});
 
     assert!(message_id == expected_message_id, EMessageIdMismatch);
+
+    // Check if the data content is "abort"
+    if (data == b"abort") {
+        abort 1
+    };
 
     state.counter = state.counter + 1;
     state.message_id = message_id;
@@ -188,4 +202,21 @@ public fun ccip_receive(
         dest_token_transfer_length: state.dest_token_transfer_length,
         dest_token_amounts: state.dest_token_amounts,
     });
+}
+
+public fun get_always_abort(state: &CCIPReceiverState): bool {
+    state.always_abort
+}
+
+public fun enable_always_abort(state: &mut CCIPReceiverState, owner_cap: &OwnerCap) {
+    set_always_abort(state, owner_cap, true);
+}
+
+public fun disable_always_abort(state: &mut CCIPReceiverState, owner_cap: &OwnerCap) {
+    set_always_abort(state, owner_cap, false);
+}
+
+fun set_always_abort(state: &mut CCIPReceiverState, _: &OwnerCap, always_abort: bool) {
+    state.always_abort = always_abort;
+    event::emit(AlwaysAbortToggled { always_abort });
 }
