@@ -154,7 +154,7 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 		ChainSelector:      uint64(s.chainSelector),
 		// Proposal
 		TimelockConfig: utils.TimelockConfig{
-			MCMSAction:   types.TimelockActionSchedule,
+			MCMSAction:   types.TimelockActionBypass,
 			MinDelay:     0,
 			OverrideRoot: false,
 		},
