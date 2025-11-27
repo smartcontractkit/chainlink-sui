@@ -23,15 +23,14 @@ const (
 
 func NewLoopChainReader(log logger.Logger, reader types.ContractReader) types.ContractReader {
 	lrLogger := logger.Named(log, "LoopChainReader")
-	return &loopChainReader{logger: lrLogger, reader: reader, moduleAddresses: map[string]string{}}
+	return &loopChainReader{logger: lrLogger, reader: reader}
 }
 
 type loopChainReader struct {
 	services.Service
 	types.UnimplementedContractReader
-	logger          logger.Logger
-	reader          types.ContractReader
-	moduleAddresses map[string]string
+	logger logger.Logger
+	reader types.ContractReader
 }
 
 func (s *loopChainReader) Name() string {

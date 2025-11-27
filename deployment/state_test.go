@@ -107,6 +107,7 @@ func getExpectedSuiChainState() CCIPChainState {
 				PackageID:        "0x90f10215a219a1f2e30f746e68c1e4f2b39f593d83a1980c7cf4e4738591a7e6",
 				StateObjectId:    "0x4e6c205b2f8c5159795f536035c573338fbb345db473829a95fceb0f82890fd4",
 				OwnerCapObjectId: "0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd98",
+				RebalancerCapIds: []string{"0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd97", "0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd99"},
 			},
 		},
 		BnMTokenPools: map[string]CCIPPoolState{

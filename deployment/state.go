@@ -42,6 +42,7 @@ type CCIPPoolState struct {
 	PackageID        string
 	StateObjectId    string
 	OwnerCapObjectId string
+	RebalancerCapIds []string
 }
 
 type ManagedTokenState struct {
@@ -498,6 +499,14 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			}
 			pool := chainState.LnRTokenPools[symbol]
 			pool.OwnerCapObjectId = addr
+			chainState.LnRTokenPools[symbol] = pool
+		case SuiLnRTokenPoolRebalancerCapIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token pool: %w", err)
+			}
+			pool := chainState.LnRTokenPools[symbol]
+			pool.RebalancerCapIds = append(pool.RebalancerCapIds, addr)
 			chainState.LnRTokenPools[symbol] = pool
 
 		// Managed Token pools related
