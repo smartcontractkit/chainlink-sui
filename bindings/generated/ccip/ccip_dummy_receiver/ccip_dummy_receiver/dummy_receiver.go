@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"ccip_receive","parameters":[{"name":"expected_message_id","type":"vector<u8>"},{"name":"ref","type":"CCIPObjectRef"},{"name":"message","type":"client::Any2SuiMessage"},{"name":"_","type":"Clock"},{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_counter","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_dest_token_amounts","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_amount","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_token","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_receiver","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"register_receiver","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"ccip_receive","parameters":[{"name":"expected_message_id","type":"vector<u8>"},{"name":"ref","type":"CCIPObjectRef"},{"name":"message","type":"client::Any2SuiMessage"},{"name":"_","type":"Clock"},{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"disable_always_abort","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"enable_always_abort","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_always_abort","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_counter","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_dest_token_amounts","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_amount","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_token","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_receiver","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"register_receiver","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"type_and_version","parameters":null}]`
 
 type IDummyReceiver interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -34,6 +34,9 @@ type IDummyReceiver interface {
 	ReceiveAndSendCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object, recipient string) (*models.SuiTransactionBlockResponse, error)
 	ReceiveCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object) (*models.SuiTransactionBlockResponse, error)
 	CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetAlwaysAbort(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	EnableAlwaysAbort(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	DisableAlwaysAbort(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IDummyReceiverDevInspect
 	Encoder() DummyReceiverEncoder
 	Bound() bind.IBoundContract
@@ -48,6 +51,7 @@ type IDummyReceiverDevInspect interface {
 	GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*big.Int, error)
 	ReceiveCoin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object) (any, error)
 	ReceiveCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object) (any, error)
+	GetAlwaysAbort(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error)
 }
 
 type DummyReceiverEncoder interface {
@@ -75,6 +79,12 @@ type DummyReceiverEncoder interface {
 	ReceiveCoinNoOwnerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	CcipReceive(expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	CcipReceiveWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetAlwaysAbort(state bind.Object) (*bind.EncodedCall, error)
+	GetAlwaysAbortWithArgs(args ...any) (*bind.EncodedCall, error)
+	EnableAlwaysAbort(state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
+	EnableAlwaysAbortWithArgs(args ...any) (*bind.EncodedCall, error)
+	DisableAlwaysAbort(state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
+	DisableAlwaysAbortWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type DummyReceiverContract struct {
@@ -133,6 +143,10 @@ type ReceivedMessage struct {
 	DestTokenAmounts        []TokenAmount `move:"vector<TokenAmount>"`
 }
 
+type AlwaysAbortToggled struct {
+	AlwaysAbort bool `move:"bool"`
+}
+
 type CCIPReceiverState struct {
 	Id                      string        `move:"sui::object::UID"`
 	Counter                 uint64        `move:"u64"`
@@ -144,6 +158,7 @@ type CCIPReceiverState struct {
 	TokenReceiver           string        `move:"address"`
 	DestTokenTransferLength uint64        `move:"u64"`
 	DestTokenAmounts        []TokenAmount `move:"vector<TokenAmount>"`
+	AlwaysAbort             bool          `move:"bool"`
 }
 
 type DummyReceiverProof struct {
@@ -181,6 +196,7 @@ type bcsCCIPReceiverState struct {
 	TokenReceiver           [32]byte
 	DestTokenTransferLength uint64
 	DestTokenAmounts        []TokenAmount
+	AlwaysAbort             bool
 }
 
 func convertCCIPReceiverStateFromBCS(bcs bcsCCIPReceiverState) (CCIPReceiverState, error) {
@@ -196,6 +212,7 @@ func convertCCIPReceiverStateFromBCS(bcs bcsCCIPReceiverState) (CCIPReceiverStat
 		TokenReceiver:           fmt.Sprintf("0x%x", bcs.TokenReceiver),
 		DestTokenTransferLength: bcs.DestTokenTransferLength,
 		DestTokenAmounts:        bcs.DestTokenAmounts,
+		AlwaysAbort:             bcs.AlwaysAbort,
 	}, nil
 }
 
@@ -276,6 +293,23 @@ func init() {
 	// Register vector decoder for ReceivedMessage
 	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::ReceivedMessage>", func(data []byte) (interface{}, error) {
 		var results []ReceivedMessage
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::AlwaysAbortToggled", func(data []byte) (interface{}, error) {
+		var result AlwaysAbortToggled
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for AlwaysAbortToggled
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::AlwaysAbortToggled>", func(data []byte) (interface{}, error) {
+		var results []AlwaysAbortToggled
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
@@ -500,6 +534,36 @@ func (c *DummyReceiverContract) CcipReceive(ctx context.Context, opts *bind.Call
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// GetAlwaysAbort executes the get_always_abort Move function.
+func (c *DummyReceiverContract) GetAlwaysAbort(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.GetAlwaysAbort(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// EnableAlwaysAbort executes the enable_always_abort Move function.
+func (c *DummyReceiverContract) EnableAlwaysAbort(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.EnableAlwaysAbort(state, ownerCap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// DisableAlwaysAbort executes the disable_always_abort Move function.
+func (c *DummyReceiverContract) DisableAlwaysAbort(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.DisableAlwaysAbort(state, ownerCap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // TypeAndVersion executes the type_and_version Move function using DevInspect to get return values.
 //
 // Returns: 0x1::string::String
@@ -666,6 +730,28 @@ func (d *DummyReceiverDevInspect) ReceiveCoinNoOwnerCap(ctx context.Context, opt
 		return nil, fmt.Errorf("no return value")
 	}
 	return results[0], nil
+}
+
+// GetAlwaysAbort executes the get_always_abort Move function using DevInspect to get return values.
+//
+// Returns: bool
+func (d *DummyReceiverDevInspect) GetAlwaysAbort(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error) {
+	encoded, err := d.contract.dummyReceiverEncoder.GetAlwaysAbort(state)
+	if err != nil {
+		return false, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return false, err
+	}
+	if len(results) == 0 {
+		return false, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bool)
+	if !ok {
+		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	}
+	return result, nil
 }
 
 type dummyReceiverEncoder struct {
@@ -1063,4 +1149,92 @@ func (c dummyReceiverEncoder) CcipReceiveWithArgs(args ...any) (*bind.EncodedCal
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("ccip_receive", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// GetAlwaysAbort encodes a call to the get_always_abort Move function.
+func (c dummyReceiverEncoder) GetAlwaysAbort(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_always_abort", typeArgsList, typeParamsList, []string{
+		"&CCIPReceiverState",
+	}, []any{
+		state,
+	}, []string{
+		"bool",
+	})
+}
+
+// GetAlwaysAbortWithArgs encodes a call to the get_always_abort Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c dummyReceiverEncoder) GetAlwaysAbortWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPReceiverState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_always_abort", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"bool",
+	})
+}
+
+// EnableAlwaysAbort encodes a call to the enable_always_abort Move function.
+func (c dummyReceiverEncoder) EnableAlwaysAbort(state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("enable_always_abort", typeArgsList, typeParamsList, []string{
+		"&mut CCIPReceiverState",
+		"&OwnerCap",
+	}, []any{
+		state,
+		ownerCap,
+	}, nil)
+}
+
+// EnableAlwaysAbortWithArgs encodes a call to the enable_always_abort Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c dummyReceiverEncoder) EnableAlwaysAbortWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPReceiverState",
+		"&OwnerCap",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("enable_always_abort", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// DisableAlwaysAbort encodes a call to the disable_always_abort Move function.
+func (c dummyReceiverEncoder) DisableAlwaysAbort(state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("disable_always_abort", typeArgsList, typeParamsList, []string{
+		"&mut CCIPReceiverState",
+		"&OwnerCap",
+	}, []any{
+		state,
+		ownerCap,
+	}, nil)
+}
+
+// DisableAlwaysAbortWithArgs encodes a call to the disable_always_abort Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c dummyReceiverEncoder) DisableAlwaysAbortWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPReceiverState",
+		"&OwnerCap",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("disable_always_abort", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
