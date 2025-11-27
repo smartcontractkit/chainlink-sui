@@ -6,7 +6,6 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
@@ -16,6 +15,7 @@ import (
 	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_managed_token_pool"
 	tokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 type TPConfigureConfig struct {
@@ -24,9 +24,7 @@ type TPConfigureConfig struct {
 	ManagedTPInput     managedtokenpoolops.DeployAndInitManagedTokenPoolInput
 	LockReleaseTPInput lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput
 	BurnMintTpInput    burnminttokenpoolops.ConfigureBurnMintTokenPoolInput
-
-	// TODO: Should be a real config
-	TimelockConfig *bool // if set, this will be a mcms changeset
+	TimelockConfig     *utils.TimelockConfig
 }
 
 // ConnectSuiToEVM connects sui chain with EVM
@@ -110,17 +108,15 @@ func (d TPConfigure) Apply(e cldf.Environment, config TPConfigureConfig) (cldf.C
 	mcmsProposal := mcms.TimelockProposal{}
 	if config.TimelockConfig != nil {
 		mcmsConfig := mcmsops.ProposalGenerateInput{
-			ChainSelector: config.SuiChainSelector,
-			Defs:          defs,
-			Inputs:        inputs,
-			// TODO: should come from config
-			Role:           suisdk.TimelockRoleProposer,
-			Delay:          0,
+			ChainSelector:  config.SuiChainSelector,
+			Defs:           defs,
+			Inputs:         inputs,
 			MmcsPackageID:  state[config.SuiChainSelector].MCMSPackageID,
 			McmsStateObjID: state[config.SuiChainSelector].MCMSStateObjectID,
 			TimelockObjID:  state[config.SuiChainSelector].MCMSTimelockObjectID,
 			AccountObjID:   state[config.SuiChainSelector].MCMSAccountStateObjectID,
 			RegistryObjID:  state[config.SuiChainSelector].MCMSRegistryObjectID,
+			TimelockConfig: *config.TimelockConfig,
 		}
 		result, err := operations.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, mcmsConfig)
 		if err != nil {
