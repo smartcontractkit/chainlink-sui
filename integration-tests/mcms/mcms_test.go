@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
+	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -21,6 +21,7 @@ import (
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 type CCIPMCMSTestSuite struct {
@@ -150,10 +151,13 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 		AccountObjID:       s.accountObj,
 		RegistryObjID:      s.registryObj,
 		DeployerStateObjID: s.deployerStateObj,
+		ChainSelector:      uint64(s.chainSelector),
 		// Proposal
-		Role:          suisdk.TimelockRoleBypasser,
-		ChainSelector: uint64(s.chainSelector),
-		Delay:         0,
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionSchedule,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
 	}
 	feeQuoterReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, input)
 	s.Require().NoError(err, "executing fee quoter proposal sequence")
@@ -275,10 +279,13 @@ func RunCCIPRampsProposal(s *CCIPMCMSTestSuite) {
 		AccountObjID:       s.accountObj,
 		RegistryObjID:      s.registryObj,
 		DeployerStateObjID: s.deployerStateObj,
+		ChainSelector:      uint64(s.chainSelector),
 		// Proposal
-		Role:          suisdk.TimelockRoleBypasser,
-		ChainSelector: uint64(s.chainSelector),
-		Delay:         0,
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionBypass,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
 	}
 	rampsReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, input)
 	s.Require().NoError(err, "executing ramps proposal sequence")
@@ -372,10 +379,13 @@ func RunTestRouterProposal(s *CCIPMCMSTestSuite) {
 		AccountObjID:       s.accountObj,
 		RegistryObjID:      s.registryObj,
 		DeployerStateObjID: s.deployerStateObj,
+		ChainSelector:      uint64(s.chainSelector),
 		// Proposal
-		Role:          suisdk.TimelockRoleBypasser,
-		ChainSelector: uint64(s.chainSelector),
-		Delay:         0,
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionBypass,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
 	}
 	routerReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, input)
 	s.Require().NoError(err, "executing router proposal sequence")
