@@ -7,7 +7,6 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/models"
 	cselectors "github.com/smartcontractkit/chain-selectors"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	mocksui "github.com/smartcontractkit/mcms/sdk/sui/mocks/sui"
 	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/assert"
@@ -20,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 func newTestBundle(t *testing.T, registry *cld_ops.OperationRegistry) cld_ops.Bundle {
@@ -116,20 +116,20 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		}
 
 		proposalInput := ProposalGenerateInput{
-			Defs:   defs,
-			Inputs: inputs,
-
+			Defs:               defs,
+			Inputs:             inputs,
+			ChainSelector:      testChainSelector,
 			MmcsPackageID:      testCCIPPackageId,
 			McmsStateObjID:     testObjectRefId,
 			TimelockObjID:      testTimelockObjID,
 			AccountObjID:       testAccountObjID,
 			RegistryObjID:      testRegistryObjID,
 			DeployerStateObjID: testDeployerStateObjID,
-
-			Role:  suisdk.TimelockRoleProposer,
-			Delay: time.Hour * 24,
-
-			ChainSelector: testChainSelector,
+			TimelockConfig: utils.TimelockConfig{
+				MCMSAction:   types.TimelockActionSchedule,
+				MinDelay:     time.Hour * 24,
+				OverrideRoot: false,
+			},
 		}
 
 		// Execute the operation
@@ -184,20 +184,20 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		}
 
 		proposalInput := ProposalGenerateInput{
-			Defs:   defs,
-			Inputs: inputs,
-
+			Defs:               defs,
+			Inputs:             inputs,
 			MmcsPackageID:      testCCIPPackageId,
 			McmsStateObjID:     testObjectRefId,
 			TimelockObjID:      testTimelockObjID,
 			AccountObjID:       testAccountObjID,
 			RegistryObjID:      testRegistryObjID,
 			DeployerStateObjID: testDeployerStateObjID,
-
-			Role:  suisdk.TimelockRoleBypasser,
-			Delay: 0, // No delay for bypasser
-
-			ChainSelector: testChainSelector,
+			ChainSelector:      testChainSelector,
+			TimelockConfig: utils.TimelockConfig{
+				MCMSAction:   types.TimelockActionBypass,
+				MinDelay:     0,
+				OverrideRoot: false,
+			},
 		}
 
 		// Execute the operation
@@ -245,18 +245,19 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			AccountObjID:       testAccountObjID,
 			RegistryObjID:      testRegistryObjID,
 			DeployerStateObjID: testDeployerStateObjID,
-
-			Role:  suisdk.TimelockRole(100), // Invalid role
-			Delay: time.Hour,
-
-			ChainSelector: testChainSelector,
+			ChainSelector:      testChainSelector,
+			TimelockConfig: utils.TimelockConfig{
+				MCMSAction:   "bad_action",
+				MinDelay:     time.Hour,
+				OverrideRoot: false,
+			},
 		}
 
 		// Execute the operation - should fail
 		bundle := newTestBundle(t, registry)
 		_, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
-		require.Error(t, err, "should fail with invalid role")
-		assert.Contains(t, err.Error(), "unsupported role", "error should mention `unsupported role`")
+		require.Error(t, err, "should fail with invalid action")
+		assert.Contains(t, err.Error(), "unsupported action", "error should mention `unsupported action`")
 	})
 
 	t.Run("Generate Proposal with Mismatched Definitions and Inputs", func(t *testing.T) {
@@ -288,11 +289,12 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			AccountObjID:       testAccountObjID,
 			RegistryObjID:      testRegistryObjID,
 			DeployerStateObjID: testDeployerStateObjID,
-
-			Role:  suisdk.TimelockRoleProposer,
-			Delay: time.Hour,
-
-			ChainSelector: testChainSelector,
+			ChainSelector:      testChainSelector,
+			TimelockConfig: utils.TimelockConfig{
+				MCMSAction:   types.TimelockActionSchedule,
+				MinDelay:     time.Hour,
+				OverrideRoot: false,
+			},
 		}
 
 		// Execute the operation - should fail due to index out of bounds

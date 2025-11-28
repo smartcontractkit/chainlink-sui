@@ -33,8 +33,6 @@ type GenerateProposalInput struct {
 	RegistryObjID      string
 	TimelockObjID      string
 	DeployerStateObjID string
-	Role               suisdk.TimelockRole // TODO: Won't need
-	DelayInput         time.Duration       // TODO: Won't need
 	Description        string
 	BatchOp            types.BatchOperation
 	TimelockConfig     TimelockConfig
@@ -43,18 +41,18 @@ type GenerateProposalInput struct {
 func GenerateProposal(ctx context.Context, input GenerateProposalInput) (*mcms.TimelockProposal, error) {
 	// Get action and delay from role
 	var delay *types.Duration
-	if input.Role == suisdk.TimelockRoleProposer {
-		delayDuration := types.NewDuration(input.DelayInput)
+	if input.TimelockConfig.MCMSAction == types.TimelockActionSchedule {
+		delayDuration := types.NewDuration(input.TimelockConfig.MinDelay)
 		delay = &delayDuration
 	}
-	action, err := getActionFromRole(input.Role)
+	role, err := getRoleFromAction(input.TimelockConfig.MCMSAction)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get action from role: %w", err)
 	}
 
 	// Get OP Count from inspector
 	devInspectSigner := signer.NewDevInspectSigner("0x0")
-	inspector, err := suisdk.NewInspector(input.Client, devInspectSigner, input.MCMSPackageID, input.Role)
+	inspector, err := suisdk.NewInspector(input.Client, devInspectSigner, input.MCMSPackageID, role)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create inspector: %w", err)
 	}
@@ -64,7 +62,7 @@ func GenerateProposal(ctx context.Context, input GenerateProposalInput) (*mcms.T
 	}
 
 	// Build metadata
-	metadata, err := suisdk.NewChainMetadata(opCount, input.Role, input.MCMSPackageID, input.MCMSStateObjID, input.AccountObjID, input.RegistryObjID, input.TimelockObjID, input.DeployerStateObjID)
+	metadata, err := suisdk.NewChainMetadata(opCount, role, input.MCMSPackageID, input.MCMSStateObjID, input.AccountObjID, input.RegistryObjID, input.TimelockObjID, input.DeployerStateObjID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chain metadata: %w", err)
 	}
@@ -78,7 +76,7 @@ func GenerateProposal(ctx context.Context, input GenerateProposalInput) (*mcms.T
 		AddTimelockAddress(types.ChainSelector(input.ChainSelector), input.TimelockObjID).
 		AddChainMetadata(types.ChainSelector(input.ChainSelector), metadata).
 		AddOperation(input.BatchOp).
-		SetAction(action)
+		SetAction(input.TimelockConfig.MCMSAction)
 
 	if delay != nil {
 		builder.SetDelay(*delay)
@@ -116,16 +114,16 @@ func ExtractTransactionCall(output interface{}, operationID string) (sui_ops.Tra
 	return call, nil
 }
 
-func getActionFromRole(role suisdk.TimelockRole) (types.TimelockAction, error) {
-	switch role {
-	case suisdk.TimelockRoleProposer:
-		return types.TimelockActionSchedule, nil
-	case suisdk.TimelockRoleBypasser:
-		return types.TimelockActionBypass, nil
-	case suisdk.TimelockRoleCanceller:
-		return types.TimelockActionCancel, nil
+func getRoleFromAction(action types.TimelockAction) (suisdk.TimelockRole, error) {
+	switch action {
+	case types.TimelockActionSchedule:
+		return suisdk.TimelockRoleProposer, nil
+	case types.TimelockActionBypass:
+		return suisdk.TimelockRoleBypasser, nil
+	case types.TimelockActionCancel:
+		return suisdk.TimelockRoleCanceller, nil
 	default:
-		// NewChainMetadata will always error on invalid role, but this is a safeguard
-		return "", fmt.Errorf("unsupported role: %v", role)
+		// NewChainMetadata will always error on invalid action, but this is a safeguard
+		return 0, fmt.Errorf("unsupported action: %v", action)
 	}
 }

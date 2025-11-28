@@ -10,7 +10,9 @@ import (
 	"github.com/smartcontractkit/mcms/types"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 // DeployMCMSSeqInput defines the input for deploying MCMS with timelock roles configuration
@@ -101,11 +103,13 @@ var DeployMCMSSequence = cld_ops.NewSequence(
 			AccountObjID:       deployReport.Output.Objects.McmsAccountStateObjectId,
 			RegistryObjID:      deployReport.Output.Objects.McmsRegistryObjectId,
 			DeployerStateObjID: deployReport.Output.Objects.McmsDeployerStateObjectId,
-
+			ChainSelector:      uint64(input.ChainSelector),
 			// Proposal
-			Role: suisdk.TimelockRoleProposer,
-
-			ChainSelector: uint64(input.ChainSelector),
+			TimelockConfig: utils.TimelockConfig{
+				MCMSAction:   types.TimelockActionSchedule,
+				MinDelay:     0,
+				OverrideRoot: false,
+			},
 		}
 
 		acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(env, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
