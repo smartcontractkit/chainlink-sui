@@ -28,6 +28,13 @@
         "LINK": {}
       }
     },
+    "0x125afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f78": {
+      "Type": "SuiManagedTokenMinterCapID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
     "0x52f33e4724128431084e207406304383c05660042000016240438147268f184e": {
       "Type": "SuiManagedTokenPublisherObjectId",
       "Version": "1.0.0",
