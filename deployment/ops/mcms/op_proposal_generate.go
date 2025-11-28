@@ -2,7 +2,6 @@ package mcmsops
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/Masterminds/semver/v3"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -28,12 +27,11 @@ type ProposalGenerateInput struct {
 	RegistryObjID      string `json:"registryObjID"`
 	DeployerStateObjID string `json:"deployerStateObjID"`
 
-	// Proposal related
-	Role  suisdk.TimelockRole `json:"role"`
-	Delay time.Duration       `json:"delay"`
-
 	// Chain related
 	ChainSelector uint64 `json:"chainSelector"`
+
+	// Timelock related
+	TimelockConfig utils.TimelockConfig `json:"timelockConfig"`
 }
 
 var MCMSDynamicProposalGenerateSeq = cld_ops.NewSequence(
@@ -104,9 +102,8 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		AccountObjID:       input.AccountObjID,
 		RegistryObjID:      input.RegistryObjID,
 		DeployerStateObjID: input.DeployerStateObjID,
-		Role:               input.Role,
-		DelayInput:         input.Delay,
 		ChainSelector:      input.ChainSelector,
+		TimelockConfig:     input.TimelockConfig,
 		Description:        description,
 		BatchOp:            op,
 	}

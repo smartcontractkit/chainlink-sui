@@ -2,13 +2,8 @@ package ownershipops
 
 import (
 	"github.com/Masterminds/semver/v3"
-
-	"github.com/smartcontractkit/mcms"
-
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
-
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
+	"github.com/smartcontractkit/mcms"
 
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
@@ -16,6 +11,7 @@ import (
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 type AcceptCCIPOwnershipInput struct {
@@ -28,8 +24,8 @@ type AcceptCCIPOwnershipInput struct {
 	MCMSDeployerStateObjId string
 
 	// Proposal
-	Role          suisdk.TimelockRole
-	ChainSelector uint64
+	TimelockConfig utils.TimelockConfig
+	ChainSelector  uint64
 
 	// CCIP related
 	CCIPPackageId string
@@ -55,7 +51,7 @@ var AcceptCCIPOwnershipSeq = cld_ops.NewSequence(
 	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptCCIPOwnershipInput) (mcms.TimelockProposal, error) {
 		// Generate the proposal to accept the ownership of the deployed contracts
 		proposalInput := mcmsops.ProposalGenerateInput{
-			Defs: []operations.Definition{
+			Defs: []cld_ops.Definition{
 				ccipops.AcceptOwnershipStateObjectOp.Def(),
 				routerops.AcceptOwnershipOp.Def(),
 				onrampops.AcceptOwnershipOnRampOp.Def(),
@@ -90,9 +86,8 @@ var AcceptCCIPOwnershipSeq = cld_ops.NewSequence(
 			DeployerStateObjID: input.MCMSDeployerStateObjId,
 
 			// Proposal
-			Role: input.Role,
-
-			ChainSelector: input.ChainSelector,
+			ChainSelector:  input.ChainSelector,
+			TimelockConfig: input.TimelockConfig,
 		}
 
 		acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(env, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)

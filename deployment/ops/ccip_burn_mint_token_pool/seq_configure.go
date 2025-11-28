@@ -16,6 +16,7 @@ type ConfigureBurnMintTokenPoolObjects struct {
 type ConfigureBurnMintTokenPoolOutput struct {
 	TokenSymbol string
 	Objects     DeployBurnMintTokenPoolObjects
+	Reports     []cld_ops.Report[any, any]
 }
 
 type ConfigureBurnMintTokenPoolInput struct {
@@ -47,7 +48,8 @@ var ConfigureBurnMintTokenPoolSequence = cld_ops.NewSequence(
 	"Deploys and sets initial burn mint token pool configuration",
 	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input ConfigureBurnMintTokenPoolInput) (ConfigureBurnMintTokenPoolOutput, error) {
 
-		_, err := cld_ops.ExecuteOperation(
+		seqReports := make([]cld_ops.Report[any, any], 0)
+		report, err := cld_ops.ExecuteOperation(
 			env,
 			BurnMintTokenPoolApplyChainUpdatesOp,
 			deps,
@@ -65,8 +67,9 @@ var ConfigureBurnMintTokenPoolSequence = cld_ops.NewSequence(
 		if err != nil {
 			return ConfigureBurnMintTokenPoolOutput{}, err
 		}
+		seqReports = append(seqReports, report.ToGenericReport())
 
-		_, err = cld_ops.ExecuteOperation(
+		report2, err := cld_ops.ExecuteOperation(
 			env,
 			BurnMintTokenPoolSetChainRateLimiterOp,
 			deps,
@@ -87,9 +90,10 @@ var ConfigureBurnMintTokenPoolSequence = cld_ops.NewSequence(
 		if err != nil {
 			return ConfigureBurnMintTokenPoolOutput{}, err
 		}
+		seqReports = append(seqReports, report2.ToGenericReport())
 
 		for i, chainSelector := range input.RemoteChainSelectors {
-			_, err := cld_ops.ExecuteOperation(
+			report, err := cld_ops.ExecuteOperation(
 				env,
 				BurnMintTokenPoolAddRemotePoolOp,
 				deps,
@@ -105,6 +109,7 @@ var ConfigureBurnMintTokenPoolSequence = cld_ops.NewSequence(
 			if err != nil {
 				return ConfigureBurnMintTokenPoolOutput{}, err
 			}
+			seqReports = append(seqReports, report.ToGenericReport())
 		}
 
 		return ConfigureBurnMintTokenPoolOutput{
@@ -112,6 +117,7 @@ var ConfigureBurnMintTokenPoolSequence = cld_ops.NewSequence(
 				OwnerCapObjectId: input.TokenOwnerCapID,
 				StateObjectId:    input.TokenPoolStateObjectID,
 			},
+			Reports: seqReports,
 		}, nil
 	},
 )
