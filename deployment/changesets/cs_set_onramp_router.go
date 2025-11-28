@@ -63,7 +63,6 @@ func (d ConfigureRouterOnRamp) Apply(e cldf.Environment, config ConfigureRouterO
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to configure router onRamp for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
 
-	// register receiver
 	seqReports = append(seqReports, []operations.Report[any, any]{reportConfigureRouterOp.ToGenericReport()}...)
 
 	return cldf.ChangesetOutput{
