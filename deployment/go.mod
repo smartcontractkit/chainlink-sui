@@ -14,6 +14,7 @@ require (
 	github.com/aptos-labs/aptos-go-sdk v1.11.0
 	github.com/block-vision/sui-go-sdk v1.1.2
 	github.com/ethereum/go-ethereum v1.16.2
+	github.com/google/go-cmp v0.7.0
 	github.com/smartcontractkit/chain-selectors v1.0.72
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251007140624-a242e4bbd3dc
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
@@ -97,7 +98,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
