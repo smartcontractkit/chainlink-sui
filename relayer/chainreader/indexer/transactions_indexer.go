@@ -78,7 +78,7 @@ func NewTransactionsIndexer(
 		executionEventKey:       "ExecutionStateChanged",
 		configEventModuleKey:    "ocr3_base",
 		configEventKey:          "ConfigSet",
-		executeFunctions:        []string{"finish_execute"},
+		executeFunctions:        []string{"init_execute", "ccip_receive", "finish_execute"},
 		eventConfigs:            eventConfigs,
 		eventPkgReady:           make(chan struct{}),
 	}
@@ -329,28 +329,49 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				continue
 			}
 
-			if moveAbort.Location.Module.Address != tIndexer.eventPackageId {
-				tIndexer.logger.Debugw("Skipping transaction with different package address",
-					"transmitter", transmitter, "packageAddress", moveAbort.Location.Module.Address)
+			includesValidPackage := false
+			includesValidModule := false
 
-				continue
+			// Check if any of the transaction's commands match with the expected package and module
+			for _, raw := range transactionRecord.Transaction.Data.Transaction.Transactions {
+				if moveCall := models.MoveCall(raw); moveCall != nil {
+					packageID := moveCall.Package
+					moduleName := moveCall.Module
+
+					if packageID == tIndexer.eventPackageId {
+						includesValidPackage = true
+					}
+
+					if moduleName == moduleKey {
+						includesValidModule = true
+					}
+				}
 			}
 
-			if moveAbort.Location.Module.Name != moduleKey {
-				tIndexer.logger.Debugw("Skipping transaction with different module",
-					"transmitter", transmitter, "module", moveAbort.Location.Module.Name)
-
+			// NOTE: The check below does not guarantee that a malicious (known) transmitter is not sending a failed PTB
+			// with the expected package and module. However, it is considered as the worst case scenario simply involves
+			// creating an event record with a failure state against an digest that is not checked.
+			if !includesValidPackage || !includesValidModule {
+				tIndexer.logger.Warnw(
+					"Expected package and module not found in commands of failed PTB originating from known transmitter",
+					"transmitter", transmitter,
+					"digest", transactionRecord.Digest,
+				)
 				continue
 			}
 
 			if moveAbort.Location.FunctionName == nil || !slices.Contains(tIndexer.executeFunctions, *moveAbort.Location.FunctionName) {
-				tIndexer.logger.Debugw("Skipping transaction for non-execute function",
-					"transmitter", transmitter, "location", moveAbort.Location)
+				tIndexer.logger.Debugw("Skipping transaction for failed function against a non-configured function name",
+					"transmitter", transmitter,
+					"location", moveAbort.Location,
+					"functionName", *moveAbort.Location.FunctionName,
+					"digest", transactionRecord.Digest,
+				)
 
 				continue
 			}
 
-			// we always get the report from the init_execute function call (index 0), the "finish_execute" function call
+			// We always get the report from the init_execute function call (index 0), the "finish_execute" function call
 			// does not contain an argument which contains the report
 			// NOTE: we assume that init_execute (which contains the report) is always the first command in the PTB
 			commandIndex := uint64(0)
