@@ -13,14 +13,14 @@ use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
-use std::type_name;
 use std::string::{Self, String};
+use std::type_name;
+use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::derived_object;
 use sui::event;
 use sui::package::{Self, UpgradeCap};
-use sui::address;
 
 public struct LOCK_RELEASE_TOKEN_POOL has drop {}
 

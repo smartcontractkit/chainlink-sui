@@ -3,9 +3,10 @@ package deployment
 import (
 	"encoding/json"
 	"os"
-	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -48,8 +49,11 @@ func TestLoadOnchainStatesui(t *testing.T) {
 			if tt.wantErr {
 				t.Fatal("LoadOnchainStatesui() succeeded unexpectedly")
 			}
-			if !reflect.DeepEqual(tt.want[9762610643973837292], got[9762610643973837292]) {
-				t.Errorf("LoadOnchainStatesui() mismatch:\nwant: %+v\ngot:  %+v", tt.want[9762610643973837292], got[9762610643973837292])
+
+			// Use cmp.Diff with SortSlices to handle unordered arrays
+			if diff := cmp.Diff(tt.want[9762610643973837292], got[9762610643973837292],
+				cmpopts.SortSlices(func(a, b string) bool { return a < b })); diff != "" {
+				t.Errorf("LoadOnchainStatesui() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -95,11 +99,14 @@ func getExpectedSuiChainState() CCIPChainState {
 		LinkTokenTreasuryCapId:      "0x60f35af35748a3f2f4324c2646cf9187d111ed17cb204043c1cf85c0f83dde0f",
 		ManagedTokens: map[string]ManagedTokenState{
 			"LINK": {
-				PackageID:          "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29",
-				StateObjectId:      "0xd93ceb06feeab8b0b5333a7f76f2e9d0d79e71063b8a71bce654954f7bfd631d",
-				OwnerCapObjectId:   "0x0eac90f883ea0902156b340c41e0d178af3f012fe63c33f9663b7be245bee4fe",
-				MinterCapObjectIds: []string{"0xe25afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f72"},
-				PublisherObjectId:  "0x52f33e4724128431084e207406304383c05660042000016240438147268f184e",
+				PackageID:        "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29",
+				StateObjectId:    "0xd93ceb06feeab8b0b5333a7f76f2e9d0d79e71063b8a71bce654954f7bfd631d",
+				OwnerCapObjectId: "0x0eac90f883ea0902156b340c41e0d178af3f012fe63c33f9663b7be245bee4fe",
+				MinterCapObjectIds: []string{
+					"0x125afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f78",
+					"0xe25afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f72",
+				},
+				PublisherObjectId: "0x52f33e4724128431084e207406304383c05660042000016240438147268f184e",
 			},
 		},
 		LnRTokenPools: map[string]CCIPPoolState{
@@ -107,6 +114,7 @@ func getExpectedSuiChainState() CCIPChainState {
 				PackageID:        "0x90f10215a219a1f2e30f746e68c1e4f2b39f593d83a1980c7cf4e4738591a7e6",
 				StateObjectId:    "0x4e6c205b2f8c5159795f536035c573338fbb345db473829a95fceb0f82890fd4",
 				OwnerCapObjectId: "0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd98",
+				RebalancerCapIds: []string{"0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd97", "0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd99"},
 			},
 		},
 		BnMTokenPools: map[string]CCIPPoolState{

@@ -90,7 +90,11 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 	}
 	arguments.ArgTypes = map[string]string{}
 
-	s.lggr.Debugw("arguments: ", arguments.Args, "params: ", functionConfig.Params, "decoded args: ", arguments)
+	s.lggr.Debugw("prepared arguments for chainwriter submit transaction",
+		"arguments: ", arguments.Args,
+		"params: ", functionConfig.Params,
+		"decoded args: ", arguments,
+		"meta: ", meta)
 
 	// overwrite ptbName
 	if moduleConfig.Name != "" {
@@ -114,9 +118,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		}
 		if gasBudget != nil {
 			s.lggr.Infow("Using gas budget from CCIP message", "gasBudget", gasBudget, "transactionID", transactionID)
-			meta = &commonTypes.TxMeta{
-				GasLimit: gasBudget.Add(gasBudget, big.NewInt(defaultGas)),
-			}
+			meta.GasLimit = gasBudget.Add(gasBudget, big.NewInt(defaultGas))
 		} else {
 			s.lggr.Debugw("No gas budget found, using the transaction simulation")
 		}
