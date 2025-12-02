@@ -43,6 +43,7 @@ type TokenPoolView struct {
 	RemoteChainConfigs map[uint64]RemoteChainConfig `json:"remoteChainConfigs"`
 	AllowList          []string                     `json:"allowList"`
 	AllowListEnabled   bool                         `json:"allowListEnabled"`
+	RebalancerCapIds   []string                     `json:"rebalancerCapIds,omitempty"` // only applicable for LR TP
 }
 
 type RemoteChainConfig struct {

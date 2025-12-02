@@ -62,9 +62,10 @@ var (
 	SuiBnMTokenPoolOwnerIDType deployment.ContractType = "SuiBnMTokenPoolOwnerID"
 
 	// LnR Token Pool related
-	SuiLnRTokenPoolType        deployment.ContractType = "SuiLnRTokenPool"
-	SuiLnRTokenPoolStateType   deployment.ContractType = "SuiLnRTokenPoolState"
-	SuiLnRTokenPoolOwnerIDType deployment.ContractType = "SuiLnRTokenPoolOwnerID"
+	SuiLnRTokenPoolType                deployment.ContractType = "SuiLnRTokenPool"
+	SuiLnRTokenPoolStateType           deployment.ContractType = "SuiLnRTokenPoolState"
+	SuiLnRTokenPoolOwnerIDType         deployment.ContractType = "SuiLnRTokenPoolOwnerID"
+	SuiLnRTokenPoolRebalancerCapIDType deployment.ContractType = "SuiLnRTokenPoolRebalancerCapID"
 
 	// Managed Token Pool related
 	SuiManagedTokenPoolType        deployment.ContractType = "SuiManagedTokenPool"
