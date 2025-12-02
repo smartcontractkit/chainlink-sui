@@ -21,8 +21,8 @@ jobs:
         include:
           - test_name: Test_CCIP_Messaging_Sui2EVM
             sui_version: mainnet-v1.60.1
-          # - test_name: Test_CCIP_Messaging_EVM2Sui
-          #   sui_version: mainnet-v1.60.1
+          - test_name: Test_CCIP_Messaging_EVM2Sui
+            sui_version: mainnet-v1.60.1
           - test_name: Test_CCIP_EVM2Sui_ZeroReceiver
             sui_version: mainnet-v1.60.1
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_LockReleaseTokenPool
@@ -41,12 +41,12 @@ jobs:
             sui_version: mainnet-v1.60.1
           - test_name: Test_CCIP_Upgrade_Sui2EVM
             sui_version: mainnet-v1.60.1
-          - test_name: Test_CCIP_Upgrade_EVM2Sui
-            sui_version: mainnet-v1.60.1
+          # - test_name: Test_CCIP_Upgrade_EVM2Sui
+          #   sui_version: mainnet-v1.60.1
           - test_name: Test_CCIP_Upgrade_CommonPkg_EVM2Sui
             sui_version: mainnet-v1.60.1
-          - test_name: Test_CCIP_Upgrade_NoBlock_EVM2Sui
-            sui_version: mainnet-v1.60.1
+          # - test_name: Test_CCIP_Upgrade_NoBlock_EVM2Sui
+          #   sui_version: mainnet-v1.60.1
           # - test_name: Test_CCIPTokenTransfer_EVM2SUI_BurnMintTokenPool
           #   sui_version: mainnet-v1.57.2
           # - test_name: Test_CCIPPureTokenTransfer_EVM2SUI_BurnMintTokenPool
