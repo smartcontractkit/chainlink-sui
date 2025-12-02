@@ -9,7 +9,8 @@ use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
-use sui::coin::{CoinMetadata, TreasuryCap};
+use sui::coin::{CoinMetadata, RegulatedCoinMetadata, TreasuryCap};
+use sui::coin_registry::Currency;
 use sui::event;
 use sui::linked_table::{Self, LinkedTable};
 
@@ -347,6 +348,84 @@ public fun register_pool<T, TypeProof: drop>(
     let proof_tn = type_name::with_defining_ids<TypeProof>();
     let token_pool_module = proof_tn.module_string().into_bytes().to_string();
     let coin_metadata_address = object::id_address(coin_metadata);
+    let token_type = type_name::with_defining_ids<T>().into_string();
+
+    register_pool_internal(
+        ref,
+        coin_metadata_address,
+        package_address,
+        token_pool_module,
+        token_type,
+        initial_administrator,
+        proof_tn.into_string(),
+        lock_or_burn_params,
+        release_or_mint_params,
+    );
+}
+
+/// Only the token owner can call this function to register a token pool for the token it owns.
+/// The ownership of the token is proven by the presence of the treasury cap.
+/// The publisher wrapper proves that the caller owns the token pool package.
+public fun register_pool_with_regulated_coin<T, TypeProof: drop>(
+    ref: &mut CCIPObjectRef,
+    _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
+    coin_metadata: &RegulatedCoinMetadata<T>,
+    initial_administrator: address,
+    lock_or_burn_params: vector<address>,
+    release_or_mint_params: vector<address>,
+    publisher_wrapper: PublisherWrapper<TypeProof>, // Proves ownership over the token pool package.
+    _proof: TypeProof,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"register_pool"),
+        VERSION,
+    );
+
+    let package_address = publisher_wrapper::get_package_address(publisher_wrapper);
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
+    let token_pool_module = proof_tn.module_string().into_bytes().to_string();
+    let coin_metadata_address = object::id_address(coin_metadata);
+    let token_type = type_name::with_defining_ids<T>().into_string();
+
+    register_pool_internal(
+        ref,
+        coin_metadata_address,
+        package_address,
+        token_pool_module,
+        token_type,
+        initial_administrator,
+        proof_tn.into_string(),
+        lock_or_burn_params,
+        release_or_mint_params,
+    );
+}
+
+/// Only the token owner can call this function to register a token pool for the token it owns.
+/// The ownership of the token is proven by the presence of the treasury cap.
+/// The publisher wrapper proves that the caller owns the token pool package.
+public fun register_pool_with_currency<T, TypeProof: drop>(
+    ref: &mut CCIPObjectRef,
+    _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
+    currency: &Currency<T>,
+    initial_administrator: address,
+    lock_or_burn_params: vector<address>,
+    release_or_mint_params: vector<address>,
+    publisher_wrapper: PublisherWrapper<TypeProof>, // Proves ownership over the token pool package.
+    _proof: TypeProof,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"register_pool"),
+        VERSION,
+    );
+
+    let package_address = publisher_wrapper::get_package_address(publisher_wrapper);
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
+    let token_pool_module = proof_tn.module_string().into_bytes().to_string();
+    let coin_metadata_address = object::id_address(currency);
     let token_type = type_name::with_defining_ids<T>().into_string();
 
     register_pool_internal(
