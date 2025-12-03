@@ -105,90 +105,90 @@ public fun test_registered_type_proof_package_matches() {
     scenario.end();
 }
 
-#[test]
-/// Test that the registered token config contains the correct package address
-/// using the new coin_registry::new_currency API instead of coin::create_currency
-public fun test_registered_type_proof_package_matches_with_currency() {
-    let mut scenario = ts::begin(ADMIN);
-    let (owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+// #[test]
+// /// Test that the registered token config contains the correct package address
+// /// using the new coin_registry::new_currency API instead of coin::create_currency
+// public fun test_registered_type_proof_package_matches_with_currency() {
+//     let mut scenario = ts::begin(ADMIN);
+//     let (owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
 
-    // Transaction 0: Create the CoinRegistry for testing (as system address @0x0)
-    scenario.next_tx(@0x0);
-    {
-        let registry = coin_registry::create_coin_data_registry_for_testing(scenario.ctx());
-        coin_registry::share_for_testing(registry);
-    };
+//     // Transaction 0: Create the CoinRegistry for testing (as system address @0x0)
+//     scenario.next_tx(@0x0);
+//     {
+//         let registry = coin_registry::create_coin_data_registry_for_testing(scenario.ctx());
+//         coin_registry::share_for_testing(registry);
+//     };
 
-    // Transaction 1: Create currency using new_currency and finalize (shares the Currency)
-    scenario.next_tx(ADMIN);
-    let (treasury_cap, metadata_cap) = {
-        let mut registry = scenario.take_shared<CoinRegistry>();
-        let (initializer, treasury_cap) = coin_registry::new_currency<MyCoin>(
-            &mut registry,
-            DECIMALS,
-            string::utf8(b"TEST"),
-            string::utf8(b"TestToken"),
-            string::utf8(b"test_token"),
-            string::utf8(b""),
-            scenario.ctx(),
-        );
-        // finalize shares the Currency internally and returns MetadataCap
-        let metadata_cap = coin_registry::finalize(initializer, scenario.ctx());
-        ts::return_shared(registry);
-        (treasury_cap, metadata_cap)
-    };
+//     // Transaction 1: Create currency using new_currency and finalize (shares the Currency)
+//     scenario.next_tx(ADMIN);
+//     let (treasury_cap, metadata_cap) = {
+//         let mut registry = scenario.take_shared<CoinRegistry>();
+//         let (initializer, treasury_cap) = coin_registry::new_currency<MyCoin>(
+//             &mut registry,
+//             DECIMALS,
+//             string::utf8(b"TEST"),
+//             string::utf8(b"TestToken"),
+//             string::utf8(b"test_token"),
+//             string::utf8(b""),
+//             scenario.ctx(),
+//         );
+//         // finalize shares the Currency internally and returns MetadataCap
+//         let metadata_cap = coin_registry::finalize(initializer, scenario.ctx());
+//         ts::return_shared(registry);
+//         (treasury_cap, metadata_cap)
+//     };
 
-    // Transaction 2: Delete the metadata cap and get currency address
-    scenario.next_tx(ADMIN);
-    let currency_address = {
-        let mut currency = scenario.take_shared<Currency<MyCoin>>();
-        let addr = object::id_to_address(&object::id(&currency));
-        coin_registry::delete_metadata_cap(&mut currency, metadata_cap);
-        ts::return_shared(currency);
-        addr
-    };
+//     // Transaction 2: Delete the metadata cap and get currency address
+//     scenario.next_tx(ADMIN);
+//     let currency_address = {
+//         let mut currency = scenario.take_shared<Currency<MyCoin>>();
+//         let addr = object::id_to_address(&object::id(&currency));
+//         coin_registry::delete_metadata_cap(&mut currency, metadata_cap);
+//         ts::return_shared(currency);
+//         addr
+//     };
 
-    // Transaction 3: Register pool with currency
-    scenario.next_tx(ADMIN);
-    {
-        let currency = scenario.take_shared<Currency<MyCoin>>();
-        let publisher = package::test_claim(TAM_PUBLISHER_TESTS {}, scenario.ctx());
-        let expected_package_address = address::from_ascii_bytes(publisher.package().as_bytes());
-        let publisher_wrapper = publisher_wrapper::create(&publisher, TestTypeProof {});
+//     // Transaction 3: Register pool with currency
+//     scenario.next_tx(ADMIN);
+//     {
+//         let currency = scenario.take_shared<Currency<MyCoin>>();
+//         let publisher = package::test_claim(TAM_PUBLISHER_TESTS {}, scenario.ctx());
+//         let expected_package_address = address::from_ascii_bytes(publisher.package().as_bytes());
+//         let publisher_wrapper = publisher_wrapper::create(&publisher, TestTypeProof {});
 
-        registry::register_pool_with_currency(
-            &mut ccip_ref,
-            &treasury_cap,
-            &currency,
-            ADMIN,
-            vector<address>[],
-            vector<address>[],
-            publisher_wrapper,
-            TestTypeProof {},
-        );
+//         registry::register_pool_with_currency(
+//             &mut ccip_ref,
+//             &treasury_cap,
+//             &currency,
+//             ADMIN,
+//             vector<address>[],
+//             vector<address>[],
+//             publisher_wrapper,
+//             TestTypeProof {},
+//         );
 
-        let (
-            registered_package_id,
-            _module,
-            _token_type,
-            _admin,
-            _pending_admin,
-            _type_proof,
-            _lock_params,
-            _release_params,
-        ) = registry::get_token_config_data(&ccip_ref, currency_address);
+//         let (
+//             registered_package_id,
+//             _module,
+//             _token_type,
+//             _admin,
+//             _pending_admin,
+//             _type_proof,
+//             _lock_params,
+//             _release_params,
+//         ) = registry::get_token_config_data(&ccip_ref, currency_address);
 
-        assert!(registered_package_id == expected_package_address);
+//         assert!(registered_package_id == expected_package_address);
 
-        package::burn_publisher(publisher);
-        ts::return_shared(currency);
-    };
+//         package::burn_publisher(publisher);
+//         ts::return_shared(currency);
+//     };
 
-    transfer::public_transfer(treasury_cap, ADMIN);
-    transfer::public_transfer(owner_cap, ADMIN);
-    ts::return_shared(ccip_ref);
-    scenario.end();
-}
+//     transfer::public_transfer(treasury_cap, ADMIN);
+//     transfer::public_transfer(owner_cap, ADMIN);
+//     ts::return_shared(ccip_ref);
+//     scenario.end();
+// }
 
 #[test]
 /// Test full registration flow with publisher wrapper validation

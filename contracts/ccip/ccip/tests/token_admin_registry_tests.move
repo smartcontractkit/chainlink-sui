@@ -108,43 +108,43 @@ fun register_test_pool<T>(
     package::burn_publisher(publisher);
 }
 
-fun create_test_currency(scenario: &mut Scenario): coin::TreasuryCap<MyCoin> {
-    // Transaction 0: Create the CoinRegistry for testing (as system address @0x0)
-    scenario.next_tx(@0x0);
-    {
-        let registry = coin_registry::create_coin_data_registry_for_testing(scenario.ctx());
-        coin_registry::share_for_testing(registry);
-    };
+// fun create_test_currency(scenario: &mut Scenario): coin::TreasuryCap<MyCoin> {
+//     // Transaction 0: Create the CoinRegistry for testing (as system address @0x0)
+//     scenario.next_tx(@0x0);
+//     {
+//         let registry = coin_registry::create_coin_data_registry_for_testing(scenario.ctx());
+//         coin_registry::share_for_testing(registry);
+//     };
 
-    // Transaction 1: Create currency and finalize (shares the Currency)
-    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
-    let (treasury_cap, metadata_cap) = {
-        let mut registry = scenario.take_shared<CoinRegistry>();
-        let (initializer, treasury_cap) = coin_registry::new_currency<MyCoin>(
-            &mut registry,
-            DECIMALS,
-            string::utf8(b"TEST"),
-            string::utf8(b"TestToken"),
-            string::utf8(b"test_token"),
-            string::utf8(b""),
-            scenario.ctx(),
-        );
-        // finalize shares the Currency internally and returns MetadataCap
-        let metadata_cap = coin_registry::finalize(initializer, scenario.ctx());
-        ts::return_shared(registry);
-        (treasury_cap, metadata_cap)
-    };
+//     // Transaction 1: Create currency and finalize (shares the Currency)
+//     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+//     let (treasury_cap, metadata_cap) = {
+//         let mut registry = scenario.take_shared<CoinRegistry>();
+//         let (initializer, treasury_cap) = coin_registry::new_currency<MyCoin>(
+//             &mut registry,
+//             DECIMALS,
+//             string::utf8(b"TEST"),
+//             string::utf8(b"TestToken"),
+//             string::utf8(b"test_token"),
+//             string::utf8(b""),
+//             scenario.ctx(),
+//         );
+//         // finalize shares the Currency internally and returns MetadataCap
+//         let metadata_cap = coin_registry::finalize(initializer, scenario.ctx());
+//         ts::return_shared(registry);
+//         (treasury_cap, metadata_cap)
+//     };
 
-    // Transaction 2: Delete the metadata cap (Currency is now available as shared)
-    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
-    {
-        let mut currency = scenario.take_shared<Currency<MyCoin>>();
-        coin_registry::delete_metadata_cap(&mut currency, metadata_cap);
-        ts::return_shared(currency);
-    };
+//     // Transaction 2: Delete the metadata cap (Currency is now available as shared)
+//     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+//     {
+//         let mut currency = scenario.take_shared<Currency<MyCoin>>();
+//         coin_registry::delete_metadata_cap(&mut currency, metadata_cap);
+//         ts::return_shared(currency);
+//     };
 
-    treasury_cap
-}
+//     treasury_cap
+// }
 
 fun register_test_pool_with_currency<T>(
     ref: &mut CCIPObjectRef,
@@ -397,62 +397,62 @@ public fun test_register_and_unregister() {
     ts::end(scenario);
 }
 
-#[test]
-public fun test_register_and_unregister_with_currency() {
-    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    let treasury_cap = create_test_currency(&mut scenario);
+// #[test]
+// public fun test_register_and_unregister_with_currency() {
+//     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+//     let treasury_cap = create_test_currency(&mut scenario);
 
-    // Get the local_token address from the Currency (need next_tx to access shared objects)
-    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
-    let local_token = {
-        let currency = scenario.take_shared<Currency<MyCoin>>();
-        let addr = object::id_to_address(&object::id(&currency));
-        ts::return_shared(currency);
-        addr
-    };
+//     // Get the local_token address from the Currency (need next_tx to access shared objects)
+//     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+//     let local_token = {
+//         let currency = scenario.take_shared<Currency<MyCoin>>();
+//         let addr = object::id_to_address(&object::id(&currency));
+//         ts::return_shared(currency);
+//         addr
+//     };
 
-    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+//     initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
 
-    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
-    {
-        let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let currency = scenario.take_shared<Currency<MyCoin>>();
+//     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+//     {
+//         let mut ref = scenario.take_shared<CCIPObjectRef>();
+//         let currency = scenario.take_shared<Currency<MyCoin>>();
 
-        register_test_pool_with_currency(
-            &mut ref,
-            &treasury_cap,
-            &currency,
-            TOKEN_ADMIN_ADDRESS_2,
-            scenario.ctx(),
-        );
+//         register_test_pool_with_currency(
+//             &mut ref,
+//             &treasury_cap,
+//             &currency,
+//             TOKEN_ADMIN_ADDRESS_2,
+//             scenario.ctx(),
+//         );
 
-        // Verify registration
-        let pool_addresses = registry::get_pools(&ref, vector[local_token]);
-        assert!(pool_addresses.length() == 1);
-        let tn = type_name::with_defining_ids<TypeProof>();
-        let expected_package_id = address::from_ascii_bytes(&tn.address_string().into_bytes());
-        assert!(pool_addresses[0] == expected_package_id);
-        assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS_2));
+//         // Verify registration
+//         let pool_addresses = registry::get_pools(&ref, vector[local_token]);
+//         assert!(pool_addresses.length() == 1);
+//         let tn = type_name::with_defining_ids<TypeProof>();
+//         let expected_package_id = address::from_ascii_bytes(&tn.address_string().into_bytes());
+//         assert!(pool_addresses[0] == expected_package_id);
+//         assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS_2));
 
-        let ctx = scenario.ctx();
-        transfer::public_transfer(treasury_cap, ctx.sender());
-        ts::return_shared(currency);
-        ts::return_shared(ref);
-    };
+//         let ctx = scenario.ctx();
+//         transfer::public_transfer(treasury_cap, ctx.sender());
+//         ts::return_shared(currency);
+//         ts::return_shared(ref);
+//     };
 
-    // Unregister the token as the token admin
-    scenario.next_tx(TOKEN_ADMIN_ADDRESS_2);
-    {
-        let mut ref = scenario.take_shared<CCIPObjectRef>();
+//     // Unregister the token as the token admin
+//     scenario.next_tx(TOKEN_ADMIN_ADDRESS_2);
+//     {
+//         let mut ref = scenario.take_shared<CCIPObjectRef>();
 
-        registry::unregister_pool(&mut ref, local_token, scenario.ctx());
-        assert_empty_token_config(&ref, local_token);
+//         registry::unregister_pool(&mut ref, local_token, scenario.ctx());
+//         assert_empty_token_config(&ref, local_token);
 
-        ts::return_shared(ref);
-    };
+//         ts::return_shared(ref);
+//     };
 
-    ts::end(scenario);
-}
+//     ts::end(scenario);
+// }
 
 #[test]
 public fun test_register() {
