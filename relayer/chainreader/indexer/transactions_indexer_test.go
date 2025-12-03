@@ -3,6 +3,7 @@ package indexer_test
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -247,11 +248,6 @@ func TestTransactionsIndexer(t *testing.T) {
 							Event:   "SourceChainConfigSet",
 						},
 					},
-				},
-			},
-			"ocr3_base": {
-				Functions: map[string]*config.ChainReaderFunction{},
-				Events: map[string]*config.ChainReaderEvent{
 					"ConfigSet": {
 						Name:      "ocr3_base",
 						EventType: "ConfigSet",
@@ -328,6 +324,9 @@ func TestTransactionsIndexer(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	err = indexerInstance.Start(ctx)
+	require.NoError(t, err)
+
 	// Clean the events table again with a temporary connection
 	func() {
 		dbConn, dbConnErr := db.Connx(ctx)
@@ -339,10 +338,6 @@ func TestTransactionsIndexer(t *testing.T) {
 	}()
 
 	boundContracts := []types.BoundContract{
-		{
-			Name:    "ocr3_base",
-			Address: packageId,
-		},
 		{
 			Name:    "OffRamp",
 			Address: packageId,
@@ -360,6 +355,24 @@ func TestTransactionsIndexer(t *testing.T) {
 			events, err := cReader.QueryKey(ctx, contract, query.KeyFilter{Key: key}, query.LimitAndSort{}, &database.EventRecord{})
 			if err != nil {
 				log.Errorw("Error querying events", "contract", contract.Name, "key", key, "error", err)
+				return false
+			}
+			found := len(events) > 0
+
+			if found {
+				log.Debugw("Event found")
+			} else {
+				log.Debugw("Event not found", events)
+			}
+
+			return found
+		}
+
+		// helper: same as hasEvent but only checks the database for the event without using the ChainReader
+		hasEventDBOnlyCheck := func(packageId string, module string, key string) bool {
+			events, err := dbStore.QueryEvents(ctx, packageId, fmt.Sprintf("%s::%s::%s", packageId, module, key), []query.Expression{}, query.LimitAndSort{})
+			if err != nil {
+				log.Errorw("Error querying events", "packageId", packageId, "module", module, "key", key, "error", err)
 				return false
 			}
 			found := len(events) > 0
@@ -400,8 +413,8 @@ func TestTransactionsIndexer(t *testing.T) {
 
 		// 4.a. Wait for the configs to be set
 		require.Eventually(t, func() bool {
-			okConfig := hasEvent(boundContracts[0], "ConfigSet")
-			okSrcCfg := hasEvent(boundContracts[1], "SourceChainConfigSet")
+			okConfig := hasEventDBOnlyCheck(packageId, "ocr3_base", "ConfigSet")
+			okSrcCfg := hasEventDBOnlyCheck(packageId, "offramp", "SourceChainConfigSet")
 
 			log.Debugw("event wait progress",
 				"ConfigSet", okConfig,
@@ -433,7 +446,7 @@ func TestTransactionsIndexer(t *testing.T) {
 
 		// 5.b. Wait for the execution state changed event to be indexed
 		require.Eventually(t, func() bool {
-			return hasEvent(boundContracts[1], "ExecutionStateChanged")
+			return hasEvent(boundContracts[0], "ExecutionStateChanged")
 		}, 90*time.Second, 5*time.Second)
 	})
 }
