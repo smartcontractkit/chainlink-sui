@@ -329,21 +329,21 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				continue
 			}
 
+			tIndexer.logger.Debugw("Extracted move abort from failed transaction", "moveAbort", moveAbort, "digest", transactionRecord.Digest)
+
 			includesValidPackage := false
 			includesValidModule := false
 
-			// Check if any of the transaction's commands match with the expected package and module
+			// Check if any of the transaction's commands match with the expected (offramp) package and module
 			for _, raw := range transactionRecord.Transaction.Data.Transaction.Transactions {
 				if moveCall := models.MoveCall(raw); moveCall != nil {
 					packageID := moveCall.Package
 					moduleName := moveCall.Module
 
-					if packageID == tIndexer.eventPackageId {
+					if packageID == tIndexer.eventPackageId && moduleName == tIndexer.executionEventModuleKey {
 						includesValidPackage = true
-					}
-
-					if moduleName == moduleKey {
 						includesValidModule = true
+						break
 					}
 				}
 			}
@@ -351,7 +351,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			// NOTE: The check below does not guarantee that a malicious (known) transmitter is not sending a failed PTB
 			// with the expected package and module. However, it is considered as the worst case scenario simply involves
 			// creating an event record with a failure state against an digest that is not checked.
-			if !includesValidPackage || !includesValidModule {
+			if !(includesValidPackage && includesValidModule) {
 				tIndexer.logger.Warnw(
 					"Expected package and module not found in commands of failed PTB originating from known transmitter",
 					"transmitter", transmitter,

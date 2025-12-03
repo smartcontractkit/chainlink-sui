@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -354,8 +353,25 @@ func TestTransactionsIndexer(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("TestBasicFailedTransactionIndexing", func(t *testing.T) {
-		t.Skip("Skipping basic failed transaction indexing test, need to use valid report bytes")
 		ctx := context.Background()
+
+		// helper: returns true if at least one event with the given key exists for the contract
+		hasEvent := func(contract types.BoundContract, key string) bool {
+			events, err := cReader.QueryKey(ctx, contract, query.KeyFilter{Key: key}, query.LimitAndSort{}, &database.EventRecord{})
+			if err != nil {
+				log.Errorw("Error querying events", "contract", contract.Name, "key", key, "error", err)
+				return false
+			}
+			found := len(events) > 0
+
+			if found {
+				log.Debugw("Event found")
+			} else {
+				log.Debugw("Event not found", events)
+			}
+
+			return found
+		}
 
 		// 1. Create a few transactions
 		for range 3 {
@@ -382,9 +398,22 @@ func TestTransactionsIndexer(t *testing.T) {
 		require.NoError(t, setConfigErr)
 		testutils.PrettyPrintDebug(log, setConfigResponse, "setConfigResponse")
 
+		// 4.a. Wait for the configs to be set
+		require.Eventually(t, func() bool {
+			okConfig := hasEvent(boundContracts[0], "ConfigSet")
+			okSrcCfg := hasEvent(boundContracts[1], "SourceChainConfigSet")
+
+			log.Debugw("event wait progress",
+				"ConfigSet", okConfig,
+				"SourceChainConfigSet", okSrcCfg,
+			)
+
+			return okConfig && okSrcCfg
+		}, 90*time.Second, 5*time.Second)
+
 		// 5. Create a failed PTB transaction
-		reportStr := "0xd91ad9c94fba41de8869e580deb6dbc08e84fb41431d41d04f8849ed00be4a070dca7c34e2f78ecdd91ad9c94fba41de15a9c133ee53500a0300000000000000000000000000000014e30b40bfb1baeed9e4c62f145be85eb3d19ae932184920616d206120746573742063636970206d6573736167654010af5717948371a0b649a59530f8e80e0e1247e015f05f1f3e09c715288dd040420f00000000000000000000000000000000000000000000000000000000000114bd10ffa3815c010d5cf7d38815a0eaabc959eb84a1b6cf2e878987deb2624f9a122297abf6332d45b48c4df6fc3ea705f810980fa08601002000000000000000000000000000000000000000000000000000000000000000120000c16ff2862300000000000000000000000000000000000000000000000000010000"
-		reportBytes, err := hex.DecodeString(strings.TrimPrefix(reportStr, "0x"))
+		reportStr := "9b3c1f221aa3f0cc579b9518768ead0a57cc3d9d782049b702fab91dd723c757f287d20217d8e69b9b3c1f221aa3f0ccec1182faa7c27b87a40200000000000000000000000000001407775923481a094e41d51449b0b0f979c126a3b003486579b4dcbf61d5f5f447ae448e3c1503a811d83bdc074a8712ebeb241fd649b372e040420f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+		reportBytes, err := hex.DecodeString(reportStr)
 		require.NoError(t, err)
 
 		ptb := cwPTB.NewPTBConstructor(chainWriterConfig, relayerClient, log)
@@ -399,41 +428,12 @@ func TestTransactionsIndexer(t *testing.T) {
 		}, packageId, chainWriterConfig.Modules["offramp"].Functions["offramp_execution_with_error"])
 		require.NoError(t, err)
 
-		// Execute the PTB command using the PTB client, we don't check errors because we expect a failure
 		response, _ := relayerClient.FinishPTBAndSend(ctx, txnSigner, ptbTx, client.WaitForLocalExecution)
 		require.Equal(t, "failure", response.Status.Status)
 
-		// helper: returns true if at least one event with the given key exists for the contract
-		hasEvent := func(contract types.BoundContract, key string) bool {
-			events, err := cReader.QueryKey(ctx, contract, query.KeyFilter{Key: key}, query.LimitAndSort{}, &database.EventRecord{})
-			if err != nil {
-				log.Errorw("Error querying events", "contract", contract.Name, "key", key, "error", err)
-				return false
-			}
-			found := len(events) > 0
-
-			if found {
-				log.Debugw("Event found")
-			} else {
-				log.Debugw("Event not found", events)
-			}
-
-			return found
-		}
-
-		// wait for all three
+		// 5.b. Wait for the execution state changed event to be indexed
 		require.Eventually(t, func() bool {
-			okConfig := hasEvent(boundContracts[0], "ConfigSet")
-			okSrcCfg := hasEvent(boundContracts[1], "SourceChainConfigSet")
-			okExec := hasEvent(boundContracts[1], "ExecutionStateChanged")
-
-			log.Debugw("event wait progress",
-				"ConfigSet", okConfig,
-				"SourceChainConfigSet", okSrcCfg,
-				"ExecutionStateChanged", okExec,
-			)
-
-			return okConfig && okSrcCfg && okExec
+			return hasEvent(boundContracts[1], "ExecutionStateChanged")
 		}, 90*time.Second, 5*time.Second)
 	})
 }
