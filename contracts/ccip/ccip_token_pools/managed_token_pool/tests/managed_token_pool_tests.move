@@ -532,7 +532,7 @@ public fun test_lock_or_burn_functionality() {
         transfer::public_transfer(user_mint_cap, @0x456);
         test_scenario::return_shared(pool_state);
         test_scenario::return_shared(token_state);
-        sui::test_utils::destroy(deny_list);
+        std::unit_test::destroy(deny_list);
     };
 
     transfer::public_freeze_object(coin_metadata);
