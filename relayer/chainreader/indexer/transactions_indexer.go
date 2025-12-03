@@ -78,7 +78,7 @@ func NewTransactionsIndexer(
 		executionEventKey:       "ExecutionStateChanged",
 		configEventModuleKey:    "ocr3_base",
 		configEventKey:          "ConfigSet",
-		executeFunctions:        []string{"init_execute", "ccip_receive", "finish_execute"},
+		executeFunctions:        []string{"init_execute", "ccip_receive", "release_or_mint", "finish_execute"},
 		eventConfigs:            eventConfigs,
 		eventPkgReady:           make(chan struct{}),
 	}
