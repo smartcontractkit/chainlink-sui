@@ -230,6 +230,7 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 		// attempt to get the latest event sync of the given type and use its data to construct a cursor
 		cursor, totalCount, err = eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
 		if err != nil {
+			eIndexer.cursorMutex.RUnlock()
 			return err
 		}
 
