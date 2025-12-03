@@ -379,7 +379,7 @@ public fun register_pool_with_regulated_coin<T, TypeProof: drop>(
     verify_function_allowed(
         ref,
         string::utf8(b"token_admin_registry"),
-        string::utf8(b"register_pool"),
+        string::utf8(b"register_pool_with_regulated_coin"),
         VERSION,
     );
 
@@ -418,7 +418,7 @@ public fun register_pool_with_currency<T, TypeProof: drop>(
     verify_function_allowed(
         ref,
         string::utf8(b"token_admin_registry"),
-        string::utf8(b"register_pool"),
+        string::utf8(b"register_pool_with_currency"),
         VERSION,
     );
 
