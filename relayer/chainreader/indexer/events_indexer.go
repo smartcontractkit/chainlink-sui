@@ -58,11 +58,12 @@ func NewEventIndexer(
 	syncTimeout time.Duration,
 ) EventsIndexerApi {
 	dataStore := database.NewDBStore(db, log)
+	namedLogger := logger.Named(log, "EventsIndexer")
 
 	return &EventsIndexer{
 		db:                   dataStore,
 		client:               ptbClient,
-		logger:               log,
+		logger:               namedLogger,
 		pollingInterval:      pollingInterval,
 		syncTimeout:          syncTimeout,
 		eventConfigurations:  eventConfigurations,
