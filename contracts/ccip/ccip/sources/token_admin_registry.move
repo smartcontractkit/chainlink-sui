@@ -228,7 +228,7 @@ public fun get_token_config_data(
     verify_function_allowed(
         ref,
         string::utf8(b"token_admin_registry"),
-        string::utf8(b"get_token_config"),
+        string::utf8(b"get_token_config_data"),
         VERSION,
     );
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
