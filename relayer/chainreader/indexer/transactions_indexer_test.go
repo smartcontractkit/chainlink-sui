@@ -400,15 +400,15 @@ func TestTransactionsIndexer(t *testing.T) {
 
 		// 4.a. Wait for the configs to be set
 		require.Eventually(t, func() bool {
-			// okConfig := hasEvent(boundContracts[0], "ConfigSet")
+			okConfig := hasEvent(boundContracts[0], "ConfigSet")
 			okSrcCfg := hasEvent(boundContracts[1], "SourceChainConfigSet")
 
 			log.Debugw("event wait progress",
-				// "ConfigSet", okConfig,
+				"ConfigSet", okConfig,
 				"SourceChainConfigSet", okSrcCfg,
 			)
 
-			return okSrcCfg
+			return okConfig && okSrcCfg
 		}, 90*time.Second, 5*time.Second)
 
 		// 5. Create a failed PTB transaction
