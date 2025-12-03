@@ -232,7 +232,6 @@ public(package) fun execute_ownership_transfer_to_mcms<P: drop>(
     assert!(to == mcms_registry::get_multisig_address(), EMustTransferToMcms);
 
     state.owner = to;
-    state.pending_transfer = option::none();
 
     mcms_registry::register_entrypoint(
         registry,
