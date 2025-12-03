@@ -364,6 +364,7 @@ public fun register_pool<T, TypeProof: drop>(
 }
 
 /// similar to register_pool, but for regulated coins
+/// need to be called by a token pool which supports a regulated coin with the Coin standard
 public fun register_pool_with_regulated_coin<T, TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
@@ -401,6 +402,7 @@ public fun register_pool_with_regulated_coin<T, TypeProof: drop>(
 }
 
 /// similar to register_pool, but for newer Sui coin standard Currency
+/// need to be called by a token pool which supports a Sui coin with the Currency standard
 public fun register_pool_with_currency<T, TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
@@ -421,7 +423,7 @@ public fun register_pool_with_currency<T, TypeProof: drop>(
     let package_address = publisher_wrapper::get_package_address(publisher_wrapper);
     let proof_tn = type_name::with_defining_ids<TypeProof>();
     let token_pool_module = proof_tn.module_string().into_bytes().to_string();
-    let coin_metadata_address = object::id_address(currency);
+    let coin_metadata_address = object::id_address(currency); // use coin_metadata_address for consistency
     let token_type = type_name::with_defining_ids<T>().into_string();
 
     register_pool_internal(
