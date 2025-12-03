@@ -30,18 +30,19 @@ type SuiChainView struct {
 
 	MCMSWithTimelock view.MCMSWithTimelockView `json:"mcmsWithTimelock"`
 
-	CCIP    view.CCIPView    `json:"ccip,omitempty"`
-	OnRamp  view.OnRampView  `json:"onRamp,omitempty"`
-	OffRamp view.OffRampView `json:"offRamp,omitempty"`
-	Router  view.RouterView  `json:"router,omitempty"`
+	CCIP    view.CCIPView               `json:"ccip,omitempty"`
+	OnRamp  map[string]view.OnRampView  `json:"onRamp,omitempty"`
+	OffRamp map[string]view.OffRampView `json:"offRamp,omitempty"`
+	Router  view.RouterView             `json:"router,omitempty"`
 
-	TokenPools map[string]map[string]view.TokenPoolView // TokenSymbol => TokenPool Address => PoolView
+	TokenPools map[string]map[string]view.TokenPoolView `json:"tokenPools,omitempty"` // TokenSymbol => TokenPool Address => PoolView
 }
 
 type CCIPPoolState struct {
 	PackageID        string
 	StateObjectId    string
 	OwnerCapObjectId string
+	RebalancerCapIds []string // only applicable for LR TP
 }
 
 type ManagedTokenState struct {
@@ -110,6 +111,8 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	chainView := SuiChainView{
 		ChainSelector: selector,
 		TokenPools:    make(map[string]map[string]view.TokenPoolView),
+		OnRamp:        make(map[string]view.OnRampView),
+		OffRamp:       make(map[string]view.OffRampView),
 	}
 
 	lggr.Infow("generating Sui chain view", "chain", chainName, "selector", selector)
@@ -173,7 +176,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return fmt.Errorf("failed to generate onramp view for onramp %s: %w", s.OnRampAddress, err)
 			}
 			mu.Lock()
-			chainView.OnRamp = onRampView
+			chainView.OnRamp[s.OnRampAddress] = onRampView
 			mu.Unlock()
 			lggr.Infow("generated onRamp view", "onRampAddress", s.OnRampAddress, "chain", chainName)
 			return nil
@@ -188,7 +191,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return fmt.Errorf("failed to generate offramp view for offramp %s: %w", s.OffRampAddress, err)
 			}
 			mu.Lock()
-			chainView.OffRamp = offRampView
+			chainView.OffRamp[s.OffRampAddress] = offRampView
 			mu.Unlock()
 			lggr.Infow("generated offRamp view", "offRampAddress", s.OffRampAddress, "chain", chainName)
 			return nil
@@ -222,6 +225,10 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return fmt.Errorf("failed to generate BnM token pool view for symbol %s: %w", symbol, err)
 			}
 
+			if len(pool.RebalancerCapIds) > 0 {
+				return fmt.Errorf("BnM token pool %s has rebalancer cap ids, but it is not applicable", symbol)
+			}
+
 			mu.Lock()
 			if chainView.TokenPools[symbol] == nil {
 				chainView.TokenPools[symbol] = make(map[string]view.TokenPoolView)
@@ -252,6 +259,8 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return fmt.Errorf("failed to generate LnR token pool view for symbol %s: %w", symbol, err)
 			}
 
+			poolView.RebalancerCapIds = pool.RebalancerCapIds
+
 			mu.Lock()
 			if chainView.TokenPools[symbol] == nil {
 				chainView.TokenPools[symbol] = make(map[string]view.TokenPoolView)
@@ -280,6 +289,10 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 			poolView, err := view.GenerateTokenPoolView(ctxG2, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
 			if err != nil {
 				return fmt.Errorf("failed to generate managed token pool view for symbol %s: %w", symbol, err)
+			}
+
+			if len(pool.RebalancerCapIds) > 0 {
+				return fmt.Errorf("managed token pool %s has rebalancer cap ids, but it is not applicable", symbol)
 			}
 
 			mu.Lock()
@@ -498,6 +511,14 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			}
 			pool := chainState.LnRTokenPools[symbol]
 			pool.OwnerCapObjectId = addr
+			chainState.LnRTokenPools[symbol] = pool
+		case SuiLnRTokenPoolRebalancerCapIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token pool: %w", err)
+			}
+			pool := chainState.LnRTokenPools[symbol]
+			pool.RebalancerCapIds = append(pool.RebalancerCapIds, addr)
 			chainState.LnRTokenPools[symbol] = pool
 
 		// Managed Token pools related

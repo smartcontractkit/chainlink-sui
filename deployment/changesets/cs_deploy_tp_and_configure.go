@@ -162,6 +162,13 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPoolOwnerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
 
+			// save LnR Pool RebalancerCapId to the addressBook
+			typeAndVersionLnRTokenPoolRebalancerCapId := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolRebalancerCapIDType, deployment.Version1_0_0)
+			typeAndVersionLnRTokenPoolRebalancerCapId.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
+			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.RebalancerCapObjectId, typeAndVersionLnRTokenPoolRebalancerCapId)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPoolRebalancerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.RebalancerCapObjectId, config.SuiChainSelector, err)
+			}
 		case deployment.TokenPoolTypeManaged:
 			// save Managed Pool to the addressbook
 			typeAndVersionManagedTokenPool := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPoolType, deployment.Version1_0_0)

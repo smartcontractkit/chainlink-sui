@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	mcmsencoder "github.com/smartcontractkit/chainlink-sui/bindings"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
@@ -34,11 +35,13 @@ import (
 	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	opregistry "github.com/smartcontractkit/chainlink-sui/deployment/ops/registry"
 
@@ -558,8 +561,11 @@ func (s *MCMSTestSuite) RunOwnershipCCIPTransfer() {
 		OffRampStateObjectId: s.ccipOfframpObjects.StateObjectId,
 
 		// Proposal
-		Role: suisdk.TimelockRoleBypasser,
-
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionBypass,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
 		ChainSelector: uint64(s.chainSelector),
 	}
 	acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(s.bundle, ownershipops.AcceptCCIPOwnershipSeq, s.deps, input)
