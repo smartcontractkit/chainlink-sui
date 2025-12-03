@@ -9,7 +9,7 @@ use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
-use sui::coin::{CoinMetadata, RegulatedCoinMetadata, TreasuryCap};
+use sui::coin::{CoinMetadata, TreasuryCap};
 use sui::coin_registry::Currency;
 use sui::event;
 use sui::linked_table::{Self, LinkedTable};
