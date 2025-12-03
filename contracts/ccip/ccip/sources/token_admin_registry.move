@@ -363,9 +363,7 @@ public fun register_pool<T, TypeProof: drop>(
     );
 }
 
-/// Only the token owner can call this function to register a token pool for the token it owns.
-/// The ownership of the token is proven by the presence of the treasury cap.
-/// The publisher wrapper proves that the caller owns the token pool package.
+/// similar to register_pool, but for regulated coins
 public fun register_pool_with_regulated_coin<T, TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
@@ -402,9 +400,7 @@ public fun register_pool_with_regulated_coin<T, TypeProof: drop>(
     );
 }
 
-/// Only the token owner can call this function to register a token pool for the token it owns.
-/// The ownership of the token is proven by the presence of the treasury cap.
-/// The publisher wrapper proves that the caller owns the token pool package.
+/// similar to register_pool, but for newer Sui coin standard Currency
 public fun register_pool_with_currency<T, TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
