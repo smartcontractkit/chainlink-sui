@@ -165,9 +165,9 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 		if err != nil {
 			s.logger.Warnw("Failed to get latest package ID for OffRamp", "error", err)
 			// Use the currently available package address for the offramp module as a fallback
-			s.indexer.GetTransactionIndexer().SetOffRampPackage(offrampPackageAddress)
+			s.indexer.GetTransactionIndexer().SetOffRampPackage(offrampPackageAddress, offrampPackageAddress)
 		} else {
-			s.indexer.GetTransactionIndexer().SetOffRampPackage(latestPackageID)
+			s.indexer.GetTransactionIndexer().SetOffRampPackage(offrampPackageAddress, latestPackageID)
 		}
 	}
 
