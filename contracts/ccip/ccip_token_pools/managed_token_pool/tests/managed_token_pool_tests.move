@@ -725,7 +725,7 @@ public fun test_release_or_mint_functionality() {
         transfer::public_transfer(dest_transfer_cap, @managed_token_pool);
         test_scenario::return_shared(pool_state);
         test_scenario::return_shared(token_state);
-        sui::test_utils::destroy(deny_list);
+        std::unit_test::destroy(deny_list);
     };
 
     // Verify the minted coin was transferred to the receiver

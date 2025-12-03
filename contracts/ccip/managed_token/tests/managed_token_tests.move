@@ -5,11 +5,11 @@ use managed_token::managed_token::{Self, TokenState, MintCap};
 use managed_token::mint_allowance;
 use managed_token::ownable::OwnerCap;
 use std::string;
+use std::unit_test;
 use sui::coin::{Self, CoinMetadata};
 use sui::deny_list;
 use sui::package;
 use sui::test_scenario::{Self, Scenario};
-use sui::test_utils;
 
 // Test token types - each test gets its own unique witness type
 public struct MANAGED_TOKEN_TEST has drop {}
@@ -187,7 +187,7 @@ fun test_treasury_cap_access_and_total_supply() {
     // Clean up
     transfer::public_transfer(coin, RECIPIENT);
     transfer::public_transfer(mint_cap, MINTER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -244,7 +244,7 @@ fun test_mint_operations_with_sufficient_allowance() {
     // Clean up
     transfer::public_transfer(coin, RECIPIENT);
     transfer::public_transfer(mint_cap, MINTER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -291,7 +291,7 @@ fun test_unlimited_allowance_operations() {
 
     // Clean up
     transfer::public_transfer(mint_cap, MINTER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -359,7 +359,7 @@ fun test_allowance_management_comprehensive() {
 
     // Clean up
     transfer::public_transfer(mint_cap, MINTER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -422,7 +422,7 @@ fun test_multiple_allowance_increments() {
     // Clean up
     transfer::public_transfer(coin, RECIPIENT);
     transfer::public_transfer(mint_cap, MINTER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -476,7 +476,7 @@ fun test_pause_and_unpause_operations() {
     managed_token::unpause(&mut state, &owner_cap, &mut deny_list, scenario.ctx());
 
     // Clean up
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -506,7 +506,7 @@ fun test_blocklist_and_unblocklist_operations() {
     );
 
     // Clean up
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -596,7 +596,7 @@ fun test_burn_operations_comprehensive() {
     // Clean up
     transfer::public_transfer(mint_cap1, MINTER);
     transfer::public_transfer(mint_cap2, OTHER_USER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -686,7 +686,7 @@ fun test_destruction_with_regulated_token() {
     transfer::public_transfer(treasury_cap, OWNER);
     transfer::public_transfer(deny_cap, OWNER);
     transfer::public_freeze_object(coin_metadata);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     deny_cap_option.destroy_none();
     scenario.end();
 }
@@ -709,7 +709,7 @@ fun test_zero_amount_mint_failure() {
 
     // Cleanup (should not be reached)
     transfer::public_transfer(mint_cap, MINTER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -737,7 +737,7 @@ fun test_insufficient_allowance_failure() {
 
     // Cleanup (should not be reached)
     transfer::public_transfer(mint_cap, MINTER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -757,7 +757,7 @@ fun test_zero_amount_burn_failure() {
 
     // Cleanup (should not be reached)
     transfer::public_transfer(mint_cap, MINTER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -785,7 +785,7 @@ fun test_increment_allowance_zero_amount_failure() {
 
     // Cleanup (should not be reached)
     transfer::public_transfer(mint_cap, MINTER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -813,7 +813,7 @@ fun test_increment_unlimited_allowance_failure() {
 
     // Cleanup (should not be reached)
     transfer::public_transfer(mint_cap, MINTER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -838,7 +838,7 @@ fun test_unauthorized_mint_cap_operations() {
     );
 
     // Cleanup (should not be reached)
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -870,7 +870,7 @@ fun test_operations_while_paused() {
 
     // Cleanup (should not be reached)
     transfer::public_transfer(mint_cap, MINTER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
@@ -902,7 +902,7 @@ fun test_operations_with_blocklisted_addresses() {
 
     // Cleanup (should not be reached)
     transfer::public_transfer(mint_cap, MINTER);
-    test_utils::destroy(deny_list);
+    unit_test::destroy(deny_list);
     cleanup_managed_token_test(scenario, state, owner_cap, coin_metadata);
 }
 
