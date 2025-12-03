@@ -214,56 +214,60 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				},
 			},
 		},
-		OnRamp: view.OnRampView{
-			ContractMetaData: view.ContractMetaData{
-				Address:        state.OnRampAddress,
-				Owner:          owner,
-				TypeAndVersion: "OnRamp 1.6.0",
-				StateObjectID:  state.OnRampStateObjectId,
-			},
-			StaticConfig: view.OnRampStaticConfig{
-				ChainSelector: SuiChainSelector,
-			},
-			DynamicConfig: view.OnRampDynamicConfig{
-				FeeAggregator:  owner,
-				AllowlistAdmin: owner,
-			},
-			DestChainSpecificData: map[uint64]view.DestChainSpecificData{
-				EVMChainSelector: {
-					AllowedSendersList: []string{},
-					DestChainConfig: view.OnRampDestChainConfig{
-						SequenceNumber:   0,
-						AllowlistEnabled: DestChainConfigureOnRamp.DestChainAllowListEnabled[0],
-						Router:           DestChainConfigureOnRamp.DestChainRouters[0],
+		OnRamp: map[string]view.OnRampView{
+			state.OnRampAddress: {
+				ContractMetaData: view.ContractMetaData{
+					Address:        state.OnRampAddress,
+					Owner:          owner,
+					TypeAndVersion: "OnRamp 1.6.0",
+					StateObjectID:  state.OnRampStateObjectId,
+				},
+				StaticConfig: view.OnRampStaticConfig{
+					ChainSelector: SuiChainSelector,
+				},
+				DynamicConfig: view.OnRampDynamicConfig{
+					FeeAggregator:  owner,
+					AllowlistAdmin: owner,
+				},
+				DestChainSpecificData: map[uint64]view.DestChainSpecificData{
+					EVMChainSelector: {
+						AllowedSendersList: []string{},
+						DestChainConfig: view.OnRampDestChainConfig{
+							SequenceNumber:   0,
+							AllowlistEnabled: DestChainConfigureOnRamp.DestChainAllowListEnabled[0],
+							Router:           DestChainConfigureOnRamp.DestChainRouters[0],
+						},
+						ExpectedNextSeqNum: 1,
 					},
-					ExpectedNextSeqNum: 1,
 				},
 			},
 		},
-		OffRamp: view.OffRampView{
-			ContractMetaData: view.ContractMetaData{
-				Address:        state.OffRampAddress,
-				Owner:          owner,
-				TypeAndVersion: "OffRamp 1.6.0",
-				StateObjectID:  state.OffRampStateObjectId,
-			},
-			StaticConfig: view.OffRampStaticConfig{
-				ChainSelector:      SuiChainSelector,
-				RMNRemote:          state.CCIPAddress,
-				TokenAdminRegistry: state.CCIPAddress,
-				NonceManager:       state.CCIPAddress,
-			},
-			DynamicConfig: view.OffRampDynamicConfig{
-				FeeQuoter:                               state.CCIPAddress,
-				PermissionlessExecutionThresholdSeconds: 28800,
-			},
-			SourceChainConfigs: map[uint64]view.OffRampSourceChainConfig{
-				EVMChainSelector: {
-					Router:                    state.CCIPAddress,
-					IsEnabled:                 true,
-					MinSeqNr:                  1,
-					IsRMNVerificationDisabled: true,
-					OnRamp:                    fmt.Sprintf("0x%s", DestChainOnRampAddress),
+		OffRamp: map[string]view.OffRampView{
+			state.OffRampAddress: {
+				ContractMetaData: view.ContractMetaData{
+					Address:        state.OffRampAddress,
+					Owner:          owner,
+					TypeAndVersion: "OffRamp 1.6.0",
+					StateObjectID:  state.OffRampStateObjectId,
+				},
+				StaticConfig: view.OffRampStaticConfig{
+					ChainSelector:      SuiChainSelector,
+					RMNRemote:          state.CCIPAddress,
+					TokenAdminRegistry: state.CCIPAddress,
+					NonceManager:       state.CCIPAddress,
+				},
+				DynamicConfig: view.OffRampDynamicConfig{
+					FeeQuoter:                               state.CCIPAddress,
+					PermissionlessExecutionThresholdSeconds: 28800,
+				},
+				SourceChainConfigs: map[uint64]view.OffRampSourceChainConfig{
+					EVMChainSelector: {
+						Router:                    state.CCIPAddress,
+						IsEnabled:                 true,
+						MinSeqNr:                  1,
+						IsRMNVerificationDisabled: true,
+						OnRamp:                    fmt.Sprintf("0x%s", DestChainOnRampAddress),
+					},
 				},
 			},
 		},
