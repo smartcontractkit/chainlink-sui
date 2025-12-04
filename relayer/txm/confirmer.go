@@ -149,11 +149,12 @@ func handleGasBumpRetry(ctx context.Context, txm *SuiTxm, tx SuiTx, txError *sui
 func handleExponentialBackoffRetry(txm *SuiTxm, tx SuiTx) error {
 	delaySeconds := float64(3) * math.Pow(2, float64(tx.Attempt))
 
-	txm.lggr.Infow("Exponential backoff strategy", "transactionID", tx.TransactionID, "delay", delaySeconds)
+	txm.lggr.Infow("Exponential backoff strategy", "transactionID", tx.TransactionID, "delay", delaySeconds, "state")
 
 	// Check if enough time has elapsed since the last update
 	timeElapsed := time.Since(time.Unix(int64(tx.LastUpdatedAt), 0))
 	if timeElapsed.Seconds() < delaySeconds {
+		// Not enough time has elapsed for the next retry, mark the transaction as failed
 		txm.lggr.Debugw("Not enough time elapsed, no need to retry", "transactionID", tx.TransactionID, "elapsed", timeElapsed, "required", delaySeconds)
 		return nil
 	}

@@ -187,17 +187,12 @@ func (s *InMemoryStore) ChangeState(transactionID string, newState TransactionSt
 
 	oldState := tx.State
 
-	if oldState == newState {
-		// avoid unnecessary state changes
-		return nil
-	}
-
-	allowed, ok := validTransitions[oldState]
+	validNextStates, ok := validTransitions[oldState]
 	if !ok {
 		return fmt.Errorf("invalid current state: %v", oldState)
 	}
 
-	if !allowed[newState] {
+	if valid, ok := validNextStates[newState]; !ok || !valid {
 		return fmt.Errorf("invalid state transition from %v to %v", oldState, newState)
 	}
 
