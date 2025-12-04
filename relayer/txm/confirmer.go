@@ -140,7 +140,7 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 
 	if txError == nil {
 		txm.lggr.Errorw("Failed to parse transaction error", "transactionID", tx.TransactionID, "error", result.Error)
-		return errors.New("failed to parse transaction error")
+		txError = suierrors.NewSuiError(suierrors.UnknownErrors, result.Error)
 	}
 
 	if isRetryable {
@@ -192,6 +192,10 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 			if err != nil {
 				txm.lggr.Errorw("Failed to update transaction state", "transactionID", tx.TransactionID, "error", err)
 				return err
+			}
+			err = txm.transactionRepository.UpdateTransactionError(tx.TransactionID, txError)
+			if err != nil {
+				txm.lggr.Errorw("Failed to update transaction error", "transactionID", tx.TransactionID, "error", err)
 			}
 		}
 	} else {
