@@ -42,6 +42,7 @@ type EventsIndexerApi interface {
 	Start(ctx context.Context) error
 	SyncAllEvents(ctx context.Context) error
 	SyncEvent(ctx context.Context, selector *client.EventSelector) error
+	AddEventSelector(ctx context.Context, selector *client.EventSelector) error
 	Ready() error
 	Close() error
 }
@@ -57,11 +58,12 @@ func NewEventIndexer(
 	syncTimeout time.Duration,
 ) EventsIndexerApi {
 	dataStore := database.NewDBStore(db, log)
+	namedLogger := logger.Named(log, "EventsIndexer")
 
 	return &EventsIndexer{
 		db:                   dataStore,
 		client:               ptbClient,
-		logger:               log,
+		logger:               namedLogger,
 		pollingInterval:      pollingInterval,
 		syncTimeout:          syncTimeout,
 		eventConfigurations:  eventConfigurations,
@@ -409,6 +411,24 @@ eventLoop:
 				break eventLoop
 			}
 		}
+	}
+
+	return nil
+}
+
+func (eIndexer *EventsIndexer) AddEventSelector(ctx context.Context, selector *client.EventSelector) error {
+	if selector == nil {
+		return fmt.Errorf("unspecified selector for AddEventSelector call")
+	}
+
+	// check if the event selector is already tracked, if not add it to the list
+	if !eIndexer.isEventSelectorAdded(*selector) {
+		eIndexer.configMutex.Lock()
+		// Double-check after acquiring write lock (avoid race with concurrent adds)
+		if !eIndexer.isEventSelectorAddedLocked(*selector) {
+			eIndexer.eventConfigurations = append(eIndexer.eventConfigurations, selector)
+		}
+		eIndexer.configMutex.Unlock()
 	}
 
 	return nil
