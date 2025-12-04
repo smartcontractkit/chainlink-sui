@@ -9,7 +9,6 @@ use std::string;
 use sui::bcs;
 use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
-use sui::test_utils;
 
 const SENDER: address = @0xA;
 const MODULE_NAME: vector<u8> = b"mcms_user";
@@ -464,7 +463,7 @@ fun test_call_function_with_invalid_user_data() {
 
         ts::return_shared(fake_user_data);
         ts::return_shared(registry);
-        test_utils::destroy(fake_owner_cap);
+        transfer::public_share_object(fake_owner_cap);
     };
 
     ts::end(scenario);
