@@ -29,6 +29,7 @@ const (
 	CheckpointAndConsensusErrors
 	PublishingErrors
 	SoftBundleErrors
+	UnknownErrors
 )
 
 func (c ErrorCategory) String() string {
@@ -146,6 +147,9 @@ var ErrNoSharedObjectError = NewSuiError(SoftBundleErrors, "NoSharedObjectError"
 var ErrAlreadyExecutedError = NewSuiError(SoftBundleErrors, "AlreadyExecutedError")
 var ErrCertificateAlreadyProcessed = NewSuiError(SoftBundleErrors, "CertificateAlreadyProcessed")
 
+// Unknown Error
+var ErrUnknownError = NewSuiError(UnknownErrors, "UnknownError")
+
 // ========================================
 // Error Mapping and Retry Functions
 // ========================================
@@ -221,6 +225,9 @@ var suiErrorMappings = []struct {
 	{ErrNoSharedObjectError.Error(), ErrNoSharedObjectError},
 	{ErrAlreadyExecutedError.Error(), ErrAlreadyExecutedError},
 	{ErrCertificateAlreadyProcessed.Error(), ErrCertificateAlreadyProcessed},
+
+	// Unknown Error
+	{ErrUnknownError.Error(), ErrUnknownError},
 }
 
 // ParseSuiErrorMessage maps a raw RPC error message to a structured error.
