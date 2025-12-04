@@ -46,11 +46,14 @@ type CCIPPoolState struct {
 }
 
 type ManagedTokenState struct {
-	PackageID          string
-	StateObjectId      string
-	OwnerCapObjectId   string
-	MinterCapObjectIds []string
-	PublisherObjectId  string
+	TokenPackageID        string
+	TokenObjectMetadataID string
+	TokenTreasuryCapID    string
+	PackageID             string
+	StateObjectId         string
+	OwnerCapObjectId      string
+	MinterCapObjectIds    []string
+	PublisherObjectId     string
 }
 
 type CCIPChainState struct {
@@ -412,6 +415,30 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.LinkTokenTreasuryCapId = addr
 
 		// Managed Token related
+		case SuiManagedTokenPackageIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenPackageID = addr
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenObjectMetadataIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenObjectMetadataID = addr
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenTreasuryCapIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenTreasuryCapID = addr
+			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenType:
 			symbol, err := getTokenSymbol(typeAndVersion)
 			if err != nil {
