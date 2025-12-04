@@ -278,3 +278,119 @@ func TestConfirmerRoutine_SuccessfulGasBumpAfterTwoAttempts(t *testing.T) {
 
 	txmInstance.Close()
 }
+
+func TestConfirmerRoutine_ExponentialBackoffRetry(t *testing.T) {
+	t.Parallel()
+	// Set up logger.
+	lggr := logger.Test(t)
+
+	// Use the real in-memory store.
+	store := txm.NewTxmStoreImpl(lggr)
+
+	// Create a fake retry manager that marks errors as retryable with the GasBump strategy.
+	nrRetries := 3
+	retryManager := txm.NewDefaultRetryManager(nrRetries)
+
+	// Create a stateful fake client that changes behavior based on gas budget
+	fakeClient := &testutils.StatefulFakeSuiPTBClient{
+		CoinsData: []models.CoinData{
+			{
+				CoinType:     "0x2::sui::SUI",
+				Balance:      "100000000",
+				CoinObjectId: "0x1234567890abcdef1234567890abcdef12345678",
+				Version:      "1",
+				Digest:       "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT",
+			},
+		},
+		// Track gas budgets and return appropriate status
+		GasBudgetThreshold:           8000000, // Minimum gas budget required for success
+		CallCount:                    0,
+		ForcedTransactionStatusError: "ErrVerifiedCheckpointNotFound",
+	}
+
+	// Create a gas manager with lower max budget and percentage increase
+	maxGasBudget := big.NewInt(10000000)
+	percentIncrease := int64(120) // 120% (20% increase) per bump
+	gasManager := txm.NewSuiGasManager(lggr, fakeClient, *maxGasBudget, percentIncrease)
+
+	// Create keystore
+	keystoreInstance := testutils.NewTestKeystore(t)
+
+	// Use the default configuration.
+	conf := txm.DefaultConfigSet
+
+	// Create the TXM.
+	txmInstance, err := txm.NewSuiTxm(lggr, fakeClient, keystoreInstance, conf, store, retryManager, gasManager)
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_ = txmInstance.Start(ctx)
+
+	// Generate a real Ed25519 public key for testing
+	publicKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+
+	keystoreInstance.AddKey(privKey)
+
+	// Convert public key to bytes
+	publicKeyBytes := []byte(publicKey)
+
+	address, err := client.GetAddressFromPublicKey(publicKeyBytes)
+	require.NoError(t, err)
+
+	// Create a minimal PTB for testing with low initial gas budget
+	initialGasBudget := uint64(6000000) // Start with low gas budget
+	ptb := transaction.NewTransaction()
+	ptb.SetGasBudget(initialGasBudget)
+	ptb.SetSender(models.SuiAddress(address))
+	ptb.SetGasOwner(models.SuiAddress(address))
+	ptb.SetGasPrice(uint64(1000))
+
+	coinObjectIdBytes, _ := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(address))
+	versionUint, _ := strconv.ParseUint("1", 10, 64)
+	digestBytes, _ := transaction.ConvertObjectDigestStringToBytes(models.ObjectDigest("9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT"))
+
+	ptb.SetGasPayment([]transaction.SuiObjectRef{
+		{
+			ObjectId: *coinObjectIdBytes,
+			Version:  versionUint,
+			Digest:   *digestBytes,
+		},
+	})
+
+	// Add a transaction in StateSubmitted with a known digest
+	txID := "tx-exponential-backoff-retry-test"
+	tx := txm.SuiTx{
+		TransactionID: txID,
+		Sender:        address,
+		PublicKey:     publicKeyBytes,
+		Metadata:      &commontypes.TxMeta{GasLimit: big.NewInt(int64(initialGasBudget))},
+		Timestamp:     txm.GetCurrentUnixTimestamp(),
+		Payload:       "payload",
+		Signatures:    []string{"signature"},
+		RequestType:   "WaitForEffectsCert",
+		Attempt:       1,
+		State:         txm.StateSubmitted,
+		Digest:        "test-digest-exponential-backoff-retry",
+		LastUpdatedAt: txm.GetCurrentUnixTimestamp(),
+		TxError:       nil,
+		GasBudget:     initialGasBudget,
+		Ptb:           ptb,
+	}
+	err = store.AddTransaction(tx)
+	require.NoError(t, err)
+	err = store.ChangeState(txID, txm.StateSubmitted)
+	require.NoError(t, err)
+
+	// Wait for the transaction to eventually succeed after exponential backoff retry
+	require.Eventually(t, func() bool {
+		updatedTx, e := store.GetTransaction(txID)
+		if e != nil {
+			return false
+		}
+
+		return updatedTx.Attempt > 2
+	}, 60*time.Second, 5*time.Second, "Transaction did not retry as expected")
+
+	txmInstance.Close()
+}

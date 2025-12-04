@@ -1,6 +1,8 @@
 package txm
 
 import (
+	"errors"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
 )
 
@@ -116,7 +118,8 @@ func (rm *DefaultRetryManager) IsRetryable(tx *SuiTx, errMessage string) (bool, 
 func defaultRetryStrategy(tx *SuiTx, txErrorMsg string, maxRetries int) (bool, RetryStrategy) {
 	txError := suierrors.ParseSuiErrorMessage(txErrorMsg)
 
-	if !suierrors.IsRetryable(txError) {
+	isRetryable, strategy := isRetryable(txError)
+	if !isRetryable {
 		return false, NoRetry
 	}
 
@@ -127,11 +130,23 @@ func defaultRetryStrategy(tx *SuiTx, txErrorMsg string, maxRetries int) (bool, R
 		return false, NoRetry
 	}
 
-	// nolint:exhaustive
-	switch txError.Category {
-	case suierrors.GasErrors:
-		return true, GasBump
-	default:
-		return true, ExponentialBackoff
+	return true, strategy
+}
+
+// isRetryable determines if a Sui error is retryable (transient) and returns the appropriate retry strategy.
+// It uses errors.Is to correctly recognize wrapped errors.
+func isRetryable(err error) (bool, RetryStrategy) {
+	for _, retryErr := range suierrors.ExponentialBackoffErrors {
+		if errors.Is(err, retryErr) {
+			return true, ExponentialBackoff
+		}
 	}
+
+	for _, retryErr := range suierrors.GasBumpErrors {
+		if errors.Is(err, retryErr) {
+			return true, GasBump
+		}
+	}
+
+	return false, NoRetry
 }

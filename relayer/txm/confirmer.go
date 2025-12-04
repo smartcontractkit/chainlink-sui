@@ -2,6 +2,8 @@ package txm
 
 import (
 	"context"
+	"math"
+	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -105,8 +107,7 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 
 	switch strategy {
 	case ExponentialBackoff:
-		txm.lggr.Warnw("exponential backoff strategy not implemented", "transactionID", tx.TransactionID)
-		return markTransactionFailed(txm, tx, txError)
+		return handleExponentialBackoffRetry(txm, tx)
 	case GasBump:
 		return handleGasBumpRetry(ctx, txm, tx, txError)
 	case NoRetry:
@@ -135,6 +136,29 @@ func handleGasBumpRetry(ctx context.Context, txm *SuiTxm, tx SuiTx, txError *sui
 		txm.lggr.Errorw("Failed to update transaction gas", "transactionID", tx.TransactionID, "error", err)
 		return err
 	}
+
+	if err := txm.transactionRepository.ChangeState(tx.TransactionID, StateRetriable); err != nil {
+		txm.lggr.Errorw("Failed to update transaction state", "transactionID", tx.TransactionID, "error", err)
+		return err
+	}
+
+	txm.broadcastChannel <- tx.TransactionID
+	return nil
+}
+
+func handleExponentialBackoffRetry(txm *SuiTxm, tx SuiTx) error {
+	delaySeconds := float64(3) * math.Pow(2, float64(tx.Attempt))
+
+	txm.lggr.Infow("Exponential backoff strategy", "transactionID", tx.TransactionID, "delay", delaySeconds)
+
+	// Check if enough time has elapsed since the last update
+	timeElapsed := time.Since(time.Unix(int64(tx.LastUpdatedAt), 0))
+	if timeElapsed.Seconds() < delaySeconds {
+		txm.lggr.Debugw("Not enough time elapsed, no need to retry", "transactionID", tx.TransactionID, "elapsed", timeElapsed, "required", delaySeconds)
+		return nil
+	}
+
+	txm.lggr.Debugw("Sufficient time elapsed, retrying transaction", "transactionID", tx.TransactionID, "elapsed", timeElapsed)
 
 	if err := txm.transactionRepository.ChangeState(tx.TransactionID, StateRetriable); err != nil {
 		txm.lggr.Errorw("Failed to update transaction state", "transactionID", tx.TransactionID, "error", err)
