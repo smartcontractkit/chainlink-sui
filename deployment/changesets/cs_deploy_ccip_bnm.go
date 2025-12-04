@@ -62,7 +62,7 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 	}
 
 	// save CCIPBnMTokenCoinMetadataId address to the addressbook
-	typeAndVersionCoinMetadataId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenObjectMetadataIDType, deployment.Version1_0_0)
+	typeAndVersionCoinMetadataId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenCoinMetadataIDType, deployment.Version1_0_0)
 	typeAndVersionCoinMetadataId.AddLabel(CCIPBnMSymbol)
 	err = ab.Save(config.ChainSelector, ccipBnMTokenReport.Output.Objects.CoinMetadataObjectId, typeAndVersionCoinMetadataId)
 	if err != nil {
@@ -75,6 +75,14 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 	err = ab.Save(config.ChainSelector, ccipBnMTokenReport.Output.Objects.TreasuryCapObjectId, typeAndVersionTreasuryCapId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPBnMToken TreasuryCapObjectId address %s for Sui chain %d: %w", ccipBnMTokenReport.Output.Objects.TreasuryCapObjectId, config.ChainSelector, err)
+	}
+
+	// save CCIPBnMTokenUpgradeCapId address to the addressbook
+	typeAndVersionUpgradeCapId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenUpgradeCapIDType, deployment.Version1_0_0)
+	typeAndVersionUpgradeCapId.AddLabel(CCIPBnMSymbol)
+	err = ab.Save(config.ChainSelector, ccipBnMTokenReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapId)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPBnMToken UpgradeCapObjectId address %s for Sui chain %d: %w", ccipBnMTokenReport.Output.Objects.UpgradeCapObjectId, config.ChainSelector, err)
 	}
 
 	if config.MintAmount != 0 || config.MintToAddress != "" {
