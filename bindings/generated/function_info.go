@@ -11,6 +11,7 @@ import (
     module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
     module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
     module_upgrade_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/upgrade_registry"
+    module_ccip_burn_mint_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_burn_mint_token/ccip_burn_mint_token"
     module_dummy_receiver "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_dummy_receiver/ccip_dummy_receiver"
     module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
     module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
@@ -43,6 +44,7 @@ var FunctionInfoByModule = map[string]string{
     "state_object": module_state_object.FunctionInfo,
     "token_admin_registry": module_token_admin_registry.FunctionInfo,
     "upgrade_registry": module_upgrade_registry.FunctionInfo,
+    "ccip_burn_mint_token": module_ccip_burn_mint_token.FunctionInfo,
     "dummy_receiver": module_dummy_receiver.FunctionInfo,
     "offramp": module_offramp.FunctionInfo,
     "onramp": module_onramp.FunctionInfo,
