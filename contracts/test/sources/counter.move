@@ -58,6 +58,10 @@ module test::counter {
         id: UID,
     }
 
+    public struct SomeObject has key, store {
+        id: UID,
+    }
+
     // Pointer to reference both Counter and AdminCap objects
     public struct CounterPointer has key, store {
         id: UID,
@@ -458,5 +462,18 @@ module test::counter {
         vector::push_back(&mut vectors, @0x3.to_bytes());
         vector::push_back(&mut vectors, @0x4.to_bytes());
         vectors
+    }
+
+    #[allow(lint(self_transfer))]
+    public fun create_many_objects(count: u64, ctx: &mut TxContext) {
+        let mut i = 0;
+        
+        while (i < count) {
+            let obj = SomeObject {
+                id: object::new(ctx),
+            };
+            transfer::transfer(obj, tx_context::sender(ctx));
+            i = i + 1;
+        }
     }
 }
