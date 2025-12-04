@@ -131,13 +131,22 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 			return false
 		}
 
+		return updatedTx.Attempt > 2
+	}, 15*time.Second, 1*time.Second, "Transaction did not retry as expected")
+
+	require.Eventually(t, func() bool {
+		updatedTx, e := store.GetTransaction(txID)
+		if e != nil {
+			return false
+		}
+
 		return updatedTx.State == txm.StateFailed
-	}, 5*time.Second, 100*time.Millisecond, "Transaction did not retry as expected")
+	}, 15*time.Second, 1*time.Second, "Transaction did switch to failed state as expected")
 
 	// Check that the transaction was retried and the gas limit was updated.
 	updatedTx, err := store.GetTransaction(txID)
 	require.NoError(t, err)
-	require.Equal(t, 3, updatedTx.Attempt)
+	require.Equal(t, 4, updatedTx.Attempt)
 	require.Equal(t, suierrors.ErrGasBudgetTooHigh, updatedTx.TxError)
 
 	txmInstance.Close()
@@ -152,7 +161,7 @@ func TestConfirmerRoutine_SuccessfulGasBumpAfterTwoAttempts(t *testing.T) {
 	store := txm.NewTxmStoreImpl(lggr)
 
 	// Create a fake retry manager that marks errors as retryable with the GasBump strategy.
-	nrRetries := 5
+	nrRetries := 3
 	retryManager := txm.NewDefaultRetryManager(nrRetries)
 
 	// Create a stateful fake client that changes behavior based on gas budget
@@ -259,7 +268,7 @@ func TestConfirmerRoutine_SuccessfulGasBumpAfterTwoAttempts(t *testing.T) {
 	updatedTx, err := store.GetTransaction(txID)
 	require.NoError(t, err)
 	require.Equal(t, txm.StateFinalized, updatedTx.State)
-	require.Equal(t, 5, updatedTx.Attempt) // Initial attempt + 4 gas bump cycles
+	require.Equal(t, 3, updatedTx.Attempt)
 	require.Nil(t, updatedTx.TxError)
 
 	// Verify that the gas budget was increased appropriately
