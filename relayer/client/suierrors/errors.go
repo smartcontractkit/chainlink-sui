@@ -240,7 +240,7 @@ func ParseSuiErrorMessage(msg string) *SuiError {
 		}
 	}
 
-	return nil
+	return NewSuiError(UnknownErrors, msg)
 }
 
 // retryableErrors is a list of errors that are considered transient and retriable.
