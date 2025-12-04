@@ -532,7 +532,7 @@ public fun test_lock_or_burn_functionality() {
         transfer::public_transfer(user_mint_cap, @0x456);
         test_scenario::return_shared(pool_state);
         test_scenario::return_shared(token_state);
-        std::unit_test::destroy(deny_list);
+        transfer::public_share_object(deny_list);
     };
 
     transfer::public_freeze_object(coin_metadata);
@@ -725,7 +725,7 @@ public fun test_release_or_mint_functionality() {
         transfer::public_transfer(dest_transfer_cap, @managed_token_pool);
         test_scenario::return_shared(pool_state);
         test_scenario::return_shared(token_state);
-        std::unit_test::destroy(deny_list);
+        transfer::public_share_object(deny_list);
     };
 
     // Verify the minted coin was transferred to the receiver
