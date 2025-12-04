@@ -18,7 +18,7 @@ type DeployLinkTokenConfig struct {
 
 var _ cldf.ChangeSetV2[DeployLinkTokenConfig] = DeployLinkToken{}
 
-// DeployAptosChain deploys Sui chain packages and modules
+// DeployLinkToken deploys Sui chain packages and modules
 type DeployLinkToken struct{}
 
 // Apply implements deployment.ChangeSetV2.
