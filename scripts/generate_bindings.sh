@@ -51,6 +51,9 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/usdc_token
 # CCIP Router
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_router --input ./contracts/ccip/ccip_router/sources/router.move --output ./bindings/generated/ccip/ccip_router/
 
+# CCIP BnM Token
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_burn_mint_token --input ./contracts/ccip/ccip_burn_mint_token/sources/ccip_burn_mint_token.move --output ./bindings/generated/ccip/ccip_burn_mint_token/ccip_burn_mint_token
+
 # LINK TOKEN
 go run bindgen/main.go --moveConfig ./contracts/link --input ./contracts/link/sources/link.move --output ./bindings/generated/link/link
 
