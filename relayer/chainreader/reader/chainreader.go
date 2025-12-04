@@ -139,6 +139,8 @@ func (s *suiChainReader) Close() error {
 }
 
 func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
+	offrampPackageAddress := ""
+
 	for _, binding := range bindings {
 		err := s.packageResolver.BindPackage(binding.Name, binding.Address)
 		if err != nil {
@@ -149,19 +151,43 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 		if err := s.preloadParentObjectIDs(ctx, binding); err != nil {
 			s.logger.Warnw("Failed to pre-load parent object IDs", "contract", binding.Name, "error", err)
 		}
+
+		if common.NormalizeName(binding.Name) == common.NormalizeName(offrampName) {
+			offrampPackageAddress = binding.Address
+		}
 	}
 
 	// If the "OffRamp" package/module is now bound, set the offramp package ID for the tx indexer
-	if pkg, err := s.packageResolver.ResolvePackageAddress(offrampName); err == nil {
-		// Get the latest package ID for the offramp module
-		latestPackageID, err := s.client.GetLatestPackageId(ctx, pkg, "offramp")
+	if offrampPackageAddress != "" {
+		// Get the latest package ID for the offramp module. The transaction indexer watches the latest package ID for the offramp module
+		// to capture failed transactions.
+		latestPackageID, err := s.client.GetLatestPackageId(ctx, offrampPackageAddress, "offramp")
 		if err != nil {
-			s.logger.Warnw("Failed to get latest package ID for OffRamp", "error", err)
+			s.logger.Errorw("Failed to get latest package ID for OffRamp", "error", err)
+			// Use the currently available package address for the offramp module as a fallback
+			s.indexer.GetTransactionIndexer().SetOffRampPackage(offrampPackageAddress, offrampPackageAddress)
 		} else {
-			s.indexer.GetTransactionIndexer().SetOffRampPackage(latestPackageID)
+			s.indexer.GetTransactionIndexer().SetOffRampPackage(offrampPackageAddress, latestPackageID)
 		}
 
-		s.indexer.GetTransactionIndexer().SetOffRampPackage(pkg)
+		// Ensure that the event indexer has the SourceChainConfigSet event selector, this is needed to make sure
+		// transaction indexer can find the relevant data when inserting synthetic events.
+		err = s.indexer.GetEventIndexer().AddEventSelector(ctx, &client.EventSelector{
+			Package: offrampPackageAddress,
+			Module:  "offramp",
+			Event:   "SourceChainConfigSet",
+		})
+		if err != nil {
+			s.logger.Errorw("Failed to update offramp::SourceChainConfigSet event selector when binding OffRamp", "error", err)
+		}
+		err = s.indexer.GetEventIndexer().AddEventSelector(ctx, &client.EventSelector{
+			Package: offrampPackageAddress,
+			Module:  "ocr3_base",
+			Event:   "ConfigSet",
+		})
+		if err != nil {
+			s.logger.Errorw("Failed to update ocr3_base::ConfigSet event selector when binding OffRamp", "error", err)
+		}
 	}
 
 	return nil
