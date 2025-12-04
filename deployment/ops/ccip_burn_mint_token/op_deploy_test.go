@@ -49,6 +49,7 @@ func TestDeployAndInitSeq(t *testing.T) {
 		BnMTokenPackageId: bnmTokenReport.Output.PackageId,
 		TreasuryCapId:     bnmTokenReport.Output.Objects.TreasuryCapObjectId,
 		Amount:            10,
+		ToAddress:         "0x40d438a47eafc6bee64a7f0addeb468d2939920f5661462f90cd8dbae2cdd9cb",
 	})
 	require.NoError(t, err, "failed to mint BnM token")
 }

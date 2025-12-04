@@ -81,6 +81,7 @@ type MintBnMTokenInput struct {
 	BnMTokenPackageId string
 	TreasuryCapId     string
 	Amount            uint64
+	ToAddress         string
 }
 
 type MintBnMTokenOutput struct {
@@ -103,14 +104,8 @@ var mintBnMOp = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input MintBnMToken
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 
-	// Get the signer address to transfer the minted coin to
-	signerAddress, err := opts.Signer.GetAddress()
-	if err != nil {
-		return sui_ops.OpTxResult[MintBnMTokenOutput]{}, fmt.Errorf("failed to get signer address: %w", err)
-	}
-
 	// Use MintAndTransfer instead of Mint to ensure the coin is transferred and visible
-	tx, err := bnmToken.MintAndTransfer(b.GetContext(), opts, bind.Object{Id: input.TreasuryCapId}, input.Amount, signerAddress)
+	tx, err := bnmToken.MintAndTransfer(b.GetContext(), opts, bind.Object{Id: input.TreasuryCapId}, input.Amount, input.ToAddress)
 	if err != nil {
 		return sui_ops.OpTxResult[MintBnMTokenOutput]{}, fmt.Errorf("failed to execute MintAndTransfer on BnMToken: %w", err)
 	}

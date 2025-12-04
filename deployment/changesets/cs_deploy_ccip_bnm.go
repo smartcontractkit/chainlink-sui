@@ -17,6 +17,7 @@ const CCIPBnMSymbol = "CCIP BnM"
 type DeployCCIPBnMTokenConfig struct {
 	ChainSelector uint64 `yaml:"chainSelector"`
 	MintAmount    uint64 `yaml:"mintAmount"`
+	MintToAddress string `yaml:"mintToAddress"`
 }
 
 var _ cldf.ChangeSetV2[DeployCCIPBnMTokenConfig] = DeployCCIPBnMToken{}
@@ -76,12 +77,13 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPBnMToken TreasuryCapObjectId address %s for Sui chain %d: %w", ccipBnMTokenReport.Output.Objects.TreasuryCapObjectId, config.ChainSelector, err)
 	}
 
-	if config.MintAmount != 0 {
+	if config.MintAmount != 0 || config.MintToAddress != "" {
 		// Run MintCCIPBnMToken Operation
 		_, err = cld_ops.ExecuteOperation(e.OperationsBundle, bnmops.MintBnMOp, deps, bnmops.MintBnMTokenInput{
 			BnMTokenPackageId: ccipBnMTokenReport.Output.PackageId,
 			TreasuryCapId:     ccipBnMTokenReport.Output.Objects.TreasuryCapObjectId,
 			Amount:            config.MintAmount,
+			ToAddress:         config.MintToAddress,
 		})
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to mint CCIPBnMToken for Sui chain %d: %w", config.ChainSelector, err)

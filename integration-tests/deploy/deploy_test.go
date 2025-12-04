@@ -190,10 +190,15 @@ func (s *DeployTestSuite) DeployTokenPools() {
 func (s *DeployTestSuite) DeployBnMToken() {
 	s.T().Log("Phase 6: Deploying CCIP BnM Token...")
 
+	owner, err := s.signer.GetAddress()
+	s.Require().NoError(err, "failed to get signer address")
+
 	out, err := changesets.DeployCCIPBnMToken{}.Apply(s.env, changesets.DeployCCIPBnMTokenConfig{
 		ChainSelector: SuiChainSelector,
 		MintAmount:    1000,
+		MintToAddress: owner,
 	})
+
 	s.Require().NoError(err, "failed to deploy CCIP BnM Token")
 	err = s.env.ExistingAddresses.Merge(out.AddressBook)
 	s.Require().NoError(err, "failed to merge CCIP BnM Token addresses")
