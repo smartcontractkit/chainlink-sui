@@ -254,6 +254,12 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 			totalCount = dbTotalCount
 		} else {
 			eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle)
+
+			// hardcoded cursor starting point
+			cursor = &models.EventId{
+				TxDigest: "CpFQ8JsaHwTEuNLCfeJQopu3eM3ipViowkWmg23k4fNk",
+				EventSeq: "0",
+			}
 		}
 	}
 

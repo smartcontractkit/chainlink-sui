@@ -32,6 +32,9 @@ func TestChainReaderFiredrill(t *testing.T) {
 	offrampContractName := "OffRamp"
 	offrampPackageId := "0xe2d83f15195acd57b798610d167dc241fcb30b5cc3808af497c33d97512b7970"
 
+	onrampContractName := "OnRamp"
+	onrampPackageId := "0x30e087460af8a8aacccbc218aa358cdcde8d43faf61ec0638d71108e276e2f1d"
+
 	rmnRemoteContractName := "RMNRemote"
 	ccipPackageAddress := "0x324c505732fadfa5ac2877cdca28a6be28910009e100de8e6e16eb33ed1218dc"
 
@@ -115,6 +118,20 @@ func TestChainReaderFiredrill(t *testing.T) {
 				},
 				Events: map[string]*config.ChainReaderEvent{},
 			},
+			onrampContractName: {
+				Name:      "onramp",
+				Functions: map[string]*config.ChainReaderFunction{},
+				Events: map[string]*config.ChainReaderEvent{
+					"CCIPMessageSent": {
+						Name:      "CCIPMessageSent",
+						EventType: "CCIPMessageSent",
+						EventSelector: client.EventSelector{
+							Module: "onramp",
+							Event:  "CCIPMessageSent",
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -164,6 +181,9 @@ func TestChainReaderFiredrill(t *testing.T) {
 	}, {
 		Name:    rmnRemoteContractName,
 		Address: ccipPackageAddress,
+	}, {
+		Name:    onrampContractName,
+		Address: onrampPackageId,
 	}})
 	require.NoError(t, err)
 
@@ -210,5 +230,15 @@ func TestChainReaderFiredrill(t *testing.T) {
 		)
 		require.NoError(t, err)
 		testutils.PrettyPrintDebug(log, expectedVersionedConfig, "expectedVersionedConfig")
+	})
+
+	t.Run("sanity check for CCIPMessageSent event", func(t *testing.T) {
+		var ccipMessageSent any
+		events, err := chainReader.QueryKey(ctx, types.BoundContract{
+			Name:    onrampContractName,
+			Address: onrampPackageId,
+		}, query.KeyFilter{Key: "CCIPMessageSent"}, query.LimitAndSort{}, &ccipMessageSent)
+		require.NoError(t, err)
+		testutils.PrettyPrintDebug(log, events, "events")
 	})
 }
