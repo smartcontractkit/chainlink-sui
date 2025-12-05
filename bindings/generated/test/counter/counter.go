@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"test","module":"counter","name":"create","parameters":null},{"package":"test","module":"counter","name":"decrement","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"emit_counter_bytes","parameters":null},{"package":"test","module":"counter","name":"get_address_list","parameters":null},{"package":"test","module":"counter","name":"get_coin_value","parameters":[{"name":"coin","type":"Coin<T>"}]},{"package":"test","module":"counter","name":"get_count","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_count_no_entry","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_count_using_pointer","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_multi_nested_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_nested_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_ocr_config","parameters":null},{"package":"test","module":"counter","name":"get_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_simple_result","parameters":null},{"package":"test","module":"counter","name":"get_tuple_struct","parameters":null},{"package":"test","module":"counter","name":"get_value_with_pointer_dependency","parameters":[{"name":"counter","type":"Counter"},{"name":"pointer","type":"CCIPObjectRef"}]},{"package":"test","module":"counter","name":"get_vector_of_addresses","parameters":null},{"package":"test","module":"counter","name":"get_vector_of_u8","parameters":null},{"package":"test","module":"counter","name":"get_vector_of_vectors_of_u8","parameters":null},{"package":"test","module":"counter","name":"increment","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by","parameters":[{"name":"counter","type":"Counter"},{"name":"by","type":"u64"}]},{"package":"test","module":"counter","name":"increment_by_bytes_length","parameters":[{"name":"counter","type":"Counter"},{"name":"bytes","type":"vector<u8>"}]},{"package":"test","module":"counter","name":"increment_by_one","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_one_no_context","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_two","parameters":[{"name":"_admin","type":"AdminCap"},{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_two_no_context","parameters":[{"name":"_admin","type":"AdminCap"},{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_mult","parameters":[{"name":"counter","type":"Counter"},{"name":"a","type":"u64"},{"name":"b","type":"u64"}]},{"package":"test","module":"counter","name":"initialize","parameters":null},{"package":"test","module":"counter","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"test","module":"counter","name":"create","parameters":null},{"package":"test","module":"counter","name":"create_many_objects","parameters":[{"name":"count","type":"u64"}]},{"package":"test","module":"counter","name":"decrement","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"emit_counter_bytes","parameters":null},{"package":"test","module":"counter","name":"get_address_list","parameters":null},{"package":"test","module":"counter","name":"get_coin_value","parameters":[{"name":"coin","type":"Coin<T>"}]},{"package":"test","module":"counter","name":"get_count","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_count_no_entry","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_count_using_pointer","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_multi_nested_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_nested_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_ocr_config","parameters":null},{"package":"test","module":"counter","name":"get_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_simple_result","parameters":null},{"package":"test","module":"counter","name":"get_tuple_struct","parameters":null},{"package":"test","module":"counter","name":"get_value_with_pointer_dependency","parameters":[{"name":"counter","type":"Counter"},{"name":"pointer","type":"CCIPObjectRef"}]},{"package":"test","module":"counter","name":"get_vector_of_addresses","parameters":null},{"package":"test","module":"counter","name":"get_vector_of_u8","parameters":null},{"package":"test","module":"counter","name":"get_vector_of_vectors_of_u8","parameters":null},{"package":"test","module":"counter","name":"increment","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by","parameters":[{"name":"counter","type":"Counter"},{"name":"by","type":"u64"}]},{"package":"test","module":"counter","name":"increment_by_bytes_length","parameters":[{"name":"counter","type":"Counter"},{"name":"bytes","type":"vector<u8>"}]},{"package":"test","module":"counter","name":"increment_by_one","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_one_no_context","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_two","parameters":[{"name":"_admin","type":"AdminCap"},{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_two_no_context","parameters":[{"name":"_admin","type":"AdminCap"},{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_mult","parameters":[{"name":"counter","type":"Counter"},{"name":"a","type":"u64"},{"name":"b","type":"u64"}]},{"package":"test","module":"counter","name":"initialize","parameters":null},{"package":"test","module":"counter","name":"type_and_version","parameters":null}]`
 
 type ICounter interface {
 	Initialize(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -50,6 +50,7 @@ type ICounter interface {
 	GetVectorOfU8(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	GetVectorOfAddresses(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	GetVectorOfVectorsOfU8(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	CreateManyObjects(ctx context.Context, opts *bind.CallOpts, count uint64) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() ICounterDevInspect
 	Encoder() CounterEncoder
 	Bound() bind.IBoundContract
@@ -134,6 +135,8 @@ type CounterEncoder interface {
 	GetVectorOfAddressesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetVectorOfVectorsOfU8() (*bind.EncodedCall, error)
 	GetVectorOfVectorsOfU8WithArgs(args ...any) (*bind.EncodedCall, error)
+	CreateManyObjects(count uint64) (*bind.EncodedCall, error)
+	CreateManyObjectsWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type CounterContract struct {
@@ -214,6 +217,10 @@ type Counter struct {
 }
 
 type CounterObject struct {
+	Id string `move:"sui::object::UID"`
+}
+
+type SomeObject struct {
 	Id string `move:"sui::object::UID"`
 }
 
@@ -556,6 +563,23 @@ func init() {
 	// Register vector decoder for CounterObject
 	bind.RegisterStructDecoder("vector<test::counter::CounterObject>", func(data []byte) (interface{}, error) {
 		var results []CounterObject
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("test::counter::SomeObject", func(data []byte) (interface{}, error) {
+		var result SomeObject
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for SomeObject
+	bind.RegisterStructDecoder("vector<test::counter::SomeObject>", func(data []byte) (interface{}, error) {
+		var results []SomeObject
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
@@ -1057,6 +1081,16 @@ func (c *CounterContract) GetVectorOfAddresses(ctx context.Context, opts *bind.C
 // GetVectorOfVectorsOfU8 executes the get_vector_of_vectors_of_u8 Move function.
 func (c *CounterContract) GetVectorOfVectorsOfU8(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.counterEncoder.GetVectorOfVectorsOfU8()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// CreateManyObjects executes the create_many_objects Move function.
+func (c *CounterContract) CreateManyObjects(ctx context.Context, opts *bind.CallOpts, count uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.counterEncoder.CreateManyObjects(count)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2229,4 +2263,30 @@ func (c counterEncoder) GetVectorOfVectorsOfU8WithArgs(args ...any) (*bind.Encod
 	return c.EncodeCallArgsWithGenerics("get_vector_of_vectors_of_u8", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"vector<vector<u8>>",
 	})
+}
+
+// CreateManyObjects encodes a call to the create_many_objects Move function.
+func (c counterEncoder) CreateManyObjects(count uint64) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("create_many_objects", typeArgsList, typeParamsList, []string{
+		"u64",
+	}, []any{
+		count,
+	}, nil)
+}
+
+// CreateManyObjectsWithArgs encodes a call to the create_many_objects Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c counterEncoder) CreateManyObjectsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("create_many_objects", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
