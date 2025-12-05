@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	success = "success"
-	failure = "failure"
+	success                               = "success"
+	failure                               = "failure"
+	defaultExponentialBackoffDelaySeconds = 2
 )
 
 func (txm *SuiTxm) confirmerLoop() {
@@ -147,7 +148,7 @@ func handleGasBumpRetry(ctx context.Context, txm *SuiTxm, tx SuiTx, txError *sui
 }
 
 func handleExponentialBackoffRetry(txm *SuiTxm, tx SuiTx) error {
-	delaySeconds := float64(3) * math.Pow(2, float64(tx.Attempt))
+	delaySeconds := float64(defaultExponentialBackoffDelaySeconds) * math.Pow(2, float64(tx.Attempt))
 
 	txm.lggr.Infow("Exponential backoff strategy", "transactionID", tx.TransactionID, "delay", delaySeconds, "state", tx.State)
 
