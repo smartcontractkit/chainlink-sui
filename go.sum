@@ -368,8 +368,6 @@ github.com/smartcontractkit/chainlink-common/pkg/chipingress v0.0.1 h1:ca2z5OXgn
 github.com/smartcontractkit/chainlink-common/pkg/chipingress v0.0.1/go.mod h1:NZv/qKYGFRnkjOYBouajnDfFoZ+WDa6H2KNmSf1dnKc=
 github.com/smartcontractkit/chainlink-common/pkg/values v0.0.0-20250806152407-159881c7589c h1:QaImySzrLcGzQc4wCF2yDqqb73jA3+9EIqybgx8zT4w=
 github.com/smartcontractkit/chainlink-common/pkg/values v0.0.0-20250806152407-159881c7589c/go.mod h1:U1UAbPhy6D7Qz0wHKGPoQO+dpR0hsYjgUz8xwRrmKwI=
-github.com/smartcontractkit/chainlink-evm v0.3.3 h1:JqwyJEtnNEUaoQQPoOBTT4sn2lpdIZHtf0Hr0M60YDw=
-github.com/smartcontractkit/chainlink-evm v0.3.3/go.mod h1:q0ZBvaoisNaqC8NcMYWNPTjee88nQktDEeJMQHq3hVI=
 github.com/smartcontractkit/freeport v0.1.2 h1:xMZ0UFHmjfB4MwbDANae3RS7UKt7OJ0JVqhjPSXdKVk=
 github.com/smartcontractkit/freeport v0.1.2/go.mod h1:T4zH9R8R8lVWKfU7tUvYz2o2jMv1OpGCdpY2j2QZXzU=
 github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 h1:12ijqMM9tvYVEm+nR826WsrNi6zCKpwBhuApq127wHs=
