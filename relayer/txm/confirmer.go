@@ -103,7 +103,7 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 		return markTransactionFailed(txm, tx, txError)
 	}
 
-	txm.lggr.Infow("Transaction is retriable", "transactionID", tx.TransactionID, "strategy", strategy)
+	txm.lggr.Infow("Transaction is retryable", "transactionID", tx.TransactionID, "strategy", strategy)
 
 	switch strategy {
 	case ExponentialBackoff:
@@ -149,7 +149,7 @@ func handleGasBumpRetry(ctx context.Context, txm *SuiTxm, tx SuiTx, txError *sui
 func handleExponentialBackoffRetry(txm *SuiTxm, tx SuiTx) error {
 	delaySeconds := float64(3) * math.Pow(2, float64(tx.Attempt))
 
-	txm.lggr.Infow("Exponential backoff strategy", "transactionID", tx.TransactionID, "delay", delaySeconds, "state")
+	txm.lggr.Infow("Exponential backoff strategy", "transactionID", tx.TransactionID, "delay", delaySeconds, "state", tx.State)
 
 	// Check if enough time has elapsed since the last update
 	timeElapsed := time.Since(time.Unix(int64(tx.LastUpdatedAt), 0))
