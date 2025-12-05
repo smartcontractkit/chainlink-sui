@@ -8,7 +8,7 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
 
-type ConfigureBurnMintTokenPoolObjects struct {
+type ConfigureManagedTokenPoolObjects struct {
 	OwnerCapObjectId string
 	StateObjectId    string
 }
@@ -43,9 +43,9 @@ type ConfigureManagedTokenPoolInput struct {
 }
 
 var ConfigureManagedTokenPoolSequence = cld_ops.NewSequence(
-	"sui-deploy-burn-mint-token-pool-seq",
+	"sui-deploy-managed-token-pool-seq",
 	semver.MustParse("0.1.0"),
-	"Deploys and sets initial burn mint token pool configuration",
+	"Deploys and sets initial managed token pool configuration",
 	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input ConfigureManagedTokenPoolInput) (ConfigureManagedTokenPoolOutput, error) {
 
 		seqReports := make([]cld_ops.Report[any, any], 0)
