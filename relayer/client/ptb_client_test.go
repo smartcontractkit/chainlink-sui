@@ -286,17 +286,40 @@ func TestPTBClient(t *testing.T) {
 		require.True(t, len(objects) > 0)
 	})
 
-	t.Run("ReadFilterOwnedObjectIds", func(t *testing.T) {
+	t.Run("ReadFilterOwnedObjectIds_(no_cursor)", func(t *testing.T) {
 		objects, err := relayerClient.ReadFilterOwnedObjectIds(
 			context.Background(),
 			accountAddress,
 			fmt.Sprintf("%s::counter::AdminCap", packageId),
-			nil,
+			"",
 		)
 		require.NoError(t, err)
 		require.NotNil(t, objects)
-		require.Equal(t, 1, len(objects))
+		require.NotZero(t, len(objects))
 		require.Equal(t, fmt.Sprintf("%s::counter::AdminCap", packageId), objects[0].Type)
+	})
+
+	t.Run("ReadFilterOwnedObjectIds_(many_pages)", func(t *testing.T) {
+		for i := 0; i < 5; i++ {
+			err := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+			require.NoError(t, err)
+		}
+
+		CreateManyObjects(t, relayerClient, packageId, accountAddress, publicKeyBytes)
+
+		objects, err := relayerClient.ReadFilterOwnedObjectIds(
+			context.Background(),
+			accountAddress,
+			fmt.Sprintf("%s::counter::SomeObject", packageId),
+			"",
+		)
+		require.NoError(t, err)
+		require.NotNil(t, objects)
+		require.Equal(t, 100, len(objects))
+
+		for _, obj := range objects {
+			require.Equal(t, fmt.Sprintf("%s::counter::SomeObject", packageId), obj.Type)
+		}
 	})
 
 	//nolint:paralleltest
@@ -561,6 +584,34 @@ func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient,
 	require.Equal(t, "success", resp.Status.Status, "Expected move call to succeed")
 
 	return resp.TxDigest
+}
+
+func CreateManyObjects(t *testing.T, relayerClient *client.PTBClient, packageId string, accountAddress string, signerPublicKey []byte) {
+	t.Helper()
+	// Prepare arguments for a move call
+	moveCallReq := client.MoveCallRequest{
+		Signer:          accountAddress,
+		PackageObjectId: packageId,
+		Module:          "counter",
+		Function:        "create_many_objects",
+		Arguments:       []any{"100"},
+		TypeArguments:   []any{"u64"},
+		GasBudget:       2000000000,
+	}
+
+	txnMetadata, err := relayerClient.MoveCall(context.Background(), moveCallReq)
+	require.NoError(t, err)
+	require.NotEmpty(t, txnMetadata.TxBytes, "Expected non-empty transaction bytes")
+
+	// Verify we can execute the transaction
+	resp, err := relayerClient.SignAndSendTransaction(
+		context.Background(),
+		txnMetadata.TxBytes,
+		signerPublicKey,
+		"WaitForLocalExecution",
+	)
+	require.NoError(t, err)
+	require.Equal(t, "success", resp.Status.Status, "Expected move call to succeed")
 }
 
 func CreateFailedTransaction(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) {

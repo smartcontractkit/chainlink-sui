@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -227,13 +226,14 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 	// Get the cursor for pagination - either from memory or start fresh
 	eIndexer.cursorMutex.RLock()
 	cursor := eIndexer.lastProcessedCursors[eventHandle]
-	eIndexer.cursorMutex.RUnlock()
+
 	var totalCount uint64
 
 	if cursor == nil {
 		// attempt to get the latest event sync of the given type and use its data to construct a cursor
 		dbOffsetCursor, dbTotalCount, offsetErr := eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
 		if offsetErr != nil {
+      eIndexer.cursorMutex.RUnlock()
 			eIndexer.logger.Errorw("syncEvent: failed to get latest offset", "error", offsetErr)
 			return offsetErr
 		}
@@ -271,6 +271,7 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 			EventSeq: cursor.EventSeq,
 		}
 	}
+	eIndexer.cursorMutex.RUnlock()
 
 eventLoop:
 	for {
