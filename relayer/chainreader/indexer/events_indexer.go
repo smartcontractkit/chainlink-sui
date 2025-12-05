@@ -246,6 +246,7 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 			if err != nil {
 				eIndexer.cursorMutex.RUnlock()
 				eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err)
+				eIndexer.cursorMutex.RUnlock()
 				return err
 			}
 			// convert the db offset cursor digest from hex (the format stored in the DB) to base58 (the format expected by the client)
@@ -266,6 +267,12 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 			eIndexer.configMutex.RUnlock()
 
 			eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle)
+
+			// hardcoded cursor starting point
+			cursor = &models.EventId{
+				TxDigest: "CpFQ8JsaHwTEuNLCfeJQopu3eM3ipViowkWmg23k4fNk",
+				EventSeq: "0",
+			}
 		}
 	}
 
