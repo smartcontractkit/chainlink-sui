@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 
 const SuiDecimals = 9
 const SuiDecimalsDenominator = 1_000_000_000
+const BalanceCheckTimeout = 30 * time.Second
 
 // BalanceMonitorOpts contains the options for creating a new Sui account balance monitor.
 type BalanceMonitorOpts struct {
@@ -44,7 +46,12 @@ func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
 		},
 		KeyToAccountMapper: func(ctx context.Context, pubKey string) (string, error) {
 			// We need to convert the Sui public key to an account address
-			return client.GetAddressFromPublicKey([]byte(pubKey))
+			hexBytes, err := hex.DecodeString(pubKey)
+			if err != nil {
+				return "", fmt.Errorf("failed to decode public key: %w", err)
+			}
+
+			return client.GetAddressFromPublicKey(hexBytes)
 		},
 	})
 }
@@ -56,8 +63,7 @@ type balanceClient struct {
 
 // GetAccountBalance returns the account balance in SUI
 func (c balanceClient) GetAccountBalance(address string) (float64, error) {
-	// TODO: is this safe?
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), BalanceCheckTimeout)
 	defer cancel()
 
 	// Get the account balance
