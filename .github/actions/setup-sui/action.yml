@@ -2,9 +2,9 @@ name: Setup Sui CLI
 description: Install and cache Sui CLI using suiup
 inputs:
   version:
-    description: Sui CLI version to install (e.g., mainnet-v1.60.1)
+    description: Sui CLI version to install (e.g., mainnet-v1.61.2)
     required: false
-    default: mainnet-v1.60.1
+    default: mainnet-v1.61.2
 
 runs:
   using: composite
@@ -27,7 +27,11 @@ runs:
 
         # Determine platform
         if [[ "$RUNNER_OS" == "Linux" ]]; then
-          PLATFORM="ubuntu-x86_64"
+          if [[ "$(uname -m)" == "aarch64" ]]; then
+            PLATFORM="ubuntu-aarch64"
+          else
+            PLATFORM="ubuntu-x86_64"
+          fi
         elif [[ "$RUNNER_OS" == "macOS" ]]; then
           if [[ "$(uname -m)" == "arm64" ]]; then
             PLATFORM="macos-arm64"
@@ -41,11 +45,12 @@ runs:
 
         # Download and install Sui CLI
         SUI_VERSION="${{ inputs.version }}"
-        DOWNLOAD_URL="https://github.com/MystenLabs/sui/releases/download/${SUI_VERSION}/sui-${PLATFORM}-tgz"
+        FILENAME="sui-${SUI_VERSION}-${PLATFORM}.tgz"
+        DOWNLOAD_URL="https://github.com/MystenLabs/sui/releases/download/${SUI_VERSION}/${FILENAME}"
         echo "Downloading Sui CLI ${SUI_VERSION} for ${PLATFORM}..."
-        curl -L -o sui.tgz "${DOWNLOAD_URL}"
-        tar -xzf sui.tgz
-        rm sui.tgz
+        curl -L -o "${FILENAME}" "${DOWNLOAD_URL}"
+        tar -xzf "${FILENAME}"
+        rm "${FILENAME}"
 
         # Make executable
         chmod +x sui
