@@ -212,6 +212,7 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 		return fmt.Errorf("unspecified selector for SyncEvent call")
 	}
 
+	eventKey := fmt.Sprintf("%s::%s", selector.Module, selector.Event)
 	eventHandle := fmt.Sprintf("%s::%s::%s", selector.Package, selector.Module, selector.Event)
 
 	// check if the event selector is already tracked, if not add it to the list
@@ -258,21 +259,15 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 			totalCount = dbTotalCount
 		} else {
 			eIndexer.configMutex.RLock()
-			if override, ok := eIndexer.eventOffsetOverrides[eventHandle]; ok {
+			if override, ok := eIndexer.eventOffsetOverrides[eventKey]; ok {
 				cursor = &models.EventId{
 					TxDigest: override.TxDigest,
 					EventSeq: override.EventSeq,
 				}
+			} else {
+				eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle)
 			}
 			eIndexer.configMutex.RUnlock()
-
-			eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle)
-
-			// hardcoded cursor starting point
-			cursor = &models.EventId{
-				TxDigest: "CpFQ8JsaHwTEuNLCfeJQopu3eM3ipViowkWmg23k4fNk",
-				EventSeq: "0",
-			}
 		}
 	}
 

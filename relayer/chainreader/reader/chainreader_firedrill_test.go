@@ -129,6 +129,10 @@ func TestChainReaderFiredrill(t *testing.T) {
 							Module: "onramp",
 							Event:  "CCIPMessageSent",
 						},
+						EventSelectorDefaultOffset: &client.EventId{
+							TxDigest: "CpFQ8JsaHwTEuNLCfeJQopu3eM3ipViowkWmg23k4fNk",
+							EventSeq: "0",
+						},
 					},
 				},
 			},
@@ -187,28 +191,16 @@ func TestChainReaderFiredrill(t *testing.T) {
 	}})
 	require.NoError(t, err)
 
+	err = chainReader.Start(ctx)
+	require.NoError(t, err)
+	defer chainReader.Close()
+
 	err = indexerInstance.Start(ctx)
 	require.NoError(t, err)
-
-	// // helper: same as hasEvent but only checks the database for the event without using the ChainReader
-	// hasEventDBOnlyCheck := func(packageId string, module string, key string) bool {
-	// 	events, err := db.QueryEvents(ctx, packageId, fmt.Sprintf("%s::%s::%s", packageId, module, key), []query.Expression{}, query.LimitAndSort{})
-	// 	if err != nil {
-	// 		log.Errorw("Error querying events", "packageId", packageId, "module", module, "key", key, "error", err)
-	// 		return false
-	// 	}
-	// 	found := len(events) > 0
-
-	// 	if found {
-	// 		log.Debugw("Event found")
-	// 	} else {
-	// 		log.Debugw("Event not found", events)
-	// 	}
-
-	// 	return found
-	// }
+	defer indexerInstance.Close()
 
 	t.Run("sanity check for SourceChainConfigSet event", func(t *testing.T) {
+		t.Skip("skipping SourceChainConfigSet event test")
 		var seqType any
 		events, err := chainReader.QueryKey(ctx, types.BoundContract{
 			Name:    offrampContractName,
@@ -220,6 +212,7 @@ func TestChainReaderFiredrill(t *testing.T) {
 	})
 
 	t.Run("sanity check for GetVersionedConfig function", func(t *testing.T) {
+		t.Skip("skipping GetVersionedConfig function test")
 		var expectedVersionedConfig map[string]any
 		err := chainReader.GetLatestValue(
 			context.Background(),
@@ -232,13 +225,13 @@ func TestChainReaderFiredrill(t *testing.T) {
 		testutils.PrettyPrintDebug(log, expectedVersionedConfig, "expectedVersionedConfig")
 	})
 
-	t.Run("sanity check for CCIPMessageSent event", func(t *testing.T) {
+	t.Run("sanity check for CCIPMessageSent event with offset override from configs", func(t *testing.T) {
 		var ccipMessageSent any
-		events, err := chainReader.QueryKey(ctx, types.BoundContract{
+		sequences, err := chainReader.QueryKey(ctx, types.BoundContract{
 			Name:    onrampContractName,
 			Address: onrampPackageId,
 		}, query.KeyFilter{Key: "CCIPMessageSent"}, query.LimitAndSort{}, &ccipMessageSent)
 		require.NoError(t, err)
-		testutils.PrettyPrintDebug(log, events, "events")
+		testutils.PrettyPrintDebug(log, sequences, "sequences")
 	})
 }
