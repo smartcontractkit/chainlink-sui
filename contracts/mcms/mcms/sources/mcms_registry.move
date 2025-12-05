@@ -75,16 +75,15 @@ const EPackageIdMismatch: u64 = 3;
 const EOutOfOrderExecution: u64 = 5;
 const EWrongProofType: u64 = 6;
 const EPackageNotRegistered: u64 = 7;
-const EModuleNotRegistered: u64 = 8;
-const EModuleNotAllowed: u64 = 9;
-const EModuleAlreadyAllowed: u64 = 10;
-const EModuleNotInAllowlist: u64 = 11;
-const EOnlyAcceptOwnershipAllowed: u64 = 12;
-const EOnlyMcmsAcceptOwnershipProofAllowed: u64 = 13;
-const EInvalidModuleName: u64 = 14;
-const EProofNotAtPublisherAddressAndModule: u64 = 15;
-const EProofTypeNotRegistered: u64 = 16;
-const ECapAddressMismatch: u64 = 17;
+const EModuleNotAllowed: u64 = 8;
+const EModuleAlreadyAllowed: u64 = 9;
+const EModuleNotInAllowlist: u64 = 10;
+const EOnlyAcceptOwnershipAllowed: u64 = 11;
+const EOnlyMcmsAcceptOwnershipProofAllowed: u64 = 12;
+const EInvalidModuleName: u64 = 13;
+const EProofNotAtPublisherAddressAndModule: u64 = 14;
+const EProofTypeNotRegistered: u64 = 15;
+const ECapAddressMismatch: u64 = 16;
 
 public struct MCMS_REGISTRY has drop {}
 
@@ -274,6 +273,7 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
 
     let expected_proof_type = get_registered_proof_type(registry, proof_account_address);
     assert!(proof_type == expected_proof_type, EWrongProofType);
+    assert!(registry.proof_type_to_package.contains(proof_type), EProofTypeNotRegistered);
     assert!(target.to_ascii_string() == proof_account_address, EPackageIdMismatch);
 
     // Validate the proof comes from same package ID
@@ -301,7 +301,7 @@ public fun release_cap<T: drop, C: key + store>(registry: &mut Registry, _proof:
     // Assert the package is registered
     assert!(registry.package_caps.contains(proof_account_address), EPackageCapNotRegistered);
     assert!(registry.proof_type_to_package.contains(proof_type), EProofTypeNotRegistered);
-    assert!(registry.registered_proof_types.contains(proof_account_address), EModuleNotRegistered);
+    assert!(registry.registered_proof_types.contains(proof_account_address), EPackageNotRegistered);
 
     let expected_type = registry.registered_proof_types.remove(proof_account_address);
     assert!(proof_type == expected_type, EWrongProofType);

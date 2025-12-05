@@ -1360,7 +1360,7 @@ public fun mcms_accept_ownership(
     verify_function_allowed(
         ref,
         string::utf8(b"offramp"),
-        string::utf8(b"accept_ownership"),
+        string::utf8(b"mcms_accept_ownership"),
         VERSION,
     );
     let data = mcms_registry::get_accept_ownership_data(

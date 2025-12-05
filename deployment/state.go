@@ -30,10 +30,10 @@ type SuiChainView struct {
 
 	MCMSWithTimelock view.MCMSWithTimelockView `json:"mcmsWithTimelock"`
 
-	CCIP    view.CCIPView    `json:"ccip,omitempty"`
-	OnRamp  view.OnRampView  `json:"onRamp,omitempty"`
-	OffRamp view.OffRampView `json:"offRamp,omitempty"`
-	Router  view.RouterView  `json:"router,omitempty"`
+	CCIP    view.CCIPView               `json:"ccip,omitempty"`
+	OnRamp  map[string]view.OnRampView  `json:"onRamp,omitempty"`
+	OffRamp map[string]view.OffRampView `json:"offRamp,omitempty"`
+	Router  view.RouterView             `json:"router,omitempty"`
 
 	TokenPools map[string]map[string]view.TokenPoolView `json:"tokenPools,omitempty"` // TokenSymbol => TokenPool Address => PoolView
 }
@@ -46,11 +46,15 @@ type CCIPPoolState struct {
 }
 
 type ManagedTokenState struct {
-	PackageID          string
-	StateObjectId      string
-	OwnerCapObjectId   string
-	MinterCapObjectIds []string
-	PublisherObjectId  string
+	TokenPackageID      string
+	TokenCoinMetadataID string
+	TokenTreasuryCapID  string
+	TokenUpgradeCapID   string
+	PackageID           string
+	StateObjectId       string
+	OwnerCapObjectId    string
+	MinterCapObjectIds  []string
+	PublisherObjectId   string
 }
 
 type CCIPChainState struct {
@@ -91,6 +95,7 @@ type CCIPChainState struct {
 	LinkTokenAddress        string
 	LinkTokenCoinMetadataId string
 	LinkTokenTreasuryCapId  string
+	LinkTokenUpgradeCapId   string
 
 	// Managed Token related
 	ManagedTokens map[string]ManagedTokenState
@@ -111,6 +116,8 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	chainView := SuiChainView{
 		ChainSelector: selector,
 		TokenPools:    make(map[string]map[string]view.TokenPoolView),
+		OnRamp:        make(map[string]view.OnRampView),
+		OffRamp:       make(map[string]view.OffRampView),
 	}
 
 	lggr.Infow("generating Sui chain view", "chain", chainName, "selector", selector)
@@ -174,7 +181,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return fmt.Errorf("failed to generate onramp view for onramp %s: %w", s.OnRampAddress, err)
 			}
 			mu.Lock()
-			chainView.OnRamp = onRampView
+			chainView.OnRamp[s.OnRampAddress] = onRampView
 			mu.Unlock()
 			lggr.Infow("generated onRamp view", "onRampAddress", s.OnRampAddress, "chain", chainName)
 			return nil
@@ -189,7 +196,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return fmt.Errorf("failed to generate offramp view for offramp %s: %w", s.OffRampAddress, err)
 			}
 			mu.Lock()
-			chainView.OffRamp = offRampView
+			chainView.OffRamp[s.OffRampAddress] = offRampView
 			mu.Unlock()
 			lggr.Infow("generated offRamp view", "offRampAddress", s.OffRampAddress, "chain", chainName)
 			return nil
@@ -408,8 +415,42 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.LinkTokenCoinMetadataId = addr
 		case SuiLinkTokenTreasuryCapID:
 			chainState.LinkTokenTreasuryCapId = addr
+		case SuiLinkTokenUpgradeCapID:
+			chainState.LinkTokenUpgradeCapId = addr
 
 		// Managed Token related
+		case SuiManagedTokenPackageIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenPackageID = addr
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenCoinMetadataIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenCoinMetadataID = addr
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenUpgradeCapIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenUpgradeCapID = addr
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenTreasuryCapIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenTreasuryCapID = addr
+			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenType:
 			symbol, err := getTokenSymbol(typeAndVersion)
 			if err != nil {

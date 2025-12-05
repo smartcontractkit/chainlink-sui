@@ -26,7 +26,8 @@ const (
 	MockLinkToken        = Package("mock_link_token")
 	MockEthToken         = Package("mock_eth_token")
 	// LINK
-	LINK = Package("link")
+	LINK    = Package("link")
+	CCIPBnM = Package("ccip_burn_mint_token")
 	// MCMS
 	MCMS       = Package("mcms")
 	MCMSUser   = Package("mcms_user")
@@ -41,6 +42,7 @@ var Contracts map[Package]string = map[Package]string{
 	// CCIP
 	CCIP:                 filepath.Join("ccip", "ccip"),
 	CCIPDummyReceiver:    filepath.Join("ccip", "ccip_dummy_receiver"),
+	CCIPBnM:              filepath.Join("ccip", "ccip_burn_mint_token"),
 	CCIPOfframp:          filepath.Join("ccip", "ccip_offramp"),
 	CCIPOnramp:           filepath.Join("ccip", "ccip_onramp"),
 	CCIPRouter:           filepath.Join("ccip", "ccip_router"),

@@ -2,10 +2,8 @@ package indexer
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,7 +16,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
 type EventsIndexer struct {
@@ -42,6 +39,7 @@ type EventsIndexerApi interface {
 	Start(ctx context.Context) error
 	SyncAllEvents(ctx context.Context) error
 	SyncEvent(ctx context.Context, selector *client.EventSelector) error
+	AddEventSelector(ctx context.Context, selector *client.EventSelector) error
 	Ready() error
 	Close() error
 }
@@ -57,11 +55,12 @@ func NewEventIndexer(
 	syncTimeout time.Duration,
 ) EventsIndexerApi {
 	dataStore := database.NewDBStore(db, log)
+	namedLogger := logger.Named(log, "EventsIndexer")
 
 	return &EventsIndexer{
 		db:                   dataStore,
 		client:               ptbClient,
-		logger:               log,
+		logger:               namedLogger,
 		pollingInterval:      pollingInterval,
 		syncTimeout:          syncTimeout,
 		eventConfigurations:  eventConfigurations,
@@ -204,30 +203,6 @@ func convertMapKeysToCamelCaseWithPath(input any, path string) any {
 	return input
 }
 
-func convertBytesToHex(input any) any {
-	kind := reflect.ValueOf(input).Kind()
-
-	switch kind {
-	case reflect.Map:
-		result := make(map[string]any)
-		for k, v := range input.(map[string]any) {
-			result[k] = convertBytesToHex(v)
-		}
-
-		return result
-
-	case reflect.Slice:
-		bytes, err := codec.AnySliceToBytes(input.([]any))
-		if err != nil {
-			return input
-		}
-
-		return "0x" + hex.EncodeToString(bytes)
-	}
-
-	return input
-}
-
 func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.EventSelector) error {
 	if selector == nil {
 		return fmt.Errorf("unspecified selector for SyncEvent call")
@@ -250,13 +225,14 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 	// Get the cursor for pagination - either from memory or start fresh
 	eIndexer.cursorMutex.RLock()
 	cursor := eIndexer.lastProcessedCursors[eventHandle]
-	eIndexer.cursorMutex.RUnlock()
+
 	var totalCount uint64
 	var err error
 	if cursor == nil {
 		// attempt to get the latest event sync of the given type and use its data to construct a cursor
 		cursor, totalCount, err = eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
 		if err != nil {
+			eIndexer.cursorMutex.RUnlock()
 			return err
 		}
 
@@ -278,6 +254,7 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 			EventSeq: cursor.EventSeq,
 		}
 	}
+	eIndexer.cursorMutex.RUnlock()
 
 eventLoop:
 	for {
@@ -409,6 +386,24 @@ eventLoop:
 				break eventLoop
 			}
 		}
+	}
+
+	return nil
+}
+
+func (eIndexer *EventsIndexer) AddEventSelector(ctx context.Context, selector *client.EventSelector) error {
+	if selector == nil {
+		return fmt.Errorf("unspecified selector for AddEventSelector call")
+	}
+
+	// check if the event selector is already tracked, if not add it to the list
+	if !eIndexer.isEventSelectorAdded(*selector) {
+		eIndexer.configMutex.Lock()
+		// Double-check after acquiring write lock (avoid race with concurrent adds)
+		if !eIndexer.isEventSelectorAddedLocked(*selector) {
+			eIndexer.eventConfigurations = append(eIndexer.eventConfigurations, selector)
+		}
+		eIndexer.configMutex.Unlock()
 	}
 
 	return nil
