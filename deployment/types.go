@@ -30,6 +30,7 @@ var (
 	SuiCCIPRouterOwnerCapObjectIDType deployment.ContractType = "SuiCCIPRouterOwnerCapObjectID"
 
 	// MCMS Related
+	SuiMCMSType                        deployment.ContractType = "SuiManyChainMultisig"
 	SuiMcmsPackageIDType               deployment.ContractType = "SuiManyChainMultisigPackageID"
 	SuiMcmsObjectIDType                deployment.ContractType = "SuiManyChainMultisigObjectID"
 	SuiMcmsRegistryObjectIDType        deployment.ContractType = "SuiManyChainMultisigRegistryObjectID"
@@ -46,10 +47,16 @@ var (
 	// Link related
 	SuiLinkTokenObjectMetadataID deployment.ContractType = "SuiLinkTokenObjectMetadataID"
 	SuiLinkTokenTreasuryCapID    deployment.ContractType = "SuiLinkTokenTreasuryCapID"
-	SuiMCMSType                  deployment.ContractType = "SuiManyChainMultisig"
+	SuiLinkTokenUpgradeCapID     deployment.ContractType = "SuiLinkTokenUpgradeCapID"
 	SuiLinkTokenType             deployment.ContractType = "SuiLinkToken"
 
 	// Managed Token related
+	// Coin
+	SuiManagedTokenPackageIDType      deployment.ContractType = "SuiManagedTokenPackageID"
+	SuiManagedTokenCoinMetadataIDType deployment.ContractType = "SuiManagedTokenCoinMetadataID"
+	SuiManagedTokenTreasuryCapIDType  deployment.ContractType = "SuiManagedTokenTreasuryCapID"
+	SuiManagedTokenUpgradeCapIDType   deployment.ContractType = "SuiManagedTokenUpgradeCapID"
+	// Managed wrapper package
 	SuiManagedTokenType              deployment.ContractType = "SuiManagedToken"
 	SuiManagedTokenOwnerCapObjectID  deployment.ContractType = "SuiManagedTokenOwnerCapObjectID"
 	SuiManagedTokenStateObjectID     deployment.ContractType = "SuiManagedTokenStateObjectID"

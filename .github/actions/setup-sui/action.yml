@@ -18,12 +18,44 @@ runs:
         key: ${{ runner.os }}-suiup-${{ inputs.version }}
 
     - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-      name: Install suiup and Sui CLI
+      name: Install Sui CLI
       shell: bash
       run: |
-        curl -sSfL https://raw.githubusercontent.com/MystenLabs/suiup/main/install.sh | sh
-        "$HOME/.local/bin/suiup" install sui@${{ inputs.version }} --yes
+        # Install Sui CLI directly from GitHub releases
+        mkdir -p ~/.suiup/bin
+        cd ~/.suiup/bin
+
+        # Determine platform
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          if [[ "$(uname -m)" == "aarch64" ]]; then
+            PLATFORM="ubuntu-aarch64"
+          else
+            PLATFORM="ubuntu-x86_64"
+          fi
+        elif [[ "$RUNNER_OS" == "macOS" ]]; then
+          if [[ "$(uname -m)" == "arm64" ]]; then
+            PLATFORM="macos-arm64"
+          else
+            PLATFORM="macos-x86_64"
+          fi
+        else
+          echo "Unsupported platform: $RUNNER_OS"
+          exit 1
+        fi
+
+        # Download and install Sui CLI
+        SUI_VERSION="${{ inputs.version }}"
+        FILENAME="sui-${SUI_VERSION}-${PLATFORM}.tgz"
+        DOWNLOAD_URL="https://github.com/MystenLabs/sui/releases/download/${SUI_VERSION}/${FILENAME}"
+        echo "Downloading Sui CLI ${SUI_VERSION} for ${PLATFORM}..."
+        curl -L -o "${FILENAME}" "${DOWNLOAD_URL}"
+        tar -xzf "${FILENAME}"
+        rm "${FILENAME}"
+
+        # Make executable
+        chmod +x sui
+        echo "Sui CLI installed to ~/.suiup/bin/sui"
 
     - name: Export Sui CLI to PATH
       shell: bash
-      run: echo "PATH=$HOME/.suiup/bin:$HOME/.local/bin:$PATH" >> $GITHUB_ENV
+      run: echo "PATH=$HOME/.suiup/bin:$PATH" >> $GITHUB_ENV
