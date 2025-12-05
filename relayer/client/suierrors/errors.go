@@ -252,13 +252,13 @@ var ExponentialBackoffErrors = []error{
 	ErrTransactionCursorNotFound,
 	ErrObjectVersionUnavailableForConsumption,
 	ErrObjectSequenceNumberTooHigh,
+	ErrObjectNotFound,
+	ErrDependentPackageNotFound,
 }
 
 var GasBumpErrors = []error{
 	ErrGasBudgetTooLow,
 	ErrGasBudgetTooHigh,
-	ErrGasBalanceTooLow,
-	ErrGasPriceUnderRGP,
-	ErrGasPriceTooHigh,
 	ErrInsufficientGas,
+	ErrGasPriceTooHigh,
 }
