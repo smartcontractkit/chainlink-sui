@@ -21,7 +21,7 @@ import (
 type TPConfigureConfig struct {
 	SuiChainSelector   uint64
 	TokenPoolTypes     []string
-	ManagedTPInput     managedtokenpoolops.DeployAndInitManagedTokenPoolInput
+	ManagedTPInput     managedtokenpoolops.ConfigureManagedTokenPoolInput
 	LockReleaseTPInput lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput
 	BurnMintTpInput    burnminttokenpoolops.ConfigureBurnMintTokenPoolInput
 	TimelockConfig     *utils.TimelockConfig
@@ -82,7 +82,10 @@ func (d TPConfigure) Apply(e cldf.Environment, config TPConfigureConfig) (cldf.C
 		case "lnr":
 			// TODO
 		case "managed":
-			// TODO
+			config.ManagedTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
+			config.ManagedTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
+			// TODO: MCMSOwner address should come state
+			config.ManagedTPInput.MCMSOwnerAddress = deployerAddr
 		}
 	}
 
