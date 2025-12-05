@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/mr-tron/base58"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
@@ -227,16 +229,32 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 	cursor := eIndexer.lastProcessedCursors[eventHandle]
 
 	var totalCount uint64
-	var err error
+
 	if cursor == nil {
 		// attempt to get the latest event sync of the given type and use its data to construct a cursor
-		cursor, totalCount, err = eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
-		if err != nil {
-			eIndexer.cursorMutex.RUnlock()
-			return err
+		dbOffsetCursor, dbTotalCount, offsetErr := eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
+		if offsetErr != nil {
+			eIndexer.logger.Errorw("syncEvent: failed to get latest offset", "error", offsetErr)
+			return offsetErr
 		}
 
-		eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle, "cursor", cursor)
+		if dbOffsetCursor != nil {
+			txDigestBytes, err := hex.DecodeString(strings.TrimPrefix(dbOffsetCursor.TxDigest, "0x"))
+			if err != nil {
+				eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err)
+				eIndexer.cursorMutex.RUnlock()
+				return err
+			}
+			// convert the db offset cursor digest from hex (the format stored in the DB) to base58 (the format expected by the client)
+			cursor = &models.EventId{
+				TxDigest: base58.Encode(txDigestBytes),
+				EventSeq: dbOffsetCursor.EventSeq,
+			}
+
+			totalCount = dbTotalCount
+		} else {
+			eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle)
+		}
 	}
 
 	batchSize := uint(batchSizeRecords)
@@ -308,15 +326,29 @@ eventLoop:
 				// normalize the data, convert snake case to camel case
 				normalizedData := convertMapKeysToCamelCase(event.ParsedJson)
 
+				// Convert the txDigest to hex
+				txDigestHex := event.Id.TxDigest
+				if base58Bytes, err := base58.Decode(txDigestHex); err == nil {
+					hexTxId := hex.EncodeToString(base58Bytes)
+					txDigestHex = "0x" + hexTxId
+				}
+
+				blockHashBytes, err := base58.Decode(block.TxDigest)
+				if err != nil {
+					eIndexer.logger.Errorw("Failed to decode block hash", "error", err)
+					// fallback
+					blockHashBytes = []byte(block.TxDigest)
+				}
+
 				// Convert event to database record
 				record := database.EventRecord{
 					EventAccountAddress: selector.Package,
 					EventHandle:         eventHandle,
 					EventOffset:         offset,
-					TxDigest:            event.Id.TxDigest,
+					TxDigest:            txDigestHex,
 					BlockVersion:        0,
 					BlockHeight:         fmt.Sprintf("%d", block.Height),
-					BlockHash:           []byte(block.TxDigest),
+					BlockHash:           blockHashBytes,
 					// Sui returns block.Timestamp in ms; convert to seconds for consistency with CCIP readers.
 					BlockTimestamp: block.Timestamp / 1000,
 					Data:           normalizedData.(map[string]any),
