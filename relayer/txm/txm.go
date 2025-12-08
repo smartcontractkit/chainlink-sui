@@ -127,7 +127,7 @@ func (txm *SuiTxm) GetTransactionStatus(ctx context.Context, transactionID strin
 		txm.lggr.Infow("Transaction is finalized", "transactionID", transactionID)
 		return commontypes.Finalized, nil
 	case StateRetriable:
-		txm.lggr.Infow("Transaction is retriable", "transactionID", transactionID)
+		txm.lggr.Infow("Transaction is retryable", "transactionID", transactionID)
 		return commontypes.Failed, nil
 	case StateFailed:
 		txm.lggr.Infow("Transaction has failed", "transactionID", transactionID)
