@@ -192,10 +192,11 @@ func (c *FakeSuiPTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Contex
 // StatefulFakeSuiPTBClient is a more sophisticated fake client that can change behavior
 // based on gas budget and track call counts for testing gas bump scenarios
 type StatefulFakeSuiPTBClient struct {
-	CoinsData          []models.CoinData
-	GasBudgetThreshold uint64 // Minimum gas budget required for success
-	CallCount          int    // Track number of calls to GetTransactionStatus
-	CurrentGasBudget   uint64 // Track the current gas budget being tested
+	CoinsData                    []models.CoinData
+	GasBudgetThreshold           uint64 // Minimum gas budget required for success
+	CallCount                    int    // Track number of calls to GetTransactionStatus
+	ForcedTransactionStatusError string // Force the transaction status to be this value
+	CurrentGasBudget             uint64 // Track the current gas budget being tested
 	// MockClient allows tests to inject custom ISuiAPI behavior when GetClient() is called.
 	// If nil, GetClient() will return nil, which is fine for most tests that don't use it.
 	// Tests that need specific ISuiAPI behavior should set this field explicitly.
@@ -238,6 +239,13 @@ func (c *StatefulFakeSuiPTBClient) QueryEvents(ctx context.Context, filter clien
 
 func (c *StatefulFakeSuiPTBClient) GetTransactionStatus(ctx context.Context, digest string) (client.TransactionResult, error) {
 	c.CallCount++
+
+	if c.ForcedTransactionStatusError != "" {
+		return client.TransactionResult{
+			Status: "failure",
+			Error:  c.ForcedTransactionStatusError,
+		}, nil
+	}
 
 	// Simulate behavior: fail with gas budget too low for first 2 attempts, then succeed
 	if c.CallCount <= 2 {
