@@ -277,6 +277,32 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 							},
 						},
 					},
+					"static_response": {
+						Name:          "static_response",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:       "object_id",
+								Name:       "counter_id",
+								PointerTag: pointerTag,
+								Required:   true,
+							},
+							{
+								Type:       "object_id",
+								Name:       "ccip_object_ref_id",
+								PointerTag: pointerTagSecondary,
+								Required:   true,
+							},
+						},
+						StaticResponse:      []any{1, 2, 3},
+						ResultTupleToStruct: []string{"a", "b", "c"},
+					},
+					"response_from_inputs": {
+						Name:               "response_from_inputs",
+						SignerAddress:      accountAddress,
+						Params:             []codec.SuiFunctionParam{},
+						ResponseFromInputs: []string{"package_id"},
+					},
 				},
 				Events: map[string]*config.ChainReaderEvent{
 					"counter_incremented": {
@@ -1456,5 +1482,36 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		err = testutils.ValidateJSON(retAllSourceChainConfigs, expectedSchema)
 		require.NoError(t, err)
+	})
+
+	t.Run("GetLatestValue_ResponseFromInputs", func(t *testing.T) {
+		var retResponseFromInputs any
+		params := map[string]any{}
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Counter", "response_from_inputs"}, "-"),
+			primitives.Finalized,
+			&params, // no parameters needed
+			&retResponseFromInputs,
+		)
+		require.NoError(t, err)
+		testutils.PrettyPrintDebug(log, retResponseFromInputs, "retResponseFromInputs")
+	})
+
+	t.Run("GetLatestValue_StaticResponse", func(t *testing.T) {
+		var retStaticResponse any
+		params := map[string]any{}
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Counter", "static_response"}, "-"),
+			primitives.Finalized,
+			&params, // no parameters needed
+			&retStaticResponse,
+		)
+		require.NoError(t, err)
+		testutils.PrettyPrintDebug(log, retStaticResponse, "retStaticResponse")
+		require.Equal(t, map[string]any{"a": 1, "b": 2, "c": 3}, retStaticResponse, "Expected static response to be map[string]any with keys a, b, and c")
 	})
 }

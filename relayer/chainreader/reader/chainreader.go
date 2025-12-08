@@ -926,6 +926,19 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 	// this is the upgraded pkgID
 	parsed.address = latestPackageId
 
+	if len(functionConfig.StaticResponse) > 0 {
+		return functionConfig.StaticResponse, nil
+	} else if len(functionConfig.ResponseFromInputs) > 0 {
+		for _, pluckFromInput := range functionConfig.ResponseFromInputs {
+			switch pluckFromInput {
+			case "package_id":
+				return []any{latestPackageId}, nil
+			default:
+				return nil, fmt.Errorf("unknown response from inputs selection: %s", pluckFromInput)
+			}
+		}
+	}
+
 	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, parsed.contractName, parsed.readName, args, argTypes, typeArgs)
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
