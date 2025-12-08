@@ -303,6 +303,20 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						Params:             []codec.SuiFunctionParam{},
 						ResponseFromInputs: []string{"package_id"},
 					},
+					"response_from_inputs_with_params": {
+						Name:          "response_from_inputs_with_params",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:       "object_id",
+								Name:       "counter_id",
+								PointerTag: pointerTag,
+								Required:   true,
+							},
+						},
+						ResponseFromInputs:  []string{"params.counter_id", "package_id"},
+						ResultTupleToStruct: []string{"counter_id", "package_id"},
+					},
 				},
 				Events: map[string]*config.ChainReaderEvent{
 					"counter_incremented": {
@@ -421,6 +435,16 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 				},
 				Events: map[string]*config.ChainReaderEvent{},
 			},
+			"RMNProxy": {
+				Name: "rmn_proxy",
+				Functions: map[string]*config.ChainReaderFunction{
+					"get_arm": {
+						Name:               "get_arm",
+						SignerAddress:      accountAddress,
+						ResponseFromInputs: []string{"package_id.state_object"},
+					},
+				},
+			},
 			"FeeQuoter": {
 				Name: "fee_quoter",
 				Functions: map[string]*config.ChainReaderFunction{
@@ -487,6 +511,11 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		Address: packageId, // Package ID of the deployed fee_quoter contract
 	}
 
+	rmnProxyBinding := types.BoundContract{
+		Name:    "RMNProxy",
+		Address: secondaryPackageId, // Package ID of the deployed rmn_proxy contract
+	}
+
 	datastoreUrl := os.Getenv("TEST_DB_URL")
 	if datastoreUrl == "" {
 		t.Skip("Skipping persistent tests as TEST_DB_URL is not set in CI")
@@ -527,7 +556,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
 	require.NoError(t, err)
 
-	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding, onRampBinding, routerBinding, feeQuoterBinding})
+	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding, onRampBinding, routerBinding, feeQuoterBinding, rmnProxyBinding})
 	require.NoError(t, err)
 
 	go func() {
@@ -1513,5 +1542,37 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.NoError(t, err)
 		testutils.PrettyPrintDebug(log, retStaticResponse, "retStaticResponse")
 		require.Equal(t, map[string]any{"a": 1, "b": 2, "c": 3}, retStaticResponse, "Expected static response to be map[string]any with keys a, b, and c")
+	})
+
+	t.Run("GetLatestValue_ResponseFromInputsWithParams", func(t *testing.T) {
+		var retResponseFromInputs any
+		params := map[string]any{}
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Counter", "response_from_inputs_with_params"}, "-"),
+			primitives.Finalized,
+			&params, // no parameters needed
+			&retResponseFromInputs,
+		)
+		require.NoError(t, err)
+		testutils.PrettyPrintDebug(log, retResponseFromInputs, "retResponseFromInputs")
+		require.Equal(t, map[string]any{"counter_id": counterObjectId, "package_id": packageId}, retResponseFromInputs, "Expected response to be the counter object id and package id")
+	})
+
+	t.Run("GetLatestValue_ResponseFromInputsWithModulePackageId", func(t *testing.T) {
+		var retResponseFromInputs any
+		params := map[string]any{}
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{secondaryPackageId, "RMNProxy", "get_arm"}, "-"),
+			primitives.Finalized,
+			&params, // no parameters needed
+			&retResponseFromInputs,
+		)
+		require.NoError(t, err)
+		testutils.PrettyPrintDebug(log, retResponseFromInputs, "retResponseFromInputs")
+		require.Equal(t, secondaryPackageId, retResponseFromInputs, "Expected response to be the package id")
 	})
 }
