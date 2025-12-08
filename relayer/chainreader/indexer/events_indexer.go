@@ -246,8 +246,7 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 			txDigestBytes, err := hex.DecodeString(strings.TrimPrefix(dbOffsetCursor.TxDigest, "0x"))
 			if err != nil {
 				eIndexer.cursorMutex.RUnlock()
-				eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err)
-				eIndexer.cursorMutex.RUnlock()
+				eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err, "txDigest", dbOffsetCursor.TxDigest)
 				return err
 			}
 			// convert the db offset cursor digest from hex (the format stored in the DB) to base58 (the format expected by the client)
