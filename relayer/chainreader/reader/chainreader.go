@@ -929,14 +929,57 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 	if len(functionConfig.StaticResponse) > 0 {
 		return functionConfig.StaticResponse, nil
 	} else if len(functionConfig.ResponseFromInputs) > 0 {
+		response := make([]any, 0)
+
 		for _, pluckFromInput := range functionConfig.ResponseFromInputs {
-			switch pluckFromInput {
+			pluckParts := strings.Split(pluckFromInput, ".")
+
+			// if the pluckFromInput is empty, skip
+			if len(pluckParts) == 0 {
+				continue
+			}
+
+			switch pluckParts[0] {
 			case "package_id":
-				return []any{latestPackageId}, nil
+				// if there are no more parts, return the package ID of the module for this function
+				if len(pluckParts) == 1 {
+					response = append(response, latestPackageId)
+					continue
+				}
+
+				// if there are more parts, return the package ID of the module (must be within the same package)
+				// this is useful in cases where getting the latest package ID is only possible within a single module
+				// that is different from the current module (e.g. RMNRemote -> CCIP latest package ID from `state_object` module)
+				moduleName := pluckParts[1]
+				modulePackageId, err := s.client.GetLatestPackageId(ctx, parsed.address, moduleName, functionConfig.SignerAddress)
+				if err != nil {
+					s.logger.Debugw("Failed to get latest package ID for module", "moduleName", moduleName, "error", err)
+					// fallback to the latest package ID of the current module
+					response = append(response, latestPackageId)
+					continue
+				}
+				response = append(response, modulePackageId)
+				continue
+			case "params":
+				if len(pluckParts) != 2 {
+					continue
+				}
+
+				// match the param name to the arg index
+				for i, param := range functionConfig.Params {
+					if param.Name == pluckParts[1] {
+						response = append(response, args[i])
+					}
+				}
+
+				// Not found
+				continue
 			default:
 				return nil, fmt.Errorf("unknown response from inputs selection: %s", pluckFromInput)
 			}
 		}
+
+		return response, nil
 	}
 
 	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, parsed.contractName, parsed.readName, args, argTypes, typeArgs)
