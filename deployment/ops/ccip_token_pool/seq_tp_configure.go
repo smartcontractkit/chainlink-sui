@@ -21,7 +21,7 @@ type ConfigureAllTokenPoolsInput struct {
 	TokenPoolTypes   []string // supported: "bnm", "lnr", "managed"
 
 	// Token pool specific inputs
-	ManagedTPInput     managedtokenpoolops.DeployAndInitManagedTokenPoolInput
+	ManagedTPInput     managedtokenpoolops.ConfigureManagedTokenPoolInput
 	LockReleaseTPInput lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput
 	BurnMintTpInput    burnminttokenpoolops.ConfigureBurnMintTokenPoolInput
 }
@@ -65,7 +65,17 @@ func ConfigureAllTokenPoolsSeq(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 		case "lnr":
 			// todo
 		case "managed":
-			// todo
+			report, err := cld_ops.ExecuteSequence(env, managedtokenpoolops.ConfigureManagedTokenPoolSequence, deps, input.ManagedTPInput)
+			if err != nil {
+				return ConfigureAllTokenPoolsOutput{}, fmt.Errorf("failed to deploy burn mint token pool: %w", err)
+			}
+
+			symbol, err := getSymbol(env, deps, input.ManagedTPInput.CoinObjectTypeArg)
+			if err != nil {
+				return ConfigureAllTokenPoolsOutput{}, fmt.Errorf("failed to get coin symbol: %w", err)
+			}
+			output.DeployManagedTokenPoolOutput.TokenSymbol = symbol
+			output.Reports = append(output.Reports, report.Output.Reports...)
 		default:
 			return ConfigureAllTokenPoolsOutput{}, fmt.Errorf("unsupported token pool type: %s", tokenPoolType)
 		}

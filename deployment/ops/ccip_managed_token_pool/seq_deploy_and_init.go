@@ -11,17 +11,17 @@ import (
 type DeployAndInitManagedTokenPoolInput struct {
 	// deploy
 	CCIPPackageId         string
-	ManagedTokenPackageId string
+	ManagedTokenPackageId string // ManagedToken
 	MCMSAddress           string
 	MCMSOwnerAddress      string
 	// initialize
-	CoinObjectTypeArg         string
-	CCIPObjectRefObjectId     string
-	ManagedTokenStateObjectId string
-	ManagedTokenOwnerCapId    string
-	CoinMetadataObjectId      string
-	MintCapObjectId           string
-	TokenPoolAdministrator    string
+	CoinObjectTypeArg         string // CCIPBnM Token TypeArgs
+	CCIPObjectRefObjectId     string // CCIP ObjectRef
+	ManagedTokenStateObjectId string // ManagedToken
+	ManagedTokenOwnerCapId    string // ManagedToken
+	CoinMetadataObjectId      string // CCIPBnM Token
+	MintCapObjectId           string // ManagedToken
+	TokenPoolAdministrator    string // put yourself
 	// apply chain updates
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
