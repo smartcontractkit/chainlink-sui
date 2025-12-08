@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -27,8 +28,9 @@ type EventsIndexer struct {
 	syncTimeout     time.Duration
 
 	// Protected by configMutex
-	eventConfigurations []*client.EventSelector
-	configMutex         sync.RWMutex
+	eventConfigurations  []*client.EventSelector
+	eventOffsetOverrides map[string]client.EventId
+	configMutex          sync.RWMutex
 
 	// Protected by cursorMutex
 	// a map of event handles to the last processed cursor
@@ -41,6 +43,7 @@ type EventsIndexerApi interface {
 	SyncAllEvents(ctx context.Context) error
 	SyncEvent(ctx context.Context, selector *client.EventSelector) error
 	AddEventSelector(ctx context.Context, selector *client.EventSelector) error
+	SetEventOffsetOverrides(ctx context.Context, offsetOverrides map[string]client.EventId) error
 	Ready() error
 	Close() error
 }
@@ -209,6 +212,7 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 		return fmt.Errorf("unspecified selector for SyncEvent call")
 	}
 
+	eventKey := fmt.Sprintf("%s::%s", selector.Module, selector.Event)
 	eventHandle := fmt.Sprintf("%s::%s::%s", selector.Package, selector.Module, selector.Event)
 
 	// check if the event selector is already tracked, if not add it to the list
@@ -233,7 +237,7 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 		// attempt to get the latest event sync of the given type and use its data to construct a cursor
 		dbOffsetCursor, dbTotalCount, offsetErr := eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
 		if offsetErr != nil {
-      eIndexer.cursorMutex.RUnlock()
+			eIndexer.cursorMutex.RUnlock()
 			eIndexer.logger.Errorw("syncEvent: failed to get latest offset", "error", offsetErr)
 			return offsetErr
 		}
@@ -241,7 +245,8 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 		if dbOffsetCursor != nil {
 			txDigestBytes, err := hex.DecodeString(strings.TrimPrefix(dbOffsetCursor.TxDigest, "0x"))
 			if err != nil {
-				eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err)
+				eIndexer.cursorMutex.RUnlock()
+				eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err, "txDigest", dbOffsetCursor.TxDigest)
 				return err
 			}
 			// convert the db offset cursor digest from hex (the format stored in the DB) to base58 (the format expected by the client)
@@ -252,7 +257,16 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 
 			totalCount = dbTotalCount
 		} else {
-			eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle)
+			eIndexer.configMutex.RLock()
+			if override, ok := eIndexer.eventOffsetOverrides[eventKey]; ok {
+				cursor = &models.EventId{
+					TxDigest: override.TxDigest,
+					EventSeq: override.EventSeq,
+				}
+			} else {
+				eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle)
+			}
+			eIndexer.configMutex.RUnlock()
 		}
 	}
 
@@ -437,6 +451,13 @@ func (eIndexer *EventsIndexer) AddEventSelector(ctx context.Context, selector *c
 		eIndexer.configMutex.Unlock()
 	}
 
+	return nil
+}
+
+func (eIndexer *EventsIndexer) SetEventOffsetOverrides(ctx context.Context, offsetOverrides map[string]client.EventId) error {
+	eIndexer.configMutex.Lock()
+	defer eIndexer.configMutex.Unlock()
+	eIndexer.eventOffsetOverrides = offsetOverrides
 	return nil
 }
 

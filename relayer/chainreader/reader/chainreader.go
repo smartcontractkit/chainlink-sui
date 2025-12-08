@@ -128,6 +128,23 @@ func (s *suiChainReader) HealthReport() map[string]error {
 
 func (s *suiChainReader) Start(ctx context.Context) error {
 	return s.starter.StartOnce(s.Name(), func() error {
+		// set the event offset overrides for the event indexer if any
+		offsetOverrides := make(map[string]client.EventId)
+
+		for _, moduleConfig := range s.config.Modules {
+			for _, eventConfig := range moduleConfig.Events {
+				if eventConfig.EventSelectorDefaultOffset != nil {
+					key := fmt.Sprintf("%s::%s", eventConfig.EventSelector.Module, eventConfig.EventSelector.Event)
+					offsetOverrides[key] = *eventConfig.EventSelectorDefaultOffset
+				}
+			}
+		}
+
+		if len(offsetOverrides) > 0 {
+			// ignore this error to avoid blocking the start of the chain reader
+			_ = s.indexer.GetEventIndexer().SetEventOffsetOverrides(ctx, offsetOverrides)
+		}
+
 		return nil
 	})
 }
