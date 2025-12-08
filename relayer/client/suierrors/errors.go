@@ -13,7 +13,6 @@ determine if an error is considered retryable (e.g. IsRetryable) according to Su
 package suierrors
 
 import (
-	"errors"
 	"strings"
 )
 
@@ -240,12 +239,10 @@ func ParseSuiErrorMessage(msg string) *SuiError {
 		}
 	}
 
-	return nil
+	return NewSuiError(UnknownErrors, msg)
 }
 
-// retryableErrors is a list of errors that are considered transient and retriable.
-// Adjust this list as needed according to Sui semantics.
-var retryableErrors = []error{
+var ExponentialBackoffErrors = []error{
 	ErrPackageVerificationTimeout,
 	ErrVerifiedCheckpointNotFound,
 	ErrVerifiedCheckpointDigestNotFound,
@@ -253,22 +250,15 @@ var retryableErrors = []error{
 	ErrCheckpointContentsNotFound,
 	ErrGenesisTransactionNotFound,
 	ErrTransactionCursorNotFound,
-	ErrGasBudgetTooLow,
-	ErrGasBudgetTooHigh,
-	ErrGasBalanceTooLow,
-	ErrGasPriceUnderRGP,
-	ErrGasPriceTooHigh,
-	ErrInsufficientGas,
+	ErrObjectVersionUnavailableForConsumption,
+	ErrObjectSequenceNumberTooHigh,
+	ErrObjectNotFound,
+	ErrDependentPackageNotFound,
 }
 
-// IsRetryable determines if a Sui error is retryable (transient).
-// It uses errors.Is to correctly recognize wrapped errors.
-func IsRetryable(err error) bool {
-	for _, retryErr := range retryableErrors {
-		if errors.Is(err, retryErr) {
-			return true
-		}
-	}
-
-	return false
+var GasBumpErrors = []error{
+	ErrGasBudgetTooLow,
+	ErrGasBudgetTooHigh,
+	ErrInsufficientGas,
+	ErrGasPriceTooHigh,
 }
