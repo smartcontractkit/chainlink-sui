@@ -331,9 +331,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			tIndexer.logger.Debugw("Extracted move abort from failed transaction", "moveAbort", moveAbort, "digest", transactionRecord.Digest)
 
 			executionMethodIndex := 0
-			includesValidPackage := false
-			includesValidModule := false
-			includesValidFunction := false
+			includesValidPTBCommand := false
 
 			// Check if any of the transaction's commands match with the expected (offramp) package and module
 			for i, raw := range transactionRecord.Transaction.Data.Transaction.Transactions {
@@ -346,9 +344,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 						moduleName == tIndexer.executionEventModuleKey &&
 						functionName == tIndexer.executeFunction {
 						executionMethodIndex = i
-						includesValidPackage = true
-						includesValidModule = true
-						includesValidFunction = true
+						includesValidPTBCommand = true
 						break
 					}
 				}
@@ -357,16 +353,16 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			// NOTE: The check below does not guarantee that a malicious (known) transmitter is not sending a failed PTB
 			// with the expected package and module. However, it is considered as the worst case scenario simply involves
 			// creating an event record with a failure state against an digest that is not checked.
-			if !(includesValidPackage && includesValidModule && includesValidFunction) {
+			if !includesValidPTBCommand {
 				tIndexer.logger.Warnw(
-					"Expected package and module not found in commands of failed PTB originating from known transmitter",
+					"Expected PTB command (_::offramp::init_execute) not found in commands of failed PTB originating from known transmitter",
 					"transmitter", transmitter,
 					"digest", transactionRecord.Digest,
 				)
 				continue
 			}
 
-			// The failure should NOT take place at `init_execute`
+			// The failure should NOT take place at `init_execute`. This command must be valid to ensure that the report can be extracted.
 			if moveAbort.Location.FunctionName == nil || *moveAbort.Location.FunctionName == tIndexer.executeFunction {
 				tIndexer.logger.Debugw("Skipping transaction for failed function against init_execute function",
 					"transmitter", transmitter,
