@@ -951,7 +951,7 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 				// this is useful in cases where getting the latest package ID is only possible within a single module
 				// that is different from the current module (e.g. RMNRemote -> CCIP latest package ID from `state_object` module)
 				moduleName := pluckParts[1]
-				modulePackageId, err := s.client.GetLatestPackageId(ctx, parsed.address, moduleName, functionConfig.SignerAddress)
+				modulePackageId, err := s.client.GetLatestPackageId(ctx, parsed.address, moduleName)
 				if err != nil {
 					s.logger.Debugw("Failed to get latest package ID for module", "moduleName", moduleName, "error", err)
 					// fallback to the latest package ID of the current module
