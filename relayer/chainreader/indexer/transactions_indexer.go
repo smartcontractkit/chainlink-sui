@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -42,7 +41,7 @@ type TransactionsIndexer struct {
 	executionEventKey       string
 	configEventModuleKey    string
 	configEventKey          string
-	executeFunctions        []string
+	executeFunction         string
 
 	// configs
 	eventConfigs map[string]*config.ChainReaderEvent
@@ -80,7 +79,7 @@ func NewTransactionsIndexer(
 		executionEventKey:       "ExecutionStateChanged",
 		configEventModuleKey:    "ocr3_base",
 		configEventKey:          "ConfigSet",
-		executeFunctions:        []string{"init_execute", "ccip_receive", "release_or_mint", "finish_execute"},
+		executeFunction:         "init_execute",
 		eventConfigs:            eventConfigs,
 		offrampPackageIdReady:   make(chan struct{}),
 	}
@@ -332,18 +331,21 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 
 			tIndexer.logger.Debugw("Extracted move abort from failed transaction", "moveAbort", moveAbort, "digest", transactionRecord.Digest)
 
-			includesValidPackage := false
-			includesValidModule := false
+			executionMethodIndex := 0
+			includesValidPTBCommand := false
 
 			// Check if any of the transaction's commands match with the expected (offramp) package and module
-			for _, raw := range transactionRecord.Transaction.Data.Transaction.Transactions {
+			for i, raw := range transactionRecord.Transaction.Data.Transaction.Transactions {
 				if moveCall := models.MoveCall(raw); moveCall != nil {
 					packageID := moveCall.Package
 					moduleName := moveCall.Module
+					functionName := moveCall.Function
 
-					if (packageID == eventAccountAddress || packageID == latestOfframpPackageId) && moduleName == tIndexer.executionEventModuleKey {
-						includesValidPackage = true
-						includesValidModule = true
+					if (packageID == eventAccountAddress || packageID == latestOfframpPackageId) &&
+						moduleName == tIndexer.executionEventModuleKey &&
+						functionName == tIndexer.executeFunction {
+						executionMethodIndex = i
+						includesValidPTBCommand = true
 						break
 					}
 				}
@@ -352,17 +354,18 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			// NOTE: The check below does not guarantee that a malicious (known) transmitter is not sending a failed PTB
 			// with the expected package and module. However, it is considered as the worst case scenario simply involves
 			// creating an event record with a failure state against an digest that is not checked.
-			if !(includesValidPackage && includesValidModule) {
+			if !includesValidPTBCommand {
 				tIndexer.logger.Warnw(
-					"Expected package and module not found in commands of failed PTB originating from known transmitter",
+					"Expected PTB command (_::offramp::init_execute) not found in commands of failed PTB originating from known transmitter",
 					"transmitter", transmitter,
 					"digest", transactionRecord.Digest,
 				)
 				continue
 			}
 
-			if moveAbort.Location.FunctionName == nil || !slices.Contains(tIndexer.executeFunctions, *moveAbort.Location.FunctionName) {
-				tIndexer.logger.Debugw("Skipping transaction for failed function against a non-configured function name",
+			// The failure should NOT take place at `init_execute`. This command must be valid to ensure that the report can be extracted.
+			if moveAbort.Location.FunctionName == nil || *moveAbort.Location.FunctionName == tIndexer.executeFunction {
+				tIndexer.logger.Debugw("Skipping transaction for failed function against init_execute function",
 					"transmitter", transmitter,
 					"location", moveAbort.Location,
 					"functionName", *moveAbort.Location.FunctionName,
@@ -372,10 +375,10 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				continue
 			}
 
-			// We always get the report from the init_execute function call (index 0), the "finish_execute" function call
-			// does not contain an argument which contains the report
-			// NOTE: we assume that init_execute (which contains the report) is always the first command in the PTB
-			commandIndex := uint64(0)
+			// The command from which to extract the report (init_execute) should always be the first command in the PTB, however,
+			// we use the index here as a simple safety check to ensure that the command index is valid in case that a function
+			// is added before init_execute in the future.
+			commandIndex := uint64(executionMethodIndex)
 			callArgs, err := tIndexer.extractCommandCallArgs(&transactionRecord, commandIndex)
 			if err != nil {
 				tIndexer.logger.Errorw("Failed to extract command call args", "error", err)
