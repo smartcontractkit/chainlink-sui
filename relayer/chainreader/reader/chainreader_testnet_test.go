@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -21,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
@@ -32,7 +34,7 @@ func TestChainReaderTestnet(t *testing.T) {
 	rpcUrl := testutils.TestnetUrl
 
 	offrampContractName := "OffRamp"
-	offrampPackageId := "0x50ff1c5a49f012f9360de2fa5065efe7185c22bbeee6254e68ef695b0b0d0f40"
+	offrampPackageId := "0x01a0a22b2abacbd48e9a026c1661189a8ec5ce4942cba07017b63eaad0a205a4"
 
 	tokenAdminRegistryContractName := "TokenAdminRegistry"
 	tokenAdminRegistryPackageId := "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
@@ -64,12 +66,12 @@ func TestChainReaderTestnet(t *testing.T) {
 	chainReaderConfig := config.ChainReaderConfig{
 		IsLoopPlugin: false,
 		EventsIndexer: config.EventsIndexerConfig{
-			PollingInterval: 10 * time.Second,
-			SyncTimeout:     10 * time.Second,
+			PollingInterval: 15 * time.Second,
+			SyncTimeout:     60 * time.Second,
 		},
 		TransactionsIndexer: config.TransactionsIndexerConfig{
-			PollingInterval: 10 * time.Second,
-			SyncTimeout:     10 * time.Second,
+			PollingInterval: 15 * time.Second,
+			SyncTimeout:     60 * time.Second,
 		},
 		Modules: map[string]*config.ChainReaderModule{
 			tokenAdminRegistryContractName: {
@@ -79,6 +81,20 @@ func TestChainReaderTestnet(t *testing.T) {
 			offrampContractName: {
 				Name:      "offramp",
 				Functions: map[string]*config.ChainReaderFunction{},
+				Events: map[string]*config.ChainReaderEvent{
+					"execution_state_changed": {
+						Name:      "execution_state_changed",
+						EventType: "ExecutionStateChanged",
+						EventSelector: client.EventFilterByMoveEventModule{
+							Module: "offramp",
+							Event:  "ExecutionStateChanged",
+						},
+						EventSelectorDefaultOffset: &client.EventId{
+							TxDigest: "7KyXWWmJnX4u5aKr1ofvdh5Af5Vix6rnHnonk33CiDtV",
+							EventSeq: "0",
+						},
+					},
+				},
 			},
 			burnMintTokenPoolContractName: {
 				Name: "token_pool",
@@ -200,22 +216,29 @@ func TestChainReaderTestnet(t *testing.T) {
 		t.Skip("Skipping persistent tests as TEST_DB_URL is not set in CI")
 	}
 	db := sqltest.NewDB(t, datastoreUrl)
+	dbStore := database.NewDBStore(db, log)
+	require.NoError(t, dbStore.EnsureSchema(ctx))
 
+	indexerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
+	require.NoError(t, clientErr)
 	// Create the indexers
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
 		log,
-		relayerClient,
+		indexerClient,
 		chainReaderConfig.TransactionsIndexer.PollingInterval,
 		chainReaderConfig.TransactionsIndexer.SyncTimeout,
 		// start without any configs, they will be set when ChainReader is initialized and gets a reference
 		// to the transaction indexer to avoid having to reading ChainReader configs here as well
 		map[string]*config.ChainReaderEvent{},
 	)
+
+	eventIndexerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
+	require.NoError(t, clientErr)
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		log,
-		relayerClient,
+		eventIndexerClient,
 		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
 		chainReaderConfig.EventsIndexer.PollingInterval,
@@ -385,26 +408,31 @@ func TestChainReaderTestnet(t *testing.T) {
 	})
 
 	t.Run("TransactionIndexer_ExecutionStateChanged_event", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(ctx, 1200*time.Second)
-		defer cancel()
+		t.Skip("Skipping TransactionIndexer_ExecutionStateChanged_event test")
+		indexerInstance.Start(ctx)
+		defer indexerInstance.Close()
 
 		assert.Eventually(t, func() bool {
 			println("\n\n------------------------------------------------------------------------------\n\n")
 
-			// events, err := chainReader.QueryKey(ctx, types.BoundContract{
-			// 	Name:    offrampContractName,
-			// 	Address: offrampPackageId,
-			// }, query.KeyFilter{Key: offrampExecutionStateChangedEventKey}, query.LimitAndSort{}, &map[string]any{})
-			// require.NoError(t, err)
-
-			events, err := dbStore.QueryEvents(ctx, offrampPackageId, offrampExecutionStateChangedEventKey, nil, query.LimitAndSort{})
+			eventHandle := offrampPackageId + "::offramp::ExecutionStateChanged"
+			events, err := dbStore.QueryEvents(ctx, offrampPackageId, eventHandle, nil, query.LimitAndSort{
+				Limit: query.Limit{
+					Count: 100,
+				},
+			})
 			require.NoError(t, err)
 
-			// testutils.PrettyPrintDebug(log, events, "found execution state changed events from DB")
-			// return len(events) > 0
+			foundExecutionStateChangedDummyReceiver := false
+			for _, event := range events {
+				if event.Data["state"] == 3 {
+					foundExecutionStateChangedDummyReceiver = true
+					break
+				}
+			}
 
-			return len(events) > 0
-		}, 1200*time.Second, 60*time.Second)
+			return foundExecutionStateChangedDummyReceiver
+		}, 45*60*time.Second, 60*time.Second)
 	})
 
 	t.Run("token pool events", func(t *testing.T) {

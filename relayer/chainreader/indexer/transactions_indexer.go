@@ -231,9 +231,7 @@ func (tIndexer *TransactionsIndexer) SyncAllTransmittersTransactions(ctx context
 		return nil
 	}
 
-	println("\n\n------------------------------------------------------------------------------\n\n")
 	tIndexer.logger.Debugw("syncTransmittersTransactions start", "transmitters", transmitters)
-	println("------------------------------------------------------------------------------\n\n")
 
 	var batchSize uint64 = 50
 	var totalProcessed int
@@ -271,10 +269,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 		eventKey  = tIndexer.executionEventKey
 	)
 
-	println("\n\n------------------------------------------------------------------------------\n\n")
-	println("syncTransmitterTransactions start")
-	println("transmitter", transmitter)
-	println("------------------------------------------------------------------------------\n\n")
+	tIndexer.logger.Debugw("syncTransmitterTransactions start", "transmitter", transmitter)
 
 	cursor := tIndexer.transmitters[transmitter]
 	totalProcessed := 0
