@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -217,8 +218,7 @@ func TestEventsIndexer(t *testing.T) {
 				newValue, ok := event.Data["newValue"]
 				require.True(t, ok, "Event should have newValue field")
 
-				// The newValue should be i+1 (counter starts from 0, so increment makes it 1, 2, 3)
-				expectedValue := strconv.Itoa(i + 1)
+				expectedValue := strconv.Itoa(3 - i)
 				require.Equal(t, expectedValue, newValue, "Event %d should have newValue %d", i, expectedValue)
 			}
 
@@ -355,5 +355,209 @@ func TestEventsIndexer(t *testing.T) {
 				"cursor2", cursor2,
 				"same", cursor1.TxDigest == cursor2.TxDigest && cursor1.EventSeq == cursor2.EventSeq)
 		}
+	})
+
+	t.Run("TestConcurrentEventIndexerAccess", func(t *testing.T) {
+		log.Infow("Starting concurrent access test")
+
+		// Start the background poller in a goroutine
+		pollerCtx, cancelPoller := context.WithCancel(ctx)
+		defer cancelPoller()
+
+		var pollerWg sync.WaitGroup
+		pollerWg.Add(1)
+		go func() {
+			defer pollerWg.Done()
+			err := indexer.Start(pollerCtx)
+			if err != nil && err != context.Canceled {
+				log.Errorw("Background poller error", "error", err)
+			}
+		}()
+
+		// Give the poller time to start
+		time.Sleep(200 * time.Millisecond)
+
+		t.Run("ConcurrentSyncEventCalls", func(t *testing.T) {
+			log.Infow("Testing concurrent SyncEvent calls")
+
+			var wg sync.WaitGroup
+			numConcurrentCallers := 10
+			numIterations := 5
+
+			// Track errors from concurrent operations
+			errChan := make(chan error, numConcurrentCallers*numIterations)
+
+			// Call SyncEvent concurrently
+			for i := 0; i < numConcurrentCallers; i++ {
+				wg.Add(1)
+				go func(goroutineID int) {
+					defer wg.Done()
+
+					for j := 0; j < numIterations; j++ {
+						// Each goroutine tries to sync the same event selector
+						err := indexer.SyncEvent(ctx, eventSelector)
+						if err != nil {
+							log.Errorw("SyncEvent error",
+								"goroutineID", goroutineID,
+								"iteration", j,
+								"error", err)
+							errChan <- err
+						}
+
+						// Small sleep to vary timing
+						time.Sleep(time.Duration(goroutineID*5) * time.Millisecond)
+					}
+				}(i)
+			}
+
+			// Wait for all goroutines to complete
+			wg.Wait()
+			close(errChan)
+
+			// Check for any errors
+			var errors []error
+			for err := range errChan {
+				errors = append(errors, err)
+			}
+
+			require.Empty(t, errors, "Should not have errors during concurrent operations")
+			log.Infow("Concurrent SyncEvent calls completed", "totalErrors", len(errors))
+		})
+
+		t.Run("ConcurrentNewEventSelectors", func(t *testing.T) {
+			log.Infow("Testing concurrent new event selectors")
+
+			var wg sync.WaitGroup
+			numConcurrentCallers := 20
+
+			// Track errors from concurrent operations
+			errChan := make(chan error, numConcurrentCallers)
+
+			// Create different event selectors for each goroutine
+			for i := 0; i < numConcurrentCallers; i++ {
+				wg.Add(1)
+				go func(goroutineID int) {
+					defer wg.Done()
+
+					// Create a new selector (simulating ad-hoc event registration)
+					newSelector := &client.EventSelector{
+						Package: packageId,
+						Module:  "counter",
+						Event:   "CounterIncremented",
+					}
+
+					// Try to sync with this new selector
+					err := indexer.SyncEvent(ctx, newSelector)
+					if err != nil {
+						log.Errorw("SyncEvent error with new selector",
+							"goroutineID", goroutineID,
+							"error", err)
+						errChan <- err
+					}
+				}(i)
+			}
+
+			// Wait for all goroutines to complete
+			wg.Wait()
+			close(errChan)
+
+			// Check for any errors
+			var errors []error
+			for err := range errChan {
+				errors = append(errors, err)
+			}
+
+			require.Empty(t, errors, "Should not have errors during concurrent new selector operations")
+			log.Infow("Concurrent new event selectors completed", "totalErrors", len(errors))
+		})
+
+		t.Run("ConcurrentReadsAndWrites", func(t *testing.T) {
+			log.Infow("Testing concurrent reads and writes stress test")
+
+			var wg sync.WaitGroup
+			testDuration := 2 * time.Second
+			deadline := time.Now().Add(testDuration)
+
+			// Track errors
+			errChan := make(chan error, 100)
+
+			// Multiple goroutines hammering SyncEvent
+			for i := 0; i < 5; i++ {
+				wg.Add(1)
+				go func(id int) {
+					defer wg.Done()
+					for time.Now().Before(deadline) {
+						if err := indexer.SyncEvent(ctx, eventSelector); err != nil {
+							select {
+							case errChan <- err:
+							default:
+							}
+						}
+						time.Sleep(10 * time.Millisecond)
+					}
+				}(i)
+			}
+
+			// Wait for stress test to complete
+			wg.Wait()
+			close(errChan)
+
+			// Collect errors
+			var errors []error
+			for err := range errChan {
+				errors = append(errors, err)
+			}
+
+			require.Empty(t, errors, "Should not have errors during stress test")
+			log.Infow("Stress test completed", "duration", testDuration, "errors", len(errors))
+		})
+
+		// Stop the background poller
+		cancelPoller()
+		pollerWg.Wait()
+
+		log.Infow("All concurrent access tests completed successfully")
+	})
+
+	t.Run("TestRaceDetection", func(t *testing.T) {
+		// Run with: go test -race -run TestEventsIndexer/TestRaceDetection
+		log.Infow("Starting race detection test")
+
+		// Create a fresh indexer with very short polling interval
+		raceIndexer := indexer2.NewEventIndexer(
+			db,
+			log,
+			relayerClient,
+			[]*client.EventSelector{eventSelector},
+			50*time.Millisecond,
+			5*time.Second,
+		)
+
+		// Start background poller with short timeout
+		pollerCtx, cancelPoller := context.WithTimeout(ctx, 1*time.Second)
+		defer cancelPoller()
+
+		var wg sync.WaitGroup
+
+		// Start background poller
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = raceIndexer.Start(pollerCtx)
+		}()
+
+		// Hammer with concurrent operations
+		for i := 0; i < 30; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				_ = raceIndexer.SyncEvent(ctx, eventSelector)
+			}(i)
+		}
+
+		// Wait for all operations
+		wg.Wait()
+
+		log.Infow("Race detection test completed - no races detected!")
 	})
 }

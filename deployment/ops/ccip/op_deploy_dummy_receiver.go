@@ -40,7 +40,7 @@ var deployDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		"mcms_owner":          input.McmsOwner,
 
 		"signer": signerAddr,
-	}, false)
+	}, false, deps.SuiRPC)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployDummyReceiverObjects]{}, fmt.Errorf("failed to compile dummy receiver package: %w", err)
 	}

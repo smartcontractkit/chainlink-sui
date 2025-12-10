@@ -251,11 +251,8 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	// Wrap the base chain reader with loop chain reader
 	loopReader := NewLoopChainReader(log, chainReader)
 
-	// Bind the contracts to the loop reader
-	err = loopReader.Bind(context.Background(), []types.BoundContract{echoBinding})
-	require.NoError(t, err)
-
-	err = loopReader.Bind(context.Background(), []types.BoundContract{counterBinding})
+	// Bind the contracts
+	err = loopReader.Bind(context.Background(), []types.BoundContract{echoBinding, counterBinding})
 	require.NoError(t, err)
 
 	log.Debugw("LoopChainReader setup complete")
@@ -477,38 +474,6 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		}
 		require.Equal(t, "0x1", retTupleStruct["address"], "Expected address to be 0x1")
 		require.Equal(t, true, retTupleStruct["bool"], "Expected bool to be true")
-	})
-
-	t.Run("LoopReader_GetLatestValue_GetOCRConfig", func(t *testing.T) {
-		type ConfigInfo struct {
-			ConfigDigest                   []byte `json:"config_digest"`
-			BigF                           uint64 `json:"big_f"`
-			N                              uint64 `json:"n"`
-			IsSignatureVerificationEnabled bool   `json:"is_signature_verification_enabled"`
-		}
-
-		type OCRConfig struct {
-			ConfigInfo   ConfigInfo `json:"config_info"`
-			Signers      [][]byte   `json:"signers"`
-			Transmitters [][]byte   `json:"transmitters"`
-		}
-
-		type OCRConfigWrapped struct {
-			OCRConfig OCRConfig `json:"OCRConfig"`
-		}
-
-		var retOCRConfig OCRConfigWrapped
-		err = loopReader.GetLatestValue(
-			context.Background(),
-			strings.Join([]string{packageId, counterBinding.Name, "get_ocr_config"}, "-"),
-			primitives.Finalized,
-			map[string]any{},
-			&retOCRConfig,
-		)
-
-		require.NoError(t, err)
-		require.NotEmpty(t, retOCRConfig, "Expected to find OCRConfig")
-		log.Debugw("retOCRConfig", "retOCRConfig", retOCRConfig)
 	})
 
 	t.Run("LoopReader_GetLatestValue_GetOCRConfig", func(t *testing.T) {

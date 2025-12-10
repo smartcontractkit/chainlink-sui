@@ -289,7 +289,9 @@ public(package) fun validate_lock_or_burn(
     assert!(!rmn_remote::is_cursed_u128(ref, (remote_chain_selector as u128)), ECursedChain);
 
     // Allowlist check
-    assert!(allowlist::is_allowed(&state.allowlist_state, sender), ENotPublisher);
+    if (allowlist::get_allowlist_enabled(&state.allowlist_state)) {
+        assert!(allowlist::is_allowed(&state.allowlist_state, sender), ENotPublisher);
+    };
 
     if (!is_supported_chain(state, remote_chain_selector)) {
         abort EUnknownRemoteChainSelector
@@ -380,6 +382,8 @@ public fun parse_remote_decimals(source_pool_data: vector<u8>, local_decimals: u
         // Fallback to the local value.
         return local_decimals
     };
+
+    assert!(data_len == 32, EInvalidRemoteChainDecimals);
 
     let remote_decimals = eth_abi::decode_u256_value(source_pool_data);
     assert!(remote_decimals <= 255, EInvalidRemoteChainDecimals);

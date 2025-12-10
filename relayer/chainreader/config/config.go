@@ -35,6 +35,10 @@ type ChainReaderFunction struct {
 	ResultTupleToStruct []string
 	// Defines a mapping for renaming response fields
 	ResultFieldRenames map[string]aptosCRConfig.RenamedField
+	// Static response
+	StaticResponse []any
+	// Response from inputs
+	ResponseFromInputs []string
 }
 
 type ChainReaderEvent struct {

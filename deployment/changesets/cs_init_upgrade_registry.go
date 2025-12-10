@@ -39,6 +39,7 @@ func (d UpgradeRegistry) Apply(e cldf.Environment, config UpgradeRegistryConfig)
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	UpgradeRegistryInitializeOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.UpgradeRegistryInitializeOp, deps, ccipops.InitUpgradeRegistryInput{

@@ -21,6 +21,7 @@ import (
 	cache "github.com/patrickmn/go-cache"
 	gomock "go.uber.org/mock/gomock"
 
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	client "github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -197,18 +198,18 @@ func (mr *MockSuiPTBClientMockRecorder) GetCoinsByAddress(ctx, address any) *gom
 }
 
 // GetLatestPackageId mocks base method.
-func (m *MockSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId, module, signerAddress string) (string, error) {
+func (m *MockSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId, module string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLatestPackageId", ctx, packageId, module, signerAddress)
+	ret := m.ctrl.Call(m, "GetLatestPackageId", ctx, packageId, module)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetLatestPackageId indicates an expected call of GetLatestPackageId.
-func (mr *MockSuiPTBClientMockRecorder) GetLatestPackageId(ctx, packageId, module, signerAddress any) *gomock.Call {
+func (mr *MockSuiPTBClientMockRecorder) GetLatestPackageId(ctx, packageId, module any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestPackageId", reflect.TypeOf((*MockSuiPTBClient)(nil).GetLatestPackageId), ctx, packageId, module, signerAddress)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestPackageId", reflect.TypeOf((*MockSuiPTBClient)(nil).GetLatestPackageId), ctx, packageId, module)
 }
 
 // GetNormalizedModule mocks base method.
@@ -301,18 +302,18 @@ func (mr *MockSuiPTBClientMockRecorder) HashTxBytes(txBytes any) *gomock.Call {
 }
 
 // LoadModulePackageIds mocks base method.
-func (m *MockSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId, module, signerAddress string) ([]string, error) {
+func (m *MockSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId, module string) ([]string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LoadModulePackageIds", ctx, packageId, module, signerAddress)
+	ret := m.ctrl.Call(m, "LoadModulePackageIds", ctx, packageId, module)
 	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // LoadModulePackageIds indicates an expected call of LoadModulePackageIds.
-func (mr *MockSuiPTBClientMockRecorder) LoadModulePackageIds(ctx, packageId, module, signerAddress any) *gomock.Call {
+func (mr *MockSuiPTBClientMockRecorder) LoadModulePackageIds(ctx, packageId, module any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadModulePackageIds", reflect.TypeOf((*MockSuiPTBClient)(nil).LoadModulePackageIds), ctx, packageId, module, signerAddress)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadModulePackageIds", reflect.TypeOf((*MockSuiPTBClient)(nil).LoadModulePackageIds), ctx, packageId, module)
 }
 
 // MoveCall mocks base method.
@@ -361,33 +362,33 @@ func (mr *MockSuiPTBClientMockRecorder) QueryTransactions(ctx, fromAddress, curs
 }
 
 // ReadFilterOwnedObjectIds mocks base method.
-func (m *MockSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress, structType string, limit *uint) ([]models.SuiObjectData, error) {
+func (m *MockSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress, structType string, cursor string) ([]models.SuiObjectData, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadFilterOwnedObjectIds", ctx, ownerAddress, structType, limit)
+	ret := m.ctrl.Call(m, "ReadFilterOwnedObjectIds", ctx, ownerAddress, structType, cursor)
 	ret0, _ := ret[0].([]models.SuiObjectData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ReadFilterOwnedObjectIds indicates an expected call of ReadFilterOwnedObjectIds.
-func (mr *MockSuiPTBClientMockRecorder) ReadFilterOwnedObjectIds(ctx, ownerAddress, structType, limit any) *gomock.Call {
+func (mr *MockSuiPTBClientMockRecorder) ReadFilterOwnedObjectIds(ctx, ownerAddress, structType, cursor any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFilterOwnedObjectIds", reflect.TypeOf((*MockSuiPTBClient)(nil).ReadFilterOwnedObjectIds), ctx, ownerAddress, structType, limit)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFilterOwnedObjectIds", reflect.TypeOf((*MockSuiPTBClient)(nil).ReadFilterOwnedObjectIds), ctx, ownerAddress, structType, cursor)
 }
 
 // ReadFunction mocks base method.
-func (m *MockSuiPTBClient) ReadFunction(ctx context.Context, signerAddress, packageId, module, function string, args []any, argTypes []string) ([]any, error) {
+func (m *MockSuiPTBClient) ReadFunction(ctx context.Context, signerAddress, packageId, module, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadFunction", ctx, signerAddress, packageId, module, function, args, argTypes)
+	ret := m.ctrl.Call(m, "ReadFunction", ctx, signerAddress, packageId, module, function, args, argTypes, typeArgs)
 	ret0, _ := ret[0].([]any)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ReadFunction indicates an expected call of ReadFunction.
-func (mr *MockSuiPTBClientMockRecorder) ReadFunction(ctx, signerAddress, packageId, module, function, args, argTypes any) *gomock.Call {
+func (mr *MockSuiPTBClientMockRecorder) ReadFunction(ctx, signerAddress, packageId, module, function, args, argTypes, typeArgs any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFunction", reflect.TypeOf((*MockSuiPTBClient)(nil).ReadFunction), ctx, signerAddress, packageId, module, function, args, argTypes)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFunction", reflect.TypeOf((*MockSuiPTBClient)(nil).ReadFunction), ctx, signerAddress, packageId, module, function, args, argTypes, typeArgs)
 }
 
 // ReadObjectId mocks base method.
@@ -489,6 +490,21 @@ func (mr *MockSuiPTBClientMockRecorder) GetReferenceGasPrice(ctx any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReferenceGasPrice", reflect.TypeOf((*MockSuiPTBClient)(nil).GetReferenceGasPrice), ctx)
 }
 
+// GetLatestEpoch mocks base method.
+func (m *MockSuiPTBClient) GetLatestEpoch(ctx context.Context) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLatestEpoch", ctx)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLatestEpoch indicates an expected call of GetLatestEpoch.
+func (mr *MockSuiPTBClientMockRecorder) GetLatestEpoch(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestEpoch", reflect.TypeOf((*MockSuiPTBClient)(nil).GetLatestEpoch), ctx)
+}
+
 // QueryCoinsByAddress mocks base method.
 func (m *MockSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address, coinType string) ([]models.CoinData, error) {
 	m.ctrl.T.Helper()
@@ -502,4 +518,19 @@ func (m *MockSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address, coi
 func (mr *MockSuiPTBClientMockRecorder) QueryCoinsByAddress(ctx, address, coinType any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryCoinsByAddress", reflect.TypeOf((*MockSuiPTBClient)(nil).QueryCoinsByAddress), ctx, address, coinType)
+}
+
+// GetTokenPoolConfigByPackageAddress mocks base method.
+func (m *MockSuiPTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTokenPoolConfigByPackageAddress", ctx, accountAddress, tokenPoolAddress, ccipPackageAddress)
+	ret0, _ := ret[0].(module_token_admin_registry.TokenConfig)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTokenPoolConfigByPackageAddress indicates an expected call of GetTokenPoolConfigByPackageAddress.
+func (mr *MockSuiPTBClientMockRecorder) GetTokenPoolConfigByPackageAddress(ctx, accountAddress, tokenPoolAddress, ccipPackageAddress any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTokenPoolConfigByPackageAddress", reflect.TypeOf((*MockSuiPTBClient)(nil).GetTokenPoolConfigByPackageAddress), ctx, accountAddress, tokenPoolAddress, ccipPackageAddress)
 }

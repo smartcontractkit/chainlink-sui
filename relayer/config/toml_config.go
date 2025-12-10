@@ -97,6 +97,11 @@ func (cs TOMLConfigs) validateKeys() error {
 }
 
 func (cs *TOMLConfigs) SetFrom(fs *TOMLConfigs) error {
+	// Avoids panics if the source TOMLConfigs is nil
+	if fs == nil {
+		return nil
+	}
+
 	if err1 := fs.validateKeys(); err1 != nil {
 		return err1
 	}
@@ -118,6 +123,11 @@ func (cs *TOMLConfigs) SetFrom(fs *TOMLConfigs) error {
 type NodeConfigs []*NodeConfig
 
 func (ns *NodeConfigs) SetFrom(fs *NodeConfigs) {
+	// Avoids panics if the source NodeConfigs is nil
+	if fs == nil {
+		return
+	}
+
 	for _, f := range *fs {
 		if f.Name == nil {
 			*ns = append(*ns, f)

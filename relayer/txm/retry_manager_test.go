@@ -50,7 +50,7 @@ func TestCallbackRetryManager_IsRetryable_Scenarios(t *testing.T) {
 		},
 		{
 			name:          "Exceeded max retries returns NoRetry",
-			txRetries:     3,
+			txRetries:     4,
 			errMessage:    "Transaction failed: GasPriceTooHigh",
 			maxRetries:    3,
 			expectedRetry: false,

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -30,26 +29,30 @@ type TransactionsIndexer struct {
 	logger          logger.Logger
 	pollingInterval time.Duration
 	syncTimeout     time.Duration
+
 	// map of transmitter address to cursor (the last processed transaction digest)
 	transmitters map[models.SuiAddress]string
+
 	// event selectors
-	eventPackageId          string
+	offrampPackageId        string
+	latestOfframpPackageId  string
 	executionEventModuleKey string
 	executionEventKey       string
 	configEventModuleKey    string
 	configEventKey          string
-	executeFunctions        []string
+	executeFunction         string
+
 	// configs
 	eventConfigs map[string]*config.ChainReaderEvent
 
-	mu            sync.RWMutex
-	eventPkgReady chan struct{}
-	eventPkgOnce  sync.Once
+	mu                    sync.RWMutex
+	offrampPackageIdReady chan struct{}
+	offrampPackageOnce    sync.Once
 }
 
 type TransactionsIndexerApi interface {
 	Start(ctx context.Context) error
-	SetOffRampPackage(pkg string)
+	SetOffRampPackage(pkg string, latestPkg string)
 	Ready() error
 	Close() error
 }
@@ -75,9 +78,9 @@ func NewTransactionsIndexer(
 		executionEventKey:       "ExecutionStateChanged",
 		configEventModuleKey:    "ocr3_base",
 		configEventKey:          "ConfigSet",
-		executeFunctions:        []string{"finish_execute"},
+		executeFunction:         "init_execute",
 		eventConfigs:            eventConfigs,
-		eventPkgReady:           make(chan struct{}),
+		offrampPackageIdReady:   make(chan struct{}),
 	}
 }
 
@@ -120,28 +123,27 @@ func (tIndexer *TransactionsIndexer) Start(ctx context.Context) error {
 }
 
 // SetOffRampPackage sets offramp called by chainreader Bind.
-func (t *TransactionsIndexer) SetOffRampPackage(pkg string) {
+func (t *TransactionsIndexer) SetOffRampPackage(pkg string, latestPkg string) {
 	if pkg == "" {
 		t.logger.Warn("SetOffRampPackage called with empty package id")
 		return
 	}
 	t.mu.Lock()
-	old := t.eventPackageId
-	t.eventPackageId = pkg
+	t.offrampPackageId = pkg
+	t.latestOfframpPackageId = latestPkg
 	t.mu.Unlock()
 
-	if old != pkg {
-		t.logger.Infow("OffRamp package set", "old", old, "new", pkg)
-	}
-	t.eventPkgOnce.Do(func() { close(t.eventPkgReady) })
+	t.logger.Infow("OffRamp package set", "offrampPackageId", pkg, "latestOfframpPackageId", latestPkg)
+
+	t.offrampPackageOnce.Do(func() { close(t.offrampPackageIdReady) })
 }
 
 // waitForOffRampPackage blocks until the OffRamp package ID is available or the
 // provided context is canceled.
 func (t *TransactionsIndexer) waitForOffRampPackage(ctx context.Context) (string, error) {
 	t.mu.RLock()
-	pkg := t.eventPackageId
-	ch := t.eventPkgReady
+	pkg := t.offrampPackageId
+	ch := t.offrampPackageIdReady
 	t.mu.RUnlock()
 	if pkg != "" {
 		return pkg, nil
@@ -150,7 +152,7 @@ func (t *TransactionsIndexer) waitForOffRampPackage(ctx context.Context) (string
 	select {
 	case <-ch:
 		t.mu.RLock()
-		pkg = t.eventPackageId
+		pkg = t.offrampPackageId
 		t.mu.RUnlock()
 		if pkg == "" {
 			return "", fmt.Errorf("package ready signaled but empty")
@@ -267,7 +269,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 	cursor := tIndexer.transmitters[transmitter]
 	totalProcessed := 0
 
-	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig()
+	eventAccountAddress, latestOfframpPackageId, err := tIndexer.getEventPackageIdFromConfig()
 	if err != nil {
 		return 0, fmt.Errorf("failed to get ExecutionStateChanged event config: %w", err)
 	}
@@ -285,6 +287,12 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 		if len(queryResponse.Data) == 0 {
 			return totalProcessed, nil
 		}
+
+		lastDigest := queryResponse.Data[len(queryResponse.Data)-1].Digest
+		defer func() {
+			// Update the cursor to the last transaction digest regardless of the code path below
+			tIndexer.transmitters[transmitter] = lastDigest
+		}()
 
 		var records []database.EventRecord
 		for _, transactionRecord := range queryResponse.Data {
@@ -320,24 +328,56 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				continue
 			}
 
-			if moveAbort.Location.Module.Name != moduleKey {
-				tIndexer.logger.Debugw("Skipping transaction with different module",
-					"transmitter", transmitter, "module", moveAbort.Location.Module.Name)
+			tIndexer.logger.Debugw("Extracted move abort from failed transaction", "moveAbort", moveAbort, "digest", transactionRecord.Digest)
+
+			executionMethodIndex := 0
+			includesValidPTBCommand := false
+
+			// Check if any of the transaction's commands match with the expected (offramp) package and module
+			for i, raw := range transactionRecord.Transaction.Data.Transaction.Transactions {
+				if moveCall := models.MoveCall(raw); moveCall != nil {
+					packageID := moveCall.Package
+					moduleName := moveCall.Module
+					functionName := moveCall.Function
+
+					if (packageID == eventAccountAddress || packageID == latestOfframpPackageId) &&
+						moduleName == tIndexer.executionEventModuleKey &&
+						functionName == tIndexer.executeFunction {
+						executionMethodIndex = i
+						includesValidPTBCommand = true
+						break
+					}
+				}
+			}
+
+			// NOTE: The check below does not guarantee that a malicious (known) transmitter is not sending a failed PTB
+			// with the expected package and module. However, it is considered as the worst case scenario simply involves
+			// creating an event record with a failure state against an digest that is not checked.
+			if !includesValidPTBCommand {
+				tIndexer.logger.Warnw(
+					"Expected PTB command (_::offramp::init_execute) not found in commands of failed PTB originating from known transmitter",
+					"transmitter", transmitter,
+					"digest", transactionRecord.Digest,
+				)
+				continue
+			}
+
+			// The failure should NOT take place at `init_execute`. This command must be valid to ensure that the report can be extracted.
+			if moveAbort.Location.FunctionName == nil || *moveAbort.Location.FunctionName == tIndexer.executeFunction {
+				tIndexer.logger.Debugw("Skipping transaction for failed function against init_execute function",
+					"transmitter", transmitter,
+					"location", moveAbort.Location,
+					"functionName", *moveAbort.Location.FunctionName,
+					"digest", transactionRecord.Digest,
+				)
 
 				continue
 			}
 
-			if moveAbort.Location.FunctionName == nil || !slices.Contains(tIndexer.executeFunctions, *moveAbort.Location.FunctionName) {
-				tIndexer.logger.Debugw("Skipping transaction for non-execute function",
-					"transmitter", transmitter, "function", *moveAbort.Location.FunctionName)
-
-				continue
-			}
-
-			// we always get the report from the init_execute function call (index 0), the "finish_execute" function call
-			// does not contain an argument which contains the report
-			// NOTE: we assume that init_execute (which contains the report) is always the first command in the PTB
-			commandIndex := uint64(0)
+			// The command from which to extract the report (init_execute) should always be the first command in the PTB, however,
+			// we use the index here as a simple safety check to ensure that the command index is valid in case that a function
+			// is added before init_execute in the future.
+			commandIndex := uint64(executionMethodIndex)
 			callArgs, err := tIndexer.extractCommandCallArgs(&transactionRecord, commandIndex)
 			if err != nil {
 				tIndexer.logger.Errorw("Failed to extract command call args", "error", err)
@@ -355,7 +395,16 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			tIndexer.logger.Debugw("Report arg", "reportArg", reportArg)
 
 			// Handle the conversion from []interface{} to []byte
-			reportValue := reportArg["value"].([]any)
+			reportValue, ok := reportArg["value"].([]any)
+			if !ok {
+				tIndexer.logger.Errorw("Expected report value to be a []any",
+					"transmitter", transmitter,
+					"txDigest", transactionRecord.Digest,
+					"reportArg", reportArg,
+					"valueType", fmt.Sprintf("%T", reportArg["value"]))
+				continue
+			}
+
 			reportBytes := make([]byte, len(reportValue))
 			for i, val := range reportValue {
 				num, ok := val.(float64)
@@ -462,8 +511,6 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				return totalProcessedFallback, nil
 			}
 
-			// update the cursor to the last transaction digest
-			tIndexer.transmitters[transmitter] = queryResponse.Data[len(queryResponse.Data)-1].Digest
 			tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events",
 				"count", len(records), "transmitter", transmitter)
 		}
@@ -481,7 +528,7 @@ func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]mod
 		eventKey  = tIndexer.configEventKey
 	)
 
-	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig()
+	eventAccountAddress, _, err := tIndexer.getEventPackageIdFromConfig()
 	if err != nil {
 		tIndexer.logger.Errorw("Failed to get OCRConfigSet event config", "error", err)
 		return nil, err
@@ -541,7 +588,7 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 		selector  = "sourceChainSelector"
 	)
 
-	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig()
+	eventAccountAddress, _, err := tIndexer.getEventPackageIdFromConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get SourceChainConfigSet event config: %w", err)
 	}
@@ -584,15 +631,16 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 }
 
 // Prefer the cached OffRamp package
-func (t *TransactionsIndexer) getEventPackageIdFromConfig() (string, error) {
+func (t *TransactionsIndexer) getEventPackageIdFromConfig() (string, string, error) {
 	t.mu.RLock()
-	pkg := t.eventPackageId
+	pkg := t.offrampPackageId
+	latestPkg := t.latestOfframpPackageId
 	t.mu.RUnlock()
 
 	if pkg != "" {
-		return pkg, nil
+		return pkg, latestPkg, nil
 	}
-	return "", fmt.Errorf("offramp package not set yet")
+	return "", "", fmt.Errorf("offramp package not set yet")
 }
 
 // ModuleId represents Move’s ModuleId { address, name }
@@ -717,7 +765,12 @@ func (tIndexer *TransactionsIndexer) extractCommandCallArgs(transactionRecord *m
 		argIndex, ok := argEntry["Input"].(float64)
 		if !ok {
 			return nil, fmt.Errorf("failed to read arg index for failed transaction")
+		} else if argIndex >= float64(len(inputCallArgs)) {
+			return nil, fmt.Errorf("arg index out of range for failed transaction, argIndex: %d, inputCallArgs length: %d", int(argIndex), len(inputCallArgs))
+		} else if inputCallArgs[uint64(argIndex)] == nil {
+			return nil, fmt.Errorf("arg value is nil for failed transaction, argIndex: %d", int(argIndex))
 		}
+
 		commandArgs = append(commandArgs, inputCallArgs[uint64(argIndex)])
 	}
 

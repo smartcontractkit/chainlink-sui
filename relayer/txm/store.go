@@ -8,6 +8,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
 )
@@ -152,12 +153,28 @@ func (s *InMemoryStore) GetTransaction(transactionID string) (SuiTx, error) {
 	return *tx, nil
 }
 
+// validTransitions defines allowed state transitions.
+// Terminal states (Finalized, Failed) have no valid outgoing transitions.
+var validTransitions = map[TransactionState]map[TransactionState]bool{
+	StatePending: {
+		StateSubmitted: true,
+		StateFailed:    true,
+	},
+	StateSubmitted: {
+		StateFinalized: true,
+		StateRetriable: true,
+		StateFailed:    true,
+	},
+	StateRetriable: {
+		StateSubmitted: true,
+		StateFinalized: true,
+		StateFailed:    true,
+	},
+	StateFinalized: {},
+	StateFailed:    {},
+}
+
 // ChangeState updates the state of a transaction.
-// It validates the state transition according to the allowed transitions:
-// - Pending -> Submitted
-// - Submitted -> Finalized, Retriable, or Failed
-// - Retriable -> Submitted, Failed, or Finalized
-// - Finalized and Failed are terminal states
 // Returns an error if the transaction is not found or if the state transition is invalid.
 func (s *InMemoryStore) ChangeState(transactionID string, newState TransactionState) error {
 	s.mu.Lock()
@@ -170,43 +187,19 @@ func (s *InMemoryStore) ChangeState(transactionID string, newState TransactionSt
 
 	oldState := tx.State
 
-	// Check if the state transition is valid
-	switch oldState {
-	case StatePending:
-		if newState != StateSubmitted && newState != StateFailed {
-			return fmt.Errorf("pending state must transition to submitted or failed")
-		}
-	case StateSubmitted:
-		if newState == StatePending {
-			return fmt.Errorf("submitted state cannot transition to pending")
-		}
-	case StateFinalized:
-		return fmt.Errorf("finalized state cannot transition to any other state")
-	case StateRetriable:
-		if newState != StateSubmitted && newState != StateFailed && newState != StateFinalized {
-			return fmt.Errorf("invalid state transition from %v to %v", oldState, newState)
-		}
-	case StateFailed:
-		return fmt.Errorf("invalid state transition from %v to %v", oldState, newState)
-	default:
-		return fmt.Errorf("invalid state: %v", oldState)
+	validNextStates, ok := validTransitions[oldState]
+	if !ok {
+		return fmt.Errorf("invalid current state: %v", oldState)
 	}
 
-	// Remove from the old state bucket
+	if valid, ok := validNextStates[newState]; !ok || !valid {
+		return fmt.Errorf("invalid state transition from %v to %v", oldState, newState)
+	}
+
 	delete(s.stateBuckets[oldState], transactionID)
-
-	// Update the transaction's state
 	tx.State = newState
-
-	// Update the transaction's last updated at
 	tx.LastUpdatedAt = GetCurrentUnixTimestamp()
-
-	// Add the transaction ID to the new state bucket
 	s.stateBuckets[newState][transactionID] = struct{}{}
-
-	// Update the transaction in the main transactions map
-	delete(s.transactions, transactionID)
-	s.transactions[transactionID] = tx
 
 	return nil
 }

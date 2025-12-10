@@ -47,6 +47,7 @@ func (d AddRemoteTP) Apply(e cldf.Environment, config AddRemoteTPConfig) (cldf.C
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	// Todo: validate that len of TokenpoolTypes == RemoteChainSelectors == RemotePoolAddressToAdd

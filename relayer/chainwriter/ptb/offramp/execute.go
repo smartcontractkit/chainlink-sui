@@ -99,12 +99,12 @@ func BuildOffRampExecutePTB(
 	}
 
 	// Get the latest package ID from the offramp module
-	latestOfframpPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.OffRampPackageId, "offramp", signerAddress)
+	latestOfframpPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.OffRampPackageId, "offramp")
 	if err != nil {
 		return err
 	}
 
-	latestCcipPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.CcipPackageId, "state_object", signerAddress)
+	latestCcipPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.CcipPackageId, "state_object")
 	if err != nil {
 		return err
 	}
@@ -223,6 +223,8 @@ func ProcessTokenPools(
 		tokenConfig, err := tokenAdminRegistryDevInspect.GetTokenConfigStruct(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get token configs for offramp execution: %w", err)
+		} else if !IsValidTokenPoolConfig(&tokenConfig) {
+			return nil, fmt.Errorf("invalid token pool config for token metadata address: %s: %+v", coinMetadataAddress, tokenConfig)
 		}
 
 		lggr.Debugw("fetched token configs via dev inspect call", "tokenConfig", tokenConfig)
@@ -442,7 +444,7 @@ func AppendPTBCommandForReceiver(
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	paramTypes := []string{
-		"&object",
+		"&mut object",
 	}
 	paramValues := []any{
 		receiverParams,

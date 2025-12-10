@@ -2,12 +2,11 @@ package indexer
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -17,24 +16,30 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
 type EventsIndexer struct {
-	db                  *database.DBStore
-	client              client.SuiPTBClient
-	logger              logger.Logger
-	pollingInterval     time.Duration
-	syncTimeout         time.Duration
+	db              *database.DBStore
+	client          client.SuiPTBClient
+	logger          logger.Logger
+	pollingInterval time.Duration
+	syncTimeout     time.Duration
+
+	// Protected by configMutex
 	eventConfigurations []*client.EventSelector
+	configMutex         sync.RWMutex
+
+	// Protected by cursorMutex
 	// a map of event handles to the last processed cursor
 	lastProcessedCursors map[string]*models.EventId
+	cursorMutex          sync.RWMutex
 }
 
 type EventsIndexerApi interface {
 	Start(ctx context.Context) error
 	SyncAllEvents(ctx context.Context) error
 	SyncEvent(ctx context.Context, selector *client.EventSelector) error
+	AddEventSelector(ctx context.Context, selector *client.EventSelector) error
 	Ready() error
 	Close() error
 }
@@ -50,11 +55,12 @@ func NewEventIndexer(
 	syncTimeout time.Duration,
 ) EventsIndexerApi {
 	dataStore := database.NewDBStore(db, log)
+	namedLogger := logger.Named(log, "EventsIndexer")
 
 	return &EventsIndexer{
 		db:                   dataStore,
 		client:               ptbClient,
-		logger:               log,
+		logger:               namedLogger,
 		pollingInterval:      pollingInterval,
 		syncTimeout:          syncTimeout,
 		eventConfigurations:  eventConfigurations,
@@ -106,8 +112,14 @@ func (eIndexer *EventsIndexer) SyncAllEvents(ctx context.Context) error {
 	errorCount := 0
 	var lastErr error
 
+	// Avoid holding lock during iteration by making a copy of the selectors
+	eIndexer.configMutex.RLock()
+	selectors := make([]*client.EventSelector, len(eIndexer.eventConfigurations))
+	copy(selectors, eIndexer.eventConfigurations)
+	eIndexer.configMutex.RUnlock()
+
 	// Iterate through all configured modules and their events
-	for _, selector := range eIndexer.eventConfigurations {
+	for _, selector := range selectors {
 		packageAddress, moduleName, eventName := selector.Package, selector.Module, selector.Event
 
 		select {
@@ -191,30 +203,6 @@ func convertMapKeysToCamelCaseWithPath(input any, path string) any {
 	return input
 }
 
-func convertBytesToHex(input any) any {
-	kind := reflect.ValueOf(input).Kind()
-
-	switch kind {
-	case reflect.Map:
-		result := make(map[string]any)
-		for k, v := range input.(map[string]any) {
-			result[k] = convertBytesToHex(v)
-		}
-
-		return result
-
-	case reflect.Slice:
-		bytes, err := codec.AnySliceToBytes(input.([]any))
-		if err != nil {
-			return input
-		}
-
-		return "0x" + hex.EncodeToString(bytes)
-	}
-
-	return input
-}
-
 func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.EventSelector) error {
 	if selector == nil {
 		return fmt.Errorf("unspecified selector for SyncEvent call")
@@ -224,19 +212,27 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 
 	// check if the event selector is already tracked, if not add it to the list
 	if !eIndexer.isEventSelectorAdded(*selector) {
-		eIndexer.eventConfigurations = append(eIndexer.eventConfigurations, selector)
+		eIndexer.configMutex.Lock()
+		// Double-check after acquiring write lock (avoid race with concurrent adds)
+		if !eIndexer.isEventSelectorAddedLocked(*selector) {
+			eIndexer.eventConfigurations = append(eIndexer.eventConfigurations, selector)
+		}
+		eIndexer.configMutex.Unlock()
 	}
 
 	eIndexer.logger.Debugw("syncEvent: searching for event", "handle", eventHandle)
 
 	// Get the cursor for pagination - either from memory or start fresh
+	eIndexer.cursorMutex.RLock()
 	cursor := eIndexer.lastProcessedCursors[eventHandle]
+
 	var totalCount uint64
 	var err error
 	if cursor == nil {
 		// attempt to get the latest event sync of the given type and use its data to construct a cursor
 		cursor, totalCount, err = eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
 		if err != nil {
+			eIndexer.cursorMutex.RUnlock()
 			return err
 		}
 
@@ -258,6 +254,7 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 			EventSeq: cursor.EventSeq,
 		}
 	}
+	eIndexer.cursorMutex.RUnlock()
 
 eventLoop:
 	for {
@@ -360,7 +357,7 @@ eventLoop:
 					"handle", eventHandle)
 			}
 
-			// Update cursor for next iteration
+			// Update cursor for next iteration and the total count of events processed so far
 			if eventsPage.HasNextPage && eventsPage.NextCursor.TxDigest != "" && eventsPage.NextCursor.EventSeq != "" {
 				cursor = &models.EventId{
 					TxDigest: eventsPage.NextCursor.TxDigest,
@@ -370,7 +367,15 @@ eventLoop:
 					TxDigest: eventsPage.NextCursor.TxDigest,
 					EventSeq: eventsPage.NextCursor.EventSeq,
 				}
+
+				eIndexer.cursorMutex.Lock()
 				eIndexer.lastProcessedCursors[eventHandle] = cursor
+				eIndexer.cursorMutex.Unlock()
+
+				totalCount, err = eIndexer.db.GetTotalCount(ctx, selector.Package, eventHandle)
+				if err != nil {
+					return fmt.Errorf("syncEvent: failed to get total count: %w", err)
+				}
 			} else {
 				// No more events to process
 				break eventLoop
@@ -386,9 +391,33 @@ eventLoop:
 	return nil
 }
 
-// IsEventSelectorAdded checks if a specific event selector has already been included in the list of events
-// to sync
+func (eIndexer *EventsIndexer) AddEventSelector(ctx context.Context, selector *client.EventSelector) error {
+	if selector == nil {
+		return fmt.Errorf("unspecified selector for AddEventSelector call")
+	}
+
+	// check if the event selector is already tracked, if not add it to the list
+	if !eIndexer.isEventSelectorAdded(*selector) {
+		eIndexer.configMutex.Lock()
+		// Double-check after acquiring write lock (avoid race with concurrent adds)
+		if !eIndexer.isEventSelectorAddedLocked(*selector) {
+			eIndexer.eventConfigurations = append(eIndexer.eventConfigurations, selector)
+		}
+		eIndexer.configMutex.Unlock()
+	}
+
+	return nil
+}
+
+// IsEventSelectorAdded checks if a specific event selector has already been included in the list of events to sync
 func (eIndexer *EventsIndexer) isEventSelectorAdded(eConfig client.EventSelector) bool {
+	eIndexer.configMutex.RLock()
+	defer eIndexer.configMutex.RUnlock()
+	return eIndexer.isEventSelectorAddedLocked(eConfig)
+}
+
+// isEventSelectorAddedLocked assumes the lock is already held
+func (eIndexer *EventsIndexer) isEventSelectorAddedLocked(eConfig client.EventSelector) bool {
 	for _, selector := range eIndexer.eventConfigurations {
 		if selector.Package == eConfig.Package && selector.Module == eConfig.Module && selector.Event == eConfig.Event {
 			return true

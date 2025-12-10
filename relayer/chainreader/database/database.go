@@ -17,6 +17,10 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 )
 
+const (
+	MaxEventsQueryLimit = 2000
+)
+
 type DBStore struct {
 	ds  sqlutil.DataSource
 	lgr logger.Logger
@@ -119,12 +123,18 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 		baseSQL += " ORDER BY event_offset " + direction
 	} else {
 		// default to descending order if no sort is provided
-		baseSQL += " ORDER BY event_offset ASC"
+		baseSQL += " ORDER BY event_offset DESC"
 	}
 
-	if limitAndSort.Limit.Count > 0 {
-		baseSQL += fmt.Sprintf(" LIMIT %d", limitAndSort.Limit.Count)
+	limit := limitAndSort.Limit.Count
+	if limit > MaxEventsQueryLimit {
+		store.lgr.Warnw("query limit is greater than max limit, using max limit", "limit", limit, "maxLimit", MaxEventsQueryLimit)
+		limit = MaxEventsQueryLimit
+	} else if limit == 0 {
+		// use max limit if no limit is provided
+		limit = MaxEventsQueryLimit
 	}
+	baseSQL += fmt.Sprintf(" LIMIT %d", limit)
 
 	store.lgr.Debugw("querying events", "sql", baseSQL, "args", args)
 
@@ -181,6 +191,17 @@ func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, 
 		// We use (txDigest, eventSeq) as the pagination cursor to resume fetching events reliably.
 		EventSeq: "0",
 	}, totalCount, nil
+}
+
+// GetTotalCount returns the total number of events recorded in the DB for a given type
+func (store *DBStore) GetTotalCount(ctx context.Context, eventAccountAddress, eventHandle string) (uint64, error) {
+	var totalCount uint64
+	err := store.ds.QueryRowxContext(ctx, CountEvents, eventAccountAddress, eventHandle).Scan(&totalCount)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get total count: %w", err)
+	}
+
+	return totalCount, nil
 }
 
 func (store *DBStore) GetTxDigestByEventId(ctx context.Context, eventID uint64) (string, error) {

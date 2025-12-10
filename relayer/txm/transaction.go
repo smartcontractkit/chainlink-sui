@@ -137,8 +137,11 @@ func TransactionIDGenerator() string {
 // The process follows these steps:
 // 1. Build a preliminary transaction with a temporary gas budget to get transaction bytes.
 // 2. Use the gas manager to estimate the actual gas requirements.
-// 3. Rebuild the transaction with the estimated gas budget.
-// 4. Fall back to metadata or default gas budget if estimation fails.
+// 3. Update the gas budget if estimation yields a lower value (keeping the same selected coins).
+// 4. Sign the transaction with the final gas budget.
+//
+// Note: Coins selected for the preliminary (higher) budget will always cover the final (lower or equal) budget,
+// so there's no need to re-select coins or re-fetch from the blockchain.
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and timeouts.
@@ -179,7 +182,7 @@ func GeneratePTBTransactionWithGasEstimation(
 
 	// Step 1: Determine initial gas budget for preliminary transaction
 	var preliminaryGasBudget uint64
-	if txMetadata.GasLimit != nil {
+	if txMetadata != nil && txMetadata.GasLimit != nil {
 		preliminaryGasBudget = txMetadata.GasLimit.Uint64()
 	} else {
 		preliminaryGasBudget = uint64(defaultGasBudget)
@@ -200,131 +203,69 @@ func GeneratePTBTransactionWithGasEstimation(
 	// Step 3: Estimate gas using the gas manager
 	estimatedGas, err := gasManager.EstimateGasBudget(ctx, preliminaryTx)
 	if err != nil {
-		lggr.Warnw("Gas estimation failed, falling back to metadata/default",
-			"error", err, "fallbackBudget", preliminaryGasBudget)
+		lggr.Warnw("Gas estimation failed, falling back to metadata/default", "error", err, "fallbackBudget", preliminaryGasBudget)
 		finalGasBudget = preliminaryGasBudget
 	} else {
-		// If the estimate is bigger than the provided buddet, we need to abort
+		// If the estimate is bigger than the provided budget, we need to abort
 		if estimatedGas > preliminaryGasBudget {
 			return nil, fmt.Errorf("estimated gas is greater than preliminary gas budget: %d > %d", estimatedGas, preliminaryGasBudget)
-		} else {
-			finalGasBudget = estimatedGas
 		}
+		finalGasBudget = estimatedGas
 	}
 
-	// Step 4: Generate the final transaction with the estimated gas budget
-	lggr.Debugw("Generating final transaction with estimated gas",
+	lggr.Debugw("Gas estimation complete",
 		"finalGasBudget", finalGasBudget,
 		"preliminaryGasBudget", preliminaryGasBudget,
 		"estimatedGas", estimatedGas,
 	)
 
-	return generatePTBTransaction(
-		ctx, pubKey, lggr, keystoreService, suiClient,
-		requestType, transactionID, &commontypes.TxMeta{
-			GasLimit: big.NewInt(int64(finalGasBudget)),
-		},
-		ptb,
-		preliminaryTx.PaymentCoinsObjectRef,
-	)
-}
+	// Step 4: If gas budget changed and is lower, update the PTB and regenerate transaction bytes
+	// The coins selected for the higher preliminary budget will definitely cover the lower final budget
+	if finalGasBudget != preliminaryGasBudget {
+		lggr.Debugw("Updating gas budget in PTB",
+			"from", preliminaryGasBudget,
+			"to", finalGasBudget)
 
-// GeneratePTBTransaction creates a new SuiTx transaction for a Programmable Transaction Block (PTB).
-// This function constructs a PTB transaction by:
-// 1. Determining the gas budget from metadata or using a default value.
-// 2. Fetching available SUI coins for the specified signer address.
-// 3. Selecting the optimal set of coins to cover the gas budget using SelectCoinsForGasBudget.
-// 4. Creating the transaction data (sender, PTB, gas coins, budget, price).
-// 5. Marshaling the transaction data into BCS bytes.
-// 6. Signing the BCS bytes using the provided signer service.
-// 7. Creating and returning a SuiTx object in "Pending" state, ready for submission.
-//
-// Parameters:
-//   - ctx: Context for the operation, used for cancellation and timeouts.
-//   - pubKey: Public key of the account that will sign and submit the transaction.
-//   - lggr: Logger for recording operation details and errors.
-//   - keystoreService: Service for signing the generated transaction bytes.
-//   - suiClient: Client for interacting with the Sui blockchain.
-//   - requestType: The type of request for transaction execution (e.g., "WaitForEffectsCert").
-//   - transactionID: Unique identifier for the transaction.
-//   - txMetadata: Transaction metadata including gas configuration (GasLimit).
-//   - signerAddress: Address of the account that will sign and submit the transaction.
-//   - ptb: The ProgrammableTransaction block containing the commands to be executed.
-//
-// Returns:
-//   - *SuiTx: A complete transaction object ready for submission.
-//   - error: An error if any step of transaction generation fails (e.g., fetching coins, selecting gas coins, marshaling, signing).
-func generatePTBTransaction(
-	ctx context.Context,
-	pubKey []byte,
-	lggr logger.Logger,
-	keystoreService loop.Keystore,
-	suiClient client.SuiPTBClient,
-	requestType string,
-	transactionID string,
-	txMetadata *commontypes.TxMeta,
-	ptb *transaction.Transaction,
-	paymentCoins []transaction.SuiObjectRef,
-) (*SuiTx, error) {
-	signerAddress, err := client.GetAddressFromPublicKey(pubKey)
-	if err != nil {
-		lggr.Errorf("failed to get address from public key: %v", err)
-		return nil, err
+		// Update the PTB's gas budget to the lower estimated value
+		ptb.SetGasBudget(finalGasBudget)
+
+		// Regenerate transaction bytes with new gas budget
+		txBytes, err := toBCSBase64(ctx, ptb, signerAddress, lggr, finalGasBudget)
+		if err != nil {
+			return nil, fmt.Errorf("failed to regenerate tx bytes: %w", err)
+		}
+		preliminaryTx.Payload = txBytes
+		preliminaryTx.GasBudget = finalGasBudget
+		preliminaryTx.Metadata = &commontypes.TxMeta{GasLimit: big.NewInt(int64(finalGasBudget))}
 	}
 
-	// Define gasBudget
-	var gasBudget uint64
-	if txMetadata.GasLimit != nil {
-		gasBudget = txMetadata.GasLimit.Uint64()
-	} else {
-		gasBudget = defaultGasBudget
-	}
-
-	// Use common preparation logic
-	txBytes, _, err := preparePTBTransaction(ctx, signerAddress, suiClient, ptb, gasBudget, lggr)
-	if err != nil {
-		lggr.Errorf("failed to prepare PTB transaction: %v", err)
-		return nil, err
-	}
-
-	bytesTx, err := base64.StdEncoding.DecodeString(txBytes)
+	// Step 5: Sign the transaction
+	bytesTx, err := base64.StdEncoding.DecodeString(preliminaryTx.Payload)
 	if err != nil {
 		lggr.Errorf("failed to decode tx bytes: %v", err)
 		return nil, err
 	}
 
-	// Get the signer ID (in keystore) of the public key
 	signerId := fmt.Sprintf("%064x", pubKey)
-
-	// Sign using keystore
 	signature, err := keystoreService.Sign(ctx, signerId, suiClient.HashTxBytes(bytesTx))
 	if err != nil {
 		lggr.Errorf("Error signing transaction: %v", err)
 		return nil, err
 	}
 
-	// Serialize signature (same as working code)
 	signatureStrings := []string{client.SerializeSuiSignature(signature, pubKey)}
 
-	// Extract functions from PTB commands
+	// Extract functions from PTB commands (currently disabled for debugging)
 	functions := []*SuiFunction{}
-	// TODO: this is just used for debugging, we can add it back later
-	// for _, command := range ptb.Data.V1.Kind.ProgrammableTransaction.Commands {
-	// 	packageIDstr := "0x" + hex.EncodeToString(command.MoveCall.Package[:])
-	// 	functions = append(functions, &SuiFunction{
-	// 		PackageId: packageIDstr,
-	// 		Module:    command.MoveCall.Module,
-	// 		Name:      command.MoveCall.Function,
-	// 	})
-	// }
 
+	// Step 6: Return the final signed transaction
 	return &SuiTx{
 		TransactionID:         transactionID,
 		PublicKey:             pubKey,
 		Sender:                signerAddress,
-		Metadata:              txMetadata,
+		Metadata:              &commontypes.TxMeta{GasLimit: big.NewInt(int64(finalGasBudget))},
 		Timestamp:             GetCurrentUnixTimestamp(),
-		Payload:               txBytes, // Use base64 encoded bytes
+		Payload:               preliminaryTx.Payload,
 		Functions:             functions,
 		Signatures:            signatureStrings,
 		RequestType:           requestType,
@@ -333,9 +274,9 @@ func generatePTBTransaction(
 		Digest:                "",
 		LastUpdatedAt:         GetCurrentUnixTimestamp(),
 		TxError:               nil,
-		GasBudget:             gasBudget,
+		GasBudget:             finalGasBudget,
 		Ptb:                   ptb,
-		PaymentCoinsObjectRef: paymentCoins,
+		PaymentCoinsObjectRef: preliminaryTx.PaymentCoinsObjectRef, // Use the coins selected in preliminary tx
 	}, nil
 }
 
@@ -418,14 +359,36 @@ func preparePTBTransaction(
 	gasBudget uint64,
 	lggr logger.Logger,
 ) (txBytes string, paymentCoins []transaction.SuiObjectRef, err error) {
+	// Get current epoch
+	epoch, err := suiClient.GetLatestEpoch(ctx)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get current epoch: %w", err)
+	}
+
+	lggr.Debugw("Current epoch", "epoch", epoch)
+
+	// Parse epoch into uint64
+	epochUint, err := strconv.ParseUint(epoch, 10, 64)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to parse epoch: %w", err)
+	}
+
 	// Get available coins for gas
 	coinData, err := suiClient.GetCoinsByAddress(ctx, signerAddress)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get coins by address: %w", err)
 	}
 
+	// Filter coins that are not locked
+	filteredCoinData := make([]models.CoinData, 0)
+	for _, coin := range coinData {
+		if coin.LockedUntilEpoch == 0 || coin.LockedUntilEpoch < epochUint {
+			filteredCoinData = append(filteredCoinData, coin)
+		}
+	}
+
 	// Select coins for gas budget
-	gasBudgetCoins, err := SelectCoinsForGasBudget(gasBudget, coinData)
+	gasBudgetCoins, err := SelectCoinsForGasBudget(gasBudget, filteredCoinData)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to select coins for gas budget: %w", err)
 	}

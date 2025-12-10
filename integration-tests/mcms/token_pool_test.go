@@ -6,13 +6,15 @@ import (
 	"fmt"
 	"testing"
 
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
+	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
+	"github.com/smartcontractkit/chainlink-sui/deployment"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
 	lockreleasetokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
@@ -22,6 +24,7 @@ import (
 	managedtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/managed_token"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 type TokenPoolTestSuite struct {
@@ -101,7 +104,7 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 	// Deploy a token pool of each class
 	deployInput := tokenpoolops.DeployAndInitAllTokenPoolsInput{
 		SuiChainSelector: uint64(s.chainSelector),
-		TokenPoolTypes:   []string{"bnm", "lnr", "managed"},
+		TokenPoolTypes:   []deployment.TokenPoolType{deployment.TokenPoolTypeBurnMint, deployment.TokenPoolTypeLockRelease, deployment.TokenPoolTypeManaged},
 		LockReleaseTPInput: lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput{
 			LockReleaseTokenPoolDeployInput: lockreleasetokenpoolops.LockReleaseTokenPoolDeployInput{
 				CCIPPackageId:    s.ccipPackageId,
@@ -259,11 +262,14 @@ func RunOwnershipTokenPoolProposal(s *TokenPoolTestSuite) {
 		AccountObjID:       s.accountObj,
 		RegistryObjID:      s.registryObj,
 		DeployerStateObjID: s.deployerStateObj,
+		ChainSelector:      uint64(s.chainSelector),
 
 		// Proposal
-		Role: suisdk.TimelockRoleBypasser,
-
-		ChainSelector: uint64(s.chainSelector),
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionBypass,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
 	}
 
 	acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, proposalInput)
@@ -386,10 +392,13 @@ func RunLnRConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 		RegistryObjID:      s.registryObj,
 		DeployerStateObjID: s.deployerStateObj,
 
-		// Proposal
-		Role: suisdk.TimelockRoleBypasser,
-
 		ChainSelector: uint64(s.chainSelector),
+		// Proposal
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionBypass,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
 	}
 
 	// Execute LNR proposal
@@ -479,7 +488,11 @@ func RunBnMConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 		DeployerStateObjID: s.deployerStateObj,
 
 		// Proposal
-		Role: suisdk.TimelockRoleBypasser,
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionBypass,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
 
 		ChainSelector: uint64(s.chainSelector),
 	}
@@ -570,7 +583,11 @@ func RunManagedConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 		DeployerStateObjID: s.deployerStateObj,
 
 		// Proposal
-		Role: suisdk.TimelockRoleBypasser,
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionBypass,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
 
 		ChainSelector: uint64(s.chainSelector),
 	}
@@ -607,7 +624,11 @@ func RunTransferAdminTokenPoolProposal(s *TokenPoolTestSuite, coinmetadataAddres
 		DeployerStateObjID: s.deployerStateObj,
 
 		// Proposal
-		Role: suisdk.TimelockRoleBypasser,
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionBypass,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
 
 		ChainSelector: uint64(s.chainSelector),
 	}
@@ -671,7 +692,11 @@ func RunTransferAdminTokenPoolProposal(s *TokenPoolTestSuite, coinmetadataAddres
 		DeployerStateObjID: s.deployerStateObj,
 
 		// Proposal
-		Role: suisdk.TimelockRoleBypasser,
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionBypass,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
 
 		ChainSelector: uint64(s.chainSelector),
 	}
@@ -722,7 +747,11 @@ func RunUnregisterLnRTokenPoolProposal(s *TokenPoolTestSuite) {
 		DeployerStateObjID: s.deployerStateObj,
 
 		// Proposal
-		Role: suisdk.TimelockRoleBypasser,
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionBypass,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
 
 		ChainSelector: uint64(s.chainSelector),
 	}

@@ -5,6 +5,7 @@ import (
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
@@ -13,11 +14,12 @@ import (
 	lockreleasetokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
 	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_managed_token_pool"
 	tokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
+	coin_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/coin"
 )
 
 type DeployTPAndConfigureConfig struct {
 	SuiChainSelector   uint64
-	TokenPoolTypes     []string
+	TokenPoolTypes     []deployment.TokenPoolType
 	ManagedTPInput     managedtokenpoolops.DeployAndInitManagedTokenPoolInput
 	LockReleaseTPInput lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput
 	BurnMintTpInput    burnminttokenpoolops.DeployAndInitBurnMintTokenPoolInput
@@ -56,26 +58,36 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	// Populate state information for each token pool type
 	for _, tokenPoolType := range config.TokenPoolTypes {
 		switch tokenPoolType {
-		case "bnm":
+		case deployment.TokenPoolTypeBurnMint:
 			config.BurnMintTpInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.BurnMintTpInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
 			// TODO: MCMSOwner address should come state
 			config.BurnMintTpInput.MCMSOwnerAddress = deployerAddr
 			config.BurnMintTpInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.BurnMintTpInput.TokenPoolAdministrator = deployerAddr
-		case "lnr":
+		case deployment.TokenPoolTypeLockRelease:
 			config.LockReleaseTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.LockReleaseTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
 			config.LockReleaseTPInput.MCMSOwnerAddress = deployerAddr
 			config.LockReleaseTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.LockReleaseTPInput.TokenPoolAdministrator = deployerAddr
-		case "managed":
+		case deployment.TokenPoolTypeManaged:
+			symbolReport, err := cld_ops.ExecuteOperation(e.OperationsBundle, coin_ops.GetCoinSymbolOp, deps, config.ManagedTPInput.CoinObjectTypeArg)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to get coin symbol: %w", err)
+			}
+			managedTokenState, ok := state[config.SuiChainSelector].ManagedTokens[symbolReport.Output.Symbol]
+			if !ok {
+				return cldf.ChangesetOutput{}, fmt.Errorf("managed token not found for coin object type arg: %s with symbol: %s", config.ManagedTPInput.CoinObjectTypeArg, symbolReport.Output.Symbol)
+			}
 			config.ManagedTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
+			config.ManagedTPInput.ManagedTokenPackageId = managedTokenState.PackageID
 			config.ManagedTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
 			config.ManagedTPInput.MCMSOwnerAddress = deployerAddr
 			config.ManagedTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
@@ -100,7 +112,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 	// Save addresses to the address book based on what was deployed
 	for _, tokenPoolType := range config.TokenPoolTypes {
 		switch tokenPoolType {
-		case "bnm":
+		case deployment.TokenPoolTypeBurnMint:
 			// save BnM Pool to the addressbook
 			typeAndVersionBurnMintTokenPool := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolType, deployment.Version1_0_0)
 			typeAndVersionBurnMintTokenPool.AddLabel(tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.TokenSymbol)
@@ -125,7 +137,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolOwnerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
 
-		case "lnr":
+		case deployment.TokenPoolTypeLockRelease:
 			// save LnR Pool to the addressbook
 			typeAndVersionLnRTokenPool := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolType, deployment.Version1_0_0)
 			typeAndVersionLnRTokenPool.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
@@ -150,7 +162,14 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPoolOwnerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
 
-		case "managed":
+			// save LnR Pool RebalancerCapId to the addressBook
+			typeAndVersionLnRTokenPoolRebalancerCapId := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolRebalancerCapIDType, deployment.Version1_0_0)
+			typeAndVersionLnRTokenPoolRebalancerCapId.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
+			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.RebalancerCapObjectId, typeAndVersionLnRTokenPoolRebalancerCapId)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPoolRebalancerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.RebalancerCapObjectId, config.SuiChainSelector, err)
+			}
+		case deployment.TokenPoolTypeManaged:
 			// save Managed Pool to the addressbook
 			typeAndVersionManagedTokenPool := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPoolType, deployment.Version1_0_0)
 			typeAndVersionManagedTokenPool.AddLabel(tokenPoolReport.Output.DeployManagedTokenPoolOutput.TokenSymbol)

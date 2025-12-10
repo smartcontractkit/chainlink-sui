@@ -1,5 +1,47 @@
 {
   "9762610643973837292": {
+    "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29": {
+      "Type": "SuiManagedToken",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0x0eac90f883ea0902156b340c41e0d178af3f012fe63c33f9663b7be245bee4fe": {
+      "Type": "SuiManagedTokenOwnerCapObjectID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0xd93ceb06feeab8b0b5333a7f76f2e9d0d79e71063b8a71bce654954f7bfd631d": {
+      "Type": "SuiManagedTokenStateObjectID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0xe25afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f72": {
+      "Type": "SuiManagedTokenMinterCapID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0x125afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f78": {
+      "Type": "SuiManagedTokenMinterCapID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0x52f33e4724128431084e207406304383c05660042000016240438147268f184e": {
+      "Type": "SuiManagedTokenPublisherObjectId",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
     "0x70f10215a219a1f2e30f746e68c1e4f2b39f593d83a1980c7cf4e4738591a7e5": {
       "Type": "SuiBnMTokenPool",
       "Version": "1.0.0",
@@ -58,6 +100,20 @@
     },
     "0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd98": {
       "Type": "SuiLnRTokenPoolOwnerID",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-LnR": {}
+      }
+    },
+    "0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd97": {
+      "Type": "SuiLnRTokenPoolRebalancerCapID",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-LnR": {}
+      }
+    },
+    "0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd99": {
+      "Type": "SuiLnRTokenPoolRebalancerCapID",
       "Version": "1.0.0",
       "Labels": {
         "CCIP-LnR": {}

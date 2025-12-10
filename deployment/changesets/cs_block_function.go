@@ -41,6 +41,7 @@ func (d BlockFunction) Apply(e cldf.Environment, config BlockFunctionConfig) (cl
 				GasBudget:        &b,
 			}
 		},
+		SuiRPC: suiChain.URL,
 	}
 
 	BlockFunctionInitializeOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.BlockFunctionOp, deps, ccipops.BlockFunctionInput{

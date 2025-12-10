@@ -54,7 +54,7 @@ func PublishCCIPManagedToken(
 	opts *bind.CallOpts,
 	client sui.ISuiAPI,
 	mcmsAddress,
-	mcmsOwnerAddress string) (ManagedToken, *models.SuiTransactionBlockResponse, error) {
+	mcmsOwnerAddress, suiRPC string) (ManagedToken, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -65,7 +65,7 @@ func PublishCCIPManagedToken(
 		"mcms":          mcmsAddress,
 		"mcms_owner":    mcmsOwnerAddress,
 		"signer":        signerAddr,
-	}, false)
+	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -1,16 +1,60 @@
 package deployment
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+
+	module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
+	module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
+	module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
+	"github.com/smartcontractkit/chainlink-sui/deployment/view"
 )
+
+type TokenPoolType string
+
+const (
+	TokenPoolTypeBurnMint    TokenPoolType = "bnm"
+	TokenPoolTypeLockRelease TokenPoolType = "lnr"
+	TokenPoolTypeManaged     TokenPoolType = "managed"
+)
+
+type SuiChainView struct {
+	ChainSelector uint64 `json:"chainSelector,omitempty"`
+	ChainID       string `json:"chainID,omitempty"`
+
+	MCMSWithTimelock view.MCMSWithTimelockView `json:"mcmsWithTimelock"`
+
+	CCIP    view.CCIPView               `json:"ccip,omitempty"`
+	OnRamp  map[string]view.OnRampView  `json:"onRamp,omitempty"`
+	OffRamp map[string]view.OffRampView `json:"offRamp,omitempty"`
+	Router  view.RouterView             `json:"router,omitempty"`
+
+	TokenPools map[string]map[string]view.TokenPoolView `json:"tokenPools,omitempty"` // TokenSymbol => TokenPool Address => PoolView
+}
 
 type CCIPPoolState struct {
 	PackageID        string
 	StateObjectId    string
 	OwnerCapObjectId string
+	RebalancerCapIds []string // only applicable for LR TP
+}
+
+type ManagedTokenState struct {
+	TokenPackageID      string
+	TokenCoinMetadataID string
+	TokenTreasuryCapID  string
+	TokenUpgradeCapID   string
+	PackageID           string
+	StateObjectId       string
+	OwnerCapObjectId    string
+	MinterCapObjectIds  []string
+	PublisherObjectId   string
 }
 
 type CCIPChainState struct {
@@ -31,8 +75,9 @@ type CCIPChainState struct {
 	FeeQuoterCapId         string
 
 	// CCIP Router related
-	CCIPRouterAddress       string
-	CCIPRouterStateObjectID string
+	CCIPRouterAddress          string
+	CCIPRouterStateObjectID    string
+	CCIPRouterOwnerCapObjectId string
 
 	// OnRamp related
 	OnRampAddress          string
@@ -50,12 +95,10 @@ type CCIPChainState struct {
 	LinkTokenAddress        string
 	LinkTokenCoinMetadataId string
 	LinkTokenTreasuryCapId  string
+	LinkTokenUpgradeCapId   string
 
-	// Token related
-	ManagedToken                 string
-	ManagedTokenOwnerCapObjectID string
-	ManagedTokenStateObjectID    string
-	ManagedTokenMinterCapID      string
+	// Managed Token related
+	ManagedTokens map[string]ManagedTokenState
 
 	// Token pools related
 	LnRTokenPools     map[string]CCIPPoolState
@@ -66,6 +109,210 @@ type CCIPChainState struct {
 	OnRampMockV2PackageId  string
 	OffRampMockV2PackageId string
 	CCIPMockV2PackageId    string
+}
+
+func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chainName string) (SuiChainView, error) {
+	lggr := e.Logger
+	chainView := SuiChainView{
+		ChainSelector: selector,
+		TokenPools:    make(map[string]map[string]view.TokenPoolView),
+		OnRamp:        make(map[string]view.OnRampView),
+		OffRamp:       make(map[string]view.OffRampView),
+	}
+
+	lggr.Infow("generating Sui chain view", "chain", chainName, "selector", selector)
+
+	suiChain := e.BlockChains.SuiChains()[selector]
+	ctx := context.Background()
+
+	var mu sync.Mutex
+	g, ctxG1 := errgroup.WithContext(ctx)
+
+	// MCMS
+	if s.MCMSStateObjectID != "" {
+		g.Go(func() error {
+			mcmsView, err := view.GenerateMCMSWithTimelockView(ctxG1, suiChain, s.MCMSPackageID, s.MCMSStateObjectID, s.MCMSTimelockObjectID, s.MCMSAccountStateObjectID)
+			if err != nil {
+				return fmt.Errorf("failed to generate mcms view for mcms %s: %w", s.MCMSStateObjectID, err)
+			}
+			mu.Lock()
+			chainView.MCMSWithTimelock = mcmsView
+			mu.Unlock()
+			lggr.Infow("generated MCMS view", "mcmsStateObjectID", s.MCMSStateObjectID, "chain", chainName)
+			return nil
+		})
+	}
+
+	// CCIP
+	if s.CCIPAddress != "" {
+		g.Go(func() error {
+			ccipView, err := view.GenerateCCIPView(ctxG1, suiChain, s.CCIPAddress, s.CCIPObjectRef, s.CCIPRouterAddress, s.CCIPRouterStateObjectID)
+			if err != nil {
+				return fmt.Errorf("failed to generate ccip view for ccip %s: %w", s.CCIPAddress, err)
+			}
+			mu.Lock()
+			chainView.CCIP = ccipView
+			mu.Unlock()
+			lggr.Infow("generated CCIP view", "ccipAddress", s.CCIPAddress, "chain", chainName)
+			return nil
+		})
+	}
+
+	// Router
+	if s.CCIPRouterAddress != "" && s.CCIPRouterStateObjectID != "" {
+		g.Go(func() error {
+			routerView, err := view.GenerateRouterView(ctxG1, suiChain, s.CCIPRouterAddress, s.CCIPRouterStateObjectID)
+			if err != nil {
+				return fmt.Errorf("failed to generate router view for router %s: %w", s.CCIPRouterAddress, err)
+			}
+			mu.Lock()
+			chainView.Router = routerView
+			mu.Unlock()
+			lggr.Infow("generated router view", "routerAddress", s.CCIPRouterAddress, "chain", chainName)
+			return nil
+		})
+	}
+
+	// OnRamp
+	if s.OnRampAddress != "" {
+		g.Go(func() error {
+			onRampView, err := view.GenerateOnRampView(ctxG1, suiChain, s.OnRampAddress, s.OnRampStateObjectId, s.CCIPRouterAddress, s.CCIPRouterStateObjectID)
+			if err != nil {
+				return fmt.Errorf("failed to generate onramp view for onramp %s: %w", s.OnRampAddress, err)
+			}
+			mu.Lock()
+			chainView.OnRamp[s.OnRampAddress] = onRampView
+			mu.Unlock()
+			lggr.Infow("generated onRamp view", "onRampAddress", s.OnRampAddress, "chain", chainName)
+			return nil
+		})
+	}
+
+	// OffRamp
+	if s.OffRampAddress != "" {
+		g.Go(func() error {
+			offRampView, err := view.GenerateOffRampView(ctxG1, suiChain, s.OffRampAddress, s.OffRampStateObjectId, s.CCIPObjectRef)
+			if err != nil {
+				return fmt.Errorf("failed to generate offramp view for offramp %s: %w", s.OffRampAddress, err)
+			}
+			mu.Lock()
+			chainView.OffRamp[s.OffRampAddress] = offRampView
+			mu.Unlock()
+			lggr.Infow("generated offRamp view", "offRampAddress", s.OffRampAddress, "chain", chainName)
+			return nil
+		})
+	}
+
+	// Wait here because pools depend on tokenAdminRegistry from CCIP view
+	if err := g.Wait(); err != nil {
+		return SuiChainView{}, err
+	}
+
+	// Token pools
+	tokenConfigs := chainView.CCIP.TokenAdminRegistry.TokenConfigs
+	g, ctxG2 := errgroup.WithContext(ctx)
+
+	// BurnMint Token Pools
+	for symbol, pool := range s.BnMTokenPools {
+		if pool.PackageID == "" || pool.StateObjectId == "" {
+			lggr.Warnw("Skipping BnM token pool with missing data", "symbol", symbol, "chain", chainName)
+			continue
+		}
+
+		g.Go(func() error {
+			contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(pool.PackageID, suiChain.Client)
+			if err != nil {
+				return fmt.Errorf("failed to create BnM token pool contract for symbol %s: %w", symbol, err)
+			}
+
+			poolView, err := view.GenerateTokenPoolView(ctxG2, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
+			if err != nil {
+				return fmt.Errorf("failed to generate BnM token pool view for symbol %s: %w", symbol, err)
+			}
+
+			if len(pool.RebalancerCapIds) > 0 {
+				return fmt.Errorf("BnM token pool %s has rebalancer cap ids, but it is not applicable", symbol)
+			}
+
+			mu.Lock()
+			if chainView.TokenPools[symbol] == nil {
+				chainView.TokenPools[symbol] = make(map[string]view.TokenPoolView)
+			}
+			chainView.TokenPools[symbol][poolView.Address] = poolView
+			mu.Unlock()
+
+			lggr.Infow("generated BnM token pool view", "symbol", symbol, "poolAddress", pool.PackageID, "chain", chainName)
+			return nil
+		})
+	}
+
+	// LockRelease Token Pools
+	for symbol, pool := range s.LnRTokenPools {
+		if pool.PackageID == "" || pool.StateObjectId == "" {
+			lggr.Warnw("Skipping LnR token pool with missing data", "symbol", symbol, "chain", chainName)
+			continue
+		}
+
+		g.Go(func() error {
+			contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(pool.PackageID, suiChain.Client)
+			if err != nil {
+				return fmt.Errorf("failed to create LnR token pool contract for symbol %s: %w", symbol, err)
+			}
+
+			poolView, err := view.GenerateTokenPoolView(ctxG2, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
+			if err != nil {
+				return fmt.Errorf("failed to generate LnR token pool view for symbol %s: %w", symbol, err)
+			}
+
+			poolView.RebalancerCapIds = pool.RebalancerCapIds
+
+			mu.Lock()
+			if chainView.TokenPools[symbol] == nil {
+				chainView.TokenPools[symbol] = make(map[string]view.TokenPoolView)
+			}
+			chainView.TokenPools[symbol][poolView.Address] = poolView
+			mu.Unlock()
+
+			lggr.Infow("generated LnR token pool view", "symbol", symbol, "poolAddress", pool.PackageID, "chain", chainName)
+			return nil
+		})
+	}
+
+	// Managed Token Pools
+	for symbol, pool := range s.ManagedTokenPools {
+		if pool.PackageID == "" || pool.StateObjectId == "" {
+			lggr.Warnw("Skipping managed token pool with missing data", "symbol", symbol, "chain", chainName)
+			continue
+		}
+
+		g.Go(func() error {
+			contract, err := module_managed_token_pool.NewManagedTokenPool(pool.PackageID, suiChain.Client)
+			if err != nil {
+				return fmt.Errorf("failed to create managed token pool contract for symbol %s: %w", symbol, err)
+			}
+
+			poolView, err := view.GenerateTokenPoolView(ctxG2, suiChain, pool.PackageID, pool.StateObjectId, tokenConfigs, contract.DevInspect(), lggr)
+			if err != nil {
+				return fmt.Errorf("failed to generate managed token pool view for symbol %s: %w", symbol, err)
+			}
+
+			if len(pool.RebalancerCapIds) > 0 {
+				return fmt.Errorf("managed token pool %s has rebalancer cap ids, but it is not applicable", symbol)
+			}
+
+			mu.Lock()
+			if chainView.TokenPools[symbol] == nil {
+				chainView.TokenPools[symbol] = make(map[string]view.TokenPoolView)
+			}
+			chainView.TokenPools[symbol][poolView.Address] = poolView
+			mu.Unlock()
+
+			lggr.Infow("generated managed token pool view", "symbol", symbol, "poolAddress", pool.PackageID, "chain", chainName)
+			return nil
+		})
+	}
+
+	return chainView, g.Wait()
 }
 
 // LoadOnchainStatesui loads chain state for sui chains from env
@@ -96,6 +343,7 @@ func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error
 
 func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (CCIPChainState, error) {
 	chainState := CCIPChainState{
+		ManagedTokens:     make(map[string]ManagedTokenState),
 		BnMTokenPools:     make(map[string]CCIPPoolState),
 		LnRTokenPools:     make(map[string]CCIPPoolState),
 		ManagedTokenPools: make(map[string]CCIPPoolState),
@@ -125,6 +373,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.CCIPRouterAddress = addr
 		case SuiCCIPRouterStateObjectType:
 			chainState.CCIPRouterStateObjectID = addr
+		case SuiCCIPRouterOwnerCapObjectIDType:
+			chainState.CCIPRouterOwnerCapObjectId = addr
 
 		// CCIP related
 		case SuiCCIPType:
@@ -165,16 +415,82 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.LinkTokenCoinMetadataId = addr
 		case SuiLinkTokenTreasuryCapID:
 			chainState.LinkTokenTreasuryCapId = addr
+		case SuiLinkTokenUpgradeCapID:
+			chainState.LinkTokenUpgradeCapId = addr
 
-		// Token related
+		// Managed Token related
+		case SuiManagedTokenPackageIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenPackageID = addr
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenCoinMetadataIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenCoinMetadataID = addr
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenUpgradeCapIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenUpgradeCapID = addr
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenTreasuryCapIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenTreasuryCapID = addr
+			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenType:
-			chainState.ManagedToken = addr
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.PackageID = addr
+			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenOwnerCapObjectID:
-			chainState.ManagedTokenOwnerCapObjectID = addr
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.OwnerCapObjectId = addr
+			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenStateObjectID:
-			chainState.ManagedTokenStateObjectID = addr
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.StateObjectId = addr
+			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenMinterCapID:
-			chainState.ManagedTokenMinterCapID = addr
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.MinterCapObjectIds = append(managed_token.MinterCapObjectIds, addr)
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenPublisherObjectId:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.PublisherObjectId = addr
+			chainState.ManagedTokens[symbol] = managed_token
 
 		// mock upgrade related
 		case SuiOnRampMockV2:
@@ -234,6 +550,14 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			}
 			pool := chainState.LnRTokenPools[symbol]
 			pool.OwnerCapObjectId = addr
+			chainState.LnRTokenPools[symbol] = pool
+		case SuiLnRTokenPoolRebalancerCapIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token pool: %w", err)
+			}
+			pool := chainState.LnRTokenPools[symbol]
+			pool.RebalancerCapIds = append(pool.RebalancerCapIds, addr)
 			chainState.LnRTokenPools[symbol] = pool
 
 		// Managed Token pools related

@@ -117,7 +117,7 @@ func (pr *PackageResolver) ResolvePackageAddress(moduleName string) (string, err
 }
 
 // ResolvePackageIds gets all package IDs for a module (including upgrades)
-func (pr *PackageResolver) ResolvePackageIDs(ctx context.Context, moduleName string, signerAddress string) ([]string, error) {
+func (pr *PackageResolver) ResolvePackageIDs(ctx context.Context, moduleName string) ([]string, error) {
 	moduleName = common.NormalizeName(moduleName)
 
 	packageAddress, err := pr.ResolvePackageAddress(moduleName)
@@ -132,7 +132,7 @@ func (pr *PackageResolver) ResolvePackageIDs(ctx context.Context, moduleName str
 		}
 	}
 
-	packageIDs, err := pr.client.LoadModulePackageIds(ctx, packageAddress, moduleName, signerAddress)
+	packageIDs, err := pr.client.LoadModulePackageIds(ctx, packageAddress, moduleName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load package IDs for module %s: %w", moduleName, err)
 	}
@@ -148,7 +148,7 @@ func (pr *PackageResolver) ResolvePackageIDs(ctx context.Context, moduleName str
 }
 
 // ResolveLatestPackageId gets the latest (most recent) package ID for a module
-func (pr *PackageResolver) ResolveLatestPackageID(ctx context.Context, moduleName string, signerAddress string) (string, error) {
+func (pr *PackageResolver) ResolveLatestPackageID(ctx context.Context, moduleName string) (string, error) {
 	moduleName = common.NormalizeName(moduleName)
 
 	packageAddress, err := pr.ResolvePackageAddress(moduleName)
@@ -163,7 +163,7 @@ func (pr *PackageResolver) ResolveLatestPackageID(ctx context.Context, moduleNam
 		}
 	}
 
-	latestID, err := pr.client.GetLatestPackageId(ctx, packageAddress, moduleName, signerAddress)
+	latestID, err := pr.client.GetLatestPackageId(ctx, packageAddress, moduleName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get latest package ID for module %s: %w", moduleName, err)
 	}
@@ -206,8 +206,8 @@ func (pr *PackageResolver) ParseIdentifier(identifier string) (*ResolvedIdentifi
 }
 
 // ResolveIdentifier resolves a module name to latest package ID and creates full identifier
-func (pr *PackageResolver) ResolveIdentifier(ctx context.Context, moduleName string, functionName string, signerAddress string) (*ResolvedIdentifier, error) {
-	latestPackageID, err := pr.ResolveLatestPackageID(ctx, moduleName, signerAddress)
+func (pr *PackageResolver) ResolveIdentifier(ctx context.Context, moduleName string, functionName string) (*ResolvedIdentifier, error) {
+	latestPackageID, err := pr.ResolveLatestPackageID(ctx, moduleName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve latest package ID: %w", err)
 	}
@@ -242,6 +242,12 @@ func (pr *PackageResolver) InvalidateCache(moduleName string) {
 	pr.mutex.RLock()
 	packageAddress := pr.packageAddresses[moduleName]
 	pr.mutex.RUnlock()
+
+	// If the package address is not found, do not invalidate the cache
+	if packageAddress == "" {
+		pr.log.Debugw("Package address not found for module, skipping cache invalidation", "module", moduleName)
+		return
+	}
 
 	keys := []string{
 		packageAddressCachePrefix + moduleName,
