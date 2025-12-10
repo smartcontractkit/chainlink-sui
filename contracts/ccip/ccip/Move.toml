@@ -1,11 +1,11 @@
 [package]
 name = "ChainlinkCCIP"
 edition = "2024"
-published-at = "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
+published-at = "0x5ef4b483da6644c84aa78eae4f51a9bfb1fb4554d5134ac98892e931fcbdd6bf"
 
 [addresses]
-ccip = "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
-mcms = "0x7dd8c89002aa29bd802da52b8b5dd92eed1d94b5a1daa6e9f80ae9599f656e8d"
+ccip = "0x5ef4b483da6644c84aa78eae4f51a9bfb1fb4554d5134ac98892e931fcbdd6bf"
+mcms = "0x832b7fd3b7f03d2fd55811cd565d675c09d938f2dc8c24dfd5e73bae4ca118df"
 mcms_owner = "0x4010"
 
 [dev-addresses]

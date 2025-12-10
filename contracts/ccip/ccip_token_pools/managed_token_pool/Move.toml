@@ -3,11 +3,11 @@ name = "ManagedTokenPool"
 edition = "2024"
 
 [addresses]
-ccip = "_"
+ccip = "0x5ef4b483da6644c84aa78eae4f51a9bfb1fb4554d5134ac98892e931fcbdd6bf"
 managed_token_pool = "0x0"
 managed_token = "_"
-mcms = "_"
-mcms_owner = "_"
+mcms = "0x832b7fd3b7f03d2fd55811cd565d675c09d938f2dc8c24dfd5e73bae4ca118df"
+mcms_owner = "0x4010"
 
 [dev-addresses]
 ccip = "0x1000"

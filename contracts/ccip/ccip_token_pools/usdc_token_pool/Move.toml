@@ -10,7 +10,7 @@ MessageTransmitter = { local = "../../../vendored/circlefin/sui-cctp/packages/me
 TokenMessengerMinter = { local = "../../../vendored/circlefin/sui-cctp/packages/token_messenger_minter" }
 
 [addresses]
-ccip = "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
+ccip = "0x5ef4b483da6644c84aa78eae4f51a9bfb1fb4554d5134ac98892e931fcbdd6bf"
 usdc_token_pool = "0x0"
 usdc_coin_metadata_object_id = "_"
 token_messenger_minter = "0x31cc14d80c175ae39777c0238f20594c6d4869cfab199f40b69f3319956b8beb"
@@ -18,7 +18,7 @@ token_messenger_minter_state = "0x5252abd1137094ed1db3e0d75bc36abcd287aee4bc310f
 message_transmitter = "0x4931e06dce648b3931f890035bd196920770e913e43e45990b383f6486fdd0a5"
 message_transmitter_state = "0x98234bd0fa9ac12cc0a20a144a22e36d6a32f7e0a97baaeaf9c76cdc6d122d2e"
 treasury = "0x7170137d4a6431bf83351ac025baf462909bffe2877d87716374fb42b9629ebe"
-mcms = "0x7dd8c89002aa29bd802da52b8b5dd92eed1d94b5a1daa6e9f80ae9599f656e8d"
+mcms = "0x832b7fd3b7f03d2fd55811cd565d675c09d938f2dc8c24dfd5e73bae4ca118df"
 mcms_owner = "0x4010"
 
 [dev-addresses]

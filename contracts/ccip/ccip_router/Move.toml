@@ -1,7 +1,7 @@
 [package]
 name = "ChainlinkCCIPRouter"
 edition = "2024"
-published-at = "0xedc08e6c1d7140da3e4851dddac5c4b7f3a44673f2ae5b4bf40c56968477c16d"
+published-at = "0x267b460543ab96a2ee8573cc5e1e697629274f26f135c28baf891fad6f1d7aca"
 
 [addresses]
 ccip_router = "0x0"
