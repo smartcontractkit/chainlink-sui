@@ -384,6 +384,29 @@ func TestChainReaderTestnet(t *testing.T) {
 		log.Infof("Completed %d requests, %d errors", processedCount, errorCount)
 	})
 
+	t.Run("TransactionIndexer_ExecutionStateChanged_event", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, 1200*time.Second)
+		defer cancel()
+
+		assert.Eventually(t, func() bool {
+			println("\n\n------------------------------------------------------------------------------\n\n")
+
+			// events, err := chainReader.QueryKey(ctx, types.BoundContract{
+			// 	Name:    offrampContractName,
+			// 	Address: offrampPackageId,
+			// }, query.KeyFilter{Key: offrampExecutionStateChangedEventKey}, query.LimitAndSort{}, &map[string]any{})
+			// require.NoError(t, err)
+
+			events, err := dbStore.QueryEvents(ctx, offrampPackageId, offrampExecutionStateChangedEventKey, nil, query.LimitAndSort{})
+			require.NoError(t, err)
+
+			// testutils.PrettyPrintDebug(log, events, "found execution state changed events from DB")
+			// return len(events) > 0
+
+			return len(events) > 0
+		}, 1200*time.Second, 60*time.Second)
+	})
+
 	t.Run("token pool events", func(t *testing.T) {
 		var retReleasedOrMinted map[string]any
 

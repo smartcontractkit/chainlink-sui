@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/mr-tron/base58"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
@@ -231,6 +231,10 @@ func (tIndexer *TransactionsIndexer) SyncAllTransmittersTransactions(ctx context
 		return nil
 	}
 
+	println("\n\n------------------------------------------------------------------------------\n\n")
+	tIndexer.logger.Debugw("syncTransmittersTransactions start", "transmitters", transmitters)
+	println("------------------------------------------------------------------------------\n\n")
+
 	var batchSize uint64 = 50
 	var totalProcessed int
 
@@ -266,6 +270,11 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 		moduleKey = tIndexer.executionEventModuleKey
 		eventKey  = tIndexer.executionEventKey
 	)
+
+	println("\n\n------------------------------------------------------------------------------\n\n")
+	println("syncTransmitterTransactions start")
+	println("transmitter", transmitter)
+	println("------------------------------------------------------------------------------\n\n")
 
 	cursor := tIndexer.transmitters[transmitter]
 	totalProcessed := 0
@@ -359,6 +368,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 					"Expected PTB command (_::offramp::init_execute) not found in commands of failed PTB originating from known transmitter",
 					"transmitter", transmitter,
 					"digest", transactionRecord.Digest,
+					"transactionRecord", transactionRecord,
 				)
 				continue
 			}
@@ -476,12 +486,12 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 
 			// Convert the txDigest to hex
 			txDigestHex := transactionRecord.Digest
-			if base64Bytes, err := base64.StdEncoding.DecodeString(txDigestHex); err == nil {
+			if base64Bytes, err := base58.Decode(txDigestHex); err == nil {
 				hexTxId := hex.EncodeToString(base64Bytes)
 				txDigestHex = "0x" + hexTxId
 			}
 
-			blockHashBytes, err := base64.StdEncoding.DecodeString(checkpointResponse.Digest)
+			blockHashBytes, err := base58.Decode(checkpointResponse.Digest)
 			if err != nil {
 				tIndexer.logger.Errorw("Failed to decode block hash", "error", err)
 				// fallback
