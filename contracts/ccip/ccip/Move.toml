@@ -9,8 +9,8 @@ mcms = "0x832b7fd3b7f03d2fd55811cd565d675c09d938f2dc8c24dfd5e73bae4ca118df"
 mcms_owner = "0x4010"
 
 [dev-addresses]
-ccip = "0x1000"
-mcms = "0x4000"
+ccip = "0x5ef4b483da6644c84aa78eae4f51a9bfb1fb4554d5134ac98892e931fcbdd6bf"
+mcms = "0x832b7fd3b7f03d2fd55811cd565d675c09d938f2dc8c24dfd5e73bae4ca118df"
 mcms_owner = "0x4010"
 
 [dependencies]
