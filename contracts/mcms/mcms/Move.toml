@@ -6,7 +6,7 @@ published-at = "0x832b7fd3b7f03d2fd55811cd565d675c09d938f2dc8c24dfd5e73bae4ca118
 [dependencies]
 
 [addresses]
-mcms = "0x0"
+mcms = "0x832b7fd3b7f03d2fd55811cd565d675c09d938f2dc8c24dfd5e73bae4ca118df"
 mcms_owner = "0x4010"
 
 [dev-addresses]
