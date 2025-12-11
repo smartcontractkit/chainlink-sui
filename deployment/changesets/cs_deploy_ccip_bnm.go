@@ -54,7 +54,7 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 	}
 
 	// save CCIPBnMToken address to the addressbook
-	typeAndVersionCCIPBnMToken := cldf.NewTypeAndVersion(deployment.SuiManagedTokenType, deployment.Version1_0_0)
+	typeAndVersionCCIPBnMToken := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPackageIDType, deployment.Version1_0_0)
 	typeAndVersionCCIPBnMToken.AddLabel(CCIPBnMSymbol)
 	err = ab.Save(config.ChainSelector, ccipBnMTokenReport.Output.PackageId, typeAndVersionCCIPBnMToken)
 	if err != nil {
