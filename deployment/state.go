@@ -57,6 +57,12 @@ type ManagedTokenState struct {
 	PublisherObjectId   string
 }
 
+type ManagedTokenFaucetState struct {
+	PackageID          string
+	StateObjectId      string
+	UpgradeCapObjectId string
+}
+
 type CCIPChainState struct {
 	// MCMS related
 	MCMSPackageID               string
@@ -98,7 +104,8 @@ type CCIPChainState struct {
 	LinkTokenUpgradeCapId   string
 
 	// Managed Token related
-	ManagedTokens map[string]ManagedTokenState
+	ManagedTokens       map[string]ManagedTokenState
+	ManagedTokenFaucets map[string]ManagedTokenFaucetState
 
 	// Token pools related
 	LnRTokenPools     map[string]CCIPPoolState
@@ -343,10 +350,11 @@ func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error
 
 func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (CCIPChainState, error) {
 	chainState := CCIPChainState{
-		ManagedTokens:     make(map[string]ManagedTokenState),
-		BnMTokenPools:     make(map[string]CCIPPoolState),
-		LnRTokenPools:     make(map[string]CCIPPoolState),
-		ManagedTokenPools: make(map[string]CCIPPoolState),
+		ManagedTokens:       make(map[string]ManagedTokenState),
+		ManagedTokenFaucets: make(map[string]ManagedTokenFaucetState),
+		BnMTokenPools:       make(map[string]CCIPPoolState),
+		LnRTokenPools:       make(map[string]CCIPPoolState),
+		ManagedTokenPools:   make(map[string]CCIPPoolState),
 	}
 	for addr, typeAndVersion := range addresses {
 		// Parse addresss based on type and label
@@ -491,6 +499,30 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			managed_token := chainState.ManagedTokens[symbol]
 			managed_token.PublisherObjectId = addr
 			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenFaucetPackageIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token faucet: %w", err)
+			}
+			faucet := chainState.ManagedTokenFaucets[symbol]
+			faucet.PackageID = addr
+			chainState.ManagedTokenFaucets[symbol] = faucet
+		case SuiManagedTokenFaucetStateObjectIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token faucet: %w", err)
+			}
+			faucet := chainState.ManagedTokenFaucets[symbol]
+			faucet.StateObjectId = addr
+			chainState.ManagedTokenFaucets[symbol] = faucet
+		case SuiManagedTokenFaucetUpgradeCapObjectIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token faucet: %w", err)
+			}
+			faucet := chainState.ManagedTokenFaucets[symbol]
+			faucet.UpgradeCapObjectId = addr
+			chainState.ManagedTokenFaucets[symbol] = faucet
 
 		// mock upgrade related
 		case SuiOnRampMockV2:

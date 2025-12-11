@@ -62,6 +62,10 @@ var (
 	SuiManagedTokenStateObjectID     deployment.ContractType = "SuiManagedTokenStateObjectID"
 	SuiManagedTokenMinterCapID       deployment.ContractType = "SuiManagedTokenMinterCapID"
 	SuiManagedTokenPublisherObjectId deployment.ContractType = "SuiManagedTokenPublisherObjectId"
+	// Managed token faucet package
+	SuiManagedTokenFaucetPackageIDType          deployment.ContractType = "SuiManagedTokenFaucetPackageID"
+	SuiManagedTokenFaucetStateObjectIDType      deployment.ContractType = "SuiManagedTokenFaucetStateObjectID"
+	SuiManagedTokenFaucetUpgradeCapObjectIDType deployment.ContractType = "SuiManagedTokenFaucetUpgradeCapObjectID"
 
 	// BnM Token Pool related
 	SuiBnMTokenPoolType        deployment.ContractType = "SuiBnMTokenPool"
