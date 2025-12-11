@@ -616,7 +616,7 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 
 	filter := []query.Expression{
 		query.Comparator(selector,
-			primitives.ValueComparator{Value: sourceChainSelector, Operator: primitives.Eq},
+			primitives.ValueComparator{Value: strconv.FormatUint(sourceChainSelector, 10), Operator: primitives.Eq},
 		),
 	}
 
