@@ -36,6 +36,9 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/mock_eth_token --input ./co
 # CCIP - Managed Token
 go run bindgen/main.go --moveConfig ./contracts/ccip/managed_token --input ./contracts/ccip/managed_token/sources/managed_token.move --output ./bindings/generated/ccip/managed_token/managed_token
 
+# CCIP - Managed Token Faucet
+go run bindgen/main.go --moveConfig ./contracts/ccip/managed_token_faucet --input ./contracts/ccip/managed_token_faucet/sources/faucet.move --output ./bindings/generated/ccip/managed_token_faucet/managed_token_faucet
+
 # CCIP - Lock Release Token Pool
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/lock_release_token_pool --input ./contracts/ccip/ccip_token_pools/lock_release_token_pool/sources/lock_release_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/lock_release_token_pool
 
