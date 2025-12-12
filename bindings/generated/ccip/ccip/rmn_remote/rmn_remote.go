@@ -19,21 +19,17 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"rmn_remote","name":"curse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"rmn_remote","name":"fast_curse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"fast_curse_cap","type":"FastCurseCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"fast_curse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"fast_curse_cap","type":"FastCurseCap"},{"name":"subjects","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"rmn_remote","name":"fast_uncurse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"fast_curse_cap","type":"FastCurseCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"get_cursed_subjects","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_local_chain_selector","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_report_digest_header","parameters":null},{"package":"ccip","module":"rmn_remote","name":"get_versioned_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"local_chain_selector","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_global","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_u128","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject_value","type":"u128"}]},{"package":"ccip","module":"rmn_remote","name":"new_fast_curse_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"rmn_remote","name":"set_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"rmn_home_contract_config_digest","type":"vector<u8>"},{"name":"signer_onchain_public_keys","type":"vector<vector<u8>>"},{"name":"node_indexes","type":"vector<u64>"},{"name":"f_sign","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"type_and_version","parameters":null},{"package":"ccip","module":"rmn_remote","name":"uncurse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"uncurse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"rmn_remote","name":"curse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"rmn_remote","name":"get_cursed_subjects","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_local_chain_selector","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_report_digest_header","parameters":null},{"package":"ccip","module":"rmn_remote","name":"get_versioned_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"local_chain_selector","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_global","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_u128","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject_value","type":"u128"}]},{"package":"ccip","module":"rmn_remote","name":"set_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"rmn_home_contract_config_digest","type":"vector<u8>"},{"name":"signer_onchain_public_keys","type":"vector<vector<u8>>"},{"name":"node_indexes","type":"vector<u64>"},{"name":"f_sign","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"type_and_version","parameters":null},{"package":"ccip","module":"rmn_remote","name":"uncurse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"uncurse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]}]`
 
 type IRmnRemote interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	NewFastCurseCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	SetConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*models.SuiTransactionBlockResponse, error)
 	GetVersionedConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetLocalChainSelector(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetReportDigestHeader(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	FastCurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, fastCurseCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error)
 	Curse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error)
-	FastCurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, fastCurseCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
 	CurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
-	FastUncurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, fastCurseCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error)
 	Uncurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error)
 	UncurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
 	GetCursedSubjects(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -42,10 +38,8 @@ type IRmnRemote interface {
 	IsCursedU128(ctx context.Context, opts *bind.CallOpts, ref bind.Object, subjectValue *big.Int) (*models.SuiTransactionBlockResponse, error)
 	McmsSetConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsCurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsFastCurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsCurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsUncurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsFastUncurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsUncurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IRmnRemoteDevInspect
 	Encoder() RmnRemoteEncoder
@@ -54,7 +48,6 @@ type IRmnRemote interface {
 
 type IRmnRemoteDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
-	NewFastCurseCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (bind.Object, error)
 	GetVersionedConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([]any, error)
 	GetLocalChainSelector(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (uint64, error)
 	GetReportDigestHeader(ctx context.Context, opts *bind.CallOpts) ([]byte, error)
@@ -67,8 +60,6 @@ type IRmnRemoteDevInspect interface {
 type RmnRemoteEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	NewFastCurseCap(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
-	NewFastCurseCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	SetConfig(ref bind.Object, ownerCap bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*bind.EncodedCall, error)
@@ -79,16 +70,10 @@ type RmnRemoteEncoder interface {
 	GetLocalChainSelectorWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetReportDigestHeader() (*bind.EncodedCall, error)
 	GetReportDigestHeaderWithArgs(args ...any) (*bind.EncodedCall, error)
-	FastCurse(ref bind.Object, fastCurseCap bind.Object, subject []byte) (*bind.EncodedCall, error)
-	FastCurseWithArgs(args ...any) (*bind.EncodedCall, error)
 	Curse(ref bind.Object, ownerCap bind.Object, subject []byte) (*bind.EncodedCall, error)
 	CurseWithArgs(args ...any) (*bind.EncodedCall, error)
-	FastCurseMultiple(ref bind.Object, fastCurseCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error)
-	FastCurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error)
 	CurseMultiple(ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error)
 	CurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error)
-	FastUncurse(ref bind.Object, fastCurseCap bind.Object, subject []byte) (*bind.EncodedCall, error)
-	FastUncurseWithArgs(args ...any) (*bind.EncodedCall, error)
 	Uncurse(ref bind.Object, ownerCap bind.Object, subject []byte) (*bind.EncodedCall, error)
 	UncurseWithArgs(args ...any) (*bind.EncodedCall, error)
 	UncurseMultiple(ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error)
@@ -105,14 +90,10 @@ type RmnRemoteEncoder interface {
 	McmsSetConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsCurse(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsCurseWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsFastCurse(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsFastCurseWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsCurseMultiple(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsCurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsUncurse(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsUncurseWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsFastUncurse(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsFastUncurseWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsUncurseMultiple(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsUncurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error)
 }
@@ -187,11 +168,6 @@ type Cursed struct {
 
 type Uncursed struct {
 	Subjects [][]byte `move:"vector<vector<u8>>"`
-}
-
-type FastCurseCap struct {
-	Id         string      `move:"sui::object::UID"`
-	OwnerCapId bind.Object `move:"ID"`
 }
 
 func init() {
@@ -297,38 +273,11 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::rmn_remote::FastCurseCap", func(data []byte) (interface{}, error) {
-		var result FastCurseCap
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for FastCurseCap
-	bind.RegisterStructDecoder("vector<ccip::rmn_remote::FastCurseCap>", func(data []byte) (interface{}, error) {
-		var results []FastCurseCap
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
 func (c *RmnRemoteContract) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.rmnRemoteEncoder.TypeAndVersion()
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// NewFastCurseCap executes the new_fast_curse_cap Move function.
-func (c *RmnRemoteContract) NewFastCurseCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.NewFastCurseCap(ref, ownerCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -386,16 +335,6 @@ func (c *RmnRemoteContract) GetReportDigestHeader(ctx context.Context, opts *bin
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// FastCurse executes the fast_curse Move function.
-func (c *RmnRemoteContract) FastCurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, fastCurseCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.FastCurse(ref, fastCurseCap, subject)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
 // Curse executes the curse Move function.
 func (c *RmnRemoteContract) Curse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.rmnRemoteEncoder.Curse(ref, ownerCap, subject)
@@ -406,29 +345,9 @@ func (c *RmnRemoteContract) Curse(ctx context.Context, opts *bind.CallOpts, ref 
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// FastCurseMultiple executes the fast_curse_multiple Move function.
-func (c *RmnRemoteContract) FastCurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, fastCurseCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.FastCurseMultiple(ref, fastCurseCap, subjects)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
 // CurseMultiple executes the curse_multiple Move function.
 func (c *RmnRemoteContract) CurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.rmnRemoteEncoder.CurseMultiple(ref, ownerCap, subjects)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// FastUncurse executes the fast_uncurse Move function.
-func (c *RmnRemoteContract) FastUncurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, fastCurseCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.FastUncurse(ref, fastCurseCap, subject)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -516,16 +435,6 @@ func (c *RmnRemoteContract) McmsCurse(ctx context.Context, opts *bind.CallOpts, 
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsFastCurse executes the mcms_fast_curse Move function.
-func (c *RmnRemoteContract) McmsFastCurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.McmsFastCurse(ref, registry, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
 // McmsCurseMultiple executes the mcms_curse_multiple Move function.
 func (c *RmnRemoteContract) McmsCurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.rmnRemoteEncoder.McmsCurseMultiple(ref, registry, params)
@@ -539,16 +448,6 @@ func (c *RmnRemoteContract) McmsCurseMultiple(ctx context.Context, opts *bind.Ca
 // McmsUncurse executes the mcms_uncurse Move function.
 func (c *RmnRemoteContract) McmsUncurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.rmnRemoteEncoder.McmsUncurse(ref, registry, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// McmsFastUncurse executes the mcms_fast_uncurse Move function.
-func (c *RmnRemoteContract) McmsFastUncurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.McmsFastUncurse(ref, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -584,28 +483,6 @@ func (d *RmnRemoteDevInspect) TypeAndVersion(ctx context.Context, opts *bind.Cal
 	result, ok := results[0].(string)
 	if !ok {
 		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
-	}
-	return result, nil
-}
-
-// NewFastCurseCap executes the new_fast_curse_cap Move function using DevInspect to get return values.
-//
-// Returns: FastCurseCap
-func (d *RmnRemoteDevInspect) NewFastCurseCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.rmnRemoteEncoder.NewFastCurseCap(ref, ownerCap)
-	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return bind.Object{}, err
-	}
-	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
 	}
 	return result, nil
 }
@@ -784,39 +661,6 @@ func (c rmnRemoteEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall
 	})
 }
 
-// NewFastCurseCap encodes a call to the new_fast_curse_cap Move function.
-func (c rmnRemoteEncoder) NewFastCurseCap(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("new_fast_curse_cap", typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"&OwnerCap",
-	}, []any{
-		ref,
-		ownerCap,
-	}, []string{
-		"ccip::rmn_remote::FastCurseCap",
-	})
-}
-
-// NewFastCurseCapWithArgs encodes a call to the new_fast_curse_cap Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c rmnRemoteEncoder) NewFastCurseCapWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut CCIPObjectRef",
-		"&OwnerCap",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("new_fast_curse_cap", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip::rmn_remote::FastCurseCap",
-	})
-}
-
 // Initialize encodes a call to the initialize Move function.
 func (c rmnRemoteEncoder) Initialize(ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -976,38 +820,6 @@ func (c rmnRemoteEncoder) GetReportDigestHeaderWithArgs(args ...any) (*bind.Enco
 	})
 }
 
-// FastCurse encodes a call to the fast_curse Move function.
-func (c rmnRemoteEncoder) FastCurse(ref bind.Object, fastCurseCap bind.Object, subject []byte) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("fast_curse", typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"&FastCurseCap",
-		"vector<u8>",
-	}, []any{
-		ref,
-		fastCurseCap,
-		subject,
-	}, nil)
-}
-
-// FastCurseWithArgs encodes a call to the fast_curse Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c rmnRemoteEncoder) FastCurseWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut CCIPObjectRef",
-		"&FastCurseCap",
-		"vector<u8>",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("fast_curse", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
 // Curse encodes a call to the curse Move function.
 func (c rmnRemoteEncoder) Curse(ref bind.Object, ownerCap bind.Object, subject []byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -1040,38 +852,6 @@ func (c rmnRemoteEncoder) CurseWithArgs(args ...any) (*bind.EncodedCall, error) 
 	return c.EncodeCallArgsWithGenerics("curse", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// FastCurseMultiple encodes a call to the fast_curse_multiple Move function.
-func (c rmnRemoteEncoder) FastCurseMultiple(ref bind.Object, fastCurseCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("fast_curse_multiple", typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"&FastCurseCap",
-		"vector<vector<u8>>",
-	}, []any{
-		ref,
-		fastCurseCap,
-		subjects,
-	}, nil)
-}
-
-// FastCurseMultipleWithArgs encodes a call to the fast_curse_multiple Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c rmnRemoteEncoder) FastCurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut CCIPObjectRef",
-		"&FastCurseCap",
-		"vector<vector<u8>>",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("fast_curse_multiple", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
 // CurseMultiple encodes a call to the curse_multiple Move function.
 func (c rmnRemoteEncoder) CurseMultiple(ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -1102,38 +882,6 @@ func (c rmnRemoteEncoder) CurseMultipleWithArgs(args ...any) (*bind.EncodedCall,
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("curse_multiple", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
-// FastUncurse encodes a call to the fast_uncurse Move function.
-func (c rmnRemoteEncoder) FastUncurse(ref bind.Object, fastCurseCap bind.Object, subject []byte) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("fast_uncurse", typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"&FastCurseCap",
-		"vector<u8>",
-	}, []any{
-		ref,
-		fastCurseCap,
-		subject,
-	}, nil)
-}
-
-// FastUncurseWithArgs encodes a call to the fast_uncurse Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c rmnRemoteEncoder) FastUncurseWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut CCIPObjectRef",
-		"&FastCurseCap",
-		"vector<u8>",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("fast_uncurse", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // Uncurse encodes a call to the uncurse Move function.
@@ -1390,38 +1138,6 @@ func (c rmnRemoteEncoder) McmsCurseWithArgs(args ...any) (*bind.EncodedCall, err
 	return c.EncodeCallArgsWithGenerics("mcms_curse", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// McmsFastCurse encodes a call to the mcms_fast_curse Move function.
-func (c rmnRemoteEncoder) McmsFastCurse(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_fast_curse", typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"&mut Registry",
-		"ExecutingCallbackParams",
-	}, []any{
-		ref,
-		registry,
-		params,
-	}, nil)
-}
-
-// McmsFastCurseWithArgs encodes a call to the mcms_fast_curse Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c rmnRemoteEncoder) McmsFastCurseWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut CCIPObjectRef",
-		"&mut Registry",
-		"ExecutingCallbackParams",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_fast_curse", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
 // McmsCurseMultiple encodes a call to the mcms_curse_multiple Move function.
 func (c rmnRemoteEncoder) McmsCurseMultiple(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -1484,38 +1200,6 @@ func (c rmnRemoteEncoder) McmsUncurseWithArgs(args ...any) (*bind.EncodedCall, e
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_uncurse", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
-// McmsFastUncurse encodes a call to the mcms_fast_uncurse Move function.
-func (c rmnRemoteEncoder) McmsFastUncurse(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_fast_uncurse", typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"&mut Registry",
-		"ExecutingCallbackParams",
-	}, []any{
-		ref,
-		registry,
-		params,
-	}, nil)
-}
-
-// McmsFastUncurseWithArgs encodes a call to the mcms_fast_uncurse Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c rmnRemoteEncoder) McmsFastUncurseWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut CCIPObjectRef",
-		"&mut Registry",
-		"ExecutingCallbackParams",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_fast_uncurse", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsUncurseMultiple encodes a call to the mcms_uncurse_multiple Move function.
