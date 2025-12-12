@@ -107,8 +107,8 @@ var (
 	}
 )
 
-// BuildExpectedSuiChainView returns the expected SuiChainView for the given state and owner
-func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainState, owner string) deployment.SuiChainView {
+// buildExpectedSuiChainView returns the expected SuiChainView for the given state and owner
+func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainState, owner string) deployment.SuiChainView {
 	return deployment.SuiChainView{
 		ChainSelector: SuiChainSelector,
 		ChainID:       "",
@@ -292,6 +292,35 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 						StateObjectID:  state.BnMTokenPools["LINK"].StateObjectId,
 					},
 					Token: s.linkTokenMetadataID,
+					RemoteChainConfigs: map[uint64]view.RemoteChainConfig{
+						EVMChainSelector: {
+							RemoteTokenAddress:  fmt.Sprintf("0x000000000000000000000000%s", EVMTokenAddress),
+							RemotePoolAddresses: []string{EVMPoolAddress},
+							InboundRateLimiterConfig: view.RateLimiterConfig{
+								IsEnabled: false,
+								Capacity:  RateLimiterCapacity,
+								Rate:      RateLimiterRate,
+							},
+							OutboundRateLimiterConfig: view.RateLimiterConfig{
+								IsEnabled: false,
+								Capacity:  RateLimiterCapacity,
+								Rate:      RateLimiterRate,
+							},
+						},
+					},
+					AllowList:        []string{},
+					AllowListEnabled: false,
+				},
+			},
+			changesets.CCIPBnMSymbol: {
+				state.ManagedTokenPools[changesets.CCIPBnMSymbol].PackageID: {
+					ContractMetaData: view.ContractMetaData{
+						Address:        state.ManagedTokenPools[changesets.CCIPBnMSymbol].PackageID,
+						Owner:          owner,
+						TypeAndVersion: "ManagedTokenPool 1.6.0",
+						StateObjectID:  state.ManagedTokenPools[changesets.CCIPBnMSymbol].StateObjectId,
+					},
+					Token: state.ManagedTokens[changesets.CCIPBnMSymbol].TokenCoinMetadataID,
 					RemoteChainConfigs: map[uint64]view.RemoteChainConfig{
 						EVMChainSelector: {
 							RemoteTokenAddress:  fmt.Sprintf("0x000000000000000000000000%s", EVMTokenAddress),

@@ -58,7 +58,7 @@ func (s *DeployTestSuite) TestDeployAndConfigureSuiChain() {
 	owner, err := s.signer.GetAddress()
 	s.Require().NoError(err, "failed to get signer address")
 
-	expectedView := BuildExpectedSuiChainView(s, state, owner)
+	expectedView := buildExpectedSuiChainView(s, state, owner)
 
 	s.Require().Equal(expectedView, actualView)
 }
@@ -308,13 +308,24 @@ func (s *DeployTestSuite) ConfigureDeployerAsMinter() {
 		ManagedTokenPackageId: managedTokenPackageID,
 		CoinObjectTypeArg:     coinTypeArg,
 		MinterAddress:         s.deployerAddr,
-		Allowance:             0,
-		IsUnlimited:           true,
+		Allowance:             1,
+		IsUnlimited:           false,
 	})
 
 	s.Require().NoError(err, "failed to configure deployer as minter")
 	err = s.env.ExistingAddresses.Merge(out.AddressBook)
 	s.Require().NoError(err, "failed to merge minter configuration addresses")
+
+	// Print the mint cap object ID from ConfigureDeployerAsMinter
+	addresses, err = s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
+	s.Require().NoError(err, "failed to get addresses")
+	for addr, typeAndVersion := range addresses {
+		if typeAndVersion.Type == deployment.SuiManagedTokenMinterCapID {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				s.T().Logf("ConfigureDeployerAsMinter mint cap object ID: %s", addr)
+			}
+		}
+	}
 }
 
 func (s *DeployTestSuite) DeployManagedTokenFaucet() {
@@ -347,6 +358,17 @@ func (s *DeployTestSuite) DeployManagedTokenFaucet() {
 	s.Require().NoError(err, "failed to deploy managed token faucet")
 	err = s.env.ExistingAddresses.Merge(out.AddressBook)
 	s.Require().NoError(err, "failed to merge managed token faucet addresses")
+
+	// Print the mint cap object ID from DeployManagedTokenFaucet
+	addresses, err = s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
+	s.Require().NoError(err, "failed to get addresses")
+	for addr, typeAndVersion := range addresses {
+		if typeAndVersion.Type == deployment.SuiManagedTokenMinterCapID {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				s.T().Logf("DeployManagedTokenFaucet mint cap object ID: %s", addr)
+			}
+		}
+	}
 }
 
 func (s *DeployTestSuite) DeployManagedTokenPool() {
@@ -361,6 +383,7 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 		bnmCoinMetadataID                                                                           string
 	)
 
+	var num int
 	for addr, typeAndVersion := range addresses {
 		if typeAndVersion.Type == deployment.SuiManagedTokenType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
@@ -379,7 +402,11 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 		}
 		if typeAndVersion.Type == deployment.SuiManagedTokenMinterCapID {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				managedTokenMinterCapID = addr
+				num++
+				s.T().Logf("%d: Found managed token minter cap ID: %s", num, addr)
+				if num == 2 {
+					managedTokenMinterCapID = addr
+				}
 			}
 		}
 		if typeAndVersion.Type == deployment.SuiManagedTokenCoinMetadataIDType {
@@ -389,6 +416,7 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 		}
 	}
 
+	s.Require().Equal(num, 2, "Expected 2 managed token minter cap IDs at this point, got %d", num)
 	s.Require().NotEmpty(managedTokenPackageID, "Managed token package ID not found")
 	s.Require().NotEmpty(managedTokenStateID, "Managed token state object ID not found")
 	s.Require().NotEmpty(managedTokenOwnerCapID, "Managed token owner cap ID not found")
