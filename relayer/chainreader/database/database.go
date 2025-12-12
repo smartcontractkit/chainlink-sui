@@ -49,6 +49,11 @@ func (store *DBStore) EnsureSchema(ctx context.Context) error {
 		return fmt.Errorf("failed to create sui indexes: %w", err)
 	}
 
+	_, err = store.ds.ExecContext(ctx, CreateTransmitterCursorsTable)
+	if err != nil {
+		return fmt.Errorf("failed to create sui.transmitter_cursors table: %w", err)
+	}
+
 	return nil
 }
 
@@ -234,4 +239,24 @@ func operatorSQL(op primitives.ComparisonOperator) string {
 		// Default to equality if unknown
 		return "="
 	}
+}
+
+func (store *DBStore) GetTransmitterCursor(ctx context.Context, transmitter models.SuiAddress) (string, error) {
+	var cursor string
+	err := store.ds.QueryRowxContext(ctx, GetTransmitterCursor, transmitter).Scan(&cursor)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", fmt.Errorf("failed to get transmitter cursor: %w", err)
+	}
+	return cursor, nil
+}
+
+func (store *DBStore) UpdateTransmitterCursor(ctx context.Context, transmitter models.SuiAddress, cursor string) error {
+	_, err := store.ds.ExecContext(ctx, UpdateTransmitterCursor, transmitter, cursor)
+	if err != nil {
+		return fmt.Errorf("failed to update transmitter cursor: %w", err)
+	}
+	return nil
 }

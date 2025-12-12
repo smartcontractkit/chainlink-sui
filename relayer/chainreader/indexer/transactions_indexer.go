@@ -66,12 +66,13 @@ func NewTransactionsIndexer(
 	syncTimeout time.Duration,
 	eventConfigs map[string]*config.ChainReaderEvent,
 ) TransactionsIndexerApi {
-	dataStore := database.NewDBStore(db, lggr)
+	logInstance := logger.Named(lggr, "SuiTransactionsIndexer")
+	dataStore := database.NewDBStore(db, logInstance)
 
 	return &TransactionsIndexer{
 		db:                      dataStore,
 		client:                  sdkClient,
-		logger:                  lggr,
+		logger:                  logInstance,
 		pollingInterval:         pollingInterval,
 		syncTimeout:             syncTimeout,
 		transmitters:            make(map[models.SuiAddress]string),
@@ -269,10 +270,10 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 		eventKey  = tIndexer.executionEventKey
 	)
 
-	tIndexer.logger.Debugw("syncTransmitterTransactions start", "transmitter", transmitter)
-
 	cursor := tIndexer.transmitters[transmitter]
 	totalProcessed := 0
+
+	tIndexer.logger.Debugw("syncTransmitterTransactions start", "transmitter", transmitter, "cursor", cursor)
 
 	eventAccountAddress, latestOfframpPackageId, err := tIndexer.getEventPackageIdFromConfig()
 	if err != nil {
@@ -284,6 +285,21 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 	case <-ctx.Done():
 		return totalProcessed, ctx.Err()
 	default:
+		if cursor == "" {
+			// Get the cursor from the DB store
+			transmitterCursorFromDB, err := tIndexer.db.GetTransmitterCursor(ctx, transmitter)
+			if err != nil {
+				tIndexer.logger.Warnw("Failed to get transmitter cursor from DB store", "error", err)
+			}
+			// Attempt to check if a cursor exists in the DB store
+			if transmitterCursorFromDB != "" {
+				tIndexer.logger.Debugw("Found transmitter cursor in DB store", "transmitter", transmitter, "cursor", transmitterCursorFromDB)
+				cursor = transmitterCursorFromDB
+			} else {
+				tIndexer.logger.Debugw("No transmitter cursor found in DB store, starting fresh sync", "transmitter", transmitter)
+			}
+		}
+
 		queryResponse, err := tIndexer.client.QueryTransactions(ctx, string(transmitter), &cursor, &batchSize)
 		if err != nil {
 			return totalProcessed, fmt.Errorf("failed to fetch transactions for transmitter %s: %w", transmitter, err)
@@ -297,6 +313,12 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 		defer func() {
 			// Update the cursor to the last transaction digest regardless of the code path below
 			tIndexer.transmitters[transmitter] = lastDigest
+
+			// Update the cursor in the DB store
+			err := tIndexer.db.UpdateTransmitterCursor(ctx, transmitter, lastDigest)
+			if err != nil {
+				tIndexer.logger.Errorw("Failed to update transmitter cursor in DB store", "error", err)
+			}
 		}()
 
 		var records []database.EventRecord
