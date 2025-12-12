@@ -26,11 +26,17 @@ var deployManagedTokenFaucetOp = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 
+	signerAddr, err := opts.Signer.GetAddress()
+	if err != nil {
+		return sui_ops.OpTxResult[DeployManagedTokenFaucetObjects]{}, err
+	}
+
 	artifact, err := bind.CompilePackage(contracts.ManagedTokenFaucet, map[string]string{
 		"managed_token_faucet": "0x0",
 		"managed_token":        input.ManagedTokenPackageId,
 		"mcms":                 input.MCMSAddress,
 		"mcms_owner":           input.MCMSOwnerAddress,
+		"signer":               signerAddr,
 	}, false, deps.SuiRPC)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployManagedTokenFaucetObjects]{}, fmt.Errorf("failed to compile managed token faucet package: %w", err)
