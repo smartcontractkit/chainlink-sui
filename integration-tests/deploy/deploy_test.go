@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	"github.com/smartcontractkit/chainlink-sui/deployment/changesets"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
+	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_managed_token_pool"
 	managedtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/managed_token"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
@@ -42,6 +43,10 @@ func (s *DeployTestSuite) TestDeployAndConfigureSuiChain() {
 	s.DeployManagedToken()
 	// Phase 8: Deploy Managed Token Faucet
 	s.DeployManagedTokenFaucet()
+	// Phase 9: Configure Deployer as Minter
+	s.ConfigureDeployerAsMinter()
+	// Phase 10: Deploy Managed Token Pool
+	s.DeployManagedTokenPool()
 
 	// Load view and check deployments
 	states, err := deployment.LoadOnchainStatesui(s.env)
@@ -252,6 +257,66 @@ func (s *DeployTestSuite) DeployManagedToken() {
 	s.Require().NoError(err, "failed to merge managed token addresses")
 }
 
+func (s *DeployTestSuite) ConfigureDeployerAsMinter() {
+	s.T().Log("Phase 9: Configuring Deployer as Minter...")
+
+	// Get the managed token addresses
+	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
+	s.Require().NoError(err, "failed to get addresses")
+
+	var managedTokenPackageID, managedTokenStateID, managedTokenOwnerCapID string
+	for addr, typeAndVersion := range addresses {
+		if typeAndVersion.Type == deployment.SuiManagedTokenType {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				managedTokenPackageID = addr
+			}
+		}
+		if typeAndVersion.Type == deployment.SuiManagedTokenStateObjectID {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				managedTokenStateID = addr
+			}
+		}
+		if typeAndVersion.Type == deployment.SuiManagedTokenOwnerCapObjectID {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				managedTokenOwnerCapID = addr
+			}
+		}
+	}
+
+	s.Require().NotEmpty(managedTokenPackageID, "Managed token package ID not found")
+	s.Require().NotEmpty(managedTokenStateID, "Managed token state object ID not found")
+	s.Require().NotEmpty(managedTokenOwnerCapID, "Managed token owner cap ID not found")
+
+	// Get the BnM token package ID for coin type
+	var bnmPackageID string
+	for addr, typeAndVersion := range addresses {
+		if typeAndVersion.Type == deployment.SuiManagedTokenPackageIDType {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				bnmPackageID = addr
+				break
+			}
+		}
+	}
+	s.Require().NotEmpty(bnmPackageID, "CCIP BnM token package ID not found")
+
+	coinTypeArg := fmt.Sprintf("%s::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", bnmPackageID)
+
+	out, err := changesets.ManagedTokenConfigureNewMinter{}.Apply(s.env, changesets.ManagedTokenConfigureNewMinterConfig{
+		SuiChainSelector:      SuiChainSelector,
+		StateObjectId:         managedTokenStateID,
+		OwnerCapObjectId:      managedTokenOwnerCapID,
+		ManagedTokenPackageId: managedTokenPackageID,
+		CoinObjectTypeArg:     coinTypeArg,
+		MinterAddress:         s.deployerAddr,
+		Allowance:             0,
+		IsUnlimited:           true,
+	})
+
+	s.Require().NoError(err, "failed to configure deployer as minter")
+	err = s.env.ExistingAddresses.Merge(out.AddressBook)
+	s.Require().NoError(err, "failed to merge minter configuration addresses")
+}
+
 func (s *DeployTestSuite) DeployManagedTokenFaucet() {
 	s.T().Log("Phase 8: Deploying Managed Token Faucet...")
 
@@ -282,4 +347,103 @@ func (s *DeployTestSuite) DeployManagedTokenFaucet() {
 	s.Require().NoError(err, "failed to deploy managed token faucet")
 	err = s.env.ExistingAddresses.Merge(out.AddressBook)
 	s.Require().NoError(err, "failed to merge managed token faucet addresses")
+}
+
+func (s *DeployTestSuite) DeployManagedTokenPool() {
+	s.T().Log("Phase 10: Deploying Managed Token Pool...")
+
+	// Get addresses from previous deployments
+	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
+	s.Require().NoError(err, "failed to get addresses")
+
+	var (
+		managedTokenPackageID, managedTokenStateID, managedTokenOwnerCapID, managedTokenMinterCapID string
+		bnmCoinMetadataID                                                                           string
+	)
+
+	for addr, typeAndVersion := range addresses {
+		if typeAndVersion.Type == deployment.SuiManagedTokenType {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				managedTokenPackageID = addr
+			}
+		}
+		if typeAndVersion.Type == deployment.SuiManagedTokenStateObjectID {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				managedTokenStateID = addr
+			}
+		}
+		if typeAndVersion.Type == deployment.SuiManagedTokenOwnerCapObjectID {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				managedTokenOwnerCapID = addr
+			}
+		}
+		if typeAndVersion.Type == deployment.SuiManagedTokenMinterCapID {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				managedTokenMinterCapID = addr
+			}
+		}
+		if typeAndVersion.Type == deployment.SuiManagedTokenCoinMetadataIDType {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				bnmCoinMetadataID = addr
+			}
+		}
+	}
+
+	s.Require().NotEmpty(managedTokenPackageID, "Managed token package ID not found")
+	s.Require().NotEmpty(managedTokenStateID, "Managed token state object ID not found")
+	s.Require().NotEmpty(managedTokenOwnerCapID, "Managed token owner cap ID not found")
+	s.Require().NotEmpty(managedTokenMinterCapID, "Managed token minter cap ID not found")
+	s.Require().NotEmpty(bnmCoinMetadataID, "CCIP BnM coin metadata ID not found")
+	s.Require().NotEmpty(s.ccipPackageID, "CCIP package ID not found")
+	s.Require().NotEmpty(s.ccipObjectRef, "CCIP object ref not found")
+	s.Require().NotEmpty(s.mcmsPackageID, "MCMS package ID not found")
+
+	// Construct coin type from CCIP BnM token package ID
+	bnmPackageID := ""
+	for addr, typeAndVersion := range addresses {
+		if typeAndVersion.Type == deployment.SuiManagedTokenPackageIDType {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				bnmPackageID = addr
+				break
+			}
+		}
+	}
+	s.Require().NotEmpty(bnmPackageID, "CCIP BnM token package ID not found")
+
+	coinTypeArg := fmt.Sprintf("%s::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", bnmPackageID)
+
+	tokenPoolOut, err := changesets.DeployTPAndConfigure{}.Apply(s.env, changesets.DeployTPAndConfigureConfig{
+		SuiChainSelector: SuiChainSelector,
+		TokenPoolTypes:   []deployment.TokenPoolType{deployment.TokenPoolTypeManaged},
+		ManagedTPInput: managedtokenpoolops.DeployAndInitManagedTokenPoolInput{
+			CCIPPackageId:             s.ccipPackageID,
+			ManagedTokenPackageId:     managedTokenPackageID,
+			MCMSAddress:               s.mcmsPackageID,
+			MCMSOwnerAddress:          s.deployerAddr,
+			CoinObjectTypeArg:         coinTypeArg,
+			CCIPObjectRefObjectId:     s.ccipObjectRef,
+			ManagedTokenStateObjectId: managedTokenStateID,
+			ManagedTokenOwnerCapId:    managedTokenOwnerCapID,
+			CoinMetadataObjectId:      bnmCoinMetadataID,
+			MintCapObjectId:           managedTokenMinterCapID,
+			TokenPoolAdministrator:    s.deployerAddr,
+			// Remote chain configuration
+			RemoteChainSelectorsToRemove: []uint64{},
+			RemoteChainSelectorsToAdd:    []uint64{EVMChainSelector},
+			RemotePoolAddressesToAdd:     [][]string{{EVMPoolAddress}},
+			RemoteTokenAddressesToAdd:    []string{fmt.Sprintf("0x%s", EVMTokenAddress)},
+			// Rate limiter configs
+			RemoteChainSelectors: []uint64{EVMChainSelector},
+			OutboundIsEnableds:   []bool{false},
+			OutboundCapacities:   []uint64{RateLimiterCapacity},
+			OutboundRates:        []uint64{RateLimiterRate},
+			InboundIsEnableds:    []bool{false},
+			InboundCapacities:    []uint64{RateLimiterCapacity},
+			InboundRates:         []uint64{RateLimiterRate},
+		},
+	})
+
+	s.Require().NoError(err, "failed to deploy managed token pool")
+	err = s.env.ExistingAddresses.Merge(tokenPoolOut.AddressBook)
+	s.Require().NoError(err, "failed to merge managed token pool addresses")
 }
