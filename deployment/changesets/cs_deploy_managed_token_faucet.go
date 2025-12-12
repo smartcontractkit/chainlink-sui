@@ -9,7 +9,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
-	managedtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/managed_token"
 	managedtokenfaucetops "github.com/smartcontractkit/chainlink-sui/deployment/ops/managed_token_faucet"
 )
 
@@ -98,26 +97,8 @@ func (d DeployManagedTokenFaucet) Apply(e cldf.Environment, config DeployManaged
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy managed token faucet for chain %d: %w", config.ChainSelector, err)
 	}
 
-	// issue a minter cap for the deployer. this allows the deployer to initialize the faucet with this minter cap later.
-	minterReport, err := cld_ops.ExecuteOperation(e.OperationsBundle, managedtokenops.ManagedTokenConfigureNewMinterOp, deps, managedtokenops.ManagedTokenConfigureNewMinterInput{
-		ManagedTokenPackageId: managedToken.PackageID,
-		CoinObjectTypeArg:     config.CoinType,
-		StateObjectId:         managedToken.StateObjectId,
-		OwnerCapObjectId:      managedToken.OwnerCapObjectId,
-		MinterAddress:         deployerAddr,
-		Allowance:             0,    // Unlimited allowance
-		IsUnlimited:           true, // Set as unlimited minter
-	})
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to configure deployer as minter for chain %d: %w", config.ChainSelector, err)
-	}
-
-	// Save the minter cap for the deployer
-	typeAndVersionMinterCapID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenMinterCapID, deployment.Version1_0_0)
-	typeAndVersionMinterCapID.AddLabel(config.TokenSymbol)
-	if err := ab.Save(config.ChainSelector, minterReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID); err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save managed token minter cap id %s: %w", minterReport.Output.Objects.MinterCapObjectId, err)
-	}
+	// Note: minter cap configuration is handled by the managed token deployment
+	// The faucet uses the existing minter cap from the managed token
 
 	initReport, err := cld_ops.ExecuteOperation(e.OperationsBundle, managedtokenfaucetops.InitializeManagedTokenFaucetOp, deps, managedtokenfaucetops.InitializeManagedTokenFaucetInput{
 		ManagedTokenFaucetPackageId: deployReport.Output.PackageId,

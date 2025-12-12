@@ -35,11 +35,13 @@ func (s *DeployTestSuite) TestDeployAndConfigureSuiChain() {
 	// "Phase 4: Connect Lanes"
 	s.ConnectLanes()
 	// "Phase 5: Deploy Token Pools"
-	s.DeployTokenPools()
+	s.DeployLinkBurnMintTokenPool()
 	// Phase 6: Deploy CCIP BnM Token
 	s.DeployBnMToken()
 	// Phase 7: Deploy Managed Token
 	s.DeployManagedToken()
+	// Phase 8: Deploy Managed Token Faucet
+	s.DeployManagedTokenFaucet()
 
 	// Load view and check deployments
 	states, err := deployment.LoadOnchainStatesui(s.env)
@@ -142,7 +144,7 @@ func (s *DeployTestSuite) ConnectLanes() {
 	s.Require().NoError(err, "failed to connect lanes")
 }
 
-func (s *DeployTestSuite) DeployTokenPools() {
+func (s *DeployTestSuite) DeployLinkBurnMintTokenPool() {
 	s.T().Log("Phase 5: Deploying Token Pools...")
 
 	// Validate addresses are present
@@ -238,8 +240,8 @@ func (s *DeployTestSuite) DeployManagedToken() {
 		DeployAndInitManagedTokenInput: managedtokenops.DeployAndInitManagedTokenInput{
 			CoinObjectTypeArg:   coinType,
 			TreasuryCapObjectId: bnmTreasuryCapID,
-			DenyCapObjectId:     "0x403",
-			MinterAddress:       "",
+			DenyCapObjectId:     "",
+			MinterAddress:       s.deployerAddr,
 			Allowance:           0,
 			IsUnlimited:         true,
 		},
@@ -248,4 +250,36 @@ func (s *DeployTestSuite) DeployManagedToken() {
 	s.Require().NoError(err, "failed to deploy managed token")
 	err = s.env.ExistingAddresses.Merge(out.AddressBook)
 	s.Require().NoError(err, "failed to merge managed token addresses")
+}
+
+func (s *DeployTestSuite) DeployManagedTokenFaucet() {
+	s.T().Log("Phase 8: Deploying Managed Token Faucet...")
+
+	// Get the CCIP BnM token addresses (the underlying token)
+	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
+	s.Require().NoError(err, "failed to get addresses")
+
+	var bnmPackageID string
+	for addr, typeAndVersion := range addresses {
+		if typeAndVersion.Type == deployment.SuiManagedTokenPackageIDType {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				bnmPackageID = addr
+			}
+		}
+	}
+	s.Require().NotEmpty(bnmPackageID, "CCIP BnM token package ID not found")
+
+	// Construct coin type from CCIP BnM token package ID (not the managed token)
+	coinType := fmt.Sprintf("%s::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", bnmPackageID)
+
+	out, err := changesets.DeployManagedTokenFaucet{}.Apply(s.env, changesets.DeployManagedTokenFaucetConfig{
+		ChainSelector:   SuiChainSelector,
+		TokenSymbol:     changesets.CCIPBnMSymbol,
+		CoinType:        coinType,
+		MintCapObjectId: "", // Will use existing minter caps
+	})
+
+	s.Require().NoError(err, "failed to deploy managed token faucet")
+	err = s.env.ExistingAddresses.Merge(out.AddressBook)
+	s.Require().NoError(err, "failed to merge managed token faucet addresses")
 }
