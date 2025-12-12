@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	"github.com/smartcontractkit/chainlink-sui/deployment/changesets"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
+	managedtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/managed_token"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
 
@@ -37,6 +38,8 @@ func (s *DeployTestSuite) TestDeployAndConfigureSuiChain() {
 	s.DeployTokenPools()
 	// Phase 6: Deploy CCIP BnM Token
 	s.DeployBnMToken()
+	// Phase 7: Deploy Managed Token
+	s.DeployManagedToken()
 
 	// Load view and check deployments
 	states, err := deployment.LoadOnchainStatesui(s.env)
@@ -202,4 +205,47 @@ func (s *DeployTestSuite) DeployBnMToken() {
 	s.Require().NoError(err, "failed to deploy CCIP BnM Token")
 	err = s.env.ExistingAddresses.Merge(out.AddressBook)
 	s.Require().NoError(err, "failed to merge CCIP BnM Token addresses")
+}
+
+func (s *DeployTestSuite) DeployManagedToken() {
+	s.T().Log("Phase 7: Deploying Managed Token...")
+
+	// Get the BnM token addresses that were just deployed
+	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
+	s.Require().NoError(err, "failed to get addresses")
+
+	var bnmPackageID, bnmTreasuryCapID string
+	for addr, typeAndVersion := range addresses {
+		if typeAndVersion.Type == deployment.SuiManagedTokenPackageIDType {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				bnmPackageID = addr
+			}
+		}
+		if typeAndVersion.Type == deployment.SuiManagedTokenTreasuryCapIDType {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				bnmTreasuryCapID = addr
+			}
+		}
+	}
+	s.Require().NotEmpty(bnmPackageID, "CCIP BnM token package ID not found")
+	s.Require().NotEmpty(bnmTreasuryCapID, "CCIP BnM token treasury cap ID not found")
+
+	// Construct coin type from package ID
+	coinType := fmt.Sprintf("%s::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", bnmPackageID)
+
+	out, err := changesets.DeployManagedToken{}.Apply(s.env, changesets.DeployManagedTokenConfig{
+		ChainSelector: SuiChainSelector,
+		DeployAndInitManagedTokenInput: managedtokenops.DeployAndInitManagedTokenInput{
+			CoinObjectTypeArg:   coinType,
+			TreasuryCapObjectId: bnmTreasuryCapID,
+			DenyCapObjectId:     "0x403",
+			MinterAddress:       "",
+			Allowance:           0,
+			IsUnlimited:         true,
+		},
+	})
+
+	s.Require().NoError(err, "failed to deploy managed token")
+	err = s.env.ExistingAddresses.Merge(out.AddressBook)
+	s.Require().NoError(err, "failed to merge managed token addresses")
 }
