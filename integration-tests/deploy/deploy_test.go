@@ -241,7 +241,7 @@ func (s *DeployTestSuite) DeployManagedToken() {
 			CoinObjectTypeArg:   coinType,
 			TreasuryCapObjectId: bnmTreasuryCapID,
 			DenyCapObjectId:     "",
-			MinterAddress:       s.deployerAddr,
+			MinterAddress:       "",
 			Allowance:           0,
 			IsUnlimited:         true,
 		},
@@ -276,7 +276,7 @@ func (s *DeployTestSuite) DeployManagedTokenFaucet() {
 		ChainSelector:   SuiChainSelector,
 		TokenSymbol:     changesets.CCIPBnMSymbol,
 		CoinType:        coinType,
-		MintCapObjectId: "", // Will use existing minter caps
+		MintCapObjectId: "", // a mint cap will be issued if this is empty AND the deployer is the managed token owner
 	})
 
 	s.Require().NoError(err, "failed to deploy managed token faucet")
