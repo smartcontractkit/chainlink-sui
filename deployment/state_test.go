@@ -109,7 +109,13 @@ func getExpectedSuiChainState() CCIPChainState {
 				PublisherObjectId: "0x52f33e4724128431084e207406304383c05660042000016240438147268f184e",
 			},
 		},
-		ManagedTokenFaucets: map[string]ManagedTokenFaucetState{},
+		ManagedTokenFaucets: map[string]ManagedTokenFaucetState{
+			"LINK": {
+				PackageID:          "0x52f33e4724128431084e207406304383c05660042000016240438147268f1851",
+				StateObjectId:      "0x52f33e4724128431084e207406304383c05660042000016240438147268f184f",
+				UpgradeCapObjectId: "0x52f33e4724128431084e207406304383c05660042000016240438147268f1850",
+			},
+		},
 		LnRTokenPools: map[string]CCIPPoolState{
 			"CCIP-LnR": {
 				PackageID:        "0x90f10215a219a1f2e30f746e68c1e4f2b39f593d83a1980c7cf4e4738591a7e6",

@@ -140,6 +140,27 @@
         "LINK": {}
       }
     },
+    "0x52f33e4724128431084e207406304383c05660042000016240438147268f184f": {
+      "Type": "SuiManagedTokenFaucetStateObjectID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0x52f33e4724128431084e207406304383c05660042000016240438147268f1850": {
+      "Type": "SuiManagedTokenFaucetUpgradeCapObjectID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0x52f33e4724128431084e207406304383c05660042000016240438147268f1851": {
+      "Type": "SuiManagedTokenFaucetPackageID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
     "0x012fd673ed8cda310acd840635bfed201bcd76a446515eb4c569fa2a4155d75b": {
       "Type": "SuiOffRampUpgradeCapObjectID",
       "Version": "1.0.0"

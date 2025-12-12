@@ -41,7 +41,7 @@ var initializeManagedTokenFaucetHandler = func(b cld_ops.Bundle, deps sui_ops.Op
 		return sui_ops.OpTxResult[InitializeManagedTokenFaucetObjects]{}, fmt.Errorf("failed to execute managed token faucet initialize: %w", err)
 	}
 
-	faucetStateId, err := bind.FindObjectIdFromPublishTx(*tx, "managed_token_faucet::faucet", "FaucetState")
+	faucetStateId, err := bind.FindObjectIdFromPublishTx(*tx, "faucet", "FaucetState")
 	if err != nil {
 		return sui_ops.OpTxResult[InitializeManagedTokenFaucetObjects]{}, fmt.Errorf("failed to find FaucetState object ID: %w", err)
 	}
