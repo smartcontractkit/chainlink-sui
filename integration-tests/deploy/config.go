@@ -197,6 +197,15 @@ func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 						LockOrBurnParams:    []string{"0x0000000000000000000000000000000000000000000000000000000000000006", state.BnMTokenPools["LINK"].StateObjectId},
 						ReleaseOrMintParams: []string{"0x0000000000000000000000000000000000000000000000000000000000000006", state.BnMTokenPools["LINK"].StateObjectId},
 					},
+					state.ManagedTokens[changesets.CCIPBnMSymbol].TokenCoinMetadataID: {
+						TokenPoolPackageId:  state.ManagedTokenPools[changesets.CCIPBnMSymbol].PackageID,
+						TokenPoolModule:     "managed_token_pool",
+						TokenType:           fmt.Sprintf("%s::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", strings.Replace(state.ManagedTokens[changesets.CCIPBnMSymbol].TokenPackageID, "0x", "", 1)),
+						Administrator:       owner,
+						TokenPoolTypeProof:  fmt.Sprintf("%s::managed_token_pool::TypeProof", strings.Replace(state.ManagedTokenPools[changesets.CCIPBnMSymbol].PackageID, "0x", "", 1)),
+						LockOrBurnParams:    []string{"0x0000000000000000000000000000000000000000000000000000000000000006", "0x0000000000000000000000000000000000000000000000000000000000000403", state.ManagedTokens[changesets.CCIPBnMSymbol].StateObjectId, state.ManagedTokenPools[changesets.CCIPBnMSymbol].StateObjectId},
+						ReleaseOrMintParams: []string{"0x0000000000000000000000000000000000000000000000000000000000000006", "0x0000000000000000000000000000000000000000000000000000000000000403", state.ManagedTokens[changesets.CCIPBnMSymbol].StateObjectId, state.ManagedTokenPools[changesets.CCIPBnMSymbol].StateObjectId},
+					},
 				},
 			},
 			NonceManager: view.NonceManagerView{

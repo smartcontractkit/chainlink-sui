@@ -315,17 +315,6 @@ func (s *DeployTestSuite) ConfigureDeployerAsMinter() {
 	s.Require().NoError(err, "failed to configure deployer as minter")
 	err = s.env.ExistingAddresses.Merge(out.AddressBook)
 	s.Require().NoError(err, "failed to merge minter configuration addresses")
-
-	// Print the mint cap object ID from ConfigureDeployerAsMinter
-	addresses, err = s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
-	s.Require().NoError(err, "failed to get addresses")
-	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenMinterCapID {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				s.T().Logf("ConfigureDeployerAsMinter mint cap object ID: %s", addr)
-			}
-		}
-	}
 }
 
 func (s *DeployTestSuite) DeployManagedTokenFaucet() {
@@ -379,11 +368,10 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 	s.Require().NoError(err, "failed to get addresses")
 
 	var (
-		managedTokenPackageID, managedTokenStateID, managedTokenOwnerCapID, managedTokenMinterCapID string
-		bnmCoinMetadataID                                                                           string
+		managedTokenPackageID, managedTokenStateID, managedTokenOwnerCapID string
+		bnmCoinMetadataID                                                  string
 	)
 
-	var num int
 	for addr, typeAndVersion := range addresses {
 		if typeAndVersion.Type == deployment.SuiManagedTokenType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
@@ -400,15 +388,6 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 				managedTokenOwnerCapID = addr
 			}
 		}
-		if typeAndVersion.Type == deployment.SuiManagedTokenMinterCapID {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				num++
-				s.T().Logf("%d: Found managed token minter cap ID: %s", num, addr)
-				if num == 2 {
-					managedTokenMinterCapID = addr
-				}
-			}
-		}
 		if typeAndVersion.Type == deployment.SuiManagedTokenCoinMetadataIDType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				bnmCoinMetadataID = addr
@@ -416,15 +395,18 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 		}
 	}
 
-	s.Require().Equal(num, 2, "Expected 2 managed token minter cap IDs at this point, got %d", num)
 	s.Require().NotEmpty(managedTokenPackageID, "Managed token package ID not found")
 	s.Require().NotEmpty(managedTokenStateID, "Managed token state object ID not found")
 	s.Require().NotEmpty(managedTokenOwnerCapID, "Managed token owner cap ID not found")
-	s.Require().NotEmpty(managedTokenMinterCapID, "Managed token minter cap ID not found")
 	s.Require().NotEmpty(bnmCoinMetadataID, "CCIP BnM coin metadata ID not found")
 	s.Require().NotEmpty(s.ccipPackageID, "CCIP package ID not found")
 	s.Require().NotEmpty(s.ccipObjectRef, "CCIP object ref not found")
 	s.Require().NotEmpty(s.mcmsPackageID, "MCMS package ID not found")
+
+	// Find the unused mint cap ID (the one that wasn't consumed by the faucet)
+	managedTokenMinterCapID, err := s.findUnusedManagedTokenMinterCapID()
+	s.Require().NoError(err, "failed to find unused managed token minter cap ID")
+	s.Require().NotEmpty(managedTokenMinterCapID, "Unused managed token minter cap ID not found")
 
 	// Construct coin type from CCIP BnM token package ID
 	bnmPackageID := ""
