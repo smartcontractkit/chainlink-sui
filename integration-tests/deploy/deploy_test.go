@@ -243,7 +243,6 @@ func (s *DeployTestSuite) DeployManagedToken() {
 	out, err := changesets.DeployManagedToken{}.Apply(s.env, changesets.DeployManagedTokenConfig{
 		ChainSelector: SuiChainSelector,
 		DeployAndInitManagedTokenInput: managedtokenops.DeployAndInitManagedTokenInput{
-			TokenPackageId:      bnmPackageID,
 			CoinObjectTypeArg:   coinType,
 			TreasuryCapObjectId: bnmTreasuryCapID,
 			DenyCapObjectId:     "",
