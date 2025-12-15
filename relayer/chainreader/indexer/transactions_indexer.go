@@ -366,8 +366,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			if moveAbort.Location.FunctionName == nil || *moveAbort.Location.FunctionName == tIndexer.executeFunction {
 				tIndexer.logger.Debugw("Skipping transaction for failed function against init_execute function",
 					"transmitter", transmitter,
-					"location", moveAbort.Location,
-					"functionName", *moveAbort.Location.FunctionName,
+					"moveAbort", *moveAbort,
 					"digest", transactionRecord.Digest,
 				)
 
