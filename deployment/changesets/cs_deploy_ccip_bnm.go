@@ -53,12 +53,12 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIPBnMToken for Sui chain %d: %w", config.ChainSelector, err)
 	}
 
-	// save CCIPBnMToken address to the addressbook
-	typeAndVersionCCIPBnMToken := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPackageIDType, deployment.Version1_0_0)
+	// save CCIPBnMToken package ID to the addressbook
+	typeAndVersionCCIPBnMToken := cldf.NewTypeAndVersion(deployment.SuiManagedTokenType, deployment.Version1_0_0)
 	typeAndVersionCCIPBnMToken.AddLabel(CCIPBnMSymbol)
 	err = ab.Save(config.ChainSelector, ccipBnMTokenReport.Output.PackageId, typeAndVersionCCIPBnMToken)
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPBnMToken address %s for Sui chain %d: %w", ccipBnMTokenReport.Output.PackageId, config.ChainSelector, err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPBnMToken package ID %s for Sui chain %d: %w", ccipBnMTokenReport.Output.PackageId, config.ChainSelector, err)
 	}
 
 	// save CCIPBnMTokenCoinMetadataId address to the addressbook

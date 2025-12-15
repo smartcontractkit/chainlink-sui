@@ -51,13 +51,13 @@ var (
 	SuiLinkTokenType             deployment.ContractType = "SuiLinkToken"
 
 	// Managed Token related
-	// Coin
-	SuiManagedTokenPackageIDType      deployment.ContractType = "SuiManagedTokenPackageID"
+	// the coins under management
+	SuiManagedTokenType               deployment.ContractType = "SuiManagedToken"
 	SuiManagedTokenCoinMetadataIDType deployment.ContractType = "SuiManagedTokenCoinMetadataID"
 	SuiManagedTokenTreasuryCapIDType  deployment.ContractType = "SuiManagedTokenTreasuryCapID"
 	SuiManagedTokenUpgradeCapIDType   deployment.ContractType = "SuiManagedTokenUpgradeCapID"
-	// Managed wrapper package
-	SuiManagedTokenType              deployment.ContractType = "SuiManagedToken"
+	// the managed token wrapper package for the tokens
+	SuiManagedTokenPackageIDType     deployment.ContractType = "SuiManagedTokenPackageID"
 	SuiManagedTokenOwnerCapObjectID  deployment.ContractType = "SuiManagedTokenOwnerCapObjectID"
 	SuiManagedTokenStateObjectID     deployment.ContractType = "SuiManagedTokenStateObjectID"
 	SuiManagedTokenMinterCapID       deployment.ContractType = "SuiManagedTokenMinterCapID"

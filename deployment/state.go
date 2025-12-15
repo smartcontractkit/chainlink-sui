@@ -103,6 +103,12 @@ type CCIPChainState struct {
 	LinkTokenTreasuryCapId  string
 	LinkTokenUpgradeCapId   string
 
+	// CCIP BnM Token related
+	BnMTokenAddress        string
+	BnMTokenCoinMetadataId string
+	BnMTokenTreasuryCapId  string
+	BnMTokenUpgradeCapId   string
+
 	// Managed Token related
 	ManagedTokens       map[string]ManagedTokenState
 	ManagedTokenFaucets map[string]ManagedTokenFaucetState
@@ -433,7 +439,7 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
 			}
 			managed_token := chainState.ManagedTokens[symbol]
-			managed_token.TokenPackageID = addr
+			managed_token.PackageID = addr
 			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenCoinMetadataIDType:
 			symbol, err := getTokenSymbol(typeAndVersion)
@@ -465,7 +471,7 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
 			}
 			managed_token := chainState.ManagedTokens[symbol]
-			managed_token.PackageID = addr
+			managed_token.TokenPackageID = addr
 			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenOwnerCapObjectID:
 			symbol, err := getTokenSymbol(typeAndVersion)

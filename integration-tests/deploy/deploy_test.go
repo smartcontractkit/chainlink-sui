@@ -223,7 +223,7 @@ func (s *DeployTestSuite) DeployManagedToken() {
 
 	var bnmPackageID, bnmTreasuryCapID string
 	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenPackageIDType {
+		if typeAndVersion.Type == deployment.SuiManagedTokenType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				bnmPackageID = addr
 			}
@@ -243,6 +243,7 @@ func (s *DeployTestSuite) DeployManagedToken() {
 	out, err := changesets.DeployManagedToken{}.Apply(s.env, changesets.DeployManagedTokenConfig{
 		ChainSelector: SuiChainSelector,
 		DeployAndInitManagedTokenInput: managedtokenops.DeployAndInitManagedTokenInput{
+			TokenPackageId:      bnmPackageID,
 			CoinObjectTypeArg:   coinType,
 			TreasuryCapObjectId: bnmTreasuryCapID,
 			DenyCapObjectId:     "",
@@ -266,7 +267,7 @@ func (s *DeployTestSuite) ConfigureDeployerAsMinter() {
 
 	var managedTokenPackageID, managedTokenStateID, managedTokenOwnerCapID string
 	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenType {
+		if typeAndVersion.Type == deployment.SuiManagedTokenPackageIDType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				managedTokenPackageID = addr
 			}
@@ -290,7 +291,7 @@ func (s *DeployTestSuite) ConfigureDeployerAsMinter() {
 	// Get the BnM token package ID for coin type
 	var bnmPackageID string
 	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenPackageIDType {
+		if typeAndVersion.Type == deployment.SuiManagedTokenType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				bnmPackageID = addr
 				break
@@ -308,8 +309,8 @@ func (s *DeployTestSuite) ConfigureDeployerAsMinter() {
 		ManagedTokenPackageId: managedTokenPackageID,
 		CoinObjectTypeArg:     coinTypeArg,
 		MinterAddress:         s.deployerAddr,
-		Allowance:             1,
-		IsUnlimited:           false,
+		Allowance:             0,
+		IsUnlimited:           true,
 	})
 
 	s.Require().NoError(err, "failed to configure deployer as minter")
@@ -326,9 +327,10 @@ func (s *DeployTestSuite) DeployManagedTokenFaucet() {
 
 	var bnmPackageID string
 	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenPackageIDType {
+		if typeAndVersion.Type == deployment.SuiManagedTokenType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				bnmPackageID = addr
+				break
 			}
 		}
 	}
@@ -411,7 +413,7 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 	// Construct coin type from CCIP BnM token package ID
 	bnmPackageID := ""
 	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenPackageIDType {
+		if typeAndVersion.Type == deployment.SuiManagedTokenType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				bnmPackageID = addr
 				break

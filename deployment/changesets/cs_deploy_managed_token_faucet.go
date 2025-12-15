@@ -53,7 +53,7 @@ func (d DeployManagedTokenFaucet) Apply(e cldf.Environment, config DeployManaged
 		return cldf.ChangesetOutput{}, fmt.Errorf("managed token for symbol %s not found on chain %d", config.TokenSymbol, config.ChainSelector)
 	}
 	if managedToken.PackageID == "" {
-		return cldf.ChangesetOutput{}, fmt.Errorf("managed token package id for symbol %s is empty", config.TokenSymbol)
+		return cldf.ChangesetOutput{}, fmt.Errorf("managed token package id not found for symbol %s on chain %d", config.TokenSymbol, config.ChainSelector)
 	}
 
 	if chainState.MCMSPackageID == "" {
