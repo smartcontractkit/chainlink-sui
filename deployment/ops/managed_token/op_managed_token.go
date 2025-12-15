@@ -100,6 +100,7 @@ type ManagedTokenConfigureNewMinterInput struct {
 	MinterAddress         string
 	Allowance             uint64
 	IsUnlimited           bool
+	Nonce                 uint64
 }
 
 var configureNewMinterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenConfigureNewMinterInput) (output sui_ops.OpTxResult[ConfigureMinterObjects], err error) {
@@ -194,6 +195,55 @@ var ManagedTokenIncrementMintAllowanceOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Increments mint allowance for the CCIP Managed Token contract",
 	incrementMintAllowanceHandler,
+)
+
+// MANAGED_TOKEN -- set_unlimited_mint_allowances
+type ManagedTokenSetUnlimitedMintAllowancesInput struct {
+	ManagedTokenPackageId string
+	CoinObjectTypeArg     string
+	StateObjectId         string
+	OwnerCapObjectId      string
+	MintCapObjectId       string
+	DenyListObjectId      string
+	IsUnlimited           bool
+}
+
+var setUnlimitedMintAllowancesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenSetUnlimitedMintAllowancesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	_, err = contract.SetUnlimitedMintAllowances(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.MintCapObjectId},
+		bind.Object{Id: input.DenyListObjectId},
+		input.IsUnlimited,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token set unlimited mint allowances: %w", err)
+	}
+
+	b.Logger.Infow("SetUnlimitedMintAllowances on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageId, "MintCapObjectId:", input.MintCapObjectId, "IsUnlimited:", input.IsUnlimited)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    "", // tx.Digest when available
+		PackageId: input.ManagedTokenPackageId,
+		Objects:   NoObjects{},
+	}, err
+}
+
+var ManagedTokenSetUnlimitedMintAllowancesOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "managed_token", "set_unlimited_mint_allowances"),
+	semver.MustParse("0.1.0"),
+	"Sets unlimited mint allowances for the CCIP Managed Token contract",
+	setUnlimitedMintAllowancesHandler,
 )
 
 // MANAGED_TOKEN -- mint

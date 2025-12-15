@@ -2,6 +2,7 @@ package changesets
 
 import (
 	"fmt"
+	"time"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -97,6 +98,7 @@ func (d DeployManagedTokenFaucet) Apply(e cldf.Environment, config DeployManaged
 			MinterAddress:         deployerAddr,
 			Allowance:             0,    // Unlimited allowance
 			IsUnlimited:           true, // Set as unlimited minter
+			Nonce:                 uint64(time.Now().Unix()),
 		})
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to configure deployer as minter for chain %d: %w", config.ChainSelector, err)

@@ -2,6 +2,7 @@ package managedtokenops
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -78,6 +79,7 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 					MinterAddress:         input.MinterAddress,
 					Allowance:             input.Allowance,
 					IsUnlimited:           input.IsUnlimited,
+					Nonce:                 uint64(time.Now().Unix()),
 				},
 			)
 			if err != nil {
