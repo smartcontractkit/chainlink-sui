@@ -95,9 +95,6 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 	txm.lggr.Debugw("Handling transaction error", "transactionID", tx.TransactionID, "error", result.Error)
 
 	txError := suierrors.ParseSuiErrorMessage(result.Error)
-	if txError == nil {
-		txError = suierrors.NewSuiError(suierrors.UnknownErrors, result.Error)
-	}
 
 	isRetryable, strategy := txm.retryManager.IsRetryable(&tx, result.Error)
 	if !isRetryable {
