@@ -103,12 +103,6 @@ type CCIPChainState struct {
 	LinkTokenTreasuryCapId  string
 	LinkTokenUpgradeCapId   string
 
-	// CCIP BnM Token related
-	BnMTokenAddress        string
-	BnMTokenCoinMetadataId string
-	BnMTokenTreasuryCapId  string
-	BnMTokenUpgradeCapId   string
-
 	// Managed Token related
 	ManagedTokens       map[string]ManagedTokenState
 	ManagedTokenFaucets map[string]ManagedTokenFaucetState
