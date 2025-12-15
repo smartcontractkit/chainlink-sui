@@ -687,22 +687,14 @@ func (s *suiChainReader) fetchGenericDependency(ctx context.Context, signerAddre
 			s.logger.Debugw("get_token_pool_state_type falling back to OffRamp package", "offrampPackageAddress", offrampPackageAddress)
 
 			ccipPackageAddress, err = s.client.GetCCIPPackageID(ctx, offrampPackageAddress, signerAddress)
-			if err != nil {
+			if err != nil || ccipPackageAddress == "" {
 				return "", fmt.Errorf("failed to get CCIP package ID from offramp package address in fetchGenericDependency: %w", err)
 			}
+		}
 
-			latestCcipPackageAddress, err := s.client.GetLatestPackageId(ctx, ccipPackageAddress, "state_object")
-			if err != nil {
-				return "", fmt.Errorf("failed to get latest CCIP package address from offramp package address in fetchGenericDependency: %w", err)
-			}
-
-			s.logger.Debugw("get_token_pool_state_type using latest CCIP package address", "latestCcipPackageAddress", latestCcipPackageAddress)
-
-			ccipPackageAddress = latestCcipPackageAddress
-
-			if ccipPackageAddress == "" {
-				return "", fmt.Errorf("get_token_pool_state_type requires that the CCIP / TokenAdminRegistry package has been bound to ChainReader: %w", err)
-			}
+		ccipPackageAddress, err = s.client.GetLatestPackageId(ctx, ccipPackageAddress, "state_object")
+		if err != nil {
+			return "", fmt.Errorf("failed to get latest CCIP package address from offramp package address in fetchGenericDependency: %w", err)
 		}
 
 		s.logger.Warnw("get_token_pool_state_type using CCIP package address", "ccipPackageAddress", ccipPackageAddress)
