@@ -4,11 +4,14 @@ package indexer_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/mr-tron/base58"
 
 	indexer2 "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 
@@ -17,6 +20,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -560,5 +564,173 @@ func TestEventsIndexer(t *testing.T) {
 		wg.Wait()
 
 		log.Infow("Race detection test completed - no races detected!")
+	})
+
+	t.Run("TestOrderedEventsQueryWithOutOfOrderEventOffset", func(t *testing.T) {
+		// insert duplicate events with out of order event_offset for CCIPMessageSent
+
+		packageId := "0x30e087460af8a8aacccbc218aa358cdcde8d43faf61ec0638d71108e276e2f1d"
+		eventHandle := packageId + "::onramp::CCIPMessageSent"
+		baseRecord := database.EventRecord{
+			EventAccountAddress: accountAddress,
+			EventHandle:         eventHandle,
+			EventOffset:         0,
+			TxDigest:            "5HueCGU5rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ",
+			BlockVersion:        0,
+			BlockHeight:         "100",
+			BlockHash:           []byte("5HueCGU5rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"),
+			BlockTimestamp:      1000000000,
+			Data:                map[string]any{},
+		}
+
+		// insert duplicate and incorrect event offsets
+		for i := range 200_000 {
+			recordA := baseRecord
+			recordB := baseRecord
+
+			// use different event_offset for both records
+			recordA.EventOffset = uint64(i)
+			recordB.EventOffset = uint64(i%2 + 1000)
+
+			// use duplicate data for both records
+			recordA.BlockHeight = strconv.Itoa(100 + i)
+			recordB.BlockHeight = strconv.Itoa(100 + i)
+
+			recordA.TxDigest = base58.Encode([]byte("record" + strconv.Itoa(i)))
+			recordB.TxDigest = base58.Encode([]byte("record" + strconv.Itoa(i)))
+
+			recordA.Data = map[string]any{
+				"destChainSelector": 3478487238524512106,
+				"sequenceNumber":    776 + uint64(i),
+			}
+			recordB.Data = map[string]any{
+				"destChainSelector": 3478487238524512106,
+				"sequenceNumber":    776 + uint64(i),
+			}
+
+			dbStore.InsertEvents(ctx, []database.EventRecord{recordA, recordB})
+		}
+
+		// insert some other unrelated events
+		for i := range 10_000 {
+			recordA := baseRecord
+
+			// use different event_offset for both records
+			recordA.EventOffset = uint64(i + 1)
+
+			// use duplicate data for both records
+			recordA.BlockHeight = "100"
+
+			recordA.TxDigest = base58.Encode([]byte("record" + strconv.Itoa(i)))
+
+			recordA.EventHandle = packageId + "::onramp::SomeOtherEvent"
+
+			recordA.Data = map[string]any{
+				"destChainSelector": 3478487238524512106,
+				"sequenceNumber":    176 + uint64(i),
+			}
+
+			dbStore.InsertEvents(ctx, []database.EventRecord{recordA})
+		}
+
+		// query events with out of order event_offset
+		events, err := dbStore.QueryEvents(ctx, accountAddress, eventHandle, []query.Expression{
+			{
+				BoolExpression: query.BoolExpression{
+					BoolOperator: query.AND,
+					Expressions: []query.Expression{
+						{
+							Primitive: &primitives.Comparator{
+								Name: "sequenceNumber",
+								ValueComparators: []primitives.ValueComparator{
+									{Value: uint64(776), Operator: primitives.Gte},
+									{Value: uint64(779), Operator: primitives.Lte},
+								},
+							},
+						},
+						{
+							Primitive: &primitives.Comparator{
+								Name: "destChainSelector",
+								ValueComparators: []primitives.ValueComparator{
+									{Value: "3478487238524512106", Operator: primitives.Eq},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, query.LimitAndSort{
+			Limit: query.Limit{
+				Count: 100,
+			},
+			SortBy: []query.SortBy{
+				query.NewSortBySequence(query.Asc),
+			},
+		})
+
+		// we should only get 10 events
+		require.NoError(t, err)
+		require.Equal(t, 4, len(events))
+
+		for _, event := range events {
+			fmt.Printf("eventHandle: %s\n", event.EventHandle)
+			fmt.Printf("sequenceNumber: %f\n", event.Data["sequenceNumber"].(float64))
+			fmt.Println("--------------------------------")
+		}
+
+		// events should have strictly increasing sequence numbers and be in order
+		for i := range len(events) - 1 {
+			require.Equal(t, events[i].Data["sequenceNumber"].(float64)+1, events[i+1].Data["sequenceNumber"].(float64))
+		}
+
+		// query another range for the same event handle
+		events, err = dbStore.QueryEvents(ctx, accountAddress, eventHandle, []query.Expression{
+			{
+				BoolExpression: query.BoolExpression{
+					BoolOperator: query.AND,
+					Expressions: []query.Expression{
+						{
+							Primitive: &primitives.Comparator{
+								Name: "sequenceNumber",
+								ValueComparators: []primitives.ValueComparator{
+									{Value: uint64(779), Operator: primitives.Gte},
+									{Value: uint64(785), Operator: primitives.Lte},
+								},
+							},
+						},
+						{
+							Primitive: &primitives.Comparator{
+								Name: "destChainSelector",
+								ValueComparators: []primitives.ValueComparator{
+									{Value: "3478487238524512106", Operator: primitives.Eq},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, query.LimitAndSort{
+			Limit: query.Limit{
+				Count: 100,
+			},
+			SortBy: []query.SortBy{
+				query.NewSortBySequence(query.Asc),
+			},
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 7, len(events))
+
+		for _, event := range events {
+			fmt.Printf("eventHandle: %s\n", event.EventHandle)
+			fmt.Printf("sequenceNumber: %f\n", event.Data["sequenceNumber"].(float64))
+			fmt.Println("--------------------------------")
+		}
+
+		// events should have strictly increasing sequence numbers and be in order
+		for i := range len(events) - 1 {
+			require.Equal(t, events[i].EventHandle, eventHandle)
+			require.Equal(t, events[i].Data["sequenceNumber"].(float64)+1, events[i+1].Data["sequenceNumber"].(float64))
+		}
 	})
 }
