@@ -1,3 +1,4 @@
+// THIS CONTRACT IS ONLY FOR TESTING PURPOSES. IT IS NOT INTENDED FOR PRODUCTION USE.
 module ccip_dummy_receiver::dummy_receiver;
 
 use ccip::client;
@@ -109,6 +110,9 @@ public fun get_token_amount_amount(token_amount: &TokenAmount): u256 {
     token_amount.amount
 }
 
+// if coin objects are sent to an object (in this case, the receiver state object), this function must be implemented
+// in order to "receive" those coin objects. otherwise, the coin objects will be locked in the object until the package
+// is upgraded with such a function to receive coin objects from this object.
 public fun receive_and_send_coin<T>(
     state: &mut CCIPReceiverState,
     _: &OwnerCap,
@@ -127,6 +131,7 @@ public fun receive_coin<T>(
     transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving)
 }
 
+// DO NOT USE THIS FUNCTION IN PRODUCTION. IT IS ONLY FOR TESTING PURPOSES.
 public fun receive_and_send_coin_no_owner_cap<T>(
     state: &mut CCIPReceiverState,
     coin_receiving: Receiving<Coin<T>>,
@@ -136,6 +141,7 @@ public fun receive_and_send_coin_no_owner_cap<T>(
     transfer::public_transfer(c, recipient);
 }
 
+// DO NOT USE THIS FUNCTION IN PRODUCTION. IT IS ONLY FOR TESTING PURPOSES.
 public fun receive_coin_no_owner_cap<T>(
     state: &mut CCIPReceiverState,
     coin_receiving: Receiving<Coin<T>>,
@@ -143,7 +149,6 @@ public fun receive_coin_no_owner_cap<T>(
     transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving)
 }
 
-// any ccip receiver must implement this function with the same signature
 public fun ccip_receive(
     expected_message_id: vector<u8>,
     ref: &CCIPObjectRef,
