@@ -26,6 +26,8 @@ import (
 )
 
 func TestChainReaderFiredrill(t *testing.T) {
+	t.Skip("skipping ChainReaderFiredrill test, this is used as a sanity check only and not to be included in CI")
+
 	log := logger.Test(t)
 	rpcUrl := "https://sui-testnet-rpc.publicnode.com" // testutils.TestnetUrl
 
