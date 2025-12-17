@@ -120,7 +120,7 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 		if sortDir, ok := limitAndSort.SortBy[0].(query.SortBySequence); ok && sortDir.GetDirection() == query.Desc {
 			direction = "DESC"
 		}
-		baseSQL += " ORDER BY (block_height, event_offset) " + direction
+		baseSQL += " ORDER BY (block_height::BIGINT, event_offset) " + direction
 	} else {
 		// default to descending order if no sort is provided
 		baseSQL += " ORDER BY (block_height::BIGINT, event_offset) DESC"
