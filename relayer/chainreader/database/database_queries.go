@@ -50,9 +50,20 @@ const (
     `
 
 	QueryEventsBase = `
-	SELECT event_account_address, event_handle, event_offset, block_version, block_height, block_hash, block_timestamp, tx_digest, data
-	FROM sui.events
-	WHERE event_account_address = $1 AND event_handle = $2
+	WITH filtered_events AS (
+		SELECT event_account_address, event_handle, event_offset, block_version, 
+			block_height, block_hash, block_timestamp, tx_digest, data,
+			ROW_NUMBER() OVER (
+				PARTITION BY tx_digest, block_height, md5(data::text)
+				ORDER BY event_offset DESC
+			) as rn
+		FROM sui.events
+		WHERE event_account_address = $1 AND event_handle = $2
+	)
+	SELECT event_account_address, event_handle, event_offset, block_version, 
+		block_height, block_hash, block_timestamp, tx_digest, data
+	FROM filtered_events
+	WHERE rn = 1
     `
 
 	QueryEventsOffset = `
