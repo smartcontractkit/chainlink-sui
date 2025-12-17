@@ -35,6 +35,7 @@ type DeployAndInitManagedTokenInput struct {
 	MinterAddress string
 	Allowance     uint64
 	IsUnlimited   bool
+	Source        string
 }
 
 var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
@@ -78,6 +79,7 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 					MinterAddress:         input.MinterAddress,
 					Allowance:             input.Allowance,
 					IsUnlimited:           input.IsUnlimited,
+					Source:                input.Source,
 				},
 			)
 			if err != nil {
