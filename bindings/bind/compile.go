@@ -200,6 +200,28 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		}
 	}
 
+	if packageName == contracts.ManagedTokenFaucet {
+		managedTokenAddr := namedAddresses["managed_token"]
+		if !isZeroAddress(managedTokenAddr) {
+			managedTokenDir := filepath.Join(dstRoot, "ccip", "managed_token")
+			if err := managePackage(managedTokenDir, 1, rpcURL, env, managedTokenAddr, managedTokenAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage ManagedToken dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for ManagedToken (no published address found)")
+		}
+
+		mcmsAddr := namedAddresses["mcms"]
+		if !isZeroAddress(mcmsAddr) {
+			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for MCMS (no published address found)")
+		}
+	}
+
 	if packageName == contracts.MCMSUser {
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
@@ -533,7 +555,6 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		cmd.Dir = packageRoot
 		output, err := cmd.Output()
 		if err != nil {
-
 			return PackageArtifact{}, fmt.Errorf("sui client publish --serialize-unsigned-transaction (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
 		}
 
