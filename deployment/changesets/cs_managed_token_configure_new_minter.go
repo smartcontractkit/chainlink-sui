@@ -2,7 +2,6 @@ package changesets
 
 import (
 	"fmt"
-	"time"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -23,6 +22,7 @@ type ManagedTokenConfigureNewMinterConfig struct {
 	ManagedTokenPackageId string
 	Allowance             uint64
 	IsUnlimited           bool
+	Source                string
 }
 
 var _ cldf.ChangeSetV2[ManagedTokenConfigureNewMinterConfig] = ManagedTokenConfigureNewMinter{}
@@ -62,7 +62,7 @@ func (d ManagedTokenConfigureNewMinter) Apply(e cldf.Environment, config Managed
 		MinterAddress:         config.MinterAddress,
 		Allowance:             config.Allowance,
 		IsUnlimited:           config.IsUnlimited,
-		Nonce:                 uint64(time.Now().Unix()),
+		Source:                config.Source,
 	})
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to configure new minter for managed token: %w", err)

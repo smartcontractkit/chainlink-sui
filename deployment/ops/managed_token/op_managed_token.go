@@ -100,7 +100,7 @@ type ManagedTokenConfigureNewMinterInput struct {
 	MinterAddress         string
 	Allowance             uint64
 	IsUnlimited           bool
-	Nonce                 uint64
+	Source                string
 }
 
 var configureNewMinterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenConfigureNewMinterInput) (output sui_ops.OpTxResult[ConfigureMinterObjects], err error) {

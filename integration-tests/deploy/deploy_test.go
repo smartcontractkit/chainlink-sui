@@ -310,6 +310,7 @@ func (s *DeployTestSuite) ConfigureDeployerAsMinter() {
 		MinterAddress:         s.deployerAddr,
 		Allowance:             0,
 		IsUnlimited:           true,
+		Source:                "configure_deployer_as_minter_" + changesets.CCIPBnMSymbol,
 	})
 
 	s.Require().NoError(err, "failed to configure deployer as minter")
