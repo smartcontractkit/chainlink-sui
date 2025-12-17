@@ -108,6 +108,23 @@ func getExpectedSuiChainState() CCIPChainState {
 				},
 				PublisherObjectId: "0x52f33e4724128431084e207406304383c05660042000016240438147268f184e",
 			},
+			"CCIP BnM": {
+				PackageID:        "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e2a",
+				StateObjectId:    "0xd93ceb06feeab8b0b5333a7f76f2e9d0d79e71063b8a71bce654954f7bfd631e",
+				OwnerCapObjectId: "0x0eac90f883ea0902156b340c41e0d178af3f012fe63c33f9663b7be245bee4ff",
+				MinterCapObjectIds: []string{
+					"0x125afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f71",
+					"0xe25afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f7b",
+				},
+				PublisherObjectId: "0x52f33e4724128431084e207406304383c05660042000016240438147268f184a",
+			},
+		},
+		ManagedTokenFaucets: map[string]ManagedTokenFaucetState{
+			"LINK": {
+				PackageID:          "0x52f33e4724128431084e207406304383c05660042000016240438147268f1851",
+				StateObjectId:      "0x52f33e4724128431084e207406304383c05660042000016240438147268f184f",
+				UpgradeCapObjectId: "0x52f33e4724128431084e207406304383c05660042000016240438147268f1850",
+			},
 		},
 		LnRTokenPools: map[string]CCIPPoolState{
 			"CCIP-LnR": {

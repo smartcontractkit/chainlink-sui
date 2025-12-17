@@ -107,8 +107,8 @@ var (
 	}
 )
 
-// BuildExpectedSuiChainView returns the expected SuiChainView for the given state and owner
-func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainState, owner string) deployment.SuiChainView {
+// buildExpectedSuiChainView returns the expected SuiChainView for the given state and owner
+func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainState, owner string) deployment.SuiChainView {
 	return deployment.SuiChainView{
 		ChainSelector: SuiChainSelector,
 		ChainID:       "",
@@ -196,6 +196,15 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 						TokenPoolTypeProof:  fmt.Sprintf("%s::burn_mint_token_pool::TypeProof", strings.Replace(state.BnMTokenPools["LINK"].PackageID, "0x", "", 1)),
 						LockOrBurnParams:    []string{"0x0000000000000000000000000000000000000000000000000000000000000006", state.BnMTokenPools["LINK"].StateObjectId},
 						ReleaseOrMintParams: []string{"0x0000000000000000000000000000000000000000000000000000000000000006", state.BnMTokenPools["LINK"].StateObjectId},
+					},
+					state.ManagedTokens[changesets.CCIPBnMSymbol].TokenCoinMetadataID: {
+						TokenPoolPackageId:  state.ManagedTokenPools[changesets.CCIPBnMSymbol].PackageID,
+						TokenPoolModule:     "managed_token_pool",
+						TokenType:           fmt.Sprintf("%s::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", strings.Replace(state.ManagedTokens[changesets.CCIPBnMSymbol].TokenPackageID, "0x", "", 1)),
+						Administrator:       owner,
+						TokenPoolTypeProof:  fmt.Sprintf("%s::managed_token_pool::TypeProof", strings.Replace(state.ManagedTokenPools[changesets.CCIPBnMSymbol].PackageID, "0x", "", 1)),
+						LockOrBurnParams:    []string{"0x0000000000000000000000000000000000000000000000000000000000000006", "0x0000000000000000000000000000000000000000000000000000000000000403", state.ManagedTokens[changesets.CCIPBnMSymbol].StateObjectId, state.ManagedTokenPools[changesets.CCIPBnMSymbol].StateObjectId},
+						ReleaseOrMintParams: []string{"0x0000000000000000000000000000000000000000000000000000000000000006", "0x0000000000000000000000000000000000000000000000000000000000000403", state.ManagedTokens[changesets.CCIPBnMSymbol].StateObjectId, state.ManagedTokenPools[changesets.CCIPBnMSymbol].StateObjectId},
 					},
 				},
 			},
@@ -292,6 +301,35 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 						StateObjectID:  state.BnMTokenPools["LINK"].StateObjectId,
 					},
 					Token: s.linkTokenMetadataID,
+					RemoteChainConfigs: map[uint64]view.RemoteChainConfig{
+						EVMChainSelector: {
+							RemoteTokenAddress:  fmt.Sprintf("0x000000000000000000000000%s", EVMTokenAddress),
+							RemotePoolAddresses: []string{EVMPoolAddress},
+							InboundRateLimiterConfig: view.RateLimiterConfig{
+								IsEnabled: false,
+								Capacity:  RateLimiterCapacity,
+								Rate:      RateLimiterRate,
+							},
+							OutboundRateLimiterConfig: view.RateLimiterConfig{
+								IsEnabled: false,
+								Capacity:  RateLimiterCapacity,
+								Rate:      RateLimiterRate,
+							},
+						},
+					},
+					AllowList:        []string{},
+					AllowListEnabled: false,
+				},
+			},
+			changesets.CCIPBnMSymbol: {
+				state.ManagedTokenPools[changesets.CCIPBnMSymbol].PackageID: {
+					ContractMetaData: view.ContractMetaData{
+						Address:        state.ManagedTokenPools[changesets.CCIPBnMSymbol].PackageID,
+						Owner:          owner,
+						TypeAndVersion: "ManagedTokenPool 1.6.0",
+						StateObjectID:  state.ManagedTokenPools[changesets.CCIPBnMSymbol].StateObjectId,
+					},
+					Token: state.ManagedTokens[changesets.CCIPBnMSymbol].TokenCoinMetadataID,
 					RemoteChainConfigs: map[uint64]view.RemoteChainConfig{
 						EVMChainSelector: {
 							RemoteTokenAddress:  fmt.Sprintf("0x000000000000000000000000%s", EVMTokenAddress),

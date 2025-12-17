@@ -63,6 +63,7 @@ func TestDeployAndInitManagedToken(t *testing.T) {
 		MinterAddress:       signerAddress,
 		Allowance:           0,
 		IsUnlimited:         true,
+		Source:              "test",
 	}
 
 	output, err := cld_ops.ExecuteSequence(bundle, DeployAndInitManagedTokenSequence, deps, input)
