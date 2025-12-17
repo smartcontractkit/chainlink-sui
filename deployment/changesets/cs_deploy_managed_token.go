@@ -60,10 +60,10 @@ func (d DeployManagedToken) Apply(e cldf.Environment, config DeployManagedTokenC
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy ManagedToken for Sui chain %d: %w", config.ChainSelector, err)
 	}
 
-	// save ManagedToken address to the addressbook
-	typeAndVersionManagedToken := cldf.NewTypeAndVersion(deployment.SuiManagedTokenType, deployment.Version1_0_0)
-	typeAndVersionManagedToken.AddLabel(managedTokenReport.Output.TokenSymbol)
-	err = ab.Save(config.ChainSelector, managedTokenReport.Output.ManagedTokenPackageId, typeAndVersionManagedToken)
+	// save the new managed token package id address to the addressbook
+	typeAndVersionManagedTokenPackageID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPackageIDType, deployment.Version1_0_0)
+	typeAndVersionManagedTokenPackageID.AddLabel(managedTokenReport.Output.TokenSymbol)
+	err = ab.Save(config.ChainSelector, managedTokenReport.Output.ManagedTokenPackageId, typeAndVersionManagedTokenPackageID)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken address %s for Sui chain %d: %w", managedTokenReport.Output.ManagedTokenPackageId, config.ChainSelector, err)
 	}
@@ -76,12 +76,14 @@ func (d DeployManagedToken) Apply(e cldf.Environment, config DeployManagedTokenC
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken OwnerCapObjectId address %s for Sui chain %d: %w", managedTokenReport.Output.Objects.OwnerCapObjectId, config.ChainSelector, err)
 	}
 
-	// save ManagedTokenMinterCapID address to the addressbook
-	typeAndVersionMinterCapID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenMinterCapID, deployment.Version1_0_0)
-	typeAndVersionMinterCapID.AddLabel(managedTokenReport.Output.TokenSymbol)
-	err = ab.Save(config.ChainSelector, managedTokenReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID)
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken MinterCapObjectId address %s for Sui chain %d: %w", managedTokenReport.Output.Objects.MinterCapObjectId, config.ChainSelector, err)
+	if config.MinterAddress != "" {
+		// save ManagedTokenMinterCapID address to the addressbook
+		typeAndVersionMinterCapID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenMinterCapID, deployment.Version1_0_0)
+		typeAndVersionMinterCapID.AddLabel(managedTokenReport.Output.TokenSymbol)
+		err = ab.Save(config.ChainSelector, managedTokenReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken MinterCapObjectId address %s for Sui chain %d: %w", managedTokenReport.Output.Objects.MinterCapObjectId, config.ChainSelector, err)
+		}
 	}
 
 	// save ManagedTokenStateObjectID address to the addressbook
