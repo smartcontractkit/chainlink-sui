@@ -3,6 +3,8 @@ package txm
 import (
 	"context"
 	"errors"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -38,6 +40,10 @@ type SuiTxm struct {
 	done                  sync.WaitGroup
 	broadcastChannel      chan string
 	stopChannel           chan struct{}
+
+	//  track locked coins (objectID+version) so we can skip them on new txs
+	lockedCoinsMu sync.RWMutex
+	lockedCoins   map[string]struct{}
 }
 
 func NewSuiTxm(
@@ -59,6 +65,7 @@ func NewSuiTxm(
 		configuration:         conf,
 		broadcastChannel:      make(chan string, conf.BroadcastChanSize),
 		stopChannel:           make(chan struct{}),
+		lockedCoins:           make(map[string]struct{}),
 	}, nil
 }
 
@@ -86,7 +93,7 @@ func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetad
 	txn, err := GeneratePTBTransactionWithGasEstimation(
 		ctx, signerPublicKey, txm.lggr, txm.keystoreService, txm.suiGateway,
 		txm.configuration.RequestType, transactionID, txMetadata,
-		ptb, simulateTx, txm.gasManager,
+		ptb, simulateTx, txm.gasManager, txm.snapshotLockedCoins(),
 	)
 	if err != nil {
 		txm.lggr.Errorw("Failed to generate PTB txn", "error", err)
@@ -184,3 +191,38 @@ func (txm *SuiTxm) GetGasManager() GasManager {
 }
 
 var _ TxManager = (*SuiTxm)(nil)
+
+// markLockedCoin remembers (objectID, version) as "locked" for this epoch.
+func (txm *SuiTxm) markLockedCoin(objectID string, version uint64) {
+	key := coinKey(objectID, version)
+
+	txm.lockedCoinsMu.Lock()
+	defer txm.lockedCoinsMu.Unlock()
+
+	if txm.lockedCoins == nil {
+		txm.lockedCoins = make(map[string]struct{})
+	}
+	txm.lockedCoins[key] = struct{}{}
+
+	txm.lggr.Infow("Marked coin as locked",
+		"objectID", objectID,
+		"version", version,
+		"key", key,
+	)
+}
+
+func coinKey(objectID string, version uint64) string {
+	// normalize to lowercase hex so we can match against CoinObjectId strings
+	return strings.ToLower(objectID) + "#" + strconv.FormatUint(version, 10)
+}
+
+func (txm *SuiTxm) snapshotLockedCoins() map[string]struct{} {
+	txm.lockedCoinsMu.RLock()
+	defer txm.lockedCoinsMu.RUnlock()
+
+	out := make(map[string]struct{}, len(txm.lockedCoins))
+	for k := range txm.lockedCoins {
+		out[k] = struct{}{}
+	}
+	return out
+}

@@ -10,6 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
 )
 
 // broadcastLoop is the main goroutine responsible for processing transactions from the broadcast channel
@@ -89,6 +90,12 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 			// In the case there is an error submitting
 			txm.lggr.Errorw("Failed to broadcast transaction", "txID", tx.TransactionID, "function inputs", tx.Functions, "error", err)
 
+			// special-case equivocation / locked coin
+			if handled := handleLockCoinError(txm, tx, err.Error()); handled {
+				// All state/TxError/lockedCoins already handled by helper.
+				continue
+			}
+
 			// Default to retrying the transaction
 			newState := StateRetriable
 
@@ -160,4 +167,37 @@ DrainChannel:
 
 	// Get all the broadcast IDs
 	return broadcastIds
+}
+
+// handleLockCoinError inspects the error message, and if it is a
+// locked-coin / equivocation error returns true, false otherwise.
+func handleLockCoinError(txm *SuiTxm, tx SuiTx, msg string) bool {
+	txErr := suierrors.ParseSuiErrorMessage(msg)
+	if txErr == nil || txErr.Category != suierrors.LockCoinErrors {
+		return false
+	}
+
+	if objID, ver, ok := suierrors.ExtractLockedObjectRef(msg); ok {
+		txm.lggr.Infow("Detected locked coin at broadcast time",
+			"txID", tx.TransactionID,
+			"objectID", objID,
+			"version", ver,
+		)
+		txm.markLockedCoin(objID, ver)
+	}
+
+	// From Pending -> Failed (allowed)
+	if err2 := txm.transactionRepository.ChangeState(tx.TransactionID, StateFailed); err2 != nil {
+		txm.lggr.Errorw("Failed to change transaction state", "txID", tx.TransactionID, "error", err2)
+	}
+	if err2 := txm.transactionRepository.UpdateTransactionError(tx.TransactionID, txErr); err2 != nil {
+		txm.lggr.Errorw("Failed to update transaction error", "txID", tx.TransactionID, "error", err2)
+	}
+
+	txm.lggr.Errorw("Non-retriable locked-coin error at broadcast",
+		"txID", tx.TransactionID,
+		"error", msg,
+	)
+
+	return true
 }

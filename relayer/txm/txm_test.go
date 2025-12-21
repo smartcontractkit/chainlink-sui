@@ -15,9 +15,11 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
+	txm_export "github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
 
 type Counter struct {
@@ -188,6 +190,42 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 		})
 	}
 	txManager.Close()
+}
+
+func TestHandleLockCoinError(t *testing.T) {
+	ctx := context.Background()
+	lggr := logger.Test(t)
+
+	gasLimit := int64(200000000000)
+
+	_, txm, store, _, _, _, _, _ :=
+		testutils.SetupTestEnv(t, ctx, lggr, gasLimit)
+
+	txID := "tx-locked-coins-1"
+	initialTx := txm_export.SuiTx{
+		TransactionID: txID,
+		Metadata:      &commontypes.TxMeta{GasLimit: big.NewInt(1)},
+	}
+
+	err := store.AddTransaction(initialTx)
+	require.NoError(t, err, "failed to seed transaction into store")
+
+	lockedErrMsg := `failed to execute transaction: {"code":-32002,"message":"Transaction is rejected as invalid by more than 1/3 of validators by stake (non-retriable). 
+					Non-retriable errors: [Object (0x23a4b83340069bd92db7ee2a22994d09f7ff1083af74a9151c9659a5a9662750, SequenceNumber(717214713), o#3R6R2XxDfWT6sXyzz4xX4r1mL6GUHNHCH64vkGwHbBJd) 
+					already locked by a different transaction: TransactionDigest(HEf6wjXGWSoemesir2LC7CGnb1c4cPrZruSjTXwpgAuJ)]. Retriable errors: []"}`
+
+	handled := txm_export.HandleLockCoinError(txm, initialTx, lockedErrMsg)
+	require.True(t, handled, "expected locked-coin helper to handle the error")
+
+	storedTx, err := store.GetTransaction(txID)
+	require.NoError(t, err, "failed to read transaction from store after handling error")
+
+	require.Equal(t, txm_export.StateFailed, storedTx.State, "transaction state should be Failed after lock-coin error")
+	require.NotNil(t, storedTx.TxError, "TxError should be set on lock-coin error")
+	require.Equal(t, suierrors.LockCoinErrors, storedTx.TxError.Category, "TxError category should be LockCoinErrors")
+
+	snap := txm.SnapshotLockedCoins()
+	require.NotEmpty(t, snap, "lockedCoins snapshot should not be empty after handling a locked-coin error")
 }
 
 // Helper function to convert a string to a string pointer

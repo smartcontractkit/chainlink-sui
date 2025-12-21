@@ -91,11 +91,16 @@ func (tx *SuiTx) UpdateBSCPayload(
 		return fmt.Errorf("failed to get address from public key: %w", err)
 	}
 
-	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, tx.Ptb, tx.GasBudget, lggr)
-	if err != nil {
-		return fmt.Errorf("failed to prepare PTB transaction: %w", err)
-	}
+	// Reuse existing PTB + gas coins
+	tx.Ptb.SetGasBudget(tx.GasBudget)
+	tx.Ptb.SetSender(models.SuiAddress(signerAddress))
+	tx.Ptb.SetGasOwner(models.SuiAddress(signerAddress))
+	tx.Ptb.SetGasPayment(tx.PaymentCoinsObjectRef)
 
+	txBytes, err := toBCSBase64(ctx, tx.Ptb, signerAddress, lggr, tx.GasBudget)
+	if err != nil {
+		return fmt.Errorf("failed to get bcs bytes: %w", err)
+	}
 	tx.Payload = txBytes
 
 	// Get the signer ID (in keystore) of the public key
@@ -117,7 +122,6 @@ func (tx *SuiTx) UpdateBSCPayload(
 	// Serialize signatures for new bcs payload
 	signatureStrings := []string{client.SerializeSuiSignature(signature, tx.PublicKey)}
 	tx.Signatures = signatureStrings
-	tx.PaymentCoinsObjectRef = paymentCoins
 
 	return nil
 }
@@ -171,6 +175,7 @@ func GeneratePTBTransactionWithGasEstimation(
 	ptb *transaction.Transaction,
 	simulateTx bool,
 	gasManager GasManager,
+	lockedCoins map[string]struct{},
 ) (*SuiTx, error) {
 	signerAddress, err := client.GetAddressFromPublicKey(pubKey)
 	if err != nil {
@@ -193,7 +198,7 @@ func GeneratePTBTransactionWithGasEstimation(
 		"preliminaryGasBudget", preliminaryGasBudget)
 
 	preliminaryTx, err := buildPreliminaryTransaction(
-		ctx, signerAddress, suiClient, ptb, preliminaryGasBudget, lggr,
+		ctx, signerAddress, suiClient, ptb, preliminaryGasBudget, lggr, lockedCoins,
 	)
 	if err != nil {
 		lggr.Errorf("failed to build preliminary transaction: %v", err)
@@ -358,11 +363,34 @@ func preparePTBTransaction(
 	ptb *transaction.Transaction,
 	gasBudget uint64,
 	lggr logger.Logger,
+	lockedCoins map[string]struct{},
 ) (txBytes string, paymentCoins []transaction.SuiObjectRef, err error) {
 	// Get available coins for gas
 	coinData, err := suiClient.GetCoinsByAddress(ctx, signerAddress)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get coins by address: %w", err)
+	}
+
+	// filter out coins we already know are locked (equivocated earlier)
+	if len(lockedCoins) > 0 {
+		filtered := make([]models.CoinData, 0, len(coinData))
+		for _, c := range coinData {
+			v, parseErr := strconv.ParseUint(c.Version, 10, 64)
+			if parseErr != nil {
+				return "", nil, fmt.Errorf("failed to parse coin version %q: %w", c.Version, parseErr)
+			}
+			key := coinKey(c.CoinObjectId, v)
+			if _, isLocked := lockedCoins[key]; isLocked {
+				lggr.Debugw("Skipping locked gas coin",
+					"coinObjectId", c.CoinObjectId,
+					"version", c.Version,
+					"key", key,
+				)
+				continue
+			}
+			filtered = append(filtered, c)
+		}
+		coinData = filtered
 	}
 
 	// Select coins for gas budget
@@ -422,9 +450,10 @@ func buildPreliminaryTransaction(
 	ptb *transaction.Transaction,
 	gasBudget uint64,
 	lggr logger.Logger,
+	lockedCoins map[string]struct{},
 ) (*SuiTx, error) {
 	// Use common preparation logic
-	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, ptb, gasBudget, lggr)
+	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, ptb, gasBudget, lggr, lockedCoins)
 	if err != nil {
 		return nil, err
 	}

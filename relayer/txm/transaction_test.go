@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -19,7 +20,10 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	modulecounter "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/counter"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
@@ -149,6 +153,7 @@ func TestTransactionGeneration(t *testing.T) {
 			ptb,
 			true,
 			gasManager,
+			nil,
 		)
 
 		finalGasBudget := tx.GasBudget
@@ -288,4 +293,123 @@ func TestCoinSelectionEdgeCases(t *testing.T) {
 	})
 
 	lggr.Debugw("Coin selection edge cases test completed")
+}
+
+func TestPreparePTBIgnoreLockedCoins(t *testing.T) {
+	ctx := context.Background()
+	lggr := logger.Test(t)
+
+	const gasLimit = int64(200000000000)
+	ptbClient, _, _, accountAddress, keystore, publicKeyBytes, packageID, counterObjectID :=
+		testutils.SetupTestEnv(t, ctx, lggr, gasLimit)
+
+	// Ensure account has multiple coins
+	coins, err := ptbClient.GetCoinsByAddress(ctx, accountAddress)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(coins), 2,
+		"need at least two SUI coins for locked-coin selection test; fund/split coins first")
+
+	lggr.Infow("Available unlocked coins",
+		"coins", coins,
+	)
+
+	// lock the first coin
+	locked := coins[0]
+
+	lockedVer, err := strconv.ParseUint(locked.Version, 10, 64)
+	require.NoError(t, err)
+
+	lockedKey := strings.ToLower(locked.CoinObjectId) + "#" + strconv.FormatUint(lockedVer, 10)
+
+	lockedCoins := map[string]struct{}{
+		lockedKey: {},
+	}
+
+	lggr.Infow("Marking coin as locked for test",
+		"coinObjectId", locked.CoinObjectId,
+		"version", locked.Version,
+		"key", lockedKey,
+	)
+
+	chainWriterConfig := config.ChainWriterConfig{
+		Modules: map[string]*config.ChainWriterModule{
+			"counter": {
+				Name:     "Counter",
+				ModuleID: packageID,
+				Functions: map[string]*config.ChainWriterFunction{
+					"ptb_call": {
+						Name:      "ptb_call",
+						PublicKey: publicKeyBytes,
+						Params:    []codec.SuiFunctionParam{},
+						PTBCommands: []config.ChainWriterPTBCommand{
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: &packageID,
+								ModuleId:  strPtr("counter"),
+								Function:  strPtr("increment"),
+								Params: []codec.SuiFunctionParam{
+									{
+										Name:     "counter",
+										Type:     "object_id",
+										Required: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	ptbConstructor := ptb.NewPTBConstructor(chainWriterConfig, ptbClient, lggr)
+	functionConfig := chainWriterConfig.Modules["counter"].Functions["ptb_call"]
+
+	args := config.Arguments{
+		Args: map[string]any{"counter": counterObjectID},
+	}
+
+	ptbTx, err := ptbConstructor.BuildPTBCommands(ctx, "counter", "ptb_call", args, packageID, functionConfig)
+	require.NoError(t, err, "failed to build PTB commands")
+
+	gasManager := txm.NewSuiGasManager(lggr, ptbClient, *big.NewInt(gasLimit), 0)
+	txMeta := &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)}
+
+	suiTx, err := txm.GeneratePTBTransactionWithGasEstimation(
+		ctx,
+		publicKeyBytes,
+		lggr,
+		keystore,
+		ptbClient,
+		"WaitForEffectsCert",
+		"locked-coins-preparePTB-test",
+		txMeta,
+		ptbTx,
+		true, // simulateTx
+		gasManager,
+		lockedCoins, // list of existing locked coin
+	)
+	require.NoError(t, err, "GeneratePTBTransactionWithGasEstimation failed")
+	require.NotNil(t, suiTx)
+
+	require.NotEmpty(t, suiTx.PaymentCoinsObjectRef,
+		"expected at least one gas payment coin selected")
+
+	selectedCoin := suiTx.PaymentCoinsObjectRef[0]
+
+	// Convert selected ObjectId bytes back to a hex string for comparison
+	selectedID := fmt.Sprintf("0x%x", selectedCoin.ObjectId[:])
+	selectedID = strings.ToLower(selectedID)
+
+	lggr.Infow("Selected gas coin after locking one",
+		"selectedObjectId", selectedID,
+		"lockedObjectId", strings.ToLower(locked.CoinObjectId),
+	)
+
+	// Assert that the selected gas coin is NOT the locked coin
+	require.NotEqual(t,
+		strings.ToLower(locked.CoinObjectId),
+		selectedID,
+		"preparePTBTransaction should have ignored the locked gas coin and chosen another",
+	)
 }

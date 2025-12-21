@@ -14,6 +14,8 @@ package suierrors
 
 import (
 	"errors"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -29,6 +31,11 @@ const (
 	CheckpointAndConsensusErrors
 	PublishingErrors
 	SoftBundleErrors
+	LockCoinErrors
+)
+
+var lockedObjectRe = regexp.MustCompile(
+	`Object\s+\((0x[0-9a-fA-F]+),\s*SequenceNumber\((\d+)\)`,
 )
 
 func (c ErrorCategory) String() string {
@@ -47,6 +54,8 @@ func (c ErrorCategory) String() string {
 		return "Publishing Errors"
 	case SoftBundleErrors:
 		return "Soft Bundle Errors"
+	case LockCoinErrors:
+		return "Lock Coins Errors"
 	default:
 		return "Unknown Error Category"
 	}
@@ -146,6 +155,9 @@ var ErrNoSharedObjectError = NewSuiError(SoftBundleErrors, "NoSharedObjectError"
 var ErrAlreadyExecutedError = NewSuiError(SoftBundleErrors, "AlreadyExecutedError")
 var ErrCertificateAlreadyProcessed = NewSuiError(SoftBundleErrors, "CertificateAlreadyProcessed")
 
+// Lock Coins error
+var ErrLockCoins = NewSuiError(LockCoinErrors, "already locked by a different transaction")
+
 // ========================================
 // Error Mapping and Retry Functions
 // ========================================
@@ -221,6 +233,9 @@ var suiErrorMappings = []struct {
 	{ErrNoSharedObjectError.Error(), ErrNoSharedObjectError},
 	{ErrAlreadyExecutedError.Error(), ErrAlreadyExecutedError},
 	{ErrCertificateAlreadyProcessed.Error(), ErrCertificateAlreadyProcessed},
+
+	// Lock Coins Error
+	{ErrLockCoins.Error(), ErrLockCoins},
 }
 
 // ParseSuiErrorMessage maps a raw RPC error message to a structured error.
@@ -264,4 +279,23 @@ func IsRetryable(err error) bool {
 	}
 
 	return false
+}
+
+// ExtractLockedObjectRef parses a Sui equivocation / lock error message and returns
+// (objectID, version, ok).
+func ExtractLockedObjectRef(msg string) (string, uint64, bool) {
+	m := lockedObjectRe.FindStringSubmatch(msg)
+	if len(m) != 3 {
+		return "", 0, false
+	}
+
+	objID := m[1]
+	verStr := m[2]
+
+	ver, err := strconv.ParseUint(verStr, 10, 64)
+	if err != nil {
+		return objID, 0, false
+	}
+
+	return objID, ver, true
 }

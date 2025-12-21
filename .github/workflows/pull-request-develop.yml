@@ -9,6 +9,7 @@ on:
     branches:
       - develop
       - staging
+      - hotfix/2.30.1-sui-hotfix
   merge_group:
 
 jobs:
