@@ -40,6 +40,7 @@ flavor = "sui"
 chain-id = "21d4a5c4"
 original-published-id = "0xec844ebfacfffd18a32c4bc5761981bac68cc5ace015e91c898a9553847d2778"
 latest-published-id = "0xec844ebfacfffd18a32c4bc5761981bac68cc5ace015e91c898a9553847d2778"
+published-version = "1"
 
 [env.localnet]
 chain-id = "e0bd5f12"
