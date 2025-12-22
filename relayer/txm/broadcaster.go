@@ -6,6 +6,7 @@ package txm
 import (
 	"context"
 	"sort"
+	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -183,7 +184,7 @@ func handleLockCoinError(txm *SuiTxm, tx SuiTx, msg string) bool {
 			"objectID", objID,
 			"version", ver,
 		)
-		txm.markLockedCoin(objID, ver)
+		txm.markLockedCoin(objID, ver, time.Now())
 	}
 
 	// From Pending -> Failed (allowed)

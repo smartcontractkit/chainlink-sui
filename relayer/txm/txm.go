@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
@@ -19,6 +20,7 @@ import (
 )
 
 const numberGoroutines = 3
+const lockedCoinTTL = 24 * time.Hour
 
 type TxManager interface {
 	services.Service
@@ -42,8 +44,8 @@ type SuiTxm struct {
 	stopChannel           chan struct{}
 
 	//  track locked coins (objectID+version) so we can skip them on new txs
+	lockedCoins   map[string]time.Time
 	lockedCoinsMu sync.RWMutex
-	lockedCoins   map[string]struct{}
 }
 
 func NewSuiTxm(
@@ -65,7 +67,7 @@ func NewSuiTxm(
 		configuration:         conf,
 		broadcastChannel:      make(chan string, conf.BroadcastChanSize),
 		stopChannel:           make(chan struct{}),
-		lockedCoins:           make(map[string]struct{}),
+		lockedCoins:           make(map[string]time.Time),
 	}, nil
 }
 
@@ -192,37 +194,57 @@ func (txm *SuiTxm) GetGasManager() GasManager {
 
 var _ TxManager = (*SuiTxm)(nil)
 
-// markLockedCoin remembers (objectID, version) as "locked" for this epoch.
-func (txm *SuiTxm) markLockedCoin(objectID string, version uint64) {
+func coinKey(objectID string, version uint64) string {
+	// normalize to lowercase hex so we can match against CoinObjectId strings
+	return strings.ToLower(objectID) + "#" + strconv.FormatUint(version, 10)
+}
+
+func (txm *SuiTxm) markLockedCoin(objectID string, version uint64, currTime time.Time) {
 	key := coinKey(objectID, version)
 
 	txm.lockedCoinsMu.Lock()
 	defer txm.lockedCoinsMu.Unlock()
 
 	if txm.lockedCoins == nil {
-		txm.lockedCoins = make(map[string]struct{})
+		txm.lockedCoins = make(map[string]time.Time)
 	}
-	txm.lockedCoins[key] = struct{}{}
+	txm.lockedCoins[key] = currTime
 
-	txm.lggr.Infow("Marked coin as locked",
-		"objectID", objectID,
-		"version", version,
+	txm.lggr.Debugw("Locked coin recorded",
 		"key", key,
+		"lockedCount", len(txm.lockedCoins),
 	)
 }
 
-func coinKey(objectID string, version uint64) string {
-	// normalize to lowercase hex so we can match against CoinObjectId strings
-	return strings.ToLower(objectID) + "#" + strconv.FormatUint(version, 10)
-}
-
+// snapshotLockedCoins also prunes expired entries.
+// Delete coins where lockedAt < now - 24h (older than 24h)
+// Keep coins where lockedAt >= now - 24h (within last 24h)
 func (txm *SuiTxm) snapshotLockedCoins() map[string]struct{} {
-	txm.lockedCoinsMu.RLock()
-	defer txm.lockedCoinsMu.RUnlock()
+	cutoff := time.Now().Add(-lockedCoinTTL)
+
+	txm.lockedCoinsMu.Lock()
+	defer txm.lockedCoinsMu.Unlock()
+
+	pruned := 0
+	for k, lockedAt := range txm.lockedCoins {
+		if lockedAt.Before(cutoff) {
+			delete(txm.lockedCoins, k)
+			pruned++
+		}
+	}
 
 	out := make(map[string]struct{}, len(txm.lockedCoins))
 	for k := range txm.lockedCoins {
 		out[k] = struct{}{}
 	}
+
+	if pruned > 0 {
+		txm.lggr.Debugw("Pruned expired locked coins",
+			"pruned", pruned,
+			"remaining", len(txm.lockedCoins),
+			"cutoff", cutoff,
+		)
+	}
+
 	return out
 }

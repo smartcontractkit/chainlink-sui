@@ -226,6 +226,18 @@ func TestHandleLockCoinError(t *testing.T) {
 
 	snap := txm.SnapshotLockedCoins()
 	require.NotEmpty(t, snap, "lockedCoins snapshot should not be empty after handling a locked-coin error")
+
+	now := time.Now()
+	yesterday := now.Add(-25 * time.Hour)
+
+	txm.MarkLockedCoin("0x_old_coin", 1, yesterday)
+	txm.MarkLockedCoin("0x_fresh_coin", 1, now)
+
+	snap = txm.SnapshotLockedCoins()
+
+	require.Len(t, snap, 2) // 2 because one 1 coins is from above `HandleLockCoinError`
+	require.Contains(t, snap, txm_export.CoinKey("0x_fresh_coin", 1))
+	require.NotContains(t, snap, txm_export.CoinKey("0x_old_coin", 1))
 }
 
 // Helper function to convert a string to a string pointer
