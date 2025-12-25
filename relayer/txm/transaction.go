@@ -280,6 +280,7 @@ func GeneratePTBTransactionWithGasEstimation(
 		LastUpdatedAt:         GetCurrentUnixTimestamp(),
 		TxError:               nil,
 		GasBudget:             finalGasBudget,
+		CoinManager:           coinManager,
 		Ptb:                   ptb,
 		PaymentCoinsObjectRef: preliminaryTx.PaymentCoinsObjectRef, // Use the coins selected in preliminary tx
 	}, nil

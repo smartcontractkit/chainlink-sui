@@ -56,6 +56,7 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 	// Create a fake gas manager that returns an updated gas value.
 	maxGasBudget := big.NewInt(12000000)
 	gasManager := txm.NewSuiGasManager(lggr, fakeClient, *maxGasBudget, 0)
+	coinManager := txm.NewGasCoinManager(lggr, fakeClient)
 
 	// For the confirmer, the keystore is not used; create a dummy signer.
 	keystoreInstance := testutils.NewTestKeystore(t)
@@ -119,6 +120,7 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 		TxError:       nil,
 		GasBudget:     maxGasBudget.Uint64(),
 		Ptb:           ptb,
+		CoinManager:   coinManager,
 	}
 	err = store.AddTransaction(tx)
 	require.NoError(t, err)
@@ -184,6 +186,7 @@ func TestConfirmerRoutine_SuccessfulGasBumpAfterTwoAttempts(t *testing.T) {
 	maxGasBudget := big.NewInt(10000000)
 	percentIncrease := int64(120) // 120% (20% increase) per bump
 	gasManager := txm.NewSuiGasManager(lggr, fakeClient, *maxGasBudget, percentIncrease)
+	coinManager := txm.NewGasCoinManager(lggr, fakeClient)
 
 	// Create keystore
 	keystoreInstance := testutils.NewTestKeystore(t)
@@ -248,6 +251,7 @@ func TestConfirmerRoutine_SuccessfulGasBumpAfterTwoAttempts(t *testing.T) {
 		TxError:       nil,
 		GasBudget:     maxGasBudget.Uint64(), // Use max budget to allow for gas bumps
 		Ptb:           ptb,
+		CoinManager:   coinManager,
 	}
 	err = store.AddTransaction(tx)
 	require.NoError(t, err)
@@ -360,6 +364,7 @@ func TestConfirmerRoutine_ExponentialBackoffRetry(t *testing.T) {
 
 	// Add a transaction in StateSubmitted with a known digest
 	txID := "tx-exponential-backoff-retry-test"
+	coinManager := txm.NewGasCoinManager(lggr, fakeClient)
 	tx := txm.SuiTx{
 		TransactionID: txID,
 		Sender:        address,
@@ -376,6 +381,7 @@ func TestConfirmerRoutine_ExponentialBackoffRetry(t *testing.T) {
 		TxError:       nil,
 		GasBudget:     initialGasBudget,
 		Ptb:           ptb,
+		CoinManager:   coinManager,
 	}
 	err = store.AddTransaction(tx)
 	require.NoError(t, err)
