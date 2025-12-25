@@ -13,6 +13,8 @@ determine if an error is considered retryable (e.g. IsRetryable) according to Su
 package suierrors
 
 import (
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -28,6 +30,7 @@ const (
 	CheckpointAndConsensusErrors
 	PublishingErrors
 	SoftBundleErrors
+	LockCoinErrors
 	UnknownErrors
 )
 
@@ -47,6 +50,8 @@ func (c ErrorCategory) String() string {
 		return "Publishing Errors"
 	case SoftBundleErrors:
 		return "Soft Bundle Errors"
+	case LockCoinErrors:
+		return "Lock Coins Errors"
 	default:
 		return "Unknown Error Category"
 	}
@@ -146,6 +151,9 @@ var ErrNoSharedObjectError = NewSuiError(SoftBundleErrors, "NoSharedObjectError"
 var ErrAlreadyExecutedError = NewSuiError(SoftBundleErrors, "AlreadyExecutedError")
 var ErrCertificateAlreadyProcessed = NewSuiError(SoftBundleErrors, "CertificateAlreadyProcessed")
 
+// Lock Coins error
+var ErrLockCoins = NewSuiError(LockCoinErrors, "already locked by a different transaction")
+
 // Unknown Error
 var ErrUnknownError = NewSuiError(UnknownErrors, "UnknownError")
 
@@ -176,6 +184,7 @@ var suiErrorMappings = []struct {
 	{ErrUnsupported.Error(), ErrUnsupported},
 	{ErrMoveFunctionInputError.Error(), ErrMoveFunctionInputError},
 	{ErrPostRandomCommandRestrictions.Error(), ErrPostRandomCommandRestrictions},
+	{ErrObjectVersionUnavailableForConsumption.Error(), ErrObjectVersionUnavailableForConsumption},
 
 	// Gas Errors
 	{ErrMissingGasPayment.Error(), ErrMissingGasPayment},
@@ -225,9 +234,16 @@ var suiErrorMappings = []struct {
 	{ErrAlreadyExecutedError.Error(), ErrAlreadyExecutedError},
 	{ErrCertificateAlreadyProcessed.Error(), ErrCertificateAlreadyProcessed},
 
+	// Lock Coins error
+	{ErrLockCoins.Error(), ErrLockCoins},
+
 	// Unknown Error
 	{ErrUnknownError.Error(), ErrUnknownError},
 }
+
+var lockedObjectRe = regexp.MustCompile(
+	`Object\s+\((0x[0-9a-fA-F]+),\s*SequenceNumber\((\d+)\)`,
+)
 
 // ParseSuiErrorMessage maps a raw RPC error message to a structured error.
 // It iterates over the known substrings in suiErrorMappings. If a substring is found,
@@ -240,6 +256,25 @@ func ParseSuiErrorMessage(msg string) *SuiError {
 	}
 
 	return NewSuiError(UnknownErrors, msg)
+}
+
+// ExtractLockedObjectRef parses a Sui equivocation / lock error message and returns
+// (objectID, version, ok).
+func ExtractLockedObjectRef(msg string) (string, uint64, bool) {
+	m := lockedObjectRe.FindStringSubmatch(msg)
+	if len(m) != 3 {
+		return "", 0, false
+	}
+
+	objID := m[1]
+	verStr := m[2]
+
+	ver, err := strconv.ParseUint(verStr, 10, 64)
+	if err != nil {
+		return objID, 0, false
+	}
+
+	return objID, ver, true
 }
 
 var ExponentialBackoffErrors = []error{

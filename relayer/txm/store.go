@@ -49,6 +49,7 @@ type TxmStore interface {
 	) error
 
 	UpdateTransactionError(transactionID string, txError *suierrors.SuiError) error
+	UpdateTransactionBroadcastError(transactionID string, broadcastError string) error
 
 	// DeleteTransaction removes a transaction from the store.
 	// Returns an error if the transaction is not found.
@@ -159,6 +160,7 @@ var validTransitions = map[TransactionState]map[TransactionState]bool{
 	StatePending: {
 		StateSubmitted: true,
 		StateFailed:    true,
+		StateRetriable: true,
 	},
 	StateSubmitted: {
 		StateFinalized: true,
@@ -321,6 +323,19 @@ func (s *InMemoryStore) UpdateTransactionError(transactionID string, txError *su
 		return fmt.Errorf("transaction not found")
 	}
 	tx.TxError = txError
+
+	return nil
+}
+
+func (s *InMemoryStore) UpdateTransactionBroadcastError(transactionID string, broadcastError string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, exists := s.transactions[transactionID]
+	if !exists {
+		return fmt.Errorf("transaction not found")
+	}
+	tx.BroadcastError = broadcastError
 
 	return nil
 }

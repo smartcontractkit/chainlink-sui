@@ -92,6 +92,13 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 			// Default to retrying the transaction
 			newState := StateRetriable
 
+			// Attach the transaction submission error to the transaction object. If it remains marked as retriable, 
+			// the "confirmer" loop will pick it up and potentially retry it.
+			err = txm.transactionRepository.UpdateTransactionBroadcastError(tx.TransactionID, err.Error())
+			if err != nil {
+				txm.lggr.Errorw("Failed to update transaction broadcast error", "txID", tx.TransactionID, "error", err)
+			}
+
 			if resp.Effects.Status.Status != "" && resp.TxDigest == "" {
 				// Update the transaction state to Failed if the digest is empty
 				// An empty digest indicates a total failure of the transaction
@@ -102,7 +109,6 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 			// Attempt updating the state if it has changed
 			if tx.State != newState {
 				err = txm.transactionRepository.ChangeState(tx.TransactionID, newState)
-
 				if err != nil {
 					txm.lggr.Errorw("Failed to change transaction state", "txID", tx.TransactionID, "error", err)
 				}
@@ -118,6 +124,8 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 			continue
 		}
 
+		// Update the transaction state to submitted as we have not yet confirmed its status.
+		// The "confirmer" loop checks the transactions statuses and possibly marks them as finalized.
 		err = txm.transactionRepository.ChangeState(tx.TransactionID, StateSubmitted)
 		if err != nil {
 			txm.lggr.Errorw("Failed to change transaction state to Submitted", "txID", tx.TransactionID, "error", err)

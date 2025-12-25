@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/patrickmn/go-cache"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
@@ -19,9 +20,9 @@ const (
 )
 
 type GasCoinManager interface {
-	TryReserveCoins(ctx context.Context, txID string, coinIDs []models.ObjectId) error
+	TryReserveCoins(ctx context.Context, txID string, paymentCoins []transaction.SuiObjectRef) error
 	ReleaseCoins(txID string) error
-	IsCoinReserved(coinID models.ObjectId) bool
+	IsCoinReserved(coinID models.SuiAddressBytes) bool
 }
 
 // SuiGasCoinManager is the concrete implementation of GasCoinManager.
@@ -41,13 +42,13 @@ func NewGasCoinManager(lggr logger.Logger, suiClient client.SuiPTBClient) *SuiGa
 	return gcm
 }
 
-func (m *SuiGasCoinManager) TryReserveCoins(ctx context.Context, txID string, coinIDs []models.ObjectId) error {
-	for _, coinIDBytes := range coinIDs {
-		if m.IsCoinReserved(coinIDBytes) {
-			return fmt.Errorf("coin %s is already reserved", coinIDBytes)
+func (m *SuiGasCoinManager) TryReserveCoins(ctx context.Context, txID string, coinIDs []transaction.SuiObjectRef) error {
+	for _, coin := range coinIDs {
+		if m.IsCoinReserved(coin.ObjectId) {
+			return fmt.Errorf("coin %s is already reserved", coin.ObjectId)
 		}
 		
-		coinID := hex.EncodeToString(coinIDBytes.Data())
+		coinID := hex.EncodeToString(coin.ObjectId[:])
 		m.coinsCache.Set(coinID, true, DefaultAllocationTimeout)
 	}
 
@@ -62,8 +63,8 @@ func (m *SuiGasCoinManager) ReleaseCoins(txID string) error {
 		return fmt.Errorf("no coins reserved for transaction %s", txID)
 	}
 
-	for _, coinIDBytes := range coinIDs.([]models.ObjectId) {
-		coinID := hex.EncodeToString(coinIDBytes.Data())
+	for _, coinIDBytes := range coinIDs.([]models.SuiAddressBytes) {
+		coinID := hex.EncodeToString(coinIDBytes[:])
 		m.coinsCache.Delete(coinID)
 	}
 
@@ -71,8 +72,8 @@ func (m *SuiGasCoinManager) ReleaseCoins(txID string) error {
 	return nil
 }
 
-func (m *SuiGasCoinManager) IsCoinReserved(coinID models.ObjectId) bool {
-	coinIDStr := hex.EncodeToString(coinID.Data())
+func (m *SuiGasCoinManager) IsCoinReserved(coinID models.SuiAddressBytes) bool {
+	coinIDStr := hex.EncodeToString(coinID[:])
 	isReserved, found := m.coinsCache.Get(coinIDStr)
 	return found && isReserved.(bool)
 }

@@ -33,6 +33,7 @@ type SuiTxm struct {
 	transactionRepository TxmStore
 	retryManager          RetryManager
 	gasManager            GasManager
+	coinManager           GasCoinManager
 	configuration         Config
 	Starter               commonutils.StartStopOnce
 	done                  sync.WaitGroup
@@ -49,6 +50,8 @@ func NewSuiTxm(
 	lggr.Infof("SuiTxm configuration: %+v", conf)
 	lggr.Infof("Gas manager Max Gas Budget: %+v", gasManager.MaxGasBudget())
 
+	coinManager := NewGasCoinManager(lggr, gateway)
+
 	return &SuiTxm{
 		lggr:                  logger.Named(lggr, "SuiTxm"),
 		suiGateway:            gateway,
@@ -56,6 +59,7 @@ func NewSuiTxm(
 		transactionRepository: transactionsRepository,
 		retryManager:          retryManager,
 		gasManager:            gasManager,
+		coinManager:           coinManager,
 		configuration:         conf,
 		broadcastChannel:      make(chan string, conf.BroadcastChanSize),
 		stopChannel:           make(chan struct{}),
@@ -86,7 +90,7 @@ func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetad
 	txn, err := GeneratePTBTransactionWithGasEstimation(
 		ctx, signerPublicKey, txm.lggr, txm.keystoreService, txm.suiGateway,
 		txm.configuration.RequestType, transactionID, txMetadata,
-		ptb, simulateTx, txm.gasManager,
+		ptb, simulateTx, txm.gasManager, txm.coinManager,
 	)
 	if err != nil {
 		txm.lggr.Errorw("Failed to generate PTB txn", "error", err)
@@ -104,6 +108,12 @@ func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetad
 	txm.broadcastChannel <- transactionID
 	txm.lggr.Infow("PTB Transaction added to broadcast channel", "transactionID", transactionID)
 	txm.lggr.Infow("PTB Transaction enqueued", "transactionID", transactionID)
+
+	err = txm.coinManager.TryReserveCoins(ctx, transactionID, txn.PaymentCoinsObjectRef)
+	if err != nil {
+		txm.lggr.Errorw("Failed to reserve coins", "error", err)
+		return nil, err
+	}
 
 	return txn, nil
 }

@@ -5,6 +5,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -56,14 +58,26 @@ func checkConfirmations(loopCtx context.Context, txm *SuiTxm) {
 
 	for _, tx := range inFlightTransactions {
 		txm.lggr.Debugw("Checking transaction confirmations", "transactionID", tx.TransactionID)
-		if tx.State != StateSubmitted {
-			continue
-		}
 
-		txm.lggr.Debugw("Transaction is in submitted state", "transactionID", tx.TransactionID)
-		resp, err := txm.suiGateway.GetTransactionStatus(loopCtx, tx.Digest)
-		if err != nil {
-			txm.lggr.Errorw("Error getting transaction status", "transactionID", tx.TransactionID, "error", err)
+		var resp client.TransactionResult
+		var err error
+
+		if tx.State == StateSubmitted {
+			txm.lggr.Debugw("Transaction is in submitted state", "transactionID", tx.TransactionID)
+			resp, err = txm.suiGateway.GetTransactionStatus(loopCtx, tx.Digest)
+			if err != nil {
+				txm.lggr.Errorw("Error getting transaction status", "transactionID", tx.TransactionID, "error", err)
+				continue
+			}
+		} else if tx.State == StateRetriable {
+			txm.lggr.Debugw("Transaction is in retriable state", "transactionID", tx.TransactionID)
+			// Check if it's a broadcast error (never made it onchain)
+			if tx.BroadcastError == "" {
+				continue
+			}
+			resp.Status = failure
+			resp.Error = tx.BroadcastError
+		} else {
 			continue
 		}
 
@@ -95,8 +109,37 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 	txm.lggr.Debugw("Handling transaction error", "transactionID", tx.TransactionID, "error", result.Error)
 
 	txError := suierrors.ParseSuiErrorMessage(result.Error)
-	if txError == nil {
-		txError = suierrors.NewSuiError(suierrors.UnknownErrors, result.Error)
+
+	// Check if the error is a locked object error, mark the coin as reserved if it is not already
+	// to avoid other transactions from using it
+	if objectID, version, ok := suierrors.ExtractLockedObjectRef(result.Error); ok {
+		txm.lggr.Infow("Detected locked coin at confirmation time",
+			"txID", tx.TransactionID,
+			"objectID", objectID,
+			"version", version,
+		)
+		
+		coinID, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(objectID))
+		if err == nil && !txm.coinManager.IsCoinReserved(*coinID) {
+			// The coin is not recorded is not marked as reserved, mark it as reserved
+			err = txm.coinManager.TryReserveCoins(ctx, tx.TransactionID, []transaction.SuiObjectRef{
+				{
+					ObjectId: *coinID,
+					Version:  0,
+					Digest:   nil,
+				},
+			})
+
+			if err != nil {
+				// This is not a critical error, so we continue
+				txm.lggr.Debugw(
+					"Failed to mark locked coin as reserved",
+					"transactionID", tx.TransactionID,
+					"objectID", objectID,
+					"error", err,
+				)
+			}
+		}
 	}
 
 	isRetryable, strategy := txm.retryManager.IsRetryable(&tx, result.Error)

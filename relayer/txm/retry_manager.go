@@ -136,6 +136,8 @@ func defaultRetryStrategy(tx *SuiTx, txErrorMsg string, maxRetries int) (bool, R
 // isRetryable determines if a Sui error is retryable (transient) and returns the appropriate retry strategy.
 // It uses errors.Is to correctly recognize wrapped errors.
 func isRetryable(err error) (bool, RetryStrategy) {
+	
+	
 	for _, retryErr := range suierrors.ExponentialBackoffErrors {
 		if errors.Is(err, retryErr) {
 			return true, ExponentialBackoff
