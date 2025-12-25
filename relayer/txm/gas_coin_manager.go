@@ -20,7 +20,7 @@ const (
 )
 
 type GasCoinManager interface {
-	TryReserveCoins(ctx context.Context, txID string, paymentCoins []transaction.SuiObjectRef) error
+	TryReserveCoins(ctx context.Context, txID string, paymentCoins []transaction.SuiObjectRef, expiry *time.Duration) error
 	ReleaseCoins(txID string) error
 	IsCoinReserved(coinID models.SuiAddressBytes) bool
 }
@@ -42,14 +42,25 @@ func NewGasCoinManager(lggr logger.Logger, suiClient client.SuiPTBClient) *SuiGa
 	return gcm
 }
 
-func (m *SuiGasCoinManager) TryReserveCoins(ctx context.Context, txID string, coinIDs []transaction.SuiObjectRef) error {
+func (m *SuiGasCoinManager) TryReserveCoins(
+	ctx context.Context, 
+	txID string, 
+	coinIDs []transaction.SuiObjectRef,
+	expiry *time.Duration,
+) error {
 	for _, coin := range coinIDs {
 		if m.IsCoinReserved(coin.ObjectId) {
 			return fmt.Errorf("coin %s is already reserved", coin.ObjectId)
 		}
 		
 		coinID := hex.EncodeToString(coin.ObjectId[:])
-		m.coinsCache.Set(coinID, true, DefaultAllocationTimeout)
+		expiresAt := DefaultAllocationTimeout
+
+		if expiry != nil {
+			expiresAt = *expiry
+		}
+
+		m.coinsCache.Set(coinID, true, expiresAt)
 	}
 
 	m.coinsCache.Set(txID, coinIDs, DefaultAllocationTimeout)

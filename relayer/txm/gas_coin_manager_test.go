@@ -49,7 +49,7 @@ func TestSuiGasCoinManager_TryReserveCoins(t *testing.T) {
 	}
 	
 	t.Run("successfully reserve coins", func(t *testing.T) {
-		err := gcm.TryReserveCoins(ctx, txID, coinIDs)
+		err := gcm.TryReserveCoins(ctx, txID, coinIDs, nil)
 		assert.NoError(t, err)
 		
 		// Verify coins are reserved
@@ -65,7 +65,7 @@ func TestSuiGasCoinManager_TryReserveCoins(t *testing.T) {
 	
 	t.Run("fail to reserve already reserved coin", func(t *testing.T) {
 		// Try to reserve the same coins again
-		err := gcm.TryReserveCoins(ctx, "tx-test-2", coinIDs)
+		err := gcm.TryReserveCoins(ctx, "tx-test-2", coinIDs, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "is already reserved")
 	})
@@ -92,7 +92,7 @@ func TestSuiGasCoinManager_TryReserveCoins(t *testing.T) {
 			},
 		}
 
-		err = gcm.TryReserveCoins(ctx, "tx-test-3", coinIDs)
+		err = gcm.TryReserveCoins(ctx, "tx-test-3", coinIDs, nil)
 		assert.NoError(t, err)
 
 		// coins are reserved
@@ -108,7 +108,7 @@ func TestSuiGasCoinManager_TryReserveCoins(t *testing.T) {
 		assert.False(t, gcm.IsCoinReserved(*coinID2Bytes))
 
 		// try to reserve the coins again
-		err = gcm.TryReserveCoins(ctx, "tx-test-3", coinIDs)
+		err = gcm.TryReserveCoins(ctx, "tx-test-3", coinIDs, nil)
 		assert.NoError(t, err)
 	})
 
@@ -123,7 +123,7 @@ func TestSuiGasCoinManager_TryReserveCoins(t *testing.T) {
 			},
 		}
 		
-		err = gcm.TryReserveCoins(ctx, "tx-test-4", coinIDs)
+		err = gcm.TryReserveCoins(ctx, "tx-test-4", coinIDs, nil)
 		assert.NoError(t, err)
 		
 		// coins should be released automatically after the default TTL (30 seconds)

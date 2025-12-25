@@ -109,7 +109,7 @@ func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetad
 	txm.lggr.Infow("PTB Transaction added to broadcast channel", "transactionID", transactionID)
 	txm.lggr.Infow("PTB Transaction enqueued", "transactionID", transactionID)
 
-	err = txm.coinManager.TryReserveCoins(ctx, transactionID, txn.PaymentCoinsObjectRef)
+	err = txm.coinManager.TryReserveCoins(ctx, transactionID, txn.PaymentCoinsObjectRef, nil)
 	if err != nil {
 		txm.lggr.Errorw("Failed to reserve coins", "error", err)
 		return nil, err
