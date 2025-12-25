@@ -74,8 +74,8 @@ func (m *SuiGasCoinManager) ReleaseCoins(txID string) error {
 		return fmt.Errorf("no coins reserved for transaction %s", txID)
 	}
 
-	for _, coinIDBytes := range coinIDs.([]models.SuiAddressBytes) {
-		coinID := hex.EncodeToString(coinIDBytes[:])
+	for _, coin := range coinIDs.([]transaction.SuiObjectRef) {
+		coinID := hex.EncodeToString(coin.ObjectId[:])
 		m.coinsCache.Delete(coinID)
 	}
 
