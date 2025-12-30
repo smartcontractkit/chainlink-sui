@@ -232,6 +232,33 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
+
+		if isUpgrade {
+			// Replace mcms_user.move inside the temp sui-temp-* workspace with upgraded mock version
+			upgradeSrc := filepath.Join(dstRoot, "mcms", "mcms_test_v2", "sources", "mcms_user.move")
+			upgradeDst := filepath.Join(packageRoot, "sources", "mcms_user.move")
+
+			// Read the mock upgrade file from repo
+			input, err := os.ReadFile(upgradeSrc)
+			if err != nil {
+				return PackageArtifact{}, fmt.Errorf("reading mcms_user upgrade mock %q: %w", upgradeSrc, err)
+			}
+
+			// Overwrite the mcms_user.move in the sui-temp workspace
+			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
+				return PackageArtifact{}, fmt.Errorf("replacing mcms_user.move inside sui-temp workspace: %w", err)
+			}
+
+			mcmsUserAddr := namedAddresses["original_mcms_user_pkg"]
+			if !isZeroAddress(mcmsUserAddr) {
+				mcmsUserDir := filepath.Join(dstRoot, "mcms", "mcms_test")
+				if err := managePackage(mcmsUserDir, 1, rpcURL, env, mcmsUserAddr, mcmsUserAddr); err != nil {
+					return PackageArtifact{}, fmt.Errorf("failed to manage MCMS User dependency: %w", err)
+				}
+			} else {
+				fmt.Println("Skipping manage-package for MCMS User (no published address found)")
+			}
+		}
 	}
 
 	if packageName == contracts.MCMSUserV2 {
@@ -243,6 +270,57 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 			}
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
+		}
+
+		if isUpgrade {
+			// Replace mcms_user.move inside the temp sui-temp-* workspace with upgraded mock version
+			upgradeSrc := filepath.Join(dstRoot, "mcms", "mcms_test_v2", "sources", "mcms_user.move")
+			upgradeDst := filepath.Join(packageRoot, "sources", "mcms_user.move")
+
+			// Read the mock upgrade file from repo
+			input, err := os.ReadFile(upgradeSrc)
+			if err != nil {
+				return PackageArtifact{}, fmt.Errorf("reading mcms_user upgrade mock %q: %w", upgradeSrc, err)
+			}
+
+			// Overwrite the mcms_user.move in the sui-temp workspace
+			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
+				return PackageArtifact{}, fmt.Errorf("replacing mcms_user.move inside sui-temp workspace: %w", err)
+			}
+
+			mcmsUserV2Addr := namedAddresses["original_mcms_user_v2_pkg"]
+			if !isZeroAddress(mcmsUserV2Addr) {
+				mcmsUserV2Dir := filepath.Join(dstRoot, "mcms", "mcms_test_v2")
+				if err := managePackage(mcmsUserV2Dir, 1, rpcURL, env, mcmsUserV2Addr, mcmsUserV2Addr); err != nil {
+					return PackageArtifact{}, fmt.Errorf("failed to manage MCMS User V2 dependency: %w", err)
+				}
+			} else {
+				fmt.Println("Skipping manage-package for MCMS User V2 (no published address found)")
+			}
+		}
+	}
+
+	if packageName == contracts.MCMSUserV2 {
+		mcmsAddr := namedAddresses["mcms"]
+		if !isZeroAddress(mcmsAddr) {
+			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for MCMS (no published address found)")
+		}
+
+		// For MCMSUserV2, we need to manage the original package address
+		// This is required for upgrades even when not using sui client upgrade command
+		mcmsUserV2Addr := namedAddresses["original_mcms_user_v2_pkg"]
+		if !isZeroAddress(mcmsUserV2Addr) {
+			mcmsUserV2Dir := filepath.Join(dstRoot, "mcms", "mcms_test_v2")
+			if err := managePackage(mcmsUserV2Dir, 1, rpcURL, env, mcmsUserV2Addr, mcmsUserV2Addr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS User V2 dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for MCMS User V2 (no published address found)")
 		}
 	}
 

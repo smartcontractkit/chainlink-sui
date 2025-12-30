@@ -27,11 +27,11 @@ type UpgradeCCIPInput struct {
 	// MCMS related
 	MmcsPackageID      string `json:"mcmsPackageID"`
 	McmsStateObjID     string `json:"mcmsStateObjID"`
-	OwnerCapObjID      string `json:"accountObjID"`
 	RegistryObjID      string `json:"registryObjID"`
 	TimelockObjID      string `json:"timelockObjID"`
 	AccountObjID       string `json:"accountObjID"`
 	DeployerStateObjID string `json:"deployerStateObjID"`
+	OwnerCapObjID      string `json:"ownerCapObjID"`
 
 	// Timelock related
 	TimelockConfig utils.TimelockConfig `json:"timelockConfig"`
@@ -40,12 +40,28 @@ type UpgradeCCIPInput struct {
 var upgradeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input UpgradeCCIPInput) (output mcms.TimelockProposal, err error) {
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	artifact, err := bind.CompilePackage(input.PackageName, input.NamedAddresses, true, deps.SuiRPC)
+
+	// Get the actual signer address for compilation
+	signerAddress, err := deps.Signer.GetAddress()
 	if err != nil {
 		return mcms.TimelockProposal{}, err
 	}
 
-	mcmsTx, err := suisdk.CreateUpgradeTransaction(artifact, input.MmcsPackageID, input.McmsStateObjID, input.RegistryObjID, input.OwnerCapObjID, input.TargetPackageId)
+	namedAddresses := make(map[string]string)
+	for k, v := range input.NamedAddresses {
+		namedAddresses[k] = v
+	}
+	namedAddresses["signer"] = signerAddress
+
+	// For MCMS-managed upgrades, we don't use isUpgrade=true because the UpgradeCap
+	// is managed by the MCMS deployer. We compile as a regular package and let
+	// MCMS handle the upgrade authorization through authorize_upgrade.
+	artifact, err := bind.CompilePackage(input.PackageName, namedAddresses, false, deps.SuiRPC)
+	if err != nil {
+		return mcms.TimelockProposal{}, err
+	}
+
+	mcmsTx, err := suisdk.CreateUpgradeTransaction(artifact, input.MmcsPackageID, input.DeployerStateObjID, input.RegistryObjID, input.OwnerCapObjID, input.TargetPackageId)
 	if err != nil {
 		return mcms.TimelockProposal{}, err
 	}
