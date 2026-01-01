@@ -102,6 +102,7 @@ func handleSuccess(txm *SuiTxm, tx SuiTx) error {
 		return err
 	}
 	txm.lggr.Infow("Transaction finalized", "transactionID", tx.TransactionID)
+	txm.coinManager.ReleaseCoins(tx.TransactionID)
 	return nil
 }
 
@@ -229,6 +230,8 @@ func markTransactionFailed(txm *SuiTxm, tx SuiTx, txError *suierrors.SuiError) e
 		txm.lggr.Errorw("Failed to update transaction error", "transactionID", tx.TransactionID, "error", err)
 		return err
 	}
+
+	txm.coinManager.ReleaseCoins(tx.TransactionID)
 
 	txm.lggr.Infow("Transaction failed", "transactionID", tx.TransactionID)
 	return nil
