@@ -102,7 +102,12 @@ func handleSuccess(txm *SuiTxm, tx SuiTx) error {
 		return err
 	}
 	txm.lggr.Infow("Transaction finalized", "transactionID", tx.TransactionID)
-	txm.coinManager.ReleaseCoins(tx.TransactionID)
+
+	if err := txm.coinManager.ReleaseCoins(tx.TransactionID); err != nil {
+		// This error is not critical, can be safely ignored as the coins will auto-release after the default TTL
+		txm.lggr.Debugw("Failed to release coins", "transactionID", tx.TransactionID, "error", err)
+	}
+
 	return nil
 }
 
@@ -119,12 +124,12 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 			"objectID", objectID,
 			"version", version,
 		)
-		
+
 		coinID, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(objectID))
 		if err == nil && !txm.coinManager.IsCoinReserved(*coinID) {
 			// Coin lock duration
 			expiry := 24 * time.Hour
-			
+
 			// The coin is not recorded is not marked as reserved, mark it as reserved
 			err = txm.coinManager.TryReserveCoins(ctx, tx.TransactionID, []transaction.SuiObjectRef{
 				{
@@ -231,8 +236,12 @@ func markTransactionFailed(txm *SuiTxm, tx SuiTx, txError *suierrors.SuiError) e
 		return err
 	}
 
-	txm.coinManager.ReleaseCoins(tx.TransactionID)
-
 	txm.lggr.Infow("Transaction failed", "transactionID", tx.TransactionID)
+
+	if err := txm.coinManager.ReleaseCoins(tx.TransactionID); err != nil {
+		// This error is not critical, can be safely ignored as the coins will auto-release after the default TTL
+		txm.lggr.Debugw("Failed to release coins", "transactionID", tx.TransactionID, "error", err)
+	}
+
 	return nil
 }
