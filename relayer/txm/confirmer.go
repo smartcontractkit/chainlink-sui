@@ -128,7 +128,7 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 		coinID, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(objectID))
 		if err == nil && !txm.coinManager.IsCoinReserved(*coinID) {
 			// Coin lock duration
-			expiry := 24 * time.Hour
+			expiry := DefaultLockedCoinTTL
 
 			// The coin is not recorded is not marked as reserved, mark it as reserved
 			err = txm.coinManager.TryReserveCoins(ctx, tx.TransactionID, []transaction.SuiObjectRef{

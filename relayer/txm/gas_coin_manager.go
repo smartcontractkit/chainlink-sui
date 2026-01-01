@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	DefaultLockedCoinTTL = 24 * time.Hour
+	DefaultLockedCoinTTL     = 24 * time.Hour
 	DefaultAllocationTimeout = 30 * time.Second
 )
 
@@ -27,24 +27,24 @@ type GasCoinManager interface {
 
 // SuiGasCoinManager is the concrete implementation of GasCoinManager.
 type SuiGasCoinManager struct {
-	lggr   logger.Logger
-	client client.SuiPTBClient
+	lggr       logger.Logger
+	client     client.SuiPTBClient
 	coinsCache *cache.Cache
 }
 
 // NewGasCoinManager creates a new SuiGasCoinManager.
 func NewGasCoinManager(lggr logger.Logger, suiClient client.SuiPTBClient) *SuiGasCoinManager {
 	gcm := &SuiGasCoinManager{
-		lggr:      logger.Named(lggr, "SuiGasCoinManager"),
-		client:    suiClient,
+		lggr:       logger.Named(lggr, "SuiGasCoinManager"),
+		client:     suiClient,
 		coinsCache: cache.New(DefaultAllocationTimeout, DefaultLockedCoinTTL),
 	}
 	return gcm
 }
 
 func (m *SuiGasCoinManager) TryReserveCoins(
-	ctx context.Context, 
-	txID string, 
+	ctx context.Context,
+	txID string,
 	coinIDs []transaction.SuiObjectRef,
 	expiry *time.Duration,
 ) error {
@@ -52,7 +52,7 @@ func (m *SuiGasCoinManager) TryReserveCoins(
 		if m.IsCoinReserved(coin.ObjectId) {
 			return fmt.Errorf("coin %s is already reserved", coin.ObjectId)
 		}
-		
+
 		coinID := hex.EncodeToString(coin.ObjectId[:])
 		expiresAt := DefaultAllocationTimeout
 
@@ -68,6 +68,8 @@ func (m *SuiGasCoinManager) TryReserveCoins(
 	return nil
 }
 
+// ReleaseCoins only releases reservations stored under a txID key (txID -> []SuiObjectRef).
+// It does not work with coinID keys (coinID -> bool) and cannot unlock those entries directly.
 func (m *SuiGasCoinManager) ReleaseCoins(txID string) error {
 	coinIDs, ok := m.coinsCache.Get(txID)
 	if !ok {
