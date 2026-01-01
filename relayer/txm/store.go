@@ -171,6 +171,8 @@ var validTransitions = map[TransactionState]map[TransactionState]bool{
 		StateSubmitted: true,
 		StateFinalized: true,
 		StateFailed:    true,
+		// Allow going from retriable to itself to avoid raising errors
+		StateRetriable: true,
 	},
 	StateFinalized: {},
 	StateFailed:    {},

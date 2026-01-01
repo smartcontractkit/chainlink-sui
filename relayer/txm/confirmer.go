@@ -163,6 +163,8 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 		return handleExponentialBackoffRetry(txm, tx)
 	case GasBump:
 		return handleGasBumpRetry(ctx, txm, tx, txError)
+	case CoinRefresh:
+		return handleCoinRefreshRetry(ctx, txm, tx, txError)
 	case NoRetry:
 		return markTransactionFailed(txm, tx, txError)
 	default:
@@ -195,6 +197,40 @@ func handleGasBumpRetry(ctx context.Context, txm *SuiTxm, tx SuiTx, txError *sui
 		return err
 	}
 
+	txm.broadcastChannel <- tx.TransactionID
+	return nil
+}
+
+func handleCoinRefreshRetry(ctx context.Context, txm *SuiTxm, tx SuiTx, txError *suierrors.SuiError) error {
+	txm.lggr.Infow("Coin refresh strategy - refreshing coins for locked coin error", "transactionID", tx.TransactionID)
+
+	// Release the old coins that are locked
+	if err := txm.coinManager.ReleaseCoins(tx.TransactionID); err != nil {
+		// This is not critical - coins will auto-release after TTL
+		txm.lggr.Debugw("Failed to release old coins", "transactionID", tx.TransactionID, "error", err)
+	}
+
+	// Get the current transaction to ensure we have the latest state
+	currentTx, err := txm.transactionRepository.GetTransaction(tx.TransactionID)
+	if err != nil {
+		txm.lggr.Errorw("Failed to get current transaction", "transactionID", tx.TransactionID, "error", err)
+		return err
+	}
+
+	// Calling UpdateTransactionGas will also update the gas coins used as the transaction gets re-built
+	// with new (unlocked) coins.
+	// Call chain: UpdateTransactionGas -> UpdateBSCPayload -> preparePTBTransaction (this refreshes the coins).
+	if err := txm.transactionRepository.UpdateTransactionGas(ctx, txm.keystoreService, txm.suiGateway, tx.TransactionID, currentTx.Metadata.GasLimit); err != nil {
+		txm.lggr.Errorw("Failed to update transaction with refreshed coins", "transactionID", tx.TransactionID, "error", err)
+		return err
+	}
+
+	if err := txm.transactionRepository.ChangeState(tx.TransactionID, StateRetriable); err != nil {
+		txm.lggr.Errorw("Failed to update transaction state", "transactionID", tx.TransactionID, "error", err)
+		return err
+	}
+
+	txm.lggr.Infow("Transaction refreshed with new coins", "transactionID", tx.TransactionID)
 	txm.broadcastChannel <- tx.TransactionID
 	return nil
 }

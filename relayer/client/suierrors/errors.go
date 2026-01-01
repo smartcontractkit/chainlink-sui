@@ -297,3 +297,7 @@ var GasBumpErrors = []error{
 	ErrInsufficientGas,
 	ErrGasPriceTooHigh,
 }
+
+var CoinRefreshErrors = []error{
+	ErrLockCoins,
+}
