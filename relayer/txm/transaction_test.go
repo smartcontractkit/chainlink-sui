@@ -113,6 +113,8 @@ func TestTransactionGeneration(t *testing.T) {
 			GasLimit: big.NewInt(int64(gasBudget)),
 		}
 
+		coinManager := txm.NewGasCoinManager(lggr, ptbClient)
+
 		tx, err := txm.GeneratePTBTransactionWithGasEstimation(
 			ctx,
 			publicKeyBytes,
@@ -125,6 +127,7 @@ func TestTransactionGeneration(t *testing.T) {
 			ptb,
 			true,
 			gasManager,
+			coinManager,
 		)
 
 		finalGasBudget := tx.GasBudget
