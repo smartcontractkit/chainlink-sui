@@ -63,9 +63,11 @@ type SuiTx struct {
 	Digest                string
 	LastUpdatedAt         uint64
 	TxError               *suierrors.SuiError
+	BroadcastError        string
 	GasBudget             uint64
 	Ptb                   *transaction.Transaction
 	PaymentCoinsObjectRef []transaction.SuiObjectRef
+	CoinManager           GasCoinManager
 }
 
 // UpdateBSCPayload regenerates the BCS payload and signatures for the SuiTx.
@@ -91,7 +93,7 @@ func (tx *SuiTx) UpdateBSCPayload(
 		return fmt.Errorf("failed to get address from public key: %w", err)
 	}
 
-	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, tx.Ptb, tx.GasBudget, lggr)
+	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, tx.Ptb, tx.GasBudget, lggr, tx.CoinManager)
 	if err != nil {
 		return fmt.Errorf("failed to prepare PTB transaction: %w", err)
 	}
@@ -155,6 +157,7 @@ func TransactionIDGenerator() string {
 //   - ptb: The ProgrammableTransaction block containing the commands to be executed.
 //   - simulateTx: Boolean flag indicating whether to simulate the transaction (currently unused).
 //   - gasManager: Gas manager for estimating gas requirements.
+//   - coinManager: Coin manager for managing gas coins.
 //
 // Returns:
 //   - *SuiTx: A complete transaction object ready for submission with accurate gas estimation.
@@ -171,6 +174,7 @@ func GeneratePTBTransactionWithGasEstimation(
 	ptb *transaction.Transaction,
 	simulateTx bool,
 	gasManager GasManager,
+	coinManager GasCoinManager,
 ) (*SuiTx, error) {
 	signerAddress, err := client.GetAddressFromPublicKey(pubKey)
 	if err != nil {
@@ -193,7 +197,8 @@ func GeneratePTBTransactionWithGasEstimation(
 		"preliminaryGasBudget", preliminaryGasBudget)
 
 	preliminaryTx, err := buildPreliminaryTransaction(
-		ctx, signerAddress, suiClient, ptb, preliminaryGasBudget, lggr,
+		ctx, signerAddress, suiClient, ptb, 
+		preliminaryGasBudget, lggr, coinManager,
 	)
 	if err != nil {
 		lggr.Errorf("failed to build preliminary transaction: %v", err)
@@ -275,6 +280,7 @@ func GeneratePTBTransactionWithGasEstimation(
 		LastUpdatedAt:         GetCurrentUnixTimestamp(),
 		TxError:               nil,
 		GasBudget:             finalGasBudget,
+		CoinManager:           coinManager,
 		Ptb:                   ptb,
 		PaymentCoinsObjectRef: preliminaryTx.PaymentCoinsObjectRef, // Use the coins selected in preliminary tx
 	}, nil
@@ -358,21 +364,8 @@ func preparePTBTransaction(
 	ptb *transaction.Transaction,
 	gasBudget uint64,
 	lggr logger.Logger,
+	coinManager GasCoinManager,
 ) (txBytes string, paymentCoins []transaction.SuiObjectRef, err error) {
-	// Get current epoch
-	epoch, err := suiClient.GetLatestEpoch(ctx)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to get current epoch: %w", err)
-	}
-
-	lggr.Debugw("Current epoch", "epoch", epoch)
-
-	// Parse epoch into uint64
-	epochUint, err := strconv.ParseUint(epoch, 10, 64)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to parse epoch: %w", err)
-	}
-
 	// Get available coins for gas
 	coinData, err := suiClient.GetCoinsByAddress(ctx, signerAddress)
 	if err != nil {
@@ -382,9 +375,16 @@ func preparePTBTransaction(
 	// Filter coins that are not locked
 	filteredCoinData := make([]models.CoinData, 0)
 	for _, coin := range coinData {
-		if coin.LockedUntilEpoch == 0 || coin.LockedUntilEpoch < epochUint {
-			filteredCoinData = append(filteredCoinData, coin)
+		coinObjectIdBytes, coinErr := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coin.CoinObjectId))
+		if coinErr != nil {
+			return "", nil, fmt.Errorf("failed to convert coin object ID to bytes: %w", coinErr)
 		}
+
+		if coinManager.IsCoinReserved(*coinObjectIdBytes) {
+			continue
+		}
+
+		filteredCoinData = append(filteredCoinData, coin)
 	}
 
 	// Select coins for gas budget
@@ -444,9 +444,10 @@ func buildPreliminaryTransaction(
 	ptb *transaction.Transaction,
 	gasBudget uint64,
 	lggr logger.Logger,
+	coinManager GasCoinManager,
 ) (*SuiTx, error) {
 	// Use common preparation logic
-	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, ptb, gasBudget, lggr)
+	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, ptb, gasBudget, lggr, coinManager)
 	if err != nil {
 		return nil, err
 	}

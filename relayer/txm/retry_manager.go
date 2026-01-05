@@ -16,6 +16,8 @@ const (
 	ExponentialBackoff
 	// GasBump indicates that the transaction should be retried after bumping its gas budget.
 	GasBump
+	// CoinRefresh indicates that the transaction should be retried with fresh coins (e.g., for locked coin errors).
+	CoinRefresh
 )
 
 // RetryStrategyFunc defines a function signature for evaluating if a transaction error
@@ -143,6 +145,12 @@ func isRetryable(err error) (bool, RetryStrategy) {
 	for _, retryErr := range suierrors.GasBumpErrors {
 		if errors.Is(err, retryErr) {
 			return true, GasBump
+		}
+	}
+
+	for _, retryErr := range suierrors.CoinRefreshErrors {
+		if errors.Is(err, retryErr) {
+			return true, CoinRefresh
 		}
 	}
 
