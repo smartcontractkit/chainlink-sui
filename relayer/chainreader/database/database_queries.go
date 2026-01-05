@@ -33,6 +33,7 @@ const (
 	CREATE INDEX IF NOT EXISTS idx_events_offset ON sui.events(event_account_address, event_handle, event_offset);
 	CREATE INDEX IF NOT EXISTS idx_events_data_gin ON sui.events USING gin(data);
 	CREATE UNIQUE INDEX IF NOT EXISTS idx_events_unique ON sui.events(event_handle, tx_digest, md5(data::text));
+	CREATE INDEX IF NOT EXISTS idx_events_account_handle_id ON sui.events(event_account_address, event_handle, id DESC);
 	`
 
 	InsertEvent = `
@@ -57,7 +58,7 @@ const (
     `
 
 	QueryEventsOffset = `
-	SELECT COALESCE(event_offset, 0) as event_offset, tx_digest, COUNT(*) OVER() as total_count
+	SELECT COALESCE(event_offset, 0) as event_offset, tx_digest
 	FROM sui.events 
 	WHERE event_account_address = $1 AND event_handle = $2 
 	ORDER BY id DESC 
