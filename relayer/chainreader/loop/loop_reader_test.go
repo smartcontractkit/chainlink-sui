@@ -200,6 +200,14 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 				},
 			},
 		},
+		EventsIndexer: config.EventsIndexerConfig{
+			PollingInterval: 10 * time.Second,
+			SyncTimeout:     30 * time.Second,
+		},
+		TransactionsIndexer: config.TransactionsIndexerConfig{
+			PollingInterval: 10 * time.Second,
+			SyncTimeout:     30 * time.Second,
+		},
 	}
 
 	echoBinding := types.BoundContract{
@@ -253,6 +261,10 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 
 	// Bind the contracts
 	err = loopReader.Bind(context.Background(), []types.BoundContract{echoBinding, counterBinding})
+	require.NoError(t, err)
+
+	// Start the indexers
+	err = indexerInstance.Start(ctx)
 	require.NoError(t, err)
 
 	log.Debugw("LoopChainReader setup complete")

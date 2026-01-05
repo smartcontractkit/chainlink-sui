@@ -32,6 +32,7 @@ const (
 	CREATE INDEX IF NOT EXISTS idx_events_account_handle_timestamp ON sui.events(event_account_address, event_handle, block_timestamp DESC);
 	CREATE INDEX IF NOT EXISTS idx_events_offset ON sui.events(event_account_address, event_handle, event_offset);
 	CREATE INDEX IF NOT EXISTS idx_events_data_gin ON sui.events USING gin(data);
+	CREATE INDEX IF NOT EXISTS idx_events_account_handle_id ON sui.events(event_account_address, event_handle, id DESC);
 	`
 
 	InsertEvent = `
@@ -50,24 +51,13 @@ const (
     `
 
 	QueryEventsBase = `
-	WITH filtered_events AS (
-		SELECT event_account_address, event_handle, event_offset, block_version, 
-			block_height, block_hash, block_timestamp, tx_digest, data,
-			ROW_NUMBER() OVER (
-				PARTITION BY tx_digest, block_height, md5(data::text)
-				ORDER BY event_offset DESC
-			) as rn
-		FROM sui.events
-		WHERE event_account_address = $1 AND event_handle = $2
-	)
-	SELECT event_account_address, event_handle, event_offset, block_version, 
-		block_height, block_hash, block_timestamp, tx_digest, data
-	FROM filtered_events
-	WHERE rn = 1
+	SELECT event_account_address, event_handle, event_offset, block_version, block_height, block_hash, block_timestamp, tx_digest, data
+	FROM sui.events
+	WHERE event_account_address = $1 AND event_handle = $2
     `
 
 	QueryEventsOffset = `
-	SELECT COALESCE(event_offset, 0) as event_offset, tx_digest, COUNT(*) OVER() as total_count
+	SELECT COALESCE(event_offset, 0) as event_offset, tx_digest
 	FROM sui.events 
 	WHERE event_account_address = $1 AND event_handle = $2 
 	ORDER BY id DESC 

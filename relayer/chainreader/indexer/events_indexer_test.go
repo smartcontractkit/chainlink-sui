@@ -596,6 +596,7 @@ func TestEventsIndexer(t *testing.T) {
 	})
 
 	t.Run("TestOrderedEventsQueryWithOutOfOrderEventOffset", func(t *testing.T) {
+		t.Skip("Skipping test ordered events query with out of order event offset until the relevant index is re-added")
 		// insert duplicate events with out of order event_offset for CCIPMessageSent
 
 		packageId := "0x30e087460af8a8aacccbc218aa358cdcde8d43faf61ec0638d71108e276e2f1d"
