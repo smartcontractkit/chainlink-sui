@@ -607,10 +607,10 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 		Event:   eventConfig.EventType,
 	}
 
-	// sync the event in case it's not already in the database
-	err = evIndexer.SyncEvent(ctx, &selector)
+	// ensure that the event selector is included in the indexer's set for upcoming polling loop syncs
+	err = evIndexer.AddEventSelector(ctx, &selector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add event selector: %w", err)
 	}
 
 	return eventConfig, nil
