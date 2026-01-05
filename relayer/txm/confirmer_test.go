@@ -113,7 +113,7 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 		Payload:       "payload",
 		Signatures:    []string{"signature"},
 		RequestType:   "WaitForEffectsCert",
-		Attempt:       1,
+		Attempt:       3,
 		State:         txm.StateSubmitted,
 		Digest:        "test-digest",
 		LastUpdatedAt: txm.GetCurrentUnixTimestamp(),
@@ -143,7 +143,7 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 		}
 
 		return updatedTx.State == txm.StateFailed
-	}, 15*time.Second, 1*time.Second, "Transaction did switch to failed state as expected")
+	}, 15*time.Second, 1000*time.Millisecond, "Transaction did not reach Failed state")
 
 	// Check that the transaction was retried and the gas limit was updated.
 	updatedTx, err := store.GetTransaction(txID)

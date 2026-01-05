@@ -126,9 +126,7 @@ func defaultRetryStrategy(tx *SuiTx, txErrorMsg string, maxRetries int) (bool, R
 	}
 
 	// Check if the transaction has exceeded the number of retries allowed.
-	// The +1 is to account for the initial attempt if maxRetries is 1 and the broadcaster always increments the attempt
-	// before the actual broadcast.
-	if tx.Attempt >= (maxRetries + 1) {
+	if tx.Attempt > maxRetries {
 		return false, NoRetry
 	}
 
