@@ -520,6 +520,36 @@ func TestEventsIndexer(t *testing.T) {
 		log.Infow("All concurrent access tests completed successfully")
 	})
 
+	t.Run("TestWithTimestamps", func(t *testing.T) {
+		log.Infow("Testing with timestamps")
+
+		// Trigger some events
+		for i := 1; i <= 3; i++ {
+			createEvent(i)
+		}
+
+		// Create a new event selector for timestamps
+		timestampEventSelector := &client.EventSelector{
+			Package: packageId,
+			Module:  "counter",
+			Event:   "CounterIncremented",
+		}
+
+		// Run sync to index events
+		err := indexer.SyncEvent(ctx, timestampEventSelector)
+		require.NoError(t, err)
+
+		// Wait for events to be indexed
+		events := waitForEventCount(3, 60*time.Second)
+		require.GreaterOrEqual(t, len(events), 3)
+
+		// Check that events are recorded with timestamps in seconds
+		for _, event := range events[:3] {
+			require.Greater(t, event.BlockTimestamp, uint64(0), "Event should have a timestamp")
+			require.Less(t, event.BlockTimestamp, uint64(time.Now().Unix()+1), "Event timestamp should be in the past")
+		}
+	})
+
 	t.Run("TestRaceDetection", func(t *testing.T) {
 		// Run with: go test -race -run TestEventsIndexer/TestRaceDetection
 		log.Infow("Starting race detection test")

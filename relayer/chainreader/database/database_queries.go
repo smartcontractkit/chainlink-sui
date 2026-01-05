@@ -21,6 +21,13 @@ const (
 	);
     `
 
+	CreateTransmitterCursorsTable = `
+	CREATE TABLE IF NOT EXISTS sui.transmitter_cursors (
+		transmitter TEXT PRIMARY KEY,
+		cursor TEXT NOT NULL
+	);
+	`
+
 	CreateIndices = `
 	CREATE INDEX IF NOT EXISTS idx_events_account_handle_timestamp ON sui.events(event_account_address, event_handle, block_timestamp DESC);
 	CREATE INDEX IF NOT EXISTS idx_events_offset ON sui.events(event_account_address, event_handle, event_offset);
@@ -66,5 +73,16 @@ const (
 	SELECT tx_digest
 	FROM sui.events
 	WHERE id = $1
+	`
+
+	GetTransmitterCursor = `
+	SELECT cursor
+	FROM sui.transmitter_cursors
+	WHERE transmitter = $1
+	`
+
+	UpdateTransmitterCursor = `
+	INSERT INTO sui.transmitter_cursors (transmitter, cursor) VALUES ($1, $2)
+	ON CONFLICT (transmitter) DO UPDATE SET cursor = $2;
 	`
 )

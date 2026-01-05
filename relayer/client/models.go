@@ -73,9 +73,6 @@ type EventFilterByMoveEventModule struct {
 	Package string `json:"package"`
 	Module  string `json:"module"`
 	Event   string `json:"event"`
-	// this is used to insert the event using the initial package ID event if the
-	// indexer is polling events based on the latest package ID after upgrades
-	InitialPackageId *string `json:"initialPackageId"`
 }
 
 // EventSelector is an alias for EventFilterByMoveEventModule

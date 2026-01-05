@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/mr-tron/base58"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
@@ -65,12 +66,13 @@ func NewTransactionsIndexer(
 	syncTimeout time.Duration,
 	eventConfigs map[string]*config.ChainReaderEvent,
 ) TransactionsIndexerApi {
-	dataStore := database.NewDBStore(db, lggr)
+	logInstance := logger.Named(lggr, "SuiTransactionsIndexer")
+	dataStore := database.NewDBStore(db, logInstance)
 
 	return &TransactionsIndexer{
 		db:                      dataStore,
 		client:                  sdkClient,
-		logger:                  lggr,
+		logger:                  logInstance,
 		pollingInterval:         pollingInterval,
 		syncTimeout:             syncTimeout,
 		transmitters:            make(map[models.SuiAddress]string),
@@ -230,6 +232,8 @@ func (tIndexer *TransactionsIndexer) SyncAllTransmittersTransactions(ctx context
 		return nil
 	}
 
+	tIndexer.logger.Debugw("syncTransmittersTransactions start", "transmitters", transmitters)
+
 	var batchSize uint64 = 50
 	var totalProcessed int
 
@@ -269,6 +273,8 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 	cursor := tIndexer.transmitters[transmitter]
 	totalProcessed := 0
 
+	tIndexer.logger.Debugw("syncTransmitterTransactions start", "transmitter", transmitter, "cursor", cursor)
+
 	eventAccountAddress, latestOfframpPackageId, err := tIndexer.getEventPackageIdFromConfig()
 	if err != nil {
 		return 0, fmt.Errorf("failed to get ExecutionStateChanged event config: %w", err)
@@ -279,6 +285,21 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 	case <-ctx.Done():
 		return totalProcessed, ctx.Err()
 	default:
+		if cursor == "" {
+			// Get the cursor from the DB store
+			transmitterCursorFromDB, err := tIndexer.db.GetTransmitterCursor(ctx, transmitter)
+			if err != nil {
+				tIndexer.logger.Warnw("Failed to get transmitter cursor from DB store", "error", err)
+			}
+			// Attempt to check if a cursor exists in the DB store
+			if transmitterCursorFromDB != "" {
+				tIndexer.logger.Debugw("Found transmitter cursor in DB store", "transmitter", transmitter, "cursor", transmitterCursorFromDB)
+				cursor = transmitterCursorFromDB
+			} else {
+				tIndexer.logger.Debugw("No transmitter cursor found in DB store, starting fresh sync", "transmitter", transmitter)
+			}
+		}
+
 		queryResponse, err := tIndexer.client.QueryTransactions(ctx, string(transmitter), &cursor, &batchSize)
 		if err != nil {
 			return totalProcessed, fmt.Errorf("failed to fetch transactions for transmitter %s: %w", transmitter, err)
@@ -292,6 +313,12 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 		defer func() {
 			// Update the cursor to the last transaction digest regardless of the code path below
 			tIndexer.transmitters[transmitter] = lastDigest
+
+			// Update the cursor in the DB store
+			err := tIndexer.db.UpdateTransmitterCursor(ctx, transmitter, lastDigest)
+			if err != nil {
+				tIndexer.logger.Errorw("Failed to update transmitter cursor in DB store", "error", err)
+			}
 		}()
 
 		var records []database.EventRecord
@@ -358,6 +385,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 					"Expected PTB command (_::offramp::init_execute) not found in commands of failed PTB originating from known transmitter",
 					"transmitter", transmitter,
 					"digest", transactionRecord.Digest,
+					"transactionRecord", transactionRecord,
 				)
 				continue
 			}
@@ -473,13 +501,27 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				continue
 			}
 
+			// Convert the txDigest to hex
+			txDigestHex := transactionRecord.Digest
+			if base64Bytes, err := base58.Decode(txDigestHex); err == nil {
+				hexTxId := hex.EncodeToString(base64Bytes)
+				txDigestHex = "0x" + hexTxId
+			}
+
+			blockHashBytes, err := base58.Decode(checkpointResponse.Digest)
+			if err != nil {
+				tIndexer.logger.Errorw("Failed to decode block hash", "error", err)
+				// fallback
+				blockHashBytes = []byte(checkpointResponse.Digest)
+			}
+
 			record := database.EventRecord{
 				EventAccountAddress: eventAccountAddress,
 				EventHandle:         eventHandle,
 				EventOffset:         0,
-				TxDigest:            transactionRecord.Digest,
+				TxDigest:            txDigestHex,
 				BlockHeight:         checkpointResponse.SequenceNumber,
-				BlockHash:           []byte(checkpointResponse.Digest),
+				BlockHash:           blockHashBytes,
 				BlockTimestamp:      blockTimestamp,
 				Data:                executionStateChanged,
 			}
@@ -596,7 +638,7 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 
 	filter := []query.Expression{
 		query.Comparator(selector,
-			primitives.ValueComparator{Value: sourceChainSelector, Operator: primitives.Eq},
+			primitives.ValueComparator{Value: strconv.FormatUint(sourceChainSelector, 10), Operator: primitives.Eq},
 		),
 	}
 
