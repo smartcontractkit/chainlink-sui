@@ -128,6 +128,23 @@ func (s *suiChainReader) HealthReport() map[string]error {
 
 func (s *suiChainReader) Start(ctx context.Context) error {
 	return s.starter.StartOnce(s.Name(), func() error {
+		// set the event offset overrides for the event indexer if any
+		offsetOverrides := make(map[string]client.EventId)
+
+		for _, moduleConfig := range s.config.Modules {
+			for _, eventConfig := range moduleConfig.Events {
+				if eventConfig.EventSelectorDefaultOffset != nil {
+					key := fmt.Sprintf("%s::%s", eventConfig.EventSelector.Module, eventConfig.EventSelector.Event)
+					offsetOverrides[key] = *eventConfig.EventSelectorDefaultOffset
+				}
+			}
+		}
+
+		if len(offsetOverrides) > 0 {
+			// ignore this error to avoid blocking the start of the chain reader
+			_ = s.indexer.GetEventIndexer().SetEventOffsetOverrides(ctx, offsetOverrides)
+		}
+
 		return nil
 	})
 }
@@ -568,11 +585,15 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 		return nil, err
 	}
 
-	if moduleConfig.Name != "" {
+	if moduleConfig.Name != "" && eventConfig.Name == "" {
 		eventConfig.Name = moduleConfig.Name
 	} else {
 		// If the module config has no name, use the module name from the event config
 		moduleConfig.Name = moduleConfig.Events[filter.Key].Module
+	}
+
+	if eventConfig.EventSelector.Module == "" {
+		eventConfig.EventSelector.Module = moduleConfig.Name
 	}
 
 	// only write contract address, rest will be handled during chainreader config
@@ -582,7 +603,7 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	// create a selector for the initial package ID
 	selector := client.EventSelector{
 		Package: contract.Address,
-		Module:  moduleConfig.Name,
+		Module:  eventConfig.EventSelector.Module,
 		Event:   eventConfig.EventType,
 	}
 
@@ -1016,7 +1037,7 @@ func (s *suiChainReader) getEventConfig(moduleConfig *config.ChainReaderModule, 
 // queryEvents queries events from the database instead of the Sui blockchain
 func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.ChainReaderEvent, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
 	// Create the event handle for database lookup
-	eventHandle := fmt.Sprintf("%s::%s::%s", eventConfig.Package, eventConfig.Name, eventConfig.EventType)
+	eventHandle := fmt.Sprintf("%s::%s::%s", eventConfig.Package, eventConfig.EventSelector.Module, eventConfig.EventType)
 
 	s.logger.Debugw("Querying events from database",
 		"address", eventConfig.Package,
