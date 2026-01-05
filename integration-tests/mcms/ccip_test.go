@@ -3,8 +3,13 @@
 package mcms
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	cselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
@@ -13,9 +18,11 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
+	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
+	"github.com/smartcontractkit/chainlink-sui/contracts"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
@@ -37,10 +44,18 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 		s.RunOwnershipCCIPTransfer()
 	})
 
+	s.T().Run("Register CCIP UpgradeCap with MCMS", func(t *testing.T) {
+		s.RegisterCCIPUpgradeCap()
+	})
+
 	s.T().Run("Execute config proposal against CCIP from MCMS", func(t *testing.T) {
 		RunTestCCIPFeeQuoterProposal(s)
 		RunCCIPRampsProposal(s)
 		RunTestRouterProposal(s)
+	})
+
+	s.T().Run("Upgrade CCIP through MCMS", func(t *testing.T) {
+		s.RunUpgradeCCIPProposal()
 	})
 }
 
@@ -415,4 +430,93 @@ func RunTestRouterProposal(s *CCIPMCMSTestSuite) {
 		require.NoError(s.T(), err, "getting on-ramp address for chain %d", destChainSelector)
 		require.Equal(s.T(), expectedOnRampAddresses[i], actualOnRampAddress, "on-ramp address for chain %d should match", destChainSelector)
 	}
+}
+
+func (s *CCIPMCMSTestSuite) RunUpgradeCCIPProposal() {
+	// Temporarily disable the test modifier to see if upgrade works without source changes
+	bind.SetTestModifier(func(packageRoot string) error {
+		sourcePath := filepath.Join(packageRoot, "sources", "fee_quoter.move")
+		content, _ := os.ReadFile(sourcePath)
+		modified := strings.Replace(string(content), "FeeQuoter 1.6.0", "FeeQuoter 1.7.0", 1)
+		return os.WriteFile(sourcePath, []byte(modified), 0o644)
+	})
+	defer bind.ClearTestModifier()
+
+	signerAddress, err := s.signer.GetAddress()
+	s.Require().NoError(err, "getting signer address")
+
+	// 1. Build upgrade input for CCIP package
+	input := mcmsops.UpgradeCCIPInput{
+		// Package related
+		PackageName:     contracts.CCIP,
+		TargetPackageId: s.ccipPackageId,
+		NamedAddresses: map[string]string{
+			"signer":            signerAddress,
+			"mcms":              s.mcmsPackageID,
+			"link":              s.linkPackageId,
+			"original_ccip_pkg": s.ccipPackageId,
+		},
+
+		ChainSelector: uint64(s.chainSelector),
+		// MCMS related
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		RegistryObjID:      s.registryObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		DeployerStateObjID: s.deployerStateObj,
+		OwnerCapObjID:      s.ownerCapObj, // MCMS OwnerCap
+
+		// Timelock related
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionSchedule,
+			MinDelay:     5 * time.Second,
+			OverrideRoot: false,
+		},
+	}
+
+	// 2. Execute operation to generate upgrade proposal
+	upgradeReport, err := cld_ops.ExecuteOperation(s.bundle, mcmsops.UpgradeCCIPOp, s.deps, input)
+	s.Require().NoError(err, "executing CCIP upgrade operation")
+
+	timelockProposal := upgradeReport.Output
+
+	s.T().Logf("✅ Generated CCIP upgrade proposal: %s", timelockProposal.Description)
+
+	// 3. Execute the upgrade proposal through MCMS using Schedule path
+	responses := s.ExecuteProposalE2e(&timelockProposal, s.proposerConfig, 6*time.Second)
+
+	tx, ok := responses[len(responses)-1].RawData.(*models.SuiTransactionBlockResponse)
+	s.Require().True(ok)
+
+	newAddress, err := getUpgradedAddress(s.T(), tx, s.mcmsPackageID)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(newAddress)
+
+	s.T().Logf("✅ Successfully upgraded CCIP package from %s to %s", s.ccipPackageId, newAddress)
+
+	// 4. Verify the new package version
+	feequoter, err := module_fee_quoter.NewFeeQuoter(newAddress, s.client)
+	s.Require().NoError(err)
+
+	version, err := feequoter.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
+	s.Require().NoError(err)
+	s.Require().Equal("FeeQuoter 1.7.0", version, "fee quoter version should be upgraded to 1.7.0")
+	s.ccipPackageId = newAddress
+}
+
+func (s *CCIPMCMSTestSuite) RegisterCCIPUpgradeCap() {
+	// Register CCIP package's UpgradeCap with MCMS deployer
+	ccipContract, err := module_state_object.NewStateObject(s.ccipPackageId, s.client)
+	require.NoError(s.T(), err, "creating CCIP state object contract")
+
+	_, err = ccipContract.McmsRegisterUpgradeCap(
+		s.T().Context(),
+		s.deps.GetCallOpts(),
+		bind.Object{Id: s.ccipObjects.UpgradeCapObjectId},
+		bind.Object{Id: s.registryObj},
+		bind.Object{Id: s.deployerStateObj},
+	)
+	require.NoError(s.T(), err, "registering CCIP UpgradeCap with MCMS")
+	s.T().Logf("✅ Registered CCIP UpgradeCap with MCMS deployer")
 }

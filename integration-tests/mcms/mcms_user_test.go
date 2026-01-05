@@ -4,7 +4,9 @@ package mcms
 
 import (
 	"testing"
+	"time"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
 
@@ -56,9 +58,6 @@ func (s *UpgradeTestSuite) SetupSuite() {
 	s.userOwnerCapObjectId = ownerCapObjectId
 	s.userUpgradeCapObjectId = upgradeCapObjectId
 
-	s.T().Logf("✅ MCMSUser UserData object: %s", s.userDataObjectId)
-	s.T().Logf("✅ MCMSUser OwnerCap object: %s", s.userOwnerCapObjectId)
-	s.T().Logf("✅ MCMSUser UpgradeCap object: %s", s.userUpgradeCapObjectId)
 	// Register MCMSUser entrypoint with MCMS
 	userContract, err := module_user.NewMcmsUser(s.mcmsUserPackageId, s.client)
 	require.NoError(s.T(), err, "creating MCMSUser contract")
@@ -81,21 +80,17 @@ func (s *UpgradeTestSuite) SetupSuite() {
 		bind.Object{Id: s.userUpgradeCapObjectId},
 		bind.Object{Id: s.registryObj},
 	)
-	require.NoError(s.T(), err, "registering UpgradeCap with MCMS")
-	s.T().Logf("✅ Registered UpgradeCap with MCMS deployer")
+	require.NoError(s.T(), err, "registering MCMSUser UpgradeCap with MCMS")
+	s.T().Logf("✅ Registered MCMSUser UpgradeCap with MCMS deployer")
 }
 
 func (s *UpgradeTestSuite) Test_Upgrade_MCMS_User() {
 	s.T().Run("Verify initial version", func(t *testing.T) {
-		s.VerifyMCMSUserVersion("MCMSUser 1.0.0")
+		s.VerifyVersion(s.mcmsUserPackageId, "MCMSUser 1.0.0")
 	})
 
 	s.T().Run("Upgrade MCMSUser through MCMS", func(t *testing.T) {
 		s.RunUpgradeMCMSUserProposal()
-	})
-
-	s.T().Run("Verify upgraded version", func(t *testing.T) {
-		s.VerifyMCMSUserVersion("MCMSUser 2.0.0")
 	})
 }
 
@@ -112,7 +107,7 @@ func (s *UpgradeTestSuite) RunUpgradeMCMSUserProposal() {
 			"mcms":                      s.mcmsPackageID,
 			"mcms_owner":                signerAddress,
 			"original_mcms_user_v2_pkg": s.mcmsUserPackageId,
-			"mcms_test":                 s.mcmsUserPackageId,
+			"mcms_test":                 "0x0",
 		},
 
 		ChainSelector: uint64(s.chainSelector),
@@ -123,12 +118,12 @@ func (s *UpgradeTestSuite) RunUpgradeMCMSUserProposal() {
 		TimelockObjID:      s.timelockObj,
 		AccountObjID:       s.accountObj,
 		DeployerStateObjID: s.deployerStateObj,
-		OwnerCapObjID:      s.ownerCapObj,
+		OwnerCapObjID:      s.ownerCapObj, // MCMS OwnerCap (not the user package's OwnerCap)
 
 		// Timelock related
 		TimelockConfig: utils.TimelockConfig{
-			MCMSAction:   types.TimelockActionBypass,
-			MinDelay:     0,
+			MCMSAction:   types.TimelockActionSchedule,
+			MinDelay:     5 * time.Second,
 			OverrideRoot: false,
 		},
 	}
@@ -141,21 +136,15 @@ func (s *UpgradeTestSuite) RunUpgradeMCMSUserProposal() {
 
 	s.T().Logf("✅ Generated upgrade proposal: %s", timelockProposal.Description)
 
-	// 3. Execute the upgrade proposal through MCMS
-	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+	// 3. Execute the upgrade proposal through MCMS using Schedule path
+	responses := s.ExecuteProposalE2e(&timelockProposal, s.proposerConfig, 6*time.Second)
 
-	s.T().Logf("✅ Successfully upgraded MCMSUser package from %s", s.mcmsUserPackageId)
-}
+	tx, ok := responses[len(responses)-1].RawData.(*models.SuiTransactionBlockResponse)
+	s.Require().True(ok)
 
-func (s *UpgradeTestSuite) VerifyMCMSUserVersion(expectedVersion string) {
-	// Create contract instance (will use the current package version)
-	userContract, err := module_user.NewMcmsUser(s.mcmsUserPackageId, s.client)
-	require.NoError(s.T(), err, "creating MCMSUser contract")
+	newAddress, err := getUpgradedAddress(s.T(), tx, s.mcmsPackageID)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(newAddress)
 
-	// Call type_and_version function
-	version, err := userContract.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
-	require.NoError(s.T(), err, "getting type and version")
-
-	s.T().Logf("✅ MCMSUser version: %s", version)
-	require.Equal(s.T(), expectedVersion, version, "version should match expected")
+	s.VerifyVersion(newAddress, "MCMSUser 2.0.0")
 }
