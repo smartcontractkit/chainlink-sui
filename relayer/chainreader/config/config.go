@@ -58,6 +58,10 @@ type ChainReaderEvent struct {
 
 	// The expected event type (optional). When not provided, the event type is used as-is.
 	ExpectedEventType any
+
+	// A fallback for events selectors with no offset recorded in the DB and a starting point
+	// earlier than the pruning cutoff of the RPC
+	EventSelectorDefaultOffset *client.EventId
 }
 
 type EventsIndexerConfig struct {
