@@ -245,9 +245,10 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 		if dbOffsetCursor != nil {
 			txDigest := dbOffsetCursor.TxDigest
 
-			// note: this is to ensure existing base58 txDigest can be read without error pre-migration.
-			if strings.HasPrefix(txDigest, "0x") || strings.HasPrefix(txDigest, "0X") {
-				txDigestBytes, err := hex.DecodeString(strings.TrimPrefix(strings.TrimPrefix(txDigest, "0x"), "0X"))
+			// Some DB records have base58 formatted txDigest while newer entries have hex formatted txDigest.
+			// We check if the txDigest is hex formatted and decode it if needed for backwards compatibility.
+			if strings.ToLower(txDigest[:2]) == "0x" {
+				txDigestBytes, err := hex.DecodeString(txDigest[2:])
 				if err != nil {
 					eIndexer.cursorMutex.RUnlock()
 					eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err, "txDigest", dbOffsetCursor.TxDigest)
