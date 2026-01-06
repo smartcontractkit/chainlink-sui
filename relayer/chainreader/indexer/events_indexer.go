@@ -243,16 +243,27 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 		}
 
 		if dbOffsetCursor != nil {
-			txDigestBytes, err := hex.DecodeString(strings.TrimPrefix(dbOffsetCursor.TxDigest, "0x"))
-			if err != nil {
-				eIndexer.cursorMutex.RUnlock()
-				eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err, "txDigest", dbOffsetCursor.TxDigest)
-				return err
-			}
-			// convert the db offset cursor digest from hex (the format stored in the DB) to base58 (the format expected by the client)
-			cursor = &models.EventId{
-				TxDigest: base58.Encode(txDigestBytes),
-				EventSeq: dbOffsetCursor.EventSeq,
+			txDigest := dbOffsetCursor.TxDigest
+
+			// note: this is to ensure existing base58 txDigest can be read without error pre-migration.
+			if strings.HasPrefix(txDigest, "0x") || strings.HasPrefix(txDigest, "0X") {
+				txDigestBytes, err := hex.DecodeString(strings.TrimPrefix(strings.TrimPrefix(txDigest, "0x"), "0X"))
+				if err != nil {
+					eIndexer.cursorMutex.RUnlock()
+					eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err, "txDigest", dbOffsetCursor.TxDigest)
+					return err
+				}
+
+				cursor = &models.EventId{
+					TxDigest: base58.Encode(txDigestBytes),
+					EventSeq: dbOffsetCursor.EventSeq,
+				}
+			} else {
+				// DB already has base58
+				cursor = &models.EventId{
+					TxDigest: txDigest,
+					EventSeq: dbOffsetCursor.EventSeq,
+				}
 			}
 
 			totalCount = dbTotalCount
