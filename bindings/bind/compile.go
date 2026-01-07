@@ -458,7 +458,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 
 		originalAddr := namedAddresses[originalPkgKey]
 		if !isZeroAddress(originalAddr) {
-			originalDir := filepath.Join(dstRoot, "ccip", packageDir)
+			originalDir := filepath.Join(dstRoot, "ccip", "ccip_token_pools", packageDir)
 			if err := managePackage(originalDir, 1, rpcURL, env, originalAddr, originalAddr); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage original %s dependency: %w", packageName, err)
 			}
