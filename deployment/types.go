@@ -28,6 +28,7 @@ var (
 	SuiCCIPRouterType                 deployment.ContractType = "SuiRouter"
 	SuiCCIPRouterStateObjectType      deployment.ContractType = "SuiRouterStateObjectID"
 	SuiCCIPRouterOwnerCapObjectIDType deployment.ContractType = "SuiCCIPRouterOwnerCapObjectID"
+	SuiRouterUpgradeCapObjectIDType   deployment.ContractType = "SuiRouterUpgradeCapObjectID"
 
 	// MCMS Related
 	SuiMCMSType                        deployment.ContractType = "SuiManyChainMultisig"

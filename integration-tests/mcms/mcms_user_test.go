@@ -142,7 +142,7 @@ func (s *UpgradeTestSuite) RunUpgradeMCMSUserProposal() {
 	tx, ok := responses[len(responses)-1].RawData.(*models.SuiTransactionBlockResponse)
 	s.Require().True(ok)
 
-	newAddress, err := getUpgradedAddress(s.T(), tx, s.mcmsPackageID)
+	newAddress, err := s.GetUpgradedAddress(tx, s.mcmsPackageID)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(newAddress)
 

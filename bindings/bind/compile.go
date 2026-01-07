@@ -301,6 +301,18 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
+
+		// For MCMS-managed upgrades, manage the original package as a dependency
+		managedTokenAddr := namedAddresses["original_managed_token_pkg"]
+		if !isZeroAddress(managedTokenAddr) {
+			managedTokenDir := filepath.Join(dstRoot, "ccip", "managed_token")
+			if err := managePackage(managedTokenDir, 1, rpcURL, env, managedTokenAddr, managedTokenAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage original ManagedToken dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for original ManagedToken (no published address found)")
+		}
+
 	}
 
 	if packageName == contracts.ManagedTokenFaucet {
@@ -426,6 +438,34 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		} else {
 			fmt.Println("Skipping manage-package for CCIP (no published address found)")
 		}
+
+		// For MCMS-managed upgrades, manage the original package as a dependency
+		var originalPkgKey, packageDir string
+		switch packageName {
+		case contracts.LockReleaseTokenPool:
+			originalPkgKey = "original_lock_release_token_pool_pkg"
+			packageDir = "lock_release_token_pool"
+		case contracts.BurnMintTokenPool:
+			originalPkgKey = "original_burn_mint_token_pool_pkg"
+			packageDir = "burn_mint_token_pool"
+		case contracts.ManagedTokenPool:
+			originalPkgKey = "original_managed_token_pool_pkg"
+			packageDir = "managed_token_pool"
+		case contracts.USDCTokenPool:
+			originalPkgKey = "original_usdc_token_pool_pkg"
+			packageDir = "usdc_token_pool"
+		}
+
+		originalAddr := namedAddresses[originalPkgKey]
+		if !isZeroAddress(originalAddr) {
+			originalDir := filepath.Join(dstRoot, "ccip", packageDir)
+			if err := managePackage(originalDir, 1, rpcURL, env, originalAddr, originalAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage original %s dependency: %w", packageName, err)
+			}
+		} else {
+			fmt.Printf("Skipping manage-package for original %s (no published address found)\n", packageName)
+		}
+
 	}
 
 	if packageName == contracts.ManagedTokenPool {
@@ -460,7 +500,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		} else {
 			fmt.Println("Skipping manage-package for CCIP (no published address found)")
 		}
-
 	}
 
 	if packageName == contracts.CCIPRouter {
@@ -472,6 +511,17 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			}
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
+		}
+
+		// For MCMS-managed upgrades, manage the original package as a dependency
+		ccipRouterAddr := namedAddresses["original_ccip_router_pkg"]
+		if !isZeroAddress(ccipRouterAddr) {
+			ccipRouterDir := filepath.Join(dstRoot, "ccip", "ccip_router")
+			if err := managePackage(ccipRouterDir, 1, rpcURL, env, ccipRouterAddr, ccipRouterAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage original CCIPRouter dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for original CCIPRouter (no published address found)")
 		}
 	}
 
@@ -539,6 +589,17 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			fmt.Println("Skipping manage-package for CCIP (no published address found)")
 		}
 
+		// For MCMS-managed upgrades, manage the original package as a dependency
+		ccipOnrampAddr := namedAddresses["original_ccip_onramp_pkg"]
+		if !isZeroAddress(ccipOnrampAddr) {
+			ccipOnrampDir := filepath.Join(dstRoot, "ccip", "ccip_onramp")
+			if err := managePackage(ccipOnrampDir, 1, rpcURL, env, ccipOnrampAddr, ccipOnrampAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage original CCIPOnramp dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for original CCIPOnramp (no published address found)")
+		}
+
 		// TODO: make this only for mock test upgrade
 		if isUpgrade {
 			// Replace onramp.move inside the temp sui-temp-* workspace with upgraded mock version
@@ -593,13 +654,24 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		}
 
 		ccipAddr := namedAddresses["ccip"]
-		if !isZeroAddress(mcmsAddr) {
+		if !isZeroAddress(ccipAddr) {
 			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
 			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
 			}
 		} else {
 			fmt.Println("Skipping manage-package for CCIP (no published address found)")
+		}
+
+		// For MCMS-managed upgrades, manage the original package as a dependency
+		ccipOfframpAddr := namedAddresses["original_ccip_offramp_pkg"]
+		if !isZeroAddress(ccipOfframpAddr) {
+			ccipOfframpDir := filepath.Join(dstRoot, "ccip", "ccip_offramp")
+			if err := managePackage(ccipOfframpDir, 1, rpcURL, env, ccipOfframpAddr, ccipOfframpAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage original CCIPOfframp dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for original CCIPOfframp (no published address found)")
 		}
 
 		// TODO: make this only for mock test upgrade
