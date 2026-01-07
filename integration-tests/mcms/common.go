@@ -118,20 +118,24 @@ type MCMSTestSuite struct {
 	linkObjects   linkops.DeployLinkObjects
 
 	// CCIP
-	ccipPackageId string
-	ccipObjects   ccipops.DeployCCIPSeqObjects
+	ccipPackageId       string
+	latestCcipPackageId string
+	ccipObjects         ccipops.DeployCCIPSeqObjects
 
 	// Router
-	ccipRouterPackageId string
-	ccipRouterObjects   routerops.DeployCCIPRouterObjects
+	ccipRouterPackageId       string
+	latestCcipRouterPackageId string
+	ccipRouterObjects         routerops.DeployCCIPRouterObjects
 
 	// Onramp
-	ccipOnrampPackageId string
-	ccipOnrampObjects   onrampops.DeployCCIPOnRampSeqObjects
+	ccipOnrampPackageId       string
+	latestCcipOnrampPackageId string
+	ccipOnrampObjects         onrampops.DeployCCIPOnRampSeqObjects
 
 	// offramp
-	ccipOfframpPackageId string
-	ccipOfframpObjects   offrampops.DeployCCIPOffRampSeqObjects
+	ccipOfframpPackageId       string
+	latestCcipOfframpPackageId string
+	ccipOfframpObjects         offrampops.DeployCCIPOffRampSeqObjects
 }
 
 // TODO: refactor so suites are per product
@@ -223,6 +227,15 @@ func (s *MCMSTestSuite) SetupSuite() {
 	s.SetupCCIP()
 }
 
+func (s *MCMSTestSuite) NewOpBundle() cld_ops.Bundle {
+	reporter := cld_ops.NewMemoryReporter()
+	return cld_ops.NewBundle(
+		s.T().Context,
+		logger.Test(s.T()),
+		reporter,
+	)
+}
+
 func (s *MCMSTestSuite) SetupCCIP() {
 	// Deploy LINK
 	linkReport, err := cld_ops.ExecuteOperation(s.bundle, linkops.DeployLINKOp, s.deps, cld_ops.EmptyInput{})
@@ -302,6 +315,7 @@ func (s *MCMSTestSuite) SetupCCIP() {
 
 	s.linkObjects = linkReport.Output.Objects
 	s.ccipPackageId = ccipReport.Output.CCIPPackageId
+	s.latestCcipPackageId = ccipReport.Output.CCIPPackageId
 	s.ccipObjects = ccipReport.Output.Objects
 
 	// Deploy Router
@@ -312,6 +326,7 @@ func (s *MCMSTestSuite) SetupCCIP() {
 	require.NoError(s.T(), err, "failed to execute CCIP deploy sequence")
 
 	s.ccipRouterPackageId = routerReport.Output.PackageId
+	s.latestCcipRouterPackageId = routerReport.Output.PackageId
 	s.ccipRouterObjects = routerReport.Output.Objects
 
 	// Deploy Onramp
@@ -335,6 +350,7 @@ func (s *MCMSTestSuite) SetupCCIP() {
 	require.NoError(s.T(), err, "failed to execute CCIP OnRamp deploy sequence")
 
 	s.ccipOnrampPackageId = ccipOnRampSeqReport.Output.CCIPOnRampPackageId
+	s.latestCcipOnrampPackageId = ccipOnRampSeqReport.Output.CCIPOnRampPackageId
 	s.ccipOnrampObjects = ccipOnRampSeqReport.Output.Objects
 
 	// Deploy offramp
@@ -361,6 +377,7 @@ func (s *MCMSTestSuite) SetupCCIP() {
 	require.NoError(s.T(), err, "failed to execute CCIP OffRamp deploy sequence")
 
 	s.ccipOfframpPackageId = ccipOffRampSeqReport.Output.CCIPOffRampPackageId
+	s.latestCcipOfframpPackageId = ccipOffRampSeqReport.Output.CCIPOffRampPackageId
 	s.ccipOfframpObjects = ccipOffRampSeqReport.Output.Objects
 }
 

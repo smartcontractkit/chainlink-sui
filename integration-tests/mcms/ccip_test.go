@@ -57,20 +57,40 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 		s.RegisterRouterUpgradeCap()
 	})
 
+	// CCIP UPGRADE
 	s.T().Run("Upgrade CCIP through MCMS", func(t *testing.T) {
-		s.RunUpgradeCCIPProposal()
+		s.RunUpgradeCCIPProposal("FeeQuoter 1.7.0")
 	})
 
+	s.T().Run("Re-Upgrade CCIP through MCMS", func(t *testing.T) {
+		s.RunUpgradeCCIPProposal("FeeQuoter 1.8.0")
+	})
+
+	// CCIP OFFRAMP UPGRADE
 	s.T().Run("Upgrade CCIPOfframp through MCMS", func(t *testing.T) {
-		s.RunUpgradeOfframpProposal()
+		s.RunUpgradeOfframpProposal("OffRamp 1.7.0")
 	})
 
+	s.T().Run("Re-Upgrade CCIPOfframp through MCMS", func(t *testing.T) {
+		s.RunUpgradeOfframpProposal("OffRamp 1.8.0")
+	})
+
+	// ONRAMP UPGRADE
 	s.T().Run("Upgrade CCIPOnramp through MCMS", func(t *testing.T) {
-		s.RunUpgradeOnrampProposal()
+		s.RunUpgradeOnrampProposal("OnRamp 1.7.0")
 	})
 
+	s.T().Run("Re-Upgrade CCIPOnramp through MCMS", func(t *testing.T) {
+		s.RunUpgradeOnrampProposal("OnRamp 1.8.0")
+	})
+
+	// ROUTER UPGRADE
 	s.T().Run("Upgrade CCIPRouter through MCMS", func(t *testing.T) {
-		s.RunUpgradeRouterProposal()
+		s.RunUpgradeRouterProposal("Router 1.7.0")
+	})
+
+	s.T().Run("Re-Upgrade CCIPRouter through MCMS", func(t *testing.T) {
+		s.RunUpgradeRouterProposal("Router 1.8.0")
 	})
 }
 
@@ -447,78 +467,6 @@ func RunTestRouterProposal(s *CCIPMCMSTestSuite) {
 	}
 }
 
-func (s *CCIPMCMSTestSuite) RunUpgradeCCIPProposal() {
-	bind.SetTestModifier(func(packageRoot string) error {
-		sourcePath := filepath.Join(packageRoot, "sources", "fee_quoter.move")
-		content, _ := os.ReadFile(sourcePath)
-		modified := strings.Replace(string(content), "FeeQuoter 1.6.0", "FeeQuoter 1.7.0", 1)
-		return os.WriteFile(sourcePath, []byte(modified), 0o644)
-	})
-	defer bind.ClearTestModifier()
-
-	signerAddress, err := s.signer.GetAddress()
-	s.Require().NoError(err, "getting signer address")
-
-	// 1. Build upgrade input for CCIP package
-	input := mcmsops.UpgradeCCIPInput{
-		// Package related
-		PackageName:     contracts.CCIP,
-		TargetPackageId: s.ccipPackageId,
-		NamedAddresses: map[string]string{
-			"signer":            signerAddress,
-			"mcms":              s.mcmsPackageID,
-			"link":              s.linkPackageId,
-			"original_ccip_pkg": s.ccipPackageId,
-		},
-
-		ChainSelector: uint64(s.chainSelector),
-		// MCMS related
-		MmcsPackageID:      s.mcmsPackageID,
-		McmsStateObjID:     s.mcmsObj,
-		RegistryObjID:      s.registryObj,
-		TimelockObjID:      s.timelockObj,
-		AccountObjID:       s.accountObj,
-		DeployerStateObjID: s.deployerStateObj,
-		OwnerCapObjID:      s.ownerCapObj, // MCMS OwnerCap
-
-		// Timelock related
-		TimelockConfig: utils.TimelockConfig{
-			MCMSAction:   types.TimelockActionSchedule,
-			MinDelay:     5 * time.Second,
-			OverrideRoot: false,
-		},
-	}
-
-	// 2. Execute operation to generate upgrade proposal
-	upgradeReport, err := cld_ops.ExecuteOperation(s.bundle, mcmsops.UpgradeCCIPOp, s.deps, input)
-	s.Require().NoError(err, "executing CCIP upgrade operation")
-
-	timelockProposal := upgradeReport.Output
-
-	s.T().Logf("✅ Generated CCIP upgrade proposal: %s", timelockProposal.Description)
-
-	// 3. Execute the upgrade proposal through MCMS using Schedule path
-	responses := s.ExecuteProposalE2e(&timelockProposal, s.proposerConfig, 6*time.Second)
-
-	tx, ok := responses[len(responses)-1].RawData.(*models.SuiTransactionBlockResponse)
-	s.Require().True(ok)
-
-	newAddress, err := s.GetUpgradedAddress(tx, s.mcmsPackageID)
-	s.Require().NoError(err)
-	s.Require().NotEmpty(newAddress)
-
-	s.T().Logf("✅ Successfully upgraded CCIP package from %s to %s", s.ccipPackageId, newAddress)
-
-	// 4. Verify the new package version
-	feequoter, err := module_fee_quoter.NewFeeQuoter(newAddress, s.client)
-	s.Require().NoError(err)
-
-	version, err := feequoter.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
-	s.Require().NoError(err)
-	s.Require().Equal("FeeQuoter 1.7.0", version, "fee quoter version should be upgraded to 1.7.0")
-	s.ccipPackageId = newAddress
-}
-
 func (s *CCIPMCMSTestSuite) RegisterCCIPUpgradeCap() {
 	// Register CCIP package's UpgradeCap with MCMS deployer
 	ccipContract, err := module_state_object.NewStateObject(s.ccipPackageId, s.client)
@@ -585,12 +533,84 @@ func (s *CCIPMCMSTestSuite) RegisterRouterUpgradeCap() {
 	s.T().Logf("✅ Registered CCIPRouter UpgradeCap with MCMS deployer")
 }
 
-func (s *CCIPMCMSTestSuite) RunUpgradeOfframpProposal() {
+func (s *CCIPMCMSTestSuite) RunUpgradeCCIPProposal(newVersion string) {
+	bind.SetTestModifier(func(packageRoot string) error {
+		sourcePath := filepath.Join(packageRoot, "sources", "fee_quoter.move")
+		content, _ := os.ReadFile(sourcePath)
+		modified := strings.Replace(string(content), "FeeQuoter 1.6.0", newVersion, 1)
+		return os.WriteFile(sourcePath, []byte(modified), 0o644)
+	})
+	defer bind.ClearTestModifier()
+
+	signerAddress, err := s.signer.GetAddress()
+	s.Require().NoError(err, "getting signer address")
+
+	// 1. Build upgrade input for CCIP package
+	input := mcmsops.UpgradeCCIPInput{
+		// Package related
+		PackageName:     contracts.CCIP,
+		TargetPackageId: s.latestCcipPackageId,
+		NamedAddresses: map[string]string{
+			"signer":            signerAddress,
+			"mcms":              s.mcmsPackageID,
+			"link":              s.linkPackageId,
+			"original_ccip_pkg": s.ccipPackageId,
+		},
+
+		ChainSelector: uint64(s.chainSelector),
+		// MCMS related
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		RegistryObjID:      s.registryObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		DeployerStateObjID: s.deployerStateObj,
+		OwnerCapObjID:      s.ownerCapObj, // MCMS OwnerCap
+
+		// Timelock related
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionSchedule,
+			MinDelay:     5 * time.Second,
+			OverrideRoot: false,
+		},
+	}
+
+	// 2. Execute operation to generate upgrade proposal
+	upgradeReport, err := cld_ops.ExecuteOperation(s.NewOpBundle(), mcmsops.UpgradeCCIPOp, s.deps, input)
+	s.Require().NoError(err, "executing CCIP upgrade operation")
+
+	timelockProposal := upgradeReport.Output
+
+	s.T().Logf("✅ Generated CCIP upgrade proposal: %s", timelockProposal.Description)
+
+	// 3. Execute the upgrade proposal through MCMS using Schedule path
+	responses := s.ExecuteProposalE2e(&timelockProposal, s.proposerConfig, 6*time.Second)
+
+	tx, ok := responses[len(responses)-1].RawData.(*models.SuiTransactionBlockResponse)
+	s.Require().True(ok)
+
+	newAddress, err := s.GetUpgradedAddress(tx, s.mcmsPackageID)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(newAddress)
+
+	s.T().Logf("✅ Successfully upgraded CCIP package from %s to %s", s.ccipPackageId, newAddress)
+
+	// 4. Verify the new package version
+	feequoter, err := module_fee_quoter.NewFeeQuoter(newAddress, s.client)
+	s.Require().NoError(err)
+
+	version, err := feequoter.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
+	s.Require().NoError(err)
+	s.Require().Equal(newVersion, version, "fee quoter version should be upgraded to %s", newVersion)
+	s.latestCcipPackageId = newAddress
+}
+
+func (s *CCIPMCMSTestSuite) RunUpgradeOfframpProposal(newVersion string) {
 	// Set test modifier to upgrade Offramp version
 	bind.SetTestModifier(func(packageRoot string) error {
 		sourcePath := filepath.Join(packageRoot, "sources", "offramp.move")
 		content, _ := os.ReadFile(sourcePath)
-		modified := strings.Replace(string(content), "OffRamp 1.6.0", "OffRamp 1.7.0", 1)
+		modified := strings.Replace(string(content), "OffRamp 1.6.0", newVersion, 1)
 		return os.WriteFile(sourcePath, []byte(modified), 0o644)
 	})
 	defer bind.ClearTestModifier()
@@ -602,7 +622,7 @@ func (s *CCIPMCMSTestSuite) RunUpgradeOfframpProposal() {
 	input := mcmsops.UpgradeCCIPInput{
 		// Package related
 		PackageName:     contracts.CCIPOfframp,
-		TargetPackageId: s.ccipOfframpPackageId,
+		TargetPackageId: s.latestCcipOfframpPackageId,
 		NamedAddresses: map[string]string{
 			"signer":                    signerAddress,
 			"mcms":                      s.mcmsPackageID,
@@ -629,7 +649,7 @@ func (s *CCIPMCMSTestSuite) RunUpgradeOfframpProposal() {
 	}
 
 	// 2. Execute operation to generate upgrade proposal
-	upgradeReport, err := cld_ops.ExecuteOperation(s.bundle, mcmsops.UpgradeCCIPOp, s.deps, input)
+	upgradeReport, err := cld_ops.ExecuteOperation(s.NewOpBundle(), mcmsops.UpgradeCCIPOp, s.deps, input)
 	s.Require().NoError(err, "executing CCIPOfframp upgrade operation")
 
 	timelockProposal := upgradeReport.Output
@@ -654,16 +674,16 @@ func (s *CCIPMCMSTestSuite) RunUpgradeOfframpProposal() {
 
 	version, err := offramp.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
 	s.Require().NoError(err)
-	s.Require().Equal("OffRamp 1.7.0", version, "offramp version should be upgraded to 1.7.0")
-	s.ccipOfframpPackageId = newAddress
+	s.Require().Equal(newVersion, version, "offramp version should be upgraded to "+newVersion)
+	s.latestCcipOfframpPackageId = newAddress
 }
 
-func (s *CCIPMCMSTestSuite) RunUpgradeOnrampProposal() {
+func (s *CCIPMCMSTestSuite) RunUpgradeOnrampProposal(newVersion string) {
 	// Set test modifier to upgrade Onramp version
 	bind.SetTestModifier(func(packageRoot string) error {
 		sourcePath := filepath.Join(packageRoot, "sources", "onramp.move")
 		content, _ := os.ReadFile(sourcePath)
-		modified := strings.Replace(string(content), "OnRamp 1.6.0", "OnRamp 1.7.0", 1)
+		modified := strings.Replace(string(content), "OnRamp 1.6.0", newVersion, 1)
 		return os.WriteFile(sourcePath, []byte(modified), 0o644)
 	})
 	defer bind.ClearTestModifier()
@@ -675,7 +695,7 @@ func (s *CCIPMCMSTestSuite) RunUpgradeOnrampProposal() {
 	input := mcmsops.UpgradeCCIPInput{
 		// Package related
 		PackageName:     contracts.CCIPOnramp,
-		TargetPackageId: s.ccipOnrampPackageId,
+		TargetPackageId: s.latestCcipOnrampPackageId,
 		NamedAddresses: map[string]string{
 			"signer":                   signerAddress,
 			"mcms":                     s.mcmsPackageID,
@@ -702,7 +722,7 @@ func (s *CCIPMCMSTestSuite) RunUpgradeOnrampProposal() {
 	}
 
 	// 2. Execute operation to generate upgrade proposal
-	upgradeReport, err := cld_ops.ExecuteOperation(s.bundle, mcmsops.UpgradeCCIPOp, s.deps, input)
+	upgradeReport, err := cld_ops.ExecuteOperation(s.NewOpBundle(), mcmsops.UpgradeCCIPOp, s.deps, input)
 	s.Require().NoError(err, "executing CCIPOnramp upgrade operation")
 
 	timelockProposal := upgradeReport.Output
@@ -727,16 +747,16 @@ func (s *CCIPMCMSTestSuite) RunUpgradeOnrampProposal() {
 
 	version, err := onramp.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
 	s.Require().NoError(err)
-	s.Require().Equal("OnRamp 1.7.0", version, "onramp version should be upgraded to 1.7.0")
-	s.ccipOnrampPackageId = newAddress
+	s.Require().Equal(newVersion, version, "onramp version should be upgraded to "+newVersion)
+	s.latestCcipOnrampPackageId = newAddress
 }
 
-func (s *CCIPMCMSTestSuite) RunUpgradeRouterProposal() {
+func (s *CCIPMCMSTestSuite) RunUpgradeRouterProposal(newVersion string) {
 	// Set test modifier to upgrade Router version
 	bind.SetTestModifier(func(packageRoot string) error {
 		sourcePath := filepath.Join(packageRoot, "sources", "router.move")
 		content, _ := os.ReadFile(sourcePath)
-		modified := strings.Replace(string(content), "Router 1.6.0", "Router 1.7.0", 1)
+		modified := strings.Replace(string(content), "Router 1.6.0", newVersion, 1)
 		return os.WriteFile(sourcePath, []byte(modified), 0o644)
 	})
 	defer bind.ClearTestModifier()
@@ -748,7 +768,7 @@ func (s *CCIPMCMSTestSuite) RunUpgradeRouterProposal() {
 	input := mcmsops.UpgradeCCIPInput{
 		// Package related
 		PackageName:     contracts.CCIPRouter,
-		TargetPackageId: s.ccipRouterPackageId,
+		TargetPackageId: s.latestCcipRouterPackageId,
 		NamedAddresses: map[string]string{
 			"signer":                   signerAddress,
 			"mcms":                     s.mcmsPackageID,
@@ -774,7 +794,7 @@ func (s *CCIPMCMSTestSuite) RunUpgradeRouterProposal() {
 	}
 
 	// 2. Execute operation to generate upgrade proposal
-	upgradeReport, err := cld_ops.ExecuteOperation(s.bundle, mcmsops.UpgradeCCIPOp, s.deps, input)
+	upgradeReport, err := cld_ops.ExecuteOperation(s.NewOpBundle(), mcmsops.UpgradeCCIPOp, s.deps, input)
 	s.Require().NoError(err, "executing CCIPRouter upgrade operation")
 
 	timelockProposal := upgradeReport.Output
@@ -799,6 +819,6 @@ func (s *CCIPMCMSTestSuite) RunUpgradeRouterProposal() {
 
 	version, err := router.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
 	s.Require().NoError(err)
-	s.Require().Equal("Router 1.7.0", version, "router version should be upgraded to 1.7.0")
-	s.ccipRouterPackageId = newAddress
+	s.Require().Equal(newVersion, version, "router version should be upgraded to "+newVersion)
+	s.latestCcipRouterPackageId = newAddress
 }
