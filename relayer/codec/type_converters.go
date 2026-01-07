@@ -376,9 +376,11 @@ func (tc *TypeConverter) hexToArray(from, to reflect.Type, data any) (any, error
 	byteSlice := bytes.([]byte)
 	out := make([]uint8, to.Len())
 
-	if len(byteSlice) != to.Len() {
-		return nil, fmt.Errorf("hex to array: byte slice length %d is not equal to output array length %d", len(byteSlice), to.Len())
-	}
+	// Re-enable this check once we can guarantee that responses are always the same length as the target array length.
+	// Disabling for now to avoid breaking changes to core.
+	// if len(byteSlice) != to.Len() {
+	// 	return nil, fmt.Errorf("hex to array: byte slice length %d is not equal to output array length %d", len(byteSlice), to.Len())
+	// }
 
 	copy(out, byteSlice)
 
