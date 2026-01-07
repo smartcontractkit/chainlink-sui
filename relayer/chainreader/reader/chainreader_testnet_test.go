@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -32,12 +31,6 @@ import (
 func TestChainReaderTestnet(t *testing.T) {
 	log := logger.Test(t)
 	rpcUrl := testutils.TestnetUrl
-
-	offrampContractName := "OffRamp"
-	offrampPackageId := "0x01a0a22b2abacbd48e9a026c1661189a8ec5ce4942cba07017b63eaad0a205a4"
-
-	tokenAdminRegistryContractName := "TokenAdminRegistry"
-	tokenAdminRegistryPackageId := "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
 
 	burnMintTokenPoolContractName := "BurnMintTokenPool"
 	burnMintTokenPoolPackageId := "0xfeff675b624e55da49f80fda3b676fe1ef5a957a8334cb675ca35de8918f612d"
@@ -74,30 +67,8 @@ func TestChainReaderTestnet(t *testing.T) {
 			SyncTimeout:     60 * time.Second,
 		},
 		Modules: map[string]*config.ChainReaderModule{
-			tokenAdminRegistryContractName: {
-				Name:      "token_admin_registry",
-				Functions: map[string]*config.ChainReaderFunction{},
-			},
-			offrampContractName: {
-				Name:      "offramp",
-				Functions: map[string]*config.ChainReaderFunction{},
-				Events: map[string]*config.ChainReaderEvent{
-					"execution_state_changed": {
-						Name:      "execution_state_changed",
-						EventType: "ExecutionStateChanged",
-						EventSelector: client.EventFilterByMoveEventModule{
-							Module: "offramp",
-							Event:  "ExecutionStateChanged",
-						},
-						EventSelectorDefaultOffset: &client.EventId{
-							TxDigest: "7KyXWWmJnX4u5aKr1ofvdh5Af5Vix6rnHnonk33CiDtV",
-							EventSeq: "0",
-						},
-					},
-				},
-			},
 			burnMintTokenPoolContractName: {
-				Name: "token_pool",
+				Name: "burn_mint_token_pool",
 				Functions: map[string]*config.ChainReaderFunction{
 					"get_token": {
 						Name:          "get_token",
@@ -255,14 +226,8 @@ func TestChainReaderTestnet(t *testing.T) {
 	require.NoError(t, err)
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{{
-		Name:    offrampContractName,
-		Address: offrampPackageId,
-	}, {
 		Name:    burnMintTokenPoolContractName,
 		Address: burnMintTokenPoolPackageId,
-	}, {
-		Name:    tokenAdminRegistryContractName,
-		Address: tokenAdminRegistryPackageId,
 	}})
 	require.NoError(t, err)
 
@@ -405,34 +370,6 @@ func TestChainReaderTestnet(t *testing.T) {
 		}
 
 		log.Infof("Completed %d requests, %d errors", processedCount, errorCount)
-	})
-
-	t.Run("TransactionIndexer_ExecutionStateChanged_event", func(t *testing.T) {
-		t.Skip("Skipping TransactionIndexer_ExecutionStateChanged_event test")
-		indexerInstance.Start(ctx)
-		defer indexerInstance.Close()
-
-		assert.Eventually(t, func() bool {
-			println("\n\n------------------------------------------------------------------------------\n\n")
-
-			eventHandle := offrampPackageId + "::offramp::ExecutionStateChanged"
-			events, err := dbStore.QueryEvents(ctx, offrampPackageId, eventHandle, nil, query.LimitAndSort{
-				Limit: query.Limit{
-					Count: 100,
-				},
-			})
-			require.NoError(t, err)
-
-			foundExecutionStateChangedDummyReceiver := false
-			for _, event := range events {
-				if event.Data["state"] == 3 {
-					foundExecutionStateChangedDummyReceiver = true
-					break
-				}
-			}
-
-			return foundExecutionStateChangedDummyReceiver
-		}, 45*60*time.Second, 60*time.Second)
 	})
 
 	t.Run("token pool events", func(t *testing.T) {

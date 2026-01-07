@@ -643,7 +643,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 	}
 
 	// Extract generic type tags from function params
-	typeArgs, err := s.extractGenericTypeTags(ctx, parsed, functionConfig)
+	typeArgs, err := s.extractGenericTypeTags(ctx, parsed, functionConfig, args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract generic type tags: %w", err)
 	}
@@ -657,7 +657,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 }
 
 // Helper function to extract generic type tags
-func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction) ([]string, error) {
+func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction, args []any) ([]string, error) {
 	if functionConfig.Params == nil {
 		return []string{}, nil
 	}
@@ -666,7 +666,7 @@ func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *rea
 	uniqueTags := make(map[string]struct{})
 	keyOrder := make([]string, 0)
 
-	for _, param := range functionConfig.Params {
+	for paramIndex, param := range functionConfig.Params {
 		if param.GenericType != nil && *param.GenericType != "" {
 			genericType := *param.GenericType
 			// Only add if not already present
@@ -674,8 +674,8 @@ func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *rea
 				keyOrder = append(keyOrder, genericType)
 				uniqueTags[genericType] = struct{}{}
 			}
-		} else if param.GenericDependency != nil && *param.GenericDependency != "" {
-			genericType, err := s.fetchGenericDependency(ctx, functionConfig.SignerAddress, parsed, &param)
+		} else if param.GenericDependency != nil && *param.GenericDependency != "" && paramIndex < len(args) {
+			genericType, err := s.fetchGenericDependency(ctx, functionConfig.SignerAddress, parsed, &param, args[paramIndex])
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch generic dependency: %w", err)
 			}
@@ -689,50 +689,37 @@ func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *rea
 	return keyOrder, nil
 }
 
-func (s *suiChainReader) fetchGenericDependency(ctx context.Context, signerAddress string, parsed *readIdentifier, param *codec.SuiFunctionParam) (string, error) {
+func (s *suiChainReader) fetchGenericDependency(
+	ctx context.Context,
+	signerAddress string,
+	parsed *readIdentifier,
+	param *codec.SuiFunctionParam,
+	paramValue any,
+) (string, error) {
 	if param == nil || param.GenericDependency == nil || *param.GenericDependency == "" {
 		return "", fmt.Errorf("generic dependency is not set")
 	}
 
 	switch *param.GenericDependency {
 	case "get_token_pool_state_type":
-		// Try to get the CCIP / TokenAdminRegistry package address from the package resolver (requires that it has been bound to CR)
-		ccipPackageAddress, err := s.packageResolver.ResolvePackageAddress("token_admin_registry")
-		if err != nil {
-			// Attempt getting the ccip package address via the offramp binding as a fallback
-			offrampPackageAddress, err := s.packageResolver.ResolvePackageAddress("offramp")
-			if err != nil {
-				return "", fmt.Errorf("get_token_pool_state_type requires that the OffRamp package has been bound to ChainReader: %w", err)
-			}
-
-			s.logger.Debugw("get_token_pool_state_type falling back to OffRamp package", "offrampPackageAddress", offrampPackageAddress)
-
-			ccipPackageAddress, err = s.client.GetCCIPPackageID(ctx, offrampPackageAddress, signerAddress)
-			if err != nil {
-				return "", fmt.Errorf("failed to get CCIP package ID from offramp package address in fetchGenericDependency: %w", err)
-			}
-
-			latestCcipPackageAddress, err := s.client.GetLatestPackageId(ctx, ccipPackageAddress, "state_object")
-			if err != nil {
-				return "", fmt.Errorf("failed to get latest CCIP package address from offramp package address in fetchGenericDependency: %w", err)
-			}
-
-			s.logger.Debugw("get_token_pool_state_type using latest CCIP package address", "latestCcipPackageAddress", latestCcipPackageAddress)
-
-			ccipPackageAddress = latestCcipPackageAddress
-
-			if ccipPackageAddress == "" {
-				return "", fmt.Errorf("get_token_pool_state_type requires that the CCIP / TokenAdminRegistry package has been bound to ChainReader: %w", err)
-			}
+		if paramValue == nil || paramValue.(string) == "" {
+			return "", fmt.Errorf("param value is nil or empty string")
 		}
 
-		s.logger.Warnw("get_token_pool_state_type using CCIP package address", "ccipPackageAddress", ccipPackageAddress)
-
-		tokenConfig, err := s.client.GetTokenPoolConfigByPackageAddress(ctx, signerAddress, parsed.address, ccipPackageAddress)
+		// Use the state object ID to deduce the type
+		stateObject, err := s.client.ReadObjectId(ctx, paramValue.(string))
 		if err != nil {
-			return "", fmt.Errorf("failed to get token pool state type: %w", err)
+			return "", fmt.Errorf("failed to read state object: %w", err)
 		}
-		return tokenConfig.TokenType, nil
+
+		s.logger.Debugw("stateObjectType", "stateObjectType", stateObject.Type)
+
+		genericType, err := parseGenericTypeFromObjectType(stateObject.Type)
+		if err != nil {
+			return "", err
+		}
+
+		return genericType, nil
 	default:
 		return "", fmt.Errorf("unknown generic dependency: %s", *param.GenericDependency)
 	}
@@ -1182,4 +1169,16 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 	s.logger.Debugw("Successfully transformed events to sequences", "sequenceCount", len(sequences), "sequences", sequences)
 
 	return sequences, nil
+}
+
+func parseGenericTypeFromObjectType(objectType string) (string, error) {
+	startIdx := strings.Index(objectType, "<")
+	endIdx := strings.LastIndex(objectType, ">")
+
+	if startIdx == -1 || endIdx == -1 || startIdx >= endIdx {
+		return "", fmt.Errorf("invalid object type format, expected generic type parameter: %s", objectType)
+	}
+
+	genericType := objectType[startIdx+1 : endIdx]
+	return genericType, nil
 }
