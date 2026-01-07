@@ -675,7 +675,7 @@ func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *rea
 				uniqueTags[genericType] = struct{}{}
 			}
 		} else if param.GenericDependency != nil && *param.GenericDependency != "" && paramIndex < len(args) {
-			genericType, err := s.fetchGenericDependency(ctx, functionConfig.SignerAddress, parsed, &param, args[paramIndex])
+			genericType, err := s.fetchGenericDependency(ctx, &param, args[paramIndex])
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch generic dependency: %w", err)
 			}
@@ -691,8 +691,6 @@ func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *rea
 
 func (s *suiChainReader) fetchGenericDependency(
 	ctx context.Context,
-	signerAddress string,
-	parsed *readIdentifier,
 	param *codec.SuiFunctionParam,
 	paramValue any,
 ) (string, error) {
