@@ -114,3 +114,52 @@ func GetModuleForContract(contractName string) string {
 		return "state_object"
 	}
 }
+
+// Converts snake_case to camelCase
+func SnakeToCamel(s string) string {
+	parts := strings.Split(s, "_")
+	for i := range parts {
+		if i > 0 && len(parts[i]) > 0 {
+			parts[i] = strings.ToUpper(string(parts[i][0])) + parts[i][1:]
+		}
+	}
+
+	return strings.Join(parts, "")
+}
+
+// Recursively convert all keys in the map to camelCase,
+// with a special case for message.header.sequence_number → seqNum
+func ConvertMapKeysToCamelCase(input any) any {
+	return ConvertMapKeysToCamelCaseWithPath(input, "")
+}
+
+func ConvertMapKeysToCamelCaseWithPath(input any, path string) any {
+	switch typed := input.(type) {
+	case map[string]any:
+		result := make(map[string]any)
+		for k, v := range typed {
+			camelKey := SnakeToCamel(k)
+			fullPath := path
+			if fullPath != "" {
+				fullPath += "." + camelKey
+			} else {
+				fullPath = camelKey
+			}
+
+			if fullPath == "message.header.sequenceNumber" {
+				camelKey = "seqNum"
+			}
+
+			result[camelKey] = ConvertMapKeysToCamelCaseWithPath(v, fullPath)
+		}
+
+		return result
+
+	case []any:
+		for i, v := range typed {
+			typed[i] = ConvertMapKeysToCamelCaseWithPath(v, path)
+		}
+	}
+
+	return input
+}
