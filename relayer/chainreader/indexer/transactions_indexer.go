@@ -488,11 +488,11 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			// Create synthetic ExecutionStateChanged event
 			// The fields map one-to-one the onchain event
 			executionStateChanged := map[string]any{
-				"source_chain_selector": fmt.Sprintf("%d", sourceChainSelector),
-				"sequence_number":       fmt.Sprintf("%d", execReport.Message.Header.SequenceNumber),
-				"message_id":            "0x" + hex.EncodeToString(execReport.Message.Header.MessageID),
-				"message_hash":          "0x" + hex.EncodeToString(messageHash[:]),
-				"state":                 uint8(3), // 3 = FAILURE
+				"sourceChainSelector": fmt.Sprintf("%d", sourceChainSelector),
+				"sequenceNumber":      fmt.Sprintf("%d", execReport.Message.Header.SequenceNumber),
+				"messageId":           execReport.Message.Header.MessageID,
+				"messageHash":         messageHash[:],
+				"state":               uint8(3), // 3 = FAILURE
 			}
 
 			blockTimestamp, err := strconv.ParseUint(checkpointResponse.TimestampMs, 10, 64)
