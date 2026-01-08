@@ -375,6 +375,7 @@ eventLoop:
 					// Sui returns block.Timestamp in ms; convert to seconds for consistency with CCIP readers.
 					BlockTimestamp: block.Timestamp / 1000,
 					Data:           normalizedData.(map[string]any),
+					IsSynthetic:    false,
 				}
 				batchRecords = append(batchRecords, record)
 			}

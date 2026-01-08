@@ -67,6 +67,7 @@ type EventRecord struct {
 	BlockHash           []byte
 	BlockTimestamp      uint64
 	Data                map[string]any
+	IsSynthetic         bool
 }
 
 func (store *DBStore) InsertEvents(ctx context.Context, records []EventRecord) error {
@@ -90,6 +91,7 @@ func (store *DBStore) InsertEvents(ctx context.Context, records []EventRecord) e
 			record.BlockHash,
 			record.BlockTimestamp,
 			data,
+			record.IsSynthetic,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to insert event (handle: %s, offset: %d): %w", record.EventHandle, record.EventOffset, err)

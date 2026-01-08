@@ -524,6 +524,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				BlockHash:           blockHashBytes,
 				BlockTimestamp:      blockTimestamp,
 				Data:                executionStateChanged,
+				IsSynthetic:         true,
 			}
 
 			records = append(records, record)
