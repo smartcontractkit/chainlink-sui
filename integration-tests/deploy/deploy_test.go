@@ -3,6 +3,8 @@
 package deploy
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 
 	"testing"
@@ -61,6 +63,47 @@ func (s *DeployTestSuite) TestDeployAndConfigureSuiChain() {
 	expectedView := buildExpectedSuiChainView(s, state, owner)
 
 	s.Require().Equal(expectedView, actualView)
+
+	curseCfg := changesets.CurseUncurseChainsConfig{
+		SuiChainSelector:   SuiChainSelector,
+		OperationType:      string(changesets.CurseOperationType),
+		IsGlobalCurse:      false,
+		DestChainSelectors: []uint64{EVMChainSelector},
+	}
+	curseOut, err := changesets.CurseUncurseChains{}.Apply(s.env, curseCfg)
+	s.Require().NoError(err, "failed to curse RMN subjects")
+	s.Require().Len(curseOut.Reports, 1, "expected single curse report")
+
+	states, err = deployment.LoadOnchainStatesui(s.env)
+	s.Require().NoError(err, "failed to reload on-chain state after curse")
+	state = states[cselectors.SUI_LOCALNET.Selector]
+	cursedView, err := state.GenerateView(&s.env, cselectors.SUI_LOCALNET.Selector, "sui_localnet")
+	s.Require().NoError(err, "failed to generate cursed on-chain view")
+
+	subjectBytes := make([]byte, 16)
+	binary.BigEndian.PutUint64(subjectBytes[8:], EVMChainSelector)
+	expectedSubject := "0x" + hex.EncodeToString(subjectBytes)
+
+	s.Require().Len(cursedView.CCIP.RMNRemote.CursedSubjectEntries, 1, "expected one cursed subject")
+	cursedEntry := cursedView.CCIP.RMNRemote.CursedSubjectEntries[0]
+	s.Require().Equal(EVMChainSelector, cursedEntry.Selector, "expected selector to match cursed chain")
+	s.Require().Equal(expectedSubject, cursedEntry.Subject, "expected subject bytes to match selector")
+	s.Require().False(cursedView.CCIP.RMNRemote.IsCursed, "global curse should remain disabled")
+
+	uncurseCfg := curseCfg
+	uncurseCfg.OperationType = string(changesets.UncurseOperationType)
+	uncurseOut, err := changesets.CurseUncurseChains{}.Apply(s.env, uncurseCfg)
+	s.Require().NoError(err, "failed to uncurse RMN subjects")
+	s.Require().Len(uncurseOut.Reports, 1, "expected single uncurse report")
+
+	states, err = deployment.LoadOnchainStatesui(s.env)
+	s.Require().NoError(err, "failed to reload on-chain state after uncurse")
+	state = states[cselectors.SUI_LOCALNET.Selector]
+	uncursedView, err := state.GenerateView(&s.env, cselectors.SUI_LOCALNET.Selector, "sui_localnet")
+	s.Require().NoError(err, "failed to generate uncursed on-chain view")
+	s.Require().Empty(uncursedView.CCIP.RMNRemote.CursedSubjectEntries, "expected no cursed subjects after uncurse")
+	s.Require().False(uncursedView.CCIP.RMNRemote.IsCursed, "global curse should remain disabled after uncurse")
+	s.Require().Equal(expectedView, uncursedView)
 }
 
 func (s *DeployTestSuite) DeployMCMS() {
