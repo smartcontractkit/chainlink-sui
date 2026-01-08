@@ -40,7 +40,7 @@ func NewIndexer(
 	transactionIndexer TransactionsIndexerApi,
 ) *Indexer {
 	return &Indexer{
-		log:                      logger.Named(l, "Indexers"),
+		log:                      logger.Named(l, "SuiIndexers"),
 		eventsIndexer:            eventsIndexer,
 		eventsIndexerCancel:      nil,
 		transactionIndexer:       transactionIndexer,

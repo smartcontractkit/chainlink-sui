@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/mr-tron/base58"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
@@ -26,8 +28,9 @@ type EventsIndexer struct {
 	syncTimeout     time.Duration
 
 	// Protected by configMutex
-	eventConfigurations []*client.EventSelector
-	configMutex         sync.RWMutex
+	eventConfigurations  []*client.EventSelector
+	eventOffsetOverrides map[string]client.EventId
+	configMutex          sync.RWMutex
 
 	// Protected by cursorMutex
 	// a map of event handles to the last processed cursor
@@ -40,6 +43,7 @@ type EventsIndexerApi interface {
 	SyncAllEvents(ctx context.Context) error
 	SyncEvent(ctx context.Context, selector *client.EventSelector) error
 	AddEventSelector(ctx context.Context, selector *client.EventSelector) error
+	SetEventOffsetOverrides(ctx context.Context, offsetOverrides map[string]client.EventId) error
 	Ready() error
 	Close() error
 }
@@ -208,6 +212,7 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 		return fmt.Errorf("unspecified selector for SyncEvent call")
 	}
 
+	eventKey := fmt.Sprintf("%s::%s", selector.Module, selector.Event)
 	eventHandle := fmt.Sprintf("%s::%s::%s", selector.Package, selector.Module, selector.Event)
 
 	// check if the event selector is already tracked, if not add it to the list
@@ -227,16 +232,52 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 	cursor := eIndexer.lastProcessedCursors[eventHandle]
 
 	var totalCount uint64
-	var err error
+
 	if cursor == nil {
 		// attempt to get the latest event sync of the given type and use its data to construct a cursor
-		cursor, totalCount, err = eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
-		if err != nil {
+		dbOffsetCursor, dbTotalCount, offsetErr := eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
+		if offsetErr != nil {
 			eIndexer.cursorMutex.RUnlock()
-			return err
+			eIndexer.logger.Errorw("syncEvent: failed to get latest offset", "error", offsetErr)
+			return offsetErr
 		}
 
-		eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle, "cursor", cursor)
+		if dbOffsetCursor != nil {
+			// Some DB records have hex formatted txDigest while newer entries have base58 formatted txDigest.
+			// We check if the txDigest is hex formatted and decode it if needed for backwards compatibility.
+			if strings.ToLower(dbOffsetCursor.TxDigest[:2]) == "0x" {
+				txDigestBytes, err := hex.DecodeString(dbOffsetCursor.TxDigest[2:])
+				if err != nil {
+					eIndexer.cursorMutex.RUnlock()
+					eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err, "txDigest", dbOffsetCursor.TxDigest)
+					return fmt.Errorf("syncEvent: failed to decode tx digest: %w", err)
+				}
+				// convert the db offset cursor digest from hex (the format stored in the DB) to base58 (the format expected by the client)
+				cursor = &models.EventId{
+					TxDigest: base58.Encode(txDigestBytes),
+					EventSeq: dbOffsetCursor.EventSeq,
+				}
+			} else {
+				// DB already has base58
+				cursor = &models.EventId{
+					TxDigest: dbOffsetCursor.TxDigest,
+					EventSeq: dbOffsetCursor.EventSeq,
+				}
+			}
+
+			totalCount = dbTotalCount
+		} else {
+			eIndexer.configMutex.RLock()
+			if override, ok := eIndexer.eventOffsetOverrides[eventKey]; ok {
+				cursor = &models.EventId{
+					TxDigest: override.TxDigest,
+					EventSeq: override.EventSeq,
+				}
+			} else {
+				eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle)
+			}
+			eIndexer.configMutex.RUnlock()
+		}
 	}
 
 	batchSize := uint(batchSizeRecords)
@@ -308,15 +349,29 @@ eventLoop:
 				// normalize the data, convert snake case to camel case
 				normalizedData := convertMapKeysToCamelCase(event.ParsedJson)
 
+				// Convert the txDigest to hex
+				txDigestHex := event.Id.TxDigest
+				if base58Bytes, err := base58.Decode(txDigestHex); err == nil {
+					hexTxId := hex.EncodeToString(base58Bytes)
+					txDigestHex = "0x" + hexTxId
+				}
+
+				blockHashBytes, err := base58.Decode(block.TxDigest)
+				if err != nil {
+					eIndexer.logger.Errorw("Failed to decode block hash", "error", err)
+					// fallback
+					blockHashBytes = []byte(block.TxDigest)
+				}
+
 				// Convert event to database record
 				record := database.EventRecord{
 					EventAccountAddress: selector.Package,
 					EventHandle:         eventHandle,
 					EventOffset:         offset,
-					TxDigest:            event.Id.TxDigest,
+					TxDigest:            txDigestHex,
 					BlockVersion:        0,
 					BlockHeight:         fmt.Sprintf("%d", block.Height),
-					BlockHash:           []byte(block.TxDigest),
+					BlockHash:           blockHashBytes,
 					// Sui returns block.Timestamp in ms; convert to seconds for consistency with CCIP readers.
 					BlockTimestamp: block.Timestamp / 1000,
 					Data:           normalizedData.(map[string]any),
@@ -406,6 +461,13 @@ func (eIndexer *EventsIndexer) AddEventSelector(ctx context.Context, selector *c
 		eIndexer.configMutex.Unlock()
 	}
 
+	return nil
+}
+
+func (eIndexer *EventsIndexer) SetEventOffsetOverrides(ctx context.Context, offsetOverrides map[string]client.EventId) error {
+	eIndexer.configMutex.Lock()
+	defer eIndexer.configMutex.Unlock()
+	eIndexer.eventOffsetOverrides = offsetOverrides
 	return nil
 }
 

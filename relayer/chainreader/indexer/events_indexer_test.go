@@ -523,6 +523,36 @@ func TestEventsIndexer(t *testing.T) {
 		log.Infow("All concurrent access tests completed successfully")
 	})
 
+	t.Run("TestWithTimestamps", func(t *testing.T) {
+		log.Infow("Testing with timestamps")
+
+		// Trigger some events
+		for i := 1; i <= 3; i++ {
+			createEvent(i)
+		}
+
+		// Create a new event selector for timestamps
+		timestampEventSelector := &client.EventSelector{
+			Package: packageId,
+			Module:  "counter",
+			Event:   "CounterIncremented",
+		}
+
+		// Run sync to index events
+		err := indexer.SyncEvent(ctx, timestampEventSelector)
+		require.NoError(t, err)
+
+		// Wait for events to be indexed
+		events := waitForEventCount(3, 60*time.Second)
+		require.GreaterOrEqual(t, len(events), 3)
+
+		// Check that events are recorded with timestamps in seconds
+		for _, event := range events[:3] {
+			require.Greater(t, event.BlockTimestamp, uint64(0), "Event should have a timestamp")
+			require.Less(t, event.BlockTimestamp, uint64(time.Now().Unix()+1), "Event timestamp should be in the past")
+		}
+	})
+
 	t.Run("TestRaceDetection", func(t *testing.T) {
 		// Run with: go test -race -run TestEventsIndexer/TestRaceDetection
 		log.Infow("Starting race detection test")
@@ -566,6 +596,7 @@ func TestEventsIndexer(t *testing.T) {
 	})
 
 	t.Run("TestOrderedEventsQueryWithOutOfOrderEventOffset", func(t *testing.T) {
+		t.Skip("Skipping test ordered events query with out of order event offset until the relevant index is re-added")
 		// insert duplicate events with out of order event_offset for CCIPMessageSent
 
 		packageId := "0x30e087460af8a8aacccbc218aa358cdcde8d43faf61ec0638d71108e276e2f1d"

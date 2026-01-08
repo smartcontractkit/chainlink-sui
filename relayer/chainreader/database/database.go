@@ -49,6 +49,11 @@ func (store *DBStore) EnsureSchema(ctx context.Context) error {
 		return fmt.Errorf("failed to create sui indexes: %w", err)
 	}
 
+	_, err = store.ds.ExecContext(ctx, CreateTransmitterCursorsTable)
+	if err != nil {
+		return fmt.Errorf("failed to create sui.transmitter_cursors table: %w", err)
+	}
+
 	return nil
 }
 
@@ -171,7 +176,19 @@ func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, 
 	var offset uint64
 	var txDigest string
 	var totalCount uint64
-	err := store.ds.QueryRowxContext(ctx, QueryEventsOffset, eventAccountAddress, eventHandle).Scan(&offset, &txDigest, &totalCount)
+	err := store.ds.QueryRowxContext(ctx, QueryEventsOffset, eventAccountAddress, eventHandle).Scan(&offset, &txDigest)
+	if err != nil {
+		// no rows found in DB, return a nil index
+		//nolint:nilnil
+		if errors.Is(err, sql.ErrNoRows) {
+			// this is not an error, just nothing to return
+			return nil, 0, nil
+		}
+
+		return nil, 0, fmt.Errorf("failed to get latest offset: %w", err)
+	}
+
+	err = store.ds.QueryRowxContext(ctx, CountEvents, eventAccountAddress, eventHandle).Scan(&totalCount)
 	if err != nil {
 		// no rows found in DB, return a nil index
 		//nolint:nilnil
@@ -234,4 +251,24 @@ func operatorSQL(op primitives.ComparisonOperator) string {
 		// Default to equality if unknown
 		return "="
 	}
+}
+
+func (store *DBStore) GetTransmitterCursor(ctx context.Context, transmitter models.SuiAddress) (string, error) {
+	var cursor string
+	err := store.ds.QueryRowxContext(ctx, GetTransmitterCursor, transmitter).Scan(&cursor)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", fmt.Errorf("failed to get transmitter cursor: %w", err)
+	}
+	return cursor, nil
+}
+
+func (store *DBStore) UpdateTransmitterCursor(ctx context.Context, transmitter models.SuiAddress, cursor string) error {
+	_, err := store.ds.ExecContext(ctx, UpdateTransmitterCursor, transmitter, cursor)
+	if err != nil {
+		return fmt.Errorf("failed to update transmitter cursor: %w", err)
+	}
+	return nil
 }

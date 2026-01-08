@@ -128,6 +128,23 @@ func (s *suiChainReader) HealthReport() map[string]error {
 
 func (s *suiChainReader) Start(ctx context.Context) error {
 	return s.starter.StartOnce(s.Name(), func() error {
+		// set the event offset overrides for the event indexer if any
+		offsetOverrides := make(map[string]client.EventId)
+
+		for _, moduleConfig := range s.config.Modules {
+			for _, eventConfig := range moduleConfig.Events {
+				if eventConfig.EventSelectorDefaultOffset != nil {
+					key := fmt.Sprintf("%s::%s", eventConfig.EventSelector.Module, eventConfig.EventSelector.Event)
+					offsetOverrides[key] = *eventConfig.EventSelectorDefaultOffset
+				}
+			}
+		}
+
+		if len(offsetOverrides) > 0 {
+			// ignore this error to avoid blocking the start of the chain reader
+			_ = s.indexer.GetEventIndexer().SetEventOffsetOverrides(ctx, offsetOverrides)
+		}
+
 		return nil
 	})
 }
@@ -568,11 +585,15 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 		return nil, err
 	}
 
-	if moduleConfig.Name != "" {
+	if moduleConfig.Name != "" && eventConfig.Name == "" {
 		eventConfig.Name = moduleConfig.Name
 	} else {
 		// If the module config has no name, use the module name from the event config
 		moduleConfig.Name = moduleConfig.Events[filter.Key].Module
+	}
+
+	if eventConfig.EventSelector.Module == "" {
+		eventConfig.EventSelector.Module = moduleConfig.Name
 	}
 
 	// only write contract address, rest will be handled during chainreader config
@@ -582,14 +603,14 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	// create a selector for the initial package ID
 	selector := client.EventSelector{
 		Package: contract.Address,
-		Module:  moduleConfig.Name,
+		Module:  eventConfig.EventSelector.Module,
 		Event:   eventConfig.EventType,
 	}
 
-	// sync the event in case it's not already in the database
-	err = evIndexer.SyncEvent(ctx, &selector)
+	// ensure that the event selector is included in the indexer's set for upcoming polling loop syncs
+	err = evIndexer.AddEventSelector(ctx, &selector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add event selector: %w", err)
 	}
 
 	return eventConfig, nil
@@ -622,7 +643,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 	}
 
 	// Extract generic type tags from function params
-	typeArgs, err := s.extractGenericTypeTags(ctx, parsed, functionConfig)
+	typeArgs, err := s.extractGenericTypeTags(ctx, parsed, functionConfig, args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract generic type tags: %w", err)
 	}
@@ -636,7 +657,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 }
 
 // Helper function to extract generic type tags
-func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction) ([]string, error) {
+func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction, args []any) ([]string, error) {
 	if functionConfig.Params == nil {
 		return []string{}, nil
 	}
@@ -645,7 +666,7 @@ func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *rea
 	uniqueTags := make(map[string]struct{})
 	keyOrder := make([]string, 0)
 
-	for _, param := range functionConfig.Params {
+	for paramIndex, param := range functionConfig.Params {
 		if param.GenericType != nil && *param.GenericType != "" {
 			genericType := *param.GenericType
 			// Only add if not already present
@@ -653,8 +674,8 @@ func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *rea
 				keyOrder = append(keyOrder, genericType)
 				uniqueTags[genericType] = struct{}{}
 			}
-		} else if param.GenericDependency != nil && *param.GenericDependency != "" {
-			genericType, err := s.fetchGenericDependency(ctx, functionConfig.SignerAddress, parsed, &param)
+		} else if param.GenericDependency != nil && *param.GenericDependency != "" && paramIndex < len(args) {
+			genericType, err := s.fetchGenericDependency(ctx, &param, args[paramIndex])
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch generic dependency: %w", err)
 			}
@@ -668,42 +689,35 @@ func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *rea
 	return keyOrder, nil
 }
 
-func (s *suiChainReader) fetchGenericDependency(ctx context.Context, signerAddress string, parsed *readIdentifier, param *codec.SuiFunctionParam) (string, error) {
+func (s *suiChainReader) fetchGenericDependency(
+	ctx context.Context,
+	param *codec.SuiFunctionParam,
+	paramValue any,
+) (string, error) {
 	if param == nil || param.GenericDependency == nil || *param.GenericDependency == "" {
 		return "", fmt.Errorf("generic dependency is not set")
 	}
 
 	switch *param.GenericDependency {
 	case "get_token_pool_state_type":
-		// Try to get the CCIP / TokenAdminRegistry package address from the package resolver (requires that it has been bound to CR)
-		ccipPackageAddress, err := s.packageResolver.ResolvePackageAddress("token_admin_registry")
-		if err != nil {
-			// Attempt getting the ccip package address via the offramp binding as a fallback
-			offrampPackageAddress, err := s.packageResolver.ResolvePackageAddress("offramp")
-			if err != nil {
-				return "", fmt.Errorf("get_token_pool_state_type requires that the OffRamp package has been bound to ChainReader: %w", err)
-			}
-
-			s.logger.Debugw("get_token_pool_state_type falling back to OffRamp package", "offrampPackageAddress", offrampPackageAddress)
-
-			ccipPackageAddress, err = s.client.GetCCIPPackageID(ctx, offrampPackageAddress, signerAddress)
-			if err != nil || ccipPackageAddress == "" {
-				return "", fmt.Errorf("failed to get CCIP package ID from offramp package address in fetchGenericDependency: %w", err)
-			}
+		if paramValue == nil || paramValue.(string) == "" {
+			return "", fmt.Errorf("param value is nil or empty string")
 		}
 
-		ccipPackageAddress, err = s.client.GetLatestPackageId(ctx, ccipPackageAddress, "state_object")
+		// Use the state object ID to deduce the type
+		stateObject, err := s.client.ReadObjectId(ctx, paramValue.(string))
 		if err != nil {
-			return "", fmt.Errorf("failed to get latest CCIP package address from offramp package address in fetchGenericDependency: %w", err)
+			return "", fmt.Errorf("failed to read state object: %w", err)
 		}
 
-		s.logger.Warnw("get_token_pool_state_type using CCIP package address", "ccipPackageAddress", ccipPackageAddress)
+		s.logger.Debugw("stateObjectType", "stateObjectType", stateObject.Type)
 
-		tokenConfig, err := s.client.GetTokenPoolConfigByPackageAddress(ctx, signerAddress, parsed.address, ccipPackageAddress)
+		genericType, err := parseGenericTypeFromObjectType(stateObject.Type)
 		if err != nil {
-			return "", fmt.Errorf("failed to get token pool state type: %w", err)
+			return "", err
 		}
-		return tokenConfig.TokenType, nil
+
+		return genericType, nil
 	default:
 		return "", fmt.Errorf("unknown generic dependency: %s", *param.GenericDependency)
 	}
@@ -1008,7 +1022,7 @@ func (s *suiChainReader) getEventConfig(moduleConfig *config.ChainReaderModule, 
 // queryEvents queries events from the database instead of the Sui blockchain
 func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.ChainReaderEvent, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
 	// Create the event handle for database lookup
-	eventHandle := fmt.Sprintf("%s::%s::%s", eventConfig.Package, eventConfig.Name, eventConfig.EventType)
+	eventHandle := fmt.Sprintf("%s::%s::%s", eventConfig.Package, eventConfig.EventSelector.Module, eventConfig.EventType)
 
 	s.logger.Debugw("Querying events from database",
 		"address", eventConfig.Package,
@@ -1153,4 +1167,16 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 	s.logger.Debugw("Successfully transformed events to sequences", "sequenceCount", len(sequences), "sequences", sequences)
 
 	return sequences, nil
+}
+
+func parseGenericTypeFromObjectType(objectType string) (string, error) {
+	startIdx := strings.Index(objectType, "<")
+	endIdx := strings.LastIndex(objectType, ">")
+
+	if startIdx == -1 || endIdx == -1 || startIdx >= endIdx {
+		return "", fmt.Errorf("invalid object type format, expected generic type parameter: %s", objectType)
+	}
+
+	genericType := objectType[startIdx+1 : endIdx]
+	return genericType, nil
 }

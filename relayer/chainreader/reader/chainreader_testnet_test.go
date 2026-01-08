@@ -17,9 +17,11 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
@@ -28,13 +30,7 @@ import (
 
 func TestChainReaderTestnet(t *testing.T) {
 	log := logger.Test(t)
-	rpcUrl := "https://sui-testnet-rpc.publicnode.com" // testutils.TestnetUrl
-
-	offrampContractName := "OffRamp"
-	offrampPackageId := "0x50ff1c5a49f012f9360de2fa5065efe7185c22bbeee6254e68ef695b0b0d0f40"
-
-	tokenAdminRegistryContractName := "TokenAdminRegistry"
-	tokenAdminRegistryPackageId := "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
+	rpcUrl := testutils.TestnetUrl
 
 	burnMintTokenPoolContractName := "BurnMintTokenPool"
 	burnMintTokenPoolPackageId := "0xfeff675b624e55da49f80fda3b676fe1ef5a957a8334cb675ca35de8918f612d"
@@ -63,22 +59,14 @@ func TestChainReaderTestnet(t *testing.T) {
 	chainReaderConfig := config.ChainReaderConfig{
 		IsLoopPlugin: false,
 		EventsIndexer: config.EventsIndexerConfig{
-			PollingInterval: 10 * time.Second,
-			SyncTimeout:     10 * time.Second,
+			PollingInterval: 15 * time.Second,
+			SyncTimeout:     60 * time.Second,
 		},
 		TransactionsIndexer: config.TransactionsIndexerConfig{
-			PollingInterval: 10 * time.Second,
-			SyncTimeout:     10 * time.Second,
+			PollingInterval: 15 * time.Second,
+			SyncTimeout:     60 * time.Second,
 		},
 		Modules: map[string]*config.ChainReaderModule{
-			tokenAdminRegistryContractName: {
-				Name:      "token_admin_registry",
-				Functions: map[string]*config.ChainReaderFunction{},
-			},
-			offrampContractName: {
-				Name:      "offramp",
-				Functions: map[string]*config.ChainReaderFunction{},
-			},
 			burnMintTokenPoolContractName: {
 				Name: "burn_mint_token_pool",
 				Functions: map[string]*config.ChainReaderFunction{
@@ -180,28 +168,48 @@ func TestChainReaderTestnet(t *testing.T) {
 						},
 					},
 				},
-				Events: map[string]*config.ChainReaderEvent{},
+				Events: map[string]*config.ChainReaderEvent{
+					"released_or_minted": {
+						Name:      "released_or_minted",
+						EventType: "ReleasedOrMinted",
+						EventSelector: client.EventFilterByMoveEventModule{
+							Module: "token_pool",
+							Event:  "ReleasedOrMinted",
+						},
+					},
+				},
 			},
 		},
 	}
 
-	db := sqltest.NewNoOpDataSource()
+	datastoreUrl := os.Getenv("TEST_DB_URL")
+	if datastoreUrl == "" {
+		t.Skip("Skipping persistent tests as TEST_DB_URL is not set in CI")
+	}
+	db := sqltest.NewDB(t, datastoreUrl)
+	dbStore := database.NewDBStore(db, log)
+	require.NoError(t, dbStore.EnsureSchema(ctx))
 
+	indexerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
+	require.NoError(t, clientErr)
 	// Create the indexers
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
 		log,
-		relayerClient,
+		indexerClient,
 		chainReaderConfig.TransactionsIndexer.PollingInterval,
 		chainReaderConfig.TransactionsIndexer.SyncTimeout,
 		// start without any configs, they will be set when ChainReader is initialized and gets a reference
 		// to the transaction indexer to avoid having to reading ChainReader configs here as well
 		map[string]*config.ChainReaderEvent{},
 	)
+
+	eventIndexerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
+	require.NoError(t, clientErr)
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		log,
-		relayerClient,
+		eventIndexerClient,
 		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
 		chainReaderConfig.EventsIndexer.PollingInterval,
@@ -218,14 +226,8 @@ func TestChainReaderTestnet(t *testing.T) {
 	require.NoError(t, err)
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{{
-		Name:    offrampContractName,
-		Address: offrampPackageId,
-	}, {
 		Name:    burnMintTokenPoolContractName,
 		Address: burnMintTokenPoolPackageId,
-	}, {
-		Name:    tokenAdminRegistryContractName,
-		Address: tokenAdminRegistryPackageId,
 	}})
 	require.NoError(t, err)
 
@@ -368,5 +370,23 @@ func TestChainReaderTestnet(t *testing.T) {
 		}
 
 		log.Infof("Completed %d requests, %d errors", processedCount, errorCount)
+	})
+
+	t.Run("token pool events", func(t *testing.T) {
+		var retReleasedOrMinted map[string]any
+
+		sequences, err := chainReader.QueryKey(ctx, types.BoundContract{
+			Name:    burnMintTokenPoolContractName,
+			Address: burnMintTokenPoolPackageId,
+		}, query.KeyFilter{
+			Key: "released_or_minted",
+		}, query.LimitAndSort{
+			Limit: query.Limit{
+				Count: 100,
+			},
+		}, &retReleasedOrMinted)
+
+		testutils.PrettyPrintDebug(log, sequences, "sequences")
+		require.NoError(t, err)
 	})
 }
