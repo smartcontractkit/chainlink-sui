@@ -22,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
 
 type TransactionsIndexer struct {
@@ -487,12 +488,15 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			// Create synthetic ExecutionStateChanged event
 			// The fields map one-to-one the onchain event
 			executionStateChanged := map[string]any{
-				"sourceChainSelector": fmt.Sprintf("%d", sourceChainSelector),
-				"sequenceNumber":      fmt.Sprintf("%d", execReport.Message.Header.SequenceNumber),
-				"messageId":           execReport.Message.Header.MessageID,
-				"messageHash":         messageHash[:],
-				"state":               uint8(3), // 3 = FAILURE
+				"source_chain_selector": fmt.Sprintf("%d", sourceChainSelector),
+				"sequence_number":       fmt.Sprintf("%d", execReport.Message.Header.SequenceNumber),
+				"message_id":            execReport.Message.Header.MessageID,
+				"message_hash":          messageHash[:],
+				"state":                 uint8(3), // 3 = FAILURE
 			}
+
+			// normalize keys
+			executionStateChanged = common.ConvertMapKeysToCamelCase(executionStateChanged).(map[string]any)
 
 			blockTimestamp, err := strconv.ParseUint(checkpointResponse.TimestampMs, 10, 64)
 			if err != nil {
@@ -523,6 +527,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				BlockHash:           blockHashBytes,
 				BlockTimestamp:      blockTimestamp,
 				Data:                executionStateChanged,
+				IsSynthetic:         true,
 			}
 
 			records = append(records, record)

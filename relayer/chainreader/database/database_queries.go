@@ -19,6 +19,7 @@ const (
 		data JSONB NOT NULL,
 		UNIQUE (event_account_address, event_handle, tx_digest, event_offset)
 	);
+    ALTER TABLE sui.events ADD COLUMN IF NOT EXISTS is_synthetic BOOLEAN DEFAULT FALSE;
     `
 
 	CreateTransmitterCursorsTable = `
@@ -45,8 +46,9 @@ const (
 		block_height,
 		block_hash,
 		block_timestamp,
-		data
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		data,
+		is_synthetic
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	ON CONFLICT DO NOTHING;
     `
 
@@ -59,7 +61,7 @@ const (
 	QueryEventsOffset = `
 	SELECT COALESCE(event_offset, 0) as event_offset, tx_digest
 	FROM sui.events 
-	WHERE event_account_address = $1 AND event_handle = $2 
+	WHERE event_account_address = $1 AND event_handle = $2 AND is_synthetic = FALSE
 	ORDER BY id DESC 
 	LIMIT 1
 	`
