@@ -50,7 +50,7 @@ func (m *SuiGasCoinManager) TryReserveCoins(
 ) error {
 	for _, coin := range coinIDs {
 		if m.IsCoinReserved(coin.ObjectId) {
-			return fmt.Errorf("coin %s is already reserved", coin.ObjectId)
+			return fmt.Errorf("coin %s is already reserved", hex.EncodeToString(coin.ObjectId[:]))
 		}
 
 		coinID := hex.EncodeToString(coin.ObjectId[:])
