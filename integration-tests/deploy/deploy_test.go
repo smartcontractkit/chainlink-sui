@@ -3,6 +3,8 @@
 package deploy
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 
 	"testing"
@@ -11,6 +13,8 @@ import (
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
 
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	"github.com/smartcontractkit/chainlink-sui/deployment/changesets"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
@@ -47,6 +51,28 @@ func (s *DeployTestSuite) TestDeployAndConfigureSuiChain() {
 	s.ConfigureDeployerAsMinter()
 	// Phase 10: Deploy Managed Token Pool
 	s.DeployManagedTokenPool()
+
+	// Phase 11: Test curse/uncurse RMN subjects
+	// this test is placed here since we have a full deployment to test against
+	curseCfg := changesets.CurseUncurseChainsConfig{
+		SuiChainSelector:   SuiChainSelector,
+		OperationType:      string(changesets.CurseOperationType),
+		IsGlobalCurse:      false,
+		DestChainSelectors: []uint64{EVMChainSelector},
+	}
+	curseOut, err := changesets.CurseUncurseChains{}.Apply(s.env, curseCfg)
+	s.Require().NoError(err, "failed to curse RMN subjects")
+	s.Require().Len(curseOut.Reports, 1, "expected single curse report")
+
+	s.assertRMNCurseSubjects(EVMChainSelector, true)
+
+	uncurseCfg := curseCfg
+	uncurseCfg.OperationType = string(changesets.UncurseOperationType)
+	uncurseOut, err := changesets.CurseUncurseChains{}.Apply(s.env, uncurseCfg)
+	s.Require().NoError(err, "failed to uncurse RMN subjects")
+	s.Require().Len(uncurseOut.Reports, 1, "expected single uncurse report")
+
+	s.assertRMNCurseSubjects(EVMChainSelector, false)
 
 	// Load view and check deployments
 	states, err := deployment.LoadOnchainStatesui(s.env)
@@ -458,4 +484,35 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 	s.Require().NoError(err, "failed to deploy managed token pool")
 	err = s.env.ExistingAddresses.Merge(tokenPoolOut.AddressBook)
 	s.Require().NoError(err, "failed to merge managed token pool addresses")
+}
+
+func (s *DeployTestSuite) assertRMNCurseSubjects(selector uint64, expectCursed bool) {
+	s.T().Helper()
+
+	s.Require().NotEmpty(s.ccipPackageID, "CCIP package ID not set for RMN assertions")
+	s.Require().NotEmpty(s.ccipObjectRef, "CCIP object ref not set for RMN assertions")
+
+	contract, err := module_rmn_remote.NewRmnRemote(s.ccipPackageID, s.client)
+	s.Require().NoError(err, "failed to create RMN remote binding")
+
+	callOpts := &bind.CallOpts{Signer: s.signer}
+	subjects, err := contract.DevInspect().GetCursedSubjects(s.T().Context(), callOpts, bind.Object{Id: s.ccipObjectRef})
+	s.Require().NoError(err, "failed to fetch cursed subjects")
+
+	target := make([]byte, 16)
+	binary.BigEndian.PutUint64(target[8:], selector)
+	found := false
+	for _, subj := range subjects {
+		if bytes.Equal(subj, target) {
+			found = true
+			break
+		}
+	}
+
+	if expectCursed {
+		s.Require().True(found, "expected selector to be cursed")
+		return
+	}
+
+	s.Require().False(found, "expected selector to be uncursed")
 }
