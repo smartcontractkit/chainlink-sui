@@ -526,7 +526,8 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				TxDigest:            txDigestHex,
 				BlockHeight:         checkpointResponse.SequenceNumber,
 				BlockHash:           blockHashBytes,
-				BlockTimestamp:      blockTimestamp,
+				// Convert to seconds for consistency with events indexer.
+				BlockTimestamp:      blockTimestamp / 1000,
 				Data:                executionStateChanged,
 				IsSynthetic:         true,
 			}
