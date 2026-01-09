@@ -22,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
 
 type TransactionsIndexer struct {
@@ -490,10 +491,13 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			executionStateChanged := map[string]any{
 				"source_chain_selector": fmt.Sprintf("%d", sourceChainSelector),
 				"sequence_number":       fmt.Sprintf("%d", execReport.Message.Header.SequenceNumber),
-				"message_id":            "0x" + hex.EncodeToString(execReport.Message.Header.MessageID),
-				"message_hash":          "0x" + hex.EncodeToString(messageHash[:]),
+				"message_id":            execReport.Message.Header.MessageID,
+				"message_hash":          messageHash[:],
 				"state":                 uint8(3), // 3 = FAILURE
 			}
+
+			// normalize keys
+			executionStateChanged = common.ConvertMapKeysToCamelCase(executionStateChanged).(map[string]any)
 
 			blockTimestamp, err := strconv.ParseUint(checkpointResponse.TimestampMs, 10, 64)
 			if err != nil {
@@ -522,8 +526,10 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				TxDigest:            txDigestHex,
 				BlockHeight:         checkpointResponse.SequenceNumber,
 				BlockHash:           blockHashBytes,
-				BlockTimestamp:      blockTimestamp,
+				// Convert to seconds for consistency with events indexer.
+				BlockTimestamp:      blockTimestamp / 1000,
 				Data:                executionStateChanged,
+				IsSynthetic:         true,
 			}
 
 			records = append(records, record)

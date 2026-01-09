@@ -611,6 +611,7 @@ func TestEventsIndexer(t *testing.T) {
 			BlockHash:           []byte("5HueCGU5rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"),
 			BlockTimestamp:      1000000000,
 			Data:                map[string]any{},
+			IsSynthetic:         false,
 		}
 
 		// insert duplicate and incorrect event offsets
@@ -762,5 +763,42 @@ func TestEventsIndexer(t *testing.T) {
 			require.Equal(t, events[i].EventHandle, eventHandle)
 			require.Equal(t, events[i].Data["sequenceNumber"].(float64)+1, events[i+1].Data["sequenceNumber"].(float64))
 		}
+	})
+
+	t.Run("TestSyntheticEventsSkipForOffset", func(t *testing.T) {
+		eventHandle := packageId + "::offramp::ExecutionStateChanged"
+		record := database.EventRecord{
+			EventAccountAddress: accountAddress,
+			EventHandle:         eventHandle,
+			EventOffset:         0,
+			TxDigest:            "fake_digest",
+			BlockVersion:        0,
+			BlockHeight:         "100",
+			BlockHash:           []byte("5HueCGU5rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"),
+			BlockTimestamp:      1000000000,
+			Data:                map[string]any{},
+			IsSynthetic:         true,
+		}
+
+		recordB := database.EventRecord{
+			EventAccountAddress: accountAddress,
+			EventHandle:         eventHandle,
+			EventOffset:         1,
+			TxDigest:            "real_digest",
+			BlockVersion:        0,
+			BlockHeight:         "100",
+			BlockHash:           []byte("5HueCGU5rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"),
+			BlockTimestamp:      1000000000,
+			Data:                map[string]any{},
+			IsSynthetic:         false,
+		}
+
+		dbStore.InsertEvents(ctx, []database.EventRecord{record, recordB})
+
+		// query events with out of order event_offset
+		cursor, totalCount, err := dbStore.GetLatestOffset(ctx, accountAddress, eventHandle)
+		require.NoError(t, err)
+		require.Equal(t, recordB.TxDigest, cursor.TxDigest)
+		require.Equal(t, uint64(2), totalCount)
 	})
 }
