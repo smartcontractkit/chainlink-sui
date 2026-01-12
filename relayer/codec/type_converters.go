@@ -765,3 +765,11 @@ func UnifiedTypeConverterHook(from, to reflect.Type, data any) (any, error) {
 	// Use the global converter
 	return getDefaultTypeConverter().Convert(from, to, data)
 }
+
+func BytesToAnySlice(b []byte) []any {
+	result := make([]any, len(b))
+	for i, v := range b {
+		result[i] = v
+	}
+	return result
+}
