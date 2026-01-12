@@ -399,32 +399,25 @@ func TestTransactionsIndexer(t *testing.T) {
 			return found
 		}
 
-		// 1. Create a few transactions
+		// Create a few transactions and check they exist via the RPC
 		for range 3 {
 			CreateFailedTransaction(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
 		}
 
-		// 2. Query the transactions and ensure that they are findable from the RPC
 		txs_1, err := relayerClient.QueryTransactions(ctx, accountAddress, nil, nil)
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(txs_1.Data), 3, "Expected at least 3 transactions")
 
-		// 3. Start the indexers and ensure that the events / transactions are indexed
-		go func() {
-			_ = cReader.Start(ctx)
-			_ = txnIndexer.Start(ctx)
-		}()
-
-		// 4. Create a successful transaction to trigger the transactions indexer
+		// Insert successful transactions to ensure events queries do not pick them up
 		CreateSuccessfulTransaction(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
 		time.Sleep(15 * time.Second)
 
-		// 5. Create the initial OCR event to initiate transaction indexing
+		// Create the initial OCR event to initiate transaction indexing
 		setConfigResponse, setConfigErr := SetOCRConfig(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
 		require.NoError(t, setConfigErr)
 		testutils.PrettyPrintDebug(log, setConfigResponse, "setConfigResponse")
 
-		// 4.a. Wait for the configs to be set
+		// Wait for the configs to be set and stored in the DB
 		require.Eventually(t, func() bool {
 			okConfig := hasEventDBOnlyCheck(packageId, "ocr3_base", "ConfigSet")
 			okSrcCfg := hasEventDBOnlyCheck(packageId, "offramp", "SourceChainConfigSet")
@@ -437,7 +430,7 @@ func TestTransactionsIndexer(t *testing.T) {
 			return okConfig && okSrcCfg
 		}, 90*time.Second, 5*time.Second)
 
-		// 5. Create a failed PTB transaction
+		// Create a failed PTB transaction
 		reportStr := "9b3c1f221aa3f0cc579b9518768ead0a57cc3d9d782049b702fab91dd723c757f287d20217d8e69b9b3c1f221aa3f0ccec1182faa7c27b87a40200000000000000000000000000001407775923481a094e41d51449b0b0f979c126a3b003486579b4dcbf61d5f5f447ae448e3c1503a811d83bdc074a8712ebeb241fd649b372e040420f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 		reportBytes, err := hex.DecodeString(reportStr)
 		require.NoError(t, err)
@@ -457,18 +450,25 @@ func TestTransactionsIndexer(t *testing.T) {
 		response, _ := relayerClient.FinishPTBAndSend(ctx, txnSigner, ptbTx, client.WaitForLocalExecution)
 		require.Equal(t, "failure", response.Status.Status)
 
-		// 5.b. Wait for the execution state changed event to be indexed
+		// Wait for the execution state changed event to be indexed and inserted into the DB
 		require.Eventually(t, func() bool {
 			return hasEvent(boundContracts[0], "ExecutionStateChanged")
 		}, 90*time.Second, 5*time.Second)
 
+		// Fresh query for events of type ExecutionStateChanged to check values against decoded report
 		events, err := cReader.QueryKey(ctx, boundContracts[0], query.KeyFilter{Key: "ExecutionStateChanged"}, query.LimitAndSort{}, &OfframpExecutionStateChanged{})
 		require.NoError(t, err)
 		require.NotEmpty(t, events)
 
 		executionStateChanged := events[0].Data.(*OfframpExecutionStateChanged)
 
-		require.True(t, strings.HasPrefix(executionStateChanged.MessageId, "0x"))
+		decodedReport, err := codec.DeserializeExecutionReport(reportBytes)
+		require.NoError(t, err)
+		require.NotNil(t, decodedReport)
+
+		// The message ID is expected to be encoded as a hex string due to the use of `ExpectedEventType` in the ChainReader config
+		// for the relevant event.
+		require.Equal(t, "0x"+hex.EncodeToString(decodedReport.Message.Header.MessageID), executionStateChanged.MessageId)
 		require.True(t, strings.HasPrefix(executionStateChanged.MessageHash, "0x"))
 	})
 }
