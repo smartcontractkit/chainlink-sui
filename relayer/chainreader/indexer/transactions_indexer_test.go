@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -226,7 +227,16 @@ func TestTransactionsIndexer(t *testing.T) {
 	pollingInterval := 4 * time.Second
 	syncTimeout := 3 * time.Second
 
+	type OfframpExecutionStateChanged struct {
+		SourceChainSelector uint64 `json:"sourceChainSelector"`
+		SequenceNumber      uint64 `json:"sequenceNumber"`
+		MessageId           string `json:"messageId"`
+		MessageHash         string `json:"messageHash"`
+		State               int    `json:"state"`
+	}
+
 	readerConfig := config.ChainReaderConfig{
+		IsLoopPlugin: false,
 		Modules: map[string]*config.ChainReaderModule{
 			"OffRamp": {
 				Name:      "offramp",
@@ -240,6 +250,7 @@ func TestTransactionsIndexer(t *testing.T) {
 							Module:  "offramp",
 							Event:   "ExecutionStateChanged",
 						},
+						ExpectedEventType: &OfframpExecutionStateChanged{},
 					},
 					"SourceChainConfigSet": {
 						Name:      "offramp",
@@ -277,7 +288,6 @@ func TestTransactionsIndexer(t *testing.T) {
 				},
 			},
 		},
-		IsLoopPlugin: false,
 		EventsIndexer: config.EventsIndexerConfig{
 			PollingInterval: pollingInterval,
 			SyncTimeout:     syncTimeout,
@@ -354,7 +364,8 @@ func TestTransactionsIndexer(t *testing.T) {
 
 		// helper: returns true if at least one event with the given key exists for the contract
 		hasEvent := func(contract types.BoundContract, key string) bool {
-			events, err := cReader.QueryKey(ctx, contract, query.KeyFilter{Key: key}, query.LimitAndSort{}, &database.EventRecord{})
+			dataType := map[string]any{}
+			events, err := cReader.QueryKey(ctx, contract, query.KeyFilter{Key: key}, query.LimitAndSort{}, &dataType)
 			if err != nil {
 				log.Errorw("Error querying events", "contract", contract.Name, "key", key, "error", err)
 				return false
@@ -362,7 +373,7 @@ func TestTransactionsIndexer(t *testing.T) {
 			found := len(events) > 0
 
 			if found {
-				log.Debugw("Event found")
+				log.Debugw("Event found (hasEvent)", "events", events)
 			} else {
 				log.Debugw("Event not found", events)
 			}
@@ -380,7 +391,7 @@ func TestTransactionsIndexer(t *testing.T) {
 			found := len(events) > 0
 
 			if found {
-				log.Debugw("Event found")
+				log.Debugw("Event found (hasEventDBOnlyCheck)", "events", events)
 			} else {
 				log.Debugw("Event not found", events)
 			}
@@ -450,6 +461,15 @@ func TestTransactionsIndexer(t *testing.T) {
 		require.Eventually(t, func() bool {
 			return hasEvent(boundContracts[0], "ExecutionStateChanged")
 		}, 90*time.Second, 5*time.Second)
+
+		events, err := cReader.QueryKey(ctx, boundContracts[0], query.KeyFilter{Key: "ExecutionStateChanged"}, query.LimitAndSort{}, &OfframpExecutionStateChanged{})
+		require.NoError(t, err)
+		require.NotEmpty(t, events)
+
+		executionStateChanged := events[0].Data.(*OfframpExecutionStateChanged)
+
+		require.True(t, strings.HasPrefix(executionStateChanged.MessageId, "0x"))
+		require.True(t, strings.HasPrefix(executionStateChanged.MessageHash, "0x"))
 	})
 }
 
