@@ -184,5 +184,13 @@ func TestDeployMCMSSeq(t *testing.T) {
 	require.NotEmpty(t, objects.McmsAccountStateObjectId, "MCMS Account State Object ID should not be empty")
 	require.NotEmpty(t, objects.McmsAccountOwnerCapObjectId, "MCMS Account Owner Cap Object ID should not be empty")
 	require.NotEmpty(t, report.Output.PackageId, "Package ID should not be empty")
-	require.NotEmpty(t, report.Output.AcceptOwnershipProposal, "Accept Ownership Proposal should not be empty")
+
+	// Verify the accept ownership proposal was generated correctly
+	proposal := report.Output.AcceptOwnershipProposal
+	require.NotEmpty(t, proposal.Description, "Proposal description should not be empty")
+	require.Contains(t, proposal.Description, "accept_ownership", "Proposal should reference accept_ownership operation")
+	require.NotEmpty(t, proposal.Version, "Proposal version should not be empty")
+	require.NotZero(t, proposal.ValidUntil, "Proposal ValidUntil should be set")
+	require.NotEmpty(t, proposal.Operations, "Proposal should contain operations")
+	require.Len(t, proposal.Operations, 1, "Proposal should contain exactly one operation")
 }

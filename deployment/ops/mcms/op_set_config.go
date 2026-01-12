@@ -8,12 +8,13 @@ import (
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	modulemcms "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms"
-	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	"github.com/smartcontractkit/mcms/sdk/evm"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/smartcontractkit/mcms/types"
+
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	modulemcms "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms"
+	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
 
 type MCMSSetConfigInput struct {
@@ -28,6 +29,13 @@ type MCMSSetConfigInput struct {
 	Config    types.Config `json:"config"`
 	ClearRoot bool         `json:"clearRoot"`
 }
+
+var SetConfigMCMSOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("mcms", "mcms", "set_config"),
+	semver.MustParse("0.1.0"),
+	"Set config in the MCMS contract",
+	setConfigMcmsHandler,
+)
 
 var setConfigMcmsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input MCMSSetConfigInput) (output sui_ops.OpTxResult[cld_ops.EmptyInput], err error) {
 	opts := deps.GetCallOpts()
@@ -92,10 +100,3 @@ var setConfigMcmsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input M
 		PackageId: input.McmsPackageID,
 	}, err
 }
-
-var SetConfigMCMSOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("mcms", "mcms", "set_config"),
-	semver.MustParse("0.1.0"),
-	"Set config in the MCMS contract",
-	setConfigMcmsHandler,
-)

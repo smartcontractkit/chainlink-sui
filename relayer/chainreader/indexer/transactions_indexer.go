@@ -491,10 +491,13 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			executionStateChanged := map[string]any{
 				"source_chain_selector": fmt.Sprintf("%d", sourceChainSelector),
 				"sequence_number":       fmt.Sprintf("%d", execReport.Message.Header.SequenceNumber),
-				"message_id":            execReport.Message.Header.MessageID,
-				"message_hash":          messageHash[:],
-				"state":                 uint8(3), // 3 = FAILURE
+				// The conversion to []any is needed to avoid the default Go DB SDK behaviour of converting the byte slice to encoded base64 string.
+				"message_id":   codec.BytesToAnySlice(execReport.Message.Header.MessageID),
+				"message_hash": codec.BytesToAnySlice(messageHash[:]),
+				"state":        uint8(3), // 3 = FAILURE
 			}
+
+			tIndexer.logger.Debugw("About to insert synthetic ExecutionStateChanged event", "executionStateChanged", executionStateChanged)
 
 			// normalize keys
 			executionStateChanged = common.ConvertMapKeysToCamelCase(executionStateChanged).(map[string]any)
@@ -526,7 +529,8 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				TxDigest:            txDigestHex,
 				BlockHeight:         checkpointResponse.SequenceNumber,
 				BlockHash:           blockHashBytes,
-				BlockTimestamp:      blockTimestamp,
+				// Convert to seconds for consistency with events indexer.
+				BlockTimestamp:      blockTimestamp / 1000,
 				Data:                executionStateChanged,
 				IsSynthetic:         true,
 			}
