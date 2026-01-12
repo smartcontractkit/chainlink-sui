@@ -165,7 +165,7 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		"--gas-budget", gasBudgetArg,
 		"--json",
 		"--silence-warnings",
-		"--dev",
+		// "--dev",
 		"--with-unpublished-dependencies",
 		contractPath,
 	)
@@ -267,9 +267,9 @@ func patchContractTOMLSection(t *testing.T, contractPath, addresses, name, addre
 // contractPath : folder that contains Move.toml
 // name         : key to patch (e.g. "mcms")
 // address      : new hex value (e.g. "0x0000")
-func PatchContractDevAddressTOML(t *testing.T, contractPath, name, address string) {
-	patchContractTOMLSection(t, contractPath, "dev-addresses", name, address)
-}
+// func PatchContractDevAddressTOML(t *testing.T, contractPath, name, address string) {
+// 	patchContractTOMLSection(t, contractPath, "dev-addresses", name, address)
+// }
 
 // PatchContractAddressTOML edits one entry under [addresses].
 // Same as PatchContractDevAddressTOML, but for [addresses] section.

@@ -1,12 +1,12 @@
 [package]
 name = "TestModule"
-edition = "2024.beta"
+edition = "2024"
 
 [dependencies]
 ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
 
 [addresses]
-# mcms_test = "_"
+mcms_test = "_"
 # mcms = "_"
 # mcms_owner = "_"
 
