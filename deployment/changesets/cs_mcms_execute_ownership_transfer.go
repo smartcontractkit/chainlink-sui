@@ -113,7 +113,7 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 	if config.Router {
 		input.Router = &routerops.ExecuteOwnershipTransferToMcmsRouterInput{
 			RouterPackageId:     state.CCIPRouterAddress,
-			OwnerCapObjectId:    state.CCIPOwnerCapObjectId,
+			OwnerCapObjectId:    state.CCIPRouterOwnerCapObjectId,
 			RouterStateObjectId: state.CCIPRouterStateObjectID,
 			RegistryObjectId:    state.MCMSRegistryObjectID,
 			To:                  state.MCMSPackageID,
