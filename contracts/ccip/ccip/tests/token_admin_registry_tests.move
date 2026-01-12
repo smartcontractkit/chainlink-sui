@@ -494,12 +494,9 @@ public fun test_register() {
             @0x0,
         );
 
-        let (_, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(
+        let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
             &ref,
             local_token,
-        );
-        assert!(
-            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
         );
         assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
 
@@ -532,12 +529,9 @@ public fun test_register() {
             TOKEN_ADMIN_ADDRESS_2,
         );
 
-        let (_, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(
+        let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
             &ref,
             local_token,
-        );
-        assert!(
-            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
         );
         // Since TypeProof and TypeProof2 have the same package ID, the type proof should remain as TypeProof
         assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));

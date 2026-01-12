@@ -48,6 +48,11 @@ public struct Uncursed has copy, drop {
     subjects: vector<vector<u8>>,
 }
 
+public struct FastCurseCap has key, store {
+    id: UID,
+    owner_cap_id: ID,
+}
+
 const EAlreadyInitialized: u64 = 1;
 const EAlreadyCursed: u64 = 2;
 const EDuplicateSigner: u64 = 3;
@@ -61,11 +66,25 @@ const EInvalidSubjectLength: u64 = 10;
 const EInvalidPublicKeyLength: u64 = 11;
 const EInvalidFunction: u64 = 12;
 const EInvalidOwnerCap: u64 = 13;
+const EInvalidFastCurseCap: u64 = 14;
 
 const VERSION: u8 = 1;
 
 public fun type_and_version(): String {
     string::utf8(b"RMNRemote 1.6.0")
+}
+
+public fun new_fast_curse_cap(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    ctx: &mut TxContext,
+): FastCurseCap {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
+    FastCurseCap {
+        id: object::new(ctx),
+        owner_cap_id: object::id(owner_cap),
+    }
 }
 
 public fun initialize(
@@ -196,6 +215,14 @@ public fun get_report_digest_header(): vector<u8> {
     hash::keccak256(&b"RMN_V1_6_ANY2SUI_REPORT")
 }
 
+public fun fast_curse(ref: &mut CCIPObjectRef, fast_curse_cap: &FastCurseCap, subject: vector<u8>) {
+    assert!(object::id(fast_curse_cap) == fast_curse_cap.owner_cap_id, EInvalidFastCurseCap);
+
+    let state = state_object::borrow_mut<RMNRemoteState>(ref);
+    state.cursed_subjects.insert(subject, true);
+    event::emit(Cursed { subjects: vector[subject] });
+}
+
 public fun curse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<u8>) {
     verify_function_allowed(
         ref,
@@ -206,6 +233,30 @@ public fun curse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     curse_multiple(ref, owner_cap, vector[subject]);
+}
+
+public fun fast_curse_multiple(
+    ref: &mut CCIPObjectRef,
+    fast_curse_cap: &FastCurseCap,
+    subjects: vector<vector<u8>>,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"fast_curse_multiple"),
+        VERSION,
+    );
+    assert!(object::id(fast_curse_cap) == fast_curse_cap.owner_cap_id, EInvalidFastCurseCap);
+
+    let state = state_object::borrow_mut<RMNRemoteState>(ref);
+
+    subjects.do_ref!(|subject| {
+        let subject: vector<u8> = *subject;
+        assert!(subject.length() == 16, EInvalidSubjectLength);
+        assert!(!state.cursed_subjects.contains(&subject), EAlreadyCursed);
+        state.cursed_subjects.insert(subject, true);
+    });
+    event::emit(Cursed { subjects });
 }
 
 public fun curse_multiple(
@@ -230,6 +281,24 @@ public fun curse_multiple(
         state.cursed_subjects.insert(subject, true);
     });
     event::emit(Cursed { subjects });
+}
+
+public fun fast_uncurse(
+    ref: &mut CCIPObjectRef,
+    fast_curse_cap: &FastCurseCap,
+    subject: vector<u8>,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"fast_uncurse"),
+        VERSION,
+    );
+    assert!(object::id(fast_curse_cap) == fast_curse_cap.owner_cap_id, EInvalidFastCurseCap);
+
+    let state = state_object::borrow_mut<RMNRemoteState>(ref);
+    state.cursed_subjects.remove(&subject);
+    event::emit(Uncursed { subjects: vector[subject] });
 }
 
 public fun uncurse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<u8>) {
@@ -390,6 +459,33 @@ public fun mcms_curse(
     curse(ref, owner_cap, subject);
 }
 
+public fun mcms_fast_curse(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (fast_curse_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        FastCurseCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"fast_curse"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(fast_curse_cap)],
+        &mut stream,
+    );
+
+    let subject = bcs_stream::deserialize_vector_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    fast_curse(ref, fast_curse_cap, subject);
+}
+
 public fun mcms_curse_multiple(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
@@ -445,6 +541,33 @@ public fun mcms_uncurse(
     bcs_stream::assert_is_consumed(&stream);
 
     uncurse(ref, owner_cap, subject);
+}
+
+public fun mcms_fast_uncurse(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (fast_curse_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        FastCurseCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"fast_uncurse"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(fast_curse_cap)],
+        &mut stream,
+    );
+
+    let subject = bcs_stream::deserialize_vector_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    fast_uncurse(ref, fast_curse_cap, subject);
 }
 
 public fun mcms_uncurse_multiple(

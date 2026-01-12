@@ -3,16 +3,16 @@ name = "ChainlinkCCIPOnramp"
 edition = "2024"
 
 [addresses]
-ccip = "_"
+# ccip = "_"
 ccip_onramp = "0x0"
-mcms = "_"
-mcms_owner = "_"
+# mcms = "_"
+# mcms_owner = "_"
 
-[dev-addresses]
-ccip = "0x1000"
-ccip_onramp = "0x1001"
-mcms = "0x4000"
-mcms_owner = "0x4010"
+# [dev-addresses]
+# ccip = "0x1000"
+# ccip_onramp = "0x1001"
+# mcms = "0x4000"
+# mcms_owner = "0x4010"
 
 [dependencies]
 ChainlinkCCIP = { local = "../ccip" }
