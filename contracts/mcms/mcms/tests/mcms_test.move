@@ -823,6 +823,11 @@ fun test_set_config__non_root_is_its_own_parent() {
 }
 
 #[test]
+fun test_print_mcms_address() {
+    std::debug::print(&@mcms);
+}
+
+#[test]
 #[expected_failure(abort_code = mcms::EGroupTreeNotWellFormed, location = mcms)]
 fun test_set_config__group_parent_higher_index() {
     let mut env = setup();

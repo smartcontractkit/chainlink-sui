@@ -494,11 +494,14 @@ public fun test_register() {
             @0x0,
         );
 
-        let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
+        let (_, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(
             &ref,
             local_token,
         );
         assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
+        assert!(
+            token_type == ascii::string(b"0x5ef4b483da6644c84aa78eae4f51a9bfb1fb4554d5134ac98892e931fcbdd6bf::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
+        );
 
         let ctx = scenario.ctx();
 
@@ -529,9 +532,12 @@ public fun test_register() {
             TOKEN_ADMIN_ADDRESS_2,
         );
 
-        let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
+        let (_, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(
             &ref,
             local_token,
+        );
+        assert!(
+            token_type == ascii::string(b"0x5ef4b483da6644c84aa78eae4f51a9bfb1fb4554d5134ac98892e931fcbdd6bf::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
         );
         // Since TypeProof and TypeProof2 have the same package ID, the type proof should remain as TypeProof
         assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
