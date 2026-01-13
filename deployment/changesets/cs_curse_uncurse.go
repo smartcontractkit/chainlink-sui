@@ -7,11 +7,15 @@ import (
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/mcms"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	rmn_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/rmn"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 type CurseUncurseOperationType string
@@ -22,10 +26,11 @@ const (
 )
 
 type CurseUncurseChainsConfig struct {
-	SuiChainSelector   uint64   `yaml:"suiChainSelector"`
-	OperationType      string   `yaml:"operationType"`
-	IsGlobalCurse      bool     `yaml:"isGlobalCurse"`
-	DestChainSelectors []uint64 `yaml:"destChainSelectors"`
+	SuiChainSelector   uint64                `yaml:"suiChainSelector"`
+	OperationType      string                `yaml:"operationType"`
+	IsGlobalCurse      bool                  `yaml:"isGlobalCurse"`
+	DestChainSelectors []uint64              `yaml:"destChainSelectors"`
+	TimelockConfig     *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
 }
 
 var _ cldf.ChangeSetV2[CurseUncurseChainsConfig] = CurseUncurseChains{}
@@ -90,6 +95,11 @@ func (c CurseUncurseChains) Apply(e cldf.Environment, cfg CurseUncurseChainsConf
 		SuiRPC: suiChain.URL,
 	}
 
+	// If timelock proposal is to be generated, disable signer in deps
+	if cfg.TimelockConfig != nil {
+		deps.Signer = nil
+	}
+
 	input := rmn_ops.CurseUncurseChainInput{
 		CCIPPackageId:    chainState.CCIPAddress,
 		StateObjectId:    chainState.CCIPObjectRef,
@@ -112,7 +122,35 @@ func (c CurseUncurseChains) Apply(e cldf.Environment, cfg CurseUncurseChainsConf
 		genericReport = report.ToGenericReport()
 	}
 
-	return cldf.ChangesetOutput{Reports: []operations.Report[any, any]{genericReport}}, nil
+	mcmsProposal := mcms.TimelockProposal{}
+	if cfg.TimelockConfig != nil {
+		defs := []cld_ops.Definition{genericReport.Def}
+		inputs := []any{genericReport.Input}
+
+		mcmsConfig := mcmsops.ProposalGenerateInput{
+			ChainSelector:      cfg.SuiChainSelector,
+			Defs:               defs,
+			Inputs:             inputs,
+			MmcsPackageID:      state[cfg.SuiChainSelector].MCMSPackageID,
+			McmsStateObjID:     state[cfg.SuiChainSelector].MCMSStateObjectID,
+			TimelockObjID:      state[cfg.SuiChainSelector].MCMSTimelockObjectID,
+			AccountObjID:       state[cfg.SuiChainSelector].MCMSAccountStateObjectID,
+			RegistryObjID:      state[cfg.SuiChainSelector].MCMSRegistryObjectID,
+			DeployerStateObjID: state[cfg.SuiChainSelector].MCMSDeployerStateObjectID,
+			TimelockConfig:     *cfg.TimelockConfig,
+		}
+
+		result, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, mcmsConfig)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to generate MCMS proposal: %w", err)
+		}
+		mcmsProposal = result.Output
+	}
+
+	return cldf.ChangesetOutput{
+		Reports:               []operations.Report[any, any]{genericReport},
+		MCMSTimelockProposals: []mcms.TimelockProposal{mcmsProposal},
+	}, nil
 }
 
 func buildCurseSubjects(cfg CurseUncurseChainsConfig) ([][]byte, error) {
