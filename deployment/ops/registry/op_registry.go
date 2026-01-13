@@ -2,6 +2,7 @@ package opregistry
 
 import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
 	lockreleasetokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
@@ -10,6 +11,7 @@ import (
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	rmnops "github.com/smartcontractkit/chainlink-sui/deployment/ops/rmn"
 )
 
 // Exports every operation available so they can be registered to be used in dynamic changesets
@@ -29,6 +31,9 @@ var AllOperations = func() []cld_ops.Operation[any, any, any] {
 	operations = append(operations, lockreleasetokenpoolops.AllOperationsLockReleaseTP...)
 	operations = append(operations, burnminttokenpoolops.AllOperationsBurnMintTP...)
 	operations = append(operations, managedtokenpoolops.AllOperationsManagedTP...)
+
+	// RMN Operations
+	operations = append(operations, rmnops.AllOperationsRMN...)
 	// Add more operation slices here as needed:
 	// operations = append(operations, anotherops.AllOperations...)
 
