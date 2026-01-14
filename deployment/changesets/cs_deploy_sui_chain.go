@@ -126,6 +126,12 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save Router owner cap object Id %s for Sui chain %d: %w", routerReport.Output.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 	}
 
+	typeAndVersionRouterUpgradeCapId := cldf.NewTypeAndVersion(deployment.SuiRouterUpgradeCapObjectIDType, deployment.Version1_0_0)
+	err = ab.Save(config.SuiChainSelector, routerReport.Output.Objects.UpgradeCapObjectId, typeAndVersionRouterUpgradeCapId)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save RouterUpgradeCapId  %s for Sui chain %d: %w", routerReport.Output.Objects.UpgradeCapObjectId, config.SuiChainSelector, err)
+	}
+
 	// --------------------------
 	// CCIP SEQUENCE
 	// --------------------------

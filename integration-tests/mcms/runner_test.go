@@ -16,4 +16,8 @@ func TestMCMSandCCIPSuite(t *testing.T) {
 	t.Run("TokenPoolTestSuite", func(t *testing.T) {
 		suite.Run(t, new(TokenPoolTestSuite))
 	})
+
+	t.Run("MCMSUserTestSuite", func(t *testing.T) {
+		suite.Run(t, new(UpgradeTestSuite))
+	})
 }

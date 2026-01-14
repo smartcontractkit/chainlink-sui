@@ -55,6 +55,7 @@ type DeployCCIPRouterObjects struct {
 	OwnerCapObjectId           string
 	RouterStateObjectId        string
 	RouterStatePointerObjectId string
+	UpgradeCapObjectId         string
 }
 
 var DeployCCIPRouterOp = cld_ops.NewOperation(
@@ -96,8 +97,9 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 
 	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "router", "RouterState")
+	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "package", "UpgradeCap")
 
-	if err1 != nil || err2 != nil {
+	if err1 != nil || err2 != nil || err3 != nil {
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err)
 	}
 
@@ -163,6 +165,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 			OwnerCapObjectId:           ownerCapId,
 			RouterStateObjectId:        routerStateId,
 			RouterStatePointerObjectId: routerStatePointerId,
+			UpgradeCapObjectId:         obj3,
 		},
 	}, nil
 }

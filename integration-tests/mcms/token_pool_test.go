@@ -4,8 +4,13 @@ package mcms
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
 
@@ -14,6 +19,11 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
+	module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
+	module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
+	module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
+	module_managed_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/managed_token/managed_token"
+	"github.com/smartcontractkit/chainlink-sui/contracts"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
@@ -31,24 +41,28 @@ type TokenPoolTestSuite struct {
 	MCMSTestSuite
 
 	// managed token
-	managedTokenLinkPackageId string
-	managedTokenLinkObjects   linkops.DeployLinkObjects
-	managedTokenPackageId     string
-	managedTokenObjects       managedtokenops.DeployManagedTokenObjects
+	managedTokenLinkPackageId   string
+	managedTokenLinkObjects     linkops.DeployLinkObjects
+	managedTokenPackageId       string
+	latestManagedTokenPackageId string
+	managedTokenObjects         managedtokenops.DeployManagedTokenObjects
 
 	// managed token pool
-	managedTokenPoolPackageId string
-	managedTokenPoolObjects   managedtokenpoolops.DeployManagedTokenPoolObjects
+	managedTokenPoolPackageId       string
+	latestManagedTokenPoolPackageId string
+	managedTokenPoolObjects         managedtokenpoolops.DeployManagedTokenPoolObjects
 
 	// lnr
-	lnrPackageId      string
-	lnrObjects        lockreleasetokenpoolops.DeployLockReleaseTokenPoolObjects
-	lnrTokenPackageId string
-	lnrTokenObjects   linkops.DeployLinkObjects
+	lnrPackageId       string
+	latestLnrPackageId string
+	lnrObjects         lockreleasetokenpoolops.DeployLockReleaseTokenPoolObjects
+	lnrTokenPackageId  string
+	lnrTokenObjects    linkops.DeployLinkObjects
 
 	// bnm
-	bnmPackageId string
-	bnmObjects   burnminttokenpoolops.DeployBurnMintTokenPoolObjects
+	bnmPackageId       string
+	latestBnmPackageId string
+	bnmObjects         burnminttokenpoolops.DeployBurnMintTokenPoolObjects
 }
 
 func (s *TokenPoolTestSuite) SetupSuite() {
@@ -227,6 +241,42 @@ func (s *TokenPoolTestSuite) Test_Token_Pool_MCMS() {
 	s.T().Run("Unregister Token Pool through MCMS", func(t *testing.T) {
 		RunUnregisterLnRTokenPoolProposal(s)
 	})
+
+	// Initialize latestPackageId fields for upgrades
+	s.latestManagedTokenPoolPackageId = s.managedTokenPoolPackageId
+	s.latestLnrPackageId = s.lnrPackageId
+	s.latestBnmPackageId = s.bnmPackageId
+
+	s.T().Run("Register UpgradeCaps for token pools with MCMS", func(t *testing.T) {
+		s.RegisterManagedTokenPoolUpgradeCap()
+		s.RegisterLnrUpgradeCap()
+		s.RegisterBnmUpgradeCap()
+	})
+
+	s.T().Run("Upgrade ManagedTokenPool through MCMS", func(t *testing.T) {
+		s.RunUpgradeManagedTokenPoolProposal("ManagedTokenPool 1.7.0")
+	})
+
+	s.T().Run("Re-Upgrade ManagedTokenPool through MCMS", func(t *testing.T) {
+		s.RunUpgradeManagedTokenPoolProposal("ManagedTokenPool 1.8.0")
+	})
+
+	s.T().Run("Upgrade LockReleaseTokenPool through MCMS", func(t *testing.T) {
+		s.RunUpgradeLnrProposal("LockReleaseTokenPool 1.7.0")
+	})
+
+	s.T().Run("Re-Upgrade LockReleaseTokenPool through MCMS", func(t *testing.T) {
+		s.RunUpgradeLnrProposal("LockReleaseTokenPool 1.8.0")
+	})
+
+	s.T().Run("Upgrade BurnMintTokenPool through MCMS", func(t *testing.T) {
+		s.RunUpgradeBnmProposal("BurnMintTokenPool 1.7.0")
+	})
+
+	s.T().Run("Re-Upgrade BurnMintTokenPool through MCMS", func(t *testing.T) {
+		s.RunUpgradeBnmProposal("BurnMintTokenPool 1.8.0")
+	})
+
 }
 
 func RunOwnershipTokenPoolProposal(s *TokenPoolTestSuite) {
@@ -768,4 +818,368 @@ func RunUnregisterLnRTokenPoolProposal(s *TokenPoolTestSuite) {
 	pool, err = contract.DevInspect().GetPool(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, s.lnrTokenObjects.CoinMetadataObjectId)
 	s.Require().NoError(err, "checking if token pool is registered after unregistering")
 	s.Require().Equal(pool, "0x0000000000000000000000000000000000000000000000000000000000000000", "token pool is still registered after unregistering")
+}
+
+// RegisterManagedTokenUpgradeCap registers the ManagedToken UpgradeCap with MCMS deployer
+func (s *TokenPoolTestSuite) RegisterManagedTokenUpgradeCap() {
+	// Register ManagedToken package's UpgradeCap with MCMS deployer
+	managedTokenContract, err := module_managed_token.NewManagedToken(s.managedTokenPackageId, s.client)
+	require.NoError(s.T(), err, "creating ManagedToken contract")
+
+	_, err = managedTokenContract.McmsRegisterUpgradeCap(
+		s.T().Context(),
+		s.deps.GetCallOpts(),
+		bind.Object{Id: s.managedTokenObjects.UpgradeCapObjectId},
+		bind.Object{Id: s.registryObj},
+		bind.Object{Id: s.deployerStateObj},
+	)
+	require.NoError(s.T(), err, "registering ManagedToken UpgradeCap with MCMS")
+	s.T().Logf("✅ Registered ManagedToken UpgradeCap with MCMS deployer")
+}
+
+// RegisterManagedTokenPoolUpgradeCap registers the ManagedTokenPool UpgradeCap with MCMS deployer
+func (s *TokenPoolTestSuite) RegisterManagedTokenPoolUpgradeCap() {
+	// Register ManagedTokenPool package's UpgradeCap with MCMS deployer
+	managedTokenPoolContract, err := module_managed_token_pool.NewManagedTokenPool(s.managedTokenPoolPackageId, s.client)
+	require.NoError(s.T(), err, "creating ManagedTokenPool contract")
+
+	_, err = managedTokenPoolContract.McmsRegisterUpgradeCap(
+		s.T().Context(),
+		s.deps.GetCallOpts(),
+		bind.Object{Id: s.managedTokenPoolObjects.UpgradeCapObjectId},
+		bind.Object{Id: s.registryObj},
+		bind.Object{Id: s.deployerStateObj},
+	)
+	require.NoError(s.T(), err, "registering ManagedTokenPool UpgradeCap with MCMS")
+	s.T().Logf("✅ Registered ManagedTokenPool UpgradeCap with MCMS deployer")
+}
+
+// RegisterLnrUpgradeCap registers the LockReleaseTokenPool UpgradeCap with MCMS deployer
+func (s *TokenPoolTestSuite) RegisterLnrUpgradeCap() {
+	// Register LockReleaseTokenPool package's UpgradeCap with MCMS deployer
+	lnrContract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(s.lnrPackageId, s.client)
+	require.NoError(s.T(), err, "creating LockReleaseTokenPool contract")
+
+	_, err = lnrContract.McmsRegisterUpgradeCap(
+		s.T().Context(),
+		s.deps.GetCallOpts(),
+		bind.Object{Id: s.lnrObjects.UpgradeCapObjectId},
+		bind.Object{Id: s.registryObj},
+		bind.Object{Id: s.deployerStateObj},
+	)
+	require.NoError(s.T(), err, "registering LockReleaseTokenPool UpgradeCap with MCMS")
+	s.T().Logf("✅ Registered LockReleaseTokenPool UpgradeCap with MCMS deployer")
+}
+
+// RegisterBnmUpgradeCap registers the BurnMintTokenPool UpgradeCap with MCMS deployer
+func (s *TokenPoolTestSuite) RegisterBnmUpgradeCap() {
+	// Register BurnMintTokenPool package's UpgradeCap with MCMS deployer
+	bnmContract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(s.bnmPackageId, s.client)
+	require.NoError(s.T(), err, "creating BurnMintTokenPool contract")
+
+	_, err = bnmContract.McmsRegisterUpgradeCap(
+		s.T().Context(),
+		s.deps.GetCallOpts(),
+		bind.Object{Id: s.bnmObjects.UpgradeCapObjectId},
+		bind.Object{Id: s.registryObj},
+		bind.Object{Id: s.deployerStateObj},
+	)
+	require.NoError(s.T(), err, "registering BurnMintTokenPool UpgradeCap with MCMS")
+	s.T().Logf("✅ Registered BurnMintTokenPool UpgradeCap with MCMS deployer")
+}
+
+// RunUpgradeManagedTokenProposal upgrades the ManagedToken package through MCMS
+func (s *TokenPoolTestSuite) RunUpgradeManagedTokenProposal(newVersion string) {
+	// Set test modifier to upgrade ManagedToken version
+	bind.SetTestModifier(func(packageRoot string) error {
+		sourcePath := filepath.Join(packageRoot, "sources", "managed_token.move")
+		content, _ := os.ReadFile(sourcePath)
+		modified := strings.Replace(string(content), "ManagedToken 1.6.0", newVersion, 1)
+		return os.WriteFile(sourcePath, []byte(modified), 0o644)
+	})
+	defer bind.ClearTestModifier()
+
+	signerAddress, err := s.signer.GetAddress()
+	s.Require().NoError(err, "getting signer address")
+
+	// 1. Build upgrade input for ManagedToken package
+	input := mcmsops.UpgradeCCIPInput{
+		// Package related
+		PackageName:     contracts.ManagedToken,
+		TargetPackageId: s.latestManagedTokenPackageId,
+		NamedAddresses: map[string]string{
+			"signer":                     signerAddress,
+			"mcms":                       s.mcmsPackageID,
+			"original_managed_token_pkg": s.managedTokenPackageId,
+		},
+
+		ChainSelector: uint64(s.chainSelector),
+		// MCMS related
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		RegistryObjID:      s.registryObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		DeployerStateObjID: s.deployerStateObj,
+		OwnerCapObjID:      s.ownerCapObj,
+
+		// Timelock related
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionSchedule,
+			MinDelay:     5 * time.Second,
+			OverrideRoot: false,
+		},
+	}
+
+	// 2. Execute operation to generate upgrade proposal
+	upgradeReport, err := cld_ops.ExecuteOperation(s.NewOpBundle(), mcmsops.UpgradeCCIPOp, s.deps, input)
+	s.Require().NoError(err, "executing ManagedToken upgrade operation")
+
+	timelockProposal := upgradeReport.Output
+
+	s.T().Logf("✅ Generated ManagedToken upgrade proposal: %s", timelockProposal.Description)
+
+	// 3. Execute the upgrade proposal through MCMS using Schedule path
+	responses := s.ExecuteProposalE2e(&timelockProposal, s.proposerConfig, 6*time.Second)
+
+	tx, ok := responses[len(responses)-1].RawData.(*models.SuiTransactionBlockResponse)
+	s.Require().True(ok)
+
+	newAddress, err := s.GetUpgradedAddress(tx, s.mcmsPackageID)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(newAddress)
+
+	s.T().Logf("✅ Successfully upgraded ManagedToken package from %s to %s", s.managedTokenPackageId, newAddress)
+
+	// 4. Verify the new package version
+	managedToken, err := module_managed_token.NewManagedToken(newAddress, s.client)
+	s.Require().NoError(err)
+
+	version, err := managedToken.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
+	s.Require().NoError(err)
+	s.Require().Equal(newVersion, version, "managed token version should be upgraded to "+newVersion)
+	s.latestManagedTokenPackageId = newAddress
+}
+
+// RunUpgradeManagedTokenPoolProposal upgrades the ManagedTokenPool package through MCMS
+func (s *TokenPoolTestSuite) RunUpgradeManagedTokenPoolProposal(newVersion string) {
+	// Set test modifier to upgrade ManagedTokenPool version
+	bind.SetTestModifier(func(packageRoot string) error {
+		sourcePath := filepath.Join(packageRoot, "sources", "managed_token_pool.move")
+		content, _ := os.ReadFile(sourcePath)
+		modified := strings.Replace(string(content), "ManagedTokenPool 1.6.0", newVersion, 1)
+		return os.WriteFile(sourcePath, []byte(modified), 0o644)
+	})
+	defer bind.ClearTestModifier()
+
+	signerAddress, err := s.signer.GetAddress()
+	s.Require().NoError(err, "getting signer address")
+
+	// 1. Build upgrade input for ManagedTokenPool package
+	input := mcmsops.UpgradeCCIPInput{
+		// Package related
+		PackageName:     contracts.ManagedTokenPool,
+		TargetPackageId: s.latestManagedTokenPoolPackageId,
+		NamedAddresses: map[string]string{
+			"signer":                          signerAddress,
+			"mcms":                            s.mcmsPackageID,
+			"ccip":                            s.ccipPackageId,
+			"managed_token":                   s.managedTokenPackageId,
+			"original_managed_token_pool_pkg": s.managedTokenPoolPackageId,
+		},
+
+		ChainSelector: uint64(s.chainSelector),
+		// MCMS related
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		RegistryObjID:      s.registryObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		DeployerStateObjID: s.deployerStateObj,
+		OwnerCapObjID:      s.ownerCapObj,
+
+		// Timelock related
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionSchedule,
+			MinDelay:     5 * time.Second,
+			OverrideRoot: false,
+		},
+	}
+
+	// 2. Execute operation to generate upgrade proposal
+	upgradeReport, err := cld_ops.ExecuteOperation(s.NewOpBundle(), mcmsops.UpgradeCCIPOp, s.deps, input)
+	s.Require().NoError(err, "executing ManagedTokenPool upgrade operation")
+
+	timelockProposal := upgradeReport.Output
+
+	s.T().Logf("✅ Generated ManagedTokenPool upgrade proposal: %s", timelockProposal.Description)
+
+	// 3. Execute the upgrade proposal through MCMS using Schedule path
+	responses := s.ExecuteProposalE2e(&timelockProposal, s.proposerConfig, 6*time.Second)
+
+	tx, ok := responses[len(responses)-1].RawData.(*models.SuiTransactionBlockResponse)
+	s.Require().True(ok)
+
+	newAddress, err := s.GetUpgradedAddress(tx, s.mcmsPackageID)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(newAddress)
+
+	s.T().Logf("✅ Successfully upgraded ManagedTokenPool package from %s to %s", s.managedTokenPoolPackageId, newAddress)
+
+	// 4. Verify the new package version
+	managedTokenPool, err := module_managed_token_pool.NewManagedTokenPool(newAddress, s.client)
+	s.Require().NoError(err)
+
+	version, err := managedTokenPool.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
+	s.Require().NoError(err)
+	s.Require().Equal(newVersion, version, "managed token pool version should be upgraded to "+newVersion)
+	s.latestManagedTokenPoolPackageId = newAddress
+}
+
+// RunUpgradeLnrProposal upgrades the LockReleaseTokenPool package through MCMS
+func (s *TokenPoolTestSuite) RunUpgradeLnrProposal(newVersion string) {
+	// Set test modifier to upgrade LockReleaseTokenPool version
+	bind.SetTestModifier(func(packageRoot string) error {
+		sourcePath := filepath.Join(packageRoot, "sources", "lock_release_token_pool.move")
+		content, _ := os.ReadFile(sourcePath)
+		modified := strings.Replace(string(content), "LockReleaseTokenPool 1.6.0", newVersion, 1)
+		return os.WriteFile(sourcePath, []byte(modified), 0o644)
+	})
+	defer bind.ClearTestModifier()
+
+	signerAddress, err := s.signer.GetAddress()
+	s.Require().NoError(err, "getting signer address")
+
+	// 1. Build upgrade input for LockReleaseTokenPool package
+	input := mcmsops.UpgradeCCIPInput{
+		// Package related
+		PackageName:     contracts.LockReleaseTokenPool,
+		TargetPackageId: s.latestLnrPackageId,
+		NamedAddresses: map[string]string{
+			"signer":                               signerAddress,
+			"mcms":                                 s.mcmsPackageID,
+			"ccip":                                 s.ccipPackageId,
+			"original_lock_release_token_pool_pkg": s.lnrPackageId,
+		},
+
+		ChainSelector: uint64(s.chainSelector),
+		// MCMS related
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		RegistryObjID:      s.registryObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		DeployerStateObjID: s.deployerStateObj,
+		OwnerCapObjID:      s.ownerCapObj,
+
+		// Timelock related
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionSchedule,
+			MinDelay:     5 * time.Second,
+			OverrideRoot: false,
+		},
+	}
+
+	// 2. Execute operation to generate upgrade proposal
+	upgradeReport, err := cld_ops.ExecuteOperation(s.NewOpBundle(), mcmsops.UpgradeCCIPOp, s.deps, input)
+	s.Require().NoError(err, "executing LockReleaseTokenPool upgrade operation")
+
+	timelockProposal := upgradeReport.Output
+
+	s.T().Logf("✅ Generated LockReleaseTokenPool upgrade proposal: %s", timelockProposal.Description)
+
+	// 3. Execute the upgrade proposal through MCMS using Schedule path
+	responses := s.ExecuteProposalE2e(&timelockProposal, s.proposerConfig, 6*time.Second)
+
+	tx, ok := responses[len(responses)-1].RawData.(*models.SuiTransactionBlockResponse)
+	s.Require().True(ok)
+
+	newAddress, err := s.GetUpgradedAddress(tx, s.mcmsPackageID)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(newAddress)
+
+	s.T().Logf("✅ Successfully upgraded LockReleaseTokenPool package from %s to %s", s.lnrPackageId, newAddress)
+
+	// 4. Verify the new package version
+	lnr, err := module_lock_release_token_pool.NewLockReleaseTokenPool(newAddress, s.client)
+	s.Require().NoError(err)
+
+	version, err := lnr.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
+	s.Require().NoError(err)
+	s.Require().Equal(newVersion, version, "lock release token pool version should be upgraded to "+newVersion)
+	s.latestLnrPackageId = newAddress
+}
+
+// RunUpgradeBnmProposal upgrades the BurnMintTokenPool package through MCMS
+func (s *TokenPoolTestSuite) RunUpgradeBnmProposal(newVersion string) {
+	// Set test modifier to upgrade BurnMintTokenPool version
+	bind.SetTestModifier(func(packageRoot string) error {
+		sourcePath := filepath.Join(packageRoot, "sources", "burn_mint_token_pool.move")
+		content, _ := os.ReadFile(sourcePath)
+		modified := strings.Replace(string(content), "BurnMintTokenPool 1.6.0", newVersion, 1)
+		return os.WriteFile(sourcePath, []byte(modified), 0o644)
+	})
+	defer bind.ClearTestModifier()
+
+	signerAddress, err := s.signer.GetAddress()
+	s.Require().NoError(err, "getting signer address")
+
+	// 1. Build upgrade input for BurnMintTokenPool package
+	input := mcmsops.UpgradeCCIPInput{
+		// Package related
+		PackageName:     contracts.BurnMintTokenPool,
+		TargetPackageId: s.latestBnmPackageId,
+		NamedAddresses: map[string]string{
+			"signer":                            signerAddress,
+			"mcms":                              s.mcmsPackageID,
+			"ccip":                              s.ccipPackageId,
+			"original_burn_mint_token_pool_pkg": s.bnmPackageId,
+		},
+
+		ChainSelector: uint64(s.chainSelector),
+		// MCMS related
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		RegistryObjID:      s.registryObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		DeployerStateObjID: s.deployerStateObj,
+		OwnerCapObjID:      s.ownerCapObj,
+
+		// Timelock related
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionSchedule,
+			MinDelay:     5 * time.Second,
+			OverrideRoot: false,
+		},
+	}
+
+	// 2. Execute operation to generate upgrade proposal
+	upgradeReport, err := cld_ops.ExecuteOperation(s.NewOpBundle(), mcmsops.UpgradeCCIPOp, s.deps, input)
+	s.Require().NoError(err, "executing BurnMintTokenPool upgrade operation")
+
+	timelockProposal := upgradeReport.Output
+
+	s.T().Logf("✅ Generated BurnMintTokenPool upgrade proposal: %s", timelockProposal.Description)
+
+	// 3. Execute the upgrade proposal through MCMS using Schedule path
+	responses := s.ExecuteProposalE2e(&timelockProposal, s.proposerConfig, 6*time.Second)
+
+	tx, ok := responses[len(responses)-1].RawData.(*models.SuiTransactionBlockResponse)
+	s.Require().True(ok)
+
+	newAddress, err := s.GetUpgradedAddress(tx, s.mcmsPackageID)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(newAddress)
+
+	s.T().Logf("✅ Successfully upgraded BurnMintTokenPool package from %s to %s", s.bnmPackageId, newAddress)
+
+	// 4. Verify the new package version
+	bnm, err := module_burn_mint_token_pool.NewBurnMintTokenPool(newAddress, s.client)
+	s.Require().NoError(err)
+
+	version, err := bnm.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
+	s.Require().NoError(err)
+	s.Require().Equal(newVersion, version, "burn mint token pool version should be upgraded to "+newVersion)
+	s.latestBnmPackageId = newAddress
 }
