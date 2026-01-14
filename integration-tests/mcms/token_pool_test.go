@@ -223,24 +223,24 @@ func (s *TokenPoolTestSuite) Test_Token_Pool_MCMS() {
 		RunOwnershipTokenPoolProposal(s)
 	})
 
-	// s.T().Run("Run Lock and Release TP config ops through MCMS", func(t *testing.T) {
-	// 	RunLnRConfigOpsTokenPoolProposal(s)
-	// 	RunTransferAdminTokenPoolProposal(s, s.lnrTokenObjects.CoinMetadataObjectId)
-	// })
+	s.T().Run("Run Lock and Release TP config ops through MCMS", func(t *testing.T) {
+		RunLnRConfigOpsTokenPoolProposal(s)
+		RunTransferAdminTokenPoolProposal(s, s.lnrTokenObjects.CoinMetadataObjectId)
+	})
 
-	// s.T().Run("Run Burn and Mint TP config ops through MCMS", func(t *testing.T) {
-	// 	RunBnMConfigOpsTokenPoolProposal(s)
-	// 	RunTransferAdminTokenPoolProposal(s, s.linkObjects.CoinMetadataObjectId)
-	// })
+	s.T().Run("Run Burn and Mint TP config ops through MCMS", func(t *testing.T) {
+		RunBnMConfigOpsTokenPoolProposal(s)
+		RunTransferAdminTokenPoolProposal(s, s.linkObjects.CoinMetadataObjectId)
+	})
 
-	// s.T().Run("Run Managed Token TP config ops through MCMS", func(t *testing.T) {
-	// 	RunManagedConfigOpsTokenPoolProposal(s)
-	// 	RunTransferAdminTokenPoolProposal(s, s.managedTokenLinkObjects.CoinMetadataObjectId)
-	// })
+	s.T().Run("Run Managed Token TP config ops through MCMS", func(t *testing.T) {
+		RunManagedConfigOpsTokenPoolProposal(s)
+		RunTransferAdminTokenPoolProposal(s, s.managedTokenLinkObjects.CoinMetadataObjectId)
+	})
 
-	// s.T().Run("Unregister Token Pool through MCMS", func(t *testing.T) {
-	// 	RunUnregisterLnRTokenPoolProposal(s)
-	// })
+	s.T().Run("Unregister Token Pool through MCMS", func(t *testing.T) {
+		RunUnregisterLnRTokenPoolProposal(s)
+	})
 
 	// Initialize latestPackageId fields for upgrades
 	s.latestManagedTokenPoolPackageId = s.managedTokenPoolPackageId
