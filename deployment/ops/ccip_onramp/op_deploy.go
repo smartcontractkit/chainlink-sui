@@ -336,11 +336,78 @@ var GetFee = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetFeeInput) (o
 	}, err
 }
 
+type SetDynamicConfigInput struct {
+	OnRampPackageId  string
+	CCIPObjectRefId  string
+	StateObjectId    string
+	OwnerCapObjectId string
+	FeeAggregator    string
+	AllowListAdmin   string
+}
+
+var SetDynamicConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetDynamicConfigInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
+	}
+
+	encodedCall, err := onRampPackage.Encoder().SetDynamicConfig(
+		bind.Object{Id: input.CCIPObjectRefId},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.FeeAggregator,
+		input.AllowListAdmin,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to encode SetDynamicConfig call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of SetDynamicConfig on OnRamp as per no Signer provided")
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
+			Digest:    "",
+			PackageId: input.OnRampPackageId,
+			Objects:   DeployCCIPOnRampObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute SetDynamicConfig on OnRamp: %w", err)
+	}
+
+	b.Logger.Infow("Dynamic config set on OnRamp")
+
+	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OnRampPackageId,
+		Objects:   DeployCCIPOnRampObjects{},
+		Call:      call,
+	}, nil
+}
+
 var ApplyAllowListUpdateOp = cld_ops.NewOperation(
 	sui_ops.NewSuiOperationName("ccip-onramp-apply-allow-list-updates", "package", "configure"),
 	semver.MustParse("0.1.0"),
 	"Runs ApplyAllowListUpdates on OnRamp",
 	ApplyAllowListUpdatesHandler,
+)
+
+var SetDynamicConfigOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-set-dynamic-config", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Runs set_dynamic_config on OnRamp",
+	SetDynamicConfigHandler,
 )
 
 var DeployCCIPOnRampOp = cld_ops.NewOperation(
