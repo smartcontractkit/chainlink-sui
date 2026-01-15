@@ -1,16 +1,10 @@
+[package]
+name = "TestContract"
+edition = "2024"
+
 [addresses]
-  test = '0x0'
-  test_secondary = '_'
+test = "0x0"
+test_secondary = "_"
 
 [dependencies]
-  [dependencies.Sui]
-    git = 'https://github.com/MystenLabs/sui.git'
-    rev = 'framework/mainnet'
-    subdir = 'crates/sui-framework/packages/sui-framework'
-
-  [dependencies.TestContractSecondary]
-    local = '../test_secondary'
-
-[package]
-  edition = '2024.beta'
-  name = 'TestContract'
+TestContractSecondary = { local = "../test_secondary" }
