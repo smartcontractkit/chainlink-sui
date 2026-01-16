@@ -14,17 +14,17 @@ import (
 
 // ConfigureMCMSSeqInput defines the input for configuring MCMS
 type ConfigureMCMSSeqInput struct {
-	ChainSelector               uint64 `json:"chainSelector" yaml:"chainSelector"`
-	PackageId                   string `json:"packageId" yaml:"packageId"`
-	McmsAccountOwnerCapObjectId string `json:"mcmsAccountOwnerCapObjectId" yaml:"mcmsAccountOwnerCapObjectId"`
-	McmsAccountStateObjectId    string `json:"mcmsAccountStateObjectId" yaml:"mcmsAccountStateObjectId"`
-	McmsMultisigStateObjectId   string `json:"mcmsMultisigStateObjectId" yaml:"mcmsMultisigStateObjectId"`
+	ChainSelector               uint64 `yaml:"chainSelector"`
+	PackageId                   string `yaml:"packageId"`
+	McmsAccountOwnerCapObjectId string `yaml:"mcmsAccountOwnerCapObjectId"`
+	McmsAccountStateObjectId    string `yaml:"mcmsAccountStateObjectId"`
+	McmsMultisigStateObjectId   string `yaml:"mcmsMultisigStateObjectId"`
 
 	// Optional configs for each timelock role
 	// If nil, the role will not be configured
-	Bypasser  *types.Config `json:"bypasser,omitempty" yaml:"bypasser,omitempty"`
-	Proposer  *types.Config `json:"proposer,omitempty" yaml:"proposer,omitempty"`
-	Canceller *types.Config `json:"canceller,omitempty" yaml:"canceller,omitempty"`
+	Bypasser  *types.Config `yaml:"bypasser,omitempty"`
+	Proposer  *types.Config `yaml:"proposer,omitempty"`
+	Canceller *types.Config `yaml:"canceller,omitempty"`
 }
 
 type ConfigureMCMSSeqOutput struct {
