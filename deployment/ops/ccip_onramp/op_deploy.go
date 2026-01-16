@@ -403,6 +403,75 @@ var ApplyAllowListUpdateOp = cld_ops.NewOperation(
 	ApplyAllowListUpdatesHandler,
 )
 
+type WithdrawFeeTokensInput struct {
+	OnRampPackageId    string
+	CCIPObjectRefId    string
+	StateObjectId      string
+	OwnerCapObjectId   string
+	FeeTokenMetadataId string
+	TypeArgs           []string
+}
+
+var WithdrawFeeTokensHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input WithdrawFeeTokensInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
+	}
+
+	encodedCall, err := onRampPackage.Encoder().WithdrawFeeTokens(
+		input.TypeArgs,
+		bind.Object{Id: input.CCIPObjectRefId},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.FeeTokenMetadataId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to encode WithdrawFeeTokens call: %w", err)
+	}
+
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of WithdrawFeeTokens on OnRamp as per no Signer provided")
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
+			Digest:    "",
+			PackageId: input.OnRampPackageId,
+			Objects:   DeployCCIPOnRampObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute WithdrawFeeTokens on OnRamp: %w", err)
+	}
+
+	b.Logger.Infow("Fee tokens withdrawn on OnRamp")
+
+	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OnRampPackageId,
+		Objects:   DeployCCIPOnRampObjects{},
+		Call:      call,
+	}, nil
+}
+
+var WithdrawFeeTokensOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-withdraw-fee-tokens", "package", "withdraw"),
+	semver.MustParse("0.1.0"),
+	"Withdraws fee tokens from the OnRamp",
+	WithdrawFeeTokensHandler,
+)
+
 var SetDynamicConfigOp = cld_ops.NewOperation(
 	sui_ops.NewSuiOperationName("ccip-onramp-set-dynamic-config", "package", "configure"),
 	semver.MustParse("0.1.0"),

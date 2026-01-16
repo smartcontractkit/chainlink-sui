@@ -9,4 +9,5 @@ var AllOperationsOnramp = []cld_ops.Operation[any, any, any]{
 	*ApplyAllowListUpdateOp.AsUntyped(),
 	*ApplyDestChainConfigUpdateOp.AsUntyped(),
 	*SetDynamicConfigOp.AsUntyped(),
+	*WithdrawFeeTokensOp.AsUntyped(),
 }
