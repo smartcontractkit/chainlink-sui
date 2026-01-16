@@ -4,3 +4,7 @@ tasks:
   new-wallet:
     desc: "Generate a new SUI wallet"
     cmd: ./scripts/generate_hex_wallet.sh
+
+  list-operations:
+    desc: "List all registered operations and their YAML templates"
+    cmd: cd ./scripts && go run list_operations.go
