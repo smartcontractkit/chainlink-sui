@@ -111,15 +111,16 @@ func (d TPConfigure) Apply(e cldf.Environment, config TPConfigureConfig) (cldf.C
 	mcmsProposal := mcms.TimelockProposal{}
 	if config.TimelockConfig != nil {
 		mcmsConfig := mcmsops.ProposalGenerateInput{
-			ChainSelector:  config.SuiChainSelector,
-			Defs:           defs,
-			Inputs:         inputs,
-			MmcsPackageID:  state[config.SuiChainSelector].MCMSPackageID,
-			McmsStateObjID: state[config.SuiChainSelector].MCMSStateObjectID,
-			TimelockObjID:  state[config.SuiChainSelector].MCMSTimelockObjectID,
-			AccountObjID:   state[config.SuiChainSelector].MCMSAccountStateObjectID,
-			RegistryObjID:  state[config.SuiChainSelector].MCMSRegistryObjectID,
-			TimelockConfig: *config.TimelockConfig,
+			ChainSelector:      config.SuiChainSelector,
+			Defs:               defs,
+			Inputs:             inputs,
+			MmcsPackageID:      state[config.SuiChainSelector].MCMSPackageID,
+			McmsStateObjID:     state[config.SuiChainSelector].MCMSStateObjectID,
+			TimelockObjID:      state[config.SuiChainSelector].MCMSTimelockObjectID,
+			AccountObjID:       state[config.SuiChainSelector].MCMSAccountStateObjectID,
+			RegistryObjID:      state[config.SuiChainSelector].MCMSRegistryObjectID,
+			DeployerStateObjID: state[config.SuiChainSelector].MCMSDeployerStateObjectID,
+			TimelockConfig:     *config.TimelockConfig,
 		}
 		result, err := operations.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, mcmsConfig)
 		if err != nil {
