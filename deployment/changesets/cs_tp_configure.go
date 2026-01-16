@@ -109,6 +109,7 @@ func (d TPConfigure) Apply(e cldf.Environment, config TPConfigureConfig) (cldf.C
 	}
 
 	mcmsProposal := mcms.TimelockProposal{}
+	// Placeholder
 	if config.TimelockConfig != nil {
 		mcmsConfig := mcmsops.ProposalGenerateInput{
 			ChainSelector:  config.SuiChainSelector,
