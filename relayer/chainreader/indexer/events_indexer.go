@@ -37,6 +37,9 @@ type EventsIndexer struct {
 	// a map of event handles to the last processed cursor
 	lastProcessedCursors map[string]*models.EventId
 	cursorMutex          sync.RWMutex
+
+	// Optional callback for recording successful sync operations
+	onSyncSuccess func(ctx context.Context)
 }
 
 type EventsIndexerApi interface {
@@ -45,6 +48,7 @@ type EventsIndexerApi interface {
 	SyncEvent(ctx context.Context, selector *client.EventSelector) error
 	AddEventSelector(ctx context.Context, selector *client.EventSelector) error
 	SetEventOffsetOverrides(ctx context.Context, offsetOverrides map[string]client.EventId) error
+	SetOnSyncSuccess(callback func(ctx context.Context))
 	Ready() error
 	Close() error
 }
@@ -92,6 +96,10 @@ func (eIndexer *EventsIndexer) Start(ctx context.Context) error {
 				eIndexer.logger.Warnw("EventSync timed out", "duration", elapsed)
 			} else {
 				eIndexer.logger.Debugw("Event sync completed successfully", "duration", elapsed)
+				// Record successful sync for health metrics
+				if eIndexer.onSyncSuccess != nil {
+					eIndexer.onSyncSuccess(ctx)
+				}
 			}
 
 			cancel()
@@ -450,4 +458,9 @@ func (eIndexer *EventsIndexer) Ready() error {
 func (eIndexer *EventsIndexer) Close() error {
 	// TODO: implement
 	return nil
+}
+
+// SetOnSyncSuccess sets a callback function that is called after a successful sync operation.
+func (eIndexer *EventsIndexer) SetOnSyncSuccess(callback func(ctx context.Context)) {
+	eIndexer.onSyncSuccess = callback
 }

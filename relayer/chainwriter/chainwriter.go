@@ -14,6 +14,7 @@ import (
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
+	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
 
@@ -29,6 +30,9 @@ type SuiChainWriter struct {
 	simulate   bool
 	ptbFactory *ptb.PTBConstructor
 	services.StateMachine
+
+	// Health metrics for monitoring (optional)
+	healthMetrics *monitor.HealthMetrics
 }
 
 func NewSuiChainWriter(lggr logger.Logger, txManager txm.TxManager, config cwConfig.ChainWriterConfig, simulate bool) (*SuiChainWriter, error) {
@@ -195,6 +199,19 @@ func (s *SuiChainWriter) Start(ctx context.Context) error {
 		s.lggr.Infow("Starting SuiChainWriter")
 		return nil
 	})
+}
+
+// SetHealthMetrics sets the health metrics instance for the chain writer.
+// This should be called after creating the chain writer to enable health metrics reporting.
+func (s *SuiChainWriter) SetHealthMetrics(hm *monitor.HealthMetrics) {
+	s.healthMetrics = hm
+}
+
+// recordLastSuccess records a successful operation to the health metrics.
+func (s *SuiChainWriter) recordLastSuccess(ctx context.Context) {
+	if s.healthMetrics != nil {
+		s.healthMetrics.RecordLastSuccess(ctx, monitor.ComponentChainWriter)
+	}
 }
 
 func (s *SuiChainWriter) EstimateGasBudgetFromCCIPExecuteMessage(ctx context.Context, arguments map[string]any, meta *commonTypes.TxMeta) (*big.Int, error) {

@@ -7,6 +7,8 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
 )
 
 type Indexer struct {
@@ -22,6 +24,9 @@ type Indexer struct {
 	transactionIndexerErr    atomic.Value // stores error from transaction indexer goroutine
 
 	wg sync.WaitGroup // wait for both indexer goroutines to exit
+
+	// Health metrics for monitoring (optional)
+	healthMetrics *monitor.HealthMetrics
 }
 
 type IndexerApi interface {
@@ -54,6 +59,16 @@ func (i *Indexer) Name() string {
 
 func (i *Indexer) Start(_ context.Context) error {
 	return i.starter.StartOnce(i.Name(), func() error {
+		// Set up health metrics callbacks if health metrics are configured
+		if i.healthMetrics != nil {
+			i.eventsIndexer.SetOnSyncSuccess(func(ctx context.Context) {
+				i.RecordEventsIndexerSuccess(ctx)
+			})
+			i.transactionIndexer.SetOnSyncSuccess(func(ctx context.Context) {
+				i.RecordTransactionsIndexerSuccess(ctx)
+			})
+		}
+
 		// Events indexer
 		eventsIndexerCtx, eventsIndexerCancel := context.WithCancel(context.Background())
 		i.eventsIndexerCancel = &eventsIndexerCancel
@@ -157,4 +172,24 @@ func (i *Indexer) GetTransactionIndexer() TransactionsIndexerApi {
 		return nil
 	}
 	return i.transactionIndexer
+}
+
+// SetHealthMetrics sets the health metrics instance for the indexer.
+// This should be called after creating the indexer to enable health metrics reporting.
+func (i *Indexer) SetHealthMetrics(hm *monitor.HealthMetrics) {
+	i.healthMetrics = hm
+}
+
+// RecordEventsIndexerSuccess records a successful events indexer sync operation.
+func (i *Indexer) RecordEventsIndexerSuccess(ctx context.Context) {
+	if i.healthMetrics != nil {
+		i.healthMetrics.RecordLastSuccess(ctx, monitor.ComponentEventsIndexer)
+	}
+}
+
+// RecordTransactionsIndexerSuccess records a successful transactions indexer sync operation.
+func (i *Indexer) RecordTransactionsIndexerSuccess(ctx context.Context) {
+	if i.healthMetrics != nil {
+		i.healthMetrics.RecordLastSuccess(ctx, monitor.ComponentTransactionsIndexer)
+	}
 }

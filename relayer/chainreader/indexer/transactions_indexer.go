@@ -50,11 +50,15 @@ type TransactionsIndexer struct {
 	mu                    sync.RWMutex
 	offrampPackageIdReady chan struct{}
 	offrampPackageOnce    sync.Once
+
+	// Optional callback for recording successful sync operations
+	onSyncSuccess func(ctx context.Context)
 }
 
 type TransactionsIndexerApi interface {
 	Start(ctx context.Context) error
 	SetOffRampPackage(pkg string, latestPkg string)
+	SetOnSyncSuccess(callback func(ctx context.Context))
 	Ready() error
 	Close() error
 }
@@ -115,6 +119,10 @@ func (tIndexer *TransactionsIndexer) Start(ctx context.Context) error {
 				tIndexer.logger.Warnw("Transaction sync timed out", "duration", elapsed)
 			} else {
 				tIndexer.logger.Debugw("Transaction sync completed successfully", "duration", elapsed)
+				// Record successful sync for health metrics
+				if tIndexer.onSyncSuccess != nil {
+					tIndexer.onSyncSuccess(ctx)
+				}
 			}
 
 			cancel()
@@ -836,4 +844,9 @@ func (tIndexer *TransactionsIndexer) Ready() error {
 func (tIndexer *TransactionsIndexer) Close() error {
 	// TODO: implement
 	return nil
+}
+
+// SetOnSyncSuccess sets a callback function that is called after a successful sync operation.
+func (tIndexer *TransactionsIndexer) SetOnSyncSuccess(callback func(ctx context.Context)) {
+	tIndexer.onSyncSuccess = callback
 }

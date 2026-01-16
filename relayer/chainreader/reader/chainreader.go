@@ -28,6 +28,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
+	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -58,6 +59,9 @@ type suiChainReader struct {
 	// Value: parent object ID
 	parentObjectIDs      map[string]string
 	parentObjectIDsMutex sync.RWMutex
+
+	// Health metrics for monitoring (optional)
+	healthMetrics *monitor.HealthMetrics
 }
 
 var _ pkgtypes.ContractTypeProvider = &suiChainReader{}
@@ -153,6 +157,19 @@ func (s *suiChainReader) Close() error {
 	return s.starter.StopOnce(s.Name(), func() error {
 		return nil
 	})
+}
+
+// SetHealthMetrics sets the health metrics instance for the chain reader.
+// This should be called after creating the chain reader to enable health metrics reporting.
+func (s *suiChainReader) SetHealthMetrics(hm *monitor.HealthMetrics) {
+	s.healthMetrics = hm
+}
+
+// recordLastSuccess records a successful operation to the health metrics.
+func (s *suiChainReader) recordLastSuccess(ctx context.Context) {
+	if s.healthMetrics != nil {
+		s.healthMetrics.RecordLastSuccess(ctx, monitor.ComponentChainReader)
+	}
 }
 
 func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
