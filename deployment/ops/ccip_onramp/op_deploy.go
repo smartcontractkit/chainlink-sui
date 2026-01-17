@@ -409,7 +409,7 @@ type WithdrawFeeTokensInput struct {
 	StateObjectId      string
 	OwnerCapObjectId   string
 	FeeTokenMetadataId string
-	TypeArgs           []string
+	TypeArg            string
 }
 
 var WithdrawFeeTokensHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input WithdrawFeeTokensInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
@@ -419,7 +419,7 @@ var WithdrawFeeTokensHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	}
 
 	encodedCall, err := onRampPackage.Encoder().WithdrawFeeTokens(
-		input.TypeArgs,
+		[]string{input.TypeArg},
 		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},

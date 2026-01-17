@@ -19,7 +19,7 @@ import (
 type WithdrawFeeTokensOnRampConfig struct {
 	ChainSelector      uint64
 	FeeTokenMetadataId string
-	TypeArgs           []string
+	TypeArg            string
 	TimelockConfig     *utils.TimelockConfig // If nil, execute directly; otherwise generate proposal
 }
 
@@ -29,14 +29,19 @@ type WithdrawFeeTokensOnRamp struct{}
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
 func (WithdrawFeeTokensOnRamp) VerifyPreconditions(e cldf.Environment, config WithdrawFeeTokensOnRampConfig) error {
+	// Verify that the chain selector is valid
+	if config.ChainSelector == 0 {
+		return fmt.Errorf("chain selector is required")
+	}
+
 	// Verify that the fee token metadata id is valid
 	if config.FeeTokenMetadataId == "" {
 		return fmt.Errorf("fee token metadata id is required")
 	}
 
-	// Verify that the type args are valid
-	if len(config.TypeArgs) != 1 {
-		return fmt.Errorf("type args must be exactly 1")
+	// Verify that the type arg is valid
+	if config.TypeArg == "" {
+		return fmt.Errorf("type arg is required")
 	}
 
 	return nil
@@ -79,7 +84,7 @@ func (WithdrawFeeTokensOnRamp) Apply(e cldf.Environment, config WithdrawFeeToken
 		StateObjectId:      state[config.ChainSelector].OnRampStateObjectId,
 		OwnerCapObjectId:   state[config.ChainSelector].OnRampOwnerCapObjectId,
 		FeeTokenMetadataId: config.FeeTokenMetadataId,
-		TypeArgs:           config.TypeArgs,
+		TypeArg:            config.TypeArg,
 	})
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to withdraw fee tokens for Sui chain %d: %w", config.ChainSelector, err)
