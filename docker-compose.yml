@@ -1,6 +1,6 @@
 services:
   sui:
-    image: mysten/sui-tools:devnet-v1.61.0
+    image: mysten/sui-tools:mainnet-v1.63.3
     ports:
       - "9000:9000"
     command: ["sui", "start"]
