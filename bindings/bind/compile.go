@@ -113,7 +113,6 @@ type PackageManifest struct {
 	Package      any               `toml:"package"`
 	Addresses    map[string]string `toml:"addresses"`
 	Dependencies any               `toml:"dependencies"`
-	DevAddresses any               `toml:"dev-addresses"`
 }
 
 type BuildInfo struct {
@@ -913,7 +912,7 @@ func getDynamicSuiRPC() (string, error) {
 		return envRPC, nil
 	}
 
-	cmd := exec.Command("docker", "ps", "--filter", "ancestor=mysten/sui-tools:devnet-v1.61.0", "--format", "{{.Ports}}")
+	cmd := exec.Command("docker", "ps", "--filter", "ancestor=mysten/sui-tools:mainnet-v1.63.3", "--format", "{{.Ports}}")
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("docker ps failed: %w", err)

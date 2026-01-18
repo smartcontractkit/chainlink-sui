@@ -263,14 +263,6 @@ func patchContractTOMLSection(t *testing.T, contractPath, addresses, name, addre
 	require.NoError(t, err, "write Move.toml")
 }
 
-// PatchContractDevAddressTOML edits one entry under [dev-addresses].
-// contractPath : folder that contains Move.toml
-// name         : key to patch (e.g. "mcms")
-// address      : new hex value (e.g. "0x0000")
-func PatchContractDevAddressTOML(t *testing.T, contractPath, name, address string) {
-	patchContractTOMLSection(t, contractPath, "dev-addresses", name, address)
-}
-
 // PatchContractAddressTOML edits one entry under [addresses].
 // Same as PatchContractDevAddressTOML, but for [addresses] section.
 func PatchContractAddressTOML(t *testing.T, contractPath, name, address string) {
