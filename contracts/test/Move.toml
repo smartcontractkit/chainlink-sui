@@ -4,7 +4,6 @@ name = "TestContract"
 
 [addresses]
 test = "0x0"
-test_secondary = "_"
 
 [dependencies]
 TestContractSecondary = { local = "../test_secondary" }

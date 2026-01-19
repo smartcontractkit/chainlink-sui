@@ -7,13 +7,4 @@ ChainlinkCCIP = { local = "../../ccip" }
 ChainlinkManyChainMultisig = { local = "../../../mcms/mcms" }
 
 [addresses]
-ccip = "_"
 burn_mint_token_pool = "0x0"
-mcms = "_"
-mcms_owner = "_"
-
-[dev-addresses]
-ccip = "0x1000"
-burn_mint_token_pool = "0x2001"
-mcms = "0x4000"
-mcms_owner = "0x4010"
