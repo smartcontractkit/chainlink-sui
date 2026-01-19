@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	aptosMonitor "github.com/smartcontractkit/chainlink-aptos/relayer/monitor"
+	aptosTypes "github.com/smartcontractkit/chainlink-aptos/relayer/types"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -30,7 +30,7 @@ const (
 // It tracks component status, flip-flop counts, and processing lag for monitoring
 // and alerting purposes.
 type HealthMetrics struct {
-	chainInfo aptosMonitor.ChainInfo
+	chainInfo aptosTypes.ChainInfo
 
 	// Metrics
 	statusGauge               metric.Int64Gauge
@@ -46,7 +46,7 @@ type HealthMetrics struct {
 
 // NewHealthMetrics creates a new HealthMetrics instance and pre-registers all metrics.
 // Metrics are registered at startup so they are always present for alerting.
-func NewHealthMetrics(chainInfo aptosMonitor.ChainInfo) (*HealthMetrics, error) {
+func NewHealthMetrics(chainInfo aptosTypes.ChainInfo) (*HealthMetrics, error) {
 	meter := beholder.GetMeter()
 
 	statusGauge, err := meter.Int64Gauge(

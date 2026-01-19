@@ -8,13 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	aptosMonitor "github.com/smartcontractkit/chainlink-aptos/relayer/monitor"
+	aptosTypes "github.com/smartcontractkit/chainlink-aptos/relayer/types"
 )
 
 func TestNewHealthMetrics(t *testing.T) {
 	t.Parallel()
 
-	chainInfo := aptosMonitor.ChainInfo{
+	chainInfo := aptosTypes.ChainInfo{
 		ChainFamilyName: "sui",
 		ChainID:         "test-chain-id",
 		NetworkName:     "testnet",
@@ -51,7 +51,7 @@ func TestNewHealthMetrics(t *testing.T) {
 func TestRecordHealth(t *testing.T) {
 	t.Parallel()
 
-	chainInfo := aptosMonitor.ChainInfo{
+	chainInfo := aptosTypes.ChainInfo{
 		ChainFamilyName: "sui",
 		ChainID:         "test-chain-id",
 		NetworkName:     "testnet",
@@ -91,7 +91,7 @@ func TestRecordHealth(t *testing.T) {
 func TestRecordLastSuccess(t *testing.T) {
 	t.Parallel()
 
-	chainInfo := aptosMonitor.ChainInfo{
+	chainInfo := aptosTypes.ChainInfo{
 		ChainFamilyName: "sui",
 		ChainID:         "test-chain-id",
 		NetworkName:     "testnet",
@@ -123,7 +123,7 @@ func TestRecordLastSuccess(t *testing.T) {
 func TestRecordHealthFromReport(t *testing.T) {
 	t.Parallel()
 
-	chainInfo := aptosMonitor.ChainInfo{
+	chainInfo := aptosTypes.ChainInfo{
 		ChainFamilyName: "sui",
 		ChainID:         "test-chain-id",
 		NetworkName:     "testnet",
@@ -166,7 +166,7 @@ func TestRecordHealthFromReport(t *testing.T) {
 func TestUpdateProcessingLag(t *testing.T) {
 	t.Parallel()
 
-	chainInfo := aptosMonitor.ChainInfo{
+	chainInfo := aptosTypes.ChainInfo{
 		ChainFamilyName: "sui",
 		ChainID:         "test-chain-id",
 		NetworkName:     "testnet",
@@ -196,7 +196,7 @@ func TestUpdateProcessingLag(t *testing.T) {
 func TestConcurrentAccess(t *testing.T) {
 	t.Parallel()
 
-	chainInfo := aptosMonitor.ChainInfo{
+	chainInfo := aptosTypes.ChainInfo{
 		ChainFamilyName: "sui",
 		ChainID:         "test-chain-id",
 		NetworkName:     "testnet",
@@ -234,7 +234,7 @@ func TestConcurrentAccess(t *testing.T) {
 func TestFlipFlopDetection(t *testing.T) {
 	t.Parallel()
 
-	chainInfo := aptosMonitor.ChainInfo{
+	chainInfo := aptosTypes.ChainInfo{
 		ChainFamilyName: "sui",
 		ChainID:         "test-chain-id",
 		NetworkName:     "testnet",
