@@ -212,7 +212,7 @@ func QueryCreatedObjectID(objectChanges []ObjectChange, packageID, module, struc
 
 // patchContractTOMLSection edits one entry under the specified TOML section.
 // contractPath : folder that contains Move.toml
-// section      : TOML section name (e.g., "addresses", "dev-addresses")
+// section      : TOML section name (e.g., "addresses")
 // name         : key to patch (e.g. "mcms", "test_secondary")
 // address      : new hex value (e.g. "0x0000", "0x123...")
 func patchContractTOMLSection(t *testing.T, contractPath, addresses, name, address string) {
@@ -240,7 +240,7 @@ func patchContractTOMLSection(t *testing.T, contractPath, addresses, name, addre
 	err = toml.Unmarshal(raw, &doc)
 	require.NoError(t, err, "parse TOML")
 
-	// Ensure the section ([dev-addresses]/[addresses]) table exists
+	// Ensure the section [addresses] table exists
 	addrs, ok := doc[addresses].(map[string]any)
 	if !ok {
 		addrs = make(map[string]any)
@@ -262,7 +262,6 @@ func patchContractTOMLSection(t *testing.T, contractPath, addresses, name, addre
 }
 
 // PatchContractAddressTOML edits one entry under [addresses].
-// Same as PatchContractDevAddressTOML, but for [addresses] section.
 func PatchContractAddressTOML(t *testing.T, contractPath, name, address string) {
 	patchContractTOMLSection(t, contractPath, "addresses", name, address)
 }

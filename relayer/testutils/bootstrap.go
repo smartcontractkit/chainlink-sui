@@ -110,7 +110,7 @@ func SetupTestEnv(
 	faucetFundErr := FundWithFaucet(lgr, SuiLocalnet, accountAddress)
 	require.NoError(t, faucetFundErr)
 
-	patchContractTOMLSection(t, "contracts/test", "addresses", "test_secondary", "_")
+	// patchContractTOMLSection(t, "contracts/test", "addresses", "test_secondary", "_")
 
 	contractPath := BuildSetup(t, "contracts/test")
 	gasBudget := int(2000000000)

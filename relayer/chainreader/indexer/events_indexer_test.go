@@ -75,7 +75,7 @@ func TestEventsIndexer(t *testing.T) {
 	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
-	testutils.PatchContractAddressTOML(t, "contracts/test", "test_secondary", "_")
+	// testutils.PatchContractAddressTOML(t, "contracts/test", "test_secondary", "_")
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	gasBudget := int(2000000000)
