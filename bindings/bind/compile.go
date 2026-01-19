@@ -872,7 +872,7 @@ func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, 
 
 	// Run manage-package
 	cmd := exec.Command(
-		"sui", "move", "manage-package",
+		"sui", "move", "update-deps",
 		"--environment", env,
 		"--network-id", chainID,
 		"--original-id", originalPkgId,
