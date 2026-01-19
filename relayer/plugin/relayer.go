@@ -198,7 +198,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	}
 
 	// Initialize health metrics for monitoring
-	chainInfo := config.ChainInfo{
+	chainInfo := aptosBalanceMonitor.ChainInfo{
 		ChainFamilyName: "sui",
 		ChainID:         *cfg.ChainID,
 		NetworkName:     *cfg.NetworkName,

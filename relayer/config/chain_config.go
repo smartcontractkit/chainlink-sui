@@ -23,13 +23,6 @@ const (
 	DefaultTransactionRetentionSecs = uint64(10)
 )
 
-type ChainInfo struct {
-	ChainFamilyName string
-	ChainID         string
-	NetworkName     string
-	NetworkNameFull string
-}
-
 type NodeConfig struct {
 	Name *string
 	URL  *config.URL

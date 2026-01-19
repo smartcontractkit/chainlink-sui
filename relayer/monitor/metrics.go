@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/config"
+	aptosMonitor "github.com/smartcontractkit/chainlink-aptos/relayer/monitor"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -31,12 +31,12 @@ func NewGaugeAccBalance(unitStr string) (*GaugeAccBalance, error) {
 	return &GaugeAccBalance{gauge}, nil
 }
 
-func (g *GaugeAccBalance) Record(ctx context.Context, balance float64, account string, chainInfo config.ChainInfo) {
+func (g *GaugeAccBalance) Record(ctx context.Context, balance float64, account string, chainInfo aptosMonitor.ChainInfo) {
 	oAttrs := metric.WithAttributeSet(g.GetAttributes(account, chainInfo))
 	g.gauge.Record(ctx, balance, oAttrs)
 }
 
-func (g *GaugeAccBalance) GetAttributes(account string, chainInfo config.ChainInfo) attribute.Set {
+func (g *GaugeAccBalance) GetAttributes(account string, chainInfo aptosMonitor.ChainInfo) attribute.Set {
 	return attribute.NewSet(
 		attribute.String("account", account),
 
