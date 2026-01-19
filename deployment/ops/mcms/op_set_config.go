@@ -18,16 +18,16 @@ import (
 )
 
 type MCMSSetConfigInput struct {
-	ChainSelector uint64 `json:"chainSelector"`
+	ChainSelector uint64 `yaml:"chainSelector"`
 	// MCMS related
-	McmsPackageID string `json:"mcmsPackageID"`
-	OwnerCap      string `json:"ownerCap"`
-	McmsObjectID  string `json:"mcmsObjectID"`
+	McmsPackageID string `yaml:"mcmsPackageID"`
+	OwnerCap      string `yaml:"ownerCap"`
+	McmsObjectID  string `yaml:"mcmsObjectID"`
 	// Timelock related
-	Role suisdk.TimelockRole `json:"role"`
+	Role suisdk.TimelockRole `yaml:"role"`
 	// Config related
-	Config    types.Config `json:"config"`
-	ClearRoot bool         `json:"clearRoot"`
+	Config    types.Config `yaml:"config"`
+	ClearRoot bool         `yaml:"clearRoot"`
 }
 
 var SetConfigMCMSOp = cld_ops.NewOperation(

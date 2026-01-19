@@ -80,15 +80,16 @@ func (c ConfigureMCMS) Apply(e cldf.Environment, config ConfigureMCMSConfig) (cl
 		}
 
 		mcmsConfig := mcmsops.ProposalGenerateInput{
-			ChainSelector:  config.ChainSelector,
-			Defs:           defs,
-			Inputs:         inputs,
-			MmcsPackageID:  state[config.ChainSelector].MCMSPackageID,
-			McmsStateObjID: state[config.ChainSelector].MCMSStateObjectID,
-			TimelockObjID:  state[config.ChainSelector].MCMSTimelockObjectID,
-			AccountObjID:   state[config.ChainSelector].MCMSAccountStateObjectID,
-			RegistryObjID:  state[config.ChainSelector].MCMSRegistryObjectID,
-			TimelockConfig: *config.TimelockConfig,
+			ChainSelector:      config.ChainSelector,
+			Defs:               defs,
+			Inputs:             inputs,
+			MmcsPackageID:      state[config.ChainSelector].MCMSPackageID,
+			McmsStateObjID:     state[config.ChainSelector].MCMSStateObjectID,
+			TimelockObjID:      state[config.ChainSelector].MCMSTimelockObjectID,
+			AccountObjID:       state[config.ChainSelector].MCMSAccountStateObjectID,
+			RegistryObjID:      state[config.ChainSelector].MCMSRegistryObjectID,
+			DeployerStateObjID: state[config.ChainSelector].MCMSDeployerStateObjectID,
+			TimelockConfig:     *config.TimelockConfig,
 		}
 
 		result, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, mcmsConfig)
