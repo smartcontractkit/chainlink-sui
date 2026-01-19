@@ -144,6 +144,8 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 	}
 	s.lggr.Infow("Transaction enqueued", "transactionID", tx.TransactionID, "functionName", method)
 
+	s.recordLastSuccess(ctx)
+
 	return nil
 }
 
