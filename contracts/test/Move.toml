@@ -7,3 +7,6 @@ test = "0x0"
 
 [dependencies]
 TestContractSecondary = { local = "../test_secondary" }
+
+[environments]
+localnet = "72de9e3e"
