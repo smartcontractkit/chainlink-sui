@@ -768,7 +768,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		digest = digestInput[1:]
 
 	} else {
-		cmd = exec.Command("sui", "client", "test-publish", "--serialize-unsigned-transaction", "--sender", namedAddresses["signer"], "--json")
+		cmd = exec.Command("sui", "client", "test-publish", "--build-env", "testnet", "--serialize-unsigned-transaction", "--sender", namedAddresses["signer"], "--json")
 		cmd.Dir = packageRoot
 		output, err := cmd.Output()
 		if err != nil {
