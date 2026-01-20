@@ -233,7 +233,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	defer os.RemoveAll(tempConfigDir)
 
 	os.Setenv("SUI_CONFIG_DIR", tempConfigDir)
-	fmt.Printf("SUI_CONFIG_DIR set to: %s", tempConfigDir)
+	fmt.Printf("SUI_CONFIG_DIR set to: %s\n", tempConfigDir)
 
 	// ➜ IMPORTANT: restore when we leave CompilePackage
 	defer func() {
@@ -250,7 +250,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	if out, err := initCmd.CombinedOutput(); err != nil {
 		return PackageArtifact{}, fmt.Errorf("failed to init sui client: %w\n%s", err, out)
 	} else {
-		log.Printf("sui client initialized: %s", string(out))
+		log.Printf("sui client initialized: %s\n", string(out))
+		log.Printf("\n")
 	}
 
 	// 2. Create or update a sui env alias (in current config)
@@ -948,6 +949,13 @@ func setupSuiEnv(alias, rpcURL string) error {
 	if err != nil {
 		return fmt.Errorf("failed to list Sui environments: %w", err)
 	}
+	outStr := string(out)
+	idx := strings.Index(outStr, "testnet")
+	if idx == -1 {
+		return fmt.Errorf("testnet environment not found")
+	}
+	outStr = outStr[idx+len("testnet")+2:]
+	log.Printf("trimmedSui CLI output: %s\n", outStr)
 
 	var parsed []any
 	if err := json.Unmarshal(out, &parsed); err != nil {
