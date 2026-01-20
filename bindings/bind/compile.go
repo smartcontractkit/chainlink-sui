@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -248,7 +249,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	if out, err := initCmd.CombinedOutput(); err != nil {
 		return PackageArtifact{}, fmt.Errorf("failed to init sui client: %w\n%s", err, out)
 	} else {
-		fmt.Printf("sui client initialized: %s", string(out))
+		log.Printf("sui client initialized: %s", string(out))
 	}
 
 	// 2. Create or update a sui env alias (in current config)
