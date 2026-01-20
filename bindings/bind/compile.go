@@ -964,6 +964,8 @@ func setupSuiEnv(alias, rpcURL string) error {
 		return fmt.Errorf("failed to parse envs JSON: %w\nOutput:\n%s", err, string(outTrimmed))
 	}
 
+	log.Printf("successfully parsed sui CLI output: %+v\n", parsed)
+
 	var envList []suiEnv
 	if arr, ok := parsed[0].([]any); ok {
 		for _, e := range arr {
@@ -971,8 +973,12 @@ func setupSuiEnv(alias, rpcURL string) error {
 			var env suiEnv
 			if err := json.Unmarshal(data, &env); err == nil {
 				envList = append(envList, env)
+			} else {
+				log.Printf("failed to unmarshal env: %+v\n", err)
 			}
 		}
+	} else {
+		log.Printf("parsed[0] is not []any, got %T\n", parsed[0])
 	}
 
 	// Step 2 — Check for existing alias and remove it
