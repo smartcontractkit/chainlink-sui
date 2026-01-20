@@ -165,6 +165,8 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		"--json",
 		"--silence-warnings",
 		"--with-unpublished-dependencies",
+		"--build-env", "testnet",
+		"--environment", "local",
 		contractPath,
 	)
 
