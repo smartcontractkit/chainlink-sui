@@ -956,7 +956,7 @@ func setupSuiEnv(alias, rpcURL string) error {
 	if idxBack == -1 {
 		return fmt.Errorf("testnet environment not found")
 	}
-	outTrimmed := out[idxFront+len("testnet")+2 : idxBack-5]
+	outTrimmed := out[idxFront+len("testnet")+1 : idxBack-4]
 	log.Printf("trimmedSui CLI output: %s\n", string(outTrimmed))
 
 	var parsed []any
