@@ -74,5 +74,14 @@ var AllOperations = func() []*cld_ops.Operation[any, any, any] {
 		operations[i] = untypedOp
 	}
 
+	// add safeguard to ensure no nil/valid operations
+	for i, op := range operations {
+		if op == nil {
+			panic(fmt.Sprintf("operation at index %d is nil", i))
+		}
+		// try to access Def to ensure it's valid
+		_ = op.Def()
+	}
+
 	return operations
 }()
