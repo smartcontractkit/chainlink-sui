@@ -160,7 +160,7 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		gasBudgetArg = strconv.Itoa(*gasBudget)
 	}
 
-	publishCmd := exec.Command("sui", "client", "publish",
+	publishCmd := exec.Command("sui", "client", "test-publish",
 		"--gas-budget", gasBudgetArg,
 		"--json",
 		"--silence-warnings",
