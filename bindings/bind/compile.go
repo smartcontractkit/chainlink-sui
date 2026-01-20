@@ -249,9 +249,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	initCmd.Env = append(os.Environ(), fmt.Sprintf("SUI_CONFIG_DIR=%s", tempConfigDir))
 	if out, err := initCmd.CombinedOutput(); err != nil {
 		return PackageArtifact{}, fmt.Errorf("failed to init sui client: %w\n%s", err, out)
-	} else {
-		log.Printf("sui client initialized: %s\n", string(out))
-		log.Printf("\n")
 	}
 
 	// 2. Create or update a sui env alias (in current config)
