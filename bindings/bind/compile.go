@@ -244,7 +244,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	}()
 
 	// Initialize config non-interactively
-	initCmd := exec.Command("sui", "client", "objects", "--yes", "--json")
+	initCmd := exec.Command("sui", "client", "-y", "--json")
 	initCmd.Env = append(os.Environ(), fmt.Sprintf("SUI_CONFIG_DIR=%s", tempConfigDir))
 	if out, err := initCmd.CombinedOutput(); err != nil {
 		return PackageArtifact{}, fmt.Errorf("failed to init sui client: %w\n%s", err, out)
