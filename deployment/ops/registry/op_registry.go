@@ -41,10 +41,10 @@ var AllOperationsTyped = func() []any {
 }()
 
 // Exports every operation available so they can be registered to be used in dynamic changesets
-var AllOperations = func() []cld_ops.Operation[any, any, any] {
+var AllOperations = func() []*cld_ops.Operation[any, any, any] {
 	typedOps := AllOperationsTyped
 
-	operations := make([]cld_ops.Operation[any, any, any], len(typedOps))
+	operations := make([]*cld_ops.Operation[any, any, any], len(typedOps))
 	for i, op := range typedOps {
 		// Use reflection to call AsUntyped method
 		// The operations are stored as values, so we need to get their address to call pointer methods
@@ -71,7 +71,7 @@ var AllOperations = func() []cld_ops.Operation[any, any, any] {
 		}
 		// The result is a pointer to Operation[any, any, any]
 		untypedOp := results[0].Interface().(*cld_ops.Operation[any, any, any])
-		operations[i] = *untypedOp
+		operations[i] = untypedOp
 	}
 
 	return operations

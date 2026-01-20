@@ -155,12 +155,8 @@ func (s *MCMSTestSuite) SetupSuite() {
 	}
 
 	// Convert slice of values to slice of pointers
-	ops := make([]*cld_ops.Operation[any, any, any], len(opregistry.AllOperations))
-	for i := range opregistry.AllOperations {
-		ops[i] = &opregistry.AllOperations[i]
-	}
 	registry := cld_ops.NewOperationRegistry(
-		ops...,
+		opregistry.AllOperations...,
 	)
 
 	reporter := cld_ops.NewMemoryReporter()
