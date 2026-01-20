@@ -988,12 +988,16 @@ func setupSuiEnv(alias, rpcURL string) error {
 	// Step 2 — Check for existing alias and remove it
 	for _, e := range envList {
 		if e.Alias == alias {
+			log.Printf("removing alias: %s\n", alias)
 			if err := removeAliasFromClientYAML(alias); err != nil {
 				return fmt.Errorf("failed to remove existing alias: %w", err)
 			}
+			log.Printf("removed alias: %s\n", alias)
 			break
 		}
 	}
+
+	log.Printf("before creating new env alias: %s\n", alias)
 
 	// Step  — Create new alias
 	newCmd := exec.Command("sui", "client", "new-env",
@@ -1050,6 +1054,8 @@ func removeAliasFromClientYAML(alias string) error {
 			newLines = append(newLines, line)
 		}
 	}
+
+	log.Printf("newLines: %+v\n", newLines)
 
 	return os.WriteFile(configPath, []byte(strings.Join(newLines, "\n")), 0644)
 }
