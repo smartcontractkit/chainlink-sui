@@ -950,11 +950,16 @@ func setupSuiEnv(alias, rpcURL string) error {
 		return fmt.Errorf("failed to list Sui environments: %w", err)
 	}
 	outStr := string(out)
-	idx := strings.Index(outStr, "testnet")
-	if idx == -1 {
+	idxFront := strings.Index(outStr, "testnet")
+	if idxFront == -1 {
 		return fmt.Errorf("testnet environment not found")
 	}
-	outTrimmed := out[idx+len("testnet")+2:]
+
+	idxBack := strings.LastIndex(outStr, "testnet")
+	if idxBack == -1 {
+		return fmt.Errorf("testnet environment not found")
+	}
+	outTrimmed := out[idxFront+len("testnet")+2 : idxBack-4]
 	log.Printf("trimmedSui CLI output: %s\n", string(outTrimmed))
 
 	var parsed []any
