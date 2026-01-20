@@ -223,6 +223,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 
 	// before you set the temp dir
 	prevConfigDir := os.Getenv("SUI_CONFIG_DIR")
+	log.Printf("Previous SUI_CONFIG_DIR: %s", prevConfigDir)
 
 	// Create isolated config
 	tempConfigDir, err := os.MkdirTemp("", "sui-config-*")
@@ -244,7 +245,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	}()
 
 	// Initialize config non-interactively
-	initCmd := exec.Command("sui", "client", "-y", "--json")
+	initCmd := exec.Command("sui", "client", "-y")
 	initCmd.Env = append(os.Environ(), fmt.Sprintf("SUI_CONFIG_DIR=%s", tempConfigDir))
 	if out, err := initCmd.CombinedOutput(); err != nil {
 		return PackageArtifact{}, fmt.Errorf("failed to init sui client: %w\n%s", err, out)
