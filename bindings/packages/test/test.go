@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"log"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
@@ -88,9 +89,10 @@ func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, t
 		return nil, nil, err
 	}
 
-	if err != nil {
-		return nil, nil, err
-	}
+	log.Printf("suiRPC: %s\n", suiRPC)
+	log.Printf("successfully compiled test package with test_secondary: %s\n", testSecondary)
+	log.Printf("modules: %+v\n", artifact.Modules)
+	log.Printf("dependencies: %+v\n", artifact.Dependencies)
 
 	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
@@ -99,6 +101,7 @@ func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, t
 	if err != nil {
 		return nil, nil, err
 	}
+	log.Printf("successfully published test package")
 	contract, err := NewTest(packageId, client)
 	if err != nil {
 		return nil, nil, err
@@ -122,9 +125,10 @@ func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, client sui.I
 		return nil, nil, err
 	}
 
-	if err != nil {
-		return nil, nil, err
-	}
+	log.Printf("suiRPC: %s\n", suiRPC)
+	log.Printf("successfully compiled test secondary package: %s\n", suiRPC)
+	log.Printf("modules: %+v\n", artifact.Modules)
+	log.Printf("dependencies: %+v\n", artifact.Dependencies)
 
 	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
@@ -133,6 +137,7 @@ func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, client sui.I
 	if err != nil {
 		return nil, nil, err
 	}
+	log.Printf("successfully published test secondary package")
 	contract, err := NewTest(packageId, client)
 	if err != nil {
 		return nil, nil, err
