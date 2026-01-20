@@ -768,11 +768,11 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		digest = digestInput[1:]
 
 	} else {
-		cmd = exec.Command("sui", "client", "publish", "--serialize-unsigned-transaction", "--sender", namedAddresses["signer"], "--json")
+		cmd = exec.Command("sui", "client", "test-publish", "--serialize-unsigned-transaction", "--sender", namedAddresses["signer"], "--json")
 		cmd.Dir = packageRoot
 		output, err := cmd.Output()
 		if err != nil {
-			return PackageArtifact{}, fmt.Errorf("sui client publish --serialize-unsigned-transaction (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
+			return PackageArtifact{}, fmt.Errorf("sui client test-publish --serialize-unsigned-transaction (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
 		}
 
 		var resp TransactionData
