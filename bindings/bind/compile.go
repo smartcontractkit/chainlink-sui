@@ -954,12 +954,12 @@ func setupSuiEnv(alias, rpcURL string) error {
 	if idx == -1 {
 		return fmt.Errorf("testnet environment not found")
 	}
-	outStr = outStr[idx+len("testnet")+2:]
-	log.Printf("trimmedSui CLI output: %s\n", outStr)
+	outTrimmed := out[idx+len("testnet")+2:]
+	log.Printf("trimmedSui CLI output: %s\n", string(outTrimmed))
 
 	var parsed []any
-	if err := json.Unmarshal(out, &parsed); err != nil {
-		return fmt.Errorf("failed to parse envs JSON: %w\nOutput:\n%s", err, string(out))
+	if err := json.Unmarshal(outTrimmed, &parsed); err != nil {
+		return fmt.Errorf("failed to parse envs JSON: %w\nOutput:\n%s", err, string(outTrimmed))
 	}
 
 	var envList []suiEnv
