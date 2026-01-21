@@ -790,10 +790,16 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			return PackageArtifact{}, fmt.Errorf("sui client test-publish --serialize-unsigned-transaction (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
 		}
 
-		log.Printf("test publish output: %s\n", string(output))
+		idx := strings.Index(string(output), "{")
+		if idx == -1 {
+			return PackageArtifact{}, fmt.Errorf("no JSON found in output: %s", string(output))
+		}
+		outputStr := string(output)[idx:]
+		log.Printf("outputStr: %s\n", outputStr)
 
 		var resp TransactionData
-		if err := json.Unmarshal(output, &resp); err != nil {
+		if err := json.Unmarshal([]byte(outputStr), &resp); err != nil {
+			log.Printf("failed to unmarshal output: %v\n", err)
 			return PackageArtifact{}, err
 		}
 
