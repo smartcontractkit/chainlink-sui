@@ -21,7 +21,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/contracts"
 )
 
-const env = "docker"
+const env = "local"
 
 // SourceModifier is a function that can modify Move source files during compilation.
 //
