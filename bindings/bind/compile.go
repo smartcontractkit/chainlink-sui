@@ -256,10 +256,14 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		return PackageArtifact{}, fmt.Errorf("failed to create sui env alias: %w", err)
 	}
 
+	log.Printf("looking for package: %s\n", packageName)
+
 	packageDir, ok := contracts.Contracts[packageName]
 	if !ok {
 		return PackageArtifact{}, fmt.Errorf("unknown package: %s", packageName)
 	}
+
+	log.Printf("found package: %s\n", packageDir)
 
 	// Create temp dir for isolated compilation
 	dstDir, err := os.MkdirTemp("", "sui-temp-*")
@@ -271,10 +275,16 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	dstRoot := filepath.Join(dstDir, "contracts")
 	packageRoot := filepath.Join(dstRoot, packageDir)
 
+	log.Printf("packageRoot: %s\n", packageRoot)
+	log.Printf("dstRoot: %s\n", dstRoot)
+
 	// Copy embedded contract files to temp workspace
 	if err = writeEFS(contracts.Embed, ".", dstRoot); err != nil {
 		return PackageArtifact{}, fmt.Errorf("copying embedded files to %q: %w", dstRoot, err)
 	}
+
+	log.Printf("writing embedded files to %q\n", dstRoot)
+
 	// Apply source modifications if provided (test only - happens in temp dir)
 	if modifier != nil {
 		if err := modifier(packageRoot); err != nil {
