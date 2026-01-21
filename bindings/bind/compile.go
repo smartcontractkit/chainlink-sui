@@ -789,7 +789,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		if err != nil {
 			return PackageArtifact{}, fmt.Errorf("sui client test-publish --serialize-unsigned-transaction (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
 		}
-		log.Printf("finished test-publish output: %s\n", string(output))
+		// log.Printf("finished test-publish output: %s\n", string(output))
 
 		idx := strings.Index(string(output), "{")
 		if idx == -1 {
