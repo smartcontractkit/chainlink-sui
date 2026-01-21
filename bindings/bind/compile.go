@@ -998,6 +998,7 @@ func setupSuiEnv(alias, rpcURL string) error {
 	}
 
 	log.Printf("before creating new env alias: %s\n", alias)
+	log.Printf("rpcURL: %s\n", rpcURL)
 
 	// Step  — Create new alias
 	newCmd := exec.Command("sui", "client", "new-env",
@@ -1010,6 +1011,8 @@ func setupSuiEnv(alias, rpcURL string) error {
 		fmt.Printf("failed to create sui env '%s': %v\nOutput:\n%s", alias, err, string(newOut))
 	}
 
+	log.Printf("newOut: %+v\n", string(newOut))
+
 	// Step 4️ — Switch to new env
 	switchCmd := exec.Command("sui", "client", "switch", "--env", alias)
 	switchCmd.Env = os.Environ()
@@ -1017,6 +1020,8 @@ func setupSuiEnv(alias, rpcURL string) error {
 	if err != nil {
 		return fmt.Errorf("failed to switch to env '%s': %w\nOutput:\n%s", alias, err, string(switchOut))
 	}
+
+	log.Printf("switchOut: %+v\n", string(switchOut))
 
 	// Step 5️ — Verify
 	activeCmd := exec.Command("sui", "client", "active-env")
