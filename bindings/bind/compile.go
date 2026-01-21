@@ -783,7 +783,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 
 	} else {
 		log.Printf("testing publish for package: %s\n", packageRoot)
-		cmd = exec.Command("sui", "client", "test-publish", "--build-env", "testnet", "--serialize-unsigned-transaction", "--sender", namedAddresses["signer"], "--json")
+		cmd = exec.Command("sui", "client", "test-publish", "--build-env", "testnet", "--environment", env, "--serialize-unsigned-transaction", "--sender", namedAddresses["signer"], "--json")
 		cmd.Dir = packageRoot
 		output, err := cmd.Output()
 		if err != nil {
@@ -795,7 +795,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			return PackageArtifact{}, fmt.Errorf("no JSON found in output: %s", string(output))
 		}
 		outputStr := string(output)[idx:]
-		log.Printf("outputStr: %s\n", outputStr)
+		// log.Printf("outputStr: %s\n", outputStr)
 
 		var resp TransactionData
 		if err := json.Unmarshal([]byte(outputStr), &resp); err != nil {
@@ -992,7 +992,7 @@ func setupSuiEnv(alias, rpcURL string) error {
 		return fmt.Errorf("testnet environment not found")
 	}
 	outTrimmed := string(out[idxFront+len("testnet")+1:idxBack-5]) + "]"
-	log.Printf("trimmedSui CLI output: %s\n", outTrimmed)
+	// log.Printf("trimmedSui CLI output: %s\n", outTrimmed)
 
 	var parsed []any
 	if err := json.Unmarshal([]byte(outTrimmed), &parsed); err != nil {
