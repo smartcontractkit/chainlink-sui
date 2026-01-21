@@ -898,35 +898,37 @@ func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, 
 	log.Printf("originalPkgId: %s\n", originalPkgId)
 	log.Printf("latestPkgId: %s\n", latestPkgId)
 
-	//  Fetch chain identifier directly from the node
-	chainID, err := getChainIdentifier(rpcURL)
-	if err != nil {
-		return fmt.Errorf("failed to query chain identifier from %s: %w", rpcURL, err)
-	}
-
-	log.Printf("chainID: %s\n", chainID)
-
-	// Run manage-package
-	cmd := exec.Command(
-		"sui", "move", "update-deps",
-		"--environment", env,
-		// "--network-id", chainID,
-		// "--original-id", originalPkgId,
-		// "--latest-id", latestPkgId,
-		// "--version-number", fmt.Sprintf("%d", version),
-	)
-	cmd.Dir = packageRoot
-	cmd.Env = os.Environ() // includes SUI_CONFIG + PATH
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("sui move manage-package failed: %v\n", err)
-		return fmt.Errorf("sui move manage-package failed: %w\nOutput:\n%s", err, string(out))
-	}
-
-	log.Printf("update-deps output: %s\n", string(out))
-
 	return nil
+
+	// //  Fetch chain identifier directly from the node
+	// chainID, err := getChainIdentifier(rpcURL)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to query chain identifier from %s: %w", rpcURL, err)
+	// }
+
+	// log.Printf("chainID: %s\n", chainID)
+
+	// // Run manage-package
+	// cmd := exec.Command(
+	// 	"sui", "move", "update-deps",
+	// 	"--environment", env,
+	// 	// "--network-id", chainID,
+	// 	// "--original-id", originalPkgId,
+	// 	// "--latest-id", latestPkgId,
+	// 	// "--version-number", fmt.Sprintf("%d", version),
+	// )
+	// cmd.Dir = packageRoot
+	// cmd.Env = os.Environ() // includes SUI_CONFIG + PATH
+
+	// out, err := cmd.CombinedOutput()
+	// if err != nil {
+	// 	log.Printf("sui move manage-package failed: %v\n", err)
+	// 	return fmt.Errorf("sui move manage-package failed: %w\nOutput:\n%s", err, string(out))
+	// }
+
+	// log.Printf("update-deps output: %s\n", string(out))
+
+	// return nil
 }
 
 func getChainIdentifier(rpcURL string) (string, error) {
