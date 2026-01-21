@@ -909,10 +909,10 @@ func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, 
 	cmd := exec.Command(
 		"sui", "move", "update-deps",
 		"--environment", env,
-		"--network-id", chainID,
-		"--original-id", originalPkgId,
-		"--latest-id", latestPkgId,
-		"--version-number", fmt.Sprintf("%d", version),
+		// "--network-id", chainID,
+		// "--original-id", originalPkgId,
+		// "--latest-id", latestPkgId,
+		// "--version-number", fmt.Sprintf("%d", version),
 	)
 	cmd.Dir = packageRoot
 	cmd.Env = os.Environ() // includes SUI_CONFIG + PATH
@@ -922,6 +922,8 @@ func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, 
 		log.Printf("sui move manage-package failed: %v\n", err)
 		return fmt.Errorf("sui move manage-package failed: %w\nOutput:\n%s", err, string(out))
 	}
+
+	log.Printf("update-deps output: %s\n", string(out))
 
 	return nil
 }
