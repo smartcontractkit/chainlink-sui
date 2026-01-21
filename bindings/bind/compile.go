@@ -287,15 +287,19 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 
 	// Apply source modifications if provided (test only - happens in temp dir)
 	if modifier != nil {
+		log.Printf("applying source modifications to %q\n", packageRoot)
 		if err := modifier(packageRoot); err != nil {
+			log.Printf("failed to apply source modifications: %v\n", err)
 			return PackageArtifact{}, fmt.Errorf("applying source modifications: %w", err)
 		}
 	}
 	if packageName == contracts.Test {
 		testSecondaryAddr := namedAddresses["test_secondary"]
 		if !isZeroAddress(testSecondaryAddr) {
+			log.Printf("testSecondaryAddr: %s\n", testSecondaryAddr)
 			testSecondaryDir := filepath.Join(dstRoot, "test_secondary")
 			if err := managePackage(testSecondaryDir, 1, rpcURL, env, testSecondaryAddr, testSecondaryAddr); err != nil {
+				log.Printf("failed to manage Test Secondary dependency: %v\n", err)
 				return PackageArtifact{}, fmt.Errorf("failed to manage Test Secondary dependency: %w", err)
 			}
 		} else {
@@ -877,11 +881,20 @@ func isZeroAddress(addr string) bool {
 }
 
 func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, latestPkgId string) error {
+	log.Printf("managing package: %s\n", packageRoot)
+	log.Printf("version: %d\n", version)
+	log.Printf("rpcURL: %s\n", rpcURL)
+	log.Printf("env: %s\n", env)
+	log.Printf("originalPkgId: %s\n", originalPkgId)
+	log.Printf("latestPkgId: %s\n", latestPkgId)
+
 	//  Fetch chain identifier directly from the node
 	chainID, err := getChainIdentifier(rpcURL)
 	if err != nil {
 		return fmt.Errorf("failed to query chain identifier from %s: %w", rpcURL, err)
 	}
+
+	log.Printf("chainID: %s\n", chainID)
 
 	// Run manage-package
 	cmd := exec.Command(
@@ -897,6 +910,7 @@ func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, 
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		log.Printf("sui move manage-package failed: %v\n", err)
 		return fmt.Errorf("sui move manage-package failed: %w\nOutput:\n%s", err, string(out))
 	}
 
