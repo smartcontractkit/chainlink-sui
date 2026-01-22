@@ -1,9 +1,9 @@
 [package]
-name = "ChainlinkCCIP"
+name = "ccip"
 edition = "2024"
 
-[addresses]
-ccip = "0x0"
-
 [dependencies]
-ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
+mcms = { local = "../../mcms/mcms" }
+
+[environments]
+devnet = "a9149565"

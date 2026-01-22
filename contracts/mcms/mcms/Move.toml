@@ -1,7 +1,6 @@
 [package]
-name = "ChainlinkManyChainMultisig"
+name = "mcms"
 edition = "2024"
 
-[addresses]
-mcms = "0x0"
-mcms_owner = "0x0"
+[environments]
+devnet = "a9149565"
