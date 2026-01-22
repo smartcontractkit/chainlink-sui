@@ -62,6 +62,9 @@ func PublishPackage(
 		opts.GasBudget = &gasBudgetValueDefault // 500M MIST default for publish
 	}
 
+	fmt.Printf("ptb.Publish gasBudget: %d\n", *opts.GasBudget)
+	fmt.Printf("ptb.Publish dependencies: %+v\n", deps)
+
 	ptb := transaction.NewTransaction()
 	arg := ptb.Publish(modules, deps)
 	// The program object is transferred to the signer once deployed
