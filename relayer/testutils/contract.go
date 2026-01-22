@@ -164,7 +164,7 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		"--gas-budget", gasBudgetArg,
 		"--json",
 		"--silence-warnings",
-		// "--with-unpublished-dependencies",
+		"--with-unpublished-dependencies",
 		// "--build-env", "testnet",
 		// "--environment", "local",
 		contractPath,

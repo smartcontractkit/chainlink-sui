@@ -95,6 +95,8 @@ func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, t
 		return nil, nil, err
 	}
 
+	artifact.Dependencies = append(artifact.Dependencies, testSecondary)
+
 	log.Printf("suiRPC: %s\n", suiRPC)
 	log.Printf("successfully compiled test package with test_secondary: %s\n", testSecondary)
 	log.Printf("modules: %+v\n", artifact.Modules)
