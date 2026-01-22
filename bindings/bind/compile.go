@@ -294,6 +294,49 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		}
 	}
 	if packageName == contracts.Test {
+		// Print every TOML file under the Test package root (helpful for debugging named addresses).
+		_ = filepath.WalkDir(packageRoot, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				log.Printf("walk error at %s: %v", path, err)
+				return nil
+			}
+			if d.IsDir() {
+				return nil
+			}
+			if strings.HasSuffix(strings.ToLower(d.Name()), ".toml") {
+				if tomlBytes, readErr := os.ReadFile(path); readErr == nil {
+					log.Printf("Test package TOML (%s):\n%s\n", path, string(tomlBytes))
+				} else {
+					log.Printf("failed to read Test package TOML at %s: %v\n", path, readErr)
+				}
+			}
+			return nil
+		})
+
+		// Also print TOMLs from the test_secondary package if present in the temp workspace.
+		testSecondaryDir := filepath.Join(dstRoot, "test_secondary")
+		if info, serr := os.Stat(testSecondaryDir); serr == nil && info.IsDir() {
+			_ = filepath.WalkDir(testSecondaryDir, func(path string, d fs.DirEntry, err error) error {
+				if err != nil {
+					log.Printf("walk error at %s: %v", path, err)
+					return nil
+				}
+				if d.IsDir() {
+					return nil
+				}
+				if strings.HasSuffix(strings.ToLower(d.Name()), ".toml") {
+					if tomlBytes, readErr := os.ReadFile(path); readErr == nil {
+						log.Printf("Test secondary TOML (%s):\n%s\n", path, string(tomlBytes))
+					} else {
+						log.Printf("failed to read Test secondary TOML at %s: %v\n", path, readErr)
+					}
+				}
+				return nil
+			})
+		} else {
+			log.Printf("test_secondary directory not found at %s (skipping TOML dump)", testSecondaryDir)
+		}
+
 		// testSecondaryAddr := namedAddresses["test_secondary"]
 		// if !isZeroAddress(testSecondaryAddr) {
 		// 	log.Printf("testSecondaryAddr: %s\n", testSecondaryAddr)
