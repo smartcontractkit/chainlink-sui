@@ -40,6 +40,7 @@ type MCMSExecuteTransferOwnershipInput struct {
 	BurnMintTokenPoolTokenSymbol    string `json:"burn_mint_token_pool,omitempty" yaml:"burn_mint_token_pool,omitempty"`
 	LockReleaseTokenPoolTokenSymbol string `json:"lock_release_token_pool,omitempty" yaml:"lock_release_token_pool,omitempty"`
 	ManagedTokenPoolTokenSymbol     string `json:"managed_token_pool,omitempty" yaml:"managed_token_pool,omitempty"`
+	TypeArg                         string `json:"type_arg,omitempty" yaml:"type_arg,omitempty"`
 }
 
 func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecuteTransferOwnershipInput) (cldf.ChangesetOutput, error) {
@@ -130,38 +131,49 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 		}
 	}
 
-	// TODO: Need typeargs support
 	if config.BurnMintTokenPoolTokenSymbol != "" {
 		poolState, ok := state.BnMTokenPools[config.BurnMintTokenPoolTokenSymbol]
 		if !ok {
 			return cldf.ChangesetOutput{}, fmt.Errorf("burn mint token pool not found: %s", config.BurnMintTokenPoolTokenSymbol)
 		}
 		input.BurnMintTokenPool = &burnminttokenpoolops.ExecuteOwnershipTransferToMcmsBurnMintTokenPoolInput{
-			BurnMintTokenPoolPackageId: poolState.StateObjectId,
+			BurnMintTokenPoolPackageId: poolState.PackageID,
+			TypeArgs:                   []string{config.TypeArg},
+			StateObjectId:              poolState.StateObjectId,
 			OwnerCapObjectId:           state.CCIPOwnerCapObjectId,
 			RegistryObjectId:           state.MCMSRegistryObjectID,
 			To:                         state.MCMSPackageID,
 		}
 	}
 
-	// TODO: Need typeargs support
 	if config.LockReleaseTokenPoolTokenSymbol != "" {
 		poolState, ok := state.LnRTokenPools[config.LockReleaseTokenPoolTokenSymbol]
 		if !ok {
 			return cldf.ChangesetOutput{}, fmt.Errorf("lock release token pool not found: %s", config.LockReleaseTokenPoolTokenSymbol)
 		}
 		input.LockReleaseTokenPool = &lockreleasetokenpoolops.ExecuteOwnershipTransferToMcmsLockReleaseTokenPoolInput{
-			LockReleaseTokenPoolPackageId: poolState.StateObjectId,
+			LockReleaseTokenPoolPackageId: poolState.PackageID,
+			TypeArgs:                      []string{config.TypeArg},
+			StateObjectId:                 poolState.StateObjectId,
 			OwnerCapObjectId:              state.CCIPOwnerCapObjectId,
 			RegistryObjectId:              state.MCMSRegistryObjectID,
 			To:                            state.MCMSPackageID,
 		}
 	}
 
-	// TODO: not supported yet
 	if config.ManagedTokenPoolTokenSymbol != "" {
-		input.ManagedTokenPool = &managedtokenpoolops.ExecuteOwnershipTransferToMcmsManagedTokenPoolInput{}
-		return cldf.ChangesetOutput{}, fmt.Errorf("managed token pool ownership transfer not implemented yet")
+		poolState, ok := state.ManagedTokenPools[config.ManagedTokenPoolTokenSymbol]
+		if !ok {
+			return cldf.ChangesetOutput{}, fmt.Errorf("managed token pool not found: %s", config.ManagedTokenPoolTokenSymbol)
+		}
+		input.ManagedTokenPool = &managedtokenpoolops.ExecuteOwnershipTransferToMcmsManagedTokenPoolInput{
+			ManagedTokenPoolPackageId: poolState.PackageID,
+			TypeArgs:                  []string{config.TypeArg},
+			StateObjectId:             poolState.StateObjectId,
+			OwnerCapObjectId:          state.CCIPOwnerCapObjectId,
+			RegistryObjectId:          state.MCMSRegistryObjectID,
+			To:                        state.MCMSPackageID,
+		}
 	}
 
 	// TODO: not supported yet
