@@ -155,18 +155,18 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 
 	lgr.Infow("Publishing contract", "name", packageName, "path", contractPath)
 
-	gasBudgetArg := "200000000"
+	gasBudgetArg := "800000000"
 	if gasBudget != nil {
 		gasBudgetArg = strconv.Itoa(*gasBudget)
 	}
 
-	publishCmd := exec.Command("sui", "client", "test-publish",
+	publishCmd := exec.Command("sui", "client", "publish",
 		"--gas-budget", gasBudgetArg,
 		"--json",
 		"--silence-warnings",
 		// "--with-unpublished-dependencies",
 		// "--build-env", "testnet",
-		"--environment", "local",
+		// "--environment", "local",
 		contractPath,
 	)
 
@@ -242,28 +242,63 @@ func patchContractTOMLSection(t *testing.T, contractPath, addresses, name, addre
 	err = toml.Unmarshal(raw, &doc)
 	require.NoError(t, err, "parse TOML")
 
-	// Ensure the section [addresses] table exists
-	addrs, ok := doc[addresses].(map[string]any)
-	if !ok {
-		addrs = make(map[string]any)
-		doc[addresses] = addrs
+	if addresses == "addresses" {
+		// Ensure the section [addresses] table exists
+		addrs, ok := doc[addresses].(map[string]any)
+		if !ok {
+			addrs = make(map[string]any)
+			doc[addresses] = addrs
+		}
+
+		// Set / overwrite the single entry
+		addrs[name] = address
+
+		// Re-encode with default indentation
+		var buf bytes.Buffer
+		enc := toml.NewEncoder(&buf)
+		enc.SetIndentTables(true)
+		err = enc.Encode(doc)
+		require.NoError(t, err, "encode TOML")
+
+		err = os.WriteFile(moveToml, buf.Bytes(), 0o644)
+		require.NoError(t, err, "write Move.toml")
+	} else if addresses == "environments" {
+		// Add entry under [environments]. If the section exists, only add/replace
+		// the entry; if it doesn't, append a new section with blank lines above/below.
+		envs, ok := doc[addresses].(map[string]any)
+		if ok {
+			envs[name] = address
+
+			var buf bytes.Buffer
+			enc := toml.NewEncoder(&buf)
+			enc.SetIndentTables(true)
+			err = enc.Encode(doc)
+			require.NoError(t, err, "encode TOML")
+
+			err = os.WriteFile(moveToml, buf.Bytes(), 0o644)
+			require.NoError(t, err, "write Move.toml")
+		} else {
+			// Append with a leading and trailing empty line.
+			if len(raw) == 0 || raw[len(raw)-1] != '\n' {
+				raw = append(raw, '\n')
+			}
+			appendSection := fmt.Sprintf("\n[environments]\n%s = \"%s\"\n\n", name, address)
+			err = os.WriteFile(moveToml, append(raw, []byte(appendSection)...), 0o644)
+			require.NoError(t, err, "write Move.toml")
+		}
 	}
 
-	// Set / overwrite the single entry
-	addrs[name] = address
-
-	// Re-encode with default indentation
-	var buf bytes.Buffer
-	enc := toml.NewEncoder(&buf)
-	enc.SetIndentTables(true)
-	err = enc.Encode(doc)
-	require.NoError(t, err, "encode TOML")
-
-	err = os.WriteFile(moveToml, buf.Bytes(), 0o644)
-	require.NoError(t, err, "write Move.toml")
+	// Log resulting TOML contents for debugging.
+	finalToml, err := os.ReadFile(moveToml)
+	require.NoError(t, err, "read patched Move.toml")
+	t.Logf("Patched Move.toml (%s):\n%s\n", moveToml, string(finalToml))
 }
 
 // PatchContractAddressTOML edits one entry under [addresses].
 func PatchContractAddressTOML(t *testing.T, contractPath, name, address string) {
 	patchContractTOMLSection(t, contractPath, "addresses", name, address)
+}
+
+func PatchEnvironmentTOML(t *testing.T, contractPath, environment, chainID string) {
+	patchContractTOMLSection(t, contractPath, "environments", environment, chainID)
 }

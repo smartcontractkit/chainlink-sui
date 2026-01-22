@@ -293,19 +293,19 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			return PackageArtifact{}, fmt.Errorf("applying source modifications: %w", err)
 		}
 	}
-	// if packageName == contracts.Test {
-	// 	testSecondaryAddr := namedAddresses["test_secondary"]
-	// 	if !isZeroAddress(testSecondaryAddr) {
-	// 		log.Printf("testSecondaryAddr: %s\n", testSecondaryAddr)
-	// 		testSecondaryDir := filepath.Join(dstRoot, "test_secondary")
-	// 		if err := managePackage(testSecondaryDir, 1, rpcURL, env, testSecondaryAddr, testSecondaryAddr); err != nil {
-	// 			log.Printf("failed to manage Test Secondary dependency: %v\n", err)
-	// 			return PackageArtifact{}, fmt.Errorf("failed to manage Test Secondary dependency: %w", err)
-	// 		}
-	// 	} else {
-	// 		fmt.Println("Skipping manage-package for Test Secondary (no published address found)")
-	// 	}
-	// }
+	if packageName == contracts.Test {
+		testSecondaryAddr := namedAddresses["test_secondary"]
+		if !isZeroAddress(testSecondaryAddr) {
+			log.Printf("testSecondaryAddr: %s\n", testSecondaryAddr)
+			testSecondaryDir := filepath.Join(dstRoot, "test_secondary")
+			if err := managePackage(testSecondaryDir, 1, rpcURL, env, testSecondaryAddr, testSecondaryAddr); err != nil {
+				log.Printf("failed to manage Test Secondary dependency: %v\n", err)
+				return PackageArtifact{}, fmt.Errorf("failed to manage Test Secondary dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for Test Secondary (no published address found)")
+		}
+	}
 
 	if packageName == contracts.ManagedToken {
 		mcmsAddr := namedAddresses["mcms"]
@@ -898,37 +898,37 @@ func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, 
 	log.Printf("originalPkgId: %s\n", originalPkgId)
 	log.Printf("latestPkgId: %s\n", latestPkgId)
 
-	return nil
+	// return nil
 
-	// //  Fetch chain identifier directly from the node
-	// chainID, err := getChainIdentifier(rpcURL)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to query chain identifier from %s: %w", rpcURL, err)
-	// }
+	//  Fetch chain identifier directly from the node
+	chainID, err := getChainIdentifier(rpcURL)
+	if err != nil {
+		return fmt.Errorf("failed to query chain identifier from %s: %w", rpcURL, err)
+	}
 
-	// log.Printf("chainID: %s\n", chainID)
+	log.Printf("chainID: %s\n", chainID)
 
-	// // Run manage-package
-	// cmd := exec.Command(
-	// 	"sui", "move", "update-deps",
-	// 	"--environment", env,
-	// 	// "--network-id", chainID,
-	// 	// "--original-id", originalPkgId,
-	// 	// "--latest-id", latestPkgId,
-	// 	// "--version-number", fmt.Sprintf("%d", version),
-	// )
-	// cmd.Dir = packageRoot
-	// cmd.Env = os.Environ() // includes SUI_CONFIG + PATH
+	// Run manage-package
+	cmd := exec.Command(
+		"sui", "move", "update-deps",
+		"--environment", env,
+		// "--network-id", chainID,
+		// "--original-id", originalPkgId,
+		// "--latest-id", latestPkgId,
+		// "--version-number", fmt.Sprintf("%d", version),
+	)
+	cmd.Dir = packageRoot
+	cmd.Env = os.Environ() // includes SUI_CONFIG + PATH
 
-	// out, err := cmd.CombinedOutput()
-	// if err != nil {
-	// 	log.Printf("sui move manage-package failed: %v\n", err)
-	// 	return fmt.Errorf("sui move manage-package failed: %w\nOutput:\n%s", err, string(out))
-	// }
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("sui move manage-package failed: %v\n", err)
+		return fmt.Errorf("sui move manage-package failed: %w\nOutput:\n%s", err, string(out))
+	}
 
 	// log.Printf("update-deps output: %s\n", string(out))
 
-	// return nil
+	return nil
 }
 
 func getChainIdentifier(rpcURL string) (string, error) {
