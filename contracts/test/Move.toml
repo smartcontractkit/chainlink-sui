@@ -5,5 +5,5 @@ edition = "2024"
 [dependencies]
 test_secondary = { local = "../test_secondary" }
 
-[environments]
-devnet = "a9149565"
+# [environments]
+# devnet = "a9149565"

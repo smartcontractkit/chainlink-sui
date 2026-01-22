@@ -1,9 +1,6 @@
 [package]
-name = "ManagedToken"
+name = "managed_token"
 edition = "2024"
 
-[addresses]
-managed_token = "0x0"
-
 [dependencies]
-ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
+mcms = { local = "../../mcms/mcms" }

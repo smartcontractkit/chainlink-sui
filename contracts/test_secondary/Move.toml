@@ -2,5 +2,5 @@
 name = "test_secondary"
 edition = "2024"
 
-[environments]
-devnet = "a9149565"
+# [environments]
+# devnet = "a9149565"

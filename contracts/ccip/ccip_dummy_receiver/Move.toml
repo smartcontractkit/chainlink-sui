@@ -1,9 +1,6 @@
 [package]
-name = "ChainlinkCCIPDummyReceiver"
+name = "ccip_dummy_receiver"
 edition = "2024"
 
-[addresses]
-ccip_dummy_receiver = "0x0"
-
 [dependencies]
-ChainlinkCCIP = { local = "../ccip" }
+ccip = { local = "../ccip" }

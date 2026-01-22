@@ -1,9 +1,6 @@
 [package]
-name = "TestModule"
+name = "mcms_test"
 edition = "2024"
 
 [dependencies]
-ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
-
-[addresses]
-mcms_test = "0x0"
+mcms = { local = "../../mcms/mcms" }

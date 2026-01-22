@@ -1,10 +1,7 @@
 [package]
-name = "BurnMintTokenPool"
+name = "burn_mint_token_pool"
 edition = "2024"
 
 [dependencies]
-ChainlinkCCIP = { local = "../../ccip" }
-ChainlinkManyChainMultisig = { local = "../../../mcms/mcms" }
-
-[addresses]
-burn_mint_token_pool = "0x0"
+ccip = { local = "../../ccip" }
+mcms = { local = "../../../mcms/mcms" }

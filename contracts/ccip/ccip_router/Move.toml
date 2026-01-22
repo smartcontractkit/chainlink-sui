@@ -1,9 +1,6 @@
 [package]
-name = "ChainlinkCCIPRouter"
+name = "ccip_router"
 edition = "2024"
 
-[addresses]
-ccip_router = "0x0"
-
 [dependencies]
-ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
+mcms = { local = "../../mcms/mcms" }
