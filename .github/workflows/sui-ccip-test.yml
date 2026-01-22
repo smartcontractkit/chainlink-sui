@@ -20,9 +20,9 @@ jobs:
       matrix:
         include:
           - test_name: Test_CCIP_Messaging_Sui2EVM
-            sui_version: mainnet-v1.63.3
+            sui_version: testnet-v1.64.0
           - test_name: Test_CCIP_Messaging_EVM2Sui
-            sui_version: mainnet-v1.63.3
+            sui_version: testnet-v1.64.0
           # - test_name: Test_CCIP_EVM2Sui_ZeroReceiver
           #   sui_version: mainnet-v1.63.3
           # - test_name: Test_CCIPTokenTransfer_Sui2EVM_LockReleaseTokenPool

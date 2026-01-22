@@ -2,9 +2,9 @@ name: Setup Sui CLI
 description: Install and cache Sui CLI using suiup
 inputs:
   version:
-    description: Sui CLI version to install (e.g., mainnet-v1.63.3)
+    description: Sui CLI version to install (e.g., testnet-v1.64.0)
     required: false
-    default: mainnet-v1.63.3
+    default: testnet-v1.64.0
 
 runs:
   using: composite
