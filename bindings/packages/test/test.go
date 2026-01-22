@@ -12,6 +12,7 @@ import (
 	modulecounter "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/counter"
 	module_generics "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/generics"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
+	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
 type Test interface {
@@ -79,6 +80,13 @@ func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, t
 		return nil, nil, err
 	}
 
+	chainID, err := testutils.GetChainIdentifier(suiRPC)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
+
 	artifact, err := bind.CompilePackage(contracts.Test, map[string]string{
 		"test":           "0x0",
 		"test_secondary": testSecondary,
@@ -114,6 +122,13 @@ func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, client sui.I
 	if err != nil {
 		return nil, nil, err
 	}
+
+	chainID, err := testutils.GetChainIdentifier(suiRPC)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
 
 	artifact, err := bind.CompilePackage(contracts.TestSecondary, map[string]string{
 		"test_secondary": "0x0",

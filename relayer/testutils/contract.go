@@ -299,6 +299,81 @@ func PatchContractAddressTOML(t *testing.T, contractPath, name, address string) 
 	patchContractTOMLSection(t, contractPath, "addresses", name, address)
 }
 
-func PatchEnvironmentTOML(t *testing.T, contractPath, environment, chainID string) {
-	patchContractTOMLSection(t, contractPath, "environments", environment, chainID)
+func PatchEnvironmentTOML(contractPath, environment, chainID string) {
+	patchContractTOMLSectionNoTest(contractPath, "environments", environment, chainID)
+}
+
+func patchContractTOMLSectionNoTest(contractPath, addresses, name, address string) {
+	// Only resolve relative paths to absolute paths
+	if !filepath.IsAbs(contractPath) {
+		// Get the file path of the current source file
+		_, currentFile, _, _ := runtime.Caller(0)
+		// require.True(t, ok, "Failed to get current file path")
+		// Get the directory containing the current file (which should be the testutils package)
+		currentDir := filepath.Dir(currentFile)
+
+		// Navigate to the project root (assuming we're in relayer/testutils)
+		projectRoot := filepath.Dir(filepath.Dir(currentDir))
+		contractPath = filepath.Join(projectRoot, contractPath)
+	}
+
+	moveToml := filepath.Join(contractPath, "Move.toml")
+	raw, _ := os.ReadFile(moveToml)
+	// require.NoError(t, err, "read Move.toml")
+
+	// Decode into a generic map[string]any
+	var doc map[string]any
+	_ = toml.Unmarshal(raw, &doc)
+	// require.NoError(t, err, "parse TOML")
+
+	if addresses == "addresses" {
+		// Ensure the section [addresses] table exists
+		addrs, ok := doc[addresses].(map[string]any)
+		if !ok {
+			addrs = make(map[string]any)
+			doc[addresses] = addrs
+		}
+
+		// Set / overwrite the single entry
+		addrs[name] = address
+
+		// Re-encode with default indentation
+		var buf bytes.Buffer
+		enc := toml.NewEncoder(&buf)
+		enc.SetIndentTables(true)
+		_ = enc.Encode(doc)
+		// require.NoError(t, err, "encode TOML")
+
+		_ = os.WriteFile(moveToml, buf.Bytes(), 0o644)
+		// require.NoError(t, err, "write Move.toml")
+	} else if addresses == "environments" {
+		// Add entry under [environments]. If the section exists, only add/replace
+		// the entry; if it doesn't, append a new section with blank lines above/below.
+		envs, ok := doc[addresses].(map[string]any)
+		if ok {
+			envs[name] = address
+
+			var buf bytes.Buffer
+			enc := toml.NewEncoder(&buf)
+			enc.SetIndentTables(true)
+			_ = enc.Encode(doc)
+			// require.NoError(t, err, "encode TOML")
+
+			_ = os.WriteFile(moveToml, buf.Bytes(), 0o644)
+			// require.NoError(t, err, "write Move.toml")
+		} else {
+			// Append with a leading and trailing empty line.
+			if len(raw) == 0 || raw[len(raw)-1] != '\n' {
+				raw = append(raw, '\n')
+			}
+			appendSection := fmt.Sprintf("\n[environments]\n%s = \"%s\"\n\n", name, address)
+			_ = os.WriteFile(moveToml, append(raw, []byte(appendSection)...), 0o644)
+			// require.NoError(t, err, "write Move.toml")
+		}
+	}
+
+	// Log resulting TOML contents for debugging.
+	finalToml, _ := os.ReadFile(moveToml)
+	// require.NoError(t, err, "read patched Move.toml")
+	log.Printf("Patched Move.toml (%s):\n%s\n", moveToml, string(finalToml))
 }

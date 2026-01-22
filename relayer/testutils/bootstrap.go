@@ -113,13 +113,13 @@ func SetupTestEnv(
 	require.NoError(t, faucetFundErr)
 
 	// patchContractTOMLSection(t, "contracts/test", "addresses", "test_secondary", "_")
-	chainID, err := getChainIdentifier(LocalUrl)
+	chainID, err := GetChainIdentifier(LocalUrl)
 	require.NoError(t, err)
-	PatchEnvironmentTOML(t, "contracts/test", "local", chainID)
+	PatchEnvironmentTOML("contracts/test", "local", chainID)
 	lgr.Debugw("Patched Environment TOML", "chainID", chainID)
 
 	contractPath := BuildSetup(t, "contracts/test")
-	gasBudget := int(2000000000)
+	gasBudget := int(8000000000)
 	packageId, tx, err := PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
 	require.NoError(t, err)
 	require.NotNil(t, packageId)
@@ -147,7 +147,7 @@ func SetupTestSigner(
 	return keystoreInstance, accountAddress, publicKeyBytes
 }
 
-func getChainIdentifier(rpcURL string) (string, error) {
+func GetChainIdentifier(rpcURL string) (string, error) {
 	req := `{"jsonrpc":"2.0","id":1,"method":"sui_getChainIdentifier"}`
 	cmd := exec.Command("curl", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", req, rpcURL)
 	out, err := cmd.Output()
