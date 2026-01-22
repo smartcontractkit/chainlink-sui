@@ -783,11 +783,11 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 
 	} else {
 		log.Printf("testing publish for package: %s\n", packageRoot)
-		cmd = exec.Command("sui", "client", "test-publish", "--build-env", "testnet", "--environment", env, "--with-unpublished-dependencies", "--serialize-unsigned-transaction", "--sender", namedAddresses["signer"], "--json")
+		cmd = exec.Command("sui", "client", "publish", "--environment", env, "--serialize-unsigned-transaction", "--sender", namedAddresses["signer"], "--json")
 		cmd.Dir = packageRoot
 		output, err := cmd.Output()
 		if err != nil {
-			return PackageArtifact{}, fmt.Errorf("sui client test-publish --serialize-unsigned-transaction (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
+			return PackageArtifact{}, fmt.Errorf("sui client publish --serialize-unsigned-transaction (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
 		}
 		// log.Printf("finished test-publish output: %s\n", string(output))
 
