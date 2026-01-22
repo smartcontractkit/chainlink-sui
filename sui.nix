@@ -15,7 +15,7 @@ stdenv.mkDerivation rec {
     else if stdenv.isLinux then
       pkgs.fetchzip {
         url = "https://github.com/MystenLabs/sui/releases/download/testnet-v${version}/sui-testnet-v${version}-ubuntu-x86_64.tgz";
-        sha256 = "sha256-L64Wj2RitsqVymra2sQgrSI3J2fzTtbBE+W7DWMW3zs=";  # Should be replaced when bumping versions
+        sha256 = "sha256-UQ01SQE8edEvRNC3wRMjY9JuQMvySXBcBaeIOCmnoqc=";  # Should be replaced when bumping versions
         stripRoot = false;
       }
     else
