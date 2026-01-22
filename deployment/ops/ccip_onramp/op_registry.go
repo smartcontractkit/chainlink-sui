@@ -1,12 +1,11 @@
 package onrampops
 
-import cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
-
-var AllOperationsOnramp = []cld_ops.Operation[any, any, any]{
-	*TransferOwnershipOnRampOp.AsUntyped(),
-	*AcceptOwnershipOnRampOp.AsUntyped(),
-	*ExecuteOwnershipTransferToMcmsOnRampOp.AsUntyped(),
-	*ApplyAllowListUpdateOp.AsUntyped(),
-	*ApplyDestChainConfigUpdateOp.AsUntyped(),
-	*SetDynamicConfigOp.AsUntyped(),
+var AllOperationsOnramp = []any{
+	*TransferOwnershipOnRampOp,
+	*AcceptOwnershipOnRampOp,
+	*ExecuteOwnershipTransferToMcmsOnRampOp,
+	*ApplyAllowListUpdateOp,
+	*ApplyDestChainConfigUpdateOp,
+	*SetDynamicConfigOp,
+	*WithdrawFeeTokensOp,
 }
