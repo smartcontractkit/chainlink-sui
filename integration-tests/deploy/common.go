@@ -45,11 +45,7 @@ func (s *DeployTestSuite) SetupSuite() {
 	s.lggr = logger.Test(s.T())
 
 	// Setup operation registry
-	ops := make([]*cld_ops.Operation[any, any, any], len(opregistry.AllOperations))
-	for i := range opregistry.AllOperations {
-		ops[i] = &opregistry.AllOperations[i]
-	}
-	registry := cld_ops.NewOperationRegistry(ops...)
+	registry := cld_ops.NewOperationRegistry(opregistry.AllOperations...)
 
 	bundle := cld_ops.NewBundle(
 		func() context.Context { return s.T().Context() },
