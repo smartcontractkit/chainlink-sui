@@ -1,6 +1,6 @@
 [package]
-name = "TestContractSecondary"
+name = "test_secondary"
 edition = "2024"
 
-[addresses]
-test_secondary = "0x0"
+[environments]
+devnet = "a9149565"
