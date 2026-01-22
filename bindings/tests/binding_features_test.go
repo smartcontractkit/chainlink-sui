@@ -16,6 +16,7 @@ import (
 	module_counter "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/counter"
 	testpackage "github.com/smartcontractkit/chainlink-sui/bindings/packages/test"
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
+	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
 func TestBindingFeatures(t *testing.T) {
@@ -28,8 +29,17 @@ func TestBindingFeatures(t *testing.T) {
 		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
+	chainID, err := client.SuiGetChainIdentifier(ctx)
+	if err != nil {
+		t.Fatalf("failed to get chain identifier: %v", err)
+	}
+
+	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
+
 	publishTestSecondary, _, err := testpackage.PublishTestSecondary(ctx, opts, client, "")
 	require.NoError(t, err)
+
+	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
 
 	testPackage, tx, err := testpackage.PublishTest(ctx, opts, client, publishTestSecondary.Address(), "")
 	require.NoError(t, err)
