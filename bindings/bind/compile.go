@@ -294,17 +294,17 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		}
 	}
 	if packageName == contracts.Test {
-		testSecondaryAddr := namedAddresses["test_secondary"]
-		if !isZeroAddress(testSecondaryAddr) {
-			log.Printf("testSecondaryAddr: %s\n", testSecondaryAddr)
-			testSecondaryDir := filepath.Join(dstRoot, "test_secondary")
-			if err := managePackage(testSecondaryDir, 1, rpcURL, env, testSecondaryAddr, testSecondaryAddr); err != nil {
-				log.Printf("failed to manage Test Secondary dependency: %v\n", err)
-				return PackageArtifact{}, fmt.Errorf("failed to manage Test Secondary dependency: %w", err)
-			}
-		} else {
-			fmt.Println("Skipping manage-package for Test Secondary (no published address found)")
-		}
+		// testSecondaryAddr := namedAddresses["test_secondary"]
+		// if !isZeroAddress(testSecondaryAddr) {
+		// 	log.Printf("testSecondaryAddr: %s\n", testSecondaryAddr)
+		// 	testSecondaryDir := filepath.Join(dstRoot, "test_secondary")
+		// 	if err := managePackage(testSecondaryDir, 1, rpcURL, env, testSecondaryAddr, testSecondaryAddr); err != nil {
+		// 		log.Printf("failed to manage Test Secondary dependency: %v\n", err)
+		// 		return PackageArtifact{}, fmt.Errorf("failed to manage Test Secondary dependency: %w", err)
+		// 	}
+		// } else {
+		// 	fmt.Println("Skipping manage-package for Test Secondary (no published address found)")
+		// }
 	}
 
 	if packageName == contracts.ManagedToken {
