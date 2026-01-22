@@ -45,9 +45,8 @@ func (d AcceptOwnershipCCIP) Apply(e cldf.Environment, config AcceptOwnershipCCI
 	}
 
 	// in case the registry is not loaded with all operations. Needed to build accept ownership proposals
-	ops := make([]*cld_ops.Operation[any, any, any], len(opregistry.AllOperations))
 	for i := range opregistry.AllOperations {
-		cld_ops.RegisterOperation(e.OperationsBundle.OperationRegistry, ops[i])
+		cld_ops.RegisterOperation(e.OperationsBundle.OperationRegistry, opregistry.AllOperations[i])
 	}
 
 	suiState, err := deployment.LoadOnchainStatesui(e)
