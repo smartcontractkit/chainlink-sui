@@ -1,8 +1,6 @@
 module github.com/smartcontractkit/chainlink-sui
 
-go 1.24.4
-
-toolchain go1.24.7
+go 1.25.5
 
 // Coming from chainlink-deployments-framework
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.4
