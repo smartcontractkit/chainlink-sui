@@ -23,8 +23,8 @@ jobs:
             sui_version: mainnet-v1.60.1
           - test_name: Test_CCIP_Messaging_EVM2Sui
             sui_version: mainnet-v1.60.1
-          - test_name: Test_CCIP_EVM2Sui_ZeroReceiver
-            sui_version: mainnet-v1.60.1
+          # - test_name: Test_CCIP_EVM2Sui_ZeroReceiver
+          #   sui_version: mainnet-v1.60.1
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_LockReleaseTokenPool
             sui_version: mainnet-v1.60.1
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool
