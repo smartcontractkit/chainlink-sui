@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -285,18 +284,11 @@ eventLoop:
 					continue
 				}
 
-				offset, err := strconv.ParseUint(event.Id.EventSeq, 10, 64)
-				if err != nil {
-					eIndexer.logger.Errorw("syncEvent: failed to parse event offset",
-						"eventSeq", event.Id.EventSeq, "error", err)
-
-					continue
-				}
-
-				// offset is the event sequence number, we need to add the total number of events processed so far
-				// and the index of the event in the current batch
+				// We simply increment the inserted event count to get the next offset.
+				// Each new loop interation will increment the totalCount, so we add 1 to the offset.
+				// This is done on LoC 375 if there are more events pages to fetch and process.
 				//nolint:gosec
-				offset += uint64(i) + totalCount
+				offset := uint64(i) + totalCount + 1
 
 				// normalize the data, convert snake case to camel case
 				normalizedData := common.ConvertMapKeysToCamelCase(event.ParsedJson)
