@@ -332,6 +332,7 @@ func TestDeserializer(t *testing.T) {
 	)
 }
 
+/**
 func TestDeserializer_ShouldFail(t *testing.T) {
 	// TODO: this test will fail when https://github.com/block-vision/sui-go-sdk/pull/78
 	// is released and will have to be removed
@@ -352,3 +353,5 @@ func TestDeserializer_ShouldFail(t *testing.T) {
 	)
 	require.Nil(t, err)
 }
+
+*/

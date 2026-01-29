@@ -12,8 +12,8 @@
 
       # Required for Sui CLI (Move compilation)
       git
-      # Go 1.24 + tools
-      go_1_24
+      # Go 1.25 + tools
+      go_1_25
       gopls
       mockgen
 
@@ -38,7 +38,7 @@
     # Add Nix-provided Go binary path to ensure consistency
     export PATH=$(go env GOROOT)/bin:$PATH
     # Optional: lock Go toolchain version if needed
-    export GOTOOLCHAIN=go1.24.2+auto
+    export GOTOOLCHAIN=go1.25.5+auto
     # Debug info
     >&2 echo "Using Go at: $(which go)"
     >&2 go version

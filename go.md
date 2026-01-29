@@ -77,6 +77,7 @@ flowchart LR
 	chainlink-automation
 	click chainlink-automation href "https://github.com/smartcontractkit/chainlink-automation"
 	chainlink-ccip --> chainlink-common
+	chainlink-ccip --> chainlink-evm/gethwrappers/helpers
 	chainlink-ccip --> chainlink-protos/rmn/v1.6/go
 	click chainlink-ccip href "https://github.com/smartcontractkit/chainlink-ccip"
 	chainlink-ccip/chains/solana --> chainlink-ccip
@@ -99,6 +100,8 @@ flowchart LR
 	click chainlink-common href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-common/pkg/chipingress
 	click chainlink-common/pkg/chipingress href "https://github.com/smartcontractkit/chainlink-common"
+	chainlink-common/pkg/monitoring
+	click chainlink-common/pkg/monitoring href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-common/pkg/values
 	click chainlink-common/pkg/values href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-common/pkg/workflows/sdk/v2/pb
@@ -121,6 +124,8 @@ flowchart LR
 	click chainlink-evm href "https://github.com/smartcontractkit/chainlink-evm"
 	chainlink-evm/gethwrappers
 	click chainlink-evm/gethwrappers href "https://github.com/smartcontractkit/chainlink-evm"
+	chainlink-evm/gethwrappers/helpers
+	click chainlink-evm/gethwrappers/helpers href "https://github.com/smartcontractkit/chainlink-evm"
 	chainlink-feeds
 	click chainlink-feeds href "https://github.com/smartcontractkit/chainlink-feeds"
 	chainlink-framework/capabilities
@@ -166,7 +171,9 @@ flowchart LR
 	click chainlink-testing-framework/framework href "https://github.com/smartcontractkit/chainlink-testing-framework"
 	chainlink-testing-framework/seth
 	click chainlink-testing-framework/seth href "https://github.com/smartcontractkit/chainlink-testing-framework"
-	chainlink-ton
+	chainlink-ton --> chainlink-ccip
+	chainlink-ton --> chainlink-common/pkg/monitoring
+	chainlink-ton --> chainlink-framework/metrics
 	click chainlink-ton href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-tron/relayer --> chainlink-common
 	click chainlink-tron/relayer href "https://github.com/smartcontractkit/chainlink-tron"
@@ -203,6 +210,7 @@ flowchart LR
 	mcms --> chainlink-ccip/chains/solana
 	mcms --> chainlink-sui
 	mcms --> chainlink-testing-framework/framework
+	mcms --> chainlink-ton
 	click mcms href "https://github.com/smartcontractkit/mcms"
 	quarantine
 	click quarantine href "https://github.com/smartcontractkit/quarantine"
@@ -225,6 +233,7 @@ flowchart LR
 	subgraph chainlink-common-repo[chainlink-common]
 		 chainlink-common
 		 chainlink-common/pkg/chipingress
+		 chainlink-common/pkg/monitoring
 		 chainlink-common/pkg/values
 		 chainlink-common/pkg/workflows/sdk/v2/pb
 	end
@@ -233,6 +242,7 @@ flowchart LR
 	subgraph chainlink-evm-repo[chainlink-evm]
 		 chainlink-evm
 		 chainlink-evm/gethwrappers
+		 chainlink-evm/gethwrappers/helpers
 	end
 	click chainlink-evm-repo href "https://github.com/smartcontractkit/chainlink-evm"
 

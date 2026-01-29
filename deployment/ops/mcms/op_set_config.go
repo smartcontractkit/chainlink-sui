@@ -7,10 +7,11 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
-	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/mcms/sdk/evm"
+	"github.com/smartcontractkit/mcms/sdk"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/smartcontractkit/mcms/types"
+
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	modulemcms "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms"
@@ -50,7 +51,7 @@ var setConfigMcmsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input M
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, err
 	}
 	chainIDBig := new(big.Int).SetUint64(chainID)
-	groupQuorum, groupParents, signerAddresses, signerGroups, err := evm.ExtractSetConfigInputs(&input.Config)
+	groupQuorum, groupParents, signerAddresses, signerGroups, err := sdk.ExtractSetConfigInputs(&input.Config)
 
 	if err != nil {
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("unable to extract set config inputs: %w", err)
