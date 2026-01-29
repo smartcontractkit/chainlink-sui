@@ -165,8 +165,7 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		"--json",
 		"--silence-warnings",
 		"--with-unpublished-dependencies",
-		// "--build-env", "testnet",
-		// "--environment", "local",
+		"-e", "local", // Explicitly use local environment from Move.toml
 		contractPath,
 	)
 
@@ -376,4 +375,58 @@ func patchContractTOMLSectionNoTest(contractPath, addresses, name, address strin
 	finalToml, _ := os.ReadFile(moveToml)
 	// require.NoError(t, err, "read patched Move.toml")
 	log.Printf("Patched Move.toml (%s):\n%s\n", moveToml, string(finalToml))
+}
+
+// CleanupTestContracts removes the [published.local] entries from Published.toml files
+// for all test contracts. This should be called at the start of tests AND registered
+// with t.Cleanup to ensure a clean state for each test run
+func CleanupTestContracts() {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return
+	}
+	currentDir := filepath.Dir(currentFile)
+	projectRoot := filepath.Dir(filepath.Dir(currentDir))
+
+	contractPaths := []string{
+		filepath.Join(projectRoot, "contracts", "test"),
+		filepath.Join(projectRoot, "contracts", "test_secondary"),
+	}
+
+	for _, path := range contractPaths {
+		removeLocalPublishedEntry(path)
+	}
+}
+
+func removeLocalPublishedEntry(contractPath string) {
+	publishedToml := filepath.Join(contractPath, "Published.toml")
+	content, err := os.ReadFile(publishedToml)
+	if err != nil {
+		return
+	}
+
+	// Parse TOML
+	var doc map[string]interface{}
+	if err := toml.Unmarshal(content, &doc); err != nil {
+		return
+	}
+
+	// Check if there's a published section
+	published, ok := doc["published"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	// Remove the local entry if it exists
+	if _, hasLocal := published["local"]; hasLocal {
+		delete(published, "local")
+
+		var buf bytes.Buffer
+		enc := toml.NewEncoder(&buf)
+		enc.SetIndentTables(true)
+		if err := enc.Encode(doc); err != nil {
+			return
+		}
+		_ = os.WriteFile(publishedToml, buf.Bytes(), 0o644)
+	}
 }

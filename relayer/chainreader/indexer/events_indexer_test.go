@@ -75,9 +75,9 @@ func TestEventsIndexer(t *testing.T) {
 	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
-	chainID, err := testutils.GetChainIdentifier(t, testutils.LocalUrl)
+	chainID, err := testutils.GetChainIdentifier(testutils.LocalUrl)
 	require.NoError(t, err)
-	testutils.PatchEnvironmentTOML(t, "contracts/test", "local", chainID)
+	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
 
 	// testutils.PatchContractAddressTOML(t, "contracts/test", "test_secondary", "_")
 

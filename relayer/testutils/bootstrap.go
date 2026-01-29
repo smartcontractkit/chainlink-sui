@@ -22,7 +22,7 @@ const (
 	defaultTransactionTimeout = 10 * time.Second
 	defaultNumberRetries      = 5
 	defaultGasLimit           = 10000000
-	waitTimeNextTest          = 2 * time.Second
+	waitTimeNextTest          = 3 * time.Second
 )
 
 type TestState struct {
@@ -90,12 +90,18 @@ func SetupTestEnv(
 	lgr logger.Logger,
 	gasLimit int64,
 ) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore, string, *TestKeystore, []byte, string, string) {
+	CleanupTestContracts()
+
 	cmd, err := StartSuiNode(CLI)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
+		CleanupTestContracts()
+
 		if cmd.Process != nil {
 			perr := cmd.Process.Kill()
+			t.Logf("Killed Sui node process: %v", perr)
+
 			if perr != nil {
 				t.Logf("Failed to kill process: %v", perr)
 			}
@@ -112,11 +118,15 @@ func SetupTestEnv(
 	faucetFundErr := FundWithFaucet(lgr, SuiLocalnet, accountAddress)
 	require.NoError(t, faucetFundErr)
 
-	// patchContractTOMLSection(t, "contracts/test", "addresses", "test_secondary", "_")
 	chainID, err := GetChainIdentifier(LocalUrl)
 	require.NoError(t, err)
+
+	// Patch toml files for test contracts
+	// Must be done for the contract and its dependencies
 	PatchEnvironmentTOML("contracts/test", "local", chainID)
 	lgr.Debugw("Patched Environment TOML", "chainID", chainID)
+
+	PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
 
 	contractPath := BuildSetup(t, "contracts/test")
 	gasBudget := int(8000000000)

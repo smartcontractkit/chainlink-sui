@@ -1,6 +1,7 @@
-[package]
-name = "test_secondary"
-edition = "2024"
+[environments]
+  devnet = 'a9149565'
+  local = 'bf03d696'
 
-# [environments]
-# devnet = "a9149565"
+[package]
+  edition = '2024'
+  name = 'test_secondary'

@@ -35,8 +35,12 @@ func TestLoopChainReaderLocal(t *testing.T) {
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
+	testutils.CleanupTestContracts()
+
 	// Ensure the process is killed when the test completes.
 	t.Cleanup(func() {
+		testutils.CleanupTestContracts()
+
 		if cmd.Process != nil {
 			perr := cmd.Process.Kill()
 			if perr != nil {

@@ -25,7 +25,11 @@ func TestPTBClient(t *testing.T) {
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
+	testutils.CleanupTestContracts()
+
 	t.Cleanup(func() {
+		testutils.CleanupTestContracts()
+
 		if cmd.Process != nil {
 			perr := cmd.Process.Kill()
 			if perr != nil {

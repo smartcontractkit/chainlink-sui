@@ -66,6 +66,12 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	t.Helper()
 	ctx := context.Background()
 
+	testutils.CleanupTestContracts()
+
+	t.Cleanup(func() {
+		testutils.CleanupTestContracts()
+	})
+
 	keystoreInstance := testutils.NewTestKeystore(t)
 	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
