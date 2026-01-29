@@ -285,6 +285,19 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 
 	log.Printf("writing embedded files to %q\n", dstRoot)
 
+	// Fetch chain ID and ensure environment is set in the main package's Move.toml
+	// This is required for test-publish to resolve dependencies correctly
+	chainID, err := getChainIdentifier(rpcURL)
+	if err != nil {
+		return PackageArtifact{}, fmt.Errorf("failed to get chain identifier: %w", err)
+	}
+	log.Printf("chainID for environment setup: %s\n", chainID)
+
+	// Ensure environment is set in the main package
+	if err := EnsureEnvironmentInMoveToml(packageRoot, env, chainID); err != nil {
+		return PackageArtifact{}, fmt.Errorf("failed to set environment in %s: %w", packageRoot, err)
+	}
+
 	// Apply source modifications if provided (test only - happens in temp dir)
 	if modifier != nil {
 		log.Printf("applying source modifications to %q\n", packageRoot)
@@ -337,17 +350,18 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			log.Printf("test_secondary directory not found at %s (skipping TOML dump)", testSecondaryDir)
 		}
 
-		// testSecondaryAddr := namedAddresses["test_secondary"]
-		// if !isZeroAddress(testSecondaryAddr) {
-		// 	log.Printf("testSecondaryAddr: %s\n", testSecondaryAddr)
-		// 	testSecondaryDir := filepath.Join(dstRoot, "test_secondary")
-		// 	if err := managePackage(testSecondaryDir, 1, rpcURL, env, testSecondaryAddr, testSecondaryAddr); err != nil {
-		// 		log.Printf("failed to manage Test Secondary dependency: %v\n", err)
-		// 		return PackageArtifact{}, fmt.Errorf("failed to manage Test Secondary dependency: %w", err)
-		// 	}
-		// } else {
-		// 	fmt.Println("Skipping manage-package for Test Secondary (no published address found)")
-		// }
+		// Write Published.toml for test_secondary dependency if its address is provided
+		testSecondaryAddr := namedAddresses["test_secondary"]
+		if !isZeroAddress(testSecondaryAddr) {
+			log.Printf("testSecondaryAddr: %s\n", testSecondaryAddr)
+			testSecondaryDir := filepath.Join(dstRoot, "test_secondary")
+			if err := managePackage(testSecondaryDir, 1, rpcURL, env, testSecondaryAddr, testSecondaryAddr); err != nil {
+				log.Printf("failed to manage Test Secondary dependency: %v\n", err)
+				return PackageArtifact{}, fmt.Errorf("failed to manage Test Secondary dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for Test Secondary (no published address found)")
+		}
 	}
 
 	if packageName == contracts.ManagedToken {
@@ -826,11 +840,21 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 
 	} else {
 		log.Printf("testing publish for package: %s\n", packageRoot)
-		cmd = exec.Command("sui", "client", "test-publish", "--build-env", "testnet", "--environment", env, "--serialize-unsigned-transaction", "--sender", namedAddresses["signer"], "--json")
+		// We use --with-unpublished-dependencies to allow publishing even
+		// if deps are missing from pubfile as we inject the dependencies
+		// via the SDK's publish function
+		cmd = exec.Command("sui", "client", "test-publish",
+			"--build-env", env,
+			"--serialize-unsigned-transaction",
+			"--sender", namedAddresses["signer"],
+			"--json",
+			"--silence-warnings",
+			"--with-unpublished-dependencies",
+		)
 		cmd.Dir = packageRoot
 		output, err := cmd.Output()
 		if err != nil {
-			return PackageArtifact{}, fmt.Errorf("sui client publish --serialize-unsigned-transaction (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
+			return PackageArtifact{}, fmt.Errorf("sui client test-publish --with-unpublished-dependencies --serialize-unsigned-transaction (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
 		}
 		// log.Printf("finished test-publish output: %s\n", string(output))
 
@@ -886,6 +910,11 @@ func writeEFS(efs embed.FS, srcDir, dstDir string) error {
 			return err
 		}
 
+		// Skip build directories to avoid compiler errors
+		if d.IsDir() && d.Name() == "build" {
+			return fs.SkipDir
+		}
+
 		dstPath := filepath.Join(dstDir, path)
 
 		if d.IsDir() {
@@ -934,16 +963,14 @@ func isZeroAddress(addr string) bool {
 }
 
 func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, latestPkgId string) error {
-	log.Printf("managing package: %s\n", packageRoot)
+	log.Printf("managing package via Published.toml: %s\n", packageRoot)
 	log.Printf("version: %d\n", version)
 	log.Printf("rpcURL: %s\n", rpcURL)
 	log.Printf("env: %s\n", env)
 	log.Printf("originalPkgId: %s\n", originalPkgId)
 	log.Printf("latestPkgId: %s\n", latestPkgId)
 
-	// return nil
-
-	//  Fetch chain identifier directly from the node
+	// Fetch chain identifier directly from the node
 	chainID, err := getChainIdentifier(rpcURL)
 	if err != nil {
 		return fmt.Errorf("failed to query chain identifier from %s: %w", rpcURL, err)
@@ -951,25 +978,24 @@ func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, 
 
 	log.Printf("chainID: %s\n", chainID)
 
-	// Run manage-package
-	cmd := exec.Command(
-		"sui", "move", "update-deps",
-		"--environment", env,
-		// "--network-id", chainID,
-		// "--original-id", originalPkgId,
-		// "--latest-id", latestPkgId,
-		// "--version-number", fmt.Sprintf("%d", version),
-	)
-	cmd.Dir = packageRoot
-	cmd.Env = os.Environ() // includes SUI_CONFIG + PATH
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("sui move manage-package failed: %v\n", err)
-		return fmt.Errorf("sui move manage-package failed: %w\nOutput:\n%s", err, string(out))
+	// Write Published.toml for dependency resolution
+	// This replaces the old manage-package and update-deps commands
+	if err := WritePublishedTOML(packageRoot, env, chainID, latestPkgId, originalPkgId, version); err != nil {
+		return fmt.Errorf("failed to write Published.toml for %s: %w", packageRoot, err)
 	}
 
-	// log.Printf("update-deps output: %s\n", string(out))
+	// Also ensure the environment is set in Move.toml
+	if err := EnsureEnvironmentInMoveToml(packageRoot, env, chainID); err != nil {
+		return fmt.Errorf("failed to update Move.toml environments for %s: %w", packageRoot, err)
+	}
+
+	log.Printf("successfully wrote Published.toml and updated Move.toml for %s\n", packageRoot)
+
+	// Debug: print the Published.toml contents
+	publishedTomlPath := filepath.Join(packageRoot, "Published.toml")
+	if content, err := os.ReadFile(publishedTomlPath); err == nil {
+		log.Printf("Published.toml contents for %s:\n%s\n", packageRoot, string(content))
+	}
 
 	return nil
 }

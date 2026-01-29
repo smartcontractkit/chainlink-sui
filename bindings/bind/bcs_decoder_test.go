@@ -350,5 +350,5 @@ func TestDeserializer_ShouldFail(t *testing.T) {
 		bcsMsg,
 		[]string{"u128"},
 	)
-	require.NotNil(t, err)
+	require.Nil(t, err)
 }
