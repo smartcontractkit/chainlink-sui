@@ -120,7 +120,7 @@ var TransferOwnershipManagedTokenPoolOp = cld_ops.NewOperation(
 type AcceptOwnershipManagedTokenPoolInput struct {
 	ManagedTokenPoolPackageId string
 	TypeArgs                  []string
-	StateObjectId             string
+	MCMSRegistryObjectId      string
 }
 
 type AcceptOwnershipManagedTokenPoolObjects struct {
@@ -133,11 +133,11 @@ var acceptOwnershipManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops
 		return sui_ops.OpTxResult[AcceptOwnershipManagedTokenPoolObjects]{}, err
 	}
 
-	encodedCall, err := managedTokenPoolPackage.Encoder().AcceptOwnership(input.TypeArgs, bind.Object{Id: input.StateObjectId})
+	encodedCall, err := managedTokenPoolPackage.Encoder().AcceptOwnership(input.TypeArgs, bind.Object{Id: input.MCMSRegistryObjectId})
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipManagedTokenPoolObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, input.TypeArgs)
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.MCMSRegistryObjectId, input.TypeArgs)
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipManagedTokenPoolObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
