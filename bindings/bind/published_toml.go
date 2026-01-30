@@ -222,6 +222,61 @@ func RemovePublishedTOML(packageDir string) error {
 	return nil
 }
 
+// removePublishedEntry removes the entry for a specific environment from Published.toml
+// This is needed when re-compiling a package (e.g., for upgrades) because
+// 'sui client publish' refuses to publish if the package is already in Published.toml.
+// The function preserves entries for other environments.
+func removePublishedEntry(packageDir, environment string) error {
+	publishedTomlPath := filepath.Join(packageDir, "Published.toml")
+
+	content, err := os.ReadFile(publishedTomlPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No Published.toml, nothing to remove
+			return nil
+		}
+		return fmt.Errorf("failed to read Published.toml: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	var newLines []string
+	inTargetSection := false
+	sectionHeader := fmt.Sprintf("[published.%s]", environment)
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Check if we're entering the target section
+		if trimmed == sectionHeader {
+			inTargetSection = true
+			continue
+		}
+
+		// Check if we're entering a different section (ends the target section)
+		if inTargetSection && strings.HasPrefix(trimmed, "[") {
+			inTargetSection = false
+		}
+
+		// Skip lines in the target section
+		if inTargetSection {
+			continue
+		}
+
+		newLines = append(newLines, line)
+	}
+
+	newContent := strings.Join(newLines, "\n")
+
+	// Only write if content changed
+	if newContent != string(content) {
+		if err := os.WriteFile(publishedTomlPath, []byte(newContent), 0o644); err != nil {
+			return fmt.Errorf("failed to write Published.toml: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // EnsureEnvironmentInMoveToml ensures the [environments] section exists in Move.toml
 // with the specified environment and chain ID
 func EnsureEnvironmentInMoveToml(packageDir, environment, chainID string) error {

@@ -305,6 +305,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	commonDependencyDirs := []string{
 		filepath.Join(dstRoot, "test_secondary"),
 		filepath.Join(dstRoot, "mcms", "mcms"),
+		filepath.Join(dstRoot, "mcms", "mcms_test"),
+		filepath.Join(dstRoot, "mcms", "mcms_test_v2"),
 		filepath.Join(dstRoot, "ccip", "ccip"),
 		filepath.Join(dstRoot, "ccip", "ccip_router"),
 		filepath.Join(dstRoot, "ccip", "ccip_onramp"),
