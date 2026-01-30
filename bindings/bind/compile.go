@@ -272,6 +272,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	}
 	defer os.RemoveAll(dstDir)
 
+	pubfilePath := filepath.Join(dstDir, fmt.Sprintf("Pub.%s.toml", env))
+
 	dstRoot := filepath.Join(dstDir, "contracts")
 	packageRoot := filepath.Join(dstRoot, packageDir)
 
@@ -296,6 +298,29 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	// Ensure environment is set in the main package
 	if err := EnsureEnvironmentInMoveToml(packageRoot, env, chainID); err != nil {
 		return PackageArtifact{}, fmt.Errorf("failed to set environment in %s: %w", packageRoot, err)
+	}
+
+	// Also set environment in common dependency packages in the temp workspace
+	// This ensures local dependencies can be resolved during build with --build-env
+	commonDependencyDirs := []string{
+		filepath.Join(dstRoot, "test_secondary"),
+		filepath.Join(dstRoot, "mcms", "mcms"),
+		filepath.Join(dstRoot, "ccip", "ccip"),
+		filepath.Join(dstRoot, "ccip", "ccip_router"),
+		filepath.Join(dstRoot, "ccip", "ccip_onramp"),
+		filepath.Join(dstRoot, "ccip", "ccip_offramp"),
+		filepath.Join(dstRoot, "ccip", "managed_token"),
+		filepath.Join(dstRoot, "ccip", "ccip_token_pools", "lock_release_token_pool"),
+		filepath.Join(dstRoot, "ccip", "ccip_token_pools", "burn_mint_token_pool"),
+		filepath.Join(dstRoot, "ccip", "ccip_token_pools", "managed_token_pool"),
+		filepath.Join(dstRoot, "ccip", "ccip_token_pools", "usdc_token_pool"),
+	}
+	for _, depDir := range commonDependencyDirs {
+		if _, statErr := os.Stat(depDir); statErr == nil {
+			if err := EnsureEnvironmentInMoveToml(depDir, env, chainID); err != nil {
+				log.Printf("warning: failed to set environment in dependency %s: %v\n", depDir, err)
+			}
+		}
 	}
 
 	// Apply source modifications if provided (test only - happens in temp dir)
@@ -355,7 +380,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		if !isZeroAddress(testSecondaryAddr) {
 			log.Printf("testSecondaryAddr: %s\n", testSecondaryAddr)
 			testSecondaryDir := filepath.Join(dstRoot, "test_secondary")
-			if err := managePackage(testSecondaryDir, 1, rpcURL, env, testSecondaryAddr, testSecondaryAddr); err != nil {
+			if err := managePackage(testSecondaryDir, 1, rpcURL, env, testSecondaryAddr, testSecondaryAddr, pubfilePath); err != nil {
 				log.Printf("failed to manage Test Secondary dependency: %v\n", err)
 				return PackageArtifact{}, fmt.Errorf("failed to manage Test Secondary dependency: %w", err)
 			}
@@ -368,7 +393,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
 			}
 		} else {
@@ -379,7 +404,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		managedTokenAddr := namedAddresses["original_managed_token_pkg"]
 		if !isZeroAddress(managedTokenAddr) {
 			managedTokenDir := filepath.Join(dstRoot, "ccip", "managed_token")
-			if err := managePackage(managedTokenDir, 1, rpcURL, env, managedTokenAddr, managedTokenAddr); err != nil {
+			if err := managePackage(managedTokenDir, 1, rpcURL, env, managedTokenAddr, managedTokenAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage original ManagedToken dependency: %w", err)
 			}
 		} else {
@@ -392,7 +417,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		managedTokenAddr := namedAddresses["managed_token"]
 		if !isZeroAddress(managedTokenAddr) {
 			managedTokenDir := filepath.Join(dstRoot, "ccip", "managed_token")
-			if err := managePackage(managedTokenDir, 1, rpcURL, env, managedTokenAddr, managedTokenAddr); err != nil {
+			if err := managePackage(managedTokenDir, 1, rpcURL, env, managedTokenAddr, managedTokenAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage ManagedToken dependency: %w", err)
 			}
 		} else {
@@ -402,7 +427,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
 			}
 		} else {
@@ -414,7 +439,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
 			}
 		} else {
@@ -440,7 +465,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			mcmsUserAddr := namedAddresses["original_mcms_user_pkg"]
 			if !isZeroAddress(mcmsUserAddr) {
 				mcmsUserDir := filepath.Join(dstRoot, "mcms", "mcms_test")
-				if err := managePackage(mcmsUserDir, 1, rpcURL, env, mcmsUserAddr, mcmsUserAddr); err != nil {
+				if err := managePackage(mcmsUserDir, 1, rpcURL, env, mcmsUserAddr, mcmsUserAddr, pubfilePath); err != nil {
 					return PackageArtifact{}, fmt.Errorf("failed to manage MCMS User dependency: %w", err)
 				}
 			} else {
@@ -454,7 +479,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
 			}
 		} else {
@@ -483,7 +508,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsUserV2Addr := namedAddresses["original_mcms_user_v2_pkg"]
 		if !isZeroAddress(mcmsUserV2Addr) {
 			mcmsUserV2Dir := filepath.Join(dstRoot, "mcms", "mcms_test_v2")
-			if err := managePackage(mcmsUserV2Dir, 1, rpcURL, env, mcmsUserV2Addr, mcmsUserV2Addr); err != nil {
+			if err := managePackage(mcmsUserV2Dir, 1, rpcURL, env, mcmsUserV2Addr, mcmsUserV2Addr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS User V2 dependency: %w", err)
 			}
 		} else {
@@ -495,7 +520,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
 			}
 		} else {
@@ -505,7 +530,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		ccipAddr := namedAddresses["ccip"]
 		if !isZeroAddress(ccipAddr) {
 			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr); err != nil {
+			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
 			}
 		} else {
@@ -532,7 +557,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		originalAddr := namedAddresses[originalPkgKey]
 		if !isZeroAddress(originalAddr) {
 			originalDir := filepath.Join(dstRoot, "ccip", "ccip_token_pools", packageDir)
-			if err := managePackage(originalDir, 1, rpcURL, env, originalAddr, originalAddr); err != nil {
+			if err := managePackage(originalDir, 1, rpcURL, env, originalAddr, originalAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage original %s dependency: %w", packageName, err)
 			}
 		} else {
@@ -545,7 +570,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		managedTokenAddr := namedAddresses["managed_token"]
 		if !isZeroAddress(managedTokenAddr) {
 			managedTokenDir := filepath.Join(dstRoot, "ccip", "managed_token")
-			if err := managePackage(managedTokenDir, 1, rpcURL, env, managedTokenAddr, managedTokenAddr); err != nil {
+			if err := managePackage(managedTokenDir, 1, rpcURL, env, managedTokenAddr, managedTokenAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage managed token dependency: %w", err)
 			}
 		} else {
@@ -557,7 +582,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
 			}
 		} else {
@@ -567,7 +592,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		ccipAddr := namedAddresses["ccip"]
 		if !isZeroAddress(ccipAddr) {
 			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr); err != nil {
+			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
 			}
 		} else {
@@ -579,7 +604,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
 			}
 		} else {
@@ -590,7 +615,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		ccipRouterAddr := namedAddresses["original_ccip_router_pkg"]
 		if !isZeroAddress(ccipRouterAddr) {
 			ccipRouterDir := filepath.Join(dstRoot, "ccip", "ccip_router")
-			if err := managePackage(ccipRouterDir, 1, rpcURL, env, ccipRouterAddr, ccipRouterAddr); err != nil {
+			if err := managePackage(ccipRouterDir, 1, rpcURL, env, ccipRouterAddr, ccipRouterAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage original CCIPRouter dependency: %w", err)
 			}
 		} else {
@@ -602,7 +627,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
 			}
 		} else {
@@ -614,7 +639,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		ccipAddr := namedAddresses["original_ccip_pkg"]
 		if !isZeroAddress(ccipAddr) {
 			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr); err != nil {
+			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage original CCIP dependency: %w", err)
 			}
 		} else {
@@ -645,7 +670,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
 			}
 		} else {
@@ -655,7 +680,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		ccipAddr := namedAddresses["ccip"]
 		if !isZeroAddress(ccipAddr) {
 			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr); err != nil {
+			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
 			}
 		} else {
@@ -666,7 +691,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		ccipOnrampAddr := namedAddresses["original_ccip_onramp_pkg"]
 		if !isZeroAddress(ccipOnrampAddr) {
 			ccipOnrampDir := filepath.Join(dstRoot, "ccip", "ccip_onramp")
-			if err := managePackage(ccipOnrampDir, 1, rpcURL, env, ccipOnrampAddr, ccipOnrampAddr); err != nil {
+			if err := managePackage(ccipOnrampDir, 1, rpcURL, env, ccipOnrampAddr, ccipOnrampAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage original CCIPOnramp dependency: %w", err)
 			}
 		} else {
@@ -693,7 +718,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			ccipOnRampAddr := namedAddresses["original_onramp_pkg"]
 			if !isZeroAddress(ccipOnRampAddr) {
 				ccipOnRampDir := filepath.Join(dstRoot, "ccip", "ccip_onramp")
-				if err := managePackage(ccipOnRampDir, 1, rpcURL, env, ccipOnRampAddr, ccipOnRampAddr); err != nil {
+				if err := managePackage(ccipOnRampDir, 1, rpcURL, env, ccipOnRampAddr, ccipOnRampAddr, pubfilePath); err != nil {
 					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP OnRamp dependency: %w", err)
 				}
 			} else {
@@ -705,7 +730,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			ccipOriginalAddr := namedAddresses["ccip"]
 			if !isZeroAddress(ccipLatestAddr) && !isZeroAddress(ccipOriginalAddr) {
 				ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-				if err := managePackage(ccipDir, 2, rpcURL, env, ccipOriginalAddr, ccipLatestAddr); err != nil {
+				if err := managePackage(ccipDir, 2, rpcURL, env, ccipOriginalAddr, ccipLatestAddr, pubfilePath); err != nil {
 					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency for onRamp: %w", err)
 				}
 			} else {
@@ -719,7 +744,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
 			}
 		} else {
@@ -729,7 +754,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		ccipAddr := namedAddresses["ccip"]
 		if !isZeroAddress(ccipAddr) {
 			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr); err != nil {
+			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
 			}
 		} else {
@@ -740,7 +765,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		ccipOfframpAddr := namedAddresses["original_ccip_offramp_pkg"]
 		if !isZeroAddress(ccipOfframpAddr) {
 			ccipOfframpDir := filepath.Join(dstRoot, "ccip", "ccip_offramp")
-			if err := managePackage(ccipOfframpDir, 1, rpcURL, env, ccipOfframpAddr, ccipOfframpAddr); err != nil {
+			if err := managePackage(ccipOfframpDir, 1, rpcURL, env, ccipOfframpAddr, ccipOfframpAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage original CCIPOfframp dependency: %w", err)
 			}
 		} else {
@@ -769,7 +794,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			ccipOffRampAddr := namedAddresses["original_offramp_pkg"]
 			if !isZeroAddress(ccipOffRampAddr) {
 				ccipOffRampDir := filepath.Join(dstRoot, "ccip", "ccip_offramp")
-				if err := managePackage(ccipOffRampDir, 1, rpcURL, env, ccipOffRampAddr, ccipOffRampAddr); err != nil {
+				if err := managePackage(ccipOffRampDir, 1, rpcURL, env, ccipOffRampAddr, ccipOffRampAddr, pubfilePath); err != nil {
 					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP OffRamp dependency: %w", err)
 				}
 			} else {
@@ -781,7 +806,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			ccipOriginalAddr := namedAddresses["ccip"]
 			if !isZeroAddress(ccipLatestAddr) && !isZeroAddress(ccipOriginalAddr) {
 				ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-				if err := managePackage(ccipDir, 2, rpcURL, env, ccipOriginalAddr, ccipLatestAddr); err != nil {
+				if err := managePackage(ccipDir, 2, rpcURL, env, ccipOriginalAddr, ccipLatestAddr, pubfilePath); err != nil {
 					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency for offramp: %w", err)
 				}
 			} else {
@@ -839,22 +864,25 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		digest = digestInput[1:]
 
 	} else {
-		log.Printf("testing publish for package: %s\n", packageRoot)
-		// We use --with-unpublished-dependencies to allow publishing even
-		// if deps are missing from pubfile as we inject the dependencies
-		// via the SDK's publish function
-		cmd = exec.Command("sui", "client", "test-publish",
-			"--build-env", env,
+		log.Printf("publishing package: %s\n", packageRoot)
+
+		// Using the 'publish' command instead of 'test-publish' reads from Published.toml
+		// for dependency resolution. This command expects that the `Published.toml` file
+		// has alrady been setup (via `managePackage`)
+		cmd = exec.Command("sui", "client", "publish",
+			"-e", env, // should already be defined in `Move.toml`
 			"--serialize-unsigned-transaction",
 			"--sender", namedAddresses["signer"],
 			"--json",
 			"--silence-warnings",
-			"--with-unpublished-dependencies",
 		)
 		cmd.Dir = packageRoot
 		output, err := cmd.Output()
 		if err != nil {
-			return PackageArtifact{}, fmt.Errorf("sui client test-publish --with-unpublished-dependencies --serialize-unsigned-transaction (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				return PackageArtifact{}, fmt.Errorf("sui client publish (%s): %w\nStdout:\n%s\nStderr:\n%s", cmd.Dir, err, output, string(exitErr.Stderr))
+			}
+			return PackageArtifact{}, fmt.Errorf("sui client publish (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
 		}
 		// log.Printf("finished test-publish output: %s\n", string(output))
 
@@ -962,7 +990,8 @@ func isZeroAddress(addr string) bool {
 	return true
 }
 
-func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, latestPkgId string) error {
+// managePackage writes Published.toml and updates Move.toml for a package
+func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, latestPkgId, pubfilePath string) error {
 	log.Printf("managing package via Published.toml: %s\n", packageRoot)
 	log.Printf("version: %d\n", version)
 	log.Printf("rpcURL: %s\n", rpcURL)
@@ -989,14 +1018,22 @@ func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, 
 		return fmt.Errorf("failed to update Move.toml environments for %s: %w", packageRoot, err)
 	}
 
-	log.Printf("successfully wrote Published.toml and updated Move.toml for %s\n", packageRoot)
-
-	// Debug: print the Published.toml contents
-	publishedTomlPath := filepath.Join(packageRoot, "Published.toml")
-	if content, err := os.ReadFile(publishedTomlPath); err == nil {
-		log.Printf("Published.toml contents for %s:\n%s\n", packageRoot, string(content))
+	// If pubfile path is provided, also write to the ephemeral pubfile
+	// test-publish reads dependency addresses from the pubfile, not Published.toml.
+	if pubfilePath != "" {
+		entry := EphemeralPubEntry{
+			Source:      packageRoot, // Use absolute path
+			PublishedAt: latestPkgId,
+			OriginalID:  originalPkgId,
+			Version:     version,
+		}
+		if err := AppendToEphemeralPubFile(pubfilePath, env, chainID, entry); err != nil {
+			return fmt.Errorf("failed to write to ephemeral pubfile: %w", err)
+		}
+		log.Printf("also wrote to ephemeral pubfile: %s (source: %s)\n", pubfilePath, packageRoot)
 	}
 
+	log.Printf("successfully wrote Published.toml and updated Move.toml for %s\n", packageRoot)
 	return nil
 }
 
