@@ -35,7 +35,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	localChainSelector := uint64(1)
 	destChainSelector := uint64(2)
 
-	gasBudget := int64(500_000_000)
+	gasBudget := int64(1_000_000_000)
 
 	// Start dedicated Sui node for this test
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
@@ -109,7 +109,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		tokenAmount := uint64(500000) // 500K tokens for transfer
 		feeAmount := uint64(100000)   // 100K tokens for fee payment
 
-		gasBudget := int64(500_000_000_000)
+		gasBudget := int64(1_000_000_000_000)
 
 		mintedCoinId1, mintedCoinId2 := environment.GetLinkCoins(t, envSettings, linkTokenType, accountAddress, lggr, tokenAmount, feeAmount)
 
@@ -278,7 +278,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		tokenAmount := uint64(500000) // 500K tokens for transfer
 		feeAmount := uint64(100000)   // 100K tokens for fee payment
 
-		gasBudget := int64(500_000_000)
+		gasBudget := int64(1_000_000_000)
 
 		_, mintedCoinId2 := environment.GetLinkCoins(t, envSettings, linkTokenType, accountAddress, lggr, tokenAmount, feeAmount)
 
@@ -365,7 +365,7 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 	localChainSelector := uint64(1)
 	destChainSelector := uint64(2)
 
-	gasBudget := int64(500_000_000)
+	gasBudget := int64(1_000_000_000)
 
 	// Wait a bit to ensure previous test's node is fully shut down
 	time.Sleep(2 * time.Second)
