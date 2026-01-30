@@ -291,17 +291,17 @@ func RunOwnershipTokenPoolProposal(s *TokenPoolTestSuite) {
 			lockreleasetokenpoolops.AcceptOwnershipLockReleaseTokenPoolInput{
 				LockReleaseTokenPoolPackageId: s.lnrPackageId,
 				TypeArgs:                      []string{fmt.Sprintf("%s::link::LINK", s.lnrTokenPackageId)},
-				StateObjectId:                 s.lnrObjects.StateObjectId,
+				MCMSRegistryObjectId:          s.registryObj,
 			},
 			burnminttokenpoolops.AcceptOwnershipBurnMintTokenPoolInput{
 				BurnMintTokenPoolPackageId: s.bnmPackageId,
 				TypeArgs:                   []string{fmt.Sprintf("%s::link::LINK", s.linkPackageId)},
-				StateObjectId:              s.bnmObjects.StateObjectId,
+				MCMSRegistryObjectId:       s.registryObj,
 			},
 			managedtokenpoolops.AcceptOwnershipManagedTokenPoolInput{
 				ManagedTokenPoolPackageId: s.managedTokenPoolPackageId,
 				TypeArgs:                  []string{fmt.Sprintf("%s::link::LINK", s.managedTokenLinkPackageId)},
-				StateObjectId:             s.managedTokenPoolObjects.StateObjectId,
+				MCMSRegistryObjectId:      s.registryObj,
 			},
 		},
 
