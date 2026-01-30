@@ -286,8 +286,34 @@ func EnsureEnvironmentInMoveToml(packageDir, environment, chainID string) error 
 			}
 		}
 	} else {
-		// Add new [environments] section at the end
-		lines = append(lines, "", "[environments]", fmt.Sprintf("%s = \"%s\"", environment, chainID))
+		// Add new [environments] section - try to add it after [package] section
+		// Some Sui CLI versions may be sensitive to section ordering
+		insertIdx := -1
+		for i, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			// Insert before [addresses] or [dependencies] if they exist
+			if trimmed == "[addresses]" || trimmed == "[dependencies]" {
+				insertIdx = i
+				break
+			}
+		}
+
+		envLines := []string{"", "[environments]", fmt.Sprintf("%s = \"%s\"", environment, chainID)}
+
+		if insertIdx != -1 {
+			// Insert before [addresses] or [dependencies]
+			newLines := make([]string, 0, len(lines)+len(envLines))
+			newLines = append(newLines, lines[:insertIdx]...)
+			newLines = append(newLines, envLines...)
+			newLines = append(newLines, lines[insertIdx:]...)
+			lines = newLines
+		} else {
+			// No [addresses] or [dependencies], add at the end
+			if len(lines) > 0 && lines[len(lines)-1] != "" {
+				lines = append(lines, "")
+			}
+			lines = append(lines, "[environments]", fmt.Sprintf("%s = \"%s\"", environment, chainID))
+		}
 	}
 
 	newContent := strings.Join(lines, "\n")
@@ -298,9 +324,19 @@ func EnsureEnvironmentInMoveToml(packageDir, environment, chainID string) error 
 
 	// Only write if content changed
 	if newContent != string(content) {
-		if err := os.WriteFile(moveTomlPath, []byte(newContent), 0o644); err != nil {
+		f, err := os.OpenFile(moveTomlPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+		if err != nil {
+			return fmt.Errorf("failed to open Move.toml for writing: %w", err)
+		}
+		if _, err := f.WriteString(newContent); err != nil {
+			f.Close()
 			return fmt.Errorf("failed to write Move.toml: %w", err)
 		}
+		if err := f.Sync(); err != nil {
+			f.Close()
+			return fmt.Errorf("failed to sync Move.toml: %w", err)
+		}
+		f.Close()
 	}
 
 	return nil

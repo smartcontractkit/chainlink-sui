@@ -309,7 +309,12 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		filepath.Join(dstRoot, "ccip", "ccip_router"),
 		filepath.Join(dstRoot, "ccip", "ccip_onramp"),
 		filepath.Join(dstRoot, "ccip", "ccip_offramp"),
+		filepath.Join(dstRoot, "ccip", "ccip_burn_mint_token"),
+		filepath.Join(dstRoot, "ccip", "ccip_dummy_receiver"),
 		filepath.Join(dstRoot, "ccip", "managed_token"),
+		filepath.Join(dstRoot, "ccip", "managed_token_faucet"),
+		filepath.Join(dstRoot, "ccip", "mock_eth_token"),
+		filepath.Join(dstRoot, "ccip", "mock_link_token"),
 		filepath.Join(dstRoot, "ccip", "ccip_token_pools", "lock_release_token_pool"),
 		filepath.Join(dstRoot, "ccip", "ccip_token_pools", "burn_mint_token_pool"),
 		filepath.Join(dstRoot, "ccip", "ccip_token_pools", "managed_token_pool"),
@@ -866,17 +871,34 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	} else {
 		log.Printf("publishing package: %s\n", packageRoot)
 
-		// Using the 'publish' command instead of 'test-publish' reads from Published.toml
-		// for dependency resolution. This command expects that the `Published.toml` file
-		// has alrady been setup (via `managePackage`)
-		cmd = exec.Command("sui", "client", "publish",
-			"-e", env, // should already be defined in `Move.toml`
-			"--serialize-unsigned-transaction",
-			"--sender", namedAddresses["signer"],
-			"--json",
-			"--silence-warnings",
-		)
+		// Check if package has dependencies by reading Move.toml
+		pkgMoveTomlPath := filepath.Join(packageRoot, "Move.toml")
+		pkgMoveTomlContent, _ := os.ReadFile(pkgMoveTomlPath)
+		hasDependencies := strings.Contains(string(pkgMoveTomlContent), "[dependencies]")
+
+		if hasDependencies {
+			// Package has dependencies - use 'publish' which reads Published.toml
+			// for proper dependency address resolution (avoiding 0x0 collision)
+			cmd = exec.Command("sui", "client", "publish",
+				"--serialize-unsigned-transaction",
+				"--sender", namedAddresses["signer"],
+				"--json",
+				"--silence-warnings",
+			)
+		} else {
+			// Package has no dependencies - use test-publish which is simpler
+			// --with-unpublished-dependencies is safe since there's no collision risk
+			cmd = exec.Command("sui", "client", "test-publish",
+				"--build-env", env,
+				"--with-unpublished-dependencies",
+				"--serialize-unsigned-transaction",
+				"--sender", namedAddresses["signer"],
+				"--json",
+				"--silence-warnings",
+			)
+		}
 		cmd.Dir = packageRoot
+		cmd.Env = os.Environ() // Important: inherit env to get SUI_CONFIG_DIR
 		output, err := cmd.Output()
 		if err != nil {
 			if exitErr, ok := err.(*exec.ExitError); ok {
@@ -1038,19 +1060,28 @@ func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, 
 }
 
 func getChainIdentifier(rpcURL string) (string, error) {
-	req := `{"jsonrpc":"2.0","id":1,"method":"sui_getChainIdentifier"}`
-	cmd := exec.Command("curl", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", req, rpcURL)
+	// Use the Sui CLI's chain-identifier command to get the chain ID
+	// This ensures we get the same chain ID that the CLI will use for publish
+	cmd := exec.Command("sui", "client", "chain-identifier")
+	cmd.Env = os.Environ()
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to query chain identifier: %w", err)
+		// Fallback to curl if CLI command fails
+		req := `{"jsonrpc":"2.0","id":1,"method":"sui_getChainIdentifier"}`
+		curlCmd := exec.Command("curl", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", req, rpcURL)
+		curlOut, curlErr := curlCmd.Output()
+		if curlErr != nil {
+			return "", fmt.Errorf("failed to query chain identifier via CLI (%v) and curl (%w)", err, curlErr)
+		}
+		var resp struct {
+			Result string `json:"result"`
+		}
+		if err := json.Unmarshal(curlOut, &resp); err != nil {
+			return "", fmt.Errorf("failed to parse chain identifier: %w\nResponse:\n%s", err, string(curlOut))
+		}
+		return resp.Result, nil
 	}
-	var resp struct {
-		Result string `json:"result"`
-	}
-	if err := json.Unmarshal(out, &resp); err != nil {
-		return "", fmt.Errorf("failed to parse chain identifier: %w\nResponse:\n%s", err, string(out))
-	}
-	return resp.Result, nil
+	return strings.TrimSpace(string(out)), nil
 }
 
 func getDynamicSuiRPC() (string, error) {
