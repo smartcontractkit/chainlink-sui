@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/beholder"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	config2 "github.com/smartcontractkit/chainlink-sui/relayer/config"
 
@@ -61,6 +62,28 @@ func (c *pluginRelayer) NewRelayer(ctx context.Context, rawConfig string, keysto
 	if err != nil {
 		return nil, fmt.Errorf("failed to read configs: %w", err)
 	}
+
+	rawNodes := make([]map[string]string, 0, len(cfg.Nodes))
+	for _, n := range cfg.Nodes {
+		if n == nil || n.URL == nil {
+			continue
+		}
+		rawNodes = append(rawNodes, map[string]string{"URL": n.URL.String()})
+	}
+	chainID := ""
+	if cfg.ChainID != nil {
+		chainID = *cfg.ChainID
+	}
+	emitter := loop.NewPluginRelayerConfigEmitter(
+		c.Logger,
+		beholder.GetClient().Config.AuthPublicKeyHex,
+		chainID,
+		rawNodes,
+	)
+	if err := emitter.Start(ctx); err != nil {
+		return nil, fmt.Errorf("failed to start plugin relayer config emitter: %w", err)
+	}
+	c.SubService(emitter)
 
 	relayer, err := suiplugin.NewRelayer(cfg, c.Logger, keystore, c.db)
 	if err != nil {
