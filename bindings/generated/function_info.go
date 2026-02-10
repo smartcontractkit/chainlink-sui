@@ -22,6 +22,7 @@ import (
     module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
     module_usdc_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/usdc_token_pool"
     module_managed_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/managed_token/managed_token"
+    module_faucet "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/managed_token_faucet/managed_token_faucet"
     module_mock_eth_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/mock_eth_token/mock_eth_token"
     module_mock_link_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/mock_link_token/mock_link_token"
     module_link "github.com/smartcontractkit/chainlink-sui/bindings/generated/link/link"
@@ -55,6 +56,7 @@ var FunctionInfoByModule = map[string]string{
     "managed_token_pool": module_managed_token_pool.FunctionInfo,
     "usdc_token_pool": module_usdc_token_pool.FunctionInfo,
     "managed_token": module_managed_token.FunctionInfo,
+    "faucet": module_faucet.FunctionInfo,
     "mock_eth_token": module_mock_eth_token.FunctionInfo,
     "mock_link_token": module_mock_link_token.FunctionInfo,
     "link": module_link.FunctionInfo,
