@@ -3,6 +3,7 @@ package bind
 import (
 	"embed"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"golang.org/x/crypto/blake2b"
 
@@ -19,6 +21,93 @@ import (
 )
 
 const env = "docker"
+
+// SourceModifier is a function that can modify Move source files during compilation.
+//
+// This is primarily used for testing package upgrades without creating duplicate
+// contract versions in the repository.
+//
+// Example usage:
+//
+//	modifier := func(packageRoot string) error {
+//	    sourcePath := filepath.Join(packageRoot, "sources", "contract.move")
+//	    content, _ := os.ReadFile(sourcePath)
+//	    modified := strings.Replace(string(content), "1.0.0", "2.0.0", 1)
+//	    return os.WriteFile(sourcePath, []byte(modified), 0o644)
+//	}
+type SourceModifier func(packageRoot string) error
+
+var (
+	testModifierMu sync.Mutex
+	testModifier   SourceModifier
+)
+
+// SetTestModifier sets a source modifier for the next compilation (test only)
+func SetTestModifier(modifier SourceModifier) {
+	testModifierMu.Lock()
+	defer testModifierMu.Unlock()
+	testModifier = modifier
+}
+
+// ClearTestModifier removes the test modifier
+func ClearTestModifier() {
+	testModifierMu.Lock()
+	defer testModifierMu.Unlock()
+	testModifier = nil
+}
+
+// convertModulesToBase64 converts a slice of modules from []interface{} format
+// (as returned by JSON unmarshaling) to Base64-encoded strings
+func convertModulesToBase64(modulesInput []interface{}) []string {
+	var base64Modules []string
+	for i, modAny := range modulesInput {
+		byteArr, ok := modAny.([]interface{})
+		if !ok {
+			fmt.Printf("module[%d] is not []interface{}, got %T\n", i, modAny)
+			continue
+		}
+
+		// Convert []interface{} → []byte
+		moduleBytes := make([]byte, len(byteArr))
+		for j, b := range byteArr {
+			moduleBytes[j] = byte(b.(float64)) // JSON numbers come in as float64
+		}
+
+		// Encode module bytes to Base64
+		b64 := base64.StdEncoding.EncodeToString(moduleBytes)
+		base64Modules = append(base64Modules, b64)
+	}
+	return base64Modules
+}
+
+// computeDigestForUpgrade computes the digest for MCMS-managed package upgrades
+// by decoding modules from base64 and combining them with dependency addresses
+func computeDigestForUpgrade(modules []string, deps []string) ([]byte, error) {
+	// Decode modules from base64 to bytes for digest computation
+	moduleBytes := make([][]byte, len(modules))
+	for i, modB64 := range modules {
+		decoded, err := base64.StdEncoding.DecodeString(modB64)
+		if err != nil {
+			return nil, fmt.Errorf("decoding module %d for digest: %w", i, err)
+		}
+		moduleBytes[i] = decoded
+	}
+
+	// Convert dependency addresses to object IDs (32 bytes each)
+	depObjectIDs := make([][]byte, len(deps))
+	for i, dep := range deps {
+		// Sui addresses are 32 bytes (64 hex chars with 0x prefix)
+		depBytes, err := hex.DecodeString(strings.TrimPrefix(dep, "0x"))
+		if err != nil {
+			return nil, fmt.Errorf("decoding dependency %d address: %w", i, err)
+		}
+		depObjectIDs[i] = depBytes
+	}
+
+	// Compute digest
+	digestBytes := ComputeDigestForModulesAndDeps(moduleBytes, depObjectIDs)
+	return digestBytes[:], nil
+}
 
 type PackageManifest struct {
 	Package      any               `toml:"package"`
@@ -109,6 +198,15 @@ type GasData struct {
 }
 
 func CompilePackage(packageName contracts.Package, namedAddresses map[string]string, isUpgrade bool, suiRPC string) (PackageArtifact, error) {
+	// Check for test modifier from global state
+	testModifierMu.Lock()
+	modifier := testModifier
+	testModifierMu.Unlock()
+
+	return compilePackageInternal(packageName, namedAddresses, isUpgrade, suiRPC, modifier)
+}
+
+func compilePackageInternal(packageName contracts.Package, namedAddresses map[string]string, isUpgrade bool, suiRPC string, modifier SourceModifier) (PackageArtifact, error) {
 	var rpcURL string
 	// 1️. Detect dynamic RPC from Docker
 	if suiRPC == "" {
@@ -175,7 +273,12 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 	if err = writeEFS(contracts.Embed, ".", dstRoot); err != nil {
 		return PackageArtifact{}, fmt.Errorf("copying embedded files to %q: %w", dstRoot, err)
 	}
-
+	// Apply source modifications if provided (test only - happens in temp dir)
+	if modifier != nil {
+		if err := modifier(packageRoot); err != nil {
+			return PackageArtifact{}, fmt.Errorf("applying source modifications: %w", err)
+		}
+	}
 	if packageName == contracts.Test {
 		testSecondaryAddr := namedAddresses["test_secondary"]
 		if !isZeroAddress(testSecondaryAddr) {
@@ -198,6 +301,40 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
+
+		// For MCMS-managed upgrades, manage the original package as a dependency
+		managedTokenAddr := namedAddresses["original_managed_token_pkg"]
+		if !isZeroAddress(managedTokenAddr) {
+			managedTokenDir := filepath.Join(dstRoot, "ccip", "managed_token")
+			if err := managePackage(managedTokenDir, 1, rpcURL, env, managedTokenAddr, managedTokenAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage original ManagedToken dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for original ManagedToken (no published address found)")
+		}
+
+	}
+
+	if packageName == contracts.ManagedTokenFaucet {
+		managedTokenAddr := namedAddresses["managed_token"]
+		if !isZeroAddress(managedTokenAddr) {
+			managedTokenDir := filepath.Join(dstRoot, "ccip", "managed_token")
+			if err := managePackage(managedTokenDir, 1, rpcURL, env, managedTokenAddr, managedTokenAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage ManagedToken dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for ManagedToken (no published address found)")
+		}
+
+		mcmsAddr := namedAddresses["mcms"]
+		if !isZeroAddress(mcmsAddr) {
+			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
+			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for MCMS (no published address found)")
+		}
 	}
 
 	if packageName == contracts.MCMSUser {
@@ -210,9 +347,37 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
+
+		if isUpgrade {
+			// Replace mcms_user.move inside the temp sui-temp-* workspace with upgraded mock version
+			upgradeSrc := filepath.Join(dstRoot, "mcms", "mcms_test_v2", "sources", "mcms_user.move")
+			upgradeDst := filepath.Join(packageRoot, "sources", "mcms_user.move")
+
+			// Read the mock upgrade file from repo
+			input, err := os.ReadFile(upgradeSrc)
+			if err != nil {
+				return PackageArtifact{}, fmt.Errorf("reading mcms_user upgrade mock %q: %w", upgradeSrc, err)
+			}
+
+			// Overwrite the mcms_user.move in the sui-temp workspace
+			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
+				return PackageArtifact{}, fmt.Errorf("replacing mcms_user.move inside sui-temp workspace: %w", err)
+			}
+
+			mcmsUserAddr := namedAddresses["original_mcms_user_pkg"]
+			if !isZeroAddress(mcmsUserAddr) {
+				mcmsUserDir := filepath.Join(dstRoot, "mcms", "mcms_test")
+				if err := managePackage(mcmsUserDir, 1, rpcURL, env, mcmsUserAddr, mcmsUserAddr); err != nil {
+					return PackageArtifact{}, fmt.Errorf("failed to manage MCMS User dependency: %w", err)
+				}
+			} else {
+				fmt.Println("Skipping manage-package for MCMS User (no published address found)")
+			}
+		}
 	}
 
 	if packageName == contracts.MCMSUserV2 {
+		// Manage MCMS dependency
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
@@ -221,6 +386,35 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 			}
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
+		}
+
+		// If using sui client upgrade command, replace mcms_user.move with upgraded version
+		if isUpgrade {
+			upgradeSrc := filepath.Join(dstRoot, "mcms", "mcms_test_v2", "sources", "mcms_user.move")
+			upgradeDst := filepath.Join(packageRoot, "sources", "mcms_user.move")
+
+			// Read the mock upgrade file from repo
+			input, err := os.ReadFile(upgradeSrc)
+			if err != nil {
+				return PackageArtifact{}, fmt.Errorf("reading mcms_user upgrade mock %q: %w", upgradeSrc, err)
+			}
+
+			// Overwrite the mcms_user.move in the sui-temp workspace
+			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
+				return PackageArtifact{}, fmt.Errorf("replacing mcms_user.move inside sui-temp workspace: %w", err)
+			}
+		}
+
+		// Manage the original MCMSUserV2 package address
+		// This is required for upgrades even when not using sui client upgrade command
+		mcmsUserV2Addr := namedAddresses["original_mcms_user_v2_pkg"]
+		if !isZeroAddress(mcmsUserV2Addr) {
+			mcmsUserV2Dir := filepath.Join(dstRoot, "mcms", "mcms_test_v2")
+			if err := managePackage(mcmsUserV2Dir, 1, rpcURL, env, mcmsUserV2Addr, mcmsUserV2Addr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS User V2 dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for MCMS User V2 (no published address found)")
 		}
 	}
 
@@ -244,6 +438,34 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		} else {
 			fmt.Println("Skipping manage-package for CCIP (no published address found)")
 		}
+
+		// For MCMS-managed upgrades, manage the original package as a dependency
+		var originalPkgKey, packageDir string
+		switch packageName {
+		case contracts.LockReleaseTokenPool:
+			originalPkgKey = "original_lock_release_token_pool_pkg"
+			packageDir = "lock_release_token_pool"
+		case contracts.BurnMintTokenPool:
+			originalPkgKey = "original_burn_mint_token_pool_pkg"
+			packageDir = "burn_mint_token_pool"
+		case contracts.ManagedTokenPool:
+			originalPkgKey = "original_managed_token_pool_pkg"
+			packageDir = "managed_token_pool"
+		case contracts.USDCTokenPool:
+			originalPkgKey = "original_usdc_token_pool_pkg"
+			packageDir = "usdc_token_pool"
+		}
+
+		originalAddr := namedAddresses[originalPkgKey]
+		if !isZeroAddress(originalAddr) {
+			originalDir := filepath.Join(dstRoot, "ccip", "ccip_token_pools", packageDir)
+			if err := managePackage(originalDir, 1, rpcURL, env, originalAddr, originalAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage original %s dependency: %w", packageName, err)
+			}
+		} else {
+			fmt.Printf("Skipping manage-package for original %s (no published address found)\n", packageName)
+		}
+
 	}
 
 	if packageName == contracts.ManagedTokenPool {
@@ -278,7 +500,6 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		} else {
 			fmt.Println("Skipping manage-package for CCIP (no published address found)")
 		}
-
 	}
 
 	if packageName == contracts.CCIPRouter {
@@ -291,6 +512,17 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
+
+		// For MCMS-managed upgrades, manage the original package as a dependency
+		ccipRouterAddr := namedAddresses["original_ccip_router_pkg"]
+		if !isZeroAddress(ccipRouterAddr) {
+			ccipRouterDir := filepath.Join(dstRoot, "ccip", "ccip_router")
+			if err := managePackage(ccipRouterDir, 1, rpcURL, env, ccipRouterAddr, ccipRouterAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage original CCIPRouter dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for original CCIPRouter (no published address found)")
+		}
 	}
 
 	if packageName == contracts.CCIP {
@@ -302,6 +534,18 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 			}
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
+		}
+
+		// For MCMS-managed upgrades (when not using sui client upgrade command),
+		// we need to manage the original CCIP package as a dependency
+		ccipAddr := namedAddresses["original_ccip_pkg"]
+		if !isZeroAddress(ccipAddr) {
+			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
+			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage original CCIP dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for original CCIP (no published address found)")
 		}
 
 		// if upgrade it needs to move.lock in it's own pkg
@@ -320,16 +564,6 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 			// Overwrite the onramp.move in the sui-temp workspace
 			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
 				return PackageArtifact{}, fmt.Errorf("replacing feequoter.move inside sui-temp workspace: %w", err)
-			}
-
-			ccipAddr := namedAddresses["original_ccip_pkg"]
-			if !isZeroAddress(mcmsAddr) {
-				ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-				if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr); err != nil {
-					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
-				}
-			} else {
-				fmt.Println("Skipping manage-package for CCIP (no published address found)")
 			}
 		}
 	}
@@ -353,6 +587,17 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 			}
 		} else {
 			fmt.Println("Skipping manage-package for CCIP (no published address found)")
+		}
+
+		// For MCMS-managed upgrades, manage the original package as a dependency
+		ccipOnrampAddr := namedAddresses["original_ccip_onramp_pkg"]
+		if !isZeroAddress(ccipOnrampAddr) {
+			ccipOnrampDir := filepath.Join(dstRoot, "ccip", "ccip_onramp")
+			if err := managePackage(ccipOnrampDir, 1, rpcURL, env, ccipOnrampAddr, ccipOnrampAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage original CCIPOnramp dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for original CCIPOnramp (no published address found)")
 		}
 
 		// TODO: make this only for mock test upgrade
@@ -409,13 +654,24 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		}
 
 		ccipAddr := namedAddresses["ccip"]
-		if !isZeroAddress(mcmsAddr) {
+		if !isZeroAddress(ccipAddr) {
 			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
 			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
 			}
 		} else {
 			fmt.Println("Skipping manage-package for CCIP (no published address found)")
+		}
+
+		// For MCMS-managed upgrades, manage the original package as a dependency
+		ccipOfframpAddr := namedAddresses["original_ccip_offramp_pkg"]
+		if !isZeroAddress(ccipOfframpAddr) {
+			ccipOfframpDir := filepath.Join(dstRoot, "ccip", "ccip_offramp")
+			if err := managePackage(ccipOfframpDir, 1, rpcURL, env, ccipOfframpAddr, ccipOfframpAddr); err != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage original CCIPOfframp dependency: %w", err)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for original CCIPOfframp (no published address found)")
 		}
 
 		// TODO: make this only for mock test upgrade
@@ -502,26 +758,7 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 			fmt.Printf("Upgrade[0] is not []interface{}, got %T\n", modulesInput[0])
 			return PackageArtifact{}, fmt.Errorf("unexpected dependencies format")
 		}
-		var base64Modules []string
-		for i, modAny := range modulesAny {
-			byteArr, ok := modAny.([]interface{})
-			if !ok {
-				fmt.Printf("module[%d] is not []interface{}, got %T\n", i, modAny)
-				continue
-			}
-
-			// Convert []interface{} → []byte
-			moduleBytes := make([]byte, len(byteArr))
-			for j, b := range byteArr {
-				moduleBytes[j] = byte(b.(float64)) // JSON numbers come in as float64
-			}
-
-			// Encode module bytes to Base64
-			b64 := base64.StdEncoding.EncodeToString(moduleBytes)
-			base64Modules = append(base64Modules, b64)
-		}
-
-		modules = base64Modules
+		modules = convertModulesToBase64(modulesAny)
 
 		// digest
 		digestInput := resp.V1.Kind.ProgrammableTransaction.Inputs[2].Pure
@@ -533,7 +770,6 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		cmd.Dir = packageRoot
 		output, err := cmd.Output()
 		if err != nil {
-
 			return PackageArtifact{}, fmt.Errorf("sui client publish --serialize-unsigned-transaction (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
 		}
 
@@ -555,28 +791,15 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 
 		// modules
 		modulesInput := resp.V1.Kind.ProgrammableTransaction.Commands[0].Publish[0]
-		// Prepare a slice to store Base64 strings
-		var base64Modules []string
+		modules = convertModulesToBase64(modulesInput)
 
-		for i, modAny := range modulesInput {
-			byteArr, ok := modAny.([]interface{})
-			if !ok {
-				fmt.Printf("module[%d] is not []interface{}, got %T\n", i, modAny)
-				continue
-			}
-
-			// Convert []interface{} → []byte
-			moduleBytes := make([]byte, len(byteArr))
-			for j, b := range byteArr {
-				moduleBytes[j] = byte(b.(float64)) // JSON numbers are float64
-			}
-
-			// Encode module bytes to Base64
-			b64 := base64.StdEncoding.EncodeToString(moduleBytes)
-			base64Modules = append(base64Modules, b64)
+		// For MCMS-managed upgrades, we need to compute the digest manually
+		// since sui client publish doesn't provide it
+		digest, err = computeDigestForUpgrade(modules, deps)
+		if err != nil {
+			return PackageArtifact{}, err
 		}
 
-		modules = base64Modules
 	}
 
 	artifact := PackageArtifact{
@@ -690,7 +913,7 @@ func getDynamicSuiRPC() (string, error) {
 		return envRPC, nil
 	}
 
-	cmd := exec.Command("docker", "ps", "--filter", "ancestor=mysten/sui-tools:devnet", "--format", "{{.Ports}}")
+	cmd := exec.Command("docker", "ps", "--filter", "ancestor=mysten/sui-tools:devnet-v1.61.0", "--format", "{{.Ports}}")
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("docker ps failed: %w", err)
