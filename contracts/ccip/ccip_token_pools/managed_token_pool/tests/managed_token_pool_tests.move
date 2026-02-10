@@ -18,6 +18,7 @@ use std::type_name;
 use sui::address;
 use sui::clock;
 use sui::coin;
+use sui::deny_list::{Self, DenyList};
 use sui::package;
 use sui::test_scenario::{Self, Scenario};
 
@@ -31,11 +32,15 @@ const DefaultRemoteToken: vector<u8> = b"default_remote_token";
 const CCIP_ADMIN: address = @0x400;
 
 fun setup_ccip_environment(scenario: &mut Scenario): (CCIPOwnerCap, CCIPObjectRef) {
+    scenario.next_tx(@0x0);
+
+    // Create deny list for testing (shared object, will be taken later)
+    deny_list::create_for_testing(scenario.ctx());
+
     scenario.next_tx(CCIP_ADMIN);
-    let ctx = scenario.ctx();
 
     // Create CCIP state object
-    state_object::test_init(ctx);
+    state_object::test_init(scenario.ctx());
 
     // Advance to next transaction to retrieve the created objects
     scenario.next_tx(CCIP_ADMIN);
@@ -68,6 +73,7 @@ public fun test_initialize_and_basic_functionality() {
 
     // Setup CCIP environment
     let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+    let deny_list = scenario.take_shared<DenyList>();
 
     // Create managed token
     scenario.next_tx(@managed_token_pool);
@@ -158,6 +164,7 @@ public fun test_initialize_and_basic_functionality() {
 
     transfer::public_freeze_object(coin_metadata);
     transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(deny_list);
     test_scenario::return_shared(ccip_ref);
     scenario.end();
 }
@@ -165,7 +172,7 @@ public fun test_initialize_and_basic_functionality() {
 #[test]
 public fun test_chain_configuration_management() {
     let mut scenario = test_scenario::begin(@managed_token_pool);
-    let (ccip_owner_cap, ccip_ref, coin_metadata) = setup_basic_pool(&mut scenario);
+    let (ccip_owner_cap, ccip_ref, coin_metadata, deny_list) = setup_basic_pool(&mut scenario);
 
     scenario.next_tx(@managed_token_pool);
     {
@@ -232,13 +239,14 @@ public fun test_chain_configuration_management() {
     transfer::public_freeze_object(coin_metadata);
     transfer::public_transfer(ccip_owner_cap, @0x0);
     test_scenario::return_shared(ccip_ref);
+    test_scenario::return_shared(deny_list);
     scenario.end();
 }
 
 #[test]
 public fun test_allowlist_management() {
     let mut scenario = test_scenario::begin(@managed_token_pool);
-    let (ccip_owner_cap, ccip_ref, coin_metadata) = setup_basic_pool(&mut scenario);
+    let (ccip_owner_cap, ccip_ref, coin_metadata, deny_list) = setup_basic_pool(&mut scenario);
 
     scenario.next_tx(@managed_token_pool);
     {
@@ -254,13 +262,13 @@ public fun test_allowlist_management() {
         test_scenario::return_shared(pool_state);
     };
 
-    cleanup_test(scenario, ccip_owner_cap, ccip_ref, coin_metadata);
+    cleanup_test(scenario, ccip_owner_cap, ccip_ref, coin_metadata, deny_list);
 }
 
 #[test]
 public fun test_rate_limiter_configuration() {
     let mut scenario = test_scenario::begin(@managed_token_pool);
-    let (ccip_owner_cap, ccip_ref, coin_metadata) = setup_basic_pool(&mut scenario);
+    let (ccip_owner_cap, ccip_ref, coin_metadata, deny_list) = setup_basic_pool(&mut scenario);
 
     scenario.next_tx(@managed_token_pool);
     {
@@ -326,7 +334,7 @@ public fun test_rate_limiter_configuration() {
         clock.destroy_for_testing();
     };
 
-    cleanup_test(scenario, ccip_owner_cap, ccip_ref, coin_metadata);
+    cleanup_test(scenario, ccip_owner_cap, ccip_ref, coin_metadata, deny_list);
 }
 
 #[test]
@@ -468,9 +476,9 @@ public fun test_lock_or_burn_functionality() {
         >();
         let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let user_mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let deny_list = scenario.take_shared<DenyList>();
         let mut ctx = sui::tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);
-        let deny_list = sui::deny_list::new_for_testing(&mut ctx);
         clock.increment_for_testing(1000000000);
 
         // Mint tokens for burning
@@ -532,7 +540,7 @@ public fun test_lock_or_burn_functionality() {
         transfer::public_transfer(user_mint_cap, @0x456);
         test_scenario::return_shared(pool_state);
         test_scenario::return_shared(token_state);
-        sui::test_utils::destroy(deny_list);
+        test_scenario::return_shared(deny_list);
     };
 
     transfer::public_freeze_object(coin_metadata);
@@ -543,6 +551,9 @@ public fun test_lock_or_burn_functionality() {
 #[test]
 public fun test_release_or_mint_functionality() {
     let mut scenario = test_scenario::begin(@managed_token_pool);
+
+    scenario.next_tx(@0x0);
+    deny_list::create_for_testing(scenario.ctx());
 
     // Setup CCIP environment
     let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
@@ -673,9 +684,9 @@ public fun test_release_or_mint_functionality() {
         let dest_transfer_cap = scenario.take_from_address<offramp_sh::DestTransferCap>(
             @managed_token_pool,
         );
+        let deny_list = scenario.take_shared<DenyList>();
         let mut ctx = sui::tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);
-        let deny_list = sui::deny_list::new_for_testing(&mut ctx);
         clock.increment_for_testing(1000000000);
 
         // Create receiver params for release_or_mint
@@ -725,7 +736,7 @@ public fun test_release_or_mint_functionality() {
         transfer::public_transfer(dest_transfer_cap, @managed_token_pool);
         test_scenario::return_shared(pool_state);
         test_scenario::return_shared(token_state);
-        sui::test_utils::destroy(deny_list);
+        test_scenario::return_shared(deny_list);
     };
 
     // Verify the minted coin was transferred to the receiver
@@ -752,7 +763,7 @@ public fun test_invalid_owner_cap_error() {
     let mut scenario = test_scenario::begin(@managed_token_pool);
 
     // Create first pool
-    let (ccip_owner_cap, ccip_ref, coin_metadata) = setup_basic_pool(&mut scenario);
+    let (ccip_owner_cap, ccip_ref, coin_metadata, deny_list) = setup_basic_pool(&mut scenario);
 
     // Create a second, independent pool setup to get a different owner cap
     scenario.next_tx(@0x999);
@@ -866,6 +877,7 @@ public fun test_invalid_owner_cap_error() {
     transfer::public_transfer(ccip_owner_cap2, @0x0);
     test_scenario::return_shared(ccip_ref);
     test_scenario::return_shared(ccip_ref2);
+    test_scenario::return_shared(deny_list);
     scenario.end();
 }
 
@@ -873,7 +885,7 @@ public fun test_invalid_owner_cap_error() {
 #[expected_failure(abort_code = managed_token_pool::EInvalidArguments)]
 public fun test_invalid_arguments_error() {
     let mut scenario = test_scenario::begin(@managed_token_pool);
-    let (ccip_owner_cap, ccip_ref, coin_metadata) = setup_basic_pool(&mut scenario);
+    let (ccip_owner_cap, ccip_ref, coin_metadata, deny_list) = setup_basic_pool(&mut scenario);
 
     scenario.next_tx(@managed_token_pool);
     {
@@ -905,13 +917,13 @@ public fun test_invalid_arguments_error() {
         clock.destroy_for_testing();
     };
 
-    cleanup_test(scenario, ccip_owner_cap, ccip_ref, coin_metadata);
+    cleanup_test(scenario, ccip_owner_cap, ccip_ref, coin_metadata, deny_list);
 }
 
 #[test]
 public fun test_edge_cases_and_comprehensive_coverage() {
     let mut scenario = test_scenario::begin(@managed_token_pool);
-    let (ccip_owner_cap, ccip_ref, coin_metadata) = setup_basic_pool(&mut scenario);
+    let (ccip_owner_cap, ccip_ref, coin_metadata, deny_list) = setup_basic_pool(&mut scenario);
 
     scenario.next_tx(@managed_token_pool);
     {
@@ -1023,7 +1035,7 @@ public fun test_edge_cases_and_comprehensive_coverage() {
         clock.destroy_for_testing();
     };
 
-    cleanup_test(scenario, ccip_owner_cap, ccip_ref, coin_metadata);
+    cleanup_test(scenario, ccip_owner_cap, ccip_ref, coin_metadata, deny_list);
 }
 
 #[test]
@@ -1032,6 +1044,7 @@ public fun test_initialize_with_managed_token_function() {
 
     // Setup CCIP environment
     let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+    let deny_list = scenario.take_shared<DenyList>();
 
     // Create managed token first
     scenario.next_tx(@managed_token_pool);
@@ -1172,13 +1185,13 @@ public fun test_initialize_with_managed_token_function() {
         assert!(type_proof.length() > 0);
     };
 
-    cleanup_test(scenario, ccip_owner_cap, ccip_ref, coin_metadata);
+    cleanup_test(scenario, ccip_owner_cap, ccip_ref, coin_metadata, deny_list);
 }
 
 // Helper functions
 fun setup_basic_pool(
     scenario: &mut test_scenario::Scenario,
-): (CCIPOwnerCap, CCIPObjectRef, coin::CoinMetadata<MANAGED_TOKEN_POOL_TESTS>) {
+): (CCIPOwnerCap, CCIPObjectRef, coin::CoinMetadata<MANAGED_TOKEN_POOL_TESTS>, DenyList) {
     let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(scenario);
 
     scenario.next_tx(@managed_token_pool);
@@ -1258,7 +1271,9 @@ fun setup_basic_pool(
         test_scenario::return_shared(token_state);
     };
 
-    (ccip_owner_cap, ccip_ref, coin_metadata)
+    let deny_list = scenario.take_shared<DenyList>();
+
+    (ccip_owner_cap, ccip_ref, coin_metadata, deny_list)
 }
 
 fun cleanup_test(
@@ -1266,10 +1281,12 @@ fun cleanup_test(
     ccip_owner_cap: CCIPOwnerCap,
     ccip_ref: CCIPObjectRef,
     coin_metadata: coin::CoinMetadata<MANAGED_TOKEN_POOL_TESTS>,
+    deny_list: DenyList,
 ) {
     transfer::public_freeze_object(coin_metadata);
     transfer::public_transfer(ccip_owner_cap, @0x0);
     test_scenario::return_shared(ccip_ref);
+    test_scenario::return_shared(deny_list);
     scenario.end();
 }
 

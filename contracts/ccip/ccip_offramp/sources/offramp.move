@@ -576,6 +576,7 @@ fun pre_execute_single_report(
     manual_execution: bool,
 ): osh::ReceiverParams {
     let source_chain_selector = execution_report.source_chain_selector;
+    assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
 
     if (rmn_remote::is_cursed_u128(ref, source_chain_selector as u128)) {
         assert!(!manual_execution, ECursedByRmn);
@@ -643,7 +644,6 @@ fun pre_execute_single_report(
             (message.token_receiver != @0x0 && number_of_tokens_in_msg > 0), // if token_receiver is not empty, tokens should be transferred
         EInvalidTokenReceiver,
     );
-    assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
 
     let mut receiver_params = osh::create_receiver_params(
         state.dest_transfer_cap.borrow(),
@@ -1360,7 +1360,7 @@ public fun mcms_accept_ownership(
     verify_function_allowed(
         ref,
         string::utf8(b"offramp"),
-        string::utf8(b"accept_ownership"),
+        string::utf8(b"mcms_accept_ownership"),
         VERSION,
     );
     let data = mcms_registry::get_accept_ownership_data(

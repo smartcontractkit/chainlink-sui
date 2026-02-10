@@ -18,12 +18,12 @@ use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string::{Self, String};
+use std::type_name;
+use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::derived_object;
 use sui::package::{Self, UpgradeCap};
-use std::type_name;
-use sui::address;
 
 public struct BURN_MINT_TOKEN_POOL has drop {}
 
@@ -517,7 +517,10 @@ public fun mcms_destroy_token_pool<T>(
     assert!(function == string::utf8(b"destroy_token_pool"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addr(object::id_address(&state), &mut stream);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(&state)],
+        &mut stream,
+    );
 
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);

@@ -137,7 +137,7 @@ public(package) fun set_chain_rate_limiter_config(
     });
 }
 
-public fun get_current_inbound_rate_limiter_state(
+public(package) fun get_current_inbound_rate_limiter_state(
     state: &RateLimitState,
     clock: &Clock,
     remote_chain_selector: u64,
@@ -152,7 +152,7 @@ public fun get_current_inbound_rate_limiter_state(
     )
 }
 
-public fun get_current_outbound_rate_limiter_state(
+public(package) fun get_current_outbound_rate_limiter_state(
     state: &RateLimitState,
     clock: &Clock,
     remote_chain_selector: u64,
