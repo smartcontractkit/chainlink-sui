@@ -13,6 +13,7 @@ use message_transmitter::message;
 use message_transmitter::receive_message::{Self, Receipt, ReceiveMessageTicket};
 use message_transmitter::state::State as MessageTransmitterState;
 use stablecoin::treasury::Treasury;
+use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
 use sui::address;
@@ -131,11 +132,11 @@ public fun initialize<T: drop>(
         id: object::new(ctx),
         usdc_token_pool_object_id: object::id_address(&usdc_token_pool_object),
     };
-    
+
     let tn = type_name::with_original_ids<USDC_TOKEN_POOL>();
     let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
-    
+
     let usdc_token_pool = USDCTokenPoolState<T> {
         id: derived_object::claim(&mut usdc_token_pool_object.id, b"USDCTokenPoolState"),
         token_pool_state: token_pool::initialize(
@@ -1155,7 +1156,10 @@ public fun mcms_destroy_token_pool<T>(
     assert!(function == string::utf8(b"destroy_token_pool"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addr(object::id_address(&state), &mut stream);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(&state)],
+        &mut stream,
+    );
 
     let _to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
@@ -1221,6 +1225,7 @@ public fun mcms_execute_ownership_transfer<T>(
     );
 
     let to = bcs_stream::deserialize_address(&mut stream);
+    let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap<McmsCallback<T>, OwnerCap>(
@@ -1228,7 +1233,7 @@ public fun mcms_execute_ownership_transfer<T>(
         McmsCallback<T> {},
     );
 
-    if (mcms_deployer::has_upgrade_cap(deployer_state, get_package_address<T>())) {
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
             registry,
@@ -1238,12 +1243,6 @@ public fun mcms_execute_ownership_transfer<T>(
     };
 
     execute_ownership_transfer(owner_cap, state, to, ctx);
-}
-
-fun get_package_address<T>(): address {
-    let tn = type_name::with_defining_ids<McmsCallback<T>>();
-    let addr_bytes = tn.address_string().into_bytes();
-    address::from_ascii_bytes(&addr_bytes)
 }
 
 public fun mcms_add_allowed_modules<T>(
