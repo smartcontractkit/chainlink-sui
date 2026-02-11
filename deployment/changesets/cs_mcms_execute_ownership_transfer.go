@@ -140,7 +140,7 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 			BurnMintTokenPoolPackageId: poolState.PackageID,
 			TypeArgs:                   []string{config.TypeArg},
 			StateObjectId:              poolState.StateObjectId,
-			OwnerCapObjectId:           state.CCIPOwnerCapObjectId,
+			OwnerCapObjectId:           poolState.OwnerCapObjectId,
 			RegistryObjectId:           state.MCMSRegistryObjectID,
 			To:                         state.MCMSPackageID,
 		}
@@ -155,7 +155,7 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 			LockReleaseTokenPoolPackageId: poolState.PackageID,
 			TypeArgs:                      []string{config.TypeArg},
 			StateObjectId:                 poolState.StateObjectId,
-			OwnerCapObjectId:              state.CCIPOwnerCapObjectId,
+			OwnerCapObjectId:              poolState.OwnerCapObjectId,
 			RegistryObjectId:              state.MCMSRegistryObjectID,
 			To:                            state.MCMSPackageID,
 		}
@@ -170,7 +170,7 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 			ManagedTokenPoolPackageId: poolState.PackageID,
 			TypeArgs:                  []string{config.TypeArg},
 			StateObjectId:             poolState.StateObjectId,
-			OwnerCapObjectId:          state.CCIPOwnerCapObjectId,
+			OwnerCapObjectId:          poolState.OwnerCapObjectId,
 			RegistryObjectId:          state.MCMSRegistryObjectID,
 			To:                        state.MCMSPackageID,
 		}
