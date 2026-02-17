@@ -828,123 +828,91 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	var digest []byte
 	var deps []string
 	var modules []string
+
+	log.Printf("compiling package: %s\n", packageRoot)
+
+	// Check if package has dependencies by reading Move.toml
+	pkgMoveTomlPath := filepath.Join(packageRoot, "Move.toml")
+	pkgMoveTomlContent, _ := os.ReadFile(pkgMoveTomlPath)
+	hasDependencies := strings.Contains(string(pkgMoveTomlContent), "[dependencies]")
+
 	if isUpgrade {
-		cmd = exec.Command("sui", "client", "upgrade", "--upgrade-capability", namedAddresses["upgrade_cap"], "--serialize-unsigned-transaction", "--sender", namedAddresses["signer"], "--json")
-		cmd.Dir = packageRoot
-		output, err := cmd.Output()
-		if err != nil {
-			return PackageArtifact{}, fmt.Errorf("sui client upgrade --upgrade-capability **addr** --dry-run (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
-		}
+		// Remove the existing `Published.toml` to avoid the error "Your package is already published."
+		// This shouldn't happen with a `sui client upgrade` command but we must use `publish` here to allow
+		// MCMS to handle the upgrade authorization.
+		os.Remove(filepath.Join(packageRoot, "Published.toml"))
 
-		var resp TransactionData
-		if err := json.Unmarshal(output, &resp); err != nil {
-			return PackageArtifact{}, err
-		}
-
-		//  dependencies
-		depsInput := resp.V1.Kind.ProgrammableTransaction.Commands[1].Upgrade
-		depsAny, ok := depsInput[1].([]interface{})
-		if !ok {
-			return PackageArtifact{}, fmt.Errorf("unexpected dependencies format")
-		}
-		for i, v := range depsAny {
-			addrStr, ok := v.(string)
-			if !ok {
-				fmt.Printf("dep[%d] not a string, got %T\n", i, v)
-				continue
-			}
-			deps = append(deps, addrStr)
-		}
-
-		// modules
-		modulesInput := resp.V1.Kind.ProgrammableTransaction.Commands[1].Upgrade
-		modulesAny, ok := modulesInput[0].([]interface{})
-		if !ok {
-			fmt.Printf("Upgrade[0] is not []interface{}, got %T\n", modulesInput[0])
-			return PackageArtifact{}, fmt.Errorf("unexpected dependencies format")
-		}
-		modules = convertModulesToBase64(modulesAny)
-
-		// digest
-		digestInput := resp.V1.Kind.ProgrammableTransaction.Inputs[2].Pure
-		// first element is the length of an array in bcs byte so removing it
-		digest = digestInput[1:]
-
+		cmd = exec.Command("sui", "client", "publish",
+			"--serialize-unsigned-transaction",
+			"--skip-dependency-verification", // TODO: This is a temporary workaround for the test environment.
+			"--sender", namedAddresses["signer"],
+			"--json",
+			"--silence-warnings",
+		)
+	} else if hasDependencies {
+		// Package has dependencies - use 'publish' which reads Published.toml
+		// for proper dependency address resolution (avoiding 0x0 collision)
+		cmd = exec.Command("sui", "client", "publish",
+			"--serialize-unsigned-transaction",
+			"--sender", namedAddresses["signer"],
+			"--json",
+			"--silence-warnings",
+		)
 	} else {
-		log.Printf("publishing package: %s\n", packageRoot)
+		// Package has no dependencies - use test-publish which is simpler
+		// --with-unpublished-dependencies is safe since there's no collision risk
+		cmd = exec.Command("sui", "client", "test-publish",
+			"--build-env", env,
+			"--with-unpublished-dependencies",
+			"--serialize-unsigned-transaction",
+			"--sender", namedAddresses["signer"],
+			"--json",
+			"--silence-warnings",
+		)
+	}
 
-		// Check if package has dependencies by reading Move.toml
-		pkgMoveTomlPath := filepath.Join(packageRoot, "Move.toml")
-		pkgMoveTomlContent, _ := os.ReadFile(pkgMoveTomlPath)
-		hasDependencies := strings.Contains(string(pkgMoveTomlContent), "[dependencies]")
-
-		if hasDependencies {
-			// Package has dependencies - use 'publish' which reads Published.toml
-			// for proper dependency address resolution (avoiding 0x0 collision)
-			cmd = exec.Command("sui", "client", "publish",
-				"--serialize-unsigned-transaction",
-				"--sender", namedAddresses["signer"],
-				"--json",
-				"--silence-warnings",
-			)
-		} else {
-			// Package has no dependencies - use test-publish which is simpler
-			// --with-unpublished-dependencies is safe since there's no collision risk
-			cmd = exec.Command("sui", "client", "test-publish",
-				"--build-env", env,
-				"--with-unpublished-dependencies",
-				"--serialize-unsigned-transaction",
-				"--sender", namedAddresses["signer"],
-				"--json",
-				"--silence-warnings",
-			)
+	cmd.Dir = packageRoot
+	cmd.Env = os.Environ() // Important: inherit env to get SUI_CONFIG_DIR
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return PackageArtifact{}, fmt.Errorf("sui client publish (%s): %w\nStdout:\n%s\nStderr:\n%s", cmd.Dir, err, output, string(exitErr.Stderr))
 		}
-		cmd.Dir = packageRoot
-		cmd.Env = os.Environ() // Important: inherit env to get SUI_CONFIG_DIR
-		output, err := cmd.Output()
-		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				return PackageArtifact{}, fmt.Errorf("sui client publish (%s): %w\nStdout:\n%s\nStderr:\n%s", cmd.Dir, err, output, string(exitErr.Stderr))
-			}
-			return PackageArtifact{}, fmt.Errorf("sui client publish (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
+		return PackageArtifact{}, fmt.Errorf("sui client publish (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
+	}
+
+	idx := strings.Index(string(output), "{")
+	if idx == -1 {
+		return PackageArtifact{}, fmt.Errorf("no JSON found in output: %s", string(output))
+	}
+	outputStr := string(output)[idx:]
+
+	var resp TransactionData
+	if err := json.Unmarshal([]byte(outputStr), &resp); err != nil {
+		log.Printf("failed to unmarshal output: %v\n", err)
+		return PackageArtifact{}, err
+	}
+
+	//  dependencies
+	depsInput := resp.V1.Kind.ProgrammableTransaction.Commands[0].Publish[1]
+	for i, v := range depsInput {
+		addrStr, ok := v.(string)
+		if !ok {
+			fmt.Printf("dep[%d] not a string, got %T\n", i, v)
+			continue
 		}
-		// log.Printf("finished test-publish output: %s\n", string(output))
+		deps = append(deps, addrStr)
+	}
 
-		idx := strings.Index(string(output), "{")
-		if idx == -1 {
-			return PackageArtifact{}, fmt.Errorf("no JSON found in output: %s", string(output))
-		}
-		outputStr := string(output)[idx:]
-		// log.Printf("outputStr: %s\n", outputStr)
+	// modules
+	modulesInput := resp.V1.Kind.ProgrammableTransaction.Commands[0].Publish[0]
+	modules = convertModulesToBase64(modulesInput)
 
-		var resp TransactionData
-		if err := json.Unmarshal([]byte(outputStr), &resp); err != nil {
-			log.Printf("failed to unmarshal output: %v\n", err)
-			return PackageArtifact{}, err
-		}
-
-		//  dependencies
-		depsInput := resp.V1.Kind.ProgrammableTransaction.Commands[0].Publish[1]
-		for i, v := range depsInput {
-			addrStr, ok := v.(string)
-			if !ok {
-				fmt.Printf("dep[%d] not a string, got %T\n", i, v)
-				continue
-			}
-			deps = append(deps, addrStr)
-		}
-
-		// modules
-		modulesInput := resp.V1.Kind.ProgrammableTransaction.Commands[0].Publish[0]
-		modules = convertModulesToBase64(modulesInput)
-
-		// For MCMS-managed upgrades, we need to compute the digest manually
-		// since sui client publish doesn't provide it
-		digest, err = computeDigestForUpgrade(modules, deps)
-		if err != nil {
-			return PackageArtifact{}, err
-		}
-
+	// For MCMS-managed upgrades, we need to compute the digest manually
+	// since sui client publish doesn't provide it
+	digest, err = computeDigestForUpgrade(modules, deps)
+	if err != nil {
+		return PackageArtifact{}, err
 	}
 
 	artifact := PackageArtifact{

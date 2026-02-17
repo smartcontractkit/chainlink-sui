@@ -8,12 +8,13 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
 
+	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
+	mcmstypes "github.com/smartcontractkit/mcms/types"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
-	mcmstypes "github.com/smartcontractkit/mcms/types"
 )
 
 type UpgradeCCIPInput struct {
@@ -53,10 +54,7 @@ var upgradeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Upgrade
 	}
 	namedAddresses["signer"] = signerAddress
 
-	// For MCMS-managed upgrades, we don't use isUpgrade=true because the UpgradeCap
-	// is managed by the MCMS deployer. We compile as a regular package and let
-	// MCMS handle the upgrade authorization through authorize_upgrade.
-	artifact, err := bind.CompilePackage(input.PackageName, namedAddresses, false, deps.SuiRPC)
+	artifact, err := bind.CompilePackage(input.PackageName, namedAddresses, true, deps.SuiRPC)
 	if err != nil {
 		return mcms.TimelockProposal{}, err
 	}
