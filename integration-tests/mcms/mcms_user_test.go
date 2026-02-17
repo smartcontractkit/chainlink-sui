@@ -107,7 +107,7 @@ func (s *UpgradeTestSuite) RunUpgradeMCMSUserProposal() {
 			"mcms":                      s.mcmsPackageID,
 			"mcms_owner":                signerAddress,
 			"original_mcms_user_v2_pkg": s.mcmsUserPackageId,
-			"mcms_test":                 "0x0",
+			// "mcms_test":                 "0x0",
 		},
 
 		ChainSelector: uint64(s.chainSelector),

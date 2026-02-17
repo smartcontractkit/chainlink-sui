@@ -1,5 +1,5 @@
 [package]
-name = "mcms_test_v2"
+name = "mcms_test"
 edition = "2024"
 
 [dependencies]
