@@ -219,11 +219,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		rpcURL = suiRPC
 	}
 
-	fmt.Printf("Using Sui RPC: %s\n", rpcURL)
-
 	// before you set the temp dir
 	prevConfigDir := os.Getenv("SUI_CONFIG_DIR")
-	log.Printf("Previous SUI_CONFIG_DIR: %s", prevConfigDir)
 
 	// Create isolated config
 	tempConfigDir, err := os.MkdirTemp("", "sui-config-*")
@@ -233,7 +230,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	defer os.RemoveAll(tempConfigDir)
 
 	os.Setenv("SUI_CONFIG_DIR", tempConfigDir)
-	fmt.Printf("SUI_CONFIG_DIR set to: %s\n", tempConfigDir)
 
 	// ➜ IMPORTANT: restore when we leave CompilePackage
 	defer func() {
@@ -278,7 +274,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	packageRoot := filepath.Join(dstRoot, packageDir)
 
 	log.Printf("packageRoot: %s\n", packageRoot)
-	log.Printf("dstRoot: %s\n", dstRoot)
 
 	// Copy embedded contract files to temp workspace
 	if err = writeEFS(contracts.Embed, ".", dstRoot); err != nil {
