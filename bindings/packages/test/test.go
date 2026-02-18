@@ -79,13 +79,6 @@ func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, t
 		return nil, nil, err
 	}
 
-	// chainID, err := testutils.GetChainIdentifier(suiRPC)
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
-
-	// testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
-
 	artifact, err := bind.CompilePackage(contracts.Test, map[string]string{
 		"test":           "0x0",
 		"test_secondary": testSecondary,
@@ -96,11 +89,6 @@ func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, t
 	}
 
 	artifact.Dependencies = append(artifact.Dependencies, testSecondary)
-
-	log.Printf("suiRPC: %s\n", suiRPC)
-	log.Printf("successfully compiled test package with test_secondary: %s\n", testSecondary)
-	log.Printf("modules: %+v\n", artifact.Modules)
-	log.Printf("dependencies: %+v\n", artifact.Dependencies)
 
 	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
@@ -124,13 +112,6 @@ func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, client sui.I
 		return nil, nil, err
 	}
 
-	// chainID, err := testutils.GetChainIdentifier(suiRPC)
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
-
-	// testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
-
 	artifact, err := bind.CompilePackage(contracts.TestSecondary, map[string]string{
 		"test_secondary": "0x0",
 
@@ -139,11 +120,6 @@ func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, client sui.I
 	if err != nil {
 		return nil, nil, err
 	}
-
-	log.Printf("suiRPC: %s\n", suiRPC)
-	log.Printf("successfully compiled test secondary package: %s\n", suiRPC)
-	log.Printf("modules: %+v\n", artifact.Modules)
-	log.Printf("dependencies: %+v\n", artifact.Dependencies)
 
 	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
