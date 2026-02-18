@@ -340,49 +340,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	}
 
 	if packageName == contracts.Test {
-		// Print every TOML file under the Test package root (helpful for debugging named addresses).
-		_ = filepath.WalkDir(packageRoot, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				log.Printf("walk error at %s: %v", path, err)
-				return nil
-			}
-			if d.IsDir() {
-				return nil
-			}
-			if strings.HasSuffix(strings.ToLower(d.Name()), ".toml") {
-				if tomlBytes, readErr := os.ReadFile(path); readErr == nil {
-					log.Printf("Test package TOML (%s):\n%s\n", path, string(tomlBytes))
-				} else {
-					log.Printf("failed to read Test package TOML at %s: %v\n", path, readErr)
-				}
-			}
-			return nil
-		})
-
-		// Also print TOMLs from the test_secondary package if present in the temp workspace.
-		testSecondaryDir := filepath.Join(dstRoot, "test_secondary")
-		if info, serr := os.Stat(testSecondaryDir); serr == nil && info.IsDir() {
-			_ = filepath.WalkDir(testSecondaryDir, func(path string, d fs.DirEntry, err error) error {
-				if err != nil {
-					log.Printf("walk error at %s: %v", path, err)
-					return nil
-				}
-				if d.IsDir() {
-					return nil
-				}
-				if strings.HasSuffix(strings.ToLower(d.Name()), ".toml") {
-					if tomlBytes, readErr := os.ReadFile(path); readErr == nil {
-						log.Printf("Test secondary TOML (%s):\n%s\n", path, string(tomlBytes))
-					} else {
-						log.Printf("failed to read Test secondary TOML at %s: %v\n", path, readErr)
-					}
-				}
-				return nil
-			})
-		} else {
-			log.Printf("test_secondary directory not found at %s (skipping TOML dump)", testSecondaryDir)
-		}
-
 		// Write Published.toml for test_secondary dependency if its address is provided
 		testSecondaryAddr := namedAddresses["test_secondary"]
 		if !isZeroAddress(testSecondaryAddr) {
@@ -955,18 +912,14 @@ func setupSuiEnv(alias, rpcURL string) error {
 		return fmt.Errorf("testnet environment not found")
 	}
 	outTrimmed := string(out[idxFront+len("testnet")+1:idxBack-5]) + "]"
-	// log.Printf("trimmedSui CLI output: %s\n", outTrimmed)
 
 	var parsed []any
 	if err := json.Unmarshal([]byte(outTrimmed), &parsed); err != nil {
 		return fmt.Errorf("failed to parse envs JSON: %w\nOutput:\n%s", err, outTrimmed)
 	}
 
-	// log.Printf("successfully parsed sui CLI output: %+v\n", parsed)
-
 	var envList []suiEnv
 	if arr, ok := parsed[0].([]any); ok {
-		// log.Printf("arr: %+v\n", arr)
 		for _, e := range arr {
 			log.Printf("e: %+v\n", e)
 			data, _ := json.Marshal(e)
@@ -980,8 +933,6 @@ func setupSuiEnv(alias, rpcURL string) error {
 	} else {
 		log.Printf("parsed[0] is not []any, got %T\n", parsed[0])
 	}
-
-	// log.Printf("envList: %+v\n", envList)
 
 	// Step 2 — Check for existing alias and remove it
 	for _, e := range envList {
@@ -1057,8 +1008,6 @@ func removeAliasFromClientYAML(alias string) error {
 			newLines = append(newLines, line)
 		}
 	}
-
-	log.Printf("newLines: %+v\n", newLines)
 
 	return os.WriteFile(configPath, []byte(strings.Join(newLines, "\n")), 0644)
 }
