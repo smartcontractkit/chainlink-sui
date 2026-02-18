@@ -34,6 +34,7 @@ import (
 func TestTransactionsIndexer(t *testing.T) {
 	ctx := context.Background()
 	log := logger.Test(t)
+	testutils.CleanupTestContracts()
 
 	// Setup database
 	datastoreUrl := os.Getenv("TEST_DB_URL")
@@ -53,6 +54,7 @@ func TestTransactionsIndexer(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
+		testutils.CleanupTestContracts()
 		if cmd.Process != nil {
 			perr := cmd.Process.Kill()
 			if perr != nil {
