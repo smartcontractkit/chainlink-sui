@@ -295,6 +295,15 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	}
 	log.Printf("chainID for environment setup: %s\n", chainID)
 
+	// Apply source modifications if provided (test only - happens in temp dir)
+	if modifier != nil {
+		log.Printf("applying source modifications to %q\n", packageRoot)
+		if err := modifier(packageRoot); err != nil {
+			log.Printf("failed to apply source modifications: %v\n", err)
+			return PackageArtifact{}, fmt.Errorf("applying source modifications: %w", err)
+		}
+	}
+
 	// Ensure environment is set in the main package
 	if err := EnsureEnvironmentInMoveToml(packageRoot, env, chainID); err != nil {
 		return PackageArtifact{}, fmt.Errorf("failed to set environment in %s: %w", packageRoot, err)
@@ -330,14 +339,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		}
 	}
 
-	// Apply source modifications if provided (test only - happens in temp dir)
-	if modifier != nil {
-		log.Printf("applying source modifications to %q\n", packageRoot)
-		if err := modifier(packageRoot); err != nil {
-			log.Printf("failed to apply source modifications: %v\n", err)
-			return PackageArtifact{}, fmt.Errorf("applying source modifications: %w", err)
-		}
-	}
 	if packageName == contracts.Test {
 		// Print every TOML file under the Test package root (helpful for debugging named addresses).
 		_ = filepath.WalkDir(packageRoot, func(path string, d fs.DirEntry, err error) error {
@@ -452,33 +453,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
-
-		if isUpgrade {
-			// Replace mcms_user.move inside the temp sui-temp-* workspace with upgraded mock version
-			upgradeSrc := filepath.Join(dstRoot, "mcms", "mcms_test_v2", "sources", "mcms_user.move")
-			upgradeDst := filepath.Join(packageRoot, "sources", "mcms_user.move")
-
-			// Read the mock upgrade file from repo
-			input, err := os.ReadFile(upgradeSrc)
-			if err != nil {
-				return PackageArtifact{}, fmt.Errorf("reading mcms_user upgrade mock %q: %w", upgradeSrc, err)
-			}
-
-			// Overwrite the mcms_user.move in the sui-temp workspace
-			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
-				return PackageArtifact{}, fmt.Errorf("replacing mcms_user.move inside sui-temp workspace: %w", err)
-			}
-
-			mcmsUserAddr := namedAddresses["original_mcms_user_pkg"]
-			if !isZeroAddress(mcmsUserAddr) {
-				mcmsUserDir := filepath.Join(dstRoot, "mcms", "mcms_test")
-				if err := managePackage(mcmsUserDir, 1, rpcURL, env, mcmsUserAddr, mcmsUserAddr, pubfilePath); err != nil {
-					return PackageArtifact{}, fmt.Errorf("failed to manage MCMS User dependency: %w", err)
-				}
-			} else {
-				fmt.Println("Skipping manage-package for MCMS User (no published address found)")
-			}
-		}
 	}
 
 	if packageName == contracts.MCMSUserV2 {
@@ -491,23 +465,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			}
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
-		}
-
-		// If using sui client upgrade command, replace mcms_user.move with upgraded version
-		if isUpgrade {
-			upgradeSrc := filepath.Join(dstRoot, "mcms", "mcms_test_v2", "sources", "mcms_user.move")
-			upgradeDst := filepath.Join(packageRoot, "sources", "mcms_user.move")
-
-			// Read the mock upgrade file from repo
-			input, err := os.ReadFile(upgradeSrc)
-			if err != nil {
-				return PackageArtifact{}, fmt.Errorf("reading mcms_user upgrade mock %q: %w", upgradeSrc, err)
-			}
-
-			// Overwrite the mcms_user.move in the sui-temp workspace
-			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
-				return PackageArtifact{}, fmt.Errorf("replacing mcms_user.move inside sui-temp workspace: %w", err)
-			}
 		}
 
 		// Manage the original MCMSUserV2 package address
@@ -652,25 +609,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		} else {
 			fmt.Println("Skipping manage-package for original CCIP (no published address found)")
 		}
-
-		// if upgrade it needs to move.lock in it's own pkg
-		if isUpgrade {
-			// Replace fee_quoter.move inside the temp sui-temp-* workspace with upgraded mock version
-			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_ccip_v2", "fee_quoter.move")
-
-			// Path inside the temp workspace (automatically created)
-			upgradeDst := filepath.Join(packageRoot, "sources", "fee_quoter.move")
-
-			input, err := os.ReadFile(upgradeSrc)
-			if err != nil {
-				return PackageArtifact{}, fmt.Errorf("reading feequoter upgrade mock %q: %w", upgradeSrc, err)
-			}
-
-			// Overwrite the onramp.move in the sui-temp workspace
-			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
-				return PackageArtifact{}, fmt.Errorf("replacing feequoter.move inside sui-temp workspace: %w", err)
-			}
-		}
 	}
 
 	if packageName == contracts.CCIPOnramp {
@@ -703,47 +641,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			}
 		} else {
 			fmt.Println("Skipping manage-package for original CCIPOnramp (no published address found)")
-		}
-
-		// TODO: make this only for mock test upgrade
-		if isUpgrade {
-			// Replace onramp.move inside the temp sui-temp-* workspace with upgraded mock version
-			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_onramp_v2", "onramp.move")
-			upgradeDst := filepath.Join(packageRoot, "sources", "onramp.move")
-
-			// Read the mock upgrade file from repo
-			input, err := os.ReadFile(upgradeSrc)
-			if err != nil {
-				return PackageArtifact{}, fmt.Errorf("reading onramp upgrade mock %q: %w", upgradeSrc, err)
-			}
-
-			// Overwrite the onramp.move in the sui-temp workspace
-			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
-				return PackageArtifact{}, fmt.Errorf("replacing onramp.move inside sui-temp workspace: %w", err)
-			}
-
-			ccipOnRampAddr := namedAddresses["original_onramp_pkg"]
-			if !isZeroAddress(ccipOnRampAddr) {
-				ccipOnRampDir := filepath.Join(dstRoot, "ccip", "ccip_onramp")
-				if err := managePackage(ccipOnRampDir, 1, rpcURL, env, ccipOnRampAddr, ccipOnRampAddr, pubfilePath); err != nil {
-					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP OnRamp dependency: %w", err)
-				}
-			} else {
-				fmt.Println("Skipping manage-package for CCIP OnRamp (no published address found)")
-			}
-
-			// also upgrade ccip move.Lock with updated values
-			ccipLatestAddr := namedAddresses["latest_ccip_pkg"]
-			ccipOriginalAddr := namedAddresses["ccip"]
-			if !isZeroAddress(ccipLatestAddr) && !isZeroAddress(ccipOriginalAddr) {
-				ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-				if err := managePackage(ccipDir, 2, rpcURL, env, ccipOriginalAddr, ccipLatestAddr, pubfilePath); err != nil {
-					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency for onRamp: %w", err)
-				}
-			} else {
-				fmt.Println("Skipping manage-package for CCIP Dependency for OnRamp (no published address found)")
-			}
-
 		}
 	}
 
@@ -778,50 +675,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		} else {
 			fmt.Println("Skipping manage-package for original CCIPOfframp (no published address found)")
 		}
-
-		// TODO: make this only for mock test upgrade
-		if isUpgrade {
-			// Replace offramp.move inside the temp sui-temp-* workspace with upgraded mock version
-			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_offramp_v2", "offramp.move")
-			upgradeDst := filepath.Join(packageRoot, "sources", "offramp.move")
-
-			// Read the mock upgrade file from repo
-			input, err := os.ReadFile(upgradeSrc)
-			if err != nil {
-				return PackageArtifact{}, fmt.Errorf("reading offramp upgrade mock %q: %w", upgradeSrc, err)
-			}
-
-			// Overwrite the offramp.move in the sui-temp workspace
-			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
-				return PackageArtifact{}, fmt.Errorf("replacing offramp.move inside sui-temp workspace: %w", err)
-			}
-
-			fmt.Printf(" Using upgraded offramp.move inside sui-temp workspace:\n  SRC: %s\n  DST: %s\n", upgradeSrc, upgradeDst)
-
-			ccipOffRampAddr := namedAddresses["original_offramp_pkg"]
-			if !isZeroAddress(ccipOffRampAddr) {
-				ccipOffRampDir := filepath.Join(dstRoot, "ccip", "ccip_offramp")
-				if err := managePackage(ccipOffRampDir, 1, rpcURL, env, ccipOffRampAddr, ccipOffRampAddr, pubfilePath); err != nil {
-					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP OffRamp dependency: %w", err)
-				}
-			} else {
-				fmt.Println("Skipping manage-package for CCIP OffRamp (no published address found)")
-			}
-
-			// also upgrade ccip move.Lock with updated values
-			ccipLatestAddr := namedAddresses["latest_ccip_pkg"]
-			ccipOriginalAddr := namedAddresses["ccip"]
-			if !isZeroAddress(ccipLatestAddr) && !isZeroAddress(ccipOriginalAddr) {
-				ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-				if err := managePackage(ccipDir, 2, rpcURL, env, ccipOriginalAddr, ccipLatestAddr, pubfilePath); err != nil {
-					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency for offramp: %w", err)
-				}
-			} else {
-				fmt.Println("Skipping manage-package for CCIP Dependency for OffRamp (no published address found)")
-			}
-
-		}
-
 	}
 
 	var cmd *exec.Cmd
