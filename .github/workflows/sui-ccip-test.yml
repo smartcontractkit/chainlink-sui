@@ -2,7 +2,7 @@ name: CCIP Integration Test
 
 on:
   push:
-    branches: [develop, main]
+    branches: [develop, 2.31.0-cherry-picked, main]
   pull_request:
     types: [opened, synchronize, reopened, edited]
 
