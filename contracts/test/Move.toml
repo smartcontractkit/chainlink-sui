@@ -1,11 +1,10 @@
+[package]
+edition = "2024"
+name = "TestContract"
+
 [addresses]
-  test = '0x0'
-  test_secondary = '_'
+test = "0x0"
+test_secondary = "_"
 
 [dependencies]
-  [dependencies.TestContractSecondary]
-    local = '../test_secondary'
-
-[package]
-  edition = '2024'
-  name = 'TestContract'
+TestContractSecondary = { local = "../test_secondary" }
