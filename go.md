@@ -137,7 +137,7 @@ flowchart LR
 	chainlink-framework/chains --> chainlink-common
 	chainlink-framework/chains --> chainlink-framework/multinode
 	click chainlink-framework/chains href "https://github.com/smartcontractkit/chainlink-framework"
-	chainlink-framework/metrics
+	chainlink-framework/metrics --> chainlink-common
 	click chainlink-framework/metrics href "https://github.com/smartcontractkit/chainlink-framework"
 	chainlink-framework/multinode
 	click chainlink-framework/multinode href "https://github.com/smartcontractkit/chainlink-framework"
@@ -217,7 +217,6 @@ flowchart LR
 	mcms --> chainlink-ccip/chains/solana
 	mcms --> chainlink-sui
 	mcms --> chainlink-testing-framework/framework
-	mcms --> chainlink-ton
 	click mcms href "https://github.com/smartcontractkit/mcms"
 	quarantine
 	click quarantine href "https://github.com/smartcontractkit/quarantine"
