@@ -9,6 +9,7 @@ on:
     branches:
       - develop
       - staging
+      - 2.31.0-cherry-picked
   merge_group:
 
 jobs:
