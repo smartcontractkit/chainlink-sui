@@ -57,7 +57,7 @@ func PublishPackage(
 		return "", nil, fmt.Errorf("invalid signer address %v: %w", signerAddressStr, err)
 	}
 
-	gasBudgetValueDefault := uint64(500_000_000)
+	gasBudgetValueDefault := uint64(1_000_000_000)
 	if opts.GasBudget == nil {
 		opts.GasBudget = &gasBudgetValueDefault // 500M MIST default for publish
 	}

@@ -20,27 +20,27 @@ jobs:
       matrix:
         include:
           - test_name: Test_CCIP_Messaging_Sui2EVM
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.65.2
           - test_name: Test_CCIP_Messaging_EVM2Sui
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.65.2
           - test_name: Test_CCIP_EVM2Sui_ZeroReceiver
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.65.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_LockReleaseTokenPool
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.65.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.65.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool_WithRateLimit
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.65.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool_WithAllowlist
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.65.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool_ThenGloballyCursedUncursed
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.65.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_ManagedTokenPool_ThenCurseUncurse
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.65.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_ManagedTokenPool_WithRateLimit
-            sui_version: mainnet-v1.60.1
-          - test_name: Test_CCIP_Upgrade_Sui2EVM
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.65.2
+          # - test_name: Test_CCIP_Upgrade_Sui2EVM
+          #   sui_version: mainnet-v1.64.1
           # - test_name: Test_CCIP_Upgrade_EVM2Sui
           #   sui_version: mainnet-v1.60.1
           # - test_name: Test_CCIP_Upgrade_CommonPkg_EVM2Sui

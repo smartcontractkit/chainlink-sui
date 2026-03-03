@@ -66,6 +66,12 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	t.Helper()
 	ctx := context.Background()
 
+	testutils.CleanupTestContracts()
+
+	t.Cleanup(func() {
+		testutils.CleanupTestContracts()
+	})
+
 	keystoreInstance := testutils.NewTestKeystore(t)
 	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
@@ -87,7 +93,6 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 	// Now publish counter with test_secondary package ID patched in Move.toml
 	contractPath = testutils.BuildSetup(t, "contracts/test")
-	testutils.PatchContractAddressTOML(t, "contracts/test", "test_secondary", "_")
 	packageId, tx, err := testutils.PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
 	require.NoError(t, err)
 	require.NotNil(t, packageId)
