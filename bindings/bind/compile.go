@@ -550,6 +550,25 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		} else {
 			fmt.Println("Skipping manage-package for original CCIP (no published address found)")
 		}
+
+		// if upgrade it needs to move.lock in it's own pkg
+		if isUpgrade {
+			// Replace fee_quoter.move inside the temp sui-temp-* workspace with upgraded mock version
+			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_ccip_v2", "fee_quoter.move")
+
+			// Path inside the temp workspace (automatically created)
+			upgradeDst := filepath.Join(packageRoot, "sources", "fee_quoter.move")
+
+			input, err := os.ReadFile(upgradeSrc)
+			if err != nil {
+				return PackageArtifact{}, fmt.Errorf("reading fee_quoter upgrade mock %q: %w", upgradeSrc, err)
+			}
+
+			// Overwrite the onramp.move in the sui-temp workspace
+			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
+				return PackageArtifact{}, fmt.Errorf("replacing fee_quoter.move inside sui-temp workspace: %w", err)
+			}
+		}
 	}
 
 	if packageName == contracts.CCIPOnramp {
