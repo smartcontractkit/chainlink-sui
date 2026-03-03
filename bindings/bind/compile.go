@@ -281,13 +281,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		return PackageArtifact{}, fmt.Errorf("failed to get chain identifier: %w", err)
 	}
 
-	// Apply source modifications if provided (test only - happens in temp dir)
-	if modifier != nil {
-		if err := modifier(packageRoot); err != nil {
-			return PackageArtifact{}, fmt.Errorf("applying source modifications: %w", err)
-		}
-	}
-
 	// Ensure environment is set in the main package
 	if err := EnsureEnvironmentInMoveToml(packageRoot, env, chainID); err != nil {
 		return PackageArtifact{}, fmt.Errorf("failed to set environment in %s: %w", packageRoot, err)
@@ -634,6 +627,14 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			}
 		} else {
 			fmt.Println("Skipping manage-package for original CCIPOfframp (no published address found)")
+		}
+	}
+
+	// Apply source modifications if provided (test only - happens in temp dir).
+	// This runs after mock file replacements so modifiers see the final source.
+	if modifier != nil {
+		if err := modifier(packageRoot); err != nil {
+			return PackageArtifact{}, fmt.Errorf("applying source modifications: %w", err)
 		}
 	}
 
