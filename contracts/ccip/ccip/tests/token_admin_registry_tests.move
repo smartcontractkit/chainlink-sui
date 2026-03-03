@@ -724,7 +724,7 @@ public fun test_transfer_admin_role_not_registered() {
 }
 
 #[test]
-#[expected_failure(abort_code = registry::ENotAllowed)]
+#[expected_failure(abort_code = registry::ENotAdministrator)]
 public fun test_register_and_unregister_as_non_admin() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
     let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);

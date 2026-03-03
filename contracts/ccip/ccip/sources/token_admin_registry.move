@@ -493,13 +493,25 @@ public fun unregister_pool(
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
-    unregister_pool_internal(ref, coin_metadata_address, ctx.sender());
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"unregister_pool"),
+        VERSION,
+    );
+    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
+
+    assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
+
+    let token_config = state.token_configs.borrow(coin_metadata_address);
+    assert!(token_config.administrator == ctx.sender(), ENotAdministrator);
+
+    remove_pool_config(state, coin_metadata_address);
 }
 
-fun unregister_pool_internal(
+fun unregister_pool_via_mcms(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
-    caller: address,
 ) {
     verify_function_allowed(
         ref,
@@ -511,16 +523,16 @@ fun unregister_pool_internal(
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
 
+    remove_pool_config(state, coin_metadata_address);
+}
+
+fun remove_pool_config(
+    state: &mut TokenAdminRegistryState,
+    coin_metadata_address: address,
+) {
     let token_config = state.token_configs.remove(coin_metadata_address);
-
-    assert!(
-        token_config.administrator == caller || token_config.administrator == mcms_registry::get_multisig_address(),
-        ENotAllowed,
-    );
-
     let previous_pool_address = token_config.token_pool_package_id;
 
-    // Remove mapping from package id -> coin metadata to avoid stale entries
     assert!(
         state.token_pool_package_id_to_coin_metadata.contains(previous_pool_address),
         ETokenPoolPackageIdNotRegistered,
@@ -726,7 +738,7 @@ public fun mcms_unregister_pool(
     let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    unregister_pool_internal(ref, coin_metadata_address, mcms_registry::get_multisig_address());
+    unregister_pool_via_mcms(ref, coin_metadata_address);
 }
 
 public fun mcms_transfer_admin_role(
