@@ -5,15 +5,14 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/pelletier/go-toml/v2"
@@ -28,12 +27,18 @@ type ObjectChange struct {
 	Sender          string   `json:"sender,omitempty"`
 	Owner           Owner    `json:"owner,omitempty"`
 	ObjectType      string   `json:"objectType,omitempty"`
+	ObjectTypeSnake string   `json:"object_type,omitempty"`
 	ObjectID        string   `json:"objectId,omitempty"`
+	ObjectIDSnake   string   `json:"object_id,omitempty"`
 	Version         string   `json:"version,omitempty"`
 	PreviousVersion string   `json:"previousVersion,omitempty"`
 	Digest          string   `json:"digest,omitempty"`
 	PackageID       string   `json:"packageId,omitempty"` // Only in type == "published"
-	Modules         []string `json:"modules,omitempty"`   // Only in type == "published"
+	OutputState     string   `json:"outputState,omitempty"`
+	OutputStateAlt  string   `json:"output_state,omitempty"`
+	IDOperation     string   `json:"idOperation,omitempty"`
+	IDOperationAlt  string   `json:"id_operation,omitempty"`
+	Modules         []string `json:"modules,omitempty"` // Only in type == "published"
 }
 
 type Owner struct {
@@ -47,7 +52,40 @@ type SharedOwner struct {
 }
 
 type TxnMetaWithObjectChanges struct {
-	ObjectChanges []ObjectChange `json:"objectChanges"`
+	ObjectChanges       []ObjectChange `json:"objectChanges"`
+	ObjectChangesSnake  []ObjectChange `json:"object_changes"`
+	ChangedObjects      []ObjectChange `json:"changed_objects"`
+	ChangedObjectsCamel []ObjectChange `json:"changedObjects"`
+}
+
+func normalizeObjectChanges(changes []ObjectChange) []ObjectChange {
+	for i := range changes {
+		if changes[i].ObjectID == "" {
+			changes[i].ObjectID = changes[i].ObjectIDSnake
+		}
+		if changes[i].ObjectType == "" {
+			changes[i].ObjectType = changes[i].ObjectTypeSnake
+		}
+		if changes[i].OutputState == "" {
+			changes[i].OutputState = changes[i].OutputStateAlt
+		}
+		if changes[i].IDOperation == "" {
+			changes[i].IDOperation = changes[i].IDOperationAlt
+		}
+
+		// Newer Sui JSON uses object-level metadata rather than "type":"published/created".
+		if changes[i].Type == "" {
+			if changes[i].ObjectType == "package" || changes[i].OutputState == "OUTPUT_OBJECT_STATE_PACKAGE_WRITE" {
+				changes[i].Type = "published"
+				if changes[i].PackageID == "" {
+					changes[i].PackageID = changes[i].ObjectID
+				}
+			} else if strings.EqualFold(changes[i].IDOperation, "CREATED") {
+				changes[i].Type = "created"
+			}
+		}
+	}
+	return changes
 }
 
 func BuildSetup(t *testing.T, packagePath string) string {
@@ -69,14 +107,13 @@ func BuildSetup(t *testing.T, packagePath string) string {
 	return contractPath
 }
 
-func findDigestIndex(input string) (int, error) {
-	digestRegex := regexp.MustCompile(`"digest":\s*"[A-Za-z0-9]+"`)
-	loc := digestRegex.FindStringIndex(input)
-	if loc == nil {
-		return -1, errors.New("digest not found")
+func extractJSONOutput(output string) (string, error) {
+	start := strings.Index(output, "{")
+	end := strings.LastIndex(output, "}")
+	if start == -1 || end == -1 || end < start {
+		return "", fmt.Errorf("json output not found")
 	}
-
-	return loc[0], nil
+	return output[start : end+1], nil
 }
 
 func BuildContract(t *testing.T, contractPath string) {
@@ -172,24 +209,37 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	publishOutput, err := publishCmd.CombinedOutput()
 	require.NoError(t, err, "Failed to publish contract: %s", string(publishOutput))
 
-	// This is a hack to skip the warnings from the CLI output by searching for "digest" with regex
-	// and then extracting the JSON from there.
-	idx, err := findDigestIndex(string(publishOutput))
+	cleanedOutput, err := extractJSONOutput(string(publishOutput))
 	require.NoError(t, err)
-	cleanedOutput := "{" + string(publishOutput)[idx:]
 
 	// Unmarshal the JSON into a map.
 	var parsedPublishTxn TxnMetaWithObjectChanges
-	if err := json.Unmarshal([]byte(cleanedOutput), &parsedPublishTxn); err != nil {
-		log.Fatalf("failed to unmarshal JSON: %v", err)
+	err = json.Unmarshal([]byte(cleanedOutput), &parsedPublishTxn)
+	require.NoError(t, err, "Failed to parse publish output: %s", cleanedOutput)
+
+	if len(parsedPublishTxn.ObjectChanges) == 0 && len(parsedPublishTxn.ObjectChangesSnake) > 0 {
+		parsedPublishTxn.ObjectChanges = parsedPublishTxn.ObjectChangesSnake
 	}
+	if len(parsedPublishTxn.ObjectChanges) == 0 && len(parsedPublishTxn.ChangedObjects) > 0 {
+		parsedPublishTxn.ObjectChanges = parsedPublishTxn.ChangedObjects
+	}
+	if len(parsedPublishTxn.ObjectChanges) == 0 && len(parsedPublishTxn.ChangedObjectsCamel) > 0 {
+		parsedPublishTxn.ObjectChanges = parsedPublishTxn.ChangedObjectsCamel
+	}
+	parsedPublishTxn.ObjectChanges = normalizeObjectChanges(parsedPublishTxn.ObjectChanges)
 
 	changes := parsedPublishTxn.ObjectChanges
 
 	var packageId string
 	for _, change := range changes {
-		if change.Type == "published" {
+		if change.Type == "published" && change.PackageID != "" {
 			packageId = change.PackageID
+			break
+		}
+
+		// Newer Sui output can represent package publish as objectType=package.
+		if (change.ObjectType == "package" || change.OutputState == "OUTPUT_OBJECT_STATE_PACKAGE_WRITE") && change.ObjectID != "" {
+			packageId = change.ObjectID
 			break
 		}
 	}
