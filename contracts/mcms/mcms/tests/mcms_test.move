@@ -23,10 +23,10 @@ const VALID_UNTIL: u64 = 1762295599;
 
 const MIN_DELAY: u64 = 1; // 1 second delay
 
-// Proposer signers from the logs (in ascending order)
-const PROPOSER_ADDR1: vector<u8> = x"1be31a94361a391bbafb2a4ccd704f57dc04d4bb";
-const PROPOSER_ADDR2: vector<u8> = x"54fbab370edce4e26bea04bc7c82ba29cf083f88";
-const PROPOSER_ADDR3: vector<u8> = x"d4d6df7723a087452e72513c50a2138a3bd39454";
+// Proposer signers derived from deterministic seeds (sorted ascending)
+const PROPOSER_ADDR1: vector<u8> = x"2b5ad5c4795c026514f8317c7a215e218dccd6cf";
+const PROPOSER_ADDR2: vector<u8> = x"6813eb9362372eef6200f3b1dbc3f819671cba69";
+const PROPOSER_ADDR3: vector<u8> = x"7e5f4552091a69125d5dfcb7b8c2659029395bdf";
 
 // test config: 2-of-3 multisig
 const SIGNER_GROUPS: vector<u8> = vector[0, 0, 0];
@@ -39,21 +39,21 @@ const GROUP_PARENTS: vector<u8> = vector[
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
-const ROOT: vector<u8> = x"6da9c82a0d8908be9e4dea0dc6b9c3f8ff32450bb5796212fcf3338e66123f7b";
+const ROOT: vector<u8> = x"02265107f55a98d78cc2ae5910e14f389f28afeae8cbb4a6b58d2a1e997b44bd";
 const SIGNATURES: vector<vector<u8>> = vector[
-    x"39dd065bfe2928aa4ada3e055132aab6b2455ad2ddeb9d784a0213b66a2c1ab675924ffd8824c2cb0ee64bc42ccd639aa53032b2fd5e2255da4f4bb967fa0b841b",
-    x"aed703d98a51490342d34eed2b209c347c0114b3f3f93cf9803a59d1f86510436ec1c9436b7be87a72ab2a656f1761bad2e068925e0c5c2846a22f020b6932241b",
+    x"f7d88e6c32389053429c75762b79777329cda5974b2402a04c6b3f5d32ddfd267107d1d09e895d41788fbaf4b8a8b798d225325c15bea1e78d5ca7e5af26e2501b",
+    x"d93eec6f57ffab038e7a8a14056c30643ef28f484cf2e90c01e36ad21dbf1ec5190000f35ad91a0af9248fa6d6bdf79b0b62d30b8541df351635456193a18c9e1c",
 ];
 
 const PRE_OP_COUNT: u64 = 0;
 const POST_OP_COUNT: u64 = 1;
 
 const METADATA_PROOF: vector<vector<u8>> = vector[
-    x"1b47c8feebec01e0757dec94509eb3f00f31e0769484035d8e8630a4ab529cb6", // OP hash (sibling proof for metadata leaf)
+    x"60aca62639a14862806492b9fb384b02a4f325f204dc51579f8b0f51ed6fd9d2", // OP hash (sibling proof for metadata leaf)
 ];
 
 const OP1_PROOF: vector<vector<u8>> = vector[
-    x"f3239d6c4914650ec204a1c242c0fe9b4e11c24037235362f8cf1f97e6204f7a", // METADATA hash (sibling proof for op leaf)
+    x"ae675bc2daf4f44b0eeea013c0e09e54f5af4aeb002068f06490b24882716b7a", // METADATA hash (sibling proof for op leaf)
 ];
 
 // The OPs contained are
@@ -67,8 +67,8 @@ const OP1_PROOF: vector<vector<u8>> = vector[
 // 			Salt:        []byte{},
 // 		},
 const LEAVES: vector<vector<u8>> = vector[
-    x"f3239d6c4914650ec204a1c242c0fe9b4e11c24037235362f8cf1f97e6204f7a", // METADATA hash (metadata leaves come first)
-    x"1b47c8feebec01e0757dec94509eb3f00f31e0769484035d8e8630a4ab529cb6", // OP hash (operation leaves come second)
+    x"ae675bc2daf4f44b0eeea013c0e09e54f5af4aeb002068f06490b24882716b7a", // METADATA hash (metadata leaves come first)
+    x"60aca62639a14862806492b9fb384b02a4f325f204dc51579f8b0f51ed6fd9d2", // OP hash (operation leaves come second)
 ];
 
 const OP1_NONCE: u64 = 0;
@@ -533,69 +533,69 @@ public fun test_set_root__metadata_not_consistent_with_proof() {
 //     env.destroy();
 // }
 
-// #[test]
-// #[expected_failure(abort_code = mcms::EInsufficientSigners, location = mcms)]
-// fun test_set_root__signer_quorum_not_met() {
-//     let mut env = setup();
-//     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
-//     let role = mcms::proposer_role();
-//     mcms::set_config(
-//         &owner_cap,
-//         &mut env.state,
-//         role,
-//         CHAIN_ID,
-//         vector[PROPOSER_ADDR1, PROPOSER_ADDR2, PROPOSER_ADDR3],
-//         SIGNER_GROUPS,
-//         GROUP_QUORUMS,
-//         GROUP_PARENTS,
-//         false,
-//         env.scenario.ctx(),
-//     );
-//     let mut set_root_args = default_set_root_args(false);
-//     let signer1 = set_root_args.signatures[0];
-//     set_root_args.signatures = vector[signer1]; // only 1 signature, quorum is 2
-//     call_set_root(&mut env, set_root_args);
+#[test]
+#[expected_failure(abort_code = mcms::EInsufficientSigners, location = mcms)]
+fun test_set_root__signer_quorum_not_met() {
+    let mut env = setup();
+    let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
+    let role = mcms::proposer_role();
+    mcms::set_config(
+        &owner_cap,
+        &mut env.state,
+        role,
+        CHAIN_ID,
+        vector[PROPOSER_ADDR1, PROPOSER_ADDR2, PROPOSER_ADDR3],
+        SIGNER_GROUPS,
+        GROUP_QUORUMS,
+        GROUP_PARENTS,
+        false,
+        env.scenario.ctx(),
+    );
+    let mut set_root_args = default_set_root_args(false);
+    let signer1 = set_root_args.signatures[0];
+    set_root_args.signatures = vector[signer1]; // only 1 signature, quorum is 2
+    call_set_root(&mut env, set_root_args);
 
-//     ts::return_to_sender(&env.scenario, owner_cap);
-//     env.destroy();
-// }
+    ts::return_to_sender(&env.scenario, owner_cap);
+    env.destroy();
+}
 
-// #[test]
-// fun test_set_root__success() {
-//     let mut env = setup();
-//     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
-//     let expected_role = mcms::proposer_role();
-//     mcms::set_config(
-//         &owner_cap,
-//         &mut env.state,
-//         expected_role,
-//         CHAIN_ID,
-//         vector[PROPOSER_ADDR1, PROPOSER_ADDR2, PROPOSER_ADDR3],
-//         SIGNER_GROUPS,
-//         GROUP_QUORUMS,
-//         GROUP_PARENTS,
-//         false,
-//         env.scenario.ctx(),
-//     );
-//     let set_root_args = default_set_root_args(false);
-//     call_set_root(&mut env, set_root_args);
+#[test]
+fun test_set_root__success() {
+    let mut env = setup();
+    let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
+    let expected_role = mcms::proposer_role();
+    mcms::set_config(
+        &owner_cap,
+        &mut env.state,
+        expected_role,
+        CHAIN_ID,
+        vector[PROPOSER_ADDR1, PROPOSER_ADDR2, PROPOSER_ADDR3],
+        SIGNER_GROUPS,
+        GROUP_QUORUMS,
+        GROUP_PARENTS,
+        false,
+        env.scenario.ctx(),
+    );
+    let set_root_args = default_set_root_args(false);
+    call_set_root(&mut env, set_root_args);
 
-//     let (root, valid_until, op_count) = mcms::expiring_root_and_op_count(&env.state, expected_role);
-//     assert!(root == ROOT);
-//     assert!(valid_until == VALID_UNTIL);
-//     assert!(op_count == PRE_OP_COUNT);
+    let (root, valid_until, op_count) = mcms::expiring_root_and_op_count(&env.state, expected_role);
+    assert!(root == ROOT);
+    assert!(valid_until == VALID_UNTIL);
+    assert!(op_count == PRE_OP_COUNT);
 
-//     let root_metadata = mcms::get_root_metadata(&env.state, expected_role);
-//     assert!(mcms::role(&root_metadata) == expected_role);
-//     assert!(mcms::chain_id(&root_metadata) == CHAIN_ID);
-//     assert!(mcms::root_metadata_multisig(&root_metadata) == mcms_registry::get_multisig_address());
-//     assert!(mcms::pre_op_count(&root_metadata) == PRE_OP_COUNT);
-//     assert!(mcms::post_op_count(&root_metadata) == POST_OP_COUNT);
-//     assert!(mcms::override_previous_root(&root_metadata) == false);
+    let root_metadata = mcms::get_root_metadata(&env.state, expected_role);
+    assert!(mcms::role(&root_metadata) == expected_role);
+    assert!(mcms::chain_id(&root_metadata) == CHAIN_ID);
+    assert!(mcms::root_metadata_multisig(&root_metadata) == mcms_registry::get_multisig_address());
+    assert!(mcms::pre_op_count(&root_metadata) == PRE_OP_COUNT);
+    assert!(mcms::post_op_count(&root_metadata) == POST_OP_COUNT);
+    assert!(mcms::override_previous_root(&root_metadata) == false);
 
-//     ts::return_to_sender(&env.scenario, owner_cap);
-//     env.destroy();
-// }
+    ts::return_to_sender(&env.scenario, owner_cap);
+    env.destroy();
+}
 
 #[test]
 #[expected_failure(abort_code = mcms::EProofCannotBeVerified, location = mcms)]
@@ -1069,138 +1069,138 @@ fun test_execute__root_not_set() {
     destroy(env);
 }
 
-// #[test]
-// #[expected_failure(abort_code = mcms::EPostOpCountReached, location = mcms)]
-// fun test_execute__post_op_count_reached() {
-//     let mut env = setup();
-//     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
+#[test]
+#[expected_failure(abort_code = mcms::EPostOpCountReached, location = mcms)]
+fun test_execute__post_op_count_reached() {
+    let mut env = setup();
+    let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
 
-//     let role = mcms::proposer_role();
-//     mcms::set_config(
-//         &owner_cap,
-//         &mut env.state,
-//         role,
-//         CHAIN_ID,
-//         vector[PROPOSER_ADDR1, PROPOSER_ADDR2, PROPOSER_ADDR3],
-//         SIGNER_GROUPS,
-//         GROUP_QUORUMS,
-//         GROUP_PARENTS,
-//         false,
-//         env.scenario.ctx(),
-//     );
+    let role = mcms::proposer_role();
+    mcms::set_config(
+        &owner_cap,
+        &mut env.state,
+        role,
+        CHAIN_ID,
+        vector[PROPOSER_ADDR1, PROPOSER_ADDR2, PROPOSER_ADDR3],
+        SIGNER_GROUPS,
+        GROUP_QUORUMS,
+        GROUP_PARENTS,
+        false,
+        env.scenario.ctx(),
+    );
 
-//     call_set_root(&mut env, default_set_root_args(false));
-//     let post_op_count = POST_OP_COUNT;
-//     mcms::test_set_expiring_root_and_op_count(
-//         &mut env.state,
-//         role,
-//         ROOT,
-//         VALID_UNTIL,
-//         post_op_count,
-//     );
+    call_set_root(&mut env, default_set_root_args(false));
+    let post_op_count = POST_OP_COUNT;
+    mcms::test_set_expiring_root_and_op_count(
+        &mut env.state,
+        role,
+        ROOT,
+        VALID_UNTIL,
+        post_op_count,
+    );
 
-//     let execute_args = default_execute_args();
-//     ts::return_to_sender(&env.scenario, owner_cap);
-//     call_execute_expect_failure(&mut env, execute_args);
-//     destroy(env);
-// }
+    let execute_args = default_execute_args();
+    ts::return_to_sender(&env.scenario, owner_cap);
+    call_execute_expect_failure(&mut env, execute_args);
+    destroy(env);
+}
 
-// #[test]
-// #[expected_failure(abort_code = mcms::EWrongNonce, location = mcms)]
-// fun test_execute__wrong_nonce() {
-//     let mut env = setup();
-//     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
+#[test]
+#[expected_failure(abort_code = mcms::EWrongNonce, location = mcms)]
+fun test_execute__wrong_nonce() {
+    let mut env = setup();
+    let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
 
-//     let role = mcms::proposer_role();
-//     mcms::set_config(
-//         &owner_cap,
-//         &mut env.state,
-//         role,
-//         CHAIN_ID,
-//         vector[PROPOSER_ADDR1, PROPOSER_ADDR2, PROPOSER_ADDR3],
-//         SIGNER_GROUPS,
-//         GROUP_QUORUMS,
-//         GROUP_PARENTS,
-//         false,
-//         env.scenario.ctx(),
-//     );
+    let role = mcms::proposer_role();
+    mcms::set_config(
+        &owner_cap,
+        &mut env.state,
+        role,
+        CHAIN_ID,
+        vector[PROPOSER_ADDR1, PROPOSER_ADDR2, PROPOSER_ADDR3],
+        SIGNER_GROUPS,
+        GROUP_QUORUMS,
+        GROUP_PARENTS,
+        false,
+        env.scenario.ctx(),
+    );
 
-//     call_set_root(&mut env, default_set_root_args(false));
+    call_set_root(&mut env, default_set_root_args(false));
 
-//     let mut execute_args = default_execute_args();
-//     execute_args.nonce = 999; // wrong nonce
+    let mut execute_args = default_execute_args();
+    execute_args.nonce = 999; // wrong nonce
 
-//     ts::return_to_sender(&env.scenario, owner_cap);
-//     call_execute_expect_failure(&mut env, execute_args);
-//     destroy(env);
-// }
+    ts::return_to_sender(&env.scenario, owner_cap);
+    call_execute_expect_failure(&mut env, execute_args);
+    destroy(env);
+}
 
-// #[test]
-// #[expected_failure(abort_code = mcms::EWrongMultisig, location = mcms)]
-// fun test_execute__wrong_multisig_addr() {
-//     let mut env = setup();
-//     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
+#[test]
+#[expected_failure(abort_code = mcms::EWrongMultisig, location = mcms)]
+fun test_execute__wrong_multisig_addr() {
+    let mut env = setup();
+    let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
 
-//     let role = mcms::proposer_role();
-//     mcms::set_config(
-//         &owner_cap,
-//         &mut env.state,
-//         role,
-//         CHAIN_ID,
-//         vector[PROPOSER_ADDR1, PROPOSER_ADDR2, PROPOSER_ADDR3],
-//         SIGNER_GROUPS,
-//         GROUP_QUORUMS,
-//         GROUP_PARENTS,
-//         false,
-//         env.scenario.ctx(),
-//     );
+    let role = mcms::proposer_role();
+    mcms::set_config(
+        &owner_cap,
+        &mut env.state,
+        role,
+        CHAIN_ID,
+        vector[PROPOSER_ADDR1, PROPOSER_ADDR2, PROPOSER_ADDR3],
+        SIGNER_GROUPS,
+        GROUP_QUORUMS,
+        GROUP_PARENTS,
+        false,
+        env.scenario.ctx(),
+    );
 
-//     call_set_root(&mut env, default_set_root_args(false));
+    call_set_root(&mut env, default_set_root_args(false));
 
-//     let mut execute_args = default_execute_args();
-//     execute_args.multisig = @0x12345; // wrong multisig address
+    let mut execute_args = default_execute_args();
+    execute_args.multisig = @0x12345; // wrong multisig address
 
-//     ts::return_to_sender(&env.scenario, owner_cap);
-//     call_execute_expect_failure(&mut env, execute_args);
-//     destroy(env);
-// }
+    ts::return_to_sender(&env.scenario, owner_cap);
+    call_execute_expect_failure(&mut env, execute_args);
+    destroy(env);
+}
 
-// #[test]
-// #[expected_failure(abort_code = mcms::EValidUntilExpired, location = mcms)]
-// fun test_execute__root_expired() {
-//     let mut env = setup();
-//     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
+#[test]
+#[expected_failure(abort_code = mcms::EValidUntilExpired, location = mcms)]
+fun test_execute__root_expired() {
+    let mut env = setup();
+    let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
 
-//     let role = mcms::proposer_role();
-//     mcms::set_config(
-//         &owner_cap,
-//         &mut env.state,
-//         role,
-//         CHAIN_ID,
-//         vector[PROPOSER_ADDR1, PROPOSER_ADDR2, PROPOSER_ADDR3],
-//         SIGNER_GROUPS,
-//         GROUP_QUORUMS,
-//         GROUP_PARENTS,
-//         false,
-//         env.scenario.ctx(),
-//     );
+    let role = mcms::proposer_role();
+    mcms::set_config(
+        &owner_cap,
+        &mut env.state,
+        role,
+        CHAIN_ID,
+        vector[PROPOSER_ADDR1, PROPOSER_ADDR2, PROPOSER_ADDR3],
+        SIGNER_GROUPS,
+        GROUP_QUORUMS,
+        GROUP_PARENTS,
+        false,
+        env.scenario.ctx(),
+    );
 
-//     call_set_root(&mut env, default_set_root_args(false));
+    call_set_root(&mut env, default_set_root_args(false));
 
-//     // Set expired root
-//     mcms::test_set_expiring_root_and_op_count(
-//         &mut env.state,
-//         role,
-//         ROOT,
-//         TIMESTAMP - 1,
-//         0, // expired valid_until
-//     );
+    // Set expired root
+    mcms::test_set_expiring_root_and_op_count(
+        &mut env.state,
+        role,
+        ROOT,
+        TIMESTAMP - 1,
+        0, // expired valid_until
+    );
 
-//     let execute_args = default_execute_args();
-//     ts::return_to_sender(&env.scenario, owner_cap);
-//     call_execute_expect_failure(&mut env, execute_args);
-//     destroy(env);
-// }
+    let execute_args = default_execute_args();
+    ts::return_to_sender(&env.scenario, owner_cap);
+    call_execute_expect_failure(&mut env, execute_args);
+    destroy(env);
+}
 
 #[test]
 #[expected_failure(abort_code = mcms::EProofCannotBeVerified, location = mcms)]
@@ -2097,66 +2097,66 @@ fun test_operation_status_functions() {
 
 // ============== Utility tests ================= //
 
-// #[test]
-// #[allow(implicit_const_copy)]
-// fun test_utils__hash_metadata_leaf() {
-//     let hash = mcms::test_hash_metadata_leaf(
-//         mcms::proposer_role(), // role
-//         CHAIN_ID, // chain_id
-//         mcms_registry::get_multisig_address(), // multisig
-//         PRE_OP_COUNT, // pre_op_count
-//         POST_OP_COUNT, // post_op_count
-//         false, // override_previous_root
-//     );
+#[test]
+#[allow(implicit_const_copy)]
+fun test_utils__hash_metadata_leaf() {
+    let hash = mcms::test_hash_metadata_leaf(
+        mcms::proposer_role(), // role
+        CHAIN_ID, // chain_id
+        mcms_registry::get_multisig_address(), // multisig
+        PRE_OP_COUNT, // pre_op_count
+        POST_OP_COUNT, // post_op_count
+        false, // override_previous_root
+    );
 
-//     // Assert exact metadata leaf hash matches the expected metadata leaf
-//     let expected_metadata_hash = LEAVES[0]; // LEAVES[0] is metadata hash after reordering
-//     assert!(hash == expected_metadata_hash);
-// }
+    // Assert exact metadata leaf hash matches the expected metadata leaf
+    let expected_metadata_hash = LEAVES[0]; // LEAVES[0] is metadata hash after reordering
+    assert!(hash == expected_metadata_hash);
+}
 
-// #[test]
-// #[allow(implicit_const_copy)]
-// fun test_utils__hash_op_leaf() {
-//     let op = mcms::test_create_op(
-//         mcms::proposer_role(), // role
-//         CHAIN_ID, // chain_id
-//         mcms_registry::get_multisig_address(), // multisig
-//         OP1_NONCE, // nonce
-//         mcms_registry::get_multisig_address(), // to
-//         string::utf8(b"mcms"), // module_name
-//         string::utf8(b"timelock_schedule_batch"), // function_name
-//         OP1_DATA, // data
-//     );
+#[test]
+#[allow(implicit_const_copy)]
+fun test_utils__hash_op_leaf() {
+    let op = mcms::test_create_op(
+        mcms::proposer_role(), // role
+        CHAIN_ID, // chain_id
+        mcms_registry::get_multisig_address(), // multisig
+        OP1_NONCE, // nonce
+        mcms_registry::get_multisig_address(), // to
+        string::utf8(b"mcms"), // module_name
+        string::utf8(b"timelock_schedule_batch"), // function_name
+        OP1_DATA, // data
+    );
 
-//     let hash = mcms::hash_op_leaf(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP, op);
+    let hash = mcms::hash_op_leaf(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP, op);
 
-//     // Assert exact OP leaf hash matches the expected operation leaf
-//     let expected_op_hash = LEAVES[1]; // LEAVES[1] is OP hash after reordering
-//     assert!(hash == expected_op_hash);
-// }
+    // Assert exact OP leaf hash matches the expected operation leaf
+    let expected_op_hash = LEAVES[1]; // LEAVES[1] is OP hash after reordering
+    assert!(hash == expected_op_hash);
+}
 
-// #[test]
-// #[allow(implicit_const_copy)]
-// fun test_verify_merkle_proof_with_hash_op() {
-//     let op = mcms::test_create_op(
-//         mcms::proposer_role(), // role
-//         CHAIN_ID, // chain_id
-//         mcms_registry::get_multisig_address(), // multisig
-//         OP1_NONCE,
-//         mcms_registry::get_multisig_address(), // to
-//         string::utf8(b"mcms"), // module_name
-//         string::utf8(b"timelock_schedule_batch"), // function_name
-//         OP1_DATA, // data
-//     );
+#[test]
+#[allow(implicit_const_copy)]
+fun test_verify_merkle_proof_with_hash_op() {
+    let op = mcms::test_create_op(
+        mcms::proposer_role(), // role
+        CHAIN_ID, // chain_id
+        mcms_registry::get_multisig_address(), // multisig
+        OP1_NONCE,
+        mcms_registry::get_multisig_address(), // to
+        string::utf8(b"mcms"), // module_name
+        string::utf8(b"timelock_schedule_batch"), // function_name
+        OP1_DATA, // data
+    );
 
-//     let computed_leaf_hash = mcms::hash_op_leaf(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP, op);
+    let computed_leaf_hash = mcms::hash_op_leaf(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP, op);
 
-//     // Must match expected leaf, then verify merkle proof
-//     let expected_leaf_hash = LEAVES[1]; // LEAVES[1] is OP hash after reordering
-//     let expected_root = ROOT;
-//     assert!(computed_leaf_hash == expected_leaf_hash);
-//     assert!(mcms::verify_merkle_proof(OP1_PROOF, expected_root, computed_leaf_hash));
-// }
+    // Must match expected leaf, then verify merkle proof
+    let expected_leaf_hash = LEAVES[1]; // LEAVES[1] is OP hash after reordering
+    let expected_root = ROOT;
+    assert!(computed_leaf_hash == expected_leaf_hash);
+    assert!(mcms::verify_merkle_proof(OP1_PROOF, expected_root, computed_leaf_hash));
+}
 
 #[test]
 #[allow(implicit_const_copy)]
@@ -2940,75 +2940,70 @@ fun test_timelock_dispatch_to_account() {
     env.destroy();
 }
 
-// #[test]
-// #[
-//     expected_failure(
-//         abort_code = sui::package::EAlreadyAuthorized,
-//     ),
-// ] // In tests, mcms is @0x0 so package::authorize_upgrade will revert if the package address is @0x0
-// fun test_timelock_dispatch_to_deployer() {
-//     let mut env = setup();
+#[test]
+fun test_timelock_dispatch_to_deployer() {
+    let mut env = setup();
 
-//     // First, we need to register an owner cap in the registry for dispatch to work
-//     let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
-//     let owner_cap_id = object::id_address(&owner_cap);
-//     let publisher_wrapper = mcms_account::test_create_publisher_wrapper(&owner_cap);
-//     mcms_registry::register_entrypoint(
-//         &mut env.registry,
-//         publisher_wrapper,
-//         mcms_account::create_mcms_account_proof(),
-//         owner_cap,
-//         vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
-//         env.scenario.ctx(),
-//     );
+    // First, we need to register an owner cap in the registry for dispatch to work
+    let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
+    let owner_cap_id = object::id_address(&owner_cap);
+    let publisher_wrapper = mcms_account::test_create_publisher_wrapper(&owner_cap);
+    mcms_registry::register_entrypoint(
+        &mut env.registry,
+        publisher_wrapper,
+        mcms_account::create_mcms_account_proof(),
+        owner_cap,
+        vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
+        env.scenario.ctx(),
+    );
 
-//     let upgrade_cap = package::test_publish(
-//         mcms_registry::get_multisig_address().to_id(),
-//         env.scenario.ctx(),
-//     );
-//     {
-//         let registry_ref = &env.registry;
-//         mcms_deployer::register_upgrade_cap(
-//             &mut env.deployer_state,
-//             registry_ref,
-//             upgrade_cap,
-//             env.scenario.ctx(),
-//         );
-//     };
+    let upgrade_cap = package::test_publish(
+        mcms_registry::get_multisig_address().to_id(),
+        env.scenario.ctx(),
+    );
+    {
+        let registry_ref = &env.registry;
+        mcms_deployer::register_upgrade_cap(
+            &mut env.deployer_state,
+            registry_ref,
+            upgrade_cap,
+            env.scenario.ctx(),
+        );
+    };
 
-//     let mut data = vector[];
-//     data.append(bcs::to_bytes(&owner_cap_id)); // owner_cap object ID
-//     data.append(bcs::to_bytes(&object::id_address(&env.deployer_state))); // deployer_state object ID
-//     data.append(bcs::to_bytes(&(1 as u8))); // policy
-//     data.append(bcs::to_bytes(&vector[123u8])); // digest
-//     data.append(bcs::to_bytes(&mcms_registry::get_multisig_address())); // package address
+    let mut data = vector[];
+    data.append(bcs::to_bytes(&owner_cap_id)); // owner_cap object ID
+    data.append(bcs::to_bytes(&object::id_address(&env.deployer_state))); // deployer_state object ID
+    data.append(bcs::to_bytes(&(1 as u8))); // policy
+    data.append(bcs::to_bytes(&vector[123u8])); // digest
+    data.append(bcs::to_bytes(&mcms_registry::get_multisig_address())); // package address
 
-//     let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
-//         mcms::bypasser_role(),
-//         vector[mcms_registry::get_multisig_address()],
-//         vector[string::utf8(b"mcms_deployer")],
-//         vector[string::utf8(b"authorize_upgrade")],
-//         vector[data],
-//         env.scenario.ctx(),
-//     );
+    let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
+        mcms::bypasser_role(),
+        vector[mcms_registry::get_multisig_address()],
+        vector[string::utf8(b"mcms_deployer")],
+        vector[string::utf8(b"authorize_upgrade")],
+        vector[data],
+        env.scenario.ctx(),
+    );
 
-//     // Process the executing callback params to complete the operation
-//     let params = executing_params.pop_back();
-//     let upgrade_ticket = mcms::mcms_dispatch_to_deployer(
-//         &mut env.registry,
-//         &mut env.deployer_state,
-//         params,
-//         env.scenario.ctx(),
-//     );
-//     let upgrade_receipt = package::test_upgrade(upgrade_ticket);
-//     mcms_deployer::commit_upgrade(
-//         &mut env.deployer_state,
-//         upgrade_receipt,
-//         env.scenario.ctx(),
-//     );
-//     executing_params.destroy_empty();
-//     env.destroy();
-// }
+    // Process the executing callback params to complete the operation
+    let params = executing_params.pop_back();
+    let upgrade_ticket = mcms::mcms_dispatch_to_deployer(
+        &mut env.registry,
+        &mut env.deployer_state,
+        params,
+        env.scenario.ctx(),
+    );
+    let upgrade_receipt = package::test_upgrade(upgrade_ticket);
+    mcms_deployer::commit_upgrade(
+        &mut env.deployer_state,
+        upgrade_receipt,
+        env.scenario.ctx(),
+    );
+    executing_params.destroy_empty();
+    env.destroy();
+}
 
 #[test]
 #[expected_failure(abort_code = mcms_registry::EModuleNotAllowed, location = mcms_registry)]
@@ -3775,3 +3770,4 @@ fun test_mcms_dispatch_to_registry_add_allowed_modules() {
 
     env.destroy();
 }
+
