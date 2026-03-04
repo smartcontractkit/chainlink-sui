@@ -595,6 +595,47 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		} else {
 			fmt.Println("Skipping manage-package for original CCIPOnramp (no published address found)")
 		}
+
+		// TODO: make this only for mock test upgrade
+		if isUpgrade {
+			// Replace onramp.move inside the temp sui-temp-* workspace with upgraded mock version
+			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_onramp_v2", "onramp.move")
+			upgradeDst := filepath.Join(packageRoot, "sources", "onramp.move")
+
+			// Read the mock upgrade file from repo
+			input, err := os.ReadFile(upgradeSrc)
+			if err != nil {
+				return PackageArtifact{}, fmt.Errorf("reading onramp upgrade mock %q: %w", upgradeSrc, err)
+			}
+
+			// Overwrite the onramp.move in the sui-temp workspace
+			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
+				return PackageArtifact{}, fmt.Errorf("replacing onramp.move inside sui-temp workspace: %w", err)
+			}
+
+			ccipOnRampAddr := namedAddresses["original_onramp_pkg"]
+			if !isZeroAddress(ccipOnRampAddr) {
+				ccipOnRampDir := filepath.Join(dstRoot, "ccip", "ccip_onramp")
+				if err := managePackage(ccipOnRampDir, 1, rpcURL, env, ccipOnRampAddr, ccipOnRampAddr, pubfilePath); err != nil {
+					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP OnRamp dependency: %w", err)
+				}
+			} else {
+				fmt.Println("Skipping manage-package for CCIP OnRamp (no published address found)")
+			}
+
+			// also upgrade ccip move.Lock with updated values
+			ccipLatestAddr := namedAddresses["latest_ccip_pkg"]
+			ccipOriginalAddr := namedAddresses["ccip"]
+			if !isZeroAddress(ccipLatestAddr) && !isZeroAddress(ccipOriginalAddr) {
+				ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
+				if err := managePackage(ccipDir, 2, rpcURL, env, ccipOriginalAddr, ccipLatestAddr, pubfilePath); err != nil {
+					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency for onRamp: %w", err)
+				}
+			} else {
+				fmt.Println("Skipping manage-package for CCIP Dependency for OnRamp (no published address found)")
+			}
+
+		}
 	}
 
 	if packageName == contracts.CCIPOfframp {
