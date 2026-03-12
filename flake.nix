@@ -16,7 +16,7 @@
       pkgs = import nixpkgs {
         inherit system;
       };
-    in rec {
-      devShell = pkgs.callPackage ./shell.nix {};
+    in {
+      devShells.default = pkgs.callPackage ./shell.nix {};
     });
 }
