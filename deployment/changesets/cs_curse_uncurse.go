@@ -1,10 +1,10 @@
 package changesets
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 
+	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -36,8 +36,6 @@ type CurseUncurseChainsConfig struct {
 var _ cldf.ChangeSetV2[CurseUncurseChainsConfig] = CurseUncurseChains{}
 
 type CurseUncurseChains struct{}
-
-var globalCurseSubjectBytes = [16]byte{0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
 
 func (c CurseUncurseChains) VerifyPreconditions(e cldf.Environment, cfg CurseUncurseChainsConfig) error {
 	if cfg.OperationType != string(CurseOperationType) && cfg.OperationType != string(UncurseOperationType) {
@@ -155,19 +153,13 @@ func (c CurseUncurseChains) Apply(e cldf.Environment, cfg CurseUncurseChainsConf
 
 func buildCurseSubjects(cfg CurseUncurseChainsConfig) ([][]byte, error) {
 	if cfg.IsGlobalCurse {
-		subject := make([]byte, len(globalCurseSubjectBytes))
-		copy(subject, globalCurseSubjectBytes[:])
-		return [][]byte{subject}, nil
+		s := fastcurse.GlobalCurseSubject()
+		return [][]byte{s[:]}, nil
 	}
 	subjects := make([][]byte, 0, len(cfg.DestChainSelectors))
 	for _, selector := range cfg.DestChainSelectors {
-		subjects = append(subjects, selectorToSubject(selector))
+		s := fastcurse.GenericSelectorToSubject(selector)
+		subjects = append(subjects, s[:])
 	}
 	return subjects, nil
-}
-
-func selectorToSubject(selector uint64) []byte {
-	subject := make([]byte, 16)
-	binary.BigEndian.PutUint64(subject[8:], selector)
-	return subject
 }

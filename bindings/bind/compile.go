@@ -320,7 +320,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		// Write Published.toml for test_secondary dependency if its address is provided
 		testSecondaryAddr := namedAddresses["test_secondary"]
 		if !isZeroAddress(testSecondaryAddr) {
-			log.Printf("testSecondaryAddr: %s\n", testSecondaryAddr)
 			testSecondaryDir := filepath.Join(dstRoot, "test_secondary")
 			if err := managePackage(testSecondaryDir, 1, rpcURL, env, testSecondaryAddr, testSecondaryAddr, pubfilePath); err != nil {
 				log.Printf("failed to manage Test Secondary dependency: %v\n", err)
@@ -684,8 +683,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	var deps []string
 	var modules []string
 
-	log.Printf("compiling package: %s\n", packageRoot)
-
 	// Check if package has dependencies by reading Move.toml
 	pkgMoveTomlPath := filepath.Join(packageRoot, "Move.toml")
 	pkgMoveTomlContent, _ := os.ReadFile(pkgMoveTomlPath)
@@ -839,20 +836,11 @@ func isZeroAddress(addr string) bool {
 
 // managePackage writes Published.toml and updates Move.toml for a package
 func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, latestPkgId, pubfilePath string) error {
-	log.Printf("managing package via Published.toml: %s\n", packageRoot)
-	log.Printf("version: %d\n", version)
-	log.Printf("rpcURL: %s\n", rpcURL)
-	log.Printf("env: %s\n", env)
-	log.Printf("originalPkgId: %s\n", originalPkgId)
-	log.Printf("latestPkgId: %s\n", latestPkgId)
-
 	// Fetch chain identifier directly from the node
 	chainID, err := getChainIdentifier(rpcURL)
 	if err != nil {
 		return fmt.Errorf("failed to query chain identifier from %s: %w", rpcURL, err)
 	}
-
-	log.Printf("chainID: %s\n", chainID)
 
 	// Write Published.toml for dependency resolution
 	// This replaces the old manage-package and update-deps commands
@@ -966,7 +954,6 @@ func setupSuiEnv(alias, rpcURL string) error {
 	var envList []suiEnv
 	if arr, ok := parsed[0].([]any); ok {
 		for _, e := range arr {
-			log.Printf("e: %+v\n", e)
 			data, _ := json.Marshal(e)
 			var env suiEnv
 			if err := json.Unmarshal(data, &env); err == nil {
@@ -982,17 +969,12 @@ func setupSuiEnv(alias, rpcURL string) error {
 	// Step 2 — Check for existing alias and remove it
 	for _, e := range envList {
 		if e.Alias == alias {
-			// log.Printf("removing alias: %s\n", alias)
 			if err := removeAliasFromClientYAML(alias); err != nil {
 				return fmt.Errorf("failed to remove existing alias: %w", err)
 			}
-			log.Printf("removed alias: %s\n", alias)
 			break
 		}
 	}
-
-	log.Printf("before creating new env alias: %s\n", alias)
-	log.Printf("rpcURL: %s\n", rpcURL)
 
 	// Step  — Create new alias
 	newCmd := exec.Command("sui", "client", "new-env",
@@ -1005,8 +987,6 @@ func setupSuiEnv(alias, rpcURL string) error {
 		fmt.Printf("failed to create sui env '%s': %v\nOutput:\n%s", alias, err, string(newOut))
 	}
 
-	log.Printf("newOut: %+v\n", string(newOut))
-
 	// Step 4️ — Switch to new env
 	switchCmd := exec.Command("sui", "client", "switch", "--env", alias)
 	switchCmd.Env = os.Environ()
@@ -1014,8 +994,6 @@ func setupSuiEnv(alias, rpcURL string) error {
 	if err != nil {
 		return fmt.Errorf("failed to switch to env '%s': %w\nOutput:\n%s", alias, err, string(switchOut))
 	}
-
-	log.Printf("switchOut: %+v\n", string(switchOut))
 
 	// Step 5️ — Verify
 	activeCmd := exec.Command("sui", "client", "active-env")

@@ -10,7 +10,6 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink/v2/core/logger"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,7 +25,6 @@ func TestLoadOnchainStatesui(t *testing.T) {
 			name: "load sui state successfully",
 			env: cldf.Environment{
 				Name:              "test",
-				Logger:            logger.TestLogger(t),
 				ExistingAddresses: loadTestAddressBook(t),
 				BlockChains: chain.NewBlockChains(
 					map[uint64]chain.BlockChain{
