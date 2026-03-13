@@ -12,25 +12,33 @@ import (
 	"github.com/smartcontractkit/mcms"
 )
 
-var _ cldf.ChangeSetV2[mcmsops.UpgradeCCIPInput] = MCMSProposalUpgradePackage{}
+var _ cldf.ChangeSetV2[UpgradePackageConfig] = MCMSProposalUpgradePackage{}
+
+// UpgradePackageConfig wraps UpgradeCCIPInput and adds IsFastCurse.
+// When MCMS state fields in UpgradeCCIPInput are left empty, they are
+// auto-populated from the on-chain address book using the IsFastCurse flag.
+type UpgradePackageConfig struct {
+	mcmsops.UpgradeCCIPInput
+	IsFastCurse bool
+}
 
 type MCMSProposalUpgradePackage struct{}
 
-func (d MCMSProposalUpgradePackage) Apply(e cldf.Environment, config mcmsops.UpgradeCCIPInput) (cldf.ChangesetOutput, error) {
+func (d MCMSProposalUpgradePackage) Apply(e cldf.Environment, config UpgradePackageConfig) (cldf.ChangesetOutput, error) {
 	suiState, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load onchain state: %w", err)
 	}
 
-	state := suiState[config.ChainSelector]
+	mcmsState := suiState[config.ChainSelector].MCMSState(config.IsFastCurse)
 
 	// Get necessary MCMS state from onchain AB
 	if config.MmcsPackageID == "" || config.McmsStateObjID == "" || config.TimelockObjID == "" || config.AccountObjID == "" || config.RegistryObjID == "" {
-		config.MmcsPackageID = state.MCMSPackageID
-		config.McmsStateObjID = state.MCMSStateObjectID
-		config.TimelockObjID = state.MCMSTimelockObjectID
-		config.AccountObjID = state.MCMSAccountStateObjectID
-		config.RegistryObjID = state.MCMSRegistryObjectID
+		config.MmcsPackageID = mcmsState.PackageID
+		config.McmsStateObjID = mcmsState.StateObjectID
+		config.TimelockObjID = mcmsState.TimelockObjectID
+		config.AccountObjID = mcmsState.AccountStateObjectID
+		config.RegistryObjID = mcmsState.RegistryObjectID
 	}
 
 	suiChains := e.BlockChains.SuiChains()
@@ -44,7 +52,7 @@ func (d MCMSProposalUpgradePackage) Apply(e cldf.Environment, config mcmsops.Upg
 		},
 		SuiRPC: suiChain.URL,
 	}
-	result, err := cld_ops.ExecuteOperation(e.OperationsBundle, mcmsops.UpgradeCCIPOp, deps, config)
+	result, err := cld_ops.ExecuteOperation(e.OperationsBundle, mcmsops.UpgradeCCIPOp, deps, config.UpgradeCCIPInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to execute sequence: %w", err)
 	}
@@ -55,6 +63,6 @@ func (d MCMSProposalUpgradePackage) Apply(e cldf.Environment, config mcmsops.Upg
 }
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
-func (d MCMSProposalUpgradePackage) VerifyPreconditions(e cldf.Environment, config mcmsops.UpgradeCCIPInput) error {
+func (d MCMSProposalUpgradePackage) VerifyPreconditions(e cldf.Environment, config UpgradePackageConfig) error {
 	return nil
 }

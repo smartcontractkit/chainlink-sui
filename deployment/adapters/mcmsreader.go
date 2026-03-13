@@ -15,19 +15,31 @@ import (
 
 type MCMSReader struct{}
 
+// mcmsFieldsFromInput loads the on-chain state and selects the correct
+// MCMSStateFields (normal or fastcurse) based on the Qualifier in the input.
+// A Qualifier value of "fastcurse" selects the fastcurse MCMS instance.
+func mcmsFieldsFromInput(e cldf.Environment, chainSelector uint64, input mcms_utils.Input) (suideploy.MCMSStateFields, error) {
+	stateMap, err := suideploy.LoadOnchainStatesui(e)
+	if err != nil {
+		return suideploy.MCMSStateFields{}, fmt.Errorf("failed to load sui onchain state: %w", err)
+	}
+	state, ok := stateMap[chainSelector]
+	if !ok {
+		return suideploy.MCMSStateFields{}, fmt.Errorf("sui chain %d not found in state", chainSelector)
+	}
+	// TODO: Check what are Qualifier value options
+	return state.MCMSState(input.Qualifier == suideploy.MCMSFastCurseLabel), nil
+}
+
 func (r *MCMSReader) GetChainMetadata(e cldf.Environment, chainSelector uint64, input mcms_utils.Input) (mcmstypes.ChainMetadata, error) {
 	chain, ok := e.BlockChains.SuiChains()[chainSelector]
 	if !ok {
 		return mcmstypes.ChainMetadata{}, fmt.Errorf("sui chain with selector %d not found", chainSelector)
 	}
 
-	stateMap, err := suideploy.LoadOnchainStatesui(e)
+	mcmsFields, err := mcmsFieldsFromInput(e, chainSelector, input)
 	if err != nil {
-		return mcmstypes.ChainMetadata{}, fmt.Errorf("failed to load sui onchain state: %w", err)
-	}
-	state, ok := stateMap[chainSelector]
-	if !ok {
-		return mcmstypes.ChainMetadata{}, fmt.Errorf("sui chain %d not found in state", chainSelector)
+		return mcmstypes.ChainMetadata{}, err
 	}
 
 	role, err := timelockRoleFromAction(input.TimelockAction)
@@ -35,54 +47,46 @@ func (r *MCMSReader) GetChainMetadata(e cldf.Environment, chainSelector uint64, 
 		return mcmstypes.ChainMetadata{}, fmt.Errorf("failed to get role from action: %w", err)
 	}
 
-	inspector, err := suisdk.NewInspector(chain.Client, chain.Signer, state.MCMSPackageID, role)
+	inspector, err := suisdk.NewInspector(chain.Client, chain.Signer, mcmsFields.PackageID, role)
 	if err != nil {
 		return mcmstypes.ChainMetadata{}, fmt.Errorf("failed to create sui mcms inspector for chain %d: %w", chainSelector, err)
 	}
 
-	opCount, err := inspector.GetOpCount(e.GetContext(), state.MCMSStateObjectID)
+	opCount, err := inspector.GetOpCount(e.GetContext(), mcmsFields.StateObjectID)
 	if err != nil {
-		return mcmstypes.ChainMetadata{}, fmt.Errorf("failed to get opCount for MCMS at %s on chain %d: %w", state.MCMSStateObjectID, chainSelector, err)
+		return mcmstypes.ChainMetadata{}, fmt.Errorf("failed to get opCount for MCMS at %s on chain %d: %w", mcmsFields.StateObjectID, chainSelector, err)
 	}
 
 	return suisdk.NewChainMetadata(
 		opCount,
 		role,
-		state.MCMSPackageID,
-		state.MCMSStateObjectID,
-		state.MCMSAccountStateObjectID,
-		state.MCMSRegistryObjectID,
-		state.MCMSTimelockObjectID,
-		state.MCMSDeployerStateObjectID,
+		mcmsFields.PackageID,
+		mcmsFields.StateObjectID,
+		mcmsFields.AccountStateObjectID,
+		mcmsFields.RegistryObjectID,
+		mcmsFields.TimelockObjectID,
+		mcmsFields.DeployerStateObjectID,
 	)
 }
 
 func (r *MCMSReader) GetTimelockRef(e cldf.Environment, chainSelector uint64, input mcms_utils.Input) (datastore.AddressRef, error) {
-	stateMap, err := suideploy.LoadOnchainStatesui(e)
+	mcmsFields, err := mcmsFieldsFromInput(e, chainSelector, input)
 	if err != nil {
-		return datastore.AddressRef{}, fmt.Errorf("failed to load sui onchain state: %w", err)
-	}
-	state, ok := stateMap[chainSelector]
-	if !ok {
-		return datastore.AddressRef{}, fmt.Errorf("sui chain %d not found in state", chainSelector)
+		return datastore.AddressRef{}, err
 	}
 	return datastore.AddressRef{
-		Address:       state.MCMSTimelockObjectID,
+		Address:       mcmsFields.TimelockObjectID,
 		ChainSelector: chainSelector,
 	}, nil
 }
 
 func (r *MCMSReader) GetMCMSRef(e cldf.Environment, chainSelector uint64, input mcms_utils.Input) (datastore.AddressRef, error) {
-	stateMap, err := suideploy.LoadOnchainStatesui(e)
+	mcmsFields, err := mcmsFieldsFromInput(e, chainSelector, input)
 	if err != nil {
-		return datastore.AddressRef{}, fmt.Errorf("failed to load sui onchain state: %w", err)
-	}
-	state, ok := stateMap[chainSelector]
-	if !ok {
-		return datastore.AddressRef{}, fmt.Errorf("sui chain %d not found in state", chainSelector)
+		return datastore.AddressRef{}, err
 	}
 	return datastore.AddressRef{
-		Address:       state.MCMSStateObjectID,
+		Address:       mcmsFields.StateObjectID,
 		ChainSelector: chainSelector,
 	}, nil
 }
