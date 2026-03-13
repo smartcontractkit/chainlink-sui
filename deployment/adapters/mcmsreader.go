@@ -13,6 +13,8 @@ import (
 	suideploy "github.com/smartcontractkit/chainlink-sui/deployment"
 )
 
+const fastCurseQualifier = "RMNTimelockQualifier"
+
 type MCMSReader struct{}
 
 // mcmsFieldsFromInput loads the on-chain state and selects the correct
@@ -27,8 +29,7 @@ func mcmsFieldsFromInput(e cldf.Environment, chainSelector uint64, input mcms_ut
 	if !ok {
 		return suideploy.MCMSStateFields{}, fmt.Errorf("sui chain %d not found in state", chainSelector)
 	}
-	// TODO: Check what are Qualifier value options
-	return state.MCMSState(input.Qualifier == suideploy.MCMSFastCurseLabel), nil
+	return state.MCMSState(input.Qualifier == fastCurseQualifier), nil
 }
 
 func (r *MCMSReader) GetChainMetadata(e cldf.Environment, chainSelector uint64, input mcms_utils.Input) (mcmstypes.ChainMetadata, error) {
