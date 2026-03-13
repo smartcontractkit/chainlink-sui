@@ -92,11 +92,14 @@ func (s *DeployTestSuite) TestDeployAndConfigureSuiChain() {
 func (s *DeployTestSuite) DeployMCMS() {
 	s.T().Log("Phase 1: Deploying MCMS...")
 
-	out, err := changesets.DeployMCMS{}.Apply(s.env, mcmsops.DeployMCMSSeqInput{
-		ChainSelector: SuiChainSelector,
-		Bypasser:      GetMCMSConfig(1),
-		Proposer:      GetMCMSConfig(1),
-		Canceller:     GetMCMSConfig(2),
+	out, err := changesets.DeployMCMS{}.Apply(s.env, changesets.DeployMCMSConfig{
+		DeployMCMSSeqInput: mcmsops.DeployMCMSSeqInput{
+			ChainSelector: SuiChainSelector,
+			Bypasser:      GetMCMSConfig(1),
+			Proposer:      GetMCMSConfig(1),
+			Canceller:     GetMCMSConfig(2),
+		},
+		IsFastCurse: false,
 	})
 	s.Require().NoError(err, "failed to deploy MCMS")
 

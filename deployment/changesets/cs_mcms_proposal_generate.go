@@ -12,25 +12,33 @@ import (
 	"github.com/smartcontractkit/mcms"
 )
 
-var _ cldf.ChangeSetV2[mcmsops.ProposalGenerateInput] = MCMSProposalGenerate{}
+var _ cldf.ChangeSetV2[MCMSProposalGenerateConfig] = MCMSProposalGenerate{}
+
+// MCMSProposalGenerateConfig wraps ProposalGenerateInput and adds IsFastCurse.
+// When MCMS state fields in ProposalGenerateInput are left empty, they are
+// auto-populated from the on-chain address book using the IsFastCurse flag.
+type MCMSProposalGenerateConfig struct {
+	mcmsops.ProposalGenerateInput
+	IsFastCurse bool
+}
 
 type MCMSProposalGenerate struct{}
 
-func (d MCMSProposalGenerate) Apply(e cldf.Environment, config mcmsops.ProposalGenerateInput) (cldf.ChangesetOutput, error) {
+func (d MCMSProposalGenerate) Apply(e cldf.Environment, config MCMSProposalGenerateConfig) (cldf.ChangesetOutput, error) {
 	suiState, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load onchain state: %w", err)
 	}
 
-	state := suiState[config.ChainSelector]
+	mcmsState := suiState[config.ChainSelector].MCMSState(config.IsFastCurse)
 
 	// Get necessary MCMS state from onchain AB
 	if config.MmcsPackageID == "" || config.McmsStateObjID == "" || config.TimelockObjID == "" || config.AccountObjID == "" || config.RegistryObjID == "" {
-		config.MmcsPackageID = state.MCMSPackageID
-		config.McmsStateObjID = state.MCMSStateObjectID
-		config.TimelockObjID = state.MCMSTimelockObjectID
-		config.AccountObjID = state.MCMSAccountStateObjectID
-		config.RegistryObjID = state.MCMSRegistryObjectID
+		config.MmcsPackageID = mcmsState.PackageID
+		config.McmsStateObjID = mcmsState.StateObjectID
+		config.TimelockObjID = mcmsState.TimelockObjectID
+		config.AccountObjID = mcmsState.AccountStateObjectID
+		config.RegistryObjID = mcmsState.RegistryObjectID
 	}
 
 	suiChains := e.BlockChains.SuiChains()
@@ -44,7 +52,7 @@ func (d MCMSProposalGenerate) Apply(e cldf.Environment, config mcmsops.ProposalG
 		},
 		SuiRPC: suiChain.URL,
 	}
-	result, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, config)
+	result, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, config.ProposalGenerateInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to execute sequence: %w", err)
 	}
@@ -55,6 +63,6 @@ func (d MCMSProposalGenerate) Apply(e cldf.Environment, config mcmsops.ProposalG
 }
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
-func (d MCMSProposalGenerate) VerifyPreconditions(e cldf.Environment, config mcmsops.ProposalGenerateInput) error {
+func (d MCMSProposalGenerate) VerifyPreconditions(e cldf.Environment, config MCMSProposalGenerateConfig) error {
 	return nil
 }

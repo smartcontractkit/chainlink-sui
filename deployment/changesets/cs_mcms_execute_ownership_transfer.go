@@ -29,6 +29,10 @@ type MCMSExecuteTransferOwnership struct{}
 type MCMSExecuteTransferOwnershipInput struct {
 	ChainSelector uint64 `json:"chainSelector" yaml:"chainSelector"`
 
+	// IsFastCurse selects the fastcurse MCMS instance as the ownership target.
+	// When false (default) the normal MCMS instance is used.
+	IsFastCurse bool `json:"isFastCurse,omitempty" yaml:"isFastCurse,omitempty"`
+
 	// Type of contracts to execute the transfer on
 	MCMS                            bool   `json:"mcms,omitempty" yaml:"mcms,omitempty"`
 	StateObject                     bool   `json:"state_object,omitempty" yaml:"state_object,omitempty"`
@@ -50,6 +54,7 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 	}
 
 	state := suiState[config.ChainSelector]
+	mcmsFields := state.MCMSState(config.IsFastCurse)
 
 	suiChains := e.BlockChains.SuiChains()
 
@@ -72,10 +77,10 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 	// Populate the input fields
 	if config.MCMS {
 		input.MCMS = &mcmsops.MCMSExecuteTransferOwnershipInput{
-			McmsPackageID:    state.MCMSPackageID,
-			OwnerCap:         state.MCMSAccountOwnerCapObjectID,
-			AccountObjectID:  state.MCMSAccountStateObjectID,
-			RegistryObjectID: state.MCMSRegistryObjectID,
+			McmsPackageID:    mcmsFields.PackageID,
+			OwnerCap:         mcmsFields.AccountOwnerCapObjectID,
+			AccountObjectID:  mcmsFields.AccountStateObjectID,
+			RegistryObjectID: mcmsFields.RegistryObjectID,
 		}
 	}
 
@@ -84,8 +89,8 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 			CCIPPackageId:         state.CCIPAddress,
 			OwnerCapObjectId:      state.CCIPOwnerCapObjectId,
 			CCIPObjectRefObjectId: state.CCIPObjectRef,
-			RegistryObjectId:      state.MCMSRegistryObjectID,
-			To:                    state.MCMSPackageID,
+			RegistryObjectId:      mcmsFields.RegistryObjectID,
+			To:                    mcmsFields.PackageID,
 		}
 	}
 
@@ -95,8 +100,8 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 			OnRampRefObjectId:   state.CCIPObjectRef,
 			OnRampStateObjectId: state.OnRampStateObjectId,
 			OwnerCapObjectId:    state.OnRampOwnerCapObjectId,
-			RegistryObjectId:    state.MCMSRegistryObjectID,
-			To:                  state.MCMSPackageID,
+			RegistryObjectId:    mcmsFields.RegistryObjectID,
+			To:                  mcmsFields.PackageID,
 		}
 	}
 
@@ -106,8 +111,8 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 			OffRampRefObjectId:   state.CCIPObjectRef,
 			OffRampStateObjectId: state.OffRampStateObjectId,
 			OwnerCapObjectId:     state.OffRampOwnerCapId,
-			RegistryObjectId:     state.MCMSRegistryObjectID,
-			To:                   state.MCMSPackageID,
+			RegistryObjectId:     mcmsFields.RegistryObjectID,
+			To:                   mcmsFields.PackageID,
 		}
 	}
 
@@ -116,8 +121,8 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 			RouterPackageId:     state.CCIPRouterAddress,
 			OwnerCapObjectId:    state.CCIPRouterOwnerCapObjectId,
 			RouterStateObjectId: state.CCIPRouterStateObjectID,
-			RegistryObjectId:    state.MCMSRegistryObjectID,
-			To:                  state.MCMSPackageID,
+			RegistryObjectId:    mcmsFields.RegistryObjectID,
+			To:                  mcmsFields.PackageID,
 		}
 	}
 
@@ -126,8 +131,8 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 		input.ManagedToken = &managedtokenops.ExecuteOwnershipTransferToMcmsManagedTokenInput{
 			ManagedTokenPackageId: state.CCIPAddress,
 			OwnerCapObjectId:      state.CCIPOwnerCapObjectId,
-			RegistryObjectId:      state.MCMSRegistryObjectID,
-			To:                    state.MCMSPackageID,
+			RegistryObjectId:      mcmsFields.RegistryObjectID,
+			To:                    mcmsFields.PackageID,
 		}
 	}
 
@@ -141,8 +146,8 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 			TypeArgs:                   []string{config.TypeArg},
 			StateObjectId:              poolState.StateObjectId,
 			OwnerCapObjectId:           poolState.OwnerCapObjectId,
-			RegistryObjectId:           state.MCMSRegistryObjectID,
-			To:                         state.MCMSPackageID,
+			RegistryObjectId:           mcmsFields.RegistryObjectID,
+			To:                         mcmsFields.PackageID,
 		}
 	}
 
@@ -156,8 +161,8 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 			TypeArgs:                      []string{config.TypeArg},
 			StateObjectId:                 poolState.StateObjectId,
 			OwnerCapObjectId:              poolState.OwnerCapObjectId,
-			RegistryObjectId:              state.MCMSRegistryObjectID,
-			To:                            state.MCMSPackageID,
+			RegistryObjectId:              mcmsFields.RegistryObjectID,
+			To:                            mcmsFields.PackageID,
 		}
 	}
 
@@ -171,8 +176,8 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 			TypeArgs:                  []string{config.TypeArg},
 			StateObjectId:             poolState.StateObjectId,
 			OwnerCapObjectId:          poolState.OwnerCapObjectId,
-			RegistryObjectId:          state.MCMSRegistryObjectID,
-			To:                        state.MCMSPackageID,
+			RegistryObjectId:          mcmsFields.RegistryObjectID,
+			To:                        mcmsFields.PackageID,
 		}
 	}
 

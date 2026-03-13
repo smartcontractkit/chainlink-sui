@@ -18,6 +18,7 @@ import (
 type ConfigureMCMSConfig struct {
 	mcmsops.ConfigureMCMSSeqInput
 	TimelockConfig *utils.TimelockConfig // If nil, configuration will be executed directly
+	IsFastCurse    bool                  // If true, the fastcurse MCMS instance is configured
 }
 
 var _ cldf.ChangeSetV2[ConfigureMCMSConfig] = ConfigureMCMS{}
@@ -42,6 +43,8 @@ func (c ConfigureMCMS) Apply(e cldf.Environment, config ConfigureMCMSConfig) (cl
 	suiChains := e.BlockChains.SuiChains()
 
 	suiChain := suiChains[config.ChainSelector]
+
+	mcmsState := state[config.ChainSelector].MCMSState(config.IsFastCurse)
 
 	deps := sui_ops.OpTxDeps{
 		Client: suiChain.Client,
@@ -83,12 +86,12 @@ func (c ConfigureMCMS) Apply(e cldf.Environment, config ConfigureMCMSConfig) (cl
 			ChainSelector:      config.ChainSelector,
 			Defs:               defs,
 			Inputs:             inputs,
-			MmcsPackageID:      state[config.ChainSelector].MCMSPackageID,
-			McmsStateObjID:     state[config.ChainSelector].MCMSStateObjectID,
-			TimelockObjID:      state[config.ChainSelector].MCMSTimelockObjectID,
-			AccountObjID:       state[config.ChainSelector].MCMSAccountStateObjectID,
-			RegistryObjID:      state[config.ChainSelector].MCMSRegistryObjectID,
-			DeployerStateObjID: state[config.ChainSelector].MCMSDeployerStateObjectID,
+			MmcsPackageID:      mcmsState.PackageID,
+			McmsStateObjID:     mcmsState.StateObjectID,
+			TimelockObjID:      mcmsState.TimelockObjectID,
+			AccountObjID:       mcmsState.AccountStateObjectID,
+			RegistryObjID:      mcmsState.RegistryObjectID,
+			DeployerStateObjID: mcmsState.DeployerStateObjectID,
 			TimelockConfig:     *config.TimelockConfig,
 		}
 

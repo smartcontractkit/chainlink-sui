@@ -31,6 +31,9 @@ type CurseUncurseChainsConfig struct {
 	IsGlobalCurse      bool                  `yaml:"isGlobalCurse"`
 	DestChainSelectors []uint64              `yaml:"destChainSelectors"`
 	TimelockConfig     *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
+	// IsFastCurse selects the fastcurse MCMS instance when generating a timelock
+	// proposal. Has no effect when TimelockConfig is nil.
+	IsFastCurse bool `yaml:"isFastCurse,omitempty"`
 }
 
 var _ cldf.ChangeSetV2[CurseUncurseChainsConfig] = CurseUncurseChains{}
@@ -125,16 +128,17 @@ func (c CurseUncurseChains) Apply(e cldf.Environment, cfg CurseUncurseChainsConf
 		defs := []cld_ops.Definition{genericReport.Def}
 		inputs := []any{genericReport.Input}
 
+		mcmsState := state[cfg.SuiChainSelector].MCMSState(cfg.IsFastCurse)
 		mcmsConfig := mcmsops.ProposalGenerateInput{
 			ChainSelector:      cfg.SuiChainSelector,
 			Defs:               defs,
 			Inputs:             inputs,
-			MmcsPackageID:      state[cfg.SuiChainSelector].MCMSPackageID,
-			McmsStateObjID:     state[cfg.SuiChainSelector].MCMSStateObjectID,
-			TimelockObjID:      state[cfg.SuiChainSelector].MCMSTimelockObjectID,
-			AccountObjID:       state[cfg.SuiChainSelector].MCMSAccountStateObjectID,
-			RegistryObjID:      state[cfg.SuiChainSelector].MCMSRegistryObjectID,
-			DeployerStateObjID: state[cfg.SuiChainSelector].MCMSDeployerStateObjectID,
+			MmcsPackageID:      mcmsState.PackageID,
+			McmsStateObjID:     mcmsState.StateObjectID,
+			TimelockObjID:      mcmsState.TimelockObjectID,
+			AccountObjID:       mcmsState.AccountStateObjectID,
+			RegistryObjID:      mcmsState.RegistryObjectID,
+			DeployerStateObjID: mcmsState.DeployerStateObjectID,
 			TimelockConfig:     *cfg.TimelockConfig,
 		}
 
