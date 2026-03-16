@@ -76,6 +76,10 @@ func (eIndexer *EventsIndexer) Start(ctx context.Context) error {
 	ticker := time.NewTicker(eIndexer.pollingInterval)
 	defer ticker.Stop()
 
+	if err := eIndexer.db.EnsureSchema(ctx); err != nil {
+		return fmt.Errorf("Start: failed to ensure schema: %w", err)
+	}
+
 	for {
 		select {
 		case <-ticker.C:
@@ -106,10 +110,6 @@ func (eIndexer *EventsIndexer) SyncAllEvents(ctx context.Context) error {
 
 	if eIndexer.db == nil {
 		return fmt.Errorf("SyncAllEvents only operates with database store")
-	}
-
-	if err := eIndexer.db.EnsureSchema(ctx); err != nil {
-		return fmt.Errorf("SyncAllEvents: failed to ensure schema: %w", err)
 	}
 
 	successCount := 0
