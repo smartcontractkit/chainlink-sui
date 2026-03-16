@@ -73,12 +73,16 @@ func NewEventIndexer(
 }
 
 func (eIndexer *EventsIndexer) Start(ctx context.Context) error {
+
+	syncCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	if err := eIndexer.db.EnsureSchema(syncCtx); err != nil {
+		return fmt.Errorf("Start: failed to ensure schema: %w", err)
+	}
+
 	ticker := time.NewTicker(eIndexer.pollingInterval)
 	defer ticker.Stop()
 
-	if err := eIndexer.db.EnsureSchema(ctx); err != nil {
-		return fmt.Errorf("Start: failed to ensure schema: %w", err)
-	}
 
 	for {
 		select {
