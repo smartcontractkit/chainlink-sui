@@ -26,11 +26,17 @@ import (
 // Constants for magic numbers and repeated values
 const (
 	DefaultNodeStartTimeout = 30 * time.Second
+	FaucetReadyTimeout      = 20 * time.Second
 	NodeReadyPollInterval   = 100 * time.Millisecond
 	FaucetMaxRetries        = 10
 	FaucetRetryDelay        = time.Second
 	HTTPClientTimeout       = 30 * time.Second
 	SeedSize                = ed25519.SeedSize
+	nodeStartupMaxAttempts  = 5
+	// Brief pause after releasing ephemeral port reservations so another process is less likely
+	// to steal the same port before `sui start` binds (TOCTOU under parallel `go test` packages).
+	portReleaseSettleDelay = 50 * time.Millisecond
+	loopbackHost = "127.0.0.1"
 )
 
 type TestEnvironment struct {
@@ -84,14 +90,38 @@ func Setup(log logger.Logger) error {
 
 	refCount++
 
-	if refCount == 1 {
-		instance = &TestEnvironment{
-			logger: log,
-		}
-		errSetup = instance.initialize()
+	if refCount != 1 {
+		return errSetup
 	}
 
-	return errSetup
+	instance = &TestEnvironment{
+		logger: log,
+	}
+	var lastErr error
+	for attempt := 0; attempt < nodeStartupMaxAttempts; attempt++ {
+		if attempt > 0 {
+			log.Infof("TestEnv: Retrying Sui node startup (attempt %d/%d)", attempt+1, nodeStartupMaxAttempts)
+			time.Sleep(time.Duration(50+attempt*50) * time.Millisecond)
+			instance.mu.Lock()
+			instance.cleanupLocked()
+			instance.mu.Unlock()
+		}
+
+		lastErr = instance.initialize()
+		if lastErr == nil {
+			errSetup = nil
+			return nil
+		}
+		log.Warnf("TestEnv: Sui node setup failed (attempt %d/%d): %v", attempt+1, nodeStartupMaxAttempts, lastErr)
+	}
+
+	instance.mu.Lock()
+	instance.cleanupLocked()
+	instance.mu.Unlock()
+	instance = nil
+	errSetup = lastErr
+	refCount--
+	return lastErr
 }
 
 func Cleanup() {
@@ -143,6 +173,8 @@ func (te *TestEnvironment) initialize() error {
 	te.rpcPort = ports[0]
 	te.faucetPort = ports[1]
 
+	time.Sleep(portReleaseSettleDelay)
+
 	te.logger.Infof("TestEnv: Starting Sui node with RPC port %d and faucet port %d\n", te.rpcPort, te.faucetPort)
 
 	cmd := exec.Command("sui", "start", //nolint:gosec
@@ -157,35 +189,52 @@ func (te *TestEnvironment) initialize() error {
 	}
 	te.nodeCmd = cmd
 
+	rpcURL := fmt.Sprintf("http://%s:%d", loopbackHost, te.rpcPort)
+	faucetURL := fmt.Sprintf("http://%s:%d", loopbackHost, te.faucetPort)
+
 	// wait for node to be ready
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultNodeStartTimeout)
 	defer cancel()
+rpcWait:
 	for {
 		select {
 		case <-ctx.Done():
-			te.cleanup()
+			te.cleanupLocked()
 			return fmt.Errorf("timeout waiting for Sui node to be ready")
 		default:
-			client := sui.NewSuiClientWithCustomClient(fmt.Sprintf("http://localhost:%d", te.rpcPort), &http.Client{
+			client := sui.NewSuiClientWithCustomClient(rpcURL, &http.Client{
 				Timeout: HTTPClientTimeout,
 			})
 			_, err := client.SuiGetChainIdentifier(context.Background())
 			if err == nil {
-				os.Setenv("SUI_RPC_URL", fmt.Sprintf("http://localhost:%d", te.rpcPort))
-				os.Setenv("SUI_FAUCET_URL", fmt.Sprintf("http://localhost:%d", te.faucetPort))
-				te.logger.Infof("SUI_RPC_URL=%s", os.Getenv("SUI_RPC_URL"))
-				te.logger.Infof("SUI_FAUCET_URL=%s", os.Getenv("SUI_FAUCET_URL"))
-				return nil
+				break rpcWait
 			}
 			time.Sleep(NodeReadyPollInterval)
 		}
 	}
+
+	// RPC can be live while the faucet fails to bind (e.g. port collision); wait until the faucet
+	// accepts TCP connections before declaring the environment ready.
+	faucetDeadline := time.Now().Add(FaucetReadyTimeout)
+	for time.Now().Before(faucetDeadline) {
+		conn, dialErr := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", loopbackHost, te.faucetPort), 500*time.Millisecond)
+		if dialErr == nil {
+			_ = conn.Close()
+			os.Setenv("SUI_RPC_URL", rpcURL)
+			os.Setenv("SUI_FAUCET_URL", faucetURL)
+			te.logger.Infof("SUI_RPC_URL=%s", os.Getenv("SUI_RPC_URL"))
+			te.logger.Infof("SUI_FAUCET_URL=%s", os.Getenv("SUI_FAUCET_URL"))
+			return nil
+		}
+		time.Sleep(NodeReadyPollInterval)
+	}
+
+	te.cleanupLocked()
+	return fmt.Errorf("timeout waiting for Sui faucet on port %d (RPC is up but faucet never listened)", te.faucetPort)
 }
 
-func (te *TestEnvironment) cleanup() {
-	te.mu.Lock()
-	defer te.mu.Unlock()
-
+// cleanupLocked tears down the node process. te.mu must be held by the caller.
+func (te *TestEnvironment) cleanupLocked() {
 	if te.nodeCmd != nil && te.nodeCmd.Process != nil {
 		te.logger.Info("TestEnv: Cleaning up Sui node")
 		if err := te.nodeCmd.Process.Kill(); err != nil {
@@ -197,8 +246,14 @@ func (te *TestEnvironment) cleanup() {
 	te.nodeCmd = nil
 }
 
+func (te *TestEnvironment) cleanup() {
+	te.mu.Lock()
+	defer te.mu.Unlock()
+	te.cleanupLocked()
+}
+
 func createClient() sui.ISuiAPI {
-	return sui.NewSuiClientWithCustomClient(fmt.Sprintf("http://localhost:%d", instance.rpcPort), &http.Client{
+	return sui.NewSuiClientWithCustomClient(fmt.Sprintf("http://%s:%d", loopbackHost, instance.rpcPort), &http.Client{
 		Timeout: HTTPClientTimeout,
 	})
 }
@@ -214,7 +269,7 @@ func createAccount(t *testing.T) (utils.SuiSigner, error) {
 		return nil, fmt.Errorf("failed to get signer address: %w", err)
 	}
 
-	faucetURL := fmt.Sprintf("http://localhost:%d", instance.faucetPort)
+	faucetURL := fmt.Sprintf("http://%s:%d", loopbackHost, instance.faucetPort)
 	log := logger.Test(t)
 
 	err = fundWithFaucet(log, faucetURL, signerAddress)
@@ -236,7 +291,7 @@ func randomPorts(count int) ([]int, error) {
 
 	// open all listeners before closing to avoid the same port being returned
 	for i := 0; i < count; i++ { //nolint:intrange
-		listener, err := net.Listen("tcp", "localhost:0")
+		listener, err := net.Listen("tcp", loopbackHost+":0")
 		if err != nil {
 			for j := 0; j < i; j++ { //nolint:intrange
 				listeners[j].Close()
