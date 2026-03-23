@@ -1,10 +1,10 @@
 package changesets
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 
+	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -31,13 +31,14 @@ type CurseUncurseChainsConfig struct {
 	IsGlobalCurse      bool                  `yaml:"isGlobalCurse"`
 	DestChainSelectors []uint64              `yaml:"destChainSelectors"`
 	TimelockConfig     *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
+	// IsFastCurse selects the fastcurse MCMS instance when generating a timelock
+	// proposal. Has no effect when TimelockConfig is nil.
+	IsFastCurse bool `yaml:"isFastCurse,omitempty"`
 }
 
 var _ cldf.ChangeSetV2[CurseUncurseChainsConfig] = CurseUncurseChains{}
 
 type CurseUncurseChains struct{}
-
-var globalCurseSubjectBytes = [16]byte{0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
 
 func (c CurseUncurseChains) VerifyPreconditions(e cldf.Environment, cfg CurseUncurseChainsConfig) error {
 	if cfg.OperationType != string(CurseOperationType) && cfg.OperationType != string(UncurseOperationType) {
@@ -127,16 +128,17 @@ func (c CurseUncurseChains) Apply(e cldf.Environment, cfg CurseUncurseChainsConf
 		defs := []cld_ops.Definition{genericReport.Def}
 		inputs := []any{genericReport.Input}
 
+		mcmsState := state[cfg.SuiChainSelector].MCMSState(cfg.IsFastCurse)
 		mcmsConfig := mcmsops.ProposalGenerateInput{
 			ChainSelector:      cfg.SuiChainSelector,
 			Defs:               defs,
 			Inputs:             inputs,
-			MmcsPackageID:      state[cfg.SuiChainSelector].MCMSPackageID,
-			McmsStateObjID:     state[cfg.SuiChainSelector].MCMSStateObjectID,
-			TimelockObjID:      state[cfg.SuiChainSelector].MCMSTimelockObjectID,
-			AccountObjID:       state[cfg.SuiChainSelector].MCMSAccountStateObjectID,
-			RegistryObjID:      state[cfg.SuiChainSelector].MCMSRegistryObjectID,
-			DeployerStateObjID: state[cfg.SuiChainSelector].MCMSDeployerStateObjectID,
+			MmcsPackageID:      mcmsState.PackageID,
+			McmsStateObjID:     mcmsState.StateObjectID,
+			TimelockObjID:      mcmsState.TimelockObjectID,
+			AccountObjID:       mcmsState.AccountStateObjectID,
+			RegistryObjID:      mcmsState.RegistryObjectID,
+			DeployerStateObjID: mcmsState.DeployerStateObjectID,
 			TimelockConfig:     *cfg.TimelockConfig,
 		}
 
@@ -155,19 +157,13 @@ func (c CurseUncurseChains) Apply(e cldf.Environment, cfg CurseUncurseChainsConf
 
 func buildCurseSubjects(cfg CurseUncurseChainsConfig) ([][]byte, error) {
 	if cfg.IsGlobalCurse {
-		subject := make([]byte, len(globalCurseSubjectBytes))
-		copy(subject, globalCurseSubjectBytes[:])
-		return [][]byte{subject}, nil
+		s := fastcurse.GlobalCurseSubject()
+		return [][]byte{s[:]}, nil
 	}
 	subjects := make([][]byte, 0, len(cfg.DestChainSelectors))
 	for _, selector := range cfg.DestChainSelectors {
-		subjects = append(subjects, selectorToSubject(selector))
+		s := fastcurse.GenericSelectorToSubject(selector)
+		subjects = append(subjects, s[:])
 	}
 	return subjects, nil
-}
-
-func selectorToSubject(selector uint64) []byte {
-	subject := make([]byte, 16)
-	binary.BigEndian.PutUint64(subject[8:], selector)
-	return subject
 }

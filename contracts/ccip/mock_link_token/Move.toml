@@ -1,9 +1,3 @@
 [package]
-name = "MockLINKToken"
+name = "mock_link_token"
 edition = "2024"
-
-[addresses]
-mock_link_token = "0x0"
-
-[dev-addresses]
-mock_link_token = "0x1111"

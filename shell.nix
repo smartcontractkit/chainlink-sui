@@ -35,10 +35,10 @@
     unset GOROOT
     unset GOPATH
     unset GOTOOLDIR
+    # Use the nix-provided Go toolchain; disable Go's auto-download behavior
+    export GOTOOLCHAIN=local
     # Add Nix-provided Go binary path to ensure consistency
     export PATH=$(go env GOROOT)/bin:$PATH
-    # Optional: lock Go toolchain version if needed
-    export GOTOOLCHAIN=go1.25.5+auto
     # Debug info
     >&2 echo "Using Go at: $(which go)"
     >&2 go version

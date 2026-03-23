@@ -45,7 +45,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		Client: suiChain.Client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
@@ -76,7 +76,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for Sui chain %d: %w", config.SuiChainSelector, err)
 		}
 
-		err = storeMCMSInAddressBook(ab, config.SuiChainSelector, mcmsReport.Output)
+		err = storeMCMSInAddressBook(ab, config.SuiChainSelector, mcmsReport.Output, false)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to store MCMS in address book for Sui chain %d: %w", config.SuiChainSelector, err)
 		}

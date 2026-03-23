@@ -411,7 +411,7 @@ func GetLinkCoins(t *testing.T, envSettings *EnvironmentSettings, linkTokenType 
 		Client: envSettings.Client,
 		Signer: envSettings.Signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				Signer:           envSettings.Signer,
 				WaitForExecution: true,
@@ -478,7 +478,7 @@ func GetEthCoins(t *testing.T, client sui.ISuiAPI, signer rel.SuiSigner, ethToke
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				Signer:           signer,
 				WaitForExecution: true,

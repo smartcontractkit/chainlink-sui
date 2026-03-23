@@ -222,6 +222,11 @@ func createAccount(t *testing.T) (utils.SuiSigner, error) {
 		return nil, fmt.Errorf("failed to fund account: %w", err)
 	}
 
+	err = fundWithFaucet(log, faucetURL, signerAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fund account: %w", err)
+	}
+
 	return signer, nil
 }
 

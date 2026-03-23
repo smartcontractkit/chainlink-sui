@@ -49,7 +49,7 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,

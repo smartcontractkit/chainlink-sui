@@ -499,7 +499,7 @@ public fun test_register() {
             local_token,
         );
         assert!(
-            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
+            token_type == ascii::string(b"5ef4b483da6644c84aa78eae4f51a9bfb1fb4554d5134ac98892e931fcbdd6bf::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
         );
         assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
 
@@ -537,7 +537,7 @@ public fun test_register() {
             local_token,
         );
         assert!(
-            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
+            token_type == ascii::string(b"5ef4b483da6644c84aa78eae4f51a9bfb1fb4554d5134ac98892e931fcbdd6bf::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
         );
         // Since TypeProof and TypeProof2 have the same package ID, the type proof should remain as TypeProof
         assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
@@ -724,7 +724,7 @@ public fun test_transfer_admin_role_not_registered() {
 }
 
 #[test]
-#[expected_failure(abort_code = registry::ENotAllowed)]
+#[expected_failure(abort_code = registry::ENotAdministrator)]
 public fun test_register_and_unregister_as_non_admin() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
     let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);

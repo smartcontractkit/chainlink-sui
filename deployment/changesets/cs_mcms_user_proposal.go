@@ -11,6 +11,7 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	mcmsuser "github.com/smartcontractkit/chainlink-sui/bindings/packages/mcms/mcms_user"
+	"github.com/smartcontractkit/chainlink-sui/deployment"
 )
 
 type InvokeMCMSFunctionOneConfig struct {
@@ -21,6 +22,10 @@ type InvokeMCMSFunctionOneConfig struct {
 	AccountObjID       string `json:"accountObjID"`
 	RegistryObjID      string `json:"registryObjID"`
 	DeployerStateObjID string `json:"deployerStateObjID"`
+
+	// IsFastCurse selects the fastcurse MCMS instance for the proposal.
+	// MCMS fields above are auto-populated from state when empty.
+	IsFastCurse bool `json:"isFastCurse,omitempty"`
 
 	// Proposal related
 	Role  suisdk.TimelockRole `json:"role"`
@@ -40,6 +45,20 @@ var _ cldf.ChangeSetV2[InvokeMCMSFunctionOneConfig] = InvokeMCMSFunctionOne{}
 type InvokeMCMSFunctionOne struct{}
 
 func (d InvokeMCMSFunctionOne) Apply(e cldf.Environment, config InvokeMCMSFunctionOneConfig) (cldf.ChangesetOutput, error) {
+	// Auto-populate MCMS fields from on-chain state when not provided.
+	if config.MmcsPackageID == "" || config.McmsStateObjID == "" || config.TimelockObjID == "" || config.AccountObjID == "" || config.RegistryObjID == "" {
+		suiState, err := deployment.LoadOnchainStatesui(e)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to load sui onchain state: %w", err)
+		}
+		mcmsFields := suiState[config.ChainSelector].MCMSState(config.IsFastCurse)
+		config.MmcsPackageID = mcmsFields.PackageID
+		config.McmsStateObjID = mcmsFields.StateObjectID
+		config.TimelockObjID = mcmsFields.TimelockObjectID
+		config.AccountObjID = mcmsFields.AccountStateObjectID
+		config.RegistryObjID = mcmsFields.RegistryObjectID
+		config.DeployerStateObjID = mcmsFields.DeployerStateObjectID
+	}
 	suiChains := e.BlockChains.SuiChains()
 
 	suiChain := suiChains[config.ChainSelector]

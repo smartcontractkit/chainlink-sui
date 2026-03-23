@@ -8,6 +8,8 @@ import (
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	managedtoken "github.com/smartcontractkit/chainlink-sui/bindings/packages/managed_token"
 	mockethtoken "github.com/smartcontractkit/chainlink-sui/bindings/packages/mock_eth_token"
@@ -22,7 +24,6 @@ import (
 	mockethtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_eth_token"
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_link_token"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
-	"github.com/stretchr/testify/require"
 )
 
 // SetupEthTokenPoolBurnMint sets up a burn/mint token pool for ETH tokens.
@@ -265,7 +266,7 @@ func configureNewMinter(
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				Signer:           signer,
 				WaitForExecution: true,
@@ -423,7 +424,7 @@ func MintTestTokens(
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				Signer:           signer,
 				WaitForExecution: true,

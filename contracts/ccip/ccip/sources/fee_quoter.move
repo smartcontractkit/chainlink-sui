@@ -78,10 +78,10 @@ const VAL_1E14: u256 = 100_000_000_000_000;
 const VAL_1E16: u256 = 10_000_000_000_000_000;
 const VAL_1E18: u256 = 1_000_000_000_000_000_000;
 
-// Link has 8 decimals on Sui and 18 decimals on it's native chain, Ethereum. We want to emit
+// Link has 9 decimals on Sui and 18 decimals on its native chain, Ethereum. We want to emit
 // the fee in juels (1e18) denomination for consistency across chains. This means we multiply
-// the fee by 1e10 on Sui before we emit it in the event.
-const LOCAL_8_TO_18_DECIMALS_LINK_MULTIPLIER: u256 = 10_000_000_000;
+// the fee by 1e9 on Sui before we emit it in the event.
+const LOCAL_9_TO_18_DECIMALS_LINK_MULTIPLIER: u256 = 1_000_000_000;
 
 public struct FeeQuoterState has key, store {
     id: UID,
@@ -1240,7 +1240,7 @@ public fun process_message_args(
     // get a consistent juels amount regardless of the token denomination on the chain.
     let msg_fee_juels =
         (msg_fee_link_local_denomination as u256)
-            * LOCAL_8_TO_18_DECIMALS_LINK_MULTIPLIER;
+            * LOCAL_9_TO_18_DECIMALS_LINK_MULTIPLIER;
 
     // max_fee_juels_per_msg is in juels denomination for consistency across chains.
     assert!(msg_fee_juels <= state.max_fee_juels_per_msg, EMessageFeeTooHigh);

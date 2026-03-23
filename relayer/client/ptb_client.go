@@ -38,6 +38,7 @@ const (
 	Base10                      int           = 10
 	DefaultGasPrice             uint64        = 10_000
 	DefaultGasBudget            uint64        = 1_000_000_000
+	DefaultMinGasBudget         uint64        = 1_000_000
 	DefaultCacheExpiration      time.Duration = 120 * time.Minute
 	DefaultCacheCleanupInterval time.Duration = 240 * time.Minute
 	DefaultHTTPTimeout          time.Duration = 30 * time.Second
@@ -430,7 +431,9 @@ func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, er
 			if err != nil {
 				storageRebate = 0
 			}
-			result = computationCost + storageCost - storageRebate
+
+			// Override the estimate with a minimum threshold
+			result = max(computationCost+storageCost-storageRebate, DefaultMinGasBudget)
 		}
 
 		return nil

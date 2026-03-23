@@ -34,6 +34,7 @@ import (
 func TestTransactionsIndexer(t *testing.T) {
 	ctx := context.Background()
 	log := logger.Test(t)
+	testutils.CleanupTestContracts()
 
 	// Setup database
 	datastoreUrl := os.Getenv("TEST_DB_URL")
@@ -53,6 +54,7 @@ func TestTransactionsIndexer(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
+		testutils.CleanupTestContracts()
 		if cmd.Process != nil {
 			perr := cmd.Process.Kill()
 			if perr != nil {
@@ -87,8 +89,6 @@ func TestTransactionsIndexer(t *testing.T) {
 
 	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
-
-	testutils.PatchContractAddressTOML(t, "contracts/test", "test_secondary", "_")
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	gasBudget := int(2000000000)
