@@ -243,7 +243,7 @@ const EInvalidOwnerCap: u64 = 37;
 const EInvalidFunction: u64 = 38;
 
 public fun type_and_version(): String {
-    string::utf8(b"FeeQuoter 1.6.0")
+    string::utf8(b"FeeQuoter 1.6.1")
 }
 
 #[allow(lint(self_transfer))]
