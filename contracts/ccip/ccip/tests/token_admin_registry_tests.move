@@ -173,7 +173,7 @@ public fun test_initialize() {
 #[test]
 public fun test_type_and_version() {
     let version = registry::type_and_version();
-    assert!(version == string::utf8(b"TokenAdminRegistry 1.6.0"));
+    assert!(version == string::utf8(b"TokenAdminRegistry 1.6.1"));
 }
 
 #[test]

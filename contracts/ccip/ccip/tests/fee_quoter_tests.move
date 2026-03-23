@@ -696,7 +696,7 @@ public fun test_get_validated_fee() {
 #[test]
 public fun test_type_and_version() {
     let version = fee_quoter::type_and_version();
-    assert!(version == string::utf8(b"FeeQuoter 1.6.0"));
+    assert!(version == string::utf8(b"FeeQuoter 1.6.1"));
 }
 
 #[test]
