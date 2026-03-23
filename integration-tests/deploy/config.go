@@ -136,7 +136,7 @@ func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
-					TypeAndVersion: "FeeQuoter 1.6.0",
+					TypeAndVersion: "FeeQuoter 1.6.1",
 					StateObjectID:  state.CCIPObjectRef,
 				},
 				FeeTokens: []string{state.LinkTokenCoinMetadataId},
@@ -184,7 +184,7 @@ func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
-					TypeAndVersion: "TokenAdminRegistry 1.6.0",
+					TypeAndVersion: "TokenAdminRegistry 1.6.1",
 					StateObjectID:  state.CCIPObjectRef,
 				},
 				TokenConfigs: map[string]view.TokenConfigView{
