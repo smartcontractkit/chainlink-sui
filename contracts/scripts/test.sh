@@ -18,7 +18,11 @@ PACKAGES=(
   ccip/managed_token_faucet
 )
 
+# Sui ≥1.66 uses on-chain-like gas metering in unit tests with a ~1M default budget.
+# Some tests (e.g. MCMS multi-step flows) exceed that and fail as "Test timed out".
+SUI_TEST_GAS_LIMIT="${SUI_TEST_GAS_LIMIT:-500000000}"
+
 # run tests
 for pkg in "${PACKAGES[@]}"; do
-  sui move test --path "$pkg"
+  sui move test --path "$pkg" --gas-limit "$SUI_TEST_GAS_LIMIT"
 done

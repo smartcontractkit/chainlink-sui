@@ -668,6 +668,42 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		} else {
 			fmt.Println("Skipping manage-package for original CCIPOfframp (no published address found)")
 		}
+
+		if isUpgrade {
+			// Replace offramp.move with mock_offramp_v2 (new type_and_version), same pattern as mock_ccip_v2 / mock_onramp_v2.
+			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_offramp_v2", "offramp.move")
+			upgradeDst := filepath.Join(packageRoot, "sources", "offramp.move")
+
+			input, err := os.ReadFile(upgradeSrc)
+			if err != nil {
+				return PackageArtifact{}, fmt.Errorf("reading offramp upgrade mock %q: %w", upgradeSrc, err)
+			}
+
+			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
+				return PackageArtifact{}, fmt.Errorf("replacing offramp.move inside sui-temp workspace: %w", err)
+			}
+
+			ccipOffRampOrig := namedAddresses["original_offramp_pkg"]
+			if !isZeroAddress(ccipOffRampOrig) {
+				ccipOffRampDir := filepath.Join(dstRoot, "ccip", "ccip_offramp")
+				if err := managePackage(ccipOffRampDir, 1, rpcURL, env, ccipOffRampOrig, ccipOffRampOrig, pubfilePath); err != nil {
+					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP OffRamp dependency: %w", err)
+				}
+			} else {
+				fmt.Println("Skipping manage-package for CCIP OffRamp (no published address found)")
+			}
+
+			ccipLatestAddr := namedAddresses["latest_ccip_pkg"]
+			ccipOriginalAddr := namedAddresses["ccip"]
+			if !isZeroAddress(ccipLatestAddr) && !isZeroAddress(ccipOriginalAddr) {
+				ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
+				if err := managePackage(ccipDir, 2, rpcURL, env, ccipOriginalAddr, ccipLatestAddr, pubfilePath); err != nil {
+					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency for offRamp: %w", err)
+				}
+			} else {
+				fmt.Println("Skipping manage-package for CCIP Dependency for OffRamp (no published address found)")
+			}
+		}
 	}
 
 	// Apply source modifications if provided (test only - happens in temp dir).
@@ -903,7 +939,7 @@ func getDynamicSuiRPC() (string, error) {
 		return envRPC, nil
 	}
 
-	cmd := exec.Command("docker", "ps", "--filter", "ancestor=mysten/sui-tools:mainnet-v1.65.2", "--format", "{{.Ports}}")
+	cmd := exec.Command("docker", "ps", "--filter", "ancestor=mysten/sui-tools:mainnet-v1.67.3", "--format", "{{.Ports}}")
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("docker ps failed: %w", err)

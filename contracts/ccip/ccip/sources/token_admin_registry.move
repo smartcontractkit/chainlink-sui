@@ -82,7 +82,7 @@ const ETokenPoolPackageIdAlreadyRegistered: u64 = 10;
 const ETokenPoolPackageIdNotRegistered: u64 = 11;
 
 public fun type_and_version(): String {
-    string::utf8(b"TokenAdminRegistry 1.6.0")
+    string::utf8(b"TokenAdminRegistry 1.6.1")
 }
 
 public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
