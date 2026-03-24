@@ -610,7 +610,7 @@ func (s *CCIPMCMSTestSuite) RunUpgradeOfframpProposal(newVersion string) {
 	bind.SetTestModifier(func(packageRoot string) error {
 		sourcePath := filepath.Join(packageRoot, "sources", "offramp.move")
 		content, _ := os.ReadFile(sourcePath)
-		modified := strings.Replace(string(content), "OffRamp 1.6.0", newVersion, 1)
+		modified := strings.Replace(string(content), "OffRamp 1.6.1", newVersion, 1)
 		return os.WriteFile(sourcePath, []byte(modified), 0o644)
 	})
 	defer bind.ClearTestModifier()
