@@ -7,3 +7,5 @@ mcms = { local = "../../mcms/mcms" }
 
 [environments]
 devnet = "a9149565"
+# Sui public testnet chain identifier (matches mcms/Published.toml and Move.lock)
+testnet = "4c78adac"
