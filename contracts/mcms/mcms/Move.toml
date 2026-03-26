@@ -4,5 +4,3 @@ edition = "2024"
 
 [environments]
 devnet = "a9149565"
-# Sui public testnet chain identifier (matches Published.toml)
-testnet = "4c78adac"
