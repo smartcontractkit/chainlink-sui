@@ -3,16 +3,15 @@ name = "ChainlinkCCIP"
 edition = "2024"
 
 [addresses]
-ccip = "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
-mcms = "0x7dd8c89002aa29bd802da52b8b5dd92eed1d94b5a1daa6e9f80ae9599f656e8d"
+ccip = "0x0"
 
 [dev-addresses]
 ccip = "0x1000"
 mcms = "0x4000"
+mcms_owner = "0x4010"
 
 [dependencies]
 ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
 
 [environments]
-testnet = "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
-local = "0x0"
+local = "4c78adac"

@@ -2,8 +2,10 @@
 name = "ChainlinkManyChainMultisig"
 edition = "2024"
 
+[dependencies]
+
 [addresses]
-mcms = "0x7dd8c89002aa29bd802da52b8b5dd92eed1d94b5a1daa6e9f80ae9599f656e8d"
+mcms = "0x0"
 mcms_owner = "0x0"
 
 [dev-addresses]
@@ -11,5 +13,4 @@ mcms = "0x0"
 mcms_owner = "0x4010"
 
 [environments]
-testnet = "0x7dd8c89002aa29bd802da52b8b5dd92eed1d94b5a1daa6e9f80ae9599f656e8d"
-local = "0x0"
+local = "4c78adac"
