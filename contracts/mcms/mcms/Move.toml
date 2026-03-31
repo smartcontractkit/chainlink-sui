@@ -4,3 +4,4 @@ edition = "2024"
 
 [environments]
 devnet = "a9149565"
+local = "4c78adac"

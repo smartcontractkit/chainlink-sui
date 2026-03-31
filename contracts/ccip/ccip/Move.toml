@@ -7,3 +7,4 @@ mcms = { local = "../../mcms/mcms" }
 
 [environments]
 devnet = "a9149565"
+local = "4c78adac"
