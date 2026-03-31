@@ -2,6 +2,7 @@ package bind
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,6 +61,8 @@ published-at = "%s"
 original-id = "%s"
 version = %d
 `, environment, chainID, publishedAt, originalID, version)
+
+	log.Printf("DEBUG: WritePublishedTOML writing to %s with env=%s, published-at=%s, original-id=%s\n", packageDir, environment, publishedAt, originalID)
 
 	if err := os.WriteFile(publishedTomlPath, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("failed to write Published.toml at %s: %w", publishedTomlPath, err)
