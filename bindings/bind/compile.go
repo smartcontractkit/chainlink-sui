@@ -563,6 +563,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		// Register framework packages in the ephemeral pub file for dependency resolution
 		// This ensures the Sui compiler can properly resolve std (0x1) and sui (0x2) addresses
 		if pubfilePath != "" {
+			log.Printf("DEBUG: Registering framework packages in ephemeral pub file: %s\n", pubfilePath)
 			frameworkEntries := []EphemeralPubEntry{
 				{
 					Source:      "root",
@@ -577,11 +578,17 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 					Version:     1,
 				},
 			}
-			for _, entry := range frameworkEntries {
+			for i, entry := range frameworkEntries {
+				log.Printf("DEBUG: Adding framework package [%d]: source=%s, published-at=%s, version=%d\n", 
+					i, entry.Source, entry.PublishedAt, entry.Version)
 				if err := AppendToEphemeralPubFile(pubfilePath, env, chainID, entry); err != nil {
 					log.Printf("warning: failed to add framework package to ephemeral pubfile: %v\n", err)
+				} else {
+					log.Printf("DEBUG: Successfully appended framework package [%d] to ephemeral pubfile\n", i)
 				}
 			}
+		} else {
+			log.Printf("DEBUG: pubfilePath is empty, skipping framework package registration\n")
 		}
 	}
 
@@ -802,6 +809,13 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			return PackageArtifact{}, fmt.Errorf("sui client publish (%s): %w\nStdout:\n%s\nStderr:\n%s", cmd.Dir, err, output, string(exitErr.Stderr))
 		}
 		return PackageArtifact{}, fmt.Errorf("sui client publish (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
+	}
+
+	// Debug: dump ephemeral pub file content if available
+	if pubfilePath != "" && isUpgrade {
+		if pubContent, err := os.ReadFile(pubfilePath); err == nil {
+			log.Printf("DEBUG: Ephemeral pubfile content:\n%s\n", string(pubContent))
+		}
 	}
 
 	idx := strings.Index(string(output), "{")
