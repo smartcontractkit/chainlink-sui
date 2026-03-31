@@ -559,6 +559,30 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		} else {
 			fmt.Println("Skipping manage-package for original CCIP (no published address found)")
 		}
+
+		// Register framework packages in the ephemeral pub file for dependency resolution
+		// This ensures the Sui compiler can properly resolve std (0x1) and sui (0x2) addresses
+		if pubfilePath != "" {
+			frameworkEntries := []EphemeralPubEntry{
+				{
+					Source:      "root",
+					PublishedAt: "0x0000000000000000000000000000000000000000000000000000000000000001",
+					OriginalID:  "0x0000000000000000000000000000000000000000000000000000000000000001",
+					Version:     1,
+				},
+				{
+					Source:      "root",
+					PublishedAt: "0x0000000000000000000000000000000000000000000000000000000000000002",
+					OriginalID:  "0x0000000000000000000000000000000000000000000000000000000000000002",
+					Version:     1,
+				},
+			}
+			for _, entry := range frameworkEntries {
+				if err := AppendToEphemeralPubFile(pubfilePath, env, chainID, entry); err != nil {
+					log.Printf("warning: failed to add framework package to ephemeral pubfile: %v\n", err)
+				}
+			}
+		}
 	}
 
 	if packageName == contracts.CCIPOnramp {
