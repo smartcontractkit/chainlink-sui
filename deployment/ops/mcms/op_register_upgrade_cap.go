@@ -31,12 +31,13 @@ var registerUpgradeCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 	}
 
 	// Call RegisterUpgradeCap on the MCMS deployer
+	// Parameter order: state, registry, upgradeCap
 	tx, err := mcmsDeployer.RegisterUpgradeCap(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.UpgradeCapObjectID},
-		bind.Object{Id: input.RegistryObjectID},
 		bind.Object{Id: input.DeployerStateObjectID},
+		bind.Object{Id: input.RegistryObjectID},
+		bind.Object{Id: input.UpgradeCapObjectID},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to register upgrade cap for package %s: %w", input.PackageName, err)
