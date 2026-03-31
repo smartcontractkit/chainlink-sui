@@ -289,6 +289,8 @@ func EnsureEnvironmentInMoveToml(packageDir, environment, chainID string) error 
 	if err != nil {
 		return fmt.Errorf("failed to read Move.toml: %w", err)
 	}
+	
+	log.Printf("DEBUG: EnsureEnvironmentInMoveToml for %s with env=%s, chainID=%s", packageDir, environment, chainID)
 
 	lines := strings.Split(string(content), "\n")
 	inEnvSection := false
@@ -382,6 +384,7 @@ func EnsureEnvironmentInMoveToml(packageDir, environment, chainID string) error 
 
 	// Only write if content changed
 	if newContent != string(content) {
+		log.Printf("DEBUG: Updated Move.toml at %s with environment %s=%s", moveTomlPath, environment, chainID)
 		f, err := os.OpenFile(moveTomlPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 		if err != nil {
 			return fmt.Errorf("failed to open Move.toml for writing: %w", err)
@@ -395,6 +398,8 @@ func EnsureEnvironmentInMoveToml(packageDir, environment, chainID string) error 
 			return fmt.Errorf("failed to sync Move.toml: %w", err)
 		}
 		f.Close()
+	} else {
+		log.Printf("DEBUG: Move.toml already has environment %s", environment)
 	}
 
 	return nil
