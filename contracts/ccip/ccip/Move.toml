@@ -12,3 +12,7 @@ mcms = "0x4000"
 
 [dependencies]
 ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
+
+[environments]
+testnet = "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
+local = "0x0"
