@@ -817,6 +817,19 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			log.Printf("DEBUG: Ephemeral pubfile content:\n%s\n", string(pubContent))
 		}
 	}
+	
+	// Debug: also dump Published.toml files for the compiled package and its dependencies
+	if isUpgrade {
+		log.Printf("DEBUG: Checking Published.toml files after compilation")
+		// The packageRoot is the actual package directory (e.g., /tmp/sui-temp-xyz/contracts/ccip/ccip)
+		// So we need to check Published.toml in packageRoot and in parent package directories
+		for _, relPath := range []string{".", "../mcms", "../../mcms/mcms", "../../ccip_onramp/ccip_onramp"} {
+			tomlPath := filepath.Join(packageRoot, relPath, "Published.toml")
+			if pubContent, err := os.ReadFile(tomlPath); err == nil {
+				log.Printf("DEBUG: Published.toml at %s:\n%s\n", relPath, string(pubContent))
+			}
+		}
+	}
 
 	idx := strings.Index(string(output), "{")
 	if idx == -1 {
@@ -838,21 +851,27 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 
 	//  dependencies
 	depsInput := resp.V1.Kind.ProgrammableTransaction.Commands[0].Publish[1]
+	log.Printf("DEBUG: depsInput raw value: %+v (type: %T, length: %d)\n", depsInput, depsInput, len(depsInput))
+	
 	for i, v := range depsInput {
 		addrStr, ok := v.(string)
 		if !ok {
-			fmt.Printf("dep[%d] not a string, got %T\n", i, v)
+			fmt.Printf("dep[%d] not a string, got %T: %+v\n", i, v, v)
 			continue
 		}
 		deps = append(deps, addrStr)
 	}
-
+	
 	// Debug: log extracted dependencies for upgrades
 	if isUpgrade {
 		log.Printf("DEBUG: Extracted %d dependencies for upgrade of %s:", len(deps), packageName)
 		for i, dep := range deps {
 			log.Printf("  [%d] %s", i, dep)
 		}
+		
+		// Also dump module count to verify bytecode
+		modulesInput := resp.V1.Kind.ProgrammableTransaction.Commands[0].Publish[0]
+		log.Printf("DEBUG: Compiled modules for upgrade of %s: %d modules", packageName, len(modulesInput))
 	}
 
 	// modules
