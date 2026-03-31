@@ -53,6 +53,8 @@ var upgradeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Upgrade
 		namedAddresses[k] = v
 	}
 	namedAddresses["signer"] = signerAddress
+	// Ensures upgrade bytecode links in-package modules to the real package ID (not 0x0).
+	namedAddresses["upgrade_target_pkg"] = input.TargetPackageId
 
 	artifact, err := bind.CompilePackage(input.PackageName, namedAddresses, true, deps.SuiRPC)
 	if err != nil {

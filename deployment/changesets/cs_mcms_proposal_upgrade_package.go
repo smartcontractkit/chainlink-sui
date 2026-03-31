@@ -40,6 +40,12 @@ func (d MCMSProposalUpgradePackage) Apply(e cldf.Environment, config UpgradePack
 		config.AccountObjID = mcmsState.AccountStateObjectID
 		config.RegistryObjID = mcmsState.RegistryObjectID
 	}
+	if config.DeployerStateObjID == "" {
+		config.DeployerStateObjID = mcmsState.DeployerStateObjectID
+	}
+	if config.OwnerCapObjID == "" {
+		config.OwnerCapObjID = mcmsState.AccountOwnerCapObjectID
+	}
 
 	suiChains := e.BlockChains.SuiChains()
 

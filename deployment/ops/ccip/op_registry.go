@@ -21,6 +21,7 @@ var AllOperationsCCIP = []any{
 	*TransferOwnershipStateObjectOp,
 	*AcceptOwnershipStateObjectOp,
 	*ExecuteOwnershipTransferToMcmsStateObjectOp,
+	*RegisterCCIPUpgradeCapMcmsOp,
 	// Token Admin Registry Operations
 	*TokenAdminRegistryInitializeOp,
 	*TokenAdminRegistryUnregisterPoolOp,

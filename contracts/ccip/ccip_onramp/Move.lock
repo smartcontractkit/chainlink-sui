@@ -17,10 +17,16 @@ manifest_digest = "7AFB66695545775FBFBB2D3078ADFD084244D5002392E837FDE21D9EA1C6D
 deps = { MoveStdlib = "MoveStdlib" }
 
 [pinned.testnet.ccip]
-source = { root = true }
+source = { local = "../ccip" }
 use_environment = "testnet"
 manifest_digest = "B41543A1928002B1ABE6F16D69A3C1BE6BCA4D7A4DB7D2F9048274EFE11ED724"
 deps = { mcms = "mcms", std = "MoveStdlib", sui = "Sui" }
+
+[pinned.testnet.ccip_onramp]
+source = { root = true }
+use_environment = "testnet"
+manifest_digest = "ADA634B6916B069A30B224CF502B33E2A145FAD215D9E0425F0A850C8887A42E"
+deps = { ccip = "ccip", mcms = "mcms", std = "MoveStdlib", sui = "Sui" }
 
 [pinned.testnet.mcms]
 source = { local = "../../mcms/mcms" }

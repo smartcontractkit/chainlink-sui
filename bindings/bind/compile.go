@@ -1,6 +1,7 @@
 package bind
 
 import (
+	"bytes"
 	"embed"
 	"encoding/base64"
 	"encoding/hex"
@@ -240,15 +241,16 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		}
 	}()
 
-	// Initialize config non-interactively
-	initCmd := exec.Command("sui", "client", "-y")
+	// Initialize config non-interactively. Sui CLI ≥1.6x requires a subcommand with -y:
+	// `sui client -y` alone prints help and does not create client.yaml (exit 0).
+	initCmd := exec.Command("sui", "client", "-y", "active-env")
 	initCmd.Env = append(os.Environ(), fmt.Sprintf("SUI_CONFIG_DIR=%s", tempConfigDir))
 	if out, err := initCmd.CombinedOutput(); err != nil {
 		return PackageArtifact{}, fmt.Errorf("failed to init sui client: %w\n%s", err, out)
 	}
 
 	// 2. Create or update a sui env alias (in current config)
-	if err := setupSuiEnv(env, rpcURL); err != nil {
+	if err := setupSuiEnv(tempConfigDir, env, rpcURL); err != nil {
 		return PackageArtifact{}, fmt.Errorf("failed to create sui env alias: %w", err)
 	}
 
@@ -286,6 +288,13 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		return PackageArtifact{}, fmt.Errorf("failed to set environment in %s: %w", packageRoot, err)
 	}
 
+	// Delete Move.lock for the main package to ensure it regenerates with the new environment
+	// This prevents stale dependency resolution from old environment entries
+	moveLocKPath := filepath.Join(packageRoot, "Move.lock")
+	if err := os.Remove(moveLocKPath); err != nil && !os.IsNotExist(err) {
+		log.Printf("warning: failed to delete Move.lock for %s: %v\n", packageRoot, err)
+	}
+
 	// Also set environment in common dependency packages in the temp workspace
 	// This ensures local dependencies can be resolved during build with --build-env
 	commonDependencyDirs := []string{
@@ -312,6 +321,11 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		if _, statErr := os.Stat(depDir); statErr == nil {
 			if err := EnsureEnvironmentInMoveToml(depDir, env, chainID); err != nil {
 				log.Printf("warning: failed to set environment in dependency %s: %v\n", depDir, err)
+			}
+			// Delete Move.lock to ensure it regenerates with the new environment
+			depMoveLockPath := filepath.Join(depDir, "Move.lock")
+			if err := os.Remove(depMoveLockPath); err != nil && !os.IsNotExist(err) {
+				log.Printf("warning: failed to delete Move.lock for dependency %s: %v\n", depDir, err)
 			}
 		}
 	}
@@ -533,7 +547,10 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 
 		// For MCMS-managed upgrades (when not using sui client upgrade command),
 		// we need to manage the original CCIP package as a dependency
-		ccipAddr := namedAddresses["original_ccip_pkg"]
+		ccipAddr := strings.TrimSpace(namedAddresses["original_ccip_pkg"])
+		if isZeroAddress(ccipAddr) {
+			ccipAddr = strings.TrimSpace(namedAddresses["upgrade_target_pkg"])
+		}
 		if !isZeroAddress(ccipAddr) {
 			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
 			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr, pubfilePath); err != nil {
@@ -541,25 +558,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			}
 		} else {
 			fmt.Println("Skipping manage-package for original CCIP (no published address found)")
-		}
-
-		// if upgrade it needs to move.lock in it's own pkg
-		if isUpgrade {
-			// Replace fee_quoter.move inside the temp sui-temp-* workspace with upgraded mock version
-			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_ccip_v2", "fee_quoter.move")
-
-			// Path inside the temp workspace (automatically created)
-			upgradeDst := filepath.Join(packageRoot, "sources", "fee_quoter.move")
-
-			input, err := os.ReadFile(upgradeSrc)
-			if err != nil {
-				return PackageArtifact{}, fmt.Errorf("reading fee_quoter upgrade mock %q: %w", upgradeSrc, err)
-			}
-
-			// Overwrite the onramp.move in the sui-temp workspace
-			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
-				return PackageArtifact{}, fmt.Errorf("replacing fee_quoter.move inside sui-temp workspace: %w", err)
-			}
 		}
 	}
 
@@ -670,7 +668,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		}
 
 		if isUpgrade {
-			// Replace offramp.move with mock_offramp_v2 (new type_and_version), same pattern as mock_ccip_v2 / mock_onramp_v2.
+			// Replace offramp.move with mock_offramp_v2 (new type_and_version), same pattern as mock_onramp_v2.
 			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_offramp_v2", "offramp.move")
 			upgradeDst := filepath.Join(packageRoot, "sources", "offramp.move")
 
@@ -725,13 +723,25 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	hasDependencies := strings.Contains(string(pkgMoveTomlContent), "[dependencies]")
 
 	if isUpgrade {
-		// Remove the existing `Published.toml` to avoid the error "Your package is already published."
-		// This shouldn't happen with a `sui client upgrade` command but we must use `publish` here to allow
-		// MCMS to handle the upgrade authorization.
-		os.Remove(filepath.Join(packageRoot, "Published.toml"))
+		// MCMS supplies upgrade modules via the same Publish-shaped PTB the CLI emits from
+		// `sui client publish --serialize-unsigned-transaction`.
+		//
+		// Do not inject `[addresses]` into the root Move.toml for linkage: Sui ≥1.63 treats that as
+		// old-style, and old-style roots cannot depend on new-style packages (e.g. mcms). See
+		// https://docs.sui.io/references/package-managers/package-manager-migration
+		upgradePkgID := upgradeTargetPackageID(packageName, namedAddresses)
+		if upgradePkgID == "" || isZeroAddress(upgradePkgID) {
+			return PackageArtifact{}, fmt.Errorf("upgrade build requires a non-zero on-chain package ID (set namedAddresses[\"upgrade_target_pkg\"] or the package-specific original_*_pkg key)")
+		}
+		// Strip this env's [published.<env>] from the root package only so `publish --serialize` runs;
+		// dependency Published.toml (e.g. mcms) must stay. Deleting the whole file broke that.
+		if err := removePublishedEntry(packageRoot, env); err != nil {
+			return PackageArtifact{}, fmt.Errorf("remove published entry for upgrade serialize: %w", err)
+		}
 
 		cmd = exec.Command("sui", "client", "publish",
 			"--serialize-unsigned-transaction",
+			"--build-env", env,
 			"--skip-dependency-verification", // TODO: This is a temporary workaround for the test environment.
 			"--sender", namedAddresses["signer"],
 			"--json",
@@ -742,6 +752,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		// for proper dependency address resolution (avoiding 0x0 collision)
 		cmd = exec.Command("sui", "client", "publish",
 			"--serialize-unsigned-transaction",
+			"--build-env", env,
 			"--sender", namedAddresses["signer"],
 			"--json",
 			"--silence-warnings",
@@ -781,6 +792,12 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		return PackageArtifact{}, err
 	}
 
+	log.Printf("DEBUG: Response has %d commands\n", len(resp.V1.Kind.ProgrammableTransaction.Commands))
+	log.Printf("DEBUG: Response V1 Kind: %+v\n", resp.V1.Kind)
+	log.Printf("DEBUG: Response V1 Kind ProgrammableTransaction Commands[0].Publish[0]: %+v\n", resp.V1.Kind.ProgrammableTransaction.Commands[0].Publish[0])
+	log.Printf("DEBUG: Response V1 Kind ProgrammableTransaction Commands[0].Publish[1]: %+v\n", resp.V1.Kind.ProgrammableTransaction.Commands[0].Publish[1])
+	log.Printf("DEBUG: Response V1 Kind ProgrammableTransaction has %d Upgrade\n", len(resp.V1.Kind.ProgrammableTransaction.Commands[0].Upgrade))
+
 	//  dependencies
 	depsInput := resp.V1.Kind.ProgrammableTransaction.Commands[0].Publish[1]
 	for i, v := range depsInput {
@@ -792,9 +809,21 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		deps = append(deps, addrStr)
 	}
 
+	// Debug: log extracted dependencies for upgrades
+	if isUpgrade {
+		log.Printf("DEBUG: Extracted %d dependencies for upgrade of %s:", len(deps), packageName)
+		for i, dep := range deps {
+			log.Printf("  [%d] %s", i, dep)
+		}
+	}
+
 	// modules
 	modulesInput := resp.V1.Kind.ProgrammableTransaction.Commands[0].Publish[0]
 	modules = convertModulesToBase64(modulesInput)
+
+	// Do not rewrite module address pools to the on-chain package ID: the VM upgrade path
+	// requires self-addresses to remain zero in serialized modules (see PublishErrorNonZeroAddress
+	// in sui-types execution_status). Rewriting caused timelock execution to fail at Upgrade.
 
 	// For MCMS-managed upgrades, we need to compute the digest manually
 	// since sui client publish doesn't provide it
@@ -868,6 +897,43 @@ func isZeroAddress(addr string) bool {
 		}
 	}
 	return true
+}
+
+// upgradeTargetPackageID resolves the on-chain package ID for bytecode linkage during MCMS upgrades.
+func upgradeTargetPackageID(packageName contracts.Package, namedAddresses map[string]string) string {
+	if a := strings.TrimSpace(namedAddresses["upgrade_target_pkg"]); a != "" && !isZeroAddress(a) {
+		return a
+	}
+	switch packageName {
+	case contracts.CCIP:
+		return strings.TrimSpace(namedAddresses["original_ccip_pkg"])
+	case contracts.CCIPOnramp:
+		if a := strings.TrimSpace(namedAddresses["original_ccip_onramp_pkg"]); a != "" {
+			return a
+		}
+		return strings.TrimSpace(namedAddresses["original_onramp_pkg"])
+	case contracts.CCIPOfframp:
+		if a := strings.TrimSpace(namedAddresses["original_ccip_offramp_pkg"]); a != "" {
+			return a
+		}
+		return strings.TrimSpace(namedAddresses["original_offramp_pkg"])
+	case contracts.CCIPRouter:
+		return strings.TrimSpace(namedAddresses["original_ccip_router_pkg"])
+	case contracts.ManagedToken:
+		return strings.TrimSpace(namedAddresses["original_managed_token_pkg"])
+	case contracts.MCMSUserV2:
+		return strings.TrimSpace(namedAddresses["original_mcms_user_v2_pkg"])
+	case contracts.LockReleaseTokenPool:
+		return strings.TrimSpace(namedAddresses["original_lock_release_token_pool_pkg"])
+	case contracts.BurnMintTokenPool:
+		return strings.TrimSpace(namedAddresses["original_burn_mint_token_pool_pkg"])
+	case contracts.ManagedTokenPool:
+		return strings.TrimSpace(namedAddresses["original_managed_token_pool_pkg"])
+	case contracts.USDCTokenPool:
+		return strings.TrimSpace(namedAddresses["original_usdc_token_pool_pkg"])
+	default:
+		return ""
+	}
 }
 
 // managePackage writes Published.toml and updates Move.toml for a package
@@ -963,43 +1029,30 @@ type suiEnv struct {
 	RPC   string `json:"rpc"`
 }
 
-func setupSuiEnv(alias, rpcURL string) error {
+func suiCmdEnv(configDir string) []string {
+	return append(os.Environ(), "SUI_CONFIG_DIR="+configDir)
+}
+
+func setupSuiEnv(configDir, alias, rpcURL string) error {
 	// Step 1 — Fetch all current envs via CLI
 	cmd := exec.Command("sui", "client", "envs", "--json")
+	cmd.Env = suiCmdEnv(configDir)
 	out, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to list Sui environments: %w", err)
 	}
-	outStr := string(out)
-	idxFront := strings.Index(outStr, "testnet")
-	if idxFront == -1 {
-		return fmt.Errorf("testnet environment not found")
+	// sui client envs --json returns: [ [ { "alias", "rpc", ... }, ... ], "<active_alias>" ]
+	// Do not parse via substring hacks: "testnet" appears in RPC URLs and breaks JSON.
+	var topLevel []json.RawMessage
+	if err := json.Unmarshal(bytes.TrimSpace(out), &topLevel); err != nil {
+		return fmt.Errorf("failed to parse envs JSON: %w\nOutput:\n%s", err, string(out))
 	}
-
-	idxBack := strings.LastIndex(outStr, "testnet")
-	if idxBack == -1 {
-		return fmt.Errorf("testnet environment not found")
+	if len(topLevel) < 1 {
+		return fmt.Errorf("empty envs JSON response")
 	}
-	outTrimmed := string(out[idxFront+len("testnet")+1:idxBack-5]) + "]"
-
-	var parsed []any
-	if err := json.Unmarshal([]byte(outTrimmed), &parsed); err != nil {
-		return fmt.Errorf("failed to parse envs JSON: %w\nOutput:\n%s", err, outTrimmed)
-	}
-
 	var envList []suiEnv
-	if arr, ok := parsed[0].([]any); ok {
-		for _, e := range arr {
-			data, _ := json.Marshal(e)
-			var env suiEnv
-			if err := json.Unmarshal(data, &env); err == nil {
-				envList = append(envList, env)
-			} else {
-				log.Printf("failed to unmarshal env: %+v\n", err)
-			}
-		}
-	} else {
-		log.Printf("parsed[0] is not []any, got %T\n", parsed[0])
+	if err := json.Unmarshal(topLevel[0], &envList); err != nil {
+		return fmt.Errorf("failed to parse env list: %w\nOutput:\n%s", err, string(topLevel[0]))
 	}
 
 	// Step 2 — Check for existing alias and remove it
@@ -1017,15 +1070,15 @@ func setupSuiEnv(alias, rpcURL string) error {
 		"--rpc", rpcURL,
 		"--alias", alias,
 	)
-	newCmd.Env = os.Environ()
+	newCmd.Env = suiCmdEnv(configDir)
 	newOut, err := newCmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("failed to create sui env '%s': %v\nOutput:\n%s", alias, err, string(newOut))
+		return fmt.Errorf("failed to create sui env %q: %w\nOutput:\n%s", alias, err, string(newOut))
 	}
 
 	// Step 4️ — Switch to new env
 	switchCmd := exec.Command("sui", "client", "switch", "--env", alias)
-	switchCmd.Env = os.Environ()
+	switchCmd.Env = suiCmdEnv(configDir)
 	switchOut, err := switchCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to switch to env '%s': %w\nOutput:\n%s", alias, err, string(switchOut))
@@ -1033,7 +1086,8 @@ func setupSuiEnv(alias, rpcURL string) error {
 
 	// Step 5️ — Verify
 	activeCmd := exec.Command("sui", "client", "active-env")
-	activeCmd.Env = os.Environ()
+	activeCmd.Env = suiCmdEnv(configDir)
+	_, _ = activeCmd.CombinedOutput()
 	return nil
 }
 

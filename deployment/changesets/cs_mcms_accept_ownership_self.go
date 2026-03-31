@@ -20,8 +20,8 @@ var _ cldf.ChangeSetV2[AcceptMCMSOwnershipConfig] = AcceptMCMSOwnership{}
 // transfer proposal should be (re-)generated. When IsFastCurse is true the
 // fastcurse MCMS instance is targeted; otherwise the normal instance is used.
 type AcceptMCMSOwnershipConfig struct {
-	ChainSelector uint64
-	IsFastCurse   bool
+	ChainSelector uint64 `json:"chainSelector" yaml:"chainSelector"`
+	IsFastCurse   bool   `json:"isFastCurse,omitempty" yaml:"isFastCurse,omitempty"`
 }
 
 type AcceptMCMSOwnership struct{}
