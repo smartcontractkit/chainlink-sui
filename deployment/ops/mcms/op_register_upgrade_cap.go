@@ -7,7 +7,7 @@ import (
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	"github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms_deployer"
+	module_mcms_deployer "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms_deployer"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
 
@@ -25,7 +25,7 @@ var registerUpgradeCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 	opts.Signer = deps.Signer
 
 	// Create the MCMS deployer contract instance
-	mcmsDeployer, err := mcms_deployer.NewMcmsDeployer(input.MCMSPackageID, deps.Client)
+	mcmsDeployer, err := module_mcms_deployer.NewMcmsDeployer(input.MCMSPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to create MCMS deployer contract: %w", err)
 	}
