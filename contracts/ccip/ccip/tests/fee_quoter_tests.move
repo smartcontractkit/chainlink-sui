@@ -1581,7 +1581,7 @@ public fun test_apply_fee_token_updates_function_not_allowed() {
         &owner_cap,
         string::utf8(b"fee_quoter"),
         string::utf8(b"apply_fee_token_updates"),
-        1, // block version 1
+        2, // block version 2
         ctx,
     );
 

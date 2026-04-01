@@ -13,7 +13,7 @@ use sui::coin::{CoinMetadata, TreasuryCap};
 use sui::event;
 use sui::linked_table::{Self, LinkedTable};
 
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
 
 public struct TokenAdminRegistryState has key, store {
     id: UID,
