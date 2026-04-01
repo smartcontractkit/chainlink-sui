@@ -15,7 +15,7 @@ use sui::clock;
 use sui::event;
 use sui::table;
 
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
 
 const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
 const CHAIN_FAMILY_SELECTOR_SVM: vector<u8> = x"1e10bdc4";

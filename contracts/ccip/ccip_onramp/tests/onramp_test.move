@@ -670,7 +670,7 @@ public fun test_apply_allowlist_updates_by_admin_unauthorized() {
 #[test]
 public fun test_type_and_version() {
     let version = onramp::type_and_version();
-    assert!(version == string::utf8(b"OnRamp 1.6.0"));
+    assert!(version == string::utf8(b"OnRamp 1.6.1"));
 }
 
 #[test]

@@ -1222,7 +1222,7 @@ public fun test_register_pool_function_not_allowed() {
             &owner_cap,
             string::utf8(b"token_admin_registry"),
             string::utf8(b"register_pool"),
-            1, // block version 1
+            2, // block version 2
             ctx,
         );
 
