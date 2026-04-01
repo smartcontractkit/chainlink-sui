@@ -228,7 +228,7 @@ func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.OnRampAddress,
 					Owner:          owner,
-					TypeAndVersion: "OnRamp 1.6.0",
+					TypeAndVersion: "OnRamp 1.6.1",
 					StateObjectID:  state.OnRampStateObjectId,
 				},
 				StaticConfig: view.OnRampStaticConfig{
