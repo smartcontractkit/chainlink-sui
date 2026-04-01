@@ -155,10 +155,10 @@ const EInvalidOwnerCap: u64 = 20;
 const EInvalidTokenReceiver: u64 = 21;
 const ESourcePoolMismatch: u64 = 22;
 
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
 
 public fun type_and_version(): String {
-    string::utf8(b"OnRamp 1.6.0")
+    string::utf8(b"OnRamp 1.6.1")
 }
 
 public struct ONRAMP has drop {}
