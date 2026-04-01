@@ -5,7 +5,7 @@ package mcms
 import (
 	"os"
 	"path/filepath"
-	"strings"
+	"regexp"
 	"testing"
 	"time"
 
@@ -537,7 +537,8 @@ func (s *CCIPMCMSTestSuite) RunUpgradeCCIPProposal(newVersion string) {
 	bind.SetTestModifier(func(packageRoot string) error {
 		sourcePath := filepath.Join(packageRoot, "sources", "fee_quoter.move")
 		content, _ := os.ReadFile(sourcePath)
-		modified := strings.Replace(string(content), "FeeQuoter 1.6.1", newVersion, 1)
+		re := regexp.MustCompile(`FeeQuoter \d+\.\d+\.\d+`)
+		modified := re.ReplaceAllString(string(content), newVersion)
 		return os.WriteFile(sourcePath, []byte(modified), 0o644)
 	})
 	defer bind.ClearTestModifier()
@@ -610,7 +611,8 @@ func (s *CCIPMCMSTestSuite) RunUpgradeOfframpProposal(newVersion string) {
 	bind.SetTestModifier(func(packageRoot string) error {
 		sourcePath := filepath.Join(packageRoot, "sources", "offramp.move")
 		content, _ := os.ReadFile(sourcePath)
-		modified := strings.Replace(string(content), "OffRamp 1.6.1", newVersion, 1)
+		re := regexp.MustCompile(`OffRamp \d+\.\d+\.\d+`)
+		modified := re.ReplaceAllString(string(content), newVersion)
 		return os.WriteFile(sourcePath, []byte(modified), 0o644)
 	})
 	defer bind.ClearTestModifier()
@@ -683,7 +685,8 @@ func (s *CCIPMCMSTestSuite) RunUpgradeOnrampProposal(newVersion string) {
 	bind.SetTestModifier(func(packageRoot string) error {
 		sourcePath := filepath.Join(packageRoot, "sources", "onramp.move")
 		content, _ := os.ReadFile(sourcePath)
-		modified := strings.Replace(string(content), "OnRamp 1.6.1", newVersion, 1)
+		re := regexp.MustCompile(`OnRamp \d+\.\d+\.\d+`)
+		modified := re.ReplaceAllString(string(content), newVersion)
 		return os.WriteFile(sourcePath, []byte(modified), 0o644)
 	})
 	defer bind.ClearTestModifier()
@@ -756,7 +759,8 @@ func (s *CCIPMCMSTestSuite) RunUpgradeRouterProposal(newVersion string) {
 	bind.SetTestModifier(func(packageRoot string) error {
 		sourcePath := filepath.Join(packageRoot, "sources", "router.move")
 		content, _ := os.ReadFile(sourcePath)
-		modified := strings.Replace(string(content), "Router 1.6.0", newVersion, 1)
+		re := regexp.MustCompile(`Router \d+\.\d+\.\d+`)
+		modified := re.ReplaceAllString(string(content), newVersion)
 		return os.WriteFile(sourcePath, []byte(modified), 0o644)
 	})
 	defer bind.ClearTestModifier()

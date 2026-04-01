@@ -13,7 +13,7 @@ import (
 	suideploy "github.com/smartcontractkit/chainlink-sui/deployment"
 )
 
-const fastCurseQualifier = "RMNTimelockQualifier"
+const fastCurseQualifier = "RMNMCMS"
 
 type MCMSReader struct{}
 

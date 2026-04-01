@@ -543,24 +543,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			fmt.Println("Skipping manage-package for original CCIP (no published address found)")
 		}
 
-		// if upgrade it needs to move.lock in it's own pkg
-		if isUpgrade {
-			// Replace fee_quoter.move inside the temp sui-temp-* workspace with upgraded mock version
-			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_ccip_v2", "fee_quoter.move")
-
-			// Path inside the temp workspace (automatically created)
-			upgradeDst := filepath.Join(packageRoot, "sources", "fee_quoter.move")
-
-			input, err := os.ReadFile(upgradeSrc)
-			if err != nil {
-				return PackageArtifact{}, fmt.Errorf("reading fee_quoter upgrade mock %q: %w", upgradeSrc, err)
-			}
-
-			// Overwrite the onramp.move in the sui-temp workspace
-			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
-				return PackageArtifact{}, fmt.Errorf("replacing fee_quoter.move inside sui-temp workspace: %w", err)
-			}
-		}
 	}
 
 	if packageName == contracts.CCIPOnramp {
@@ -595,46 +577,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			fmt.Println("Skipping manage-package for original CCIPOnramp (no published address found)")
 		}
 
-		// TODO: make this only for mock test upgrade
-		if isUpgrade {
-			// Replace onramp.move inside the temp sui-temp-* workspace with upgraded mock version
-			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_onramp_v2", "onramp.move")
-			upgradeDst := filepath.Join(packageRoot, "sources", "onramp.move")
-
-			// Read the mock upgrade file from repo
-			input, err := os.ReadFile(upgradeSrc)
-			if err != nil {
-				return PackageArtifact{}, fmt.Errorf("reading onramp upgrade mock %q: %w", upgradeSrc, err)
-			}
-
-			// Overwrite the onramp.move in the sui-temp workspace
-			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
-				return PackageArtifact{}, fmt.Errorf("replacing onramp.move inside sui-temp workspace: %w", err)
-			}
-
-			ccipOnRampAddr := namedAddresses["original_onramp_pkg"]
-			if !isZeroAddress(ccipOnRampAddr) {
-				ccipOnRampDir := filepath.Join(dstRoot, "ccip", "ccip_onramp")
-				if err := managePackage(ccipOnRampDir, 1, rpcURL, env, ccipOnRampAddr, ccipOnRampAddr, pubfilePath); err != nil {
-					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP OnRamp dependency: %w", err)
-				}
-			} else {
-				fmt.Println("Skipping manage-package for CCIP OnRamp (no published address found)")
-			}
-
-			// also upgrade ccip move.Lock with updated values
-			ccipLatestAddr := namedAddresses["latest_ccip_pkg"]
-			ccipOriginalAddr := namedAddresses["ccip"]
-			if !isZeroAddress(ccipLatestAddr) && !isZeroAddress(ccipOriginalAddr) {
-				ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-				if err := managePackage(ccipDir, 2, rpcURL, env, ccipOriginalAddr, ccipLatestAddr, pubfilePath); err != nil {
-					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency for onRamp: %w", err)
-				}
-			} else {
-				fmt.Println("Skipping manage-package for CCIP Dependency for OnRamp (no published address found)")
-			}
-
-		}
 	}
 
 	if packageName == contracts.CCIPOfframp {
@@ -667,42 +609,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			}
 		} else {
 			fmt.Println("Skipping manage-package for original CCIPOfframp (no published address found)")
-		}
-
-		if isUpgrade {
-			// Replace offramp.move with mock_offramp_v2 (new type_and_version), same pattern as mock_ccip_v2 / mock_onramp_v2.
-			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_offramp_v2", "offramp.move")
-			upgradeDst := filepath.Join(packageRoot, "sources", "offramp.move")
-
-			input, err := os.ReadFile(upgradeSrc)
-			if err != nil {
-				return PackageArtifact{}, fmt.Errorf("reading offramp upgrade mock %q: %w", upgradeSrc, err)
-			}
-
-			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
-				return PackageArtifact{}, fmt.Errorf("replacing offramp.move inside sui-temp workspace: %w", err)
-			}
-
-			ccipOffRampOrig := namedAddresses["original_offramp_pkg"]
-			if !isZeroAddress(ccipOffRampOrig) {
-				ccipOffRampDir := filepath.Join(dstRoot, "ccip", "ccip_offramp")
-				if err := managePackage(ccipOffRampDir, 1, rpcURL, env, ccipOffRampOrig, ccipOffRampOrig, pubfilePath); err != nil {
-					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP OffRamp dependency: %w", err)
-				}
-			} else {
-				fmt.Println("Skipping manage-package for CCIP OffRamp (no published address found)")
-			}
-
-			ccipLatestAddr := namedAddresses["latest_ccip_pkg"]
-			ccipOriginalAddr := namedAddresses["ccip"]
-			if !isZeroAddress(ccipLatestAddr) && !isZeroAddress(ccipOriginalAddr) {
-				ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-				if err := managePackage(ccipDir, 2, rpcURL, env, ccipOriginalAddr, ccipLatestAddr, pubfilePath); err != nil {
-					return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency for offRamp: %w", err)
-				}
-			} else {
-				fmt.Println("Skipping manage-package for CCIP Dependency for OffRamp (no published address found)")
-			}
 		}
 	}
 
@@ -792,6 +698,20 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		deps = append(deps, addrStr)
 	}
 
+	// For MCMS-managed upgrades, enrich the dep list by querying the on-chain linkage
+	// table of each dep. This handles dep packages compiled with older Sui toolchains
+	// that explicitly included system packages (e.g. 0x3 sui_system, 0xb bridge) in
+	// their linkage — the Sui upgrade validator requires all transitively-referenced
+	// packages to appear in the Upgrade PTB command's dep_ids list.
+	if isUpgrade {
+		enriched, enrichErr := enrichDepsWithOnChainLinkage(deps)
+		if enrichErr != nil {
+			log.Printf("warning: dep linkage enrichment failed: %v (using original deps)\n", enrichErr)
+		} else {
+			deps = enriched
+		}
+	}
+
 	// modules
 	modulesInput := resp.V1.Kind.ProgrammableTransaction.Commands[0].Publish[0]
 	modules = convertModulesToBase64(modulesInput)
@@ -868,6 +788,73 @@ func isZeroAddress(addr string) bool {
 		}
 	}
 	return true
+}
+
+// fetchPackageLinkageAddresses queries the on-chain package via the Sui CLI and returns
+// all original_id addresses present in its linkage table.
+func fetchPackageLinkageAddresses(pkgAddr string) ([]string, error) {
+	cmd := exec.Command("sui", "client", "object", pkgAddr, "--json")
+	cmd.Env = os.Environ()
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("sui client object %s: %w\nStderr: %s", pkgAddr, err, string(exitErr.Stderr))
+		}
+		return nil, fmt.Errorf("sui client object %s: %w", pkgAddr, err)
+	}
+
+	idx := strings.Index(string(out), "{")
+	if idx == -1 {
+		return nil, fmt.Errorf("no JSON in output for package %s", pkgAddr)
+	}
+
+	var data struct {
+		Data struct {
+			Package struct {
+				LinkageTable map[string]json.RawMessage `json:"linkage_table"`
+			} `json:"Package"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(string(out)[idx:]), &data); err != nil {
+		return nil, fmt.Errorf("parsing package %s response: %w", pkgAddr, err)
+	}
+
+	addrs := make([]string, 0, len(data.Data.Package.LinkageTable))
+	for orig := range data.Data.Package.LinkageTable {
+		addrs = append(addrs, orig)
+	}
+	return addrs, nil
+}
+
+// enrichDepsWithOnChainLinkage expands the dependency list by fetching the on-chain
+// linkage table of each dep and including any additional packages they transitively
+// reference. This is necessary when a dep package was compiled with an older Sui
+// toolchain that explicitly included system packages (e.g. 0x3 sui_system, 0xb bridge)
+// in its linkage table — the Sui upgrade validator requires all transitively-referenced
+// packages to be present in the Upgrade command's dep_ids list.
+func enrichDepsWithOnChainLinkage(deps []string) ([]string, error) {
+	depSet := make(map[string]bool, len(deps))
+	for _, d := range deps {
+		depSet[d] = true
+	}
+
+	for _, dep := range deps {
+		linkageAddrs, err := fetchPackageLinkageAddresses(dep)
+		if err != nil {
+			log.Printf("warning: could not fetch on-chain linkage for %s: %v (skipping enrichment for this dep)\n", dep, err)
+			continue
+		}
+		for _, addr := range linkageAddrs {
+			depSet[addr] = true
+		}
+	}
+
+	result := make([]string, 0, len(depSet))
+	for d := range depSet {
+		result = append(result, d)
+	}
+	sort.Strings(result)
+	return result, nil
 }
 
 // managePackage writes Published.toml and updates Move.toml for a package
