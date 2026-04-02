@@ -427,7 +427,11 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		ccipAddr := namedAddresses["ccip"]
 		if !isZeroAddress(ccipAddr) {
 			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr, pubfilePath); err != nil {
+			ccipOrigID := ccipAddr
+			if orig := namedAddresses["original_ccip_pkg"]; !isZeroAddress(orig) {
+				ccipOrigID = orig
+			}
+			if err := managePackage(ccipDir, 1, rpcURL, env, ccipOrigID, ccipAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
 			}
 		} else {
@@ -489,7 +493,11 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		ccipAddr := namedAddresses["ccip"]
 		if !isZeroAddress(ccipAddr) {
 			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr, pubfilePath); err != nil {
+			ccipOrigID := ccipAddr
+			if orig := namedAddresses["original_ccip_pkg"]; !isZeroAddress(orig) {
+				ccipOrigID = orig
+			}
+			if err := managePackage(ccipDir, 1, rpcURL, env, ccipOrigID, ccipAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
 			}
 		} else {
@@ -559,7 +567,11 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		ccipAddr := namedAddresses["ccip"]
 		if !isZeroAddress(ccipAddr) {
 			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr, pubfilePath); err != nil {
+			ccipOrigID := ccipAddr
+			if orig := namedAddresses["original_ccip_pkg"]; !isZeroAddress(orig) {
+				ccipOrigID = orig
+			}
+			if err := managePackage(ccipDir, 1, rpcURL, env, ccipOrigID, ccipAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
 			}
 		} else {
@@ -593,7 +605,11 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		ccipAddr := namedAddresses["ccip"]
 		if !isZeroAddress(ccipAddr) {
 			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipAddr, ccipAddr, pubfilePath); err != nil {
+			ccipOrigID := ccipAddr
+			if orig := namedAddresses["original_ccip_pkg"]; !isZeroAddress(orig) {
+				ccipOrigID = orig
+			}
+			if err := managePackage(ccipDir, 1, rpcURL, env, ccipOrigID, ccipAddr, pubfilePath); err != nil {
 				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
 			}
 		} else {
