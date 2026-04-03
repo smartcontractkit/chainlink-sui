@@ -11,23 +11,21 @@ import (
 )
 
 type BlockFunctionConfig struct {
-	SuiChainSelector uint64
-	CCIPPackageId    string
-	StateObjectId    string
-	OwnerCapObjectId string
-	ModuleName       string
-	FunctionName     string
-	Version          uint8
+	SuiChainSelector      uint64 `yaml:"suiChainSelector"`
+	CCIPPackageId         string `yaml:"ccipPackageId"`
+	CCIPObjectRefObjectId string `yaml:"ccipObjectRefObjectId"`
+	OwnerCapObjectId      string `yaml:"ownerCapObjectId"`
+	ModuleName            string `yaml:"moduleName"`
+	FunctionName          string `yaml:"functionName"`
+	Version               uint8  `yaml:"version"`
 }
 
 var _ cldf.ChangeSetV2[BlockFunctionConfig] = BlockFunction{}
 
 type BlockFunction struct{}
 
-// Apply implements deployment.ChangeSetV2.
 func (d BlockFunction) Apply(e cldf.Environment, config BlockFunctionConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
-	seqReports := make([]operations.Report[any, any], 0)
 
 	suiChain := e.BlockChains.SuiChains()[config.SuiChainSelector]
 
@@ -44,27 +42,24 @@ func (d BlockFunction) Apply(e cldf.Environment, config BlockFunctionConfig) (cl
 		SuiRPC: suiChain.URL,
 	}
 
-	BlockFunctionInitializeOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.BlockFunctionOp, deps, ccipops.BlockFunctionInput{
+	report, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.BlockFunctionOp, deps, ccipops.BlockFunctionInput{
 		CCIPPackageId:    config.CCIPPackageId,
-		StateObjectId:    config.StateObjectId,
+		StateObjectId:    config.CCIPObjectRefObjectId,
 		OwnerCapObjectId: config.OwnerCapObjectId,
 		ModuleName:       config.ModuleName,
 		FunctionName:     config.FunctionName,
 		Version:          config.Version,
 	})
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to block Functionname for Sui chain %d: %w", config.SuiChainSelector, err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to block function for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
-
-	seqReports = append(seqReports, []operations.Report[any, any]{BlockFunctionInitializeOp.ToGenericReport()}...)
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
-		Reports:     seqReports,
+		Reports:     []operations.Report[any, any]{report.ToGenericReport()},
 	}, nil
 }
 
-// VerifyPreconditions implements deployment.ChangeSetV2.
 func (d BlockFunction) VerifyPreconditions(e cldf.Environment, config BlockFunctionConfig) error {
 	return nil
 }

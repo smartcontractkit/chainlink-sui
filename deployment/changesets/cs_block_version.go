@@ -11,22 +11,20 @@ import (
 )
 
 type BlockVersionConfig struct {
-	SuiChainSelector uint64
-	CCIPPackageId    string
-	StateObjectId    string
-	OwnerCapObjectId string
-	ModuleName       string
-	Version          uint8
+	SuiChainSelector      uint64 `yaml:"suiChainSelector"`
+	CCIPPackageId         string `yaml:"ccipPackageId"`
+	CCIPObjectRefObjectId string `yaml:"ccipObjectRefObjectId"`
+	OwnerCapObjectId      string `yaml:"ownerCapObjectId"`
+	ModuleName            string `yaml:"moduleName"`
+	Version               uint8  `yaml:"version"`
 }
 
 var _ cldf.ChangeSetV2[BlockVersionConfig] = BlockVersion{}
 
 type BlockVersion struct{}
 
-// Apply implements deployment.ChangeSetV2.
 func (d BlockVersion) Apply(e cldf.Environment, config BlockVersionConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
-	seqReports := make([]operations.Report[any, any], 0)
 
 	suiChain := e.BlockChains.SuiChains()[config.SuiChainSelector]
 
@@ -43,26 +41,23 @@ func (d BlockVersion) Apply(e cldf.Environment, config BlockVersionConfig) (cldf
 		SuiRPC: suiChain.URL,
 	}
 
-	BlockVersionInitializeOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.BlockVersionOp, deps, ccipops.BlockVersionInput{
+	report, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.BlockVersionOp, deps, ccipops.BlockVersionInput{
 		CCIPPackageId:    config.CCIPPackageId,
-		StateObjectId:    config.StateObjectId,
+		StateObjectId:    config.CCIPObjectRefObjectId,
 		OwnerCapObjectId: config.OwnerCapObjectId,
 		ModuleName:       config.ModuleName,
 		Version:          config.Version,
 	})
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to initialize upgrade registry for Sui chain %d: %w", config.SuiChainSelector, err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to block version for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
-
-	seqReports = append(seqReports, []operations.Report[any, any]{BlockVersionInitializeOp.ToGenericReport()}...)
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
-		Reports:     seqReports,
+		Reports:     []operations.Report[any, any]{report.ToGenericReport()},
 	}, nil
 }
 
-// VerifyPreconditions implements deployment.ChangeSetV2.
 func (d BlockVersion) VerifyPreconditions(e cldf.Environment, config BlockVersionConfig) error {
 	return nil
 }
