@@ -28,6 +28,7 @@ const (
 type AddCCIPPackageIdConfig struct {
 	SuiChainSelector uint64             `yaml:"suiChainSelector"`
 	Target           AddPackageIdTarget `yaml:"target"`
+	CCIPPackageId    string             `yaml:"ccipPackageId"`
 	PackageId        string             `yaml:"packageId"`
 	TimelockConfig   *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
 }
@@ -103,7 +104,7 @@ func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, chai
 	switch target {
 	case AddPackageIdTargetCCIP:
 		r, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.AddPackageIdStateObjectOp, deps, ccipops.AddPackageIdStateObjectInput{
-			CCIPPackageId:         chainState.CCIPAddress,
+			CCIPPackageId:         config.CCIPPackageId,
 			CCIPObjectRefObjectId: chainState.CCIPObjectRef,
 			OwnerCapObjectId:      chainState.CCIPOwnerCapObjectId,
 			PackageId:             config.PackageId,
