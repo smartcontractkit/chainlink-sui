@@ -12,6 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 var _ cldf.ChangeSetV2[AcceptMCMSOwnershipConfig] = AcceptMCMSOwnership{}
@@ -20,8 +21,9 @@ var _ cldf.ChangeSetV2[AcceptMCMSOwnershipConfig] = AcceptMCMSOwnership{}
 // transfer proposal should be (re-)generated. When IsFastCurse is true the
 // fastcurse MCMS instance is targeted; otherwise the normal instance is used.
 type AcceptMCMSOwnershipConfig struct {
-	ChainSelector uint64
-	IsFastCurse   bool
+	ChainSelector  uint64
+	IsFastCurse    bool
+	TimelockConfig utils.TimelockConfig `yaml:"timelockConfig"`
 }
 
 type AcceptMCMSOwnership struct{}
@@ -48,6 +50,7 @@ func (a AcceptMCMSOwnership) Apply(e cldf.Environment, config AcceptMCMSOwnershi
 		McmsAccountStateObjectId:  mcmsFields.AccountStateObjectID,
 		McmsRegistryObjectId:      mcmsFields.RegistryObjectID,
 		McmsDeployerStateObjectId: mcmsFields.DeployerStateObjectID,
+		TimelockConfig:            config.TimelockConfig,
 	}
 	suiChains := e.BlockChains.SuiChains()
 	suiChain := suiChains[config.ChainSelector]

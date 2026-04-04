@@ -76,7 +76,8 @@ func GenerateProposal(ctx context.Context, input GenerateProposalInput) (*mcms.T
 		AddTimelockAddress(types.ChainSelector(input.ChainSelector), input.TimelockObjID).
 		AddChainMetadata(types.ChainSelector(input.ChainSelector), metadata).
 		AddOperation(input.BatchOp).
-		SetAction(input.TimelockConfig.MCMSAction)
+		SetAction(input.TimelockConfig.MCMSAction).
+		SetOverridePreviousRoot(input.TimelockConfig.OverrideRoot)
 
 	if delay != nil {
 		builder.SetDelay(*delay)
