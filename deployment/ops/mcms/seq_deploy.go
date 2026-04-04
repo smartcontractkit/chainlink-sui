@@ -11,6 +11,7 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 // DeployMCMSSeqInput defines the input for deploying MCMS with timelock roles configuration
@@ -80,6 +81,9 @@ func deployMCMS(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployMCMSSeqIn
 		McmsMultisigStateObjectId: deployReport.Output.Objects.McmsMultisigStateObjectId,
 		McmsRegistryObjectId:      deployReport.Output.Objects.McmsRegistryObjectId,
 		TimelockObjectId:          deployReport.Output.Objects.TimelockObjectId,
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction: types.TimelockActionSchedule,
+		},
 	}
 
 	acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(env, AcceptMCMSOwnershipSequence, deps, acceptOwnershipInput)
