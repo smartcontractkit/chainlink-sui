@@ -2,6 +2,7 @@ package ccipops
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -11,6 +12,13 @@ import (
 	module_upgrade_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/upgrade_registry"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
+
+func requireCCIPPackageID(id string) error {
+	if strings.TrimSpace(id) == "" {
+		return fmt.Errorf("CCIPPackageId is required")
+	}
+	return nil
+}
 
 // =================== Initialize Operations =================== //
 
@@ -25,6 +33,9 @@ type InitUpgradeRegistryInput struct {
 }
 
 var initUpgradeRegistryHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitUpgradeRegistryInput) (output sui_ops.OpTxResult[InitUpgradeRegistryObjects], err error) {
+	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
+		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, err
+	}
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
@@ -80,6 +91,9 @@ type BlockVersionObjects struct {
 }
 
 var blockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BlockVersionInput) (output sui_ops.OpTxResult[BlockVersionObjects], err error) {
+	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
+		return sui_ops.OpTxResult[BlockVersionObjects]{}, err
+	}
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[BlockVersionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
@@ -133,6 +147,9 @@ type UnblockVersionObjects struct {
 }
 
 var unblockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input UnblockVersionInput) (output sui_ops.OpTxResult[UnblockVersionObjects], err error) {
+	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
+		return sui_ops.OpTxResult[UnblockVersionObjects]{}, err
+	}
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
@@ -187,6 +204,9 @@ type BlockFunctionObjects struct {
 }
 
 var blockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BlockFunctionInput) (output sui_ops.OpTxResult[BlockFunctionObjects], err error) {
+	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
+		return sui_ops.OpTxResult[BlockFunctionObjects]{}, err
+	}
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[BlockFunctionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
@@ -243,6 +263,9 @@ type UnblockFunctionObjects struct {
 }
 
 var unblockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input UnblockFunctionInput) (output sui_ops.OpTxResult[UnblockFunctionObjects], err error) {
+	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
+		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, err
+	}
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
@@ -296,6 +319,9 @@ type GetModuleRestrictionsOutput struct {
 }
 
 var getModuleRestrictionsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetModuleRestrictionsInput) (output sui_ops.OpTxResult[GetModuleRestrictionsOutput], err error) {
+	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
+		return sui_ops.OpTxResult[GetModuleRestrictionsOutput]{}, err
+	}
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[GetModuleRestrictionsOutput]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
@@ -349,6 +375,9 @@ type IsFunctionAllowedOutput struct {
 }
 
 var isFunctionAllowedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input IsFunctionAllowedInput) (output sui_ops.OpTxResult[IsFunctionAllowedOutput], err error) {
+	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
+		return sui_ops.OpTxResult[IsFunctionAllowedOutput]{}, err
+	}
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[IsFunctionAllowedOutput]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
@@ -406,6 +435,9 @@ type VerifyFunctionAllowedObjects struct {
 }
 
 var verifyFunctionAllowedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input VerifyFunctionAllowedInput) (output sui_ops.OpTxResult[VerifyFunctionAllowedObjects], err error) {
+	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
+		return sui_ops.OpTxResult[VerifyFunctionAllowedObjects]{}, err
+	}
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[VerifyFunctionAllowedObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)

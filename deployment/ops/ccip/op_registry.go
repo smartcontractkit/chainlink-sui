@@ -30,6 +30,8 @@ var AllOperationsCCIP = []any{
 	*UpgradeRegistryInitializeOp,
 	*BlockVersionOp,
 	*BlockFunctionOp,
+	*UnblockFunctionOp,
+	*UnblockVersionOp,
 	*GetModuleRestrictionsOp,
 	*IsFunctionAllowedOp,
 	*VerifyFunctionAllowedOp,
