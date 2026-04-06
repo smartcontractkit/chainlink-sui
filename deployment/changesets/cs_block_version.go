@@ -2,6 +2,7 @@ package changesets
 
 import (
 	"fmt"
+	"strings"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -17,6 +18,7 @@ import (
 
 type BlockVersionConfig struct {
 	SuiChainSelector uint64                `yaml:"suiChainSelector"`
+	CCIPPackageId    string                `yaml:"ccipPackageId"`
 	ModuleName       string                `yaml:"moduleName"`
 	Version          uint8                 `yaml:"version"`
 	TimelockConfig   *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
@@ -53,7 +55,7 @@ func (d BlockVersion) Apply(e cldf.Environment, config BlockVersionConfig) (cldf
 	}
 
 	report, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.BlockVersionOp, deps, ccipops.BlockVersionInput{
-		CCIPPackageId:    chainState.CCIPAddress,
+		CCIPPackageId:    config.CCIPPackageId,
 		StateObjectId:    chainState.CCIPObjectRef,
 		OwnerCapObjectId: chainState.CCIPOwnerCapObjectId,
 		ModuleName:       config.ModuleName,
@@ -91,5 +93,8 @@ func (d BlockVersion) Apply(e cldf.Environment, config BlockVersionConfig) (cldf
 }
 
 func (d BlockVersion) VerifyPreconditions(e cldf.Environment, config BlockVersionConfig) error {
+	if strings.TrimSpace(config.CCIPPackageId) == "" {
+		return fmt.Errorf("ccipPackageId is required")
+	}
 	return nil
 }
