@@ -26,10 +26,12 @@ const (
 )
 
 type AddCCIPPackageIdConfig struct {
-	SuiChainSelector uint64             `yaml:"suiChainSelector"`
-	Target           AddPackageIdTarget `yaml:"target"`
-	CCIPPackageId    string             `yaml:"ccipPackageId"`
-	PackageId        string             `yaml:"packageId"`
+	SuiChainSelector uint64                `yaml:"suiChainSelector"`
+	Target           AddPackageIdTarget    `yaml:"target"`
+	CCIPPackageId    string                `yaml:"ccipPackageId"`
+	OnRampPackageId  string                `yaml:"onRampPackageId,omitempty"`
+	OffRampPackageId string                `yaml:"offRampPackageId,omitempty"`
+	PackageId        string                `yaml:"packageId"`
 	TimelockConfig   *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
 }
 
@@ -116,7 +118,7 @@ func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, chai
 
 	case AddPackageIdTargetOnRamp:
 		r, err := operations.ExecuteOperation(e.OperationsBundle, onrampops.AddPackageIdOp, deps, onrampops.AddPackageIdInput{
-			OnRampPackageId:  chainState.OnRampAddress,
+			OnRampPackageId:  config.OnRampPackageId,
 			StateObjectId:    chainState.OnRampStateObjectId,
 			OwnerCapObjectId: chainState.OnRampOwnerCapObjectId,
 			PackageId:        config.PackageId,
@@ -128,7 +130,7 @@ func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, chai
 
 	case AddPackageIdTargetOffRamp:
 		r, err := operations.ExecuteOperation(e.OperationsBundle, offrampops.AddPackageIdOffRampOp, deps, offrampops.AddPackageIdOffRampInput{
-			OffRampPackageId: chainState.OffRampAddress,
+			OffRampPackageId: config.OffRampPackageId,
 			StateObjectId:    chainState.OffRampStateObjectId,
 			OwnerCapObjectId: chainState.OffRampOwnerCapId,
 			PackageId:        config.PackageId,
@@ -149,6 +151,21 @@ func (d AddCCIPPackageId) VerifyPreconditions(e cldf.Environment, config AddCCIP
 		config.Target != AddPackageIdTargetOnRamp && config.Target != AddPackageIdTargetOffRamp {
 		return fmt.Errorf("invalid target %q: must be one of %q, %q, %q",
 			config.Target, AddPackageIdTargetCCIP, AddPackageIdTargetOnRamp, AddPackageIdTargetOffRamp)
+	}
+
+	target := config.Target
+	if target == "" {
+		target = AddPackageIdTargetCCIP
+	}
+	switch target {
+	case AddPackageIdTargetOnRamp:
+		if config.OnRampPackageId == "" {
+			return fmt.Errorf("onRampPackageId is required when target is %q", AddPackageIdTargetOnRamp)
+		}
+	case AddPackageIdTargetOffRamp:
+		if config.OffRampPackageId == "" {
+			return fmt.Errorf("offRampPackageId is required when target is %q", AddPackageIdTargetOffRamp)
+		}
 	}
 	return nil
 }
