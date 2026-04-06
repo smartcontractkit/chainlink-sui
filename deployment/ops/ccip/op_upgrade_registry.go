@@ -99,16 +99,30 @@ var blockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Bl
 		return sui_ops.OpTxResult[BlockVersionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
 	}
 
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
+	encodedCall, err := contract.Encoder().BlockVersion(ref, ownerCap, input.ModuleName, input.Version)
+	if err != nil {
+		return sui_ops.OpTxResult[BlockVersionObjects]{}, fmt.Errorf("failed to encode BlockVersion call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[BlockVersionObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of BlockVersion on UpgradeRegistry as per no Signer provided",
+			"moduleName", input.ModuleName, "version", input.Version)
+		return sui_ops.OpTxResult[BlockVersionObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   BlockVersionObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.BlockVersion(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.ModuleName,
-		input.Version,
-	)
+	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
 	if err != nil {
 		return sui_ops.OpTxResult[BlockVersionObjects]{}, fmt.Errorf("failed to execute BlockVersion: %w", err)
 	}
@@ -122,6 +136,7 @@ var blockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Bl
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   BlockVersionObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -155,16 +170,30 @@ var unblockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
 	}
 
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
+	encodedCall, err := contract.Encoder().UnblockVersion(ref, ownerCap, input.ModuleName, input.Version)
+	if err != nil {
+		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to encode UnblockVersion call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of UnblockVersion on UpgradeRegistry as per no Signer provided",
+			"moduleName", input.ModuleName, "version", input.Version)
+		return sui_ops.OpTxResult[UnblockVersionObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   UnblockVersionObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.UnblockVersion(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.ModuleName,
-		input.Version,
-	)
+	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
 	if err != nil {
 		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to execute UnblockVersion: %w", err)
 	}
@@ -178,6 +207,7 @@ var unblockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   UnblockVersionObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -212,17 +242,30 @@ var blockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input B
 		return sui_ops.OpTxResult[BlockFunctionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
 	}
 
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
+	encodedCall, err := contract.Encoder().BlockFunction(ref, ownerCap, input.ModuleName, input.FunctionName, input.Version)
+	if err != nil {
+		return sui_ops.OpTxResult[BlockFunctionObjects]{}, fmt.Errorf("failed to encode BlockFunction call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[BlockFunctionObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of BlockFunction on UpgradeRegistry as per no Signer provided",
+			"moduleName", input.ModuleName, "functionName", input.FunctionName, "version", input.Version)
+		return sui_ops.OpTxResult[BlockFunctionObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   BlockFunctionObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.BlockFunction(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.ModuleName,
-		input.FunctionName,
-		input.Version,
-	)
+	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
 	if err != nil {
 		return sui_ops.OpTxResult[BlockFunctionObjects]{}, fmt.Errorf("failed to execute BlockFunction: %w", err)
 	}
@@ -237,6 +280,7 @@ var blockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input B
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   BlockFunctionObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -271,17 +315,30 @@ var unblockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
 	}
 
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
+	encodedCall, err := contract.Encoder().UnblockFunction(ref, ownerCap, input.ModuleName, input.FunctionName, input.Version)
+	if err != nil {
+		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to encode UnblockFunction call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of UnblockFunction on UpgradeRegistry as per no Signer provided",
+			"moduleName", input.ModuleName, "functionName", input.FunctionName, "version", input.Version)
+		return sui_ops.OpTxResult[UnblockFunctionObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   UnblockFunctionObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.UnblockFunction(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.ModuleName,
-		input.FunctionName,
-		input.Version,
-	)
+	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
 	if err != nil {
 		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to execute UnblockFunction: %w", err)
 	}
@@ -296,6 +353,7 @@ var unblockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   UnblockFunctionObjects{},
+		Call:      call,
 	}, nil
 }
 
