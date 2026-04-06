@@ -8,4 +8,6 @@ var AllOperationsOnramp = []any{
 	*ApplyDestChainConfigUpdateOp,
 	*SetDynamicConfigOp,
 	*WithdrawFeeTokensOp,
+	*AddPackageIdOp,
+	*RemovePackageIdOnRampOp,
 }

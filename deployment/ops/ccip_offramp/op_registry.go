@@ -6,4 +6,6 @@ var AllOperationsOfframp = []any{
 	*ExecuteOwnershipTransferToMcmsOffRampOp,
 	*ApplySourceChainConfigUpdatesOp,
 	*SetOCR3ConfigOp,
+	*AddPackageIdOffRampOp,
+	*RemovePackageIdOffRampOp,
 }
