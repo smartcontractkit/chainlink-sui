@@ -16,6 +16,10 @@ type Object struct {
 	InitialSharedVersion *uint64
 }
 
+// EmptyMoveStructWitness is a placeholder for a zero-sized Move struct (typical `has drop` proof
+// witnesses). It encodes as an empty Pure argument (empty BCS for no fields).
+type EmptyMoveStructWitness struct{}
+
 type CallOpts struct {
 	Signer           bindutils.SuiSigner
 	GasObject        string

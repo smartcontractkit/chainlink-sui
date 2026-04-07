@@ -83,6 +83,18 @@ func ConvertToCallArg(typeName string, value any) (*transaction.CallArg, error) 
 	isMutableRef := strings.HasPrefix(typeName, "&mut ")
 	isImmutableRef := strings.HasPrefix(typeName, "&") && !isMutableRef
 
+	if _, ok := value.(EmptyMoveStructWitness); ok {
+		if isMutableRef || isImmutableRef {
+			return nil, fmt.Errorf("EmptyMoveStructWitness cannot be used with reference parameter type %q", typeName)
+		}
+		if strings.Contains(typeName, "::") && !strings.HasPrefix(typeName, "vector<") {
+			return &transaction.CallArg{
+				Pure: &transaction.Pure{Bytes: []byte{}},
+			}, nil
+		}
+		return nil, fmt.Errorf("EmptyMoveStructWitness requires a concrete Move struct type, got %q", typeName)
+	}
+
 	if obj, ok := value.(Object); ok {
 		arg, err := convertObjectStructToCallArg(obj, isMutableRef)
 		if err != nil {
