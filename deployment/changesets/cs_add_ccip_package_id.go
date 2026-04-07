@@ -5,12 +5,16 @@ import (
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/mcms"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 type AddPackageIdTarget string
@@ -22,12 +26,13 @@ const (
 )
 
 type AddCCIPPackageIdConfig struct {
-	SuiChainSelector uint64             `yaml:"suiChainSelector"`
-	Target           AddPackageIdTarget `yaml:"target"`
-	ModulePackageId  string             `yaml:"modulePackageId"`
-	StateObjectId    string             `yaml:"stateObjectId"`
-	OwnerCapObjectId string             `yaml:"ownerCapObjectId"`
-	PackageId        string             `yaml:"packageId"`
+	SuiChainSelector uint64                `yaml:"suiChainSelector"`
+	Target           AddPackageIdTarget    `yaml:"target"`
+	CCIPPackageId    string                `yaml:"ccipPackageId"`
+	OnRampPackageId  string                `yaml:"onRampPackageId,omitempty"`
+	OffRampPackageId string                `yaml:"offRampPackageId,omitempty"`
+	PackageId        string                `yaml:"packageId"`
+	TimelockConfig   *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
 }
 
 var _ cldf.ChangeSetV2[AddCCIPPackageIdConfig] = AddCCIPPackageId{}
@@ -35,8 +40,12 @@ var _ cldf.ChangeSetV2[AddCCIPPackageIdConfig] = AddCCIPPackageId{}
 type AddCCIPPackageId struct{}
 
 func (d AddCCIPPackageId) Apply(e cldf.Environment, config AddCCIPPackageIdConfig) (cldf.ChangesetOutput, error) {
-	ab := cldf.NewMemoryAddressBook()
+	state, err := deployment.LoadOnchainStatesui(e)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load onchain state: %w", err)
+	}
 
+	chainState := state[config.SuiChainSelector]
 	suiChain := e.BlockChains.SuiChains()[config.SuiChainSelector]
 
 	deps := sui_ops.OpTxDeps{
@@ -52,18 +61,43 @@ func (d AddCCIPPackageId) Apply(e cldf.Environment, config AddCCIPPackageIdConfi
 		SuiRPC: suiChain.URL,
 	}
 
-	report, err := executeAddPackageId(e, config, deps)
+	if config.TimelockConfig != nil {
+		deps.Signer = nil
+	}
+
+	report, err := executeAddPackageId(e, config, chainState, deps)
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
 	}
 
+	if config.TimelockConfig != nil {
+		mcmsConfig := mcmsops.ProposalGenerateInput{
+			ChainSelector:      config.SuiChainSelector,
+			Defs:               []operations.Definition{report.Def},
+			Inputs:             []any{report.Input},
+			MmcsPackageID:      chainState.MCMSPackageID,
+			McmsStateObjID:     chainState.MCMSStateObjectID,
+			TimelockObjID:      chainState.MCMSTimelockObjectID,
+			AccountObjID:       chainState.MCMSAccountStateObjectID,
+			RegistryObjID:      chainState.MCMSRegistryObjectID,
+			DeployerStateObjID: chainState.MCMSDeployerStateObjectID,
+			TimelockConfig:     *config.TimelockConfig,
+		}
+		result, err := operations.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, mcmsConfig)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to generate MCMS proposal: %w", err)
+		}
+		return cldf.ChangesetOutput{
+			MCMSTimelockProposals: []mcms.TimelockProposal{result.Output},
+		}, nil
+	}
+
 	return cldf.ChangesetOutput{
-		AddressBook: ab,
-		Reports:     []operations.Report[any, any]{report},
+		Reports: []operations.Report[any, any]{report.ToGenericReport()},
 	}, nil
 }
 
-func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, deps sui_ops.OpTxDeps) (operations.Report[any, any], error) {
+func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, chainState deployment.CCIPChainState, deps sui_ops.OpTxDeps) (operations.Report[any, any], error) {
 	target := config.Target
 	if target == "" {
 		target = AddPackageIdTargetCCIP
@@ -72,9 +106,9 @@ func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, deps
 	switch target {
 	case AddPackageIdTargetCCIP:
 		r, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.AddPackageIdStateObjectOp, deps, ccipops.AddPackageIdStateObjectInput{
-			CCIPPackageId:         config.ModulePackageId,
-			CCIPObjectRefObjectId: config.StateObjectId,
-			OwnerCapObjectId:      config.OwnerCapObjectId,
+			CCIPPackageId:         config.CCIPPackageId,
+			CCIPObjectRefObjectId: chainState.CCIPObjectRef,
+			OwnerCapObjectId:      chainState.CCIPOwnerCapObjectId,
 			PackageId:             config.PackageId,
 		})
 		if err != nil {
@@ -84,9 +118,9 @@ func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, deps
 
 	case AddPackageIdTargetOnRamp:
 		r, err := operations.ExecuteOperation(e.OperationsBundle, onrampops.AddPackageIdOp, deps, onrampops.AddPackageIdInput{
-			OnRampPackageId:  config.ModulePackageId,
-			StateObjectId:    config.StateObjectId,
-			OwnerCapObjectId: config.OwnerCapObjectId,
+			OnRampPackageId:  config.OnRampPackageId,
+			StateObjectId:    chainState.OnRampStateObjectId,
+			OwnerCapObjectId: chainState.OnRampOwnerCapObjectId,
 			PackageId:        config.PackageId,
 		})
 		if err != nil {
@@ -96,9 +130,9 @@ func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, deps
 
 	case AddPackageIdTargetOffRamp:
 		r, err := operations.ExecuteOperation(e.OperationsBundle, offrampops.AddPackageIdOffRampOp, deps, offrampops.AddPackageIdOffRampInput{
-			OffRampPackageId: config.ModulePackageId,
-			StateObjectId:    config.StateObjectId,
-			OwnerCapObjectId: config.OwnerCapObjectId,
+			OffRampPackageId: config.OffRampPackageId,
+			StateObjectId:    chainState.OffRampStateObjectId,
+			OwnerCapObjectId: chainState.OffRampOwnerCapId,
 			PackageId:        config.PackageId,
 		})
 		if err != nil {
@@ -117,6 +151,21 @@ func (d AddCCIPPackageId) VerifyPreconditions(e cldf.Environment, config AddCCIP
 		config.Target != AddPackageIdTargetOnRamp && config.Target != AddPackageIdTargetOffRamp {
 		return fmt.Errorf("invalid target %q: must be one of %q, %q, %q",
 			config.Target, AddPackageIdTargetCCIP, AddPackageIdTargetOnRamp, AddPackageIdTargetOffRamp)
+	}
+
+	target := config.Target
+	if target == "" {
+		target = AddPackageIdTargetCCIP
+	}
+	switch target {
+	case AddPackageIdTargetOnRamp:
+		if config.OnRampPackageId == "" {
+			return fmt.Errorf("onRampPackageId is required when target is %q", AddPackageIdTargetOnRamp)
+		}
+	case AddPackageIdTargetOffRamp:
+		if config.OffRampPackageId == "" {
+			return fmt.Errorf("offRampPackageId is required when target is %q", AddPackageIdTargetOffRamp)
+		}
 	}
 	return nil
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/smartcontractkit/mcms"
-	"github.com/smartcontractkit/mcms/types"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -19,6 +18,7 @@ import (
 
 type AcceptOwnershipCCIPConfig struct {
 	SuiChainSelector uint64
+	TimelockConfig   utils.TimelockConfig `yaml:"timelockConfig"`
 }
 
 var _ cldf.ChangeSetV2[AcceptOwnershipCCIPConfig] = AcceptOwnershipCCIP{}
@@ -80,11 +80,7 @@ func (d AcceptOwnershipCCIP) Apply(e cldf.Environment, config AcceptOwnershipCCI
 		OffRampPackageId:     state.OffRampAddress,
 		OffRampStateObjectId: state.OffRampStateObjectId,
 
-		TimelockConfig: utils.TimelockConfig{
-			MCMSAction:   types.TimelockActionSchedule,
-			MinDelay:     0,
-			OverrideRoot: false,
-		},
+		TimelockConfig: config.TimelockConfig,
 	}
 
 	acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, ownershipops.AcceptCCIPOwnershipSeq, deps, proposalInput)
