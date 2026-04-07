@@ -489,6 +489,16 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
 	}
 
+	if err := ValidateReceiverCallbackSignature(
+		lggr,
+		functionSignature.(map[string]any),
+		paramTypes,
+		addressMappings.CcipPackageId,
+		addressMappings.OffRampPackageId,
+	); err != nil {
+		return nil, fmt.Errorf("receiver callback validation failed for %s::%s: %w", moduleId, functionName, err)
+	}
+
 	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
 
 	// Append extra args to the paramValues for the receiver call.
@@ -515,9 +525,19 @@ func AppendPTBCommandForReceiver(
 		lggr.Error("unexpected receiverObjectIds type", "type", fmt.Sprintf("%T", receiverObjectIds))
 	}
 
+	if err := ValidateReceiverObjectIdCount(paramTypes, len(extraArgsValues)); err != nil {
+		return nil, fmt.Errorf("receiver %s::%s: %w", moduleId, functionName, err)
+	}
+
+	var receiverObjectIdStrings []string
 	for _, value := range extraArgsValues {
 		objectId := hex.EncodeToString(value)
+		receiverObjectIdStrings = append(receiverObjectIdStrings, "0x"+objectId)
 		paramValues = append(paramValues, bind.Object{Id: "0x" + objectId})
+	}
+
+	if err := ValidateReceiverObjectIds(receiverObjectIdStrings, addressMappings); err != nil {
+		return nil, fmt.Errorf("receiver %s::%s: %w", moduleId, functionName, err)
 	}
 
 	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(
