@@ -67,7 +67,7 @@ fun register_test_receiver<ProofType: drop + copy>(
     let publisher = package::test_claim(RECEIVER_REGISTRY_TESTS {}, ctx);
     let publisher_wrapper = publisher_wrapper::create(&publisher, proof);
 
-    receiver_registry::register_receiver(ref, publisher_wrapper, proof);
+    receiver_registry::register_receiver(ref, publisher_wrapper, proof, 0);
 
     package::burn_publisher(publisher);
 }
@@ -114,12 +114,13 @@ public fun test_register_receiver() {
 
     // Get receiver config and verify fields
     let config = receiver_registry::get_receiver_config(&ref, package_id_1);
-    let (module_name, proof_typename) = receiver_registry::get_receiver_config_fields(config);
+    let (module_name, proof_typename, expected_count) = receiver_registry::get_receiver_config_fields(config);
 
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
     assert!(
         proof_typename == type_name::into_string(type_name::with_defining_ids<TestReceiverProof>()),
     );
+    assert!(expected_count == 0);
 
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -178,7 +179,7 @@ public fun test_register_multiple_receivers_same_package() {
 
     // Verify the config contains the first proof type
     let config = receiver_registry::get_receiver_config(&ref, package_id_1);
-    let (_, proof_type) = receiver_registry::get_receiver_config_fields(config);
+    let (_, proof_type, _) = receiver_registry::get_receiver_config_fields(config);
 
     assert!(
         proof_type == type_name::into_string(type_name::with_defining_ids<TestReceiverProof>()),
@@ -278,13 +279,14 @@ public fun test_get_receiver_config() {
     // Get the config
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
     let config = receiver_registry::get_receiver_config(&ref, package_id_1);
-    let (module_name, proof_typename) = receiver_registry::get_receiver_config_fields(config);
+    let (module_name, proof_typename, expected_count) = receiver_registry::get_receiver_config_fields(config);
 
     // Verify all fields
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
     assert!(
         proof_typename == type_name::into_string(type_name::with_defining_ids<TestReceiverProof>()),
     );
+    assert!(expected_count == 0);
 
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -298,26 +300,27 @@ public fun test_get_receiver_module_and_state() {
 
     // Test unregistered receiver - should return empty values
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
-    let (module_name, proof_typename_str) = receiver_registry::get_receiver_info(
+    let (module_name, proof_typename_str, expected_count) = receiver_registry::get_receiver_info(
         &ref,
         package_id_1,
     );
     assert!(module_name == string::utf8(b""));
     assert!(proof_typename_str == ascii::string(b""));
+    assert!(expected_count == 0);
 
     // Register a receiver
     register_test_receiver(&mut ref, TestReceiverProof {}, ctx);
 
     // Test registered receiver - should return actual values
-    let (module_name, proof_typename_str) = receiver_registry::get_receiver_info(
+    let (module_name, proof_typename_str, expected_count) = receiver_registry::get_receiver_info(
         &ref,
         package_id_1,
     );
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
-    // The proof typename string should contain the test receiver proof type
     assert!(
         proof_typename_str == type_name::into_string(type_name::with_defining_ids<TestReceiverProof>()),
     );
+    assert!(expected_count == 0);
 
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -335,10 +338,10 @@ public fun test_register_receiver_with_zero_state_id() {
     // Verify the receiver is registered
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
     let config = receiver_registry::get_receiver_config(&ref, package_id_1);
-    let (_, _) = receiver_registry::get_receiver_config_fields(config);
+    let (_, _, _) = receiver_registry::get_receiver_config_fields(config);
 
     // Verify get_receiver_info returns correct values
-    let (module_name, proof_typename_str) = receiver_registry::get_receiver_info(
+    let (module_name, proof_typename_str, _) = receiver_registry::get_receiver_info(
         &ref,
         package_id_1,
     );
@@ -367,15 +370,16 @@ public fun test_complete_receiver_lifecycle() {
 
     // 3. Verify config is correct
     let config = receiver_registry::get_receiver_config(&ref, package_id_1);
-    let (module_name, proof_typename) = receiver_registry::get_receiver_config_fields(config);
+    let (module_name, proof_typename, expected_count) = receiver_registry::get_receiver_config_fields(config);
 
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
     assert!(
         proof_typename == type_name::into_string(type_name::with_defining_ids<TestReceiverProof>()),
     );
+    assert!(expected_count == 0);
 
     // 4. Verify module and proof typename lookup
-    let (lookup_module, lookup_proof_typename_str) = receiver_registry::get_receiver_info(
+    let (lookup_module, lookup_proof_typename_str, _) = receiver_registry::get_receiver_info(
         &ref,
         package_id_1,
     );
@@ -387,12 +391,13 @@ public fun test_complete_receiver_lifecycle() {
     assert!(!receiver_registry::is_registered_receiver(&ref, package_id_1));
 
     // 6. Verify lookup returns empty values after unregistration
-    let (empty_module, empty_proof_typename_str) = receiver_registry::get_receiver_info(
+    let (empty_module, empty_proof_typename_str, empty_count) = receiver_registry::get_receiver_info(
         &ref,
         package_id_1,
     );
     assert!(empty_module == string::utf8(b""));
     assert!(empty_proof_typename_str == ascii::string(b""));
+    assert!(empty_count == 0);
 
     cleanup_test(scenario, ref, owner_cap);
 }

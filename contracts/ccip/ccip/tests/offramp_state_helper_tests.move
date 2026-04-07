@@ -258,6 +258,7 @@ public fun test_extract_any2sui_message() {
         &mut ref,
         publisher_wrapper,
         TestTypeProof {},
+        0,
     );
     package::burn_publisher(publisher);
 

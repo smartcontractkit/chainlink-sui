@@ -13,6 +13,12 @@ use sui::linked_table::{Self, LinkedTable};
 public struct ReceiverConfig has copy, drop, store {
     module_name: String,
     proof_typename: ascii::String,
+    /// The number of extra object IDs that the receiver's ccip_receive callback
+    /// expects beyond the standard 3 parameters (expected_message_id,
+    /// &CCIPObjectRef, Any2SuiMessage). The relayer uses this to validate that
+    /// the receiverObjectIds count in a CCIP message matches what the receiver
+    /// registered, preventing object injection attacks.
+    expected_receiver_object_id_count: u64,
 }
 
 public struct ReceiverRegistry has key, store {
@@ -25,6 +31,7 @@ public struct ReceiverRegistered has copy, drop {
     receiver_package_id: address,
     receiver_module_name: String,
     proof_typename: ascii::String,
+    expected_receiver_object_id_count: u64,
 }
 
 public struct ReceiverUnregistered has copy, drop {
@@ -57,6 +64,7 @@ public fun register_receiver<ProofType: drop>(
     ref: &mut CCIPObjectRef,
     publisher_wrapper: PublisherWrapper<ProofType>,
     _proof: ProofType,
+    expected_receiver_object_id_count: u64,
 ) {
     verify_function_allowed(
         ref,
@@ -73,6 +81,7 @@ public fun register_receiver<ProofType: drop>(
     let receiver_config = ReceiverConfig {
         module_name: receiver_module_name,
         proof_typename: proof_typename.into_string(),
+        expected_receiver_object_id_count,
     };
     registry.receiver_configs.push_back(receiver_package_id, receiver_config);
 
@@ -80,6 +89,7 @@ public fun register_receiver<ProofType: drop>(
         receiver_package_id,
         receiver_module_name,
         proof_typename: proof_typename.into_string(),
+        expected_receiver_object_id_count,
     });
 }
 
@@ -132,15 +142,15 @@ public fun get_receiver_config(ref: &CCIPObjectRef, receiver_package_id: address
     *registry.receiver_configs.borrow(receiver_package_id)
 }
 
-public fun get_receiver_config_fields(rc: ReceiverConfig): (String, ascii::String) {
-    (rc.module_name, rc.proof_typename)
+public fun get_receiver_config_fields(rc: ReceiverConfig): (String, ascii::String, u64) {
+    (rc.module_name, rc.proof_typename, rc.expected_receiver_object_id_count)
 }
 
 // this will return empty string if the receiver is not registered.
 public fun get_receiver_info(
     ref: &CCIPObjectRef,
     receiver_package_id: address,
-): (String, ascii::String) {
+): (String, ascii::String, u64) {
     verify_function_allowed(
         ref,
         string::utf8(b"receiver_registry"),
@@ -151,8 +161,12 @@ public fun get_receiver_info(
 
     if (registry.receiver_configs.contains(receiver_package_id)) {
         let receiver_config = registry.receiver_configs.borrow(receiver_package_id);
-        return (receiver_config.module_name, receiver_config.proof_typename)
+        return (
+            receiver_config.module_name,
+            receiver_config.proof_typename,
+            receiver_config.expected_receiver_object_id_count,
+        )
     };
 
-    (string::utf8(b""), ascii::string(b""))
+    (string::utf8(b""), ascii::string(b""), 0)
 }
