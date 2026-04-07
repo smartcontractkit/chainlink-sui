@@ -1,69 +1,71 @@
 package mcmsops
 
 import (
-	"encoding/hex"
 	"fmt"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/aptos-labs/aptos-go-sdk/bcs"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_mcms_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms_registry"
 
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
 
+// AddModulesMCMSInput encodes mcms_registry::add_allowed_modules<T> with
+// T = <CCIPPackageId>::state_object::McmsCallback (original CCIP package id).
 type AddModulesMCMSInput struct {
 	MCMSPackageId     string
 	MCMSRegistryObjId string
+	CCIPPackageId     string
 	AllowedModules    []string
 }
 
-var addModulesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddModulesMCMSInput) (output sui_ops.OpTxResult[cld_ops.EmptyInput], err error) {
+func ccipStateObjectMcmsCallbackTypeArg(ccipPackageID string) string {
+	id := strings.TrimPrefix(strings.TrimSpace(ccipPackageID), "0x")
+	return "0x" + id + "::state_object::McmsCallback"
+}
 
-	registryBytes, err := hex.DecodeString(strings.TrimPrefix(input.MCMSRegistryObjId, "0x"))
+var addModulesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddModulesMCMSInput) (output sui_ops.OpTxResult[cld_ops.EmptyInput], err error) {
+	if strings.TrimSpace(input.CCIPPackageId) == "" {
+		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("CCIPPackageId is required (original CCIP package for state_object::McmsCallback type arg)")
+	}
+	if len(input.AllowedModules) == 0 {
+		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("AllowedModules must not be empty")
+	}
+
+	contract, err := module_mcms_registry.NewMcmsRegistry(input.MCMSPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to convert registry object ID to bytes: %w", err)
+		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to create McmsRegistry contract: %w", err)
 	}
-	nameBytes, err := encodeAddModulesCall(input.AllowedModules)
+
+	typeArg := ccipStateObjectMcmsCallbackTypeArg(input.CCIPPackageId)
+	newMods := make([][]byte, len(input.AllowedModules))
+	for i, m := range input.AllowedModules {
+		newMods[i] = []byte(m)
+	}
+
+	// Generated AddAllowedModules types witness T as bind.Object; McmsCallback is an empty drop struct
+	// and must be Pure (empty BCS). WithArgs + EmptyMoveStructWitness matches the Move ABI.
+	encodedCall, err := contract.Encoder().AddAllowedModulesWithArgs(
+		[]string{typeArg},
+		bind.Object{Id: input.MCMSRegistryObjId},
+		bind.EmptyMoveStructWitness{},
+		newMods,
+	)
 	if err != nil {
-		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to encode add modules call: %w", err)
+		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to encode add_allowed_modules: %w", err)
 	}
-	encodedCall := bind.EncodedCall{
-		Module: bind.ModuleInformation{
-			PackageID:   input.MCMSPackageId,
-			ModuleName:  "mcms_registry",
-			PackageName: "mcms",
-		},
-		Function: "add_allowed_modules",
-		CallArgs: []*bind.EncodedCallArgument{
-			{
-				CallArg: &transaction.CallArg{
-					Pure: &transaction.Pure{
-						Bytes: registryBytes,
-					},
-				},
-			},
-			{
-				CallArg: &transaction.CallArg{
-					Pure: &transaction.Pure{
-						Bytes: nameBytes,
-					},
-				},
-			},
-		},
-	}
-	if err != nil {
-		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
-	}
-	call, err := sui_ops.ToTransactionCall(&encodedCall, input.MCMSRegistryObjId)
+
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.MCMSRegistryObjId, []string{typeArg})
 	if err != nil {
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
+
 	if deps.Signer == nil {
-		b.Logger.Infow("Skipping execution of AcceptOwnership on StateObject as per no Signer provided")
+		b.Logger.Infow("Skipping execution of add_allowed_modules (no signer); returning call for proposal",
+			"registry", input.MCMSRegistryObjId, "modules", input.AllowedModules)
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{
 			Digest:    "",
 			PackageId: input.MCMSPackageId,
@@ -71,35 +73,26 @@ var addModulesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddM
 		}, nil
 	}
 
-	return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("cannot execute this call directly: %w", err)
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
+	if err != nil {
+		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to execute add_allowed_modules: %w", err)
+	}
+
+	return sui_ops.OpTxResult[cld_ops.EmptyInput]{
+		Digest:    tx.Digest,
+		PackageId: input.MCMSPackageId,
+		Call:      call,
+	}, nil
 }
 
 var AddModulesMCMSOp = cld_ops.NewOperation(
 	sui_ops.NewSuiOperationName("mcms", "package", "add_modules"),
 	semver.MustParse("0.1.0"),
-	"Add modules to the MCMS registry",
+	"Add module names to the MCMS registry allowlist for the CCIP package (mcms_registry::add_allowed_modules<state_object::McmsCallback>)",
 	addModulesHandler,
 )
-
-func encodeAddModulesCall(moduleNames []string) ([]byte, error) {
-	// Create a BCS serializer
-	serializer := &bcs.Serializer{}
-
-	// Serialize the length of the vector using ULEB128 (BCS standard for vector lengths)
-	serializer.Uleb128(uint32(len(moduleNames)))
-
-	// Serialize each module name as a vector<u8> (since strings in Move are vector<u8>)
-	for _, moduleName := range moduleNames {
-		// Each string is serialized as:
-		// 1. Length of the string (ULEB128)
-		// 2. The bytes of the string
-		moduleBytes := []byte(moduleName)
-		serializer.Uleb128(uint32(len(moduleBytes)))
-		serializer.FixedBytes(moduleBytes)
-	}
-
-	return serializer.ToBytes(), nil
-}
 
 // Exports every operation available so they can be registered to be used in dynamic changesets
 var AllOperationsMCMS = []any{
