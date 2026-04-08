@@ -976,18 +976,20 @@ func setupSuiEnv(alias, rpcURL string) error {
 		return fmt.Errorf("failed to list Sui environments: %w", err)
 	}
 
-	// Strip any non-JSON preamble by finding the first '['.
-	jsonBytes := out
-	if idx := strings.IndexByte(string(out), '['); idx > 0 {
-		jsonBytes = out[idx:]
-	}
-
+	// The CLI may print non-JSON preamble (e.g. "create one [Y/n]?") before
+	// the JSON array, so try parsing from each '[' until one succeeds.
+	outStr := string(out)
 	var parsed []json.RawMessage
-	if err := json.Unmarshal(jsonBytes, &parsed); err != nil {
-		return fmt.Errorf("failed to parse envs JSON: %w\nOutput:\n%s", err, string(out))
+	for i := 0; i < len(outStr); i++ {
+		if outStr[i] == '[' {
+			if err := json.Unmarshal([]byte(outStr[i:]), &parsed); err == nil {
+				break
+			}
+			parsed = nil
+		}
 	}
 	if len(parsed) == 0 {
-		return fmt.Errorf("empty envs JSON output")
+		return fmt.Errorf("failed to parse envs JSON from output:\n%s", outStr)
 	}
 
 	// First element is the array of env objects.
