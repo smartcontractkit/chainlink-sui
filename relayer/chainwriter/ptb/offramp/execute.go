@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"runtime"
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -66,6 +67,18 @@ func BuildOffRampExecutePTB(
 	signerAddress string,
 	addressMappings OffRampAddressMappings,
 ) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			buf := make([]byte, 4096)
+			n := runtime.Stack(buf, false)
+			lggr.Errorw("panic recovered in BuildOffRampExecutePTB",
+				"panic", fmt.Sprintf("%v", r),
+				"stack", string(buf[:n]),
+			)
+			err = fmt.Errorf("BuildOffRampExecutePTB panicked: %v", r)
+		}
+	}()
+
 	sdkClient := ptbClient.GetClient()
 	offrampArgs, err := DecodeOffRampExecCallArgs(args.Args)
 	if err != nil {
@@ -302,8 +315,12 @@ func AppendPTBCommandForTokenPool(
 		return nil, fmt.Errorf("missing function signature for token pool function not found in module (%s)", OfframpTokenPoolFunctionName)
 	}
 
-	// Figure out the parameter types from the normalized module of the token pool
-	paramTypes, err := DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
+	funcSigMap, ok := functionSignature.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("token pool function signature is %T, expected map[string]any", functionSignature)
+	}
+
+	paramTypes, err := DecodeParameters(lggr, funcSigMap, "parameters")
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
 	}
@@ -483,15 +500,19 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("missing function signature for receiver function not found in module (%s)", functionName)
 	}
 
-	// Figure out the parameter types from the normalized module of the token pool
-	paramTypes, err = DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
+	funcSigMap, ok := functionSignature.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("receiver function signature is %T, expected map[string]any", functionSignature)
+	}
+
+	paramTypes, err = DecodeParameters(lggr, funcSigMap, "parameters")
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
+		return nil, fmt.Errorf("failed to decode parameters for receiver function: %w", err)
 	}
 
 	if err := ValidateReceiverCallbackSignature(
 		lggr,
-		functionSignature.(map[string]any),
+		funcSigMap,
 		paramTypes,
 		addressMappings.CcipPackageId,
 		addressMappings.OffRampPackageId,

@@ -87,8 +87,7 @@ fun init(otw: DUMMY_RECEIVER, ctx: &mut TxContext) {
 public fun register_receiver(owner_cap: &OwnerCap, ref: &mut CCIPObjectRef) {
     let publisher: &Publisher = df::borrow(&owner_cap.id, PublisherKey {});
     let publisher_wrapper = publisher_wrapper::create(publisher, DummyReceiverProof {});
-    // 2 extra object IDs: &Clock and &mut CCIPReceiverState
-    receiver_registry::register_receiver(ref, publisher_wrapper, DummyReceiverProof {}, 2);
+    receiver_registry::register_receiver(ref, publisher_wrapper, DummyReceiverProof {});
 }
 
 public fun get_counter(state: &CCIPReceiverState): u64 {

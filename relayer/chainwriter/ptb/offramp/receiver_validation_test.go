@@ -309,8 +309,6 @@ func TestValidateReceiverCallbackSignature_ImmutableCcipRefAllowed(t *testing.T)
 	t.Parallel()
 	lggr := logger.Test(t)
 
-	// Immutable reference to a CCIP type as an extra param should be allowed
-	// (read-only access is not dangerous in the same way mutable access is).
 	params := append(standardParams(testCcipPackageId),
 		map[string]any{
 			"Reference": map[string]any{
@@ -328,4 +326,56 @@ func TestValidateReceiverCallbackSignature_ImmutableCcipRefAllowed(t *testing.T)
 
 	err := ValidateReceiverCallbackSignature(lggr, funcSig, decodedTypes, testCcipPackageId, testOffRampPackageId)
 	require.NoError(t, err, "immutable references are safe; only mutable references to protocol types are denied")
+}
+
+func TestValidateReceiverCallbackSignature_TypeParameterReturnsError(t *testing.T) {
+	t.Parallel()
+	lggr := logger.Test(t)
+
+	// Reproduces the vulnerability: a malicious receiver with
+	// public fun ccip_receive<T>(v: vector<T>, ...) produces a normalized ABI
+	// containing {"Vector":{"TypeParameter":0}}. Previously this panicked; now
+	// it must return an error.
+	params := []any{
+		map[string]any{"Vector": map[string]any{"TypeParameter": float64(0)}},
+		map[string]any{
+			"Reference": map[string]any{
+				"Struct": map[string]any{
+					"address":       testCcipPackageId,
+					"module":        "state_object",
+					"name":          "CCIPObjectRef",
+					"typeArguments": []any{},
+				},
+			},
+		},
+		map[string]any{
+			"Struct": map[string]any{
+				"address":       testCcipPackageId,
+				"module":        "client",
+				"name":          "Any2SuiMessage",
+				"typeArguments": []any{},
+			},
+		},
+	}
+	funcSig := map[string]any{"parameters": params}
+	decodedTypes := []string{"vector<u8>", "&object", "object_id"}
+
+	err := ValidateReceiverCallbackSignature(lggr, funcSig, decodedTypes, testCcipPackageId, testOffRampPackageId)
+	require.Error(t, err, "TypeParameter shape must be rejected, not panic")
+	assert.Contains(t, err.Error(), "unsupported TypeParameter")
+}
+
+func TestValidateReceiverCallbackSignature_MalformedParamReturnsError(t *testing.T) {
+	t.Parallel()
+	lggr := logger.Test(t)
+
+	params := append(standardParams(testCcipPackageId),
+		float64(42),
+	)
+	funcSig := map[string]any{"parameters": params}
+	decodedTypes := []string{"vector<u8>", "&object", "object_id", "unknown"}
+
+	err := ValidateReceiverCallbackSignature(lggr, funcSig, decodedTypes, testCcipPackageId, testOffRampPackageId)
+	require.Error(t, err, "non-map/non-string param must return error, not panic")
+	assert.Contains(t, err.Error(), "expected string or map")
 }

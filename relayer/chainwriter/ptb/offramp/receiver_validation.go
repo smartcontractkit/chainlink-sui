@@ -43,11 +43,12 @@ func ValidateReceiverCallbackSignature(
 		return fmt.Errorf("'parameters' field is not an array in receiver function signature")
 	}
 
-	// Walk raw parameters, skipping TxContext (mirroring DecodeParameters),
-	// and inspect every extra parameter beyond the standard 3.
 	decodedIdx := 0
 	for i, rawParam := range parameters {
-		meta := decodeParam(lggr, rawParam, "Reference")
+		meta, err := decodeParam(lggr, rawParam, "Reference")
+		if err != nil {
+			return fmt.Errorf("receiver callback parameter %d: %w", i, err)
+		}
 		if meta.Name == "TxContext" {
 			continue
 		}
