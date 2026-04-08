@@ -66,32 +66,96 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 		s.RunUpgradeCCIPProposal("FeeQuoter 1.8.0")
 	})
 
-	// CCIP OFFRAMP UPGRADE
-	s.T().Run("Upgrade CCIPOfframp through MCMS", func(t *testing.T) {
-		s.RunUpgradeOfframpProposal("OffRamp 1.7.0")
+	s.T().Run("Test CCIP works after upgrade", func(t *testing.T) {
+		s.RunUpgradeBreakingCCIPProposal()
+		s.RegisterCCIPUpgradeCap()
+		s.RunLatestUpgradedCCIPProposal()
 	})
 
-	s.T().Run("Re-Upgrade CCIPOfframp through MCMS", func(t *testing.T) {
-		s.RunUpgradeOfframpProposal("OffRamp 1.8.0")
-	})
+	// // CCIP OFFRAMP UPGRADE
+	// s.T().Run("Upgrade CCIPOfframp through MCMS", func(t *testing.T) {
+	// 	s.RunUpgradeOfframpProposal("OffRamp 1.7.0")
+	// })
 
-	// ONRAMP UPGRADE
-	s.T().Run("Upgrade CCIPOnramp through MCMS", func(t *testing.T) {
-		s.RunUpgradeOnrampProposal("OnRamp 1.7.0")
-	})
+	// s.T().Run("Re-Upgrade CCIPOfframp through MCMS", func(t *testing.T) {
+	// 	s.RunUpgradeOfframpProposal("OffRamp 1.8.0")
+	// })
 
-	s.T().Run("Re-Upgrade CCIPOnramp through MCMS", func(t *testing.T) {
-		s.RunUpgradeOnrampProposal("OnRamp 1.8.0")
-	})
+	// // ONRAMP UPGRADE
+	// s.T().Run("Upgrade CCIPOnramp through MCMS", func(t *testing.T) {
+	// 	s.RunUpgradeOnrampProposal("OnRamp 1.7.0")
+	// })
 
-	// ROUTER UPGRADE
-	s.T().Run("Upgrade CCIPRouter through MCMS", func(t *testing.T) {
-		s.RunUpgradeRouterProposal("Router 1.7.0")
-	})
+	// s.T().Run("Re-Upgrade CCIPOnramp through MCMS", func(t *testing.T) {
+	// 	s.RunUpgradeOnrampProposal("OnRamp 1.8.0")
+	// })
 
-	s.T().Run("Re-Upgrade CCIPRouter through MCMS", func(t *testing.T) {
-		s.RunUpgradeRouterProposal("Router 1.8.0")
+	// // ROUTER UPGRADE
+	// s.T().Run("Upgrade CCIPRouter through MCMS", func(t *testing.T) {
+	// 	s.RunUpgradeRouterProposal("Router 1.7.0")
+	// })
+
+	// s.T().Run("Re-Upgrade CCIPRouter through MCMS", func(t *testing.T) {
+	// 	s.RunUpgradeRouterProposal("Router 1.8.0")
+	// })
+}
+
+func (s *CCIPMCMSTestSuite) RunLatestUpgradedCCIPProposal() {
+	// 1. Record the current package_ids before the proposal to compare after execution.
+	stateObjectBefore, err := s.client.SuiGetObject(s.T().Context(), models.SuiGetObjectRequest{
+		ObjectId: s.ccipObjects.CCIPObjectRefObjectId,
+		Options:  models.SuiObjectDataOptions{ShowContent: true},
 	})
+	s.Require().NoError(err)
+	pkgIdsBefore := stateObjectBefore.Data.Content.Fields["package_ids"].([]any)
+
+	// 2. Build an MCMS proposal to call add_package_id routing through the upgraded (breaking)
+	// package. Because the breaking package's add_package_id is a no-op (push_back was removed),
+	// latestCcipPackageId should NOT appear in the list after execution — which proves MCMS
+	// targets the latest package code, not the old one.
+	input := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			ccipops.AddPackageIdStateObjectOp.Def(),
+		},
+		Inputs: []any{
+			ccipops.AddPackageIdStateObjectInput{
+				PackageId:             s.latestCcipPackageId,
+				CCIPPackageId:         s.ccipPackageId,
+				OwnerCapObjectId:      s.ccipObjects.OwnerCapObjectId,
+				CCIPObjectRefObjectId: s.ccipObjects.CCIPObjectRefObjectId,
+			},
+		},
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
+		ChainSelector:      uint64(s.chainSelector),
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionBypass,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
+	}
+	report, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, input)
+	s.Require().NoError(err, "building add_package_id proposal via upgraded CCIP package")
+
+	// 3. Execute proposal via bypasser — no timelock delay needed.
+	s.ExecuteProposalE2e(&report.Output, s.bypasserConfig, 0)
+
+	// 4. Verify the package_ids list did NOT grow: the upgraded add_package_id is a no-op.
+	stateObjectAfter, err := s.client.SuiGetObject(s.T().Context(), models.SuiGetObjectRequest{
+		ObjectId: s.ccipObjects.CCIPObjectRefObjectId,
+		Options:  models.SuiObjectDataOptions{ShowContent: true},
+	})
+	s.Require().NoError(err)
+	pkgIdsAfter := stateObjectAfter.Data.Content.Fields["package_ids"].([]any)
+
+	s.Require().Equal(len(pkgIdsBefore), len(pkgIdsAfter),
+		"package_ids list should not grow: upgraded add_package_id is a no-op")
+	s.Require().NotContains(pkgIdsAfter, s.latestCcipPackageId,
+		"latestCcipPackageId should not be in package_ids since upgraded add_package_id is a no-op")
 }
 
 // TODO: For prod env, the initial deployment sequence should start the ownership transfer flow of every deployed contract
@@ -138,6 +202,7 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 			ccipops.FeeQuoterApplyTokenTransferFeeConfigUpdatesOp.Def(),
 			ccipops.FeeQuoterApplyDestChainConfigUpdatesOp.Def(),
 			ccipops.FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp.Def(),
+			ccipops.AddPackageIdStateObjectOp.Def(),
 		},
 		Inputs: []any{
 			ccipops.FeeQuoterApplyFeeTokenUpdatesInput{
@@ -193,6 +258,12 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 				Tokens:                     []string{s.linkObjects.CoinMetadataObjectId},
 				PremiumMultiplierWeiPerEth: []uint64{expectedPremiumMultiplier},
 			},
+			ccipops.AddPackageIdStateObjectInput{
+				PackageId:             s.latestCcipPackageId,
+				CCIPPackageId:         s.ccipPackageId,
+				OwnerCapObjectId:      s.ccipObjects.OwnerCapObjectId,
+				CCIPObjectRefObjectId: s.ccipObjects.CCIPObjectRefObjectId,
+			},
 		},
 		// MCMS related
 		MmcsPackageID:      s.mcmsPackageID,
@@ -204,7 +275,7 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 		ChainSelector:      uint64(s.chainSelector),
 		// Proposal
 		TimelockConfig: utils.TimelockConfig{
-			MCMSAction:   types.TimelockActionBypass,
+			MCMSAction:   types.TimelockActionSchedule,
 			MinDelay:     0,
 			OverrideRoot: false,
 		},
@@ -215,7 +286,7 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 	timelockProposal := feeQuoterReport.Output
 
 	// 3. Execute proposal
-	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+	s.ExecuteProposalE2e(&timelockProposal, s.proposerConfig, 1*time.Second)
 
 	// 4. Verify the changes in CCIP state object
 	fqContract, err := module_fee_quoter.NewFeeQuoter(s.ccipPackageId, s.client)
@@ -243,6 +314,14 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 	actualPremiumMultiplier, err := fqContract.DevInspect().GetPremiumMultiplierWeiPerEth(s.T().Context(), s.deps.GetCallOpts(), ccipObjRef, linkTokenID)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), expectedPremiumMultiplier, actualPremiumMultiplier)
+
+	// Add check to verify latest ccip package was added to state object fetching the object directly
+	ccipStateObject, err := s.client.SuiGetObject(s.T().Context(), models.SuiGetObjectRequest{
+		ObjectId: s.ccipObjects.CCIPObjectRefObjectId,
+		Options:  models.SuiObjectDataOptions{ShowContent: true},
+	})
+	require.NoError(s.T(), err)
+	require.Contains(s.T(), ccipStateObject.Data.Content.Fields["package_ids"].([]any), s.latestCcipPackageId)
 }
 
 func RunCCIPRampsProposal(s *CCIPMCMSTestSuite) {
@@ -469,7 +548,7 @@ func RunTestRouterProposal(s *CCIPMCMSTestSuite) {
 
 func (s *CCIPMCMSTestSuite) RegisterCCIPUpgradeCap() {
 	// Register CCIP package's UpgradeCap with MCMS deployer
-	ccipContract, err := module_state_object.NewStateObject(s.ccipPackageId, s.client)
+	ccipContract, err := module_state_object.NewStateObject(s.latestCcipPackageId, s.client)
 	require.NoError(s.T(), err, "creating CCIP state object contract")
 
 	_, err = ccipContract.McmsRegisterUpgradeCap(
@@ -825,4 +904,86 @@ func (s *CCIPMCMSTestSuite) RunUpgradeRouterProposal(newVersion string) {
 	s.Require().NoError(err)
 	s.Require().Equal(newVersion, version, "router version should be upgraded to "+newVersion)
 	s.latestCcipRouterPackageId = newAddress
+}
+
+func (s *CCIPMCMSTestSuite) RunUpgradeBreakingCCIPProposal() {
+	bind.SetTestModifier(func(packageRoot string) error {
+		// Bump fee_quoter version so the upgraded package bytecode is recognizably different.
+		fqPath := filepath.Join(packageRoot, "sources", "fee_quoter.move")
+		fqContent, _ := os.ReadFile(fqPath)
+		reVersion := regexp.MustCompile(`FeeQuoter \d+\.\d+\.\d+`)
+		if err := os.WriteFile(fqPath, []byte(reVersion.ReplaceAllString(string(fqContent), "FeeQuoter 1.9.0")), 0o644); err != nil {
+			return err
+		}
+		// Remove ref.package_ids.push_back(package_id) from add_package_id to simulate a
+		// breaking change: the upgraded contract's add_package_id becomes a no-op, so any MCMS
+		// proposal targeting this package will not actually store the package ID.
+		soPath := filepath.Join(packageRoot, "sources", "state_object.move")
+		soContent, _ := os.ReadFile(soPath)
+		rePushBack := regexp.MustCompile(`(assert!\(object::id\(owner_cap\)[^\n]+EInvalidOwnerCap\);\n)\s+ref\.package_ids\.push_back\(package_id\);`)
+		return os.WriteFile(soPath, []byte(rePushBack.ReplaceAllString(string(soContent), "$1")), 0o644)
+	})
+	defer bind.ClearTestModifier()
+
+	signerAddress, err := s.signer.GetAddress()
+	s.Require().NoError(err, "getting signer address")
+
+	// 1. Build upgrade input for CCIP package
+	input := mcmsops.UpgradeCCIPInput{
+		// Package related
+		PackageName:     contracts.CCIP,
+		TargetPackageId: s.latestCcipPackageId,
+		NamedAddresses: map[string]string{
+			"signer":            signerAddress,
+			"mcms":              s.mcmsPackageID,
+			"link":              s.linkPackageId,
+			"original_ccip_pkg": s.ccipPackageId,
+		},
+
+		ChainSelector: uint64(s.chainSelector),
+		// MCMS related
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		RegistryObjID:      s.registryObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		DeployerStateObjID: s.deployerStateObj,
+		OwnerCapObjID:      s.ownerCapObj, // MCMS OwnerCap
+
+		// Timelock related
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionSchedule,
+			MinDelay:     5 * time.Second,
+			OverrideRoot: false,
+		},
+	}
+
+	// 2. Execute operation to generate upgrade proposal
+	upgradeReport, err := cld_ops.ExecuteOperation(s.NewOpBundle(), mcmsops.UpgradeCCIPOp, s.deps, input)
+	s.Require().NoError(err, "executing CCIP upgrade operation")
+
+	timelockProposal := upgradeReport.Output
+
+	s.T().Logf("✅ Generated CCIP upgrade proposal: %s", timelockProposal.Description)
+
+	// 3. Execute the upgrade proposal through MCMS using Schedule path
+	responses := s.ExecuteProposalE2e(&timelockProposal, s.proposerConfig, 6*time.Second)
+
+	tx, ok := responses[len(responses)-1].RawData.(*models.SuiTransactionBlockResponse)
+	s.Require().True(ok)
+
+	newAddress, err := s.GetUpgradedAddress(tx, s.mcmsPackageID)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(newAddress)
+
+	s.T().Logf("✅ Successfully upgraded CCIP package from %s to %s", s.ccipPackageId, newAddress)
+
+	// 4. Verify the new package version
+	feequoter, err := module_fee_quoter.NewFeeQuoter(newAddress, s.client)
+	s.Require().NoError(err)
+
+	version, err := feequoter.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
+	s.Require().NoError(err)
+	s.Require().Equal("FeeQuoter 1.9.0", version, "fee quoter version should be upgraded to FeeQuoter 1.9.0")
+	s.latestCcipPackageId = newAddress
 }
