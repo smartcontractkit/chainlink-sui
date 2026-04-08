@@ -143,6 +143,10 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		switch function {
 		case "accept_ownership":
 			return moduleStateObj.Encoder().McmsAcceptOwnershipWithArgs(stateObj, registryObj, executingCallbackParams)
+		case "add_allowed_modules":
+			return moduleStateObj.Encoder().McmsAddAllowedModulesWithArgs(registryObj, executingCallbackParams)
+		case "remove_allowed_modules":
+			return moduleStateObj.Encoder().McmsRemoveAllowedModulesWithArgs(registryObj, executingCallbackParams)
 		}
 
 	// OFFRAMP

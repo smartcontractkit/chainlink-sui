@@ -58,17 +58,25 @@ var addModulesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddM
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to encode add_allowed_modules: %w", err)
 	}
 
-	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.MCMSRegistryObjId, []string{typeArg})
+	// Build the TransactionCall targeting the CCIP package's state_object::mcms_add_allowed_modules
+	// wrapper instead of the MCMS package's mcms_registry::add_allowed_modules. This routes execution
+	// through processDestinationContractCall → EncodeEntryPointArg (same path as add_package_id),
+	// avoiding the processMCMSMainModuleCall path that requires mcms_dispatch_to_registry support.
+	// The BCS data is compatible: (registry_addr [32 bytes] || vector<vector<u8>>).
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.MCMSRegistryObjId)
 	if err != nil {
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
+	call.PackageID = input.CCIPPackageId
+	call.Module = "state_object"
+	call.Function = "add_allowed_modules"
 
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of add_allowed_modules (no signer); returning call for proposal",
 			"registry", input.MCMSRegistryObjId, "modules", input.AllowedModules)
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{
 			Digest:    "",
-			PackageId: input.MCMSPackageId,
+			PackageId: input.CCIPPackageId,
 			Call:      call,
 		}, nil
 	}
@@ -82,7 +90,7 @@ var addModulesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddM
 
 	return sui_ops.OpTxResult[cld_ops.EmptyInput]{
 		Digest:    tx.Digest,
-		PackageId: input.MCMSPackageId,
+		PackageId: input.CCIPPackageId,
 		Call:      call,
 	}, nil
 }
