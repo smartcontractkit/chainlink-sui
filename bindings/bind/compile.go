@@ -968,41 +968,34 @@ type suiEnv struct {
 
 func setupSuiEnv(alias, rpcURL string) error {
 	// Step 1 — Fetch all current envs via CLI
+	// Output format: [[{env1}, {env2}, ...], "active_alias"]
+	// The CLI may also print non-JSON preamble (e.g. config initialization messages).
 	cmd := exec.Command("sui", "client", "envs", "--json")
 	out, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to list Sui environments: %w", err)
 	}
+
+	// The CLI may print non-JSON preamble (e.g. "create one [Y/n]?") before
+	// the JSON array, so try parsing from each '[' until one succeeds.
 	outStr := string(out)
-	idxFront := strings.Index(outStr, "testnet")
-	if idxFront == -1 {
-		return fmt.Errorf("testnet environment not found")
-	}
-
-	idxBack := strings.LastIndex(outStr, "testnet")
-	if idxBack == -1 {
-		return fmt.Errorf("testnet environment not found")
-	}
-	outTrimmed := string(out[idxFront+len("testnet")+1:idxBack-5]) + "]"
-
-	var parsed []any
-	if err := json.Unmarshal([]byte(outTrimmed), &parsed); err != nil {
-		return fmt.Errorf("failed to parse envs JSON: %w\nOutput:\n%s", err, outTrimmed)
-	}
-
-	var envList []suiEnv
-	if arr, ok := parsed[0].([]any); ok {
-		for _, e := range arr {
-			data, _ := json.Marshal(e)
-			var env suiEnv
-			if err := json.Unmarshal(data, &env); err == nil {
-				envList = append(envList, env)
-			} else {
-				log.Printf("failed to unmarshal env: %+v\n", err)
+	var parsed []json.RawMessage
+	for i := 0; i < len(outStr); i++ {
+		if outStr[i] == '[' {
+			if err := json.Unmarshal([]byte(outStr[i:]), &parsed); err == nil {
+				break
 			}
+			parsed = nil
 		}
-	} else {
-		log.Printf("parsed[0] is not []any, got %T\n", parsed[0])
+	}
+	if len(parsed) == 0 {
+		return fmt.Errorf("failed to parse envs JSON from output:\n%s", outStr)
+	}
+
+	// First element is the array of env objects.
+	var envList []suiEnv
+	if err := json.Unmarshal(parsed[0], &envList); err != nil {
+		return fmt.Errorf("failed to parse env list: %w\nOutput:\n%s", err, string(parsed[0]))
 	}
 
 	// Step 2 — Check for existing alias and remove it
