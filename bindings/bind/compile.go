@@ -968,41 +968,34 @@ type suiEnv struct {
 
 func setupSuiEnv(alias, rpcURL string) error {
 	// Step 1 — Fetch all current envs via CLI
+	// Output format: [["alias", {"rpc": "...", "ws": ..., "basic_auth": ...}], ...]
 	cmd := exec.Command("sui", "client", "envs", "--json")
 	out, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to list Sui environments: %w", err)
 	}
-	outStr := string(out)
-	idxFront := strings.Index(outStr, "testnet")
-	if idxFront == -1 {
-		return fmt.Errorf("testnet environment not found")
-	}
 
-	idxBack := strings.LastIndex(outStr, "testnet")
-	if idxBack == -1 {
-		return fmt.Errorf("testnet environment not found")
-	}
-	outTrimmed := string(out[idxFront+len("testnet")+1:idxBack-5]) + "]"
-
-	var parsed []any
-	if err := json.Unmarshal([]byte(outTrimmed), &parsed); err != nil {
-		return fmt.Errorf("failed to parse envs JSON: %w\nOutput:\n%s", err, outTrimmed)
+	var rawEnvs [][]json.RawMessage
+	if err := json.Unmarshal(out, &rawEnvs); err != nil {
+		return fmt.Errorf("failed to parse envs JSON: %w\nOutput:\n%s", err, string(out))
 	}
 
 	var envList []suiEnv
-	if arr, ok := parsed[0].([]any); ok {
-		for _, e := range arr {
-			data, _ := json.Marshal(e)
-			var env suiEnv
-			if err := json.Unmarshal(data, &env); err == nil {
-				envList = append(envList, env)
-			} else {
-				log.Printf("failed to unmarshal env: %+v\n", err)
-			}
+	for _, rawEnv := range rawEnvs {
+		if len(rawEnv) < 2 {
+			continue
 		}
-	} else {
-		log.Printf("parsed[0] is not []any, got %T\n", parsed[0])
+		var envAlias string
+		if err := json.Unmarshal(rawEnv[0], &envAlias); err != nil {
+			continue
+		}
+		var env suiEnv
+		if err := json.Unmarshal(rawEnv[1], &env); err != nil {
+			log.Printf("failed to unmarshal env config for alias %q: %v\n", envAlias, err)
+			continue
+		}
+		env.Alias = envAlias
+		envList = append(envList, env)
 	}
 
 	// Step 2 — Check for existing alias and remove it
