@@ -958,6 +958,49 @@ func TestEncodeEntryPointArg_ManagedToken(t *testing.T) {
 	}
 }
 
+func TestEncodeEntryPointArg_StateObject(t *testing.T) {
+	encoder := &CCIPEntrypointArgEncoder{
+		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
+	}
+
+	target := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+	stateObjID := "0x9999999999999999999999999999999999999999999999999999999999999999"
+	executingCallbackParams := &transaction.Argument{}
+
+	for _, tc := range []struct {
+		name     string
+		function string
+	}{
+		{name: "add_allowed_modules", function: "add_allowed_modules"},
+		{name: "remove_allowed_modules", function: "remove_allowed_modules"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := []byte{}
+
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"state_object",
+				tc.function,
+				stateObjID,
+				data,
+				[]string{},
+			)
+
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.Equal(t, "state_object", result.Module.ModuleName)
+			assert.Equal(t, fmt.Sprintf("mcms_%s", tc.function), result.Function)
+			// 2 args: registry + executingCallbackParams (no stateObj / ccipRef)
+			require.Len(t, result.CallArgs, 2, "Expected 2 arguments: registry, executingCallbackParams")
+
+			registryFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err)
+			assert.Equal(t, encoder.registryObjID, registryFromResult, "First arg should be the registry object")
+		})
+	}
+}
+
 func TestEncodeEntryPointArg_UnknownModule(t *testing.T) {
 	encoder := &CCIPEntrypointArgEncoder{
 		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
