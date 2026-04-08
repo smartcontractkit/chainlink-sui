@@ -84,6 +84,8 @@ type BlockVersionInput struct {
 	OwnerCapObjectId string
 	ModuleName       string
 	Version          uint8
+	// LatestPackageId is emitted on Call for MCMS proposals as additionalFields.latest_package_id.
+	LatestPackageId string `json:"latestPackageId,omitempty"`
 }
 
 type BlockVersionObjects struct {
@@ -109,6 +111,7 @@ var blockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Bl
 	if err != nil {
 		return sui_ops.OpTxResult[BlockVersionObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
+	call.LatestPackageId = input.LatestPackageId
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of BlockVersion on UpgradeRegistry as per no Signer provided",
 			"moduleName", input.ModuleName, "version", input.Version)
@@ -155,6 +158,8 @@ type UnblockVersionInput struct {
 	OwnerCapObjectId string
 	ModuleName       string
 	Version          uint8
+	// LatestPackageId is emitted on Call for MCMS proposals as additionalFields.latest_package_id.
+	LatestPackageId string `json:"latestPackageId,omitempty"`
 }
 
 type UnblockVersionObjects struct {
@@ -180,6 +185,7 @@ var unblockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 	if err != nil {
 		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
+	call.LatestPackageId = input.LatestPackageId
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of UnblockVersion on UpgradeRegistry as per no Signer provided",
 			"moduleName", input.ModuleName, "version", input.Version)
@@ -227,6 +233,8 @@ type BlockFunctionInput struct {
 	ModuleName       string
 	FunctionName     string
 	Version          uint8
+	// LatestPackageId is emitted on Call for MCMS proposals as additionalFields.latest_package_id.
+	LatestPackageId string `json:"latestPackageId,omitempty"`
 }
 
 type BlockFunctionObjects struct {
@@ -252,6 +260,7 @@ var blockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input B
 	if err != nil {
 		return sui_ops.OpTxResult[BlockFunctionObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
+	call.LatestPackageId = input.LatestPackageId
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of BlockFunction on UpgradeRegistry as per no Signer provided",
 			"moduleName", input.ModuleName, "functionName", input.FunctionName, "version", input.Version)
@@ -300,6 +309,8 @@ type UnblockFunctionInput struct {
 	ModuleName       string
 	FunctionName     string
 	Version          uint8
+	// LatestPackageId is emitted on Call for MCMS proposals as additionalFields.latest_package_id.
+	LatestPackageId string `json:"latestPackageId,omitempty"`
 }
 
 type UnblockFunctionObjects struct {
@@ -325,6 +336,7 @@ var unblockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 	if err != nil {
 		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
+	call.LatestPackageId = input.LatestPackageId
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of UnblockFunction on UpgradeRegistry as per no Signer provided",
 			"moduleName", input.ModuleName, "functionName", input.FunctionName, "version", input.Version)

@@ -26,7 +26,7 @@ type AddPackageIdStateObjectObjects struct {
 }
 
 var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddPackageIdStateObjectInput) (output sui_ops.OpTxResult[AddPackageIdStateObjectObjects], err error) {
-	contract, err := module_state_object.NewStateObject(input.CCIPPackageId, deps.Client)
+	contract, err := module_state_object.NewStateObject(input.PackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
 	}
@@ -91,7 +91,7 @@ type RemovePackageIdStateObjectObjects struct {
 }
 
 var removePackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RemovePackageIdStateObjectInput) (output sui_ops.OpTxResult[RemovePackageIdStateObjectObjects], err error) {
-	contract, err := module_state_object.NewStateObject(input.CCIPPackageId, deps.Client)
+	contract, err := module_state_object.NewStateObject(input.PackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
 	}

@@ -28,6 +28,9 @@ type TransactionCall struct {
 	Data       []byte
 	StateObjID string
 	TypeArgs   []string
+	// LatestPackageId is copied into MCMS transaction additionalFields as latest_package_id when
+	// building timelock proposals; PackageID remains the on-chain target (original package).
+	LatestPackageId string `json:"latestPackageId,omitempty"`
 }
 
 type OpTxDeps struct {

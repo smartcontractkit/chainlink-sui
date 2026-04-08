@@ -21,6 +21,7 @@ type BlockVersionConfig struct {
 	CCIPPackageId    string                `yaml:"ccipPackageId"`
 	ModuleName       string                `yaml:"moduleName"`
 	Version          uint8                 `yaml:"version"`
+	LatestPackageId  string                `yaml:"latestPackageId,omitempty"`
 	TimelockConfig   *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
 }
 
@@ -60,6 +61,7 @@ func (d BlockVersion) Apply(e cldf.Environment, config BlockVersionConfig) (cldf
 		OwnerCapObjectId: chainState.CCIPOwnerCapObjectId,
 		ModuleName:       config.ModuleName,
 		Version:          config.Version,
+		LatestPackageId:  config.LatestPackageId,
 	})
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to block version for Sui chain %d: %w", config.SuiChainSelector, err)

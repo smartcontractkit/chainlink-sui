@@ -78,6 +78,10 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		if err != nil {
 			return mcms.TimelockProposal{}, fmt.Errorf("failed to create transaction for operation %s: %w", def.ID, err)
 		}
+		tx, err = utils.MergeLatestPackageIDIntoMCMSTransaction(tx, call.LatestPackageId)
+		if err != nil {
+			return mcms.TimelockProposal{}, fmt.Errorf("set latest_package_id for operation %s: %w", def.ID, err)
+		}
 		mcmsTxs[i] = tx
 	}
 

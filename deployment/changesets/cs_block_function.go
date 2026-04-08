@@ -22,6 +22,7 @@ type BlockFunctionConfig struct {
 	ModuleName       string                `yaml:"moduleName"`
 	FunctionName     string                `yaml:"functionName"`
 	Version          uint8                 `yaml:"version"`
+	LatestPackageId  string                `yaml:"latestPackageId,omitempty"`
 	TimelockConfig   *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
 }
 
@@ -62,6 +63,7 @@ func (d BlockFunction) Apply(e cldf.Environment, config BlockFunctionConfig) (cl
 		ModuleName:       config.ModuleName,
 		FunctionName:     config.FunctionName,
 		Version:          config.Version,
+		LatestPackageId:  config.LatestPackageId,
 	})
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to block function for Sui chain %d: %w", config.SuiChainSelector, err)

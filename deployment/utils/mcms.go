@@ -115,6 +115,30 @@ func ExtractTransactionCall(output interface{}, operationID string) (sui_ops.Tra
 	return call, nil
 }
 
+// MergeLatestPackageIDIntoMCMSTransaction sets sdk/sui.AdditionalFields.latest_package_id on a built
+// MCMS transaction. Pass empty latestPackageID for a no-op. Preserves existing JSON object keys
+// (e.g. compiled_modules) by merging at RawMessage granularity.
+func MergeLatestPackageIDIntoMCMSTransaction(tx types.Transaction, latestPackageID string) (types.Transaction, error) {
+	if latestPackageID == "" {
+		return tx, nil
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(tx.AdditionalFields, &fields); err != nil {
+		return types.Transaction{}, fmt.Errorf("unmarshal additionalFields: %w", err)
+	}
+	quoted, err := json.Marshal(latestPackageID)
+	if err != nil {
+		return types.Transaction{}, err
+	}
+	fields["latest_package_id"] = quoted
+	merged, err := json.Marshal(fields)
+	if err != nil {
+		return types.Transaction{}, err
+	}
+	tx.AdditionalFields = merged
+	return tx, nil
+}
+
 func getRoleFromAction(action types.TimelockAction) (suisdk.TimelockRole, error) {
 	switch action {
 	case types.TimelockActionSchedule:
