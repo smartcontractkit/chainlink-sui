@@ -169,7 +169,13 @@ public fun execute_ownership_transfer_to_mcms(
         to,
         publisher_wrapper,
         McmsCallback {},
-        vector[b"fee_quoter", b"rmn_remote", b"state_object", b"token_admin_registry"],
+        vector[
+            b"fee_quoter",
+            b"rmn_remote",
+            b"state_object",
+            b"token_admin_registry",
+            b"upgrade_registry",
+        ],
         ctx,
     );
 }
