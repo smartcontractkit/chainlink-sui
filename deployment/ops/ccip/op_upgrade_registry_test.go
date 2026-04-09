@@ -129,7 +129,7 @@ func TestUpgradeRegistryOperations(t *testing.T) {
 	t.Run("Test Version Blocking", func(t *testing.T) {
 		// Test blocking a version
 		_, err := cld_ops.ExecuteOperation(bundle, BlockVersionOp, deps, BlockVersionInput{
-			CCIPPackageId:    report.Output.CCIPPackageId,
+			PackageId:        report.Output.CCIPPackageId,
 			StateObjectId:    report.Output.Objects.CCIPObjectRefObjectId,
 			OwnerCapObjectId: report.Output.Objects.OwnerCapObjectId,
 			ModuleName:       "test_module",
@@ -172,7 +172,7 @@ func TestUpgradeRegistryOperations(t *testing.T) {
 	t.Run("Test Function Blocking", func(t *testing.T) {
 		// Test blocking a specific function
 		_, err := cld_ops.ExecuteOperation(bundle, BlockFunctionOp, deps, BlockFunctionInput{
-			CCIPPackageId:    report.Output.CCIPPackageId,
+			PackageId:        report.Output.CCIPPackageId,
 			StateObjectId:    report.Output.Objects.CCIPObjectRefObjectId,
 			OwnerCapObjectId: report.Output.Objects.OwnerCapObjectId,
 			ModuleName:       "test_module_2",
@@ -218,7 +218,7 @@ func TestUpgradeRegistryOperations(t *testing.T) {
 		// Test verifying a blocked function (should fail)
 		// First block the function
 		_, err = cld_ops.ExecuteOperation(bundle, BlockFunctionOp, deps, BlockFunctionInput{
-			CCIPPackageId:    report.Output.CCIPPackageId,
+			PackageId:        report.Output.CCIPPackageId,
 			StateObjectId:    report.Output.Objects.CCIPObjectRefObjectId,
 			OwnerCapObjectId: report.Output.Objects.OwnerCapObjectId,
 			ModuleName:       "test_module_3",

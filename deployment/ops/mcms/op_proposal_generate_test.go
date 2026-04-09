@@ -98,10 +98,10 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		inputs := []any{
 			ccipops.AddPackageIdStateObjectInput{
-				CCIPPackageId:         testCCIPPackageId,
+				PackageId:             testCCIPPackageId,
 				CCIPObjectRefObjectId: testObjectRefId,
 				OwnerCapObjectId:      testOwnerCapId,
-				PackageId:             testPackageId,
+				NewPackageId:          testPackageId,
 			},
 			ccipops.TransferOwnershipStateObjectInput{
 				CCIPPackageId:         testCCIPPackageId,
@@ -228,10 +228,10 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		inputs := []any{
 
 			ccipops.AddPackageIdStateObjectInput{
-				CCIPPackageId:         testCCIPPackageId,
+				PackageId:             testCCIPPackageId,
 				CCIPObjectRefObjectId: testObjectRefId,
 				OwnerCapObjectId:      testOwnerCapId,
-				PackageId:             testPackageId,
+				NewPackageId:          testPackageId,
 			},
 		}
 
@@ -270,10 +270,10 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		inputs := []any{
 
 			ccipops.AddPackageIdStateObjectInput{
-				CCIPPackageId:         testCCIPPackageId,
+				PackageId:             testCCIPPackageId,
 				CCIPObjectRefObjectId: testObjectRefId,
 				OwnerCapObjectId:      testOwnerCapId,
-				PackageId:             testPackageId,
+				NewPackageId:          testPackageId,
 			},
 
 			// Missing second input

@@ -515,10 +515,11 @@ var GetDestChainConfigOp = cld_ops.NewOperation(
 )
 
 type AddPackageIdInput struct {
-	OnRampPackageId  string
+	PackageId        string // original package ID (MCMS registry identity; used as binary when LatestPackageId is "")
+	LatestPackageId  string // optional: upgraded package ID (PTB execution target when set)
 	StateObjectId    string
 	OwnerCapObjectId string
-	PackageId        string
+	NewPackageId     string // the package ID to register in the OnRamp state
 }
 
 type AddPackageIdObjects struct {
@@ -526,7 +527,11 @@ type AddPackageIdObjects struct {
 }
 
 var addPackageIdHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddPackageIdInput) (output sui_ops.OpTxResult[AddPackageIdObjects], err error) {
-	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	binaryPkgId := input.PackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	onRampPackage, err := module_onramp.NewOnramp(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdObjects]{}, err
 	}
@@ -534,7 +539,7 @@ var addPackageIdHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Ad
 	encodedCall, err := onRampPackage.Encoder().AddPackageId(
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
-		input.PackageId,
+		input.NewPackageId,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdObjects]{}, fmt.Errorf("failed to encode AddPackageId call: %w", err)
@@ -543,11 +548,15 @@ var addPackageIdHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Ad
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID // current PackageID is the latest (from binaryPkgId)
+		call.PackageID = input.PackageId      // replace with original for on-chain identity
+	}
 	if deps.Signer == nil {
-		b.Logger.Infow("Skipping execution of AddPackageId on OnRamp as per no Signer provided", "packageId", input.PackageId)
+		b.Logger.Infow("Skipping execution of AddPackageId on OnRamp as per no Signer provided", "newPackageId", input.NewPackageId)
 		return sui_ops.OpTxResult[AddPackageIdObjects]{
 			Digest:    "",
-			PackageId: input.OnRampPackageId,
+			PackageId: input.PackageId,
 			Objects:   AddPackageIdObjects{},
 			Call:      call,
 		}, nil
@@ -564,11 +573,11 @@ var addPackageIdHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Ad
 		return sui_ops.OpTxResult[AddPackageIdObjects]{}, fmt.Errorf("failed to execute AddPackageId on OnRamp: %w", err)
 	}
 
-	b.Logger.Infow("Package ID added to OnRamp", "packageId", input.PackageId)
+	b.Logger.Infow("Package ID added to OnRamp", "newPackageId", input.NewPackageId)
 
 	return sui_ops.OpTxResult[AddPackageIdObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.OnRampPackageId,
+		PackageId: input.PackageId,
 		Objects:   AddPackageIdObjects{},
 		Call:      call,
 	}, nil

@@ -18,7 +18,8 @@ import (
 
 type BlockFunctionConfig struct {
 	SuiChainSelector uint64                `yaml:"suiChainSelector"`
-	CCIPPackageId    string                `yaml:"ccipPackageId"`
+	PackageId        string                `yaml:"packageId"`
+	LatestPackageId  string                `yaml:"latestPackageId,omitempty"`
 	ModuleName       string                `yaml:"moduleName"`
 	FunctionName     string                `yaml:"functionName"`
 	Version          uint8                 `yaml:"version"`
@@ -56,7 +57,8 @@ func (d BlockFunction) Apply(e cldf.Environment, config BlockFunctionConfig) (cl
 	}
 
 	report, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.BlockFunctionOp, deps, ccipops.BlockFunctionInput{
-		CCIPPackageId:    config.CCIPPackageId,
+		PackageId:        config.PackageId,
+		LatestPackageId:  config.LatestPackageId,
 		StateObjectId:    chainState.CCIPObjectRef,
 		OwnerCapObjectId: chainState.CCIPOwnerCapObjectId,
 		ModuleName:       config.ModuleName,
@@ -95,8 +97,8 @@ func (d BlockFunction) Apply(e cldf.Environment, config BlockFunctionConfig) (cl
 }
 
 func (d BlockFunction) VerifyPreconditions(e cldf.Environment, config BlockFunctionConfig) error {
-	if strings.TrimSpace(config.CCIPPackageId) == "" {
-		return fmt.Errorf("ccipPackageId is required")
+	if strings.TrimSpace(config.PackageId) == "" {
+		return fmt.Errorf("packageId is required")
 	}
 	return nil
 }
