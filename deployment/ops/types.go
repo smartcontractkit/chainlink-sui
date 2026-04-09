@@ -22,12 +22,13 @@ type OpTxResult[O any] struct {
 }
 
 type TransactionCall struct {
-	PackageID  string
-	Module     string
-	Function   string
-	Data       []byte
-	StateObjID string
-	TypeArgs   []string
+	PackageID       string
+	LatestPackageID string // optional: when set, the PTB MoveCall targets this (upgraded) package while PackageID remains the on-chain MCMS identity
+	Module          string
+	Function        string
+	Data            []byte
+	StateObjID      string
+	TypeArgs        []string
 }
 
 type OpTxDeps struct {

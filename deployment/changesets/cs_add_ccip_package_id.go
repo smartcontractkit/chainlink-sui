@@ -106,10 +106,10 @@ func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, chai
 	switch target {
 	case AddPackageIdTargetCCIP:
 		r, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.AddPackageIdStateObjectOp, deps, ccipops.AddPackageIdStateObjectInput{
-			CCIPPackageId:         config.CCIPPackageId,
+			PackageId:             config.CCIPPackageId,
 			CCIPObjectRefObjectId: chainState.CCIPObjectRef,
 			OwnerCapObjectId:      chainState.CCIPOwnerCapObjectId,
-			PackageId:             config.PackageId,
+			NewPackageId:          config.PackageId,
 		})
 		if err != nil {
 			return operations.Report[any, any]{}, fmt.Errorf("failed to add package ID to CCIP state object for Sui chain %d: %w", config.SuiChainSelector, err)
@@ -130,10 +130,10 @@ func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, chai
 
 	case AddPackageIdTargetOffRamp:
 		r, err := operations.ExecuteOperation(e.OperationsBundle, offrampops.AddPackageIdOffRampOp, deps, offrampops.AddPackageIdOffRampInput{
-			OffRampPackageId: config.OffRampPackageId,
+			PackageId:        config.OffRampPackageId,
 			StateObjectId:    chainState.OffRampStateObjectId,
 			OwnerCapObjectId: chainState.OffRampOwnerCapId,
-			PackageId:        config.PackageId,
+			NewPackageId:     config.PackageId,
 		})
 		if err != nil {
 			return operations.Report[any, any]{}, fmt.Errorf("failed to add package ID to OffRamp for Sui chain %d: %w", config.SuiChainSelector, err)

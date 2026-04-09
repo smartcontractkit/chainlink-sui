@@ -15,10 +15,11 @@ import (
 // =================== Add Package ID Operations =================== //
 
 type AddPackageIdStateObjectInput struct {
-	CCIPPackageId         string
+	PackageId             string // original package ID (MCMS registry identity; used as binary when LatestPackageId is "")
+	LatestPackageId       string // optional: upgraded package ID (PTB execution target when set)
 	CCIPObjectRefObjectId string
 	OwnerCapObjectId      string
-	PackageId             string
+	NewPackageId          string // the package ID to register in the CCIP StateObject
 }
 
 type AddPackageIdStateObjectObjects struct {
@@ -26,12 +27,17 @@ type AddPackageIdStateObjectObjects struct {
 }
 
 var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddPackageIdStateObjectInput) (output sui_ops.OpTxResult[AddPackageIdStateObjectObjects], err error) {
-	contract, err := module_state_object.NewStateObject(input.CCIPPackageId, deps.Client)
+	// When the package has been upgraded, PTB must target the latest bytecode for execution.
+	binaryPkgId := input.PackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	contract, err := module_state_object.NewStateObject(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
 	}
 
-	encodedCall, err := contract.Encoder().AddPackageId(bind.Object{Id: input.CCIPObjectRefObjectId}, bind.Object{Id: input.OwnerCapObjectId}, input.PackageId)
+	encodedCall, err := contract.Encoder().AddPackageId(bind.Object{Id: input.CCIPObjectRefObjectId}, bind.Object{Id: input.OwnerCapObjectId}, input.NewPackageId)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to encode AddPackageId call: %w", err)
 	}
@@ -39,11 +45,18 @@ var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDep
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
+	// When the package has been upgraded, the on-chain MCMS registry still holds the original package's
+	// proof type, so tx.To must be the original package ID. The PTB MoveCall must target the latest package
+	// so upgraded bytecode runs. Use LatestPackageId so the proposal generator can separate the two.
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID // current PackageID is the latest (from binaryPkgId)
+		call.PackageID = input.PackageId      // replace with original for on-chain identity
+	}
 	if deps.Signer == nil {
-		b.Logger.Infow("Skipping execution of AddPackageId on StateObject as per no Signer provided", "packageId", input.PackageId)
+		b.Logger.Infow("Skipping execution of AddPackageId on StateObject as per no Signer provided", "newPackageId", input.NewPackageId)
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{
 			Digest:    "",
-			PackageId: input.CCIPPackageId,
+			PackageId: input.PackageId,
 			Objects:   AddPackageIdStateObjectObjects{},
 			Call:      call,
 		}, nil
@@ -60,11 +73,11 @@ var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDep
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to execute AddPackageId on StateObject: %w", err)
 	}
 
-	b.Logger.Infow("Package ID added to CCIP StateObject", "packageId", input.PackageId)
+	b.Logger.Infow("Package ID added to CCIP StateObject", "newPackageId", input.NewPackageId)
 
 	return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.PackageId,
 		Objects:   AddPackageIdStateObjectObjects{},
 		Call:      call,
 	}, nil
