@@ -16,8 +16,8 @@ require (
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260311190822-5cbfc939dd16
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260406055916-9aa6b6c0ae81
 	github.com/smartcontractkit/chainlink-deployments-framework v0.75.0
-	github.com/smartcontractkit/chainlink-sui v0.0.0-20260205175622-33e65031f9a9
-	github.com/smartcontractkit/mcms v0.40.1
+	github.com/smartcontractkit/chainlink-sui v0.0.0-20260408222042-6c7b4c27a8b2
+	github.com/smartcontractkit/mcms v0.41.0 // Replace with official release before merging
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/sync v0.19.0
 )

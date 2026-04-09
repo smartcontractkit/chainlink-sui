@@ -78,6 +78,13 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		if err != nil {
 			return mcms.TimelockProposal{}, fmt.Errorf("failed to create transaction for operation %s: %w", def.ID, err)
 		}
+		// If the op signalled an upgraded package, record it so the timelock converter
+		// propagates it as InternalLatestPackageIDs in the outer batch operation.
+		if call.LatestPackageID != "" {
+			if setErr := suisdk.SetLatestPackageID(&tx, call.LatestPackageID); setErr != nil {
+				return mcms.TimelockProposal{}, fmt.Errorf("failed to set latest package ID for operation %s: %w", def.ID, setErr)
+			}
+		}
 		mcmsTxs[i] = tx
 	}
 

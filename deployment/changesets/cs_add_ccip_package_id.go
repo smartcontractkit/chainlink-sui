@@ -26,13 +26,16 @@ const (
 )
 
 type AddCCIPPackageIdConfig struct {
-	SuiChainSelector uint64                `yaml:"suiChainSelector"`
-	Target           AddPackageIdTarget    `yaml:"target"`
-	CCIPPackageId    string                `yaml:"ccipPackageId"`
-	OnRampPackageId  string                `yaml:"onRampPackageId,omitempty"`
-	OffRampPackageId string                `yaml:"offRampPackageId,omitempty"`
-	PackageId        string                `yaml:"packageId"`
-	TimelockConfig   *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
+	SuiChainSelector       uint64                `yaml:"suiChainSelector"`
+	Target                 AddPackageIdTarget    `yaml:"target"`
+	CCIPPackageId          string                `yaml:"ccipPackageId"`                 // original CCIP package ID
+	LatestCCIPPackageId    string                `yaml:"latestCcipPackageId,omitempty"` // optional: upgraded CCIP binary
+	OnRampPackageId        string                `yaml:"onRampPackageId,omitempty"`
+	LatestOnRampPackageId  string                `yaml:"latestOnRampPackageId,omitempty"` // optional: upgraded OnRamp binary
+	OffRampPackageId       string                `yaml:"offRampPackageId,omitempty"`
+	LatestOffRampPackageId string                `yaml:"latestOffRampPackageId,omitempty"` // optional: upgraded OffRamp binary
+	PackageId              string                `yaml:"packageId"`
+	TimelockConfig         *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
 }
 
 var _ cldf.ChangeSetV2[AddCCIPPackageIdConfig] = AddCCIPPackageId{}
@@ -106,10 +109,11 @@ func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, chai
 	switch target {
 	case AddPackageIdTargetCCIP:
 		r, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.AddPackageIdStateObjectOp, deps, ccipops.AddPackageIdStateObjectInput{
-			CCIPPackageId:         config.CCIPPackageId,
+			PackageId:             config.CCIPPackageId,
+			LatestPackageId:       config.LatestCCIPPackageId,
 			CCIPObjectRefObjectId: chainState.CCIPObjectRef,
 			OwnerCapObjectId:      chainState.CCIPOwnerCapObjectId,
-			PackageId:             config.PackageId,
+			NewPackageId:          config.PackageId,
 		})
 		if err != nil {
 			return operations.Report[any, any]{}, fmt.Errorf("failed to add package ID to CCIP state object for Sui chain %d: %w", config.SuiChainSelector, err)
@@ -118,10 +122,11 @@ func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, chai
 
 	case AddPackageIdTargetOnRamp:
 		r, err := operations.ExecuteOperation(e.OperationsBundle, onrampops.AddPackageIdOp, deps, onrampops.AddPackageIdInput{
-			OnRampPackageId:  config.OnRampPackageId,
+			PackageId:        config.OnRampPackageId,
+			LatestPackageId:  config.LatestOnRampPackageId,
 			StateObjectId:    chainState.OnRampStateObjectId,
 			OwnerCapObjectId: chainState.OnRampOwnerCapObjectId,
-			PackageId:        config.PackageId,
+			NewPackageId:     config.PackageId,
 		})
 		if err != nil {
 			return operations.Report[any, any]{}, fmt.Errorf("failed to add package ID to OnRamp for Sui chain %d: %w", config.SuiChainSelector, err)
@@ -130,10 +135,11 @@ func executeAddPackageId(e cldf.Environment, config AddCCIPPackageIdConfig, chai
 
 	case AddPackageIdTargetOffRamp:
 		r, err := operations.ExecuteOperation(e.OperationsBundle, offrampops.AddPackageIdOffRampOp, deps, offrampops.AddPackageIdOffRampInput{
-			OffRampPackageId: config.OffRampPackageId,
+			PackageId:        config.OffRampPackageId,
+			LatestPackageId:  config.LatestOffRampPackageId,
 			StateObjectId:    chainState.OffRampStateObjectId,
 			OwnerCapObjectId: chainState.OffRampOwnerCapId,
-			PackageId:        config.PackageId,
+			NewPackageId:     config.PackageId,
 		})
 		if err != nil {
 			return operations.Report[any, any]{}, fmt.Errorf("failed to add package ID to OffRamp for Sui chain %d: %w", config.SuiChainSelector, err)
