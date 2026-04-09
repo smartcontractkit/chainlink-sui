@@ -86,32 +86,31 @@ func TestStateObjectOperations(t *testing.T) {
 	})
 
 	t.Run("Test Add Package ID", func(t *testing.T) {
-		newPackageId := "0x123456789abcdef" // Example package ID
 		addReport, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, AddPackageIdStateObjectInput{
 			CCIPPackageId:         ccipReport.Output.PackageId,
 			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
 			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
-			PackageId:             newPackageId,
+			PackageId:             ccipReport.Output.PackageId,
 		})
 		require.NoError(t, err, "failed to add package ID")
 		require.NotEmpty(t, addReport.Output.Digest, "add package ID transaction should have a digest")
 	})
 
 	t.Run("Test Remove Package ID", func(t *testing.T) {
-		// First add a package ID to remove
-		newPackageId := "0xabcdef1234567890abcdef1234567890abcdef12"
+		// First add the package ID so we can remove it
 		_, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, AddPackageIdStateObjectInput{
 			CCIPPackageId:         ccipReport.Output.PackageId,
 			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
 			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
-			PackageId:             newPackageId,
+			PackageId:             ccipReport.Output.PackageId,
 		})
+		require.NoError(t, err, "failed to add package ID for removal test")
 		// Now remove the package ID
 		removeReport, err := cld_ops.ExecuteOperation(bundle, RemovePackageIdStateObjectOp, deps, RemovePackageIdStateObjectInput{
 			CCIPPackageId:         ccipReport.Output.PackageId,
 			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
 			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
-			PackageId:             newPackageId,
+			PackageId:             ccipReport.Output.PackageId,
 		})
 		require.NoError(t, err, "failed to remove package ID")
 		require.NotEmpty(t, removeReport.Output.Digest, "remove package ID transaction should have a digest")
