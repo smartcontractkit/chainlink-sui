@@ -112,6 +112,7 @@ func (s *CCIPMCMSTestSuite) RunLatestUpgradedCCIPProposal() {
 	input := mcmsops.ProposalGenerateInput{
 		Defs: []cld_ops.Definition{
 			ccipops.AddPackageIdStateObjectOp.Def(),
+			ccipops.AddAllowedModulesStateObjectOp.Def(),
 			offrampops.AddPackageIdOffRampOp.Def(),
 		},
 		Inputs: []any{
@@ -121,6 +122,12 @@ func (s *CCIPMCMSTestSuite) RunLatestUpgradedCCIPProposal() {
 				NewPackageId:          s.latestCcipPackageId, // ID to register in CCIP state
 				OwnerCapObjectId:      s.ccipObjects.OwnerCapObjectId,
 				CCIPObjectRefObjectId: s.ccipObjects.CCIPObjectRefObjectId,
+			},
+			ccipops.AddAllowedModulesStateObjectInput{
+				PackageId:         s.ccipPackageId,       // original (MCMS registry identity)
+				LatestPackageId:   s.latestCcipPackageId, // upgraded binary (no-op add_allowed_modules)
+				MCMSRegistryObjId: s.registryObj,
+				AllowedModules:    []string{"dummy"},
 			},
 			offrampops.AddPackageIdOffRampInput{
 				PackageId:        s.ccipOfframpPackageId,       // original (MCMS registry identity)
