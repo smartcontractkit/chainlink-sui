@@ -20,41 +20,45 @@ jobs:
       matrix:
         include:
           - test_name: Test_CCIP_Messaging_Sui2EVM
-            sui_version: mainnet-v1.67.3
+            sui_version: mainnet-v1.69.2
           - test_name: Test_CCIP_Messaging_EVM2Sui
-            sui_version: mainnet-v1.67.3
+            sui_version: mainnet-v1.69.2
           - test_name: Test_CCIP_EVM2Sui_ZeroReceiver
-            sui_version: mainnet-v1.67.3
+            sui_version: mainnet-v1.69.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_LockReleaseTokenPool
-            sui_version: mainnet-v1.67.3
+            sui_version: mainnet-v1.69.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool
-            sui_version: mainnet-v1.67.3
+            sui_version: mainnet-v1.69.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool_WithRateLimit
-            sui_version: mainnet-v1.67.3
+            sui_version: mainnet-v1.69.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool_WithAllowlist
-            sui_version: mainnet-v1.67.3
+            sui_version: mainnet-v1.69.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool_ThenGloballyCursedUncursed
-            sui_version: mainnet-v1.67.3
+            sui_version: mainnet-v1.69.2
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_ManagedTokenPool_ThenCurseUncurse
-            sui_version: mainnet-v1.67.3
-          - test_name: Test_CCIPTokenTransfer_SUI2EVM_ManagedTokenPool_WithRateLimit
-            sui_version: mainnet-v1.67.3
+            sui_version: mainnet-v1.69.2
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_ManagedTokenPool_WithRateLimit
+            sui_version: mainnet-v1.69.2
+          - test_name: Test_CCIPTokenTransfer_EVM2Sui_BurnMintTokenPool
+            sui_version: mainnet-v1.69.2
+          - test_name: Test_CCIPTokenTransfer_EVM2Sui_ManagedTokenPool_NoRateLimit
+            sui_version: mainnet-v1.69.2
+          - test_name: Test_CCIPTokenTransfer_EVM2Sui_ManagedTokenPool_WithRateLimit
+            sui_version: mainnet-v1.69.2
+          - test_name: Test_CCIPPureTokenTransfer_EVM2Sui_BurnMintTokenPool
+            sui_version: mainnet-v1.69.2
+          - test_name: Test_CCIPProgrammableTokenTransfer_EVM2Sui_BurnMintTokenPool
+            sui_version: mainnet-v1.69.2
+          - test_name: Test_CCIPZeroGasLimitTokenTransfer_EVM2Sui_BurnMintTokenPool
+            sui_version: mainnet-v1.69.2
           - test_name: Test_CCIP_Upgrade_Sui2EVM
-            sui_version: mainnet-v1.67.3
+            sui_version: mainnet-v1.69.2
           - test_name: Test_CCIP_Upgrade_EVM2Sui
-            sui_version: mainnet-v1.67.3
+            sui_version: mainnet-v1.69.2
           - test_name: Test_CCIP_Upgrade_CommonPkg_EVM2Sui
-            sui_version: mainnet-v1.67.3
+            sui_version: mainnet-v1.69.2
           - test_name: Test_CCIP_Upgrade_NoBlock_EVM2Sui
-            sui_version: mainnet-v1.67.3
-          # - test_name: Test_CCIPTokenTransfer_EVM2SUI_BurnMintTokenPool
-          #   sui_version: mainnet-v1.57.2
-          # - test_name: Test_CCIPPureTokenTransfer_EVM2SUI_BurnMintTokenPool
-          #   sui_version: mainnet-v1.57.2
-          # - test_name: Test_CCIPProgrammableTokenTransfer_EVM2SUI_BurnMintTokenPool
-          #   sui_version: mainnet-v1.57.2
-          # - test_name: Test_CCIPZeroGasLimitTokenTransfer_EVM2SUI_BurnMintTokenPool
-          #   sui_version: mainnet-v1.57.2
+            sui_version: mainnet-v1.69.2
 
     env:
       DEFAULT_CORE_REF: develop
