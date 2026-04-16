@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/pelletier/go-toml/v2"
 
@@ -248,11 +247,14 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	// transaction lands on the same network the test's Go RPC client queries.
 	ensureCLIEnvPointsToLocalnet()
 
-	// #region agent log
-	debugLogPath := os.Getenv("DEBUG_LOG_PATH")
-	if debugLogPath == "" { debugLogPath = "/Users/felix/dev/chainlink/.cursor/debug-7c7360.log" }
-	if f, ferr := os.OpenFile(debugLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); ferr == nil { fmt.Fprintf(f, `{"sessionId":"7c7360","hypothesisId":"A","location":"contract.go:PublishContract","message":"publish cmd args","data":{"contractPath":%q,"gasBudget":%q},"timestamp":%d}`+"\n", contractPath, gasBudgetArg, time.Now().UnixMilli()); f.Close() }
-	// #endregion
+	// Patch Move.toml [environments] with the actual local chain ID so the CLI
+	// doesn't reject the publish due to a stale chain ID from a previous genesis.
+	chainID, err := GetChainIdentifier(LocalUrl)
+	if err == nil {
+		for _, dir := range dirsToClean {
+			PatchEnvironmentTOML(dir, "local", chainID)
+		}
+	}
 
 	publishCmd := exec.Command("sui", "client", "publish",
 		"--gas-budget", gasBudgetArg,
@@ -263,11 +265,6 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	)
 
 	publishOutput, err := publishCmd.CombinedOutput()
-
-	// #region agent log
-	if f, ferr := os.OpenFile(debugLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); ferr == nil { fmt.Fprintf(f, `{"sessionId":"7c7360","hypothesisId":"A","location":"contract.go:PublishContract:output","message":"publish result","data":{"error":%q,"outputLen":%d,"outputSnippet":%q},"timestamp":%d}`+"\n", fmt.Sprintf("%v",err), len(publishOutput), string(publishOutput[:min(len(publishOutput),500)]), time.Now().UnixMilli()); f.Close() }
-	// #endregion
-
 	require.NoError(t, err, "Failed to publish contract: %s", string(publishOutput))
 
 	cleanedOutput, err := extractJSONOutput(string(publishOutput))
@@ -291,14 +288,6 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 
 	changes := parsedPublishTxn.ObjectChanges
 
-	// #region agent log
-	if f, ferr := os.OpenFile(debugLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); ferr == nil {
-		changesJSON, _ := json.Marshal(changes)
-		fmt.Fprintf(f, `{"sessionId":"7c7360","hypothesisId":"B","location":"contract.go:objectChanges","message":"parsed object changes","data":{"numChanges":%d,"changesRaw":%s},"timestamp":%d}`+"\n", len(changes), string(changesJSON), time.Now().UnixMilli())
-		f.Close()
-	}
-	// #endregion
-
 	var packageId string
 	for _, change := range changes {
 		if change.Type == "published" && change.PackageID != "" {
@@ -313,20 +302,7 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		}
 	}
 
-	// #region agent log
-	if f, ferr := os.OpenFile(debugLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); ferr == nil { fmt.Fprintf(f, `{"sessionId":"7c7360","hypothesisId":"B","location":"contract.go:packageId","message":"extracted package id","data":{"packageId":%q},"timestamp":%d}`+"\n", packageId, time.Now().UnixMilli()); f.Close() }
-	// #endregion
-
 	require.NotEmpty(t, packageId, "Package ID not found")
-
-	// #region agent log
-	if f, ferr := os.OpenFile(debugLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); ferr == nil {
-		pubContent, _ := os.ReadFile(filepath.Join(contractPath, "Published.toml"))
-		depPubContent, _ := os.ReadFile(filepath.Join(filepath.Dir(contractPath), "test_secondary", "Published.toml"))
-		fmt.Fprintf(f, `{"sessionId":"7c7360","hypothesisId":"C","location":"contract.go:postPublish","message":"Published.toml after publish","data":{"contractPub":%q,"depPub":%q},"timestamp":%d}`+"\n", string(pubContent), string(depPubContent), time.Now().UnixMilli())
-		f.Close()
-	}
-	// #endregion
 
 	return packageId, parsedPublishTxn, nil
 }
