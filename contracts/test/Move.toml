@@ -1,11 +1,10 @@
+[package]
+name = "test"
+edition = "2024"
+
 [dependencies]
-  [dependencies.test_secondary]
-    local = '../test_secondary'
+test_secondary = { local = "../test_secondary" }
 
 [environments]
-  devnet = 'a9149565'
-  local = '92d92e5c'
-
-[package]
-  edition = '2024'
-  name = 'test'
+devnet = "a9149565"
+local = "a3f1b77a"
