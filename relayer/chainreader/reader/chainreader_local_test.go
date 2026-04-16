@@ -84,7 +84,8 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	// Publish test_secondary first (before counter, since counter depends on it)
 	gasBudget := int(2000000000)
 	contractPath := testutils.BuildSetup(t, "contracts/test_secondary")
-	secondaryPackageId, tx, err := testutils.PublishContract(t, "test_secondary", contractPath, accountAddress, &gasBudget)
+	// Module name in bytecode is `state_object` (see sources/state_object.move), not the Move.toml package label.
+	secondaryPackageId, tx, err := testutils.PublishContract(t, "state_object", contractPath, accountAddress, &gasBudget)
 	require.NoError(t, err)
 	require.NotNil(t, secondaryPackageId)
 	require.NotNil(t, tx)
