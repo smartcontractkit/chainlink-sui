@@ -92,7 +92,11 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 	log.Debugw("Published Secondary Contract", "packageId", secondaryPackageId)
 
-	// Now publish counter with test_secondary package ID patched in Move.toml
+	// Pin `contracts/test`'s `test_secondary` dependency to this published package ID. A second
+	// `test-publish --with-unpublished-dependencies` can otherwise link counter bytecode to a
+	// different dependency id than the on-chain CCIPObjectRef objects (dev-inspect TypeMismatch on arg 1).
+	testutils.PatchContractAddressTOML(t, "contracts/test", "test_secondary", secondaryPackageId)
+
 	contractPath = testutils.BuildSetup(t, "contracts/test")
 	packageId, tx, err := testutils.PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
 	require.NoError(t, err)
