@@ -192,6 +192,12 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 
 	lgr.Infow("Publishing contract", "name", packageName, "path", contractPath)
 
+	// Sui CLI v1.69+ disallows --build-env (-e) for `sui client publish`;
+	// you must build for the target environment first, then publish.
+	buildCmd := exec.Command("sui", "move", "build", "-e", "local", "--path", contractPath)
+	buildOutput, buildErr := buildCmd.CombinedOutput()
+	require.NoError(t, buildErr, "Failed to build contract for publish: %s", string(buildOutput))
+
 	gasBudgetArg := "800000000"
 	if gasBudget != nil {
 		gasBudgetArg = strconv.Itoa(*gasBudget)
@@ -202,7 +208,6 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		"--json",
 		"--silence-warnings",
 		"--with-unpublished-dependencies",
-		"-e", "local", // Explicitly use local environment from Move.toml
 		contractPath,
 	)
 
