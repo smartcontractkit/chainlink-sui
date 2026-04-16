@@ -192,23 +192,31 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 
 	lgr.Infow("Publishing contract", "name", packageName, "path", contractPath)
 
-	gasBudgetArg := "800000000"
-	if gasBudget != nil {
-		gasBudgetArg = strconv.Itoa(*gasBudget)
+	// Remove stale ephemeral publication files (Pub.*.toml) that test-publish
+	// creates. A previous run that was killed before cleanup can leave these
+	// behind, causing "Your package is already published" errors.
+	if matches, _ := filepath.Glob(filepath.Join(contractPath, "Pub.*.toml")); len(matches) > 0 {
+		for _, m := range matches {
+			os.Remove(m)
+		}
 	}
 
-	// Sui CLI v1.69+ disallows --build-env for `sui client publish` and
-	// requires the Move.toml environment name to match the active client
-	// env exactly.  `test-publish` still accepts --build-env and is the
-	// recommended command for temporary / test publications.
-	publishCmd := exec.Command("sui", "client", "test-publish",
+	// Sui CLI v1.69+ disallows --build-env for `sui client publish`.
+	// `test-publish` still accepts --build-env and is the recommended
+	// command for temporary / test publications.
+	args := []string{
+		"client", "test-publish",
 		"--build-env", "local",
-		"--gas-budget", gasBudgetArg,
 		"--json",
 		"--silence-warnings",
 		"--with-unpublished-dependencies",
-		contractPath,
-	)
+	}
+	if gasBudget != nil {
+		args = append(args, "--gas-budget", strconv.Itoa(*gasBudget))
+	}
+	args = append(args, contractPath)
+
+	publishCmd := exec.Command("sui", args...)
 
 	publishOutput, err := publishCmd.CombinedOutput()
 	require.NoError(t, err, "Failed to publish contract: %s", string(publishOutput))
@@ -455,32 +463,31 @@ func CleanupTestContracts() {
 func removeLocalPublishedEntry(contractPath string) {
 	publishedToml := filepath.Join(contractPath, "Published.toml")
 	content, err := os.ReadFile(publishedToml)
-	if err != nil {
-		return
-	}
+	if err == nil {
+		// Parse TOML
+		var doc map[string]interface{}
+		if err := toml.Unmarshal(content, &doc); err == nil {
+			// Check if there's a published section
+			if published, ok := doc["published"].(map[string]interface{}); ok {
+				if _, hasLocal := published["local"]; hasLocal {
+					delete(published, "local")
 
-	// Parse TOML
-	var doc map[string]interface{}
-	if err := toml.Unmarshal(content, &doc); err != nil {
-		return
-	}
-
-	// Check if there's a published section
-	published, ok := doc["published"].(map[string]interface{})
-	if !ok {
-		return
-	}
-
-	// Remove the local entry if it exists
-	if _, hasLocal := published["local"]; hasLocal {
-		delete(published, "local")
-
-		var buf bytes.Buffer
-		enc := toml.NewEncoder(&buf)
-		enc.SetIndentTables(true)
-		if err := enc.Encode(doc); err != nil {
-			return
+					var buf bytes.Buffer
+					enc := toml.NewEncoder(&buf)
+					enc.SetIndentTables(true)
+					if err := enc.Encode(doc); err == nil {
+						_ = os.WriteFile(publishedToml, buf.Bytes(), 0o644)
+					}
+				}
+			}
 		}
-		_ = os.WriteFile(publishedToml, buf.Bytes(), 0o644)
+	}
+
+	// Remove ephemeral publication files (Pub.*.toml) left by `sui client
+	// test-publish`. These contain a chain-id that becomes stale after
+	// --force-regenesis and would cause "chain-id mismatch" errors.
+	matches, _ := filepath.Glob(filepath.Join(contractPath, "Pub.*.toml"))
+	for _, m := range matches {
+		os.Remove(m)
 	}
 }
