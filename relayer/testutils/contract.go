@@ -192,21 +192,39 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 
 	lgr.Infow("Publishing contract", "name", packageName, "path", contractPath)
 
-	// Remove stale ephemeral publication files (Pub.*.toml) that test-publish
-	// creates. A previous run that was killed before cleanup can leave these
-	// behind, causing "Your package is already published" errors.
+	// Remove stale default-named ephemeral files (Pub.*.toml) in the package
+	// directory. Without --pubfile-path, Sui writes Pub.<active-env>.toml here;
+	// parallel tests or --force-regenesis can leave chain-id mismatches.
 	if matches, _ := filepath.Glob(filepath.Join(contractPath, "Pub.*.toml")); len(matches) > 0 {
 		for _, m := range matches {
 			os.Remove(m)
 		}
 	}
 
+	// Use a unique pubfile path per invocation so parallel integration tests
+	// and regenesis never reuse another run's chain-id (Pub.localnet.toml default).
+	// The file must not exist yet: an empty file makes the CLI parse TOML and fail
+	// with "missing field `build-env`".
+	pubFile, err := os.CreateTemp(t.TempDir(), "sui-test-pub-*.toml")
+	require.NoError(t, err)
+	pubPath := pubFile.Name()
+	require.NoError(t, pubFile.Close())
+	require.NoError(t, os.Remove(pubPath))
+
 	// Sui CLI v1.69+ disallows --build-env for `sui client publish`.
 	// `test-publish` still accepts --build-env and is the recommended
 	// command for temporary / test publications.
+	//
+	// Force the RPC used for submission to localnet (127.0.0.1:9000). Without
+	// --client.env, `sui client` uses the user's globally active environment
+	// (often testnet), so the package is published remotely while integration
+	// tests talk to LocalUrl and see "Package object does not exist".
 	args := []string{
-		"client", "test-publish",
+		"client",
+		"--client.env", "localnet",
+		"test-publish",
 		"--build-env", "local",
+		"--pubfile-path", pubPath,
 		"--json",
 		"--silence-warnings",
 		"--with-unpublished-dependencies",
@@ -242,18 +260,37 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 
 	changes := parsedPublishTxn.ObjectChanges
 
+	// With --with-unpublished-dependencies, multiple packages are published.
+	// Prefer the package whose bytecode exports `packageName` as a module
+	// (e.g. PublishContract(..., "counter", ...) matches module `counter` in
+	// package `test`). Fall back to the last published-like entry for packages
+	// whose module name differs from the Move package label (e.g. test_secondary
+	// exposes `state_object`, not `test_secondary`).
 	var packageId string
+	var lastPublished string
 	for _, change := range changes {
+		var pid string
 		if change.Type == "published" && change.PackageID != "" {
-			packageId = change.PackageID
-			break
+			pid = change.PackageID
+		} else if (change.ObjectType == "package" || change.OutputState == "OUTPUT_OBJECT_STATE_PACKAGE_WRITE") && change.ObjectID != "" {
+			if change.PackageID != "" {
+				pid = change.PackageID
+			} else {
+				pid = change.ObjectID
+			}
 		}
-
-		// Newer Sui output can represent package publish as objectType=package.
-		if (change.ObjectType == "package" || change.OutputState == "OUTPUT_OBJECT_STATE_PACKAGE_WRITE") && change.ObjectID != "" {
-			packageId = change.ObjectID
-			break
+		if pid == "" {
+			continue
 		}
+		lastPublished = pid
+		for _, mod := range change.Modules {
+			if mod == packageName {
+				packageId = pid
+			}
+		}
+	}
+	if packageId == "" {
+		packageId = lastPublished
 	}
 	require.NotEmpty(t, packageId, "Package ID not found")
 
