@@ -1590,7 +1590,7 @@ func (c counterEncoder) GetValueWithPointerDependency(counter bind.Object, point
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_value_with_pointer_dependency", typeArgsList, typeParamsList, []string{
 		"&mut Counter",
-		"&CCIPObjectRef",
+		"&mut CCIPObjectRef",
 	}, []any{
 		counter,
 		pointer,
@@ -1604,7 +1604,7 @@ func (c counterEncoder) GetValueWithPointerDependency(counter bind.Object, point
 func (c counterEncoder) GetValueWithPointerDependencyWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Counter",
-		"&CCIPObjectRef",
+		"&mut CCIPObjectRef",
 	}
 
 	if len(args) != len(expectedParams) {

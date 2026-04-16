@@ -174,8 +174,8 @@ module test::counter {
         });
     }
 
-    /// Increment counter with pointer dependency
-    public fun get_value_with_pointer_dependency(counter: &mut Counter, pointer: &CCIPObjectRef): u64 {
+    /// Pointer is `&mut` so chain reader dev-inspect (mutable shared inputs) matches the signature.
+    public fun get_value_with_pointer_dependency(counter: &mut Counter, pointer: &mut CCIPObjectRef): u64 {
         event::emit(DoubleCheckCCIPPointer {
             addresses: test_secondary::state_object::get_package_ids(pointer),
         });
