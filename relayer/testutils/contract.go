@@ -250,11 +250,16 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	// Patch Move.toml [environments] with the actual local chain ID so the CLI
 	// doesn't reject the publish due to a stale chain ID from a previous genesis.
 	chainID, err := GetChainIdentifier(LocalUrl)
-	if err == nil {
-		for _, dir := range dirsToClean {
-			PatchEnvironmentTOML(dir, "local", chainID)
-		}
+	require.NoError(t, err, "failed to get chain identifier before publish")
+	for _, dir := range dirsToClean {
+		moveTomlPath := filepath.Join(dir, "Move.toml")
+		patchMoveTomlEnvironment(moveTomlPath, "local", chainID)
 	}
+	// Verify the patch took effect on the primary package.
+	verifyContent, verifyErr := os.ReadFile(filepath.Join(contractPath, "Move.toml"))
+	require.NoError(t, verifyErr, "failed to read Move.toml for verification")
+	require.Contains(t, string(verifyContent), chainID,
+		"Move.toml does not contain expected chain ID %q after patching.\nContent:\n%s", chainID, string(verifyContent))
 
 	publishCmd := exec.Command("sui", "client", "publish",
 		"--gas-budget", gasBudgetArg,
@@ -484,6 +489,68 @@ func patchContractTOMLSectionNoTest(contractPath, addresses, name, address strin
 	finalToml, _ := os.ReadFile(moveToml)
 	// require.NoError(t, err, "read patched Move.toml")
 	log.Printf("Patched Move.toml (%s):\n%s\n", moveToml, string(finalToml))
+}
+
+// patchMoveTomlEnvironment does a targeted text replacement of a chain ID value
+// in Move.toml's [environments] section. Unlike PatchEnvironmentTOML, this avoids
+// full TOML parse/re-encode which can silently corrupt the file format.
+func patchMoveTomlEnvironment(moveTomlPath, envName, newChainID string) {
+	content, err := os.ReadFile(moveTomlPath)
+	if err != nil {
+		return
+	}
+
+	lines := strings.Split(string(content), "\n")
+	inEnvSection := false
+	envSectionIdx := -1
+	patched := false
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if trimmed == "[environments]" {
+			inEnvSection = true
+			envSectionIdx = i
+			continue
+		}
+		if inEnvSection && strings.HasPrefix(trimmed, "[") {
+			inEnvSection = false
+			break
+		}
+
+		if !inEnvSection {
+			continue
+		}
+
+		// Match envName = 'value' or envName = "value" with optional indentation
+		for _, q := range []string{`'`, `"`} {
+			prefix := envName + " = " + q
+			altPrefix := envName + "= " + q
+			altPrefix2 := envName + " =" + q
+			if strings.HasPrefix(trimmed, prefix) || strings.HasPrefix(trimmed, altPrefix) || strings.HasPrefix(trimmed, altPrefix2) {
+				leading := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+				lines[i] = fmt.Sprintf("%s%s = %s%s%s", leading, envName, q, newChainID, q)
+				patched = true
+				break
+			}
+		}
+		if patched {
+			break
+		}
+	}
+
+	if !patched && envSectionIdx >= 0 {
+		// Entry doesn't exist in [environments]; insert it after the section header.
+		newLine := fmt.Sprintf("  %s = '%s'", envName, newChainID)
+		lines = append(lines[:envSectionIdx+1], append([]string{newLine}, lines[envSectionIdx+1:]...)...)
+		patched = true
+	}
+
+	if !patched {
+		return
+	}
+
+	os.WriteFile(moveTomlPath, []byte(strings.Join(lines, "\n")), 0644) //nolint:errcheck
 }
 
 // ensureCLIEnvPointsToLocalnet creates (or recreates) a "local" CLI environment
