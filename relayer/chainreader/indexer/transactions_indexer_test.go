@@ -90,6 +90,11 @@ func TestTransactionsIndexer(t *testing.T) {
 	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
+	chainID, chainIDErr := testutils.GetChainIdentifier(testutils.LocalUrl)
+	require.NoError(t, chainIDErr)
+	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
+	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
+
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	gasBudget := int(2000000000)
 	packageId, tx, err := testutils.PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)

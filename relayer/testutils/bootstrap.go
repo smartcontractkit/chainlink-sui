@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -129,13 +130,25 @@ func SetupTestEnv(
 	PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
 
 	contractPath := BuildSetup(t, "contracts/test")
-	gasBudget := int(8000000000)
+	gasBudget := int(2000000000)
 	packageId, tx, err := PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
 	require.NoError(t, err)
 	require.NotNil(t, packageId)
 	require.NotNil(t, tx)
 
 	lgr.Debugw("Published Contract", "packageId", packageId)
+
+	// #region agent log
+	debugLogPath := "/Users/felix/dev/chainlink/.cursor/debug-7c7360.log"
+	if f, ferr := os.OpenFile(debugLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); ferr == nil {
+		verifyCmd := exec.Command("sui", "client", "object", packageId, "--json")
+		verifyOut, verifyErr := verifyCmd.CombinedOutput()
+		verifySnippet := string(verifyOut)
+		if len(verifySnippet) > 500 { verifySnippet = verifySnippet[:500] }
+		fmt.Fprintf(f, `{"sessionId":"7c7360","hypothesisId":"C","location":"bootstrap.go:verifyPkg","message":"verify package on-chain","data":{"packageId":%q,"error":%q,"outputSnippet":%q},"timestamp":%d}`+"\n", packageId, fmt.Sprintf("%v", verifyErr), verifySnippet, time.Now().UnixMilli())
+		f.Close()
+	}
+	// #endregion
 
 	counterObjectId, err := QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)

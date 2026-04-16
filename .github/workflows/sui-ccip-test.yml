@@ -37,7 +37,7 @@ jobs:
             sui_version: mainnet-v1.67.3
           - test_name: Test_CCIPTokenTransfer_Sui2EVM_ManagedTokenPool_ThenCurseUncurse
             sui_version: mainnet-v1.67.3
-          - test_name: Test_CCIPTokenTransfer_SUI2EVM_ManagedTokenPool_WithRateLimit
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_ManagedTokenPool_WithRateLimit
             sui_version: mainnet-v1.67.3
           - test_name: Test_CCIP_Upgrade_Sui2EVM
             sui_version: mainnet-v1.67.3

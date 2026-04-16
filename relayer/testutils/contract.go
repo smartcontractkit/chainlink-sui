@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
 
@@ -197,16 +198,76 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		gasBudgetArg = strconv.Itoa(*gasBudget)
 	}
 
+	// Collect contract dirs that need Published.toml cleanup: the package itself
+	// and any local dependencies declared in Move.toml (e.g. test_secondary).
+	dirsToClean := []string{contractPath}
+	if moveToml, err := os.ReadFile(filepath.Join(contractPath, "Move.toml")); err == nil {
+		for _, line := range strings.Split(string(moveToml), "\n") {
+			line = strings.TrimSpace(line)
+			if !strings.HasPrefix(line, "local") {
+				continue
+			}
+			for _, q := range []string{`"`, `'`} {
+				prefix := "local = " + q
+				if idx := strings.Index(line, prefix); idx != -1 {
+					relPath := line[idx+len(prefix):]
+					if end := strings.Index(relPath, q); end != -1 {
+						p := relPath[:end]
+						if strings.HasPrefix(p, ".") || strings.HasPrefix(p, "/") {
+							dirsToClean = append(dirsToClean, filepath.Join(contractPath, p))
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Remove Published.toml and ephemeral pubfiles to avoid "already published" errors.
+	for _, dir := range dirsToClean {
+		os.Remove(filepath.Join(dir, "Published.toml"))
+		pubGlob, _ := filepath.Glob(filepath.Join(dir, "Pub.*.toml"))
+		for _, f := range pubGlob {
+			os.Remove(f)
+		}
+	}
+
+	// Register cleanup to restore empty Published.toml files after the test.
+	// This prevents `sui client publish` from dirtying the source tree, which
+	// would pollute the embed.FS used by compile.go in bindings/tests.
+	t.Cleanup(func() {
+		for _, dir := range dirsToClean {
+			os.WriteFile(filepath.Join(dir, "Published.toml"), []byte{}, 0644) //nolint:errcheck
+			pubGlob, _ := filepath.Glob(filepath.Join(dir, "Pub.*.toml"))
+			for _, f := range pubGlob {
+				os.Remove(f)
+			}
+		}
+	})
+
+	// Ensure the CLI's active environment points to localnet so the publish
+	// transaction lands on the same network the test's Go RPC client queries.
+	ensureCLIEnvPointsToLocalnet()
+
+	// #region agent log
+	debugLogPath := os.Getenv("DEBUG_LOG_PATH")
+	if debugLogPath == "" { debugLogPath = "/Users/felix/dev/chainlink/.cursor/debug-7c7360.log" }
+	if f, ferr := os.OpenFile(debugLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); ferr == nil { fmt.Fprintf(f, `{"sessionId":"7c7360","hypothesisId":"A","location":"contract.go:PublishContract","message":"publish cmd args","data":{"contractPath":%q,"gasBudget":%q},"timestamp":%d}`+"\n", contractPath, gasBudgetArg, time.Now().UnixMilli()); f.Close() }
+	// #endregion
+
 	publishCmd := exec.Command("sui", "client", "publish",
 		"--gas-budget", gasBudgetArg,
 		"--json",
 		"--silence-warnings",
 		"--with-unpublished-dependencies",
-		"-e", "local", // Explicitly use local environment from Move.toml
 		contractPath,
 	)
 
 	publishOutput, err := publishCmd.CombinedOutput()
+
+	// #region agent log
+	if f, ferr := os.OpenFile(debugLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); ferr == nil { fmt.Fprintf(f, `{"sessionId":"7c7360","hypothesisId":"A","location":"contract.go:PublishContract:output","message":"publish result","data":{"error":%q,"outputLen":%d,"outputSnippet":%q},"timestamp":%d}`+"\n", fmt.Sprintf("%v",err), len(publishOutput), string(publishOutput[:min(len(publishOutput),500)]), time.Now().UnixMilli()); f.Close() }
+	// #endregion
+
 	require.NoError(t, err, "Failed to publish contract: %s", string(publishOutput))
 
 	cleanedOutput, err := extractJSONOutput(string(publishOutput))
@@ -230,6 +291,14 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 
 	changes := parsedPublishTxn.ObjectChanges
 
+	// #region agent log
+	if f, ferr := os.OpenFile(debugLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); ferr == nil {
+		changesJSON, _ := json.Marshal(changes)
+		fmt.Fprintf(f, `{"sessionId":"7c7360","hypothesisId":"B","location":"contract.go:objectChanges","message":"parsed object changes","data":{"numChanges":%d,"changesRaw":%s},"timestamp":%d}`+"\n", len(changes), string(changesJSON), time.Now().UnixMilli())
+		f.Close()
+	}
+	// #endregion
+
 	var packageId string
 	for _, change := range changes {
 		if change.Type == "published" && change.PackageID != "" {
@@ -243,7 +312,21 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 			break
 		}
 	}
+
+	// #region agent log
+	if f, ferr := os.OpenFile(debugLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); ferr == nil { fmt.Fprintf(f, `{"sessionId":"7c7360","hypothesisId":"B","location":"contract.go:packageId","message":"extracted package id","data":{"packageId":%q},"timestamp":%d}`+"\n", packageId, time.Now().UnixMilli()); f.Close() }
+	// #endregion
+
 	require.NotEmpty(t, packageId, "Package ID not found")
+
+	// #region agent log
+	if f, ferr := os.OpenFile(debugLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); ferr == nil {
+		pubContent, _ := os.ReadFile(filepath.Join(contractPath, "Published.toml"))
+		depPubContent, _ := os.ReadFile(filepath.Join(filepath.Dir(contractPath), "test_secondary", "Published.toml"))
+		fmt.Fprintf(f, `{"sessionId":"7c7360","hypothesisId":"C","location":"contract.go:postPublish","message":"Published.toml after publish","data":{"contractPub":%q,"depPub":%q},"timestamp":%d}`+"\n", string(pubContent), string(depPubContent), time.Now().UnixMilli())
+		f.Close()
+	}
+	// #endregion
 
 	return packageId, parsedPublishTxn, nil
 }
@@ -425,6 +508,19 @@ func patchContractTOMLSectionNoTest(contractPath, addresses, name, address strin
 	finalToml, _ := os.ReadFile(moveToml)
 	// require.NoError(t, err, "read patched Move.toml")
 	log.Printf("Patched Move.toml (%s):\n%s\n", moveToml, string(finalToml))
+}
+
+// ensureCLIEnvPointsToLocalnet creates (or recreates) a "local" CLI environment
+// alias pointing to the local Sui node RPC, then switches to it. This guarantees
+// that subsequent `sui client` commands target the local network.
+func ensureCLIEnvPointsToLocalnet() {
+	// Try to create the env; ignore errors if it already exists
+	createCmd := exec.Command("sui", "client", "new-env", "--rpc", LocalUrl, "--alias", "local")
+	createCmd.CombinedOutput() //nolint:errcheck
+
+	// Switch to the local env
+	switchCmd := exec.Command("sui", "client", "switch", "--env", "local")
+	switchCmd.CombinedOutput() //nolint:errcheck
 }
 
 // CleanupTestContracts removes the [published.local] entries from Published.toml files

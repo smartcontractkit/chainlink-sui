@@ -4,7 +4,7 @@
 
 [environments]
   devnet = 'a9149565'
-  local = '92d92e5c'
+  local = '9a32b313'
 
 [package]
   edition = '2024'
