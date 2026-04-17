@@ -3,6 +3,7 @@
     local = '../test_secondary'
 
 [environments]
+  local_9a32b313 = '9a32b313'
   devnet = 'a9149565'
   local = '9a32b313'
 

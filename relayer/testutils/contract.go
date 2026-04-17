@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
 
@@ -243,23 +244,28 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		}
 	})
 
-	// Ensure the CLI's active environment points to localnet so the publish
-	// transaction lands on the same network the test's Go RPC client queries.
-	ensureCLIEnvPointsToLocalnet()
-
-	// Patch Move.toml [environments] with the actual local chain ID so the CLI
-	// doesn't reject the publish due to a stale chain ID from a previous genesis.
+	// Create a CLI environment with a unique name derived from the current
+	// node's chain ID, then switch to it. This avoids stale chain ID caching
+	// that occurs when "sui client new-env" is called with an alias that
+	// already exists from a previous node (with a different chain ID).
 	chainID, err := GetChainIdentifier(LocalUrl)
 	require.NoError(t, err, "failed to get chain identifier before publish")
+
+	envName := ensureCLIEnvForChainID(chainID)
+
+	// Patch Move.toml [environments] with a matching entry so the CLI's
+	// chain ID check passes.
 	for _, dir := range dirsToClean {
-		moveTomlPath := filepath.Join(dir, "Move.toml")
-		patchMoveTomlEnvironment(moveTomlPath, "local", chainID)
+		patchMoveTomlEnvironment(filepath.Join(dir, "Move.toml"), envName, chainID)
 	}
-	// Verify the patch took effect on the primary package.
-	verifyContent, verifyErr := os.ReadFile(filepath.Join(contractPath, "Move.toml"))
-	require.NoError(t, verifyErr, "failed to read Move.toml for verification")
-	require.Contains(t, string(verifyContent), chainID,
-		"Move.toml does not contain expected chain ID %q after patching.\nContent:\n%s", chainID, string(verifyContent))
+
+	// #region agent log
+	logFile, _ := os.OpenFile("/Users/felix/dev/chainlink/.cursor/debug-7c7360.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		fmt.Fprintf(logFile, "{\"sessionId\":\"7c7360\",\"hypothesisId\":\"A\",\"location\":\"contract.go:PublishContract\",\"message\":\"pre-publish state\",\"data\":{\"chainID\":%q,\"envName\":%q,\"contractPath\":%q,\"dirsToClean\":%q},\"timestamp\":%d}\n", chainID, envName, contractPath, dirsToClean, time.Now().UnixMilli())
+		logFile.Close()
+	}
+	// #endregion
 
 	publishCmd := exec.Command("sui", "client", "publish",
 		"--gas-budget", gasBudgetArg,
@@ -270,6 +276,19 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	)
 
 	publishOutput, err := publishCmd.CombinedOutput()
+
+	// #region agent log
+	logFile2, _ := os.OpenFile("/Users/felix/dev/chainlink/.cursor/debug-7c7360.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile2 != nil {
+		outSnippet := string(publishOutput)
+		if len(outSnippet) > 500 {
+			outSnippet = outSnippet[:500]
+		}
+		fmt.Fprintf(logFile2, "{\"sessionId\":\"7c7360\",\"hypothesisId\":\"A\",\"location\":\"contract.go:PublishContract:post\",\"message\":\"publish result\",\"data\":{\"err\":%q,\"outputSnippet\":%q},\"timestamp\":%d}\n", fmt.Sprint(err), outSnippet, time.Now().UnixMilli())
+		logFile2.Close()
+	}
+	// #endregion
+
 	require.NoError(t, err, "Failed to publish contract: %s", string(publishOutput))
 
 	cleanedOutput, err := extractJSONOutput(string(publishOutput))
@@ -553,17 +572,30 @@ func patchMoveTomlEnvironment(moveTomlPath, envName, newChainID string) {
 	os.WriteFile(moveTomlPath, []byte(strings.Join(lines, "\n")), 0644) //nolint:errcheck
 }
 
-// ensureCLIEnvPointsToLocalnet creates (or recreates) a "local" CLI environment
-// alias pointing to the local Sui node RPC, then switches to it. This guarantees
-// that subsequent `sui client` commands target the local network.
-func ensureCLIEnvPointsToLocalnet() {
-	// Try to create the env; ignore errors if it already exists
-	createCmd := exec.Command("sui", "client", "new-env", "--rpc", LocalUrl, "--alias", "local")
+// ensureCLIEnvForChainID creates a CLI environment alias unique to the given
+// chain ID, then switches to it. Using a chain-ID-derived name avoids stale
+// chain ID caching: "sui client new-env" silently fails when the alias already
+// exists, so reusing a fixed "local" alias across node restarts (each with a
+// different chain ID from --force-regenesis) leaves the CLI with an outdated
+// chain ID that causes "Move.toml expects local to have chain ID …" errors.
+func ensureCLIEnvForChainID(chainID string) string {
+	envName := "local_" + chainID
+
+	createCmd := exec.Command("sui", "client", "new-env", "--rpc", LocalUrl, "--alias", envName)
 	createCmd.CombinedOutput() //nolint:errcheck
 
-	// Switch to the local env
-	switchCmd := exec.Command("sui", "client", "switch", "--env", "local")
+	switchCmd := exec.Command("sui", "client", "switch", "--env", envName)
 	switchCmd.CombinedOutput() //nolint:errcheck
+
+	// #region agent log
+	logFile, _ := os.OpenFile("/Users/felix/dev/chainlink/.cursor/debug-7c7360.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		fmt.Fprintf(logFile, "{\"sessionId\":\"7c7360\",\"hypothesisId\":\"B\",\"location\":\"contract.go:ensureCLIEnvForChainID\",\"message\":\"CLI env created\",\"data\":{\"envName\":%q,\"chainID\":%q},\"timestamp\":%d}\n", envName, chainID, time.Now().UnixMilli())
+		logFile.Close()
+	}
+	// #endregion
+
+	return envName
 }
 
 // CleanupTestContracts removes the [published.local] entries from Published.toml files
