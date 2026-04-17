@@ -222,10 +222,14 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		}
 	}
 
-	// Remove Published.toml and ephemeral pubfiles to avoid "already published" errors.
-	for _, dir := range dirsToClean {
-		os.Remove(filepath.Join(dir, "Published.toml"))
-		pubGlob, _ := filepath.Glob(filepath.Join(dir, "Pub.*.toml"))
+	// Remove Published.toml and ephemeral pubfiles for the MAIN package only.
+	// Dependency dirs (e.g. test_secondary) keep their Published.toml so that
+	// --with-unpublished-dependencies can detect packages that were already
+	// published by a prior PublishContract call in the same test. Without this,
+	// the dependency gets re-published as a separate on-chain package, causing
+	// TypeMismatch errors when objects from the original publish are used.
+	os.Remove(filepath.Join(contractPath, "Published.toml"))
+	if pubGlob, err := filepath.Glob(filepath.Join(contractPath, "Pub.*.toml")); err == nil {
 		for _, f := range pubGlob {
 			os.Remove(f)
 		}
