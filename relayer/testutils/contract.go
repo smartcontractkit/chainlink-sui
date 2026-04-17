@@ -235,9 +235,21 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		}
 	}
 
-	// Register cleanup to restore empty Published.toml files after the test.
-	// This prevents `sui client publish` from dirtying the source tree, which
-	// would pollute the embed.FS used by compile.go in bindings/tests.
+	// Snapshot Move.toml and Move.lock for each dir so we can restore them
+	// after the test. This prevents patchMoveTomlEnvironment and the Sui CLI
+	// from permanently dirtying the source tree.
+	type fileSnapshot struct{ path string; data []byte }
+	var snapshots []fileSnapshot
+	for _, dir := range dirsToClean {
+		for _, name := range []string{"Move.toml", "Move.lock"} {
+			p := filepath.Join(dir, name)
+			if data, err := os.ReadFile(p); err == nil {
+				snapshots = append(snapshots, fileSnapshot{p, data})
+			}
+		}
+	}
+
+	// Register cleanup to restore source tree files after the test.
 	t.Cleanup(func() {
 		for _, dir := range dirsToClean {
 			os.WriteFile(filepath.Join(dir, "Published.toml"), []byte{}, 0644) //nolint:errcheck
@@ -245,6 +257,9 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 			for _, f := range pubGlob {
 				os.Remove(f)
 			}
+		}
+		for _, s := range snapshots {
+			os.WriteFile(s.path, s.data, 0644) //nolint:errcheck
 		}
 	})
 
