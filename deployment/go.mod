@@ -9,7 +9,7 @@ replace github.com/smartcontractkit/chainlink-sui => ../
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
-	github.com/block-vision/sui-go-sdk v1.1.4
+	github.com/block-vision/sui-go-sdk v1.2.1
 	github.com/ethereum/go-ethereum v1.17.1
 	github.com/google/go-cmp v0.7.0
 	github.com/smartcontractkit/chain-selectors v1.0.97

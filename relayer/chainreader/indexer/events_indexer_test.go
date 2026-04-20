@@ -80,8 +80,7 @@ func TestEventsIndexer(t *testing.T) {
 	chainID, err := testutils.GetChainIdentifier(testutils.LocalUrl)
 	require.NoError(t, err)
 	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
-
-	// testutils.PatchContractAddressTOML(t, "contracts/test", "test_secondary", "_")
+	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	gasBudget := int(2000000000)

@@ -81,6 +81,11 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	faucetFundErr := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
 	require.NoError(t, faucetFundErr)
 
+	chainID, chainIDErr := testutils.GetChainIdentifier(rpcUrl)
+	require.NoError(t, chainIDErr)
+	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
+	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
+
 	// Publish test_secondary first (before counter, since counter depends on it)
 	gasBudget := int(2000000000)
 	contractPath := testutils.BuildSetup(t, "contracts/test_secondary")

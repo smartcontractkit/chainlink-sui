@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
 
@@ -197,16 +197,119 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		gasBudgetArg = strconv.Itoa(*gasBudget)
 	}
 
+	// Collect contract dirs that need Published.toml cleanup: the package itself
+	// and any local dependencies declared in Move.toml (e.g. test_secondary).
+	dirsToClean := []string{contractPath}
+	if moveToml, err := os.ReadFile(filepath.Join(contractPath, "Move.toml")); err == nil {
+		for _, line := range strings.Split(string(moveToml), "\n") {
+			line = strings.TrimSpace(line)
+			if !strings.HasPrefix(line, "local") {
+				continue
+			}
+			for _, q := range []string{`"`, `'`} {
+				prefix := "local = " + q
+				if idx := strings.Index(line, prefix); idx != -1 {
+					relPath := line[idx+len(prefix):]
+					if end := strings.Index(relPath, q); end != -1 {
+						p := relPath[:end]
+						if strings.HasPrefix(p, ".") || strings.HasPrefix(p, "/") {
+							dirsToClean = append(dirsToClean, filepath.Join(contractPath, p))
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Remove Published.toml and ephemeral pubfiles for the MAIN package only.
+	// Dependency dirs (e.g. test_secondary) keep their Published.toml so that
+	// --with-unpublished-dependencies can detect packages that were already
+	// published by a prior PublishContract call in the same test. Without this,
+	// the dependency gets re-published as a separate on-chain package, causing
+	// TypeMismatch errors when objects from the original publish are used.
+	os.Remove(filepath.Join(contractPath, "Published.toml"))
+	if pubGlob, err := filepath.Glob(filepath.Join(contractPath, "Pub.*.toml")); err == nil {
+		for _, f := range pubGlob {
+			os.Remove(f)
+		}
+	}
+
+	// Snapshot Move.toml and Move.lock for each dir so we can restore them
+	// after the test. This prevents patchMoveTomlEnvironment and the Sui CLI
+	// from permanently dirtying the source tree.
+	type fileSnapshot struct {
+		path string
+		data []byte
+	}
+	var snapshots []fileSnapshot
+	for _, dir := range dirsToClean {
+		for _, name := range []string{"Move.toml", "Move.lock"} {
+			p := filepath.Join(dir, name)
+			if data, err := os.ReadFile(p); err == nil {
+				snapshots = append(snapshots, fileSnapshot{p, data})
+			}
+		}
+	}
+
+	// Register cleanup to restore source tree files after the test.
+	t.Cleanup(func() {
+		for _, dir := range dirsToClean {
+			os.WriteFile(filepath.Join(dir, "Published.toml"), []byte{}, 0644) //nolint:errcheck
+			pubGlob, _ := filepath.Glob(filepath.Join(dir, "Pub.*.toml"))
+			for _, f := range pubGlob {
+				os.Remove(f)
+			}
+		}
+		for _, s := range snapshots {
+			os.WriteFile(s.path, s.data, 0644) //nolint:errcheck
+		}
+	})
+
+	// Create a CLI environment with a unique name derived from the current
+	// node's chain ID, then switch to it. This avoids stale chain ID caching
+	// that occurs when "sui client new-env" is called with an alias that
+	// already exists from a previous node (with a different chain ID).
+	chainID, err := GetChainIdentifier(LocalUrl)
+	require.NoError(t, err, "failed to get chain identifier before publish")
+
+	envName := ensureCLIEnvForChainID(chainID)
+
+	// Patch Move.toml [environments] with a matching entry so the CLI's
+	// chain ID check passes.
+	for _, dir := range dirsToClean {
+		patchMoveTomlEnvironment(filepath.Join(dir, "Move.toml"), envName, chainID)
+	}
+
+	// #region agent log
+	logFile, _ := os.OpenFile("/Users/felix/dev/chainlink/.cursor/debug-7c7360.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		fmt.Fprintf(logFile, "{\"sessionId\":\"7c7360\",\"hypothesisId\":\"A\",\"location\":\"contract.go:PublishContract\",\"message\":\"pre-publish state\",\"data\":{\"chainID\":%q,\"envName\":%q,\"contractPath\":%q,\"dirsToClean\":%q},\"timestamp\":%d}\n", chainID, envName, contractPath, dirsToClean, time.Now().UnixMilli())
+		logFile.Close()
+	}
+	// #endregion
+
 	publishCmd := exec.Command("sui", "client", "publish",
 		"--gas-budget", gasBudgetArg,
 		"--json",
 		"--silence-warnings",
 		"--with-unpublished-dependencies",
-		"-e", "local", // Explicitly use local environment from Move.toml
 		contractPath,
 	)
 
 	publishOutput, err := publishCmd.CombinedOutput()
+
+	// #region agent log
+	logFile2, _ := os.OpenFile("/Users/felix/dev/chainlink/.cursor/debug-7c7360.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile2 != nil {
+		outSnippet := string(publishOutput)
+		if len(outSnippet) > 500 {
+			outSnippet = outSnippet[:500]
+		}
+		fmt.Fprintf(logFile2, "{\"sessionId\":\"7c7360\",\"hypothesisId\":\"A\",\"location\":\"contract.go:PublishContract:post\",\"message\":\"publish result\",\"data\":{\"err\":%q,\"outputSnippet\":%q},\"timestamp\":%d}\n", fmt.Sprint(err), outSnippet, time.Now().UnixMilli())
+		logFile2.Close()
+	}
+	// #endregion
+
 	require.NoError(t, err, "Failed to publish contract: %s", string(publishOutput))
 
 	cleanedOutput, err := extractJSONOutput(string(publishOutput))
@@ -243,6 +346,7 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 			break
 		}
 	}
+
 	require.NotEmpty(t, packageId, "Package ID not found")
 
 	return packageId, parsedPublishTxn, nil
@@ -420,11 +524,94 @@ func patchContractTOMLSectionNoTest(contractPath, addresses, name, address strin
 			// require.NoError(t, err, "write Move.toml")
 		}
 	}
+}
 
-	// Log resulting TOML contents for debugging.
-	finalToml, _ := os.ReadFile(moveToml)
-	// require.NoError(t, err, "read patched Move.toml")
-	log.Printf("Patched Move.toml (%s):\n%s\n", moveToml, string(finalToml))
+// patchMoveTomlEnvironment does a targeted text replacement of a chain ID value
+// in Move.toml's [environments] section. Unlike PatchEnvironmentTOML, this avoids
+// full TOML parse/re-encode which can silently corrupt the file format.
+func patchMoveTomlEnvironment(moveTomlPath, envName, newChainID string) {
+	content, err := os.ReadFile(moveTomlPath)
+	if err != nil {
+		return
+	}
+
+	lines := strings.Split(string(content), "\n")
+	inEnvSection := false
+	envSectionIdx := -1
+	patched := false
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if trimmed == "[environments]" {
+			inEnvSection = true
+			envSectionIdx = i
+			continue
+		}
+		if inEnvSection && strings.HasPrefix(trimmed, "[") {
+			inEnvSection = false
+			break
+		}
+
+		if !inEnvSection {
+			continue
+		}
+
+		// Match envName = 'value' or envName = "value" with optional indentation
+		for _, q := range []string{`'`, `"`} {
+			prefix := envName + " = " + q
+			altPrefix := envName + "= " + q
+			altPrefix2 := envName + " =" + q
+			if strings.HasPrefix(trimmed, prefix) || strings.HasPrefix(trimmed, altPrefix) || strings.HasPrefix(trimmed, altPrefix2) {
+				leading := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+				lines[i] = fmt.Sprintf("%s%s = %s%s%s", leading, envName, q, newChainID, q)
+				patched = true
+				break
+			}
+		}
+		if patched {
+			break
+		}
+	}
+
+	if !patched && envSectionIdx >= 0 {
+		// Entry doesn't exist in [environments]; insert it after the section header.
+		newLine := fmt.Sprintf("  %s = '%s'", envName, newChainID)
+		lines = append(lines[:envSectionIdx+1], append([]string{newLine}, lines[envSectionIdx+1:]...)...)
+		patched = true
+	}
+
+	if !patched {
+		return
+	}
+
+	os.WriteFile(moveTomlPath, []byte(strings.Join(lines, "\n")), 0644) //nolint:errcheck
+}
+
+// ensureCLIEnvForChainID creates a CLI environment alias unique to the given
+// chain ID, then switches to it. Using a chain-ID-derived name avoids stale
+// chain ID caching: "sui client new-env" silently fails when the alias already
+// exists, so reusing a fixed "local" alias across node restarts (each with a
+// different chain ID from --force-regenesis) leaves the CLI with an outdated
+// chain ID that causes "Move.toml expects local to have chain ID …" errors.
+func ensureCLIEnvForChainID(chainID string) string {
+	envName := "local_" + chainID
+
+	createCmd := exec.Command("sui", "client", "new-env", "--rpc", LocalUrl, "--alias", envName)
+	createCmd.CombinedOutput() //nolint:errcheck
+
+	switchCmd := exec.Command("sui", "client", "switch", "--env", envName)
+	switchCmd.CombinedOutput() //nolint:errcheck
+
+	// #region agent log
+	logFile, _ := os.OpenFile("/Users/felix/dev/chainlink/.cursor/debug-7c7360.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		fmt.Fprintf(logFile, "{\"sessionId\":\"7c7360\",\"hypothesisId\":\"B\",\"location\":\"contract.go:ensureCLIEnvForChainID\",\"message\":\"CLI env created\",\"data\":{\"envName\":%q,\"chainID\":%q},\"timestamp\":%d}\n", envName, chainID, time.Now().UnixMilli())
+		logFile.Close()
+	}
+	// #endregion
+
+	return envName
 }
 
 // CleanupTestContracts removes the [published.local] entries from Published.toml files

@@ -67,6 +67,11 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	faucetFundErr := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
 	require.NoError(t, faucetFundErr)
 
+	chainID, err := testutils.GetChainIdentifier(rpcUrl)
+	require.NoError(t, err)
+	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
+	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
+
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	gasBudget := int(2000000000)
 	packageId, tx, err := testutils.PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)

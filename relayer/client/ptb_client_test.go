@@ -48,6 +48,11 @@ func TestPTBClient(t *testing.T) {
 	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
 	require.NoError(t, err)
 
+	chainID, err := testutils.GetChainIdentifier(testutils.LocalUrl)
+	require.NoError(t, err)
+	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
+	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
+
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	gasBudget := int(2000000000)
 	packageId, tx, err := testutils.PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
@@ -497,11 +502,12 @@ func TestPTBClient(t *testing.T) {
 		// create another failed transaction and use the cursor to ignore the previously fetched ones
 		CreateFailedTransaction(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
 		cursor := &values.NextCursor
+		queryLimit := uint64(1)
 		values, err = relayerClient.QueryTransactions(
 			context.Background(),
 			accountAddress,
 			cursor,
-			nil,
+			&queryLimit,
 		)
 		require.NoError(t, err)
 		require.NotNil(t, values)

@@ -129,7 +129,7 @@ func SetupTestEnv(
 	PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
 
 	contractPath := BuildSetup(t, "contracts/test")
-	gasBudget := int(8000000000)
+	gasBudget := int(2000000000)
 	packageId, tx, err := PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
 	require.NoError(t, err)
 	require.NotNil(t, packageId)
