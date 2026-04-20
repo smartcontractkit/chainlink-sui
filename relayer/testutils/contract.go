@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -238,7 +237,10 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	// Snapshot Move.toml and Move.lock for each dir so we can restore them
 	// after the test. This prevents patchMoveTomlEnvironment and the Sui CLI
 	// from permanently dirtying the source tree.
-	type fileSnapshot struct{ path string; data []byte }
+	type fileSnapshot struct {
+		path string
+		data []byte
+	}
 	var snapshots []fileSnapshot
 	for _, dir := range dirsToClean {
 		for _, name := range []string{"Move.toml", "Move.lock"} {
@@ -522,11 +524,6 @@ func patchContractTOMLSectionNoTest(contractPath, addresses, name, address strin
 			// require.NoError(t, err, "write Move.toml")
 		}
 	}
-
-	// Log resulting TOML contents for debugging.
-	finalToml, _ := os.ReadFile(moveToml)
-	// require.NoError(t, err, "read patched Move.toml")
-	log.Printf("Patched Move.toml (%s):\n%s\n", moveToml, string(finalToml))
 }
 
 // patchMoveTomlEnvironment does a targeted text replacement of a chain ID value
