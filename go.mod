@@ -2,9 +2,6 @@ module github.com/smartcontractkit/chainlink-sui
 
 go 1.25.5
 
-// Coming from chainlink-deployments-framework
-replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.4
-
 require (
 	github.com/aptos-labs/aptos-go-sdk v1.7.1-0.20250602153733-bb1facae1d43
 	github.com/aptos-labs/tree-sitter-move-on-aptos v0.0.0-20250321090037-c820eb4716e1
