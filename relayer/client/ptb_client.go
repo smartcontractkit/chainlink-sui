@@ -276,9 +276,10 @@ func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBloc
 
 		result = c.convertBlockvisionResponse(&response)
 
-		if err := bind.GetFailedTxError(&response); err != nil {
-			return err
-		}
+		// Do not return bind.GetFailedTxError as a Go error: many callers (including tests
+		// and chainwriter flows) treat a successful JSON-RPC execute as err == nil and
+		// inspect result.Status for on-chain success vs MoveAbort. That matches historical
+		// PTBClient behavior before the indexing wait change.
 
 		if waitForLocal && response.Digest != "" {
 			if waitErr := bind.WaitForTransactionIndexed(ctx, c.client, response.Digest); waitErr != nil {
@@ -928,9 +929,7 @@ func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Sign
 		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to execute transaction: %w", err)
 	}
 
-	if err := bind.GetFailedTxError(response); err != nil {
-		return c.convertBlockvisionResponse(response), err
-	}
+	// Same as SendTransaction: preserve err == nil for executed txs; callers use Status.
 
 	if waitForLocal && response.Digest != "" {
 		if waitErr := bind.WaitForTransactionIndexed(ctx, c.client, response.Digest); waitErr != nil {
