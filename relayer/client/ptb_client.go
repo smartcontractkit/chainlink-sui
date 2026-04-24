@@ -244,6 +244,14 @@ func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaD
 func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBlockRequest) (SuiTransactionBlockResponse, error) {
 	var result SuiTransactionBlockResponse
 	err := c.WithRateLimit(ctx, "SendTransaction", func(ctx context.Context) error {
+		waitForLocal := payload.RequestType == string(WaitForLocalExecution)
+		requestType := payload.RequestType
+		if waitForLocal {
+			// WaitForLocalExecution is ignored by JSON-RPC since Sui v1.33; use effects
+			// cert + client-side indexing wait (same as bind.SignAndSendTx).
+			requestType = string(WaitForEffectsCert)
+		}
+
 		// Use blockvision SDK's execute transaction
 		executeReq := models.SuiExecuteTransactionBlockRequest{
 			TxBytes:   payload.TxBytes,
@@ -256,7 +264,7 @@ func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBloc
 				ShowObjectChanges:  payload.Options.ShowObjectChanges,
 				ShowBalanceChanges: payload.Options.ShowBalanceChanges,
 			},
-			RequestType: payload.RequestType,
+			RequestType: requestType,
 		}
 
 		c.log.Debugw("Executing transaction", "request", executeReq)
@@ -266,8 +274,17 @@ func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBloc
 			return fmt.Errorf("failed to execute transaction: %w", err)
 		}
 
-		// Convert blockvision response to models response
 		result = c.convertBlockvisionResponse(&response)
+
+		if err := bind.GetFailedTxError(&response); err != nil {
+			return err
+		}
+
+		if waitForLocal && response.Digest != "" {
+			if waitErr := bind.WaitForTransactionIndexed(ctx, c.client, response.Digest); waitErr != nil {
+				return waitErr
+			}
+		}
 
 		return nil
 	})
@@ -893,6 +910,12 @@ func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Sign
 
 	c.log.Debugw("Executing transaction in PTB Client", "tx", tx)
 
+	waitForLocal := requestType == WaitForLocalExecution
+	execRequestType := string(requestType)
+	if waitForLocal {
+		execRequestType = string(WaitForEffectsCert)
+	}
+
 	response, err := tx.Execute(ctx, models.SuiTransactionBlockOptions{
 		ShowInput:          true,
 		ShowRawInput:       true,
@@ -900,9 +923,19 @@ func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Sign
 		ShowEvents:         true,
 		ShowObjectChanges:  true,
 		ShowBalanceChanges: true,
-	}, string(requestType))
+	}, execRequestType)
 	if err != nil {
 		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to execute transaction: %w", err)
+	}
+
+	if err := bind.GetFailedTxError(response); err != nil {
+		return c.convertBlockvisionResponse(response), err
+	}
+
+	if waitForLocal && response.Digest != "" {
+		if waitErr := bind.WaitForTransactionIndexed(ctx, c.client, response.Digest); waitErr != nil {
+			return c.convertBlockvisionResponse(response), waitErr
+		}
 	}
 
 	return c.convertBlockvisionResponse(response), nil
