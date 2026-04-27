@@ -2,7 +2,9 @@ package bind
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
@@ -10,6 +12,38 @@ import (
 
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
 )
+
+// Polling parameters for waitForTransactionIndexed. Exposed as package-level vars so
+// callers / tests can tune them without changing the SignAndSendTx signature.
+var (
+	// WaitForTxIndexedTimeout bounds the total time SignAndSendTx will poll for a
+	// successfully-submitted transaction to become visible on the fullnode's JSON-RPC
+	// view (i.e. queryable via sui_getTransactionBlock). This is an additional wall
+	// clock cost on top of the transaction's own execution time, paid only when the
+	// caller sets CallOpts.WaitForExecution = true.
+	WaitForTxIndexedTimeout = 30 * time.Second
+
+	// WaitForTxIndexedInitialBackoff is the first delay between poll attempts; it
+	// doubles on each failure up to WaitForTxIndexedMaxBackoff.
+	WaitForTxIndexedInitialBackoff = 100 * time.Millisecond
+
+	// WaitForTxIndexedMaxBackoff caps the poll interval so steady-state polling does
+	// not add unbounded latency for slow-indexing fullnodes.
+	WaitForTxIndexedMaxBackoff = 1 * time.Second
+)
+
+// ErrTxIndexingTimeout is returned by SignAndSendTx when the transaction was accepted
+// by validators (effects certified) but the fullnode JSON-RPC did not surface the tx
+// within WaitForTxIndexedTimeout. The caller can distinguish this from a real tx
+// failure (the tx is fine; just not yet visible for reads).
+var ErrTxIndexingTimeout = errors.New("tx submitted but fullnode indexing wait timed out")
+
+// SuiTransactionBlockGetter is the minimal JSON-RPC surface required to poll for a
+// transaction digest via sui_getTransactionBlock. Implementations such as
+// github.com/block-vision/sui-go-sdk/sui.ISuiAPI satisfy it.
+type SuiTransactionBlockGetter interface {
+	SuiGetTransactionBlock(ctx context.Context, req models.SuiGetTransactionBlockRequest) (models.SuiTransactionBlockResponse, error)
+}
 
 type Object struct {
 	Id                   string
@@ -42,6 +76,14 @@ func SignAndSendTx(ctx context.Context, signer bindutils.SuiSigner, client sui.I
 	signatureStrings := make([]string, 0, len(signatures))
 	signatureStrings = append(signatureStrings, signatures...)
 
+	// We always use WaitForEffectsCert on the server side. WaitForLocalExecution has
+	// been silently ignored at the JSON-RPC layer since Sui v1.33
+	// (https://forums.sui.io/t/deprecating-waitforlocalexecution/45988), so setting it
+	// provides no additional consistency guarantee. When the caller actually needs
+	// read-after-write consistency (waitForExecution = true), we emulate it below by
+	// polling sui_getTransactionBlock until the fullnode surfaces the tx — the same
+	// approach the Typescript SDK takes in waitForTransaction:
+	// https://github.com/MystenLabs/ts-sdks/blob/502ad7f2803bf6443f7cb000c802d78110585b6f/packages/typescript/src/experimental/core.ts#L114
 	blockReq := models.SuiExecuteTransactionBlockRequest{
 		TxBytes:   b64bytes,
 		Signature: signatureStrings,
@@ -56,13 +98,6 @@ func SignAndSendTx(ctx context.Context, signer bindutils.SuiSigner, client sui.I
 		RequestType: "WaitForEffectsCert",
 	}
 
-	if waitForExecution {
-		// TODO: this has been noted to be deprecated and removed, but still works and is used in sui-go-sdk:
-		// https://forums.sui.io/t/deprecating-waitforlocalexecution/45988
-		// The typescript SDK has switched to polling: https://github.com/MystenLabs/ts-sdks/blob/502ad7f2803bf6443f7cb000c802d78110585b6f/packages/typescript/src/experimental/core.ts#L114
-		blockReq.RequestType = "WaitForLocalExecution"
-	}
-
 	tx, err := client.SuiExecuteTransactionBlock(ctx, blockReq)
 	if err != nil {
 		msg := fmt.Errorf("tx failed calling move method: %w", err)
@@ -73,7 +108,68 @@ func SignAndSendTx(ctx context.Context, signer bindutils.SuiSigner, client sui.I
 		return &tx, err
 	}
 
+	if waitForExecution && tx.Digest != "" {
+		if waitErr := WaitForTransactionIndexed(ctx, client, tx.Digest); waitErr != nil {
+			// The tx itself succeeded on-chain; surface the indexing wait failure so
+			// callers can decide whether to retry their follow-up RPC calls. We keep
+			// the tx response so the caller still has access to effects / digest.
+			return &tx, waitErr
+		}
+	}
+
 	return &tx, nil
+}
+
+// WaitForTransactionIndexed polls sui_getTransactionBlock until the fullnode surfaces
+// the given digest, providing the read-after-write consistency that
+// WaitForLocalExecution used to give before being silently disabled in JSON-RPC
+// (Sui >= v1.33). Without this, a tight "tx A -> tx B referencing objects mutated by
+// tx A" sequence can race with the fullnode's indexer and have tx B rejected pre-
+// consensus with "Object ... Version ... is not available for consumption" because the
+// local view of owned-object versions (notably the default gas coin) is stale.
+//
+// The poll uses exponential backoff between WaitForTxIndexedInitialBackoff and
+// WaitForTxIndexedMaxBackoff, bounded by WaitForTxIndexedTimeout.
+//
+// Relayer and other packages that execute with WaitForEffectsCert but still need the
+// same consistency should call this after a successful execute when they would have
+// previously used WaitForLocalExecution.
+func WaitForTransactionIndexed(ctx context.Context, client SuiTransactionBlockGetter, digest string) error {
+	pollCtx, cancel := context.WithTimeout(ctx, WaitForTxIndexedTimeout)
+	defer cancel()
+
+	req := models.SuiGetTransactionBlockRequest{
+		Digest: digest,
+		Options: models.SuiTransactionBlockOptions{
+			ShowEffects: true,
+		},
+	}
+
+	backoff := WaitForTxIndexedInitialBackoff
+	var lastErr error
+	for {
+		resp, err := client.SuiGetTransactionBlock(pollCtx, req)
+		if err == nil && resp.Digest == digest {
+			return nil
+		}
+		lastErr = err
+
+		select {
+		case <-pollCtx.Done():
+			if lastErr != nil {
+				return fmt.Errorf("%w (digest=%s): %w", ErrTxIndexingTimeout, digest, lastErr)
+			}
+			return fmt.Errorf("%w (digest=%s)", ErrTxIndexingTimeout, digest)
+		case <-time.After(backoff):
+		}
+
+		if backoff < WaitForTxIndexedMaxBackoff {
+			backoff *= 2
+			if backoff > WaitForTxIndexedMaxBackoff {
+				backoff = WaitForTxIndexedMaxBackoff
+			}
+		}
+	}
 }
 
 func DevInspectTx(ctx context.Context, signerAddress string, client sui.ISuiAPI, txBytes []byte) (*models.SuiTransactionBlockResponse, error) {
