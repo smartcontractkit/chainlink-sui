@@ -15,8 +15,8 @@ require (
 	github.com/smartcontractkit/chain-selectors v1.0.97
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260311190822-5cbfc939dd16
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260406055916-9aa6b6c0ae81
-	github.com/smartcontractkit/chainlink-deployments-framework v0.97.0
-	github.com/smartcontractkit/chainlink-sui v0.0.0-20260409162403-8bca8f7c9de5
+	github.com/smartcontractkit/chainlink-deployments-framework v0.98.0
+	github.com/smartcontractkit/chainlink-sui v0.0.0-20260428012350-4c661ad29fa0
 	github.com/smartcontractkit/mcms v0.41.1
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/sync v0.19.0
