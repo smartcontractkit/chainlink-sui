@@ -22,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
 	aptosBalanceMonitor "github.com/smartcontractkit/chainlink-aptos/relayer/monitor"
+	aptosTypes "github.com/smartcontractkit/chainlink-aptos/relayer/types"
 	chainreaderConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	chainreader "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
@@ -169,14 +170,14 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		return nil, fmt.Errorf("error in NewRelayer (monitor) - invalid balance poll period: %w", err)
 	}
 	balanceMonitorService, err := monitor.NewBalanceMonitor(monitor.BalanceMonitorOpts{
-		ChainInfo: aptosBalanceMonitor.ChainInfo{
+		ChainInfo: aptosTypes.ChainInfo{
 			ChainFamilyName: "sui",
 			ChainID:         *cfg.ChainID,
 			NetworkName:     *cfg.NetworkName,
 			NetworkNameFull: *cfg.NetworkNameFull,
 		},
 		Config: aptosBalanceMonitor.GenericBalanceConfig{
-			BalancePollPeriod: balancePollPeriod,
+			BalancePollPeriod: &balancePollPeriod,
 		},
 		Logger:   loggerInstance,
 		Keystore: keystore,
