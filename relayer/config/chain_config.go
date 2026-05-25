@@ -31,8 +31,10 @@ type ChainInfo struct {
 }
 
 type NodeConfig struct {
-	Name *string
-	URL  *config.URL
+	Name       *string
+	URL        *config.URL
+	GrpcTarget *string
+	GrpcToken  *string
 }
 
 func (n *NodeConfig) ValidateConfig() error {

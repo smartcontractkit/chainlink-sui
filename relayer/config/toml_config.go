@@ -159,6 +159,12 @@ func setFromNode(n, f *NodeConfig) {
 	if f.URL != nil {
 		n.URL = f.URL
 	}
+	if f.GrpcTarget != nil {
+		n.GrpcTarget = f.GrpcTarget
+	}
+	if f.GrpcToken != nil {
+		n.GrpcToken = f.GrpcToken
+	}
 }
 
 type TransactionManagerConfig struct {
@@ -256,6 +262,8 @@ func (b *BalanceMonitorConfig) setDefaults() {
 //	[[Sui.Nodes]]
 //	Name = 'primary'
 //	URL = "https://fullnode.devnet.sui.io:443"
+//	GrpcTarget = "sui-devnet-grpc.blockvision.org:443"  # optional
+//	GrpcToken = "your-api-key"                          # optional
 //
 //	[Sui.TransactionManager]
 //	BroadcastChanSize = 100

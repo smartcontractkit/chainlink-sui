@@ -5,6 +5,8 @@ package client_test
 import (
 	"context"
 	"fmt"
+	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,27 +15,40 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/test-go/testify/require"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
+)
+
+const (
+	defaultMaxConcurrent = int64(3)
+	testTimeout          = 120 * time.Second
 )
 
 //nolint:paralleltest
 func TestPTBClient(t *testing.T) {
 	log := logger.Test(t)
 
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
-	require.NoError(t, err)
+	testCfg := client.LoadIntegrationTestConfig()
+	require.NotEmpty(t, testCfg.GrpcTarget, "GRPC_TARGET must be set (see .env.example)")
+	require.NotEmpty(t, testCfg.GrpcToken, "GRPC_TOKEN must be set (see .env.example)")
+
+	var suiNodeCmd *exec.Cmd
+	if testCfg.UseLocal {
+		cmd, err := testutils.StartSuiNode(testutils.CLI)
+		require.NoError(t, err)
+		suiNodeCmd = cmd
+	}
 
 	testutils.CleanupTestContracts()
 
 	t.Cleanup(func() {
 		testutils.CleanupTestContracts()
 
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
-			if perr != nil {
-				t.Logf("Failed to kill process: %v", perr)
+		if suiNodeCmd != nil && suiNodeCmd.Process != nil {
+			if perr := suiNodeCmd.Process.Kill(); perr != nil {
+				t.Logf("Failed to kill local Sui node: %v", perr)
 			}
 		}
 	})
@@ -41,14 +56,33 @@ func TestPTBClient(t *testing.T) {
 	keystoreInstance := testutils.NewTestKeystore(t)
 	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
-	maxConcurrent := int64(3)
-	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 120*time.Second, keystoreInstance, maxConcurrent, "WaitForLocalExecution")
-	require.NoError(t, err)
+	relayerClient := newIntegrationPTBClient(t, log, testCfg, keystoreInstance)
+	t.Cleanup(func() {
+		require.NoError(t, relayerClient.Close())
+	})
 
-	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
-	require.NoError(t, err)
+	require.True(t, relayerClient.HasGrpc(), "expected gRPC client to be configured")
 
-	chainID, err := testutils.GetChainIdentifier(testutils.LocalUrl)
+	t.Run("GrpcConnection", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		require.NoError(t, relayerClient.VerifyGrpcServices(ctx))
+
+		chainID, err := relayerClient.HealthCheckGrpc(ctx)
+		require.NoError(t, err)
+		require.NotEmpty(t, chainID, "expected chain ID from gRPC GetServiceInfo")
+		log.Infow("gRPC connection verified", "grpcTarget", testCfg.GrpcTarget, "chainID", chainID)
+	})
+
+	err := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+	if testCfg.UseLocal {
+		require.NoError(t, err)
+	} else if err != nil {
+		t.Logf("Skipping faucet funding (remote network): %v", err)
+	}
+
+	chainID, err := testutils.GetChainIdentifier(testCfg.RpcURL)
 	require.NoError(t, err)
 	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
 	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
@@ -130,9 +164,9 @@ func TestPTBClient(t *testing.T) {
 		}
 
 		// Verify only maxConcurrent requests completed
-		require.True(t, completeCount <= int(maxConcurrent),
+		require.True(t, completeCount <= int(defaultMaxConcurrent),
 			"Too many requests (%d) completed, limit is %d",
-			completeCount, maxConcurrent)
+			completeCount, defaultMaxConcurrent)
 	})
 
 	//nolint:paralleltest
@@ -650,4 +684,35 @@ func CreateFailedTransaction(t *testing.T, relayerClient *client.PTBClient, pack
 	)
 	require.NoError(t, err)
 	require.Equal(t, "failure", resp.Status.Status, "Expected move call to fail")
+}
+
+func newIntegrationPTBClient(
+	t *testing.T,
+	log logger.Logger,
+	testCfg client.IntegrationTestConfig,
+	keystore loop.Keystore,
+) *client.PTBClient {
+	t.Helper()
+
+	relayerClient, err := client.NewPTBClientFromConfig(log, client.PTBClientConfig{
+		RpcURL:                testCfg.RpcURL,
+		GrpcTarget:            testCfg.GrpcTarget,
+		GrpcToken:             testCfg.GrpcToken,
+		MaxRetries:            nil,
+		TransactionTimeout:    testTimeout,
+		KeystoreService:       keystore,
+		MaxConcurrentRequests: defaultMaxConcurrent,
+		DefaultRequestType:    "WaitForLocalExecution",
+	})
+	require.NoError(t, err)
+
+	if !strings.Contains(testCfg.RpcURL, testCfg.GrpcTarget) {
+		t.Logf(
+			"Using hybrid endpoints: JSON-RPC=%s, gRPC=%s (ensure both target the same network once methods migrate to gRPC)",
+			testCfg.RpcURL,
+			testCfg.GrpcTarget,
+		)
+	}
+
+	return relayerClient
 }

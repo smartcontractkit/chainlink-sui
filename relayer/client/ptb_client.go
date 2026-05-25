@@ -5,15 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/aptos-labs/aptos-go-sdk/bcs"
+	"github.com/block-vision/sui-go-sdk/common/grpcconn"
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
@@ -114,10 +116,18 @@ type SuiPTBClient interface {
 	GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error)
 }
 
-// PTBClient implements SuiClient interface using the blockvision SDK
+// PTBClient implements SuiClient interface using the blockvision SDK.
+// During the gRPC migration, JSON-RPC (client) and gRPC (grpcClient) coexist:
+// migrated methods use gRPC service accessors; others continue via JSON-RPC.
 type PTBClient struct {
 	log                logger.Logger
 	client             sui.ISuiAPI
+	grpcClient         *grpcconn.SuiGrpcClient
+	grpcServicesMu     sync.Mutex
+	ledgerService      suirpcv2.LedgerServiceClient
+	stateService       suirpcv2.StateServiceClient
+	txExecService      suirpcv2.TransactionExecutionServiceClient
+	movePkgService     suirpcv2.MovePackageServiceClient
 	maxRetries         *int
 	transactionTimeout time.Duration
 	keystoreService    loop.Keystore
@@ -141,40 +151,19 @@ func NewPTBClient(
 	maxConcurrentRequests int64,
 	defaultRequestType TransactionRequestType,
 ) (*PTBClient, error) {
-	log.Infof("Creating new SUI client with blockvision SDK")
+	return NewPTBClientFromConfig(log, PTBClientConfig{
+		RpcURL:                rpcUrl,
+		MaxRetries:            maxRetries,
+		TransactionTimeout:    transactionTimeout,
+		KeystoreService:       keystoreService,
+		MaxConcurrentRequests: maxConcurrentRequests,
+		DefaultRequestType:    defaultRequestType,
+	})
+}
 
-	if maxConcurrentRequests <= 0 {
-		log.Warnw("maxConcurrentRequests is less than 0, setting to default value", "maxConcurrentRequests", maxConcurrentRequests)
-		maxConcurrentRequests = 500 // Default value
-	}
-
-	httpClient := &http.Client{
-		Timeout: DefaultHTTPTimeout,
-		Transport: &http.Transport{
-			MaxConnsPerHost:     int(maxConcurrentRequests) * 2,
-			MaxIdleConns:        int(maxConcurrentRequests) * 2,
-			MaxIdleConnsPerHost: int(maxConcurrentRequests) * 2,
-		},
-	}
-	client := sui.NewSuiClientWithCustomClient(rpcUrl, httpClient)
-
-	log.Infof(
-		"PTBClient config configs transactionTimeout: %s,  maxConcurrentRequests: %d",
-		transactionTimeout,
-		maxConcurrentRequests,
-	)
-
-	return &PTBClient{
-		log:                log,
-		client:             client,
-		maxRetries:         maxRetries,
-		transactionTimeout: transactionTimeout,
-		keystoreService:    keystoreService,
-		rateLimiter:        semaphore.NewWeighted(maxConcurrentRequests),
-		defaultRequestType: defaultRequestType,
-		normalizedModules:  make(map[string]map[string]models.GetNormalizedMoveModuleResponse),
-		cache:              cache.New(DefaultCacheExpiration, DefaultCacheCleanupInterval),
-	}, nil
+// NewPTBClientWithGrpc creates a PTBClient with both JSON-RPC and gRPC configured.
+func NewPTBClientWithGrpc(log logger.Logger, cfg PTBClientConfig) (*PTBClient, error) {
+	return NewPTBClientFromConfig(log, cfg)
 }
 
 func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {

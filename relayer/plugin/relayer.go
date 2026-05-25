@@ -94,32 +94,36 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		TransactionRetentionSecs: *cfg.TransactionManager.TransactionRetentionSecs,
 	}
 
-	// Use config values instead of constants
-	suiClient, err := client.NewPTBClient(
-		loggerInstance,
+	ptbClientConfig := client.PTBClientConfigFromNode(
 		nodeConfig.URL.String(),
+		nodeConfig.GrpcTarget,
+		nodeConfig.GrpcToken,
 		nil,
 		timeout,
 		keystore,
-		// Use 3 times more concurrency allowance for the main client due to core making
-		// frequent RPC calls to get latest values
 		maxConcurrentRequests*3,
 		client.TransactionRequestType(requestType),
 	)
+
+	// Use config values instead of constants
+	suiClient, err := client.NewPTBClientFromConfig(loggerInstance, ptbClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
 
-	// Use a separate client for the indexers to avoid rate limiting
-	suiClientIndexers, err := client.NewPTBClient(
-		loggerInstance,
+	indexerClientConfig := client.PTBClientConfigFromNode(
 		nodeConfig.URL.String(),
+		nodeConfig.GrpcTarget,
+		nodeConfig.GrpcToken,
 		nil,
 		timeout,
 		keystore,
 		maxConcurrentRequests,
 		client.TransactionRequestType(requestType),
 	)
+
+	// Use a separate client for the indexers to avoid rate limiting
+	suiClientIndexers, err := client.NewPTBClientFromConfig(loggerInstance, indexerClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
@@ -227,7 +231,14 @@ func (r *SuiRelayer) Close() error {
 	return r.StopOnce("SuiRelayer", func() error {
 		r.lggr.Debug("Stopping Sui Relayer")
 
-		return services.CloseAll(r.txm, r.indexer, r.balanceMonitor)
+		closeErr := services.CloseAll(r.txm, r.indexer, r.balanceMonitor)
+		if r.client != nil {
+			if err := r.client.Close(); err != nil {
+				closeErr = errors.Join(closeErr, fmt.Errorf("failed to close Sui client: %w", err))
+			}
+		}
+
+		return closeErr
 	})
 }
 
