@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"math/big"
@@ -17,6 +18,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
+	"github.com/hasura/go-graphql-client"
 	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -118,18 +120,22 @@ type SuiPTBClient interface {
 // During the gRPC migration, JSON-RPC (client) and gRPC (grpcClient) coexist:
 // migrated methods use gRPC service accessors; others continue via JSON-RPC.
 type PTBClient struct {
-	log                logger.Logger
-	grpcClient         *grpcconn.SuiGrpcClient
-	grpcServicesMu     sync.Mutex
-	ledgerService      suirpcv2.LedgerServiceClient
-	stateService       suirpcv2.StateServiceClient
-	txExecService      suirpcv2.TransactionExecutionServiceClient
-	movePkgService     suirpcv2.MovePackageServiceClient
-	maxRetries         *int
-	transactionTimeout time.Duration
-	keystoreService    loop.Keystore
-	rateLimiter        *semaphore.Weighted
-	defaultRequestType TransactionRequestType
+	log logger.Logger
+	// TODO: remove this once we fully migrated to gRPC
+	client              sui.ISuiAPI
+	graphqlClient       *graphql.Client
+	grpcClient          *grpcconn.SuiGrpcClient
+	grpcServicesMu      sync.Mutex
+	ledgerService       suirpcv2.LedgerServiceClient
+	stateService        suirpcv2.StateServiceClient
+	txExecService       suirpcv2.TransactionExecutionServiceClient
+	movePkgService      suirpcv2.MovePackageServiceClient
+	subscriptionService suirpcv2.SubscriptionServiceClient
+	maxRetries          *int
+	transactionTimeout  time.Duration
+	keystoreService     loop.Keystore
+	rateLimiter         *semaphore.Weighted
+	defaultRequestType  TransactionRequestType
 
 	// map of module name to normalized module definition (similar to an ABI)
 	normalizedModules map[string]map[string]models.GetNormalizedMoveModuleResponse
@@ -205,11 +211,11 @@ func (c *PTBClient) readObjectIdInternal(ctx context.Context, objectId string) (
 		ObjectId: &objectId,
 		ReadMask: &fieldmaskpb.FieldMask{
 			Paths: []string{
-				"object.contents",
-				"object.object_type",
-				"object.owner",
-				"object.version",
-				"object.digest",
+				"contents",
+				"object_type",
+				"owner",
+				"version",
+				"digest",
 			},
 		},
 	}
@@ -390,6 +396,14 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, signerAddress stri
 		txnArgs = append(txnArgs, *arg)
 	}
 
+	// TODO: use a "read-only" signer for this operation instead of creating a new one
+	// each time
+	seed := make([]byte, 32)
+	if _, err := rand.Read(seed); err != nil {
+		return nil, fmt.Errorf("failed to generate random seed: %w", err)
+	}
+	txn.SetSigner(signer.NewSigner(seed))
+
 	txn.SetSender(models.SuiAddress(signerAddress))
 	txn.SetGasBudget(DefaultGasBudget)
 	txn.SetGasPrice(DefaultGasPrice)
@@ -401,16 +415,10 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, signerAddress stri
 		return nil, fmt.Errorf("failed to build bcs bytes: %w", err)
 	}
 
-	doGasSelection := true
+	doGasSelection := false
 	response, err := c.txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
 		Transaction:    &v2.Transaction{Bcs: &v2.Bcs{Value: bcsBytes}},
 		DoGasSelection: &doGasSelection,
-		ReadMask: &fieldmaskpb.FieldMask{
-			Paths: []string{
-				"transaction.effects.status",
-				"transaction.effects.gas_used",
-			},
-		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to simulate transaction: %w", err)
@@ -652,7 +660,6 @@ func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Sign
 		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get reference gas price: %w", err)
 	}
 	tx.SetGasPrice(gasPrice.Uint64())
-
 	tx.SetSigner(txnSigner)
 	tx.SetGasBudget(DefaultGasBudget)
 
