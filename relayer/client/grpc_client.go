@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -11,10 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/block-vision/sui-go-sdk/common/grpcconn"
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	v2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/signer"
@@ -32,7 +29,6 @@ import (
 	suiSigner "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 	"github.com/smartcontractkit/chainlink-sui/shared"
 )
@@ -394,155 +390,46 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, signerAddress stri
 		txnArgs = append(txnArgs, *arg)
 	}
 
-	txn.SetSuiClient(c.client.(*sui.Client))
 	txn.SetSender(models.SuiAddress(signerAddress))
 	txn.SetGasBudget(DefaultGasBudget)
 	txn.SetGasPrice(DefaultGasPrice)
 	txn.MoveCall(models.SuiAddress(packageId), module, function, txnTypeArgs, txnArgs)
 
 	// Get transaction bytes
-	bcsEncodedMsg, err := txn.Data.V1.Kind.Marshal()
+	bcsBytes, err := txn.BuildBCSBytes(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal transaction: %w", err)
-	}
-	txBytes := mystenbcs.ToBase64(bcsEncodedMsg)
-
-	// Use dev inspect for read-only function calls
-	devInspectReq := models.SuiDevInspectTransactionBlockRequest{
-		Sender:  signerAddress,
-		TxBytes: txBytes,
+		return nil, fmt.Errorf("failed to build bcs bytes: %w", err)
 	}
 
-	response, err := c.client.SuiDevInspectTransactionBlock(ctx, devInspectReq)
-	if err != nil || response.Effects.Status.Status != "success" {
-		return nil, fmt.Errorf("failed to read function: %w (%s)", err, response.Effects.Status.Error)
+	doGasSelection := true
+	response, err := c.txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
+		Transaction:    &v2.Transaction{Bcs: &v2.Bcs{Value: bcsBytes}},
+		DoGasSelection: &doGasSelection,
+		ReadMask: &fieldmaskpb.FieldMask{
+			Paths: []string{
+				"transaction.effects.status",
+				"transaction.effects.gas_used",
+			},
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to simulate transaction: %w", err)
 	}
 
 	c.log.Debugw("ReadFunction RPC response", "RPC response", response, "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function))
 
-	if len(response.Results) == 0 {
+	if len(response.CommandOutputs) == 0 {
 		return nil, fmt.Errorf("no results from function call: %+v", response)
 	}
 
-	resultsMarshalled, err := response.Results.MarshalJSON()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal results: %w", err)
-	}
-	var functionReadResponse []FunctionReadResponse
-	err = json.Unmarshal(resultsMarshalled, &functionReadResponse)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal results: %w", err)
+	returnedValues := response.CommandOutputs[0].GetReturnValues()
+	if len(returnedValues) == 0 {
+		return nil, fmt.Errorf("no return values from function call: %+v", response)
 	}
 
-	results = make([]any, len(functionReadResponse[0].ReturnValues))
-
-	// parse one or more results
-	for i, returnedValue := range functionReadResponse[0].ReturnValues {
-		returnedValue := returnedValue.([]any)
-		structTag := returnedValue[1].(string)
-		structPartsLen := 3
-
-		// create a bcs decoder from the return value
-		bcsBytes, err := codec.AnySliceToBytes(returnedValue[0].([]any))
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert return value to bytes: %w", err)
-		}
-		bcsDecoder := bcs.NewDeserializer(bcsBytes)
-
-		// This is a special case for Sui strings as they are represented as a struct with tag "0x1::string::String"
-		// Since we use the tag to fetch the normalized module, it causes a failure since a module "string" does not exist.
-		// We parse the value separately here. The BCS decoder is not actually needed for this case but we are already initializing it for the complex structs
-		// so we can use it to read the string value.
-		if structTag == "0x1::string::String" {
-			strValue := bcsDecoder.ReadString()
-			results[i] = strValue
-			continue
-		}
-
-		// Handle vector<T> types. We need to distinguish between vectors of structs
-		// (e.g. vector<0x123::module::MyStruct>) and vectors of primitive values
-		// (e.g. vector<u8>, vector<u64>).
-		//
-		// - For vector<Struct>, fetch the normalized module metadata and decode each
-		//   element into a JSON object using DecodeVectorOfStructs.
-		// - For vector<primitive>, fall back to DecodeSuiPrimative to decode the raw
-		//   values.
-		// In both cases, run the result through ConvertBytesToHex so that any []byte
-		// fields (vector<u8> especially) are hex-encoded instead of base64 when
-		// marshalled to JSON.
-		if strings.HasPrefix(structTag, "vector<") && strings.HasSuffix(structTag, ">") {
-			// Extract inner type to determine if it's a vector of structs or primitives
-			innerType := strings.TrimSuffix(strings.TrimPrefix(structTag, "vector<"), ">")
-			innerStructParts := strings.Split(innerType, "::")
-
-			// Check if inner type is a struct (3 parts: package::module::struct)
-			if len(innerStructParts) == structPartsLen {
-				// This is vector<Struct> - get normalized module for the inner struct
-				innerPackageId := innerStructParts[0]
-				innerModuleName := innerStructParts[1]
-
-				normalizedModule, err := c.getNormalizedModuleInternal(ctx, innerPackageId, innerModuleName)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get normalized module for vector struct: %w", err)
-				}
-
-				// Use the new DecodeVectorOfStructs function
-				jsonResult, err := codec.DecodeVectorOfStructs(bcsDecoder, structTag, normalizedModule.Structs)
-				if err != nil {
-					return nil, fmt.Errorf("failed to decode vector of structs: %w", err)
-				}
-
-				results[i] = jsonResult
-			} else {
-				// This is vector<primitive> - use existing primitive vector handling
-				primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
-				if err != nil {
-					return nil, fmt.Errorf("failed to decode primitive vector: %w", err)
-				}
-				results[i] = primitive
-			}
-			continue
-		}
-
-		// Handle non-vector types (existing logic)
-		structParts := strings.Split(structTag, "::")
-
-		// if the response type is not a struct (primitive type), skip the result (keep it as is)
-		if len(structParts) != structPartsLen {
-			primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode primitive: %w", err)
-			}
-			// Normalize large ints to decimal strings to be LOOP/JSON friendly
-			if structTag == "u128" || structTag == "u256" {
-				switch v := primitive.(type) {
-				case *big.Int:
-					results[i] = v.String()
-				case big.Int:
-					vv := v
-					results[i] = vv.String()
-				default:
-					results[i] = fmt.Sprint(v)
-				}
-			} else {
-				results[i] = primitive
-			}
-		} else {
-			// otherwise, get the normalized struct and attempt turning the result into JSON
-			normalizedModule, err := c.getNormalizedModuleInternal(ctx, packageId, structParts[1])
-			if err != nil {
-				return nil, fmt.Errorf("failed to get normalized struct: %w", err)
-			}
-
-			jsonResult, err := codec.DecodeSuiStructToJSON(normalizedModule.Structs, structParts[2], bcsDecoder)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse struct into JSON: %w", err)
-			}
-
-			// convert any []uint8 fields to hex strings
-			hexified := common.ConvertBytesToHex(jsonResult)
-			results[i] = hexified
-		}
+	results = make([]any, len(returnedValues))
+	for i, returnedValue := range returnedValues {
+		results[i] = returnedValue.Json.AsInterface()
 	}
 
 	c.log.Debugw("ReadFunction results", "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function), "results", results)
