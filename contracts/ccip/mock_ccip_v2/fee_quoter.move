@@ -882,6 +882,17 @@ fun resolve_sui_gas_limit(dest_chain_config: &DestChainConfig, extra_args: vecto
     gas_limit as u256
 }
 
+fun check_svm_writable_bitmap(account_is_writable_bitmap: u64, accounts_length: u64) {
+    assert!(accounts_length <= SVM_EXTRA_ARGS_MAX_ACCOUNTS, ETooManySvmExtraArgsAccounts);
+    // Move aborts on u64 >> 64; at the max account count every bitmap bit is already in use.
+    if (accounts_length < SVM_EXTRA_ARGS_MAX_ACCOUNTS) {
+        assert!(
+            (account_is_writable_bitmap >> (accounts_length as u8)) == 0,
+            EInvalidSvmExtraArgsWritableBitmap,
+        );
+    };
+}
+
 /// Returns `(gas_limit, svm_payload_overhead_bytes)`.
 /// `svm_payload_overhead_bytes` is the SVM-specific payload size counted in maxDataBytes validation
 /// but not already included in `data_len` or per-token `dest_bytes_overhead` billing.
@@ -950,14 +961,7 @@ fun resolve_svm_gas_limit(
         );
     };
 
-    assert!(accounts_length <= SVM_EXTRA_ARGS_MAX_ACCOUNTS, ETooManySvmExtraArgsAccounts);
-    // Move aborts on u64 >> 64; at the max account count every bitmap bit is already in use.
-    if (accounts_length < SVM_EXTRA_ARGS_MAX_ACCOUNTS) {
-        assert!(
-            (account_is_writable_bitmap >> (accounts_length as u8)) == 0,
-            EInvalidSvmExtraArgsWritableBitmap,
-        );
-    };
+    check_svm_writable_bitmap(account_is_writable_bitmap, accounts_length);
 
     let mut svm_expanded_data_length = data_len + svm_payload_overhead;
 
@@ -988,6 +992,14 @@ fun resolve_svm_gas_limit(
     );
 
     (gas_limit as u256, svm_payload_overhead)
+}
+
+#[test_only]
+public fun check_svm_writable_bitmap_for_test(
+    account_is_writable_bitmap: u64,
+    accounts_length: u64,
+) {
+    check_svm_writable_bitmap(account_is_writable_bitmap, accounts_length);
 }
 
 fun decode_generic_extra_args(

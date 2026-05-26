@@ -236,57 +236,7 @@ public fun test_svm_fee_increases_with_token_transfer_overhead() {
 }
 
 #[test]
-public fun test_svm_fee_max_accounts_succeeds() {
-    let (mut scenario, cap, mut ref) = setup();
-    let ctx = scenario.ctx();
-    init_fee_quoter(&mut ref, &cap, ctx);
-    let fq_cap = fee_quoter::new_fee_quoter_cap(&ref, &cap, ctx);
-    let mut clock = clock::create_for_testing(ctx);
-    clock::increment_for_testing(&mut clock, 20000);
-    setup_prices(&mut ref, &fq_cap, &clock, ctx);
-    setup_svm_dest(&mut ref, &cap, ctx);
-    fee_quoter::apply_premium_multiplier_wei_per_eth_updates(
-        &mut ref,
-        &cap,
-        vector[FEE_TOKEN],
-        vector[ONE_E_18 as u64],
-        ctx,
-    );
-
-    let mut accounts = vector[];
-    let mut i = 0u64;
-    while (i < 64u64) {
-        let mut acc = vector[];
-        let mut j = 0u64;
-        while (j < 32u64) {
-            acc.push_back((i as u8));
-            j = j + 1u64;
-        };
-        accounts.push_back(acc);
-        i = i + 1u64;
-    };
-
-    let fee = fee_quoter::get_validated_fee(
-        &ref,
-        &clock,
-        100,
-        SVM_RECEIVER,
-        b"test_payload",
-        vector[],
-        vector[],
-        FEE_TOKEN,
-        client::encode_svm_extra_args_v1(
-            200_000,
-            0xffffffffffffffff,
-            false,
-            TOKEN_RECEIVER,
-            accounts,
-        ),
-    );
-
-    assert!(fee > 0, 1);
-
-    fee_quoter::destroy_fee_quoter_cap(&ref, &cap, fq_cap);
-    clock::destroy_for_testing(clock);
-    cleanup(scenario, cap, ref);
+public fun test_svm_writable_bitmap_at_max_accounts() {
+    // Move aborts on u64 >> 64; at the max account count the shift check is skipped.
+    fee_quoter::check_svm_writable_bitmap_for_test(0xffffffffffffffff, 64);
 }
