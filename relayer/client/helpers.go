@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/transaction"
 )
 
@@ -22,30 +22,31 @@ func (c *PTBClient) TransformTransactionArg(
 	argType string,
 	mutable bool,
 ) (*transaction.Argument, error) {
+	c.log.Debugw("TransformTransactionArg", "argType", argType, "arg", arg)
+
 	switch argType {
-	case "objectId", "object_id":
+	case "objectId", "object_id", "DATATYPE":
 		objectIdBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(arg.(string)))
 		if err != nil {
 			return nil, err
 		}
 		// get object's details
 		objectDetails, err := c.ReadObjectId(ctx, arg.(string))
-		if err != nil {
+		if err != nil || objectDetails == nil {
 			return nil, fmt.Errorf("failed to read object %s: %w", arg.(string), err)
 		}
-		var objectOwner models.ObjectOwner
 		var objectArg transaction.ObjectArg
 
 		// handle truly immutable objects
-		if ownerStr, ok := objectDetails.Owner.(string); ok && ownerStr == "Immutable" {
+		if objectDetails.Owner != nil && objectDetails.Owner.GetKind() == suirpcv2.Owner_IMMUTABLE {
 			var versionUint uint64
 			var digestBytes *models.ObjectDigestBytes
-			versionUint, err = strconv.ParseUint(objectDetails.Version, 10, 64)
+			versionUint = objectDetails.GetVersion()
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse version: %w", err)
 			}
 			digestBytes, err = transaction.ConvertObjectDigestStringToBytes(
-				models.ObjectDigest(objectDetails.Digest),
+				models.ObjectDigest(objectDetails.GetDigest()),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert object digest: %w", err)
@@ -63,46 +64,29 @@ func (c *PTBClient) TransformTransactionArg(
 			return &callArg, nil
 		}
 
-		// convert the response map into ObjectOwner type
-		ownerData, ok := objectDetails.Owner.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("failed to convert owner to map")
-		}
-		ownerJSON, err := json.Marshal(ownerData)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal owner data: %w", err)
-		}
-		err = json.Unmarshal(ownerJSON, &objectOwner)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal owner data: %w", err)
-		}
 		// construct the objectArg
-		if objectOwner.Shared.InitialSharedVersion != 0 {
+		if objectDetails.Owner.GetKind() == suirpcv2.Owner_SHARED && objectDetails.Owner.GetVersion() != 0 {
 			objectArg = transaction.ObjectArg{
 				SharedObject: &transaction.SharedObjectRef{
 					ObjectId:             *objectIdBytes,
-					InitialSharedVersion: objectOwner.Shared.InitialSharedVersion,
+					InitialSharedVersion: objectDetails.Owner.GetVersion(),
 					Mutable:              mutable,
 				},
 			}
-		} else if objectOwner.AddressOwner != "" {
-			versionUint, err := strconv.ParseUint(objectDetails.Version, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse version: %w", err)
-			}
-			digestBytes, err := transaction.ConvertObjectDigestStringToBytes(models.ObjectDigest(objectDetails.Digest))
+		} else if objectDetails.Owner.GetKind() == suirpcv2.Owner_ADDRESS && objectDetails.Owner.GetAddress() != "" {
+			digestBytes, err := transaction.ConvertObjectDigestStringToBytes(models.ObjectDigest(objectDetails.GetDigest()))
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert object digest: %w", err)
 			}
 			objectArg = transaction.ObjectArg{
 				ImmOrOwnedObject: &transaction.SuiObjectRef{
 					ObjectId: *objectIdBytes,
-					Version:  versionUint,
+					Version:  objectDetails.GetVersion(),
 					Digest:   *digestBytes,
 				},
 			}
 		} else {
-			return nil, fmt.Errorf("unknown object owner: %v", objectOwner)
+			return nil, fmt.Errorf("unknown object owner: %v", objectDetails.Owner.GetAddress())
 		}
 
 		// construct the arg
@@ -121,7 +105,7 @@ func (c *PTBClient) TransformTransactionArg(
 
 			return &pureArg, nil
 		}
-	case "vector<address>":
+	case "vector<address>", "VECTOR":
 		switch v := arg.(type) {
 		case []string:
 			// Already []string, convert directly
@@ -179,15 +163,13 @@ func (c *PTBClient) GetTransactionPaymentCoinForAddress(ctx context.Context, pay
 		return models.SuiAddressBytes{}, 0, nil, fmt.Errorf("no coins available for gas payment")
 	}
 
-	coinObjectIdBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coins[0].CoinObjectId))
+	coinObjectIdBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coins[0].GetObjectId()))
 	if err != nil {
 		return models.SuiAddressBytes{}, 0, nil, err
 	}
-	versionUint, err := strconv.ParseUint(coins[0].Version, 10, 64)
-	if err != nil {
-		return models.SuiAddressBytes{}, 0, nil, fmt.Errorf("failed to parse version: %w", err)
-	}
-	digestBytes, err := transaction.ConvertObjectDigestStringToBytes(models.ObjectDigest(coins[0].Digest))
+	versionUint := coins[0].GetVersion()
+
+	digestBytes, err := transaction.ConvertObjectDigestStringToBytes(models.ObjectDigest(coins[0].GetDigest()))
 	if err != nil {
 		return models.SuiAddressBytes{}, 0, nil, fmt.Errorf("failed to convert object digest: %w", err)
 	}
@@ -238,20 +220,6 @@ func (c *PTBClient) convertBlockvisionResponse(resp *models.SuiTransactionBlockR
 	return result
 }
 
-func (c *PTBClient) PayAllSui(ctx context.Context, toAddress string, coinObjectRefs []string, signer string) error {
-	_, err := c.client.PayAllSui(ctx, models.PayAllSuiRequest{
-		Recipient:   toAddress,
-		GasBudget:   "10000000",
-		Signer:      signer,
-		SuiObjectId: coinObjectRefs,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to add PayAllSui command: %w", err)
-	}
-
-	return nil
-}
-
 // HashTxBytes is a helper method to hash (Blake2) the transaction bytes before signing
 func (c *PTBClient) HashTxBytes(txBytes []byte) []byte {
 	intentMessage := append([]byte{0, 0, 0}, txBytes...)
@@ -271,4 +239,40 @@ func convertAddresses(tx *transaction.Transaction, addresses []string) (*transac
 	}
 	pureArg := tx.Pure(converted)
 	return &pureArg, nil
+}
+
+// Add helper method to create type tags
+func (c *PTBClient) CreateTypeTag(typeStr string) (transaction.TypeTag, error) {
+	if typeStr == "" {
+		return transaction.TypeTag{}, fmt.Errorf("type string cannot be empty")
+	}
+
+	// Handle struct types (package::module::name)
+	if strings.Contains(typeStr, "::") {
+		parts := strings.Split(typeStr, "::")
+		if len(parts) != 3 {
+			return transaction.TypeTag{}, fmt.Errorf("invalid struct type format %q, expected package::module::name", typeStr)
+		}
+
+		packageID, module, name := parts[0], parts[1], parts[2]
+
+		// Convert package ID to address bytes
+		packageAddr := models.SuiAddress(packageID)
+		addressBytes, err := transaction.ConvertSuiAddressStringToBytes(packageAddr)
+		if err != nil {
+			return transaction.TypeTag{}, fmt.Errorf("failed to convert package address %q: %w", packageID, err)
+		}
+
+		return transaction.TypeTag{
+			Struct: &transaction.StructTag{
+				Address:    *addressBytes,
+				Module:     module,
+				Name:       name,
+				TypeParams: []*transaction.TypeTag{},
+			},
+		}, nil
+	}
+
+	// TODO: Handle primitive types if needed
+	return transaction.TypeTag{}, fmt.Errorf("unsupported type format: %s", typeStr)
 }

@@ -4,6 +4,11 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/common/grpcconn"
+	"github.com/block-vision/sui-go-sdk/models"
+	cache "github.com/patrickmn/go-cache"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -54,4 +59,59 @@ func NewSuiGrpcClient(config GrpcClientConfig) *grpcconn.SuiGrpcClient {
 	}
 
 	return grpcconn.NewSuiGrpcClientWithAuth(config.Target, config.Token, opts...)
+}
+
+// PTBClientConfig configures a PTBClient with gRPC endpoints.
+type PTBClientConfig struct {
+	GrpcTarget            string
+	GrpcToken             string
+	MaxRetries            *int
+	TransactionTimeout    time.Duration
+	KeystoreService       loop.Keystore
+	MaxConcurrentRequests int64
+	DefaultRequestType    TransactionRequestType
+}
+
+func (cfg PTBClientConfig) grpcEnabled() bool {
+	return cfg.GrpcTarget != "" && cfg.GrpcToken != ""
+}
+
+// NewPTBClientFromConfig creates a PTBClient from a full configuration.
+func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient, error) {
+	log.Infof("Creating new SUI PTBClient")
+
+	maxConcurrentRequests := cfg.MaxConcurrentRequests
+	if maxConcurrentRequests <= 0 {
+		log.Warnw("maxConcurrentRequests is less than 0, setting to default value", "maxConcurrentRequests", maxConcurrentRequests)
+		maxConcurrentRequests = 500
+	}
+
+	var grpcClient *grpcconn.SuiGrpcClient
+	if cfg.grpcEnabled() {
+		log.Infow("Initializing Sui gRPC client", "target", cfg.GrpcTarget)
+		grpcConfig := DefaultGrpcConfig(cfg.GrpcTarget, cfg.GrpcToken)
+		grpcConfig.UseTLS = false
+		grpcClient = NewSuiGrpcClient(grpcConfig)
+	} else {
+		log.Info("gRPC client not configured; using JSON-RPC only")
+	}
+
+	log.Infof(
+		"PTBClient config transactionTimeout: %s, maxConcurrentRequests: %d, grpcEnabled: %t",
+		cfg.TransactionTimeout,
+		maxConcurrentRequests,
+		cfg.grpcEnabled(),
+	)
+
+	return &PTBClient{
+		log:                log,
+		grpcClient:         grpcClient,
+		maxRetries:         cfg.MaxRetries,
+		transactionTimeout: cfg.TransactionTimeout,
+		keystoreService:    cfg.KeystoreService,
+		rateLimiter:        semaphore.NewWeighted(maxConcurrentRequests),
+		defaultRequestType: cfg.DefaultRequestType,
+		normalizedModules:  make(map[string]map[string]models.GetNormalizedMoveModuleResponse),
+		cache:              cache.New(DefaultCacheExpiration, DefaultCacheCleanupInterval),
+	}, nil
 }

@@ -461,9 +461,9 @@ func (mr *MockSuiPTBClientMockRecorder) SetCachedValues(keyValues any) *gomock.C
 }
 
 // SignAndSendTransaction mocks base method.
-func (m *MockSuiPTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType client.TransactionRequestType) (client.SuiTransactionBlockResponse, error) {
+func (m *MockSuiPTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte) (client.SuiTransactionBlockResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SignAndSendTransaction", ctx, txBytesRaw, signerPublicKey, executionRequestType)
+	ret := m.ctrl.Call(m, "SignAndSendTransaction", ctx, txBytesRaw, signerPublicKey)
 	ret0, _ := ret[0].(client.SuiTransactionBlockResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1

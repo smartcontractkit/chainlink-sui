@@ -8,11 +8,6 @@ import (
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 )
 
-// HasGrpc reports whether this client has a gRPC connection configured.
-func (c *PTBClient) HasGrpc() bool {
-	return c.grpcClient != nil
-}
-
 // Close closes the underlying gRPC connection. JSON-RPC clients are stateless and need no cleanup.
 func (c *PTBClient) Close() error {
 	if c.grpcClient == nil {
@@ -26,6 +21,7 @@ func (c *PTBClient) Close() error {
 	c.stateService = nil
 	c.txExecService = nil
 	c.movePkgService = nil
+	c.subscriptionService = nil
 
 	err := c.grpcClient.Close()
 	c.grpcClient = nil
@@ -34,10 +30,6 @@ func (c *PTBClient) Close() error {
 
 // HealthCheckGrpc verifies the gRPC connection by calling LedgerService.GetServiceInfo.
 func (c *PTBClient) HealthCheckGrpc(ctx context.Context) (chainID string, err error) {
-	if !c.HasGrpc() {
-		return "", fmt.Errorf("gRPC client is not configured")
-	}
-
 	service, err := c.getLedgerService(ctx)
 	if err != nil {
 		return "", err
@@ -57,10 +49,6 @@ func (c *PTBClient) HealthCheckGrpc(ctx context.Context) (chainID string, err er
 
 // VerifyGrpcServices initializes all gRPC service stubs to verify connectivity.
 func (c *PTBClient) VerifyGrpcServices(ctx context.Context) error {
-	if !c.HasGrpc() {
-		return fmt.Errorf("gRPC client is not configured")
-	}
-
 	if _, err := c.getLedgerService(ctx); err != nil {
 		return fmt.Errorf("LedgerService: %w", err)
 	}
@@ -176,6 +164,28 @@ func (c *PTBClient) getMovePackageService(ctx context.Context) (suirpcv2.MovePac
 	return service, nil
 }
 
+func (c *PTBClient) getSubscriptionService(ctx context.Context) (suirpcv2.SubscriptionServiceClient, error) {
+	c.grpcServicesMu.Lock()
+	defer c.grpcServicesMu.Unlock()
+
+	if c.subscriptionService != nil {
+		return c.subscriptionService, nil
+	}
+
+	grpcClient, err := c.requireGrpcClient()
+	if err != nil {
+		return nil, err
+	}
+
+	service, err := grpcClient.SubscriptionService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get subscription service: %w", err)
+	}
+
+	c.subscriptionService = service
+	return service, nil
+}
+
 // resetGrpcServices clears cached service stubs so the next call re-initializes them.
 // Used after connection errors when the underlying client reconnects.
 func (c *PTBClient) resetGrpcServices() {
@@ -186,4 +196,5 @@ func (c *PTBClient) resetGrpcServices() {
 	c.stateService = nil
 	c.txExecService = nil
 	c.movePkgService = nil
+	c.subscriptionService = nil
 }

@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 	"crypto/rand"
-	"errors"
+	"encoding/base64"
 	"fmt"
 	"math/big"
 	"strings"
@@ -32,7 +32,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
-	"github.com/smartcontractkit/chainlink-sui/shared"
 )
 
 const (
@@ -82,17 +81,17 @@ var maxPageSize uint = 50
 
 type SuiPTBClient interface {
 	MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error)
-	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (SuiTransactionBlockResponse, error)
+	SendTransaction(ctx context.Context, execRequest *suirpcv2.ExecuteTransactionRequest) (*suirpcv2.ExecuteTransactionResponse, error)
 	ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor []byte) ([]*suirpcv2.Object, error)
 	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor []byte) ([]*suirpcv2.Object, error)
 	ReadObjectId(ctx context.Context, objectId string) (*suirpcv2.Object, error)
 	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error)
-	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error)
+	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte) (*suirpcv2.ExecuteTransactionResponse, error)
 	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error)
 	QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
-	GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error)
-	QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error)
+	GetCoinsByAddress(ctx context.Context, address string) ([]*suirpcv2.Object, error)
+	QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]*suirpcv2.Object, error)
 	EstimateGas(ctx context.Context, tx *transaction.Transaction) (uint64, error)
 	GetReferenceGasPrice(ctx context.Context) (*big.Int, error)
 	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
@@ -182,17 +181,90 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 	return f(workCtx)
 }
 
+// MoveCall is a method that's used primarily in tests for adhoc contract calls.
+// It simply builds the transaction bytes and returns them.
 func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error) {
-	return TxnMetaData{}, errors.New("method removed in gRPC migration")
-}
+	movePkgService, err := c.getMovePackageService(ctx)
+	if err != nil {
+		return TxnMetaData{}, fmt.Errorf("failed to get move package service: %w", err)
+	}
 
-func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBlockRequest) (SuiTransactionBlockResponse, error) {
-	var result SuiTransactionBlockResponse
-	err := c.WithRateLimit(ctx, "SendTransaction", func(ctx context.Context) error {
-		return errors.New("method pending gRPC migration")
+	txn := transaction.NewTransaction()
+
+	var args []transaction.Argument
+	var typeArgs []transaction.TypeTag
+
+	functionDefinition, err := movePkgService.GetFunction(ctx, &v2.GetFunctionRequest{
+		PackageId:  &req.PackageObjectId,
+		ModuleName: &req.Module,
+		Name:       &req.Function,
+	})
+	if err != nil {
+		return TxnMetaData{}, fmt.Errorf("failed to get normalized module: %w", err)
+	}
+
+	for i, arg := range req.Arguments {
+		argType := functionDefinition.GetFunction().GetParameters()[i].Body.GetType()
+		argTypeString := v2.OpenSignatureBody_Type_name[int32(argType)]
+		arg, err := c.TransformTransactionArg(ctx, txn, arg, argTypeString, true)
+		if err != nil {
+			return TxnMetaData{}, fmt.Errorf("failed to transform transaction arg: %w", err)
+		}
+		args = append(args, *arg)
+	}
+
+	txn.MoveCall(models.SuiAddress(req.PackageObjectId), req.Module, req.Function, typeArgs, args)
+
+	gasPrice, err := c.GetReferenceGasPrice(ctx)
+	if err != nil {
+		return TxnMetaData{}, fmt.Errorf("failed to get reference gas price: %w", err)
+	}
+
+	txn.SetGasBudget(req.GasBudget)
+	txn.SetGasPrice(gasPrice.Uint64())
+	txn.SetSender(models.SuiAddress(req.Signer))
+
+	// Note: this is only a placeholder to ensure `buildBCSBytes` doesn't fail.
+	// The actual signing is handled externally.
+	txn.SetSigner(&signer.Signer{
+		Address: req.Signer,
 	})
 
-	return result, err
+	paymentCoinBytes, paymentCoinVersion, paymentCoinDigest, err := c.GetTransactionPaymentCoinForAddress(context.Background(), req.Signer)
+	if err != nil {
+		return TxnMetaData{}, fmt.Errorf("failed to get transaction payment coin for address: %w", err)
+	}
+
+	txn.SetGasPayment([]transaction.SuiObjectRef{
+		{
+			ObjectId: paymentCoinBytes,
+			Version:  paymentCoinVersion,
+			Digest:   paymentCoinDigest,
+		},
+	})
+
+	bcsBytes, err := txn.BuildBCSBytes(context.Background())
+	if err != nil {
+		return TxnMetaData{}, fmt.Errorf("failed to build bcs bytes: %w", err)
+	}
+
+	return TxnMetaData{
+		TxBytes: base64.StdEncoding.EncodeToString(bcsBytes),
+	}, nil
+}
+
+// SendTransaction executes an already signed transaction, using the execution service, given the BCS bytes.
+func (c *PTBClient) SendTransaction(ctx context.Context, execRequest *suirpcv2.ExecuteTransactionRequest) (*suirpcv2.ExecuteTransactionResponse, error) {
+	txExecService, err := c.getTransactionExecutionService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction execution service: %w", err)
+	}
+
+	response, err := txExecService.ExecuteTransaction(ctx, execRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute transaction: %w", err)
+	}
+	return response, nil
 }
 
 func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (*suirpcv2.Object, error) {
@@ -246,17 +318,22 @@ func (c *PTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress s
 }
 
 func (c *PTBClient) readFilterOwnedObjectIdsInternal(ctx context.Context, ownerAddress string, structType *string, cursor []byte) (*suirpcv2.ListOwnedObjectsResponse, error) {
-	response, err := c.stateService.ListOwnedObjects(ctx, &suirpcv2.ListOwnedObjectsRequest{
+	stateService, err := c.getStateService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get state service: %w", err)
+	}
+
+	response, err := stateService.ListOwnedObjects(ctx, &suirpcv2.ListOwnedObjectsRequest{
 		Owner:      &ownerAddress,
 		ObjectType: structType,
 		PageToken:  cursor,
 		ReadMask: &fieldmaskpb.FieldMask{
 			Paths: []string{
-				"object.contents",
-				"object.object_type",
-				"object.owner",
-				"object.version",
-				"object.digest",
+				"contents",
+				"object_type",
+				"owner",
+				"version",
+				"digest",
 			},
 		},
 	})
@@ -376,7 +453,7 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, signerAddress stri
 
 	// Process type arguments
 	for _, typeArg := range typeArgs {
-		typeTag, err := c.createTypeTag(typeArg)
+		typeTag, err := c.CreateTypeTag(typeArg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create type tag for %s: %w", typeArg, err)
 		}
@@ -397,7 +474,7 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, signerAddress stri
 	}
 
 	// TODO: use a "read-only" signer for this operation instead of creating a new one
-	// each time
+	// each time, it can be empty since gas selection is disabled
 	seed := make([]byte, 32)
 	if _, err := rand.Read(seed); err != nil {
 		return nil, fmt.Errorf("failed to generate random seed: %w", err)
@@ -445,39 +522,39 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, signerAddress stri
 	return results, nil
 }
 
-func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
-	defer cancel()
-
-	signerId := fmt.Sprintf("%064x", signerPublicKey)
-
-	txBytes, err := shared.DecodeBase64(txBytesRaw)
+func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte) (*suirpcv2.ExecuteTransactionResponse, error) {
+	signerPublicKeyId := fmt.Sprintf("%064x", signerPublicKey)
+	bcsBytes, err := base64.StdEncoding.DecodeString(txBytesRaw)
 	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to decode tx bytes: %w", err)
+		return nil, fmt.Errorf("failed to decode tx bytes: %w", err)
 	}
 
-	// Hash the transaction bytes to include intent messages for Sui signing protocol
-	txBytesToSign := c.HashTxBytes(txBytes)
-	signature, err := c.keystoreService.Sign(ctx, signerId, txBytesToSign)
+	hashedTxBytes := c.HashTxBytes(bcsBytes)
+	signatureBytes, err := c.keystoreService.Sign(ctx, signerPublicKeyId, hashedTxBytes)
 	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to sign tx: %w", err)
+		return nil, fmt.Errorf("failed to sign transaction: %w", err)
 	}
 
-	signaturesString := SerializeSuiSignature(signature, signerPublicKey)
+	// Sui signature format: [scheme_byte (0x00 for ED25519) + signature_bytes + public_key_bytes]
+	// The scheme byte must be prepended to the signature
+	schemeByte := byte(0x00) // ED25519 scheme identifier
+	suiSignature := append([]byte{schemeByte}, signatureBytes...)
+	suiSignature = append(suiSignature, signerPublicKey...)
 
-	return c.SendTransaction(ctx, TransactionBlockRequest{
-		TxBytes:     txBytesRaw,
-		Signatures:  []string{signaturesString},
-		RequestType: string(executionRequestType),
-		Options: TransactionBlockOptions{
-			ShowInput:          true,
-			ShowRawInput:       true,
-			ShowEffects:        true,
-			ShowEvents:         true,
-			ShowObjectChanges:  true,
-			ShowBalanceChanges: true,
+	// Verify we can execute the transaction
+	resp, err := c.SendTransaction(ctx, &suirpcv2.ExecuteTransactionRequest{
+		Transaction: &v2.Transaction{Bcs: &v2.Bcs{Value: bcsBytes}},
+		Signatures: []*v2.UserSignature{
+			{
+				Bcs: &v2.Bcs{Value: suiSignature},
+			},
+		},
+		ReadMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"digest", "effects.status", "effects.gas_used"},
 		},
 	})
+
+	return resp, err
 }
 
 func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error) {
@@ -523,23 +600,35 @@ func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEve
 }
 
 func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error) {
-	var result TransactionResult
-	err := c.WithRateLimit(ctx, "GetTransactionStatus", func(ctx context.Context) error {
-		txReq := models.SuiGetTransactionBlockRequest{
-			Digest: digest,
-			Options: models.SuiTransactionBlockOptions{
-				ShowEffects: true,
-			},
-		}
+	ledgerService, err := c.getLedgerService(ctx)
+	if err != nil {
+		return TransactionResult{}, fmt.Errorf("failed to get ledger service: %w", err)
+	}
 
-		response, err := c.client.SuiGetTransactionBlock(ctx, txReq)
+	var result TransactionResult
+
+	err = c.WithRateLimit(ctx, "GetTransactionStatus", func(ctx context.Context) error {
+		response, err := ledgerService.GetTransaction(ctx, &suirpcv2.GetTransactionRequest{
+			Digest: &digest,
+			ReadMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"effects.status", "effects.gas_used"},
+			},
+		})
 		if err != nil {
 			return err
 		}
 
+		var status string
+		success := response.Transaction.GetEffects().GetStatus().GetSuccess()
+		if success {
+			status = "success"
+		} else {
+			status = "failure"
+		}
+
 		result = TransactionResult{
-			Status: response.Effects.Status.Status,
-			Error:  response.Effects.Status.Error,
+			Status: status,
+			Error:  response.Transaction.GetEffects().GetStatus().GetError().String(),
 		}
 
 		return nil
@@ -592,26 +681,16 @@ func (c *PTBClient) QueryTransactions(ctx context.Context, fromAddress string, c
 	return result, err
 }
 
-func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error) {
-	var result []models.CoinData
+// GetCoinsByAddress returns all coin objects for a given address.
+func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]*suirpcv2.Object, error) {
+	var result []*suirpcv2.Object
 	err := c.WithRateLimit(ctx, "GetCoinsByAddress", func(ctx context.Context) error {
-		coinsReq := models.SuiXGetAllCoinsRequest{
-			Owner: address,
-			Limit: uint64(maxCoinsPageSize),
+		coinTag := "0x2::coin::Coin"
+		response, err := c.readFilterOwnedObjectIdsInternal(ctx, address, &coinTag, nil)
+		if err != nil {
+			return fmt.Errorf("failed to get coins: %w", err)
 		}
-		hasNextPage := true
-
-		for hasNextPage {
-			response, err := c.client.SuiXGetAllCoins(ctx, coinsReq)
-			if err != nil {
-				return fmt.Errorf("failed to get coins: %w", err)
-			}
-
-			result = append(result, response.Data...)
-
-			hasNextPage = response.HasNextPage
-			coinsReq.Cursor = response.NextCursor
-		}
+		result = response.GetObjects()
 
 		return nil
 	})
@@ -619,27 +698,16 @@ func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]mo
 	return result, err
 }
 
-func (c *PTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error) {
-	var result []models.CoinData
-	err := c.WithRateLimit(ctx, "QueryCoinsByAddress", func(ctx context.Context) error {
-		coinsReq := models.SuiXGetCoinsRequest{
-			Owner:    address,
-			CoinType: coinType,
-			Limit:    uint64(maxCoinsPageSize),
+// QueryCoinsByAddress is the same as GetCoinsByAddress, but it allows you to filter by coin type.
+// The `coinType` parameter should be the full coin type, e.g. "0x2::coin::Coin<0x2::sui::SUI>".
+func (c *PTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]*suirpcv2.Object, error) {
+	var result []*suirpcv2.Object
+	err := c.WithRateLimit(ctx, "GetCoinsByAddress", func(ctx context.Context) error {
+		response, err := c.readFilterOwnedObjectIdsInternal(ctx, address, &coinType, nil)
+		if err != nil {
+			return fmt.Errorf("failed to get coins: %w", err)
 		}
-		hasNextPage := true
-
-		for hasNextPage {
-			response, err := c.client.SuiXGetCoins(ctx, coinsReq)
-			if err != nil {
-				return fmt.Errorf("failed to get coins: %w", err)
-			}
-
-			result = append(result, response.Data...)
-
-			hasNextPage = response.HasNextPage
-			coinsReq.Cursor = response.NextCursor
-		}
+		result = response.GetObjects()
 
 		return nil
 	})
@@ -1167,40 +1235,4 @@ func (c *PTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, acco
 	}
 
 	return tokenPoolConfig, nil
-}
-
-// Add helper method to create type tags
-func (c *PTBClient) createTypeTag(typeStr string) (transaction.TypeTag, error) {
-	if typeStr == "" {
-		return transaction.TypeTag{}, fmt.Errorf("type string cannot be empty")
-	}
-
-	// Handle struct types (package::module::name)
-	if strings.Contains(typeStr, "::") {
-		parts := strings.Split(typeStr, "::")
-		if len(parts) != 3 {
-			return transaction.TypeTag{}, fmt.Errorf("invalid struct type format %q, expected package::module::name", typeStr)
-		}
-
-		packageID, module, name := parts[0], parts[1], parts[2]
-
-		// Convert package ID to address bytes
-		packageAddr := models.SuiAddress(packageID)
-		addressBytes, err := transaction.ConvertSuiAddressStringToBytes(packageAddr)
-		if err != nil {
-			return transaction.TypeTag{}, fmt.Errorf("failed to convert package address %q: %w", packageID, err)
-		}
-
-		return transaction.TypeTag{
-			Struct: &transaction.StructTag{
-				Address:    *addressBytes,
-				Module:     module,
-				Name:       name,
-				TypeParams: []*transaction.TypeTag{},
-			},
-		}, nil
-	}
-
-	// TODO: Handle primitive types if needed
-	return transaction.TypeTag{}, fmt.Errorf("unsupported type format: %s", typeStr)
 }
