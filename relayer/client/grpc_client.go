@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +16,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	v2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
@@ -95,7 +95,7 @@ type SuiPTBClient interface {
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error)
 	QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error)
-	EstimateGas(ctx context.Context, txBytes string) (uint64, error)
+	EstimateGas(ctx context.Context, tx *transaction.Transaction) (uint64, error)
 	GetReferenceGasPrice(ctx context.Context) (*big.Int, error)
 	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
@@ -122,9 +122,7 @@ type SuiPTBClient interface {
 // During the gRPC migration, JSON-RPC (client) and gRPC (grpcClient) coexist:
 // migrated methods use gRPC service accessors; others continue via JSON-RPC.
 type PTBClient struct {
-	log logger.Logger
-	// TODO: to remove after gRPC migration is complete
-	client             sui.ISuiAPI
+	log                logger.Logger
 	grpcClient         *grpcconn.SuiGrpcClient
 	grpcServicesMu     sync.Mutex
 	ledgerService      suirpcv2.LedgerServiceClient
@@ -290,37 +288,45 @@ func (c *PTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, c
 	return result, err
 }
 
-func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
+func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction) (uint64, error) {
 	var result uint64
 	err := c.WithRateLimit(ctx, "EstimateGas", func(ctx context.Context) error {
-		// Use blockvision SDK's dry run transaction
-		dryRunReq := models.SuiDryRunTransactionBlockRequest{
-			TxBytes: txBytes,
+		bcsBytes, err := tx.BuildBCSBytes(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to build bcs bytes: %w", err)
 		}
 
-		response, err := c.client.SuiDryRunTransactionBlock(ctx, dryRunReq)
+		doGasSelection := true
+		response, err := c.txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
+			Transaction:    &v2.Transaction{Bcs: &v2.Bcs{Value: bcsBytes}},
+			DoGasSelection: &doGasSelection,
+			ReadMask: &fieldmaskpb.FieldMask{
+				Paths: []string{
+					"transaction.effects.status",
+					"transaction.effects.gas_used",
+				},
+			},
+		})
 		if err != nil {
-			return fmt.Errorf("failed to estimate gas: %w", err)
+			return fmt.Errorf("failed to simulate transaction: %w", err)
 		}
+
+		gasUsed := response.Transaction.Effects.GasUsed
 
 		// Extract gas used from response
-		if response.Effects.GasUsed.ComputationCost != "" {
-			computationCost, err := strconv.ParseUint(response.Effects.GasUsed.ComputationCost, 10, 64)
-			if err != nil {
-				return fmt.Errorf("failed to parse computation cost: %w", err)
-			}
-			storageCost, err := strconv.ParseUint(response.Effects.GasUsed.StorageCost, 10, 64)
-			if err != nil {
-				return fmt.Errorf("failed to parse storage cost: %w", err)
-			}
-			storageRebate, err := strconv.ParseUint(response.Effects.GasUsed.StorageRebate, 10, 64)
-			if err != nil {
-				storageRebate = 0
-			}
-
-			// Override the estimate with a minimum threshold
-			result = max(computationCost+storageCost-storageRebate, DefaultMinGasBudget)
+		var computationCost, storageCost, storageRebate uint64
+		if gasUsed.ComputationCost != nil {
+			computationCost = *gasUsed.ComputationCost
 		}
+		if gasUsed.StorageCost != nil {
+			storageCost = *gasUsed.StorageCost
+		}
+		if gasUsed.StorageRebate != nil {
+			storageRebate = *gasUsed.StorageRebate
+		}
+
+		// Override the estimate with a minimum threshold
+		result = max(computationCost+storageCost-storageRebate, DefaultMinGasBudget)
 
 		return nil
 	})
