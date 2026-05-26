@@ -337,11 +337,18 @@ func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction
 func (c *PTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
 	var result *big.Int
 	err := c.WithRateLimit(ctx, "GetReferenceGasPrice", func(ctx context.Context) error {
-		response, err := c.client.SuiXGetReferenceGasPrice(ctx)
+		resp, err := c.ledgerService.GetEpoch(ctx, &v2.GetEpochRequest{
+			ReadMask: &fieldmaskpb.FieldMask{Paths: []string{"reference_gas_price"}},
+		})
 		if err != nil {
-			return fmt.Errorf("failed to get reference gas price: %w", err)
+			return fmt.Errorf("GetEpoch: %w", err)
 		}
-		result = new(big.Int).SetUint64(response)
+		var gasPrice uint64
+		if resp.Epoch.ReferenceGasPrice != nil {
+			gasPrice = *resp.Epoch.ReferenceGasPrice
+		}
+
+		result = new(big.Int).SetUint64(gasPrice)
 		return nil
 	})
 	return result, err
