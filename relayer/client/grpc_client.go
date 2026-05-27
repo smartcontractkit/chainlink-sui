@@ -849,10 +849,7 @@ func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId 
 		ModuleName: &module,
 		Name:       &addPackageIdFunctionName,
 	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get add_package_id function for package %s and module %s: %w", packageId, module, err)
-	}
-	if response.Function == nil {
+	if err != nil || response.Function == nil {
 		c.log.Warnw("module does not have the `add_package_id` function", "module", module)
 		// fallback to using the provided package ID as it's the only package ID
 		return []string{packageId}, nil
