@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/big"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -561,6 +562,29 @@ func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEve
 	return nil, fmt.Errorf("method implementation pending gRPC migration")
 }
 
+// GetEventsByCheckpoint returns all the events for a given checkpoint sequence number.
+// @param checkpointSequenceNumber - the checkpoint sequence number to get events for
+// @param eventTypes - the types of events to get (must be fully qualified `packageId::moduleId::EventName`)
+// @return the events and an error if any
+func (c *PTBClient) GetEventsByCheckpoint(ctx context.Context, checkpointSequenceNumber uint64, eventTypes []string) ([]*suirpcv2.Event, error) {
+	transactions, err := c.GetTransactionsByCheckpoint(ctx, checkpointSequenceNumber)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transactions: %w", err)
+	}
+
+	var events []*suirpcv2.Event
+	for _, transaction := range transactions {
+		for _, event := range transaction.GetEvents().Events {
+			qualifiedEventHandle := strings.Join([]string{event.GetPackageId(), event.GetModule(), event.GetEventType()}, "::")
+			if slices.Contains(eventTypes, qualifiedEventHandle) {
+				events = append(events, event)
+			}
+		}
+	}
+
+	return events, nil
+}
+
 func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error) {
 	ledgerService, err := c.getLedgerService(ctx)
 	if err != nil {
@@ -606,6 +630,33 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 // @return the transactions and an error if any
 func (c *PTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *suirpcv2.Checkpoint, limit *uint64) ([]*suirpcv2.ExecutedTransaction, error) {
 	return nil, fmt.Errorf("method implementation pending gRPC migration")
+}
+
+// GetTransactionsByCheckpoint returns all the transactions for a given checkpoint sequence number.
+func (c *PTBClient) GetTransactionsByCheckpoint(ctx context.Context, checkpointSequenceNumber uint64) ([]*suirpcv2.ExecutedTransaction, error) {
+	ledgerService, err := c.getLedgerService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ledger service: %w", err)
+	}
+
+	response, err := ledgerService.GetCheckpoint(ctx, &suirpcv2.GetCheckpointRequest{
+		CheckpointId: &suirpcv2.GetCheckpointRequest_SequenceNumber{
+			SequenceNumber: checkpointSequenceNumber,
+		},
+		ReadMask: &fieldmaskpb.FieldMask{
+			Paths: []string{
+				"checkpoint",
+				"checkpoint.transactions",
+				"checkpoint.transactions.effects",
+				"checkpoint.transactions.events",
+			},
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get checkpoint: %w", err)
+	}
+
+	return response.GetCheckpoint().GetTransactions(), nil
 }
 
 // GetCoinsByAddress returns all coin objects for a given address.
