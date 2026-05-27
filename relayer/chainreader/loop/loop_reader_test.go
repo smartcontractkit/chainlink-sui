@@ -51,7 +51,7 @@ func TestLoopChainReaderLocal(t *testing.T) {
 
 	log.Debugw("Started Sui node")
 
-	runLoopChainReaderEchoTest(t, log, testutils.LocalUrl)
+	runLoopChainReaderEchoTest(t, log, testutils.LocalGrpcUrl)
 }
 
 func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) {
@@ -61,7 +61,14 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	keystoreInstance := testutils.NewTestKeystore(t)
 	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
-	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	relayerClient, clientErr := client.NewPTBClient(log, client.PTBClientConfig{
+		GrpcTarget:            rpcUrl,
+		GrpcToken:             "test",
+		TransactionTimeout:    10 * time.Second,
+		MaxConcurrentRequests: 5,
+		KeystoreService:       keystoreInstance,
+		DefaultRequestType:    client.TransactionRequestType("WaitForLocalExecution"),
+	})
 	require.NoError(t, clientErr)
 
 	faucetFundErr := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
@@ -443,7 +450,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			txMetadata, err := relayerClient.MoveCall(ctx, moveCallReq)
 			require.NoError(t, err)
 
-			_, err = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+			_, err = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
 			require.NoError(t, err)
 
 			require.Eventually(t, func() bool {
