@@ -240,3 +240,20 @@ public fun test_svm_writable_bitmap_at_max_accounts() {
     // Move aborts on u64 >> 64; at the max account count the shift check is skipped.
     fee_quoter::check_svm_writable_bitmap_for_test(0xffffffffffffffff, 64);
 }
+
+#[test]
+#[expected_failure(abort_code = fee_quoter::EInvalidSvmExtraArgsWritableBitmap)]
+public fun test_svm_writable_bitmap_rejects_bit_beyond_accounts() {
+    fee_quoter::check_svm_writable_bitmap_for_test(0x8000000000000000, 63);
+}
+
+#[test]
+public fun test_svm_writable_bitmap_valid_at_sub_max_accounts() {
+    fee_quoter::check_svm_writable_bitmap_for_test(0x3fffffffffffffff, 62);
+}
+
+#[test]
+#[expected_failure(abort_code = fee_quoter::ETooManySvmExtraArgsAccounts)]
+public fun test_svm_writable_bitmap_rejects_too_many_accounts() {
+    fee_quoter::check_svm_writable_bitmap_for_test(0, 65);
+}
