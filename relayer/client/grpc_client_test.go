@@ -103,7 +103,6 @@ func TestGrpcClient(t *testing.T) {
 
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_count",
@@ -339,7 +338,6 @@ func TestGrpcClient(t *testing.T) {
 	t.Run("ReadFunction_JSONResponseParsing", func(t *testing.T) {
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_result_struct",
@@ -354,7 +352,6 @@ func TestGrpcClient(t *testing.T) {
 	t.Run("ReadFunction_StringAsStruct", func(t *testing.T) {
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"type_and_version",
@@ -369,7 +366,6 @@ func TestGrpcClient(t *testing.T) {
 	t.Run("ReadFunction_NestedStruct", func(t *testing.T) {
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_nested_result_struct",
@@ -384,7 +380,6 @@ func TestGrpcClient(t *testing.T) {
 	t.Run("ReadFunction_MultiNestedStruct", func(t *testing.T) {
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_multi_nested_result_struct",
@@ -399,7 +394,6 @@ func TestGrpcClient(t *testing.T) {
 	t.Run("ReadFunction_Tuple", func(t *testing.T) {
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_tuple_struct",
@@ -414,7 +408,6 @@ func TestGrpcClient(t *testing.T) {
 	t.Run("ReadFunction_OCRConfig", func(t *testing.T) {
 		values, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_ocr_config",
@@ -429,7 +422,6 @@ func TestGrpcClient(t *testing.T) {
 	t.Run("ReadFunction_VectorOfU8", func(t *testing.T) {
 		values, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_vector_of_u8",
@@ -444,7 +436,6 @@ func TestGrpcClient(t *testing.T) {
 	t.Run("ReadFunction_VectorOfAddresses", func(t *testing.T) {
 		values, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_vector_of_addresses",

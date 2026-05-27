@@ -28,7 +28,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
-	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	suiSigner "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -87,7 +86,7 @@ type SuiPTBClient interface {
 	ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor []byte) ([]*suirpcv2.Object, error)
 	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor []byte) ([]*suirpcv2.Object, error)
 	ReadObjectId(ctx context.Context, objectId string) (*suirpcv2.Object, error)
-	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error)
+	ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte) (*suirpcv2.ExecuteTransactionResponse, error)
 	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error)
 	QueryTransactions(ctx context.Context, fromAddress string, cursor *suirpcv2.Checkpoint, limit *uint64) ([]*suirpcv2.ExecutedTransaction, error)
@@ -111,7 +110,7 @@ type SuiPTBClient interface {
 	GetCachedValues(keys []string) (map[string]any, bool)
 	SetCachedValues(keyValues map[string]any)
 	HashTxBytes(txBytes []byte) []byte
-	GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error)
+	GetCCIPPackageID(ctx context.Context, offRampPackageID string) (string, error)
 	GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error)
 	GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error)
 	GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error)
@@ -280,6 +279,11 @@ func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (*suirpcv
 
 // readObjectIdInternal is the internal implementation without rate limiting
 func (c *PTBClient) readObjectIdInternal(ctx context.Context, objectId string) (*suirpcv2.Object, error) {
+	ledgerService, err := c.getLedgerService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ledger service: %w", err)
+	}
+
 	objectReq := suirpcv2.GetObjectRequest{
 		ObjectId: &objectId,
 		ReadMask: &fieldmaskpb.FieldMask{
@@ -289,11 +293,12 @@ func (c *PTBClient) readObjectIdInternal(ctx context.Context, objectId string) (
 				"owner",
 				"version",
 				"digest",
+				"json",
 			},
 		},
 	}
 
-	response, err := c.ledgerService.GetObject(ctx, &objectReq)
+	response, err := ledgerService.GetObject(ctx, &objectReq)
 	if err != nil || response.Object == nil {
 		return nil, fmt.Errorf("failed to read object: %w", err)
 	}
@@ -335,6 +340,7 @@ func (c *PTBClient) readFilterOwnedObjectIdsInternal(ctx context.Context, ownerA
 				"owner",
 				"version",
 				"digest",
+				"json",
 			},
 		},
 	})
@@ -434,18 +440,23 @@ func (c *PTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) 
 	return result, err
 }
 
-func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+func (c *PTBClient) ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	var results []any
 	err := c.WithRateLimit(ctx, "ReadFunction", func(ctx context.Context) error {
 		var err error
-		results, err = c.readFunctionInternal(ctx, signerAddress, packageId, module, function, args, argTypes, typeArgs)
+		results, err = c.readFunctionInternal(ctx, packageId, module, function, args, argTypes, typeArgs)
 		return err
 	})
 	return results, err
 }
 
 // readFunctionInternal is the internal implementation without rate limiting
-func (c *PTBClient) readFunctionInternal(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+	txExecService, err := c.getTransactionExecutionService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction execution service: %w", err)
+	}
+
 	var results []any
 	txn := transaction.NewTransaction()
 
@@ -480,9 +491,10 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, signerAddress stri
 	if _, err := rand.Read(seed); err != nil {
 		return nil, fmt.Errorf("failed to generate random seed: %w", err)
 	}
-	txn.SetSigner(signer.NewSigner(seed))
+	devInspectSigner := signer.NewSigner(seed)
+	txn.SetSigner(devInspectSigner)
 
-	txn.SetSender(models.SuiAddress(signerAddress))
+	txn.SetSender(models.SuiAddress(devInspectSigner.Address))
 	txn.SetGasBudget(DefaultGasBudget)
 	txn.SetGasPrice(DefaultGasPrice)
 	txn.MoveCall(models.SuiAddress(packageId), module, function, txnTypeArgs, txnArgs)
@@ -494,7 +506,7 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, signerAddress stri
 	}
 
 	doGasSelection := false
-	response, err := c.txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
+	response, err := txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
 		Transaction:    &v2.Transaction{Bcs: &v2.Bcs{Value: bcsBytes}},
 		DoGasSelection: &doGasSelection,
 	})
@@ -962,6 +974,8 @@ func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId 
 		return nil, fmt.Errorf("failed to get state object: %w", err)
 	}
 
+	c.log.Debugw("stateObject", "stateObject", stateObject.GetJson())
+
 	packageIdsValues := stateObject.Json.GetStructValue().GetFields()["package_ids"].GetListValue()
 	packageIds := make([]string, len(packageIdsValues.Values))
 	for i, packageIdValue := range packageIdsValues.Values {
@@ -1032,23 +1046,21 @@ func (c *PTBClient) SetCachedValues(keyValues map[string]any) {
 
 // GetCCIPPackageId gets the CCIP package ID from the offramp package ID.
 // IMPORTANT: This function expects to call the original (un-upgraded / first version) offramp package ID.
-func (c *PTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
-	offRamp, err := module_offramp.NewOfframp(offRampPackageID, c.GetClient())
+func (c *PTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string) (string, error) {
+	response, err := c.ReadFunction(
+		ctx,
+		offRampPackageID,
+		"offramp",
+		"get_ccip_package_id",
+		[]any{},
+		[]string{},
+		[]string{},
+	)
 	if err != nil {
 		return "", err
 	}
 
-	devInspectSigner := suiSigner.NewDevInspectSigner(signerAddress)
-
-	ccipPkgID, err := offRamp.DevInspect().GetCcipPackageId(ctx, &bind.CallOpts{
-		Signer:           devInspectSigner,
-		WaitForExecution: true,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return ccipPkgID, nil
+	return response[0].(string), nil
 }
 
 // GetValueFromPackageOwnedObjectField gets the value of a field from a package owned object.
@@ -1122,7 +1134,17 @@ func (c *PTBClient) getParentObjectIDInternal(ctx context.Context, packageID str
 		return "", fmt.Errorf("unknown pointer object type: %s", pointerObjectName)
 	}
 
-	parentObjectID := ownedObject.Json.GetStructValue().Fields[fieldName].GetStringValue()
+	ownedObjectStructValue := ownedObject.GetJson().GetStructValue()
+	if ownedObjectStructValue == nil {
+		return "", fmt.Errorf("pointer object %s does not have a struct value", pointerObjectName)
+	}
+	if ownedObjectStructValue.Fields[fieldName] == nil {
+		return "", fmt.Errorf("pointer object %s does not have the field %s", pointerObjectName, fieldName)
+	}
+
+	c.log.Debugw("ownedObjectStructValue", "pointerFieldValue", ownedObjectStructValue.Fields[fieldName])
+
+	parentObjectID := ownedObjectStructValue.Fields[fieldName].GetStringValue()
 	if parentObjectID == "" {
 		return "", fmt.Errorf("pointer object %s not found in package %s", structType, packageID)
 	}
