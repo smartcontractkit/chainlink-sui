@@ -4,7 +4,7 @@
 }:
 stdenv.mkDerivation rec {
   name = "sui-cli-${version}";
-  version = "1.70.2"; # Update as needed. Should be a mainnet release version from https://github.com/MystenLabs/sui/releases
+  version = "1.72.2"; # Update as needed. Should be a mainnet release version from https://github.com/MystenLabs/sui/releases
 
   src = if stdenv.hostPlatform.isDarwin then
     pkgs.fetchzip {
@@ -15,7 +15,7 @@ stdenv.mkDerivation rec {
     else if stdenv.isLinux then
       pkgs.fetchzip {
         url = "https://github.com/MystenLabs/sui/releases/download/mainnet-v${version}/sui-mainnet-v${version}-ubuntu-x86_64.tgz";
-        sha256 = "sha256-0KHA+sliuzqjSgSW+V1nmrRx/qzXVkaho2wkjBsNgok=";  # Should be replaced when bumping versions
+        sha256 = "sha256-iOhVRR4tZJiOmQJmvcxQxEgq0cfdqtI/NYObZ+NU4GY=";  # Should be replaced when bumping versions
         stripRoot = false;
       }
     else
