@@ -59,6 +59,7 @@ fun initialize_state_and_registry(scenario: &mut Scenario, admin: address) {
         // Initialize upgrade registry first (required by token_admin_registry functions)
         upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
         registry::initialize(&mut ref, &owner_cap, ctx);
+        registry::initialize_local_decimals(&mut ref, &owner_cap, ctx);
 
         scenario.return_to_sender(owner_cap);
         ts::return_shared(ref);
@@ -229,7 +230,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let ctx = scenario.ctx();
 
-        registry::register_pool_as_owner(
+        registry::register_pool_as_owner_v2(
             &owner_cap,
             &mut ref,
             @0xABC1, // coin_metadata_address #1
@@ -240,6 +241,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
             ascii::string(b"ProofOne"),
             vector[@0x6, @0x1111],
             vector[@0x6, @0x2222],
+            8, // local_decimals
             ctx,
         );
 
@@ -259,7 +261,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let ctx = scenario.ctx();
 
-        registry::register_pool_as_owner(
+        registry::register_pool_as_owner_v2(
             &owner_cap,
             &mut ref,
             @0xABC2, // coin_metadata_address #2
@@ -270,6 +272,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
             ascii::string(b"ProofTwo"),
             vector[@0x6, @0x3333],
             vector[@0x6, @0x4444],
+            8, // local_decimals
             ctx,
         );
 
