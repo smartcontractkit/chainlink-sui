@@ -148,7 +148,7 @@ func SetupTestEnv(
 	counterObjectId, err := QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	suiClient, txManager, transactionRepository := SetupClients(t, LocalUrl, keystoreInstance, lgr, gasLimit)
+	suiClient, txManager, transactionRepository := SetupClients(t, LocalGrpcUrl, keystoreInstance, lgr, gasLimit)
 
 	return suiClient, txManager, transactionRepository, accountAddress, keystoreInstance, publicKeyBytes, packageId, counterObjectId
 }

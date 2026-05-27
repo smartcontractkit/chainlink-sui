@@ -6,6 +6,7 @@ const (
 	TestnetUrl     = "https://fullnode.testnet.sui.io:443"
 	LocalUrl       = "http://127.0.0.1:9000"
 	LocalFaucetUrl = "http://127.0.0.1:9123/gas"
+	LocalGrpcUrl   = "127.0.0.1:9000"
 )
 
 // Network environments

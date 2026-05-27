@@ -23,6 +23,7 @@ import (
 
 	aptosBalanceMonitor "github.com/smartcontractkit/chainlink-aptos/relayer/monitor"
 	aptosTypes "github.com/smartcontractkit/chainlink-aptos/relayer/types"
+
 	chainreaderConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	chainreader "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
@@ -94,36 +95,32 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		TransactionRetentionSecs: *cfg.TransactionManager.TransactionRetentionSecs,
 	}
 
-	ptbClientConfig := client.PTBClientConfigFromNode(
-		nodeConfig.URL.String(),
-		nodeConfig.GrpcTarget,
-		nodeConfig.GrpcToken,
-		nil,
-		timeout,
-		keystore,
-		maxConcurrentRequests*3,
-		client.TransactionRequestType(requestType),
-	)
+	ptbClientConfig := client.PTBClientConfig{
+		GrpcTarget:            *nodeConfig.GrpcTarget,
+		GrpcToken:             *nodeConfig.GrpcToken,
+		TransactionTimeout:    timeout,
+		MaxConcurrentRequests: maxConcurrentRequests * 3,
+		KeystoreService:       keystore,
+		DefaultRequestType:    client.TransactionRequestType(requestType),
+	}
 
 	// Use config values instead of constants
-	suiClient, err := client.NewPTBClientFromConfig(loggerInstance, ptbClientConfig)
+	suiClient, err := client.NewPTBClient(loggerInstance, ptbClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
 
-	indexerClientConfig := client.PTBClientConfigFromNode(
-		nodeConfig.URL.String(),
-		nodeConfig.GrpcTarget,
-		nodeConfig.GrpcToken,
-		nil,
-		timeout,
-		keystore,
-		maxConcurrentRequests,
-		client.TransactionRequestType(requestType),
-	)
+	indexerClientConfig := client.PTBClientConfig{
+		GrpcTarget:            *nodeConfig.GrpcTarget,
+		GrpcToken:             *nodeConfig.GrpcToken,
+		TransactionTimeout:    timeout,
+		MaxConcurrentRequests: maxConcurrentRequests,
+		KeystoreService:       keystore,
+		DefaultRequestType:    client.TransactionRequestType(requestType),
+	}
 
 	// Use a separate client for the indexers to avoid rate limiting
-	suiClientIndexers, err := client.NewPTBClientFromConfig(loggerInstance, indexerClientConfig)
+	suiClientIndexers, err := client.NewPTBClient(loggerInstance, indexerClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
