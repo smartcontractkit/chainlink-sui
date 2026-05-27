@@ -59,6 +59,7 @@ var RateLimitWeights = map[string]int64{
 	"GetBlockById":                         1,
 	"GetNormalizedModule":                  1,
 	"GetSUIBalance":                        1,
+	"GetCoinBalanceByAddress":              1,
 	"GetValuesFromPackageOwnedObjectField": 1,
 	"GetReferenceGasPrice":                 1,
 	"FinishPTBAndSend":                     1,
@@ -88,18 +89,18 @@ type SuiPTBClient interface {
 	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte) (*suirpcv2.ExecuteTransactionResponse, error)
 	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error)
-	QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error)
+	QueryTransactions(ctx context.Context, fromAddress string, cursor *suirpcv2.Checkpoint, limit *uint64) ([]*suirpcv2.ExecutedTransaction, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]*suirpcv2.Object, error)
 	QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]*suirpcv2.Object, error)
 	EstimateGas(ctx context.Context, tx *transaction.Transaction) (uint64, error)
 	GetReferenceGasPrice(ctx context.Context) (*big.Int, error)
-	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
-	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
-	GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error)
-	GetLatestEpoch(ctx context.Context) (string, error)
+	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (*suirpcv2.ExecuteTransactionResponse, error)
+	BlockByDigest(ctx context.Context, txDigest string) (*suirpcv2.Checkpoint, error)
+	GetBlockById(ctx context.Context, checkpointDigest string) (*suirpcv2.Checkpoint, error)
+	GetLatestEpoch(ctx context.Context) (*suirpcv2.Epoch, error)
 	GetNormalizedModule(ctx context.Context, packageId string, moduleId string) (models.GetNormalizedMoveModuleResponse, error)
-	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
+	GetSUIBalance(ctx context.Context, address string) (*suirpcv2.Balance, error)
 	LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error)
 	GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error)
 	GetClient() sui.ISuiAPI
@@ -119,9 +120,8 @@ type SuiPTBClient interface {
 // During the gRPC migration, JSON-RPC (client) and gRPC (grpcClient) coexist:
 // migrated methods use gRPC service accessors; others continue via JSON-RPC.
 type PTBClient struct {
-	log logger.Logger
-	// TODO: remove this once we fully migrated to gRPC
-	client              sui.ISuiAPI
+	log                 logger.Logger
+	client              sui.ISuiAPI // TODO: remove this once the gRPC migration is complete
 	graphqlClient       *graphql.Client
 	grpcClient          *grpcconn.SuiGrpcClient
 	grpcServicesMu      sync.Mutex
@@ -558,45 +558,7 @@ func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw strin
 }
 
 func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error) {
-	var result *models.PaginatedEventsResponse
-	err := c.WithRateLimit(ctx, "QueryEvents", func(ctx context.Context) error {
-		limitVal := uint64(maxPageSize)
-		if limit != nil {
-			limitVal = uint64(*limit)
-		}
-
-		eventFilter := models.EventFilterByMoveEventType{
-			MoveEventType: fmt.Sprintf("%s::%s::%s", filter.Package, filter.Module, filter.Event),
-		}
-
-		queryReq := models.SuiXQueryEventsRequest{
-			SuiEventFilter:  eventFilter,
-			Limit:           limitVal,
-			DescendingOrder: sortOptions != nil && sortOptions.Descending,
-		}
-
-		if cursor != nil {
-			queryReq.Cursor = cursor
-		}
-
-		c.log.Infow("querying events",
-			"filter", queryReq.SuiEventFilter,
-			"limit", queryReq.Limit,
-			"descending", queryReq.DescendingOrder,
-			"cursor", cursor,
-		)
-
-		response, err := c.client.SuiXQueryEvents(ctx, queryReq)
-		if err != nil {
-			return fmt.Errorf("failed to query events: %w", err)
-		}
-
-		result = &response
-
-		return nil
-	})
-
-	return result, err
+	return nil, fmt.Errorf("method implementation pending gRPC migration")
 }
 
 func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error) {
@@ -637,48 +599,13 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 	return result, err
 }
 
-func (c *PTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error) {
-	var result models.SuiXQueryTransactionBlocksResponse
-
-	limitVal := uint64(maxPageSize)
-	if limit != nil {
-		limitVal = *limit
-	}
-
-	// if the cursor is empty, set it to nil to avoid RPC errors
-	if cursor != nil && *cursor == "" {
-		cursor = nil
-	}
-
-	err := c.WithRateLimit(ctx, "QueryTransactions", func(ctx context.Context) error {
-		c.log.Debugw("Querying transactions", "fromAddress", fromAddress, "cursor", cursor, "limit", limitVal)
-
-		txns, err := c.client.SuiXQueryTransactionBlocks(ctx, models.SuiXQueryTransactionBlocksRequest{
-			SuiTransactionBlockResponseQuery: models.SuiTransactionBlockResponseQuery{
-				TransactionFilter: map[string]any{
-					"FromAddress": fromAddress,
-				},
-				Options: models.SuiTransactionBlockOptions{
-					ShowInput:          true,
-					ShowEffects:        true,
-					ShowEvents:         false,
-					ShowObjectChanges:  false,
-					ShowBalanceChanges: false,
-				},
-			},
-			Limit:  limitVal,
-			Cursor: cursor,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to get account transactions: %w", err)
-		}
-
-		result = txns
-
-		return nil
-	})
-
-	return result, err
+// QueryTransactions queries the transactions for a given address.
+// @param fromAddress - the address to query transactions for
+// @param cursor - a checkpoint ID to start from, if nil the latest checkpoint is used
+// @param limit - the limit of transactions to return
+// @return the transactions and an error if any
+func (c *PTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *suirpcv2.Checkpoint, limit *uint64) ([]*suirpcv2.ExecutedTransaction, error) {
+	return nil, fmt.Errorf("method implementation pending gRPC migration")
 }
 
 // GetCoinsByAddress returns all coin objects for a given address.
@@ -717,93 +644,64 @@ func (c *PTBClient) QueryCoinsByAddress(ctx context.Context, address string, coi
 
 // FinishPTBAndSend finishes the PTB transaction and sends it to the network.
 // IMPORTANT: This method is only used for testing purposes.
-func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error) {
+func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (*suirpcv2.ExecuteTransactionResponse, error) {
 	// This method should only be used in test environments
 	if !testing.Testing() {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("FinishPTBAndSend is only available in test environments")
+		return nil, fmt.Errorf("FinishPTBAndSend is only available in test environments")
 	}
 
 	gasPrice, err := c.GetReferenceGasPrice(ctx)
 	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get reference gas price: %w", err)
+		return nil, fmt.Errorf("failed to get reference gas price: %w", err)
 	}
 	tx.SetGasPrice(gasPrice.Uint64())
 	tx.SetSigner(txnSigner)
 	tx.SetGasBudget(DefaultGasBudget)
 
-	// Set gas payment - use the first coin available for the signer
-	coins, err := c.GetCoinsByAddress(ctx, txnSigner.Address)
+	bcsBytes, err := tx.BuildBCSBytes(ctx)
 	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get coins for gas payment: %w", err)
-	}
-	if len(coins) == 0 {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("no coins available for gas payment")
-	}
-	// Use the first coin as gas payment
-	paymentCoin, version, digest, err := c.GetTransactionPaymentCoinForAddress(ctx, txnSigner.Address)
-	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to create coin object id: %w", err)
-	}
-	tx.SetGasPayment([]transaction.SuiObjectRef{
-		{
-			ObjectId: paymentCoin,
-			Version:  version,
-			Digest:   digest,
-		},
-	})
-
-	c.log.Debugw("Executing transaction in PTB Client", "tx", tx)
-
-	waitForLocal := requestType == WaitForLocalExecution
-	execRequestType := string(requestType)
-	if waitForLocal {
-		execRequestType = string(WaitForEffectsCert)
+		return nil, fmt.Errorf("failed to build bcs bytes: %w", err)
 	}
 
-	response, err := tx.Execute(ctx, models.SuiTransactionBlockOptions{
-		ShowInput:          true,
-		ShowRawInput:       true,
-		ShowEffects:        true,
-		ShowEvents:         true,
-		ShowObjectChanges:  true,
-		ShowBalanceChanges: true,
-	}, execRequestType)
-	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to execute transaction: %w", err)
-	}
+	encodedBcsBytes := base64.StdEncoding.EncodeToString(bcsBytes)
 
-	// Same as SendTransaction: preserve err == nil for executed txs; callers use Status.
-
-	if waitForLocal && response.Digest != "" {
-		if waitErr := bind.WaitForTransactionIndexed(ctx, c.client, response.Digest); waitErr != nil {
-			return c.convertBlockvisionResponse(response), waitErr
-		}
-	}
-
-	return c.convertBlockvisionResponse(response), nil
+	return c.SignAndSendTransaction(ctx, encodedBcsBytes, txnSigner.PubKey)
 }
 
-func (c *PTBClient) BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error) {
-	var result *SuiTransactionBlockResponse
-	err := c.WithRateLimit(ctx, "BlockByDigest", func(ctx context.Context) error {
-		txReq := models.SuiGetTransactionBlockRequest{
-			Digest: txDigest,
-			Options: models.SuiTransactionBlockOptions{
-				ShowInput:          true,
-				ShowEffects:        true,
-				ShowEvents:         true,
-				ShowObjectChanges:  true,
-				ShowBalanceChanges: true,
-			},
-		}
+// BlockByDigest returns the transaction block using the transaction digest.
+func (c *PTBClient) BlockByDigest(ctx context.Context, txDigest string) (*suirpcv2.Checkpoint, error) {
+	ledgerService, err := c.getLedgerService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ledger service: %w", err)
+	}
 
-		response, err := c.client.SuiGetTransactionBlock(ctx, txReq)
+	var result *suirpcv2.Checkpoint
+	err = c.WithRateLimit(ctx, "BlockByDigest", func(ctx context.Context) error {
+		response, err := ledgerService.GetTransaction(ctx, &suirpcv2.GetTransactionRequest{
+			Digest: &txDigest,
+			ReadMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"transaction.checkpoint"},
+			},
+		})
 		if err != nil {
 			return fmt.Errorf("failed to get transaction block: %w", err)
 		}
 
-		converted := c.convertBlockvisionResponse(&response)
-		result = &converted
+		checkpointSeqNumber := response.Transaction.Checkpoint
+		if checkpointSeqNumber == nil {
+			return fmt.Errorf("checkpoint sequence number not found")
+		}
+
+		checkpoint, err := ledgerService.GetCheckpoint(ctx, &suirpcv2.GetCheckpointRequest{
+			CheckpointId: &suirpcv2.GetCheckpointRequest_SequenceNumber{
+				SequenceNumber: *checkpointSeqNumber,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get checkpoint: %w", err)
+		}
+
+		result = checkpoint.GetCheckpoint()
 
 		return nil
 	})
@@ -812,60 +710,78 @@ func (c *PTBClient) BlockByDigest(ctx context.Context, txDigest string) (*SuiTra
 }
 
 // GetBlockById (i.e. get checkpoint by id) returns the checkpoint details given its ID
-func (c *PTBClient) GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error) {
-	var result models.CheckpointResponse
-	err := c.WithRateLimit(ctx, "GetBlockById", func(ctx context.Context) error {
-		response, err := c.client.SuiGetCheckpoint(ctx, models.SuiGetCheckpointRequest{
-			CheckpointID: checkpointId,
+func (c *PTBClient) GetBlockById(ctx context.Context, checkpointDigest string) (*suirpcv2.Checkpoint, error) {
+	ledgerService, err := c.getLedgerService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ledger service: %w", err)
+	}
+
+	var result *suirpcv2.Checkpoint
+	err = c.WithRateLimit(ctx, "GetBlockById", func(ctx context.Context) error {
+		response, err := ledgerService.GetCheckpoint(ctx, &suirpcv2.GetCheckpointRequest{
+			CheckpointId: &suirpcv2.GetCheckpointRequest_Digest{
+				Digest: checkpointDigest,
+			},
 		})
 		if err != nil {
 			return fmt.Errorf("failed to get checkpoint: %w", err)
 		}
 
-		result = response
-
+		result = response.GetCheckpoint()
 		return nil
 	})
 
 	return result, err
 }
 
-func (c *PTBClient) GetLatestEpoch(ctx context.Context) (string, error) {
-	var result string
-	err := c.WithRateLimit(ctx, "GetLatestEpoch", func(ctx context.Context) error {
-		response, err := c.client.SuiXGetLatestSuiSystemState(ctx)
+func (c *PTBClient) GetLatestEpoch(ctx context.Context) (*suirpcv2.Epoch, error) {
+	ledgerService, err := c.getLedgerService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get state service: %w", err)
+	}
+
+	var result *suirpcv2.Epoch
+	err = c.WithRateLimit(ctx, "GetLatestEpoch", func(ctx context.Context) error {
+		response, err := ledgerService.GetEpoch(ctx, &suirpcv2.GetEpochRequest{
+			Epoch: nil,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to get latest epoch: %w", err)
 		}
 		result = response.Epoch
 		return nil
 	})
+
 	return result, err
 }
 
-func (c *PTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int, error) {
-	var result *big.Int
-	err := c.WithRateLimit(ctx, "GetSUIBalance", func(ctx context.Context) error {
-		balanceReq := models.SuiXGetBalanceRequest{
-			Owner:    address,
-			CoinType: "0x2::sui::SUI", // Default SUI coin type
-		}
+func (c *PTBClient) GetCoinBalanceByAddress(ctx context.Context, address string, coinType string) (*suirpcv2.Balance, error) {
+	stateService, err := c.getStateService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get state service: %w", err)
+	}
 
-		response, err := c.client.SuiXGetBalance(ctx, balanceReq)
+	var result *suirpcv2.Balance
+	err = c.WithRateLimit(ctx, "GetCoinBalanceByAddress", func(ctx context.Context) error {
+		response, err := stateService.GetBalance(ctx, &suirpcv2.GetBalanceRequest{
+			Owner:    &address,
+			CoinType: &coinType,
+		})
 		if err != nil {
-			return fmt.Errorf("failed to get SUI balance: %w", err)
+			return fmt.Errorf("failed to get coin balance: %w", err)
 		}
 
-		balance, ok := new(big.Int).SetString(response.TotalBalance, Base10)
-		if !ok {
-			return fmt.Errorf("failed to parse balance: %s", response.TotalBalance)
-		}
-		result = balance
+		result = response.Balance
 
 		return nil
 	})
 
 	return result, err
+}
+
+func (c *PTBClient) GetSUIBalance(ctx context.Context, address string) (*suirpcv2.Balance, error) {
+	suiCoinType := "0x2::sui::SUI"
+	return c.GetCoinBalanceByAddress(ctx, address, suiCoinType)
 }
 
 func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, module string) (models.GetNormalizedMoveModuleResponse, error) {
@@ -916,42 +832,59 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 	return result, err
 }
 
-// TODO: replace w/ GraphQL query
 // loadModulePackageIdsInternal is the internal implementation without rate limiting
 func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId string, module string) ([]string, error) {
-	// Ensure that the module keeps track of its package IDs by checking that it has `add_package_id` function
-	normalizedModule, err := c.getNormalizedModuleInternal(ctx, packageId, module)
+	// TODO: this can be simplified significantly by getting the pointer config directly using the module's name.
+	// If the pointer config does not exist for the module, we can return the provided package ID as it's the only package ID.
+	// If the pointer config exists, we can use the parent field name and query the pointer object's ID directly.
+
+	movePkgService, err := c.getMovePackageService(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get normalized module: %w", err)
+		return nil, fmt.Errorf("failed to get move package service: %w", err)
 	}
 
-	// TODO: this is not a clean way to determine the if the package holds a history of its IDs,
-	// we need to replace this with a GraphQL query to come up with a more robust solution.
-	// Check that the module has the `add_package_id` function
-	if _, ok := normalizedModule.ExposedFunctions["add_package_id"]; !ok {
+	addPackageIdFunctionName := "add_package_id"
+	response, err := movePkgService.GetFunction(ctx, &suirpcv2.GetFunctionRequest{
+		PackageId:  &packageId,
+		ModuleName: &module,
+		Name:       &addPackageIdFunctionName,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get add_package_id function for package %s and module %s: %w", packageId, module, err)
+	}
+	if response.Function == nil {
 		c.log.Warnw("module does not have the `add_package_id` function", "module", module)
 		// fallback to using the provided package ID as it's the only package ID
 		return []string{packageId}, nil
 	}
 
+	packageDetails, err := movePkgService.GetPackage(ctx, &suirpcv2.GetPackageRequest{
+		PackageId: &packageId,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get package details for package %s: %w", packageId, err)
+	}
+
 	// Iterate through the structs to find the pointer object
-	pointerStructName := ""
-	pointerStructNameFound := false
-	for structName := range normalizedModule.Structs {
-		if strings.Contains(structName, "Pointer") {
-			pointerStructName = structName
-			pointerStructNameFound = true
-			break
+	var pointerStructTypeName string
+	for _, module := range packageDetails.Package.Modules {
+		for _, datatype := range module.GetDatatypes() {
+			structTypeName := datatype.GetTypeName()
+			if strings.Contains(structTypeName, "Pointer") {
+				// Must be the full type name: <defining_id>::<module>::<name>
+				// so we can use it to filter safely when querying owned objects
+				pointerStructTypeName = structTypeName
+				break
+			}
 		}
 	}
 
-	if !pointerStructNameFound {
+	if pointerStructTypeName == "" {
 		return nil, fmt.Errorf("pointer struct name not found for package %s and module %s", packageId, module)
 	}
 
 	// Read the owned objects to get the pointer object's ID (we use the internal method to avoid nested semaphore acquisition)
-	objectType := fmt.Sprintf("%s::%s::%s", packageId, module, pointerStructName)
-	pointerObjects, err := c.readFilterOwnedObjectIdsInternal(ctx, packageId, &objectType, nil)
+	pointerObjects, err := c.readFilterOwnedObjectIdsInternal(ctx, packageId, &pointerStructTypeName, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get owned objects: %w", err)
 	}
@@ -960,36 +893,13 @@ func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId 
 		return nil, fmt.Errorf("no pointer objects found for package %s and module %s", packageId, module)
 	}
 
-	// Use the normalized module to determine the state ref object
+	// We assume a single pointer object per package and module
+	structName := strings.Split(pointerStructTypeName, "::")[2]
 	pointerObject := pointerObjects.Objects[0]
-	c.log.Debugw("pointer ref object", "pointerObject", pointerObject)
-	parentObjectID := pointerObject.Json.GetStructValue().Fields[common.GetParentFieldName(pointerStructName)].GetStringValue()
+	parentObjectID := pointerObject.Json.GetStructValue().Fields[common.GetParentFieldName(structName)].GetStringValue()
 
-	c.log.Debugw("parentObjectID", "parentObjectID", parentObjectID)
-
-	// TODO: put this in the config instead of having a match statement here
-	derivationKey := ""
-	switch module {
-	case "offramp":
-		derivationKey = "OffRampState"
-	case "onramp":
-		derivationKey = "OnRampState"
-	case "ccip":
-	case "state_object":
-		derivationKey = "CCIPObjectRef"
-	case "router":
-		derivationKey = "RouterState"
-	case "burn_mint_token_pool":
-		derivationKey = "BurnMintTokenPoolState"
-	case "lock_release_token_pool":
-		derivationKey = "LockReleaseTokenPoolState"
-	case "managed_token_pool":
-		derivationKey = "ManagedTokenPoolState"
-	case "usdc_token_pool":
-		derivationKey = "USDCTokenPoolState"
-	case "counter":
-		derivationKey = "Counter"
-	}
+	// The derivation key is the state object name within that module
+	derivationKey := common.GetStateObjectNameByModule(module)
 
 	stateObjectID, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(derivationKey))
 	if err != nil {

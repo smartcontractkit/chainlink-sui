@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/utils"
 	"github.com/stretchr/testify/assert"
 
@@ -456,35 +457,33 @@ func TestGrpcClient(t *testing.T) {
 	})
 
 	t.Run("QueryTransactions", func(t *testing.T) {
-		values, err := relayerClient.QueryTransactions(
+		transactions, err := relayerClient.QueryTransactions(
 			context.Background(),
 			accountAddress,
 			nil,
 			nil,
 		)
 		require.NoError(t, err)
-		require.NotNil(t, values)
-		require.True(t, len(values.Data) > 0)
-
-		utils.PrettyPrint(values)
+		require.NotNil(t, transactions)
+		require.True(t, len(transactions) > 0)
 	})
 
 	t.Run("QueryFailedTransactions", func(t *testing.T) {
 		CreateFailedTransaction(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
 
-		values, err := relayerClient.QueryTransactions(
+		transactions, err := relayerClient.QueryTransactions(
 			context.Background(),
 			accountAddress,
 			nil,
 			nil,
 		)
 		require.NoError(t, err)
-		require.NotNil(t, values)
-		require.True(t, len(values.Data) > 0)
+		require.NotNil(t, transactions)
+		require.True(t, len(transactions) > 0)
 
 		failuresCount := 0
-		for _, tx := range values.Data {
-			if tx.Effects.Status.Status == "failure" {
+		for _, tx := range transactions {
+			if !tx.GetEffects().Status.GetSuccess() {
 				failuresCount++
 			}
 		}
@@ -494,17 +493,18 @@ func TestGrpcClient(t *testing.T) {
 
 		// create another failed transaction and use the cursor to ignore the previously fetched ones
 		CreateFailedTransaction(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-		cursor := &values.NextCursor
 		queryLimit := uint64(1)
-		values, err = relayerClient.QueryTransactions(
+		transactions, err = relayerClient.QueryTransactions(
 			context.Background(),
 			accountAddress,
-			cursor,
+			&suirpcv2.Checkpoint{
+				SequenceNumber: transactions[0].Checkpoint,
+			},
 			&queryLimit,
 		)
 		require.NoError(t, err)
-		require.NotNil(t, values)
-		require.Equal(t, 1, len(values.Data))
+		require.NotNil(t, transactions)
+		require.Equal(t, 1, len(transactions))
 	})
 
 	t.Run("GetLatestPackageId", func(t *testing.T) {
