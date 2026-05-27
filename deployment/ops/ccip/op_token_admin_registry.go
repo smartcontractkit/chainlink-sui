@@ -62,6 +62,44 @@ var TokenAdminRegistryInitializeOp = cld_ops.NewOperation(
 	initTarHandler,
 )
 
+type InitLocalDecimalsInput struct {
+	CCIPPackageId    string
+	StateObjectId    string
+	OwnerCapObjectId string
+}
+
+var initLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitLocalDecimalsInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.InitializeLocalDecimals(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute local decimals initialization: %w", err)
+	}
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   NoObjects{},
+	}, nil
+}
+
+var TokenAdminRegistryInitializeLocalDecimalsOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "token_admin_registry", "initialize_local_decimals"),
+	semver.MustParse("0.1.0"),
+	"Initializes local token decimals state on the CCIP Token Admin Registry",
+	initLocalDecimalsHandler,
+)
+
 // ================================================================
 // |                    Unregister Pool                          |
 // ================================================================

@@ -24,6 +24,7 @@ var AllOperationsCCIP = []any{
 	*AddAllowedModulesStateObjectOp,
 	// Token Admin Registry Operations
 	*TokenAdminRegistryInitializeOp,
+	*TokenAdminRegistryInitializeLocalDecimalsOp,
 	*TokenAdminRegistryUnregisterPoolOp,
 	*TokenAdminRegistryTransferAdminRoleOp,
 	*TokenAdminRegistryAcceptAdminRoleOp,
