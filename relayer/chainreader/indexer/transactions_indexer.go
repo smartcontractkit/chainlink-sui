@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"regexp"
@@ -11,18 +10,15 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/mr-tron/base58"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
-	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
 
 type TransactionsIndexer struct {
@@ -266,310 +262,313 @@ func (tIndexer *TransactionsIndexer) SyncAllTransmittersTransactions(ctx context
 }
 
 func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Context, transmitter models.SuiAddress, batchSize uint64) (int, error) {
-	var (
-		moduleKey = tIndexer.executionEventModuleKey
-		eventKey  = tIndexer.executionEventKey
-	)
+	tIndexer.logger.Warnf("Pending gRPC migration")
 
-	cursor := tIndexer.transmitters[transmitter]
-	totalProcessed := 0
+	// var (
+	// 	moduleKey = tIndexer.executionEventModuleKey
+	// 	eventKey  = tIndexer.executionEventKey
+	// )
 
-	tIndexer.logger.Debugw("syncTransmitterTransactions start", "transmitter", transmitter, "cursor", cursor)
+	// cursor := tIndexer.transmitters[transmitter]
+	// totalProcessed := 0
 
-	eventAccountAddress, latestOfframpPackageId, err := tIndexer.getEventPackageIdFromConfig()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get ExecutionStateChanged event config: %w", err)
-	}
-	eventHandle := fmt.Sprintf("%s::%s::%s", eventAccountAddress, moduleKey, eventKey)
+	// tIndexer.logger.Debugw("syncTransmitterTransactions start", "transmitter", transmitter, "cursor", cursor)
 
-	select {
-	case <-ctx.Done():
-		return totalProcessed, ctx.Err()
-	default:
-		if cursor == "" {
-			// Get the cursor from the DB store
-			transmitterCursorFromDB, err := tIndexer.db.GetTransmitterCursor(ctx, transmitter)
-			if err != nil {
-				tIndexer.logger.Warnw("Failed to get transmitter cursor from DB store", "error", err)
-			}
-			// Attempt to check if a cursor exists in the DB store
-			if transmitterCursorFromDB != "" {
-				tIndexer.logger.Debugw("Found transmitter cursor in DB store", "transmitter", transmitter, "cursor", transmitterCursorFromDB)
-				cursor = transmitterCursorFromDB
-			} else {
-				tIndexer.logger.Debugw("No transmitter cursor found in DB store, starting fresh sync", "transmitter", transmitter)
-			}
-		}
+	// eventAccountAddress, latestOfframpPackageId, err := tIndexer.getEventPackageIdFromConfig()
+	// if err != nil {
+	// 	return 0, fmt.Errorf("failed to get ExecutionStateChanged event config: %w", err)
+	// }
+	// eventHandle := fmt.Sprintf("%s::%s::%s", eventAccountAddress, moduleKey, eventKey)
 
-		queryResponse, err := tIndexer.client.QueryTransactions(ctx, string(transmitter), &cursor, &batchSize)
-		if err != nil {
-			return totalProcessed, fmt.Errorf("failed to fetch transactions for transmitter %s: %w", transmitter, err)
-		}
+	// select {
+	// case <-ctx.Done():
+	// 	return totalProcessed, ctx.Err()
+	// default:
+	// 	if cursor == "" {
+	// 		// Get the cursor from the DB store
+	// 		transmitterCursorFromDB, err := tIndexer.db.GetTransmitterCursor(ctx, transmitter)
+	// 		if err != nil {
+	// 			tIndexer.logger.Warnw("Failed to get transmitter cursor from DB store", "error", err)
+	// 		}
+	// 		// Attempt to check if a cursor exists in the DB store
+	// 		if transmitterCursorFromDB != "" {
+	// 			tIndexer.logger.Debugw("Found transmitter cursor in DB store", "transmitter", transmitter, "cursor", transmitterCursorFromDB)
+	// 			cursor = transmitterCursorFromDB
+	// 		} else {
+	// 			tIndexer.logger.Debugw("No transmitter cursor found in DB store, starting fresh sync", "transmitter", transmitter)
+	// 		}
+	// 	}
 
-		if len(queryResponse.Data) == 0 {
-			return totalProcessed, nil
-		}
+	// 	queryResponse, err := tIndexer.client.QueryTransactions(ctx, string(transmitter), &cursor, &batchSize)
+	// 	if err != nil {
+	// 		return totalProcessed, fmt.Errorf("failed to fetch transactions for transmitter %s: %w", transmitter, err)
+	// 	}
 
-		lastDigest := queryResponse.Data[len(queryResponse.Data)-1].Digest
-		defer func() {
-			// Update the cursor to the last transaction digest regardless of the code path below
-			tIndexer.transmitters[transmitter] = lastDigest
+	// 	if len(queryResponse.Data) == 0 {
+	// 		return totalProcessed, nil
+	// 	}
 
-			// Update the cursor in the DB store
-			err := tIndexer.db.UpdateTransmitterCursor(ctx, transmitter, lastDigest)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to update transmitter cursor in DB store", "error", err)
-			}
-		}()
+	// 	lastDigest := queryResponse.Data[len(queryResponse.Data)-1].Digest
+	// 	defer func() {
+	// 		// Update the cursor to the last transaction digest regardless of the code path below
+	// 		tIndexer.transmitters[transmitter] = lastDigest
 
-		var records []database.EventRecord
-		for _, transactionRecord := range queryResponse.Data {
-			if transactionRecord.Effects.Status.Status == "success" {
-				tIndexer.logger.Debugw("Skipping successful transaction",
-					"transmitter", transmitter, "digest", transactionRecord.Digest)
+	// 		// Update the cursor in the DB store
+	// 		err := tIndexer.db.UpdateTransmitterCursor(ctx, transmitter, lastDigest)
+	// 		if err != nil {
+	// 			tIndexer.logger.Errorw("Failed to update transmitter cursor in DB store", "error", err)
+	// 		}
+	// 	}()
 
-				continue
-			}
+	// 	var records []database.EventRecord
+	// 	for _, transactionRecord := range queryResponse.Data {
+	// 		if transactionRecord.Effects.Status.Status == "success" {
+	// 			tIndexer.logger.Debugw("Skipping successful transaction",
+	// 				"transmitter", transmitter, "digest", transactionRecord.Digest)
 
-			tIndexer.logger.Infow("Found failed transaction",
-				"transmitter", transmitter, "digest", transactionRecord.Digest)
+	// 			continue
+	// 		}
 
-			if transactionRecord.Transaction.Data.Transaction.Kind != "ProgrammableTransaction" {
-				tIndexer.logger.Debugw("Skipping non-programmable transaction",
-					"transmitter", transmitter, "digest", transactionRecord.Digest)
+	// 		tIndexer.logger.Infow("Found failed transaction",
+	// 			"transmitter", transmitter, "digest", transactionRecord.Digest)
 
-				continue
-			}
+	// 		if transactionRecord.Transaction.Data.Transaction.Kind != "ProgrammableTransaction" {
+	// 			tIndexer.logger.Debugw("Skipping non-programmable transaction",
+	// 				"transmitter", transmitter, "digest", transactionRecord.Digest)
 
-			// get the checkpoint / block details
-			checkpointResponse, err := tIndexer.client.GetBlockById(ctx, transactionRecord.Checkpoint)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to get checkpoint", "error", err)
-				continue
-			}
+	// 			continue
+	// 		}
 
-			// parse the transaction error
-			errMessage := transactionRecord.Effects.Status.Error
-			moveAbort, err := tIndexer.parseMoveAbort(errMessage)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to parse move abort", "error", err)
-				continue
-			}
+	// 		// get the checkpoint / block details
+	// 		checkpointResponse, err := tIndexer.client.GetBlockById(ctx, transactionRecord.Checkpoint)
+	// 		if err != nil {
+	// 			tIndexer.logger.Errorw("Failed to get checkpoint", "error", err)
+	// 			continue
+	// 		}
 
-			tIndexer.logger.Debugw("Extracted move abort from failed transaction", "moveAbort", moveAbort, "digest", transactionRecord.Digest)
+	// 		// parse the transaction error
+	// 		errMessage := transactionRecord.Effects.Status.Error
+	// 		moveAbort, err := tIndexer.parseMoveAbort(errMessage)
+	// 		if err != nil {
+	// 			tIndexer.logger.Errorw("Failed to parse move abort", "error", err)
+	// 			continue
+	// 		}
 
-			executionMethodIndex := 0
-			includesValidPTBCommand := false
+	// 		tIndexer.logger.Debugw("Extracted move abort from failed transaction", "moveAbort", moveAbort, "digest", transactionRecord.Digest)
 
-			// Check if any of the transaction's commands match with the expected (offramp) package and module
-			for i, raw := range transactionRecord.Transaction.Data.Transaction.Transactions {
-				if moveCall := models.MoveCall(raw); moveCall != nil {
-					packageID := moveCall.Package
-					moduleName := moveCall.Module
-					functionName := moveCall.Function
+	// 		executionMethodIndex := 0
+	// 		includesValidPTBCommand := false
 
-					if (packageID == eventAccountAddress || packageID == latestOfframpPackageId) &&
-						moduleName == tIndexer.executionEventModuleKey &&
-						functionName == tIndexer.executeFunction {
-						executionMethodIndex = i
-						includesValidPTBCommand = true
-						break
-					}
-				}
-			}
+	// 		// Check if any of the transaction's commands match with the expected (offramp) package and module
+	// 		for i, raw := range transactionRecord.Transaction.Data.Transaction.Transactions {
+	// 			if moveCall := models.MoveCall(raw); moveCall != nil {
+	// 				packageID := moveCall.Package
+	// 				moduleName := moveCall.Module
+	// 				functionName := moveCall.Function
 
-			// NOTE: The check below does not guarantee that a malicious (known) transmitter is not sending a failed PTB
-			// with the expected package and module. However, it is considered as the worst case scenario simply involves
-			// creating an event record with a failure state against an digest that is not checked.
-			if !includesValidPTBCommand {
-				tIndexer.logger.Warnw(
-					"Expected PTB command (_::offramp::init_execute) not found in commands of failed PTB originating from known transmitter",
-					"transmitter", transmitter,
-					"digest", transactionRecord.Digest,
-					"transactionRecord", transactionRecord,
-				)
-				continue
-			}
+	// 				if (packageID == eventAccountAddress || packageID == latestOfframpPackageId) &&
+	// 					moduleName == tIndexer.executionEventModuleKey &&
+	// 					functionName == tIndexer.executeFunction {
+	// 					executionMethodIndex = i
+	// 					includesValidPTBCommand = true
+	// 					break
+	// 				}
+	// 			}
+	// 		}
 
-			// The failure should NOT take place at `init_execute`. This command must be valid to ensure that the report can be extracted.
-			if moveAbort.Location.FunctionName == nil || *moveAbort.Location.FunctionName == tIndexer.executeFunction {
-				tIndexer.logger.Debugw("Skipping transaction for failed function against init_execute function",
-					"transmitter", transmitter,
-					"location", moveAbort.Location,
-					"functionName", *moveAbort.Location.FunctionName,
-					"digest", transactionRecord.Digest,
-				)
+	// 		// NOTE: The check below does not guarantee that a malicious (known) transmitter is not sending a failed PTB
+	// 		// with the expected package and module. However, it is considered as the worst case scenario simply involves
+	// 		// creating an event record with a failure state against an digest that is not checked.
+	// 		if !includesValidPTBCommand {
+	// 			tIndexer.logger.Warnw(
+	// 				"Expected PTB command (_::offramp::init_execute) not found in commands of failed PTB originating from known transmitter",
+	// 				"transmitter", transmitter,
+	// 				"digest", transactionRecord.Digest,
+	// 				"transactionRecord", transactionRecord,
+	// 			)
+	// 			continue
+	// 		}
 
-				continue
-			}
+	// 		// The failure should NOT take place at `init_execute`. This command must be valid to ensure that the report can be extracted.
+	// 		if moveAbort.Location.FunctionName == nil || *moveAbort.Location.FunctionName == tIndexer.executeFunction {
+	// 			tIndexer.logger.Debugw("Skipping transaction for failed function against init_execute function",
+	// 				"transmitter", transmitter,
+	// 				"location", moveAbort.Location,
+	// 				"functionName", *moveAbort.Location.FunctionName,
+	// 				"digest", transactionRecord.Digest,
+	// 			)
 
-			// The command from which to extract the report (init_execute) should always be the first command in the PTB, however,
-			// we use the index here as a simple safety check to ensure that the command index is valid in case that a function
-			// is added before init_execute in the future.
-			commandIndex := uint64(executionMethodIndex)
-			callArgs, err := tIndexer.extractCommandCallArgs(&transactionRecord, commandIndex)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to extract command call args", "error", err)
-				continue
-			}
+	// 			continue
+	// 		}
 
-			tIndexer.logger.Debugw("Extracted command call args in transactions indexer", "transmitter", transmitter, "txDigest", transactionRecord.Digest, "args", callArgs)
+	// 		// The command from which to extract the report (init_execute) should always be the first command in the PTB, however,
+	// 		// we use the index here as a simple safety check to ensure that the command index is valid in case that a function
+	// 		// is added before init_execute in the future.
+	// 		commandIndex := uint64(executionMethodIndex)
+	// 		callArgs, err := tIndexer.extractCommandCallArgs(&transactionRecord, commandIndex)
+	// 		if err != nil {
+	// 			tIndexer.logger.Errorw("Failed to extract command call args", "error", err)
+	// 			continue
+	// 		}
 
-			if len(callArgs) < 5 {
-				tIndexer.logger.Errorw("Expected report to be a hex string", "transmitter", transmitter, "txDigest", transactionRecord.Digest, "callArgs", callArgs)
-				continue
-			}
+	// 		tIndexer.logger.Debugw("Extracted command call args in transactions indexer", "transmitter", transmitter, "txDigest", transactionRecord.Digest, "args", callArgs)
 
-			reportArg := callArgs[4]
-			tIndexer.logger.Debugw("Report arg", "reportArg", reportArg)
+	// 		if len(callArgs) < 5 {
+	// 			tIndexer.logger.Errorw("Expected report to be a hex string", "transmitter", transmitter, "txDigest", transactionRecord.Digest, "callArgs", callArgs)
+	// 			continue
+	// 		}
 
-			// Handle the conversion from []interface{} to []byte
-			reportValue, ok := reportArg["value"].([]any)
-			if !ok {
-				tIndexer.logger.Errorw("Expected report value to be a []any",
-					"transmitter", transmitter,
-					"txDigest", transactionRecord.Digest,
-					"reportArg", reportArg,
-					"valueType", fmt.Sprintf("%T", reportArg["value"]))
-				continue
-			}
+	// 		reportArg := callArgs[4]
+	// 		tIndexer.logger.Debugw("Report arg", "reportArg", reportArg)
 
-			reportBytes := make([]byte, len(reportValue))
-			for i, val := range reportValue {
-				num, ok := val.(float64)
-				if !ok {
-					tIndexer.logger.Errorw("Expected numeric value in byte array",
-						"transmitter", transmitter, "txDigest", transactionRecord.Digest, "value", val, "type", fmt.Sprintf("%T", val))
+	// 		// Handle the conversion from []interface{} to []byte
+	// 		reportValue, ok := reportArg["value"].([]any)
+	// 		if !ok {
+	// 			tIndexer.logger.Errorw("Expected report value to be a []any",
+	// 				"transmitter", transmitter,
+	// 				"txDigest", transactionRecord.Digest,
+	// 				"reportArg", reportArg,
+	// 				"valueType", fmt.Sprintf("%T", reportArg["value"]))
+	// 			continue
+	// 		}
 
-					continue
-				}
-				reportBytes[i] = byte(num)
-			}
+	// 		reportBytes := make([]byte, len(reportValue))
+	// 		for i, val := range reportValue {
+	// 			num, ok := val.(float64)
+	// 			if !ok {
+	// 				tIndexer.logger.Errorw("Expected numeric value in byte array",
+	// 					"transmitter", transmitter, "txDigest", transactionRecord.Digest, "value", val, "type", fmt.Sprintf("%T", val))
 
-			tIndexer.logger.Infow("Report bytes", "reportBytes", reportBytes)
+	// 				continue
+	// 			}
+	// 			reportBytes[i] = byte(num)
+	// 		}
 
-			execReport, err := codec.DeserializeExecutionReport(reportBytes)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to deserialize execution report",
-					"transmitter", transmitter, "txDigest", transactionRecord.Digest, "error", err)
+	// 		tIndexer.logger.Infow("Report bytes", "reportBytes", reportBytes)
 
-				continue
-			}
+	// 		execReport, err := codec.DeserializeExecutionReport(reportBytes)
+	// 		if err != nil {
+	// 			tIndexer.logger.Errorw("Failed to deserialize execution report",
+	// 				"transmitter", transmitter, "txDigest", transactionRecord.Digest, "error", err)
 
-			tIndexer.logger.Debugw("Deserialized execution report", "execReport", execReport)
+	// 			continue
+	// 		}
 
-			sourceChainSelector := execReport.Message.Header.SourceChainSelector
-			sourceChainConfig, err := tIndexer.getSourceChainConfig(ctx, sourceChainSelector)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to get source chain config",
-					"transmitter", transmitter, "sourceChainSelector", sourceChainSelector, "error", err)
+	// 		tIndexer.logger.Debugw("Deserialized execution report", "execReport", execReport)
 
-				continue
-			}
+	// 		sourceChainSelector := execReport.Message.Header.SourceChainSelector
+	// 		sourceChainConfig, err := tIndexer.getSourceChainConfig(ctx, sourceChainSelector)
+	// 		if err != nil {
+	// 			tIndexer.logger.Errorw("Failed to get source chain config",
+	// 				"transmitter", transmitter, "sourceChainSelector", sourceChainSelector, "error", err)
 
-			if sourceChainConfig == nil {
-				tIndexer.logger.Debugw("No source chain config found for selector",
-					"transmitter", transmitter, "sourceChainSelector", sourceChainSelector)
+	// 			continue
+	// 		}
 
-				continue
-			}
+	// 		if sourceChainConfig == nil {
+	// 			tIndexer.logger.Debugw("No source chain config found for selector",
+	// 				"transmitter", transmitter, "sourceChainSelector", sourceChainSelector)
 
-			tIndexer.logger.Debugw("Source chain config", "sourceChainConfig", sourceChainConfig)
-			tIndexer.logger.Debugw("Execution report", "execReport", execReport)
+	// 			continue
+	// 		}
 
-			hasher := crUtil.NewMessageHasherV1(tIndexer.logger)
-			messageHash, err := hasher.Hash(ctx, execReport, sourceChainConfig.OnRamp)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to calculate message hash",
-					"transmitter", transmitter, "txDigest", transactionRecord.Digest, "error", err)
+	// 		tIndexer.logger.Debugw("Source chain config", "sourceChainConfig", sourceChainConfig)
+	// 		tIndexer.logger.Debugw("Execution report", "execReport", execReport)
 
-				continue
-			}
+	// 		hasher := crUtil.NewMessageHasherV1(tIndexer.logger)
+	// 		messageHash, err := hasher.Hash(ctx, execReport, sourceChainConfig.OnRamp)
+	// 		if err != nil {
+	// 			tIndexer.logger.Errorw("Failed to calculate message hash",
+	// 				"transmitter", transmitter, "txDigest", transactionRecord.Digest, "error", err)
 
-			// Create synthetic ExecutionStateChanged event
-			// The fields map one-to-one the onchain event
-			executionStateChanged := map[string]any{
-				"source_chain_selector": fmt.Sprintf("%d", sourceChainSelector),
-				"sequence_number":       fmt.Sprintf("%d", execReport.Message.Header.SequenceNumber),
-				// The conversion to []any is needed to avoid the default Go DB SDK behaviour of converting the byte slice to encoded base64 string.
-				"message_id":   codec.BytesToAnySlice(execReport.Message.Header.MessageID),
-				"message_hash": codec.BytesToAnySlice(messageHash[:]),
-				"state":        uint8(3), // 3 = FAILURE
-			}
+	// 			continue
+	// 		}
 
-			tIndexer.logger.Debugw("About to insert synthetic ExecutionStateChanged event", "executionStateChanged", executionStateChanged)
+	// 		// Create synthetic ExecutionStateChanged event
+	// 		// The fields map one-to-one the onchain event
+	// 		executionStateChanged := map[string]any{
+	// 			"source_chain_selector": fmt.Sprintf("%d", sourceChainSelector),
+	// 			"sequence_number":       fmt.Sprintf("%d", execReport.Message.Header.SequenceNumber),
+	// 			// The conversion to []any is needed to avoid the default Go DB SDK behaviour of converting the byte slice to encoded base64 string.
+	// 			"message_id":   codec.BytesToAnySlice(execReport.Message.Header.MessageID),
+	// 			"message_hash": codec.BytesToAnySlice(messageHash[:]),
+	// 			"state":        uint8(3), // 3 = FAILURE
+	// 		}
 
-			// normalize keys
-			executionStateChanged = common.ConvertMapKeysToCamelCase(executionStateChanged).(map[string]any)
+	// 		tIndexer.logger.Debugw("About to insert synthetic ExecutionStateChanged event", "executionStateChanged", executionStateChanged)
 
-			blockTimestamp, err := strconv.ParseUint(checkpointResponse.TimestampMs, 10, 64)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to parse block timestamp", "error", err)
-				continue
-			}
+	// 		// normalize keys
+	// 		executionStateChanged = common.ConvertMapKeysToCamelCase(executionStateChanged).(map[string]any)
 
-			// Convert the txDigest to hex
-			txDigestHex := transactionRecord.Digest
-			if base64Bytes, err := base58.Decode(txDigestHex); err == nil {
-				hexTxId := hex.EncodeToString(base64Bytes)
-				txDigestHex = "0x" + hexTxId
-			}
+	// 		blockTimestamp, err := strconv.ParseUint(checkpointResponse.TimestampMs, 10, 64)
+	// 		if err != nil {
+	// 			tIndexer.logger.Errorw("Failed to parse block timestamp", "error", err)
+	// 			continue
+	// 		}
 
-			blockHashBytes, err := base58.Decode(checkpointResponse.Digest)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to decode block hash", "error", err)
-				// fallback
-				blockHashBytes = []byte(checkpointResponse.Digest)
-			}
+	// 		// Convert the txDigest to hex
+	// 		txDigestHex := transactionRecord.Digest
+	// 		if base64Bytes, err := base58.Decode(txDigestHex); err == nil {
+	// 			hexTxId := hex.EncodeToString(base64Bytes)
+	// 			txDigestHex = "0x" + hexTxId
+	// 		}
 
-			record := database.EventRecord{
-				EventAccountAddress: eventAccountAddress,
-				EventHandle:         eventHandle,
-				EventOffset:         0,
-				TxDigest:            txDigestHex,
-				BlockHeight:         checkpointResponse.SequenceNumber,
-				BlockHash:           blockHashBytes,
-				// Convert to seconds for consistency with events indexer.
-				BlockTimestamp:      blockTimestamp / 1000,
-				Data:                executionStateChanged,
-				IsSynthetic:         true,
-			}
+	// 		blockHashBytes, err := base58.Decode(checkpointResponse.Digest)
+	// 		if err != nil {
+	// 			tIndexer.logger.Errorw("Failed to decode block hash", "error", err)
+	// 			// fallback
+	// 			blockHashBytes = []byte(checkpointResponse.Digest)
+	// 		}
 
-			records = append(records, record)
-			totalProcessed++
-		}
+	// 		record := database.EventRecord{
+	// 			EventAccountAddress: eventAccountAddress,
+	// 			EventHandle:         eventHandle,
+	// 			EventOffset:         0,
+	// 			TxDigest:            txDigestHex,
+	// 			BlockHeight:         checkpointResponse.SequenceNumber,
+	// 			BlockHash:           blockHashBytes,
+	// 			// Convert to seconds for consistency with events indexer.
+	// 			BlockTimestamp:      blockTimestamp / 1000,
+	// 			Data:                executionStateChanged,
+	// 			IsSynthetic:         true,
+	// 		}
 
-		if len(records) > 0 {
-			// Try batch insert first
-			if err := tIndexer.db.InsertEvents(ctx, records); err != nil {
-				tIndexer.logger.Errorw("Batch insert failed, falling back to per-event insert", "error", err)
-				// Fallback: insert each record individually, skip bad ones
-				totalProcessedFallback := 0
-				for _, record := range records {
-					if err := tIndexer.db.InsertEvents(ctx, []database.EventRecord{record}); err != nil {
-						tIndexer.logger.Errorw("Failed to insert single synthetic event, skipping",
-							"error", err,
-							"transmitter", transmitter,
-							"txDigest", record.TxDigest)
+	// 		records = append(records, record)
+	// 		totalProcessed++
+	// 	}
 
-						continue
-					}
+	// 	if len(records) > 0 {
+	// 		// Try batch insert first
+	// 		if err := tIndexer.db.InsertEvents(ctx, records); err != nil {
+	// 			tIndexer.logger.Errorw("Batch insert failed, falling back to per-event insert", "error", err)
+	// 			// Fallback: insert each record individually, skip bad ones
+	// 			totalProcessedFallback := 0
+	// 			for _, record := range records {
+	// 				if err := tIndexer.db.InsertEvents(ctx, []database.EventRecord{record}); err != nil {
+	// 					tIndexer.logger.Errorw("Failed to insert single synthetic event, skipping",
+	// 						"error", err,
+	// 						"transmitter", transmitter,
+	// 						"txDigest", record.TxDigest)
 
-					totalProcessedFallback++
-				}
-				tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events", "count", totalProcessed, "transmitter", transmitter)
+	// 					continue
+	// 				}
 
-				return totalProcessedFallback, nil
-			}
+	// 				totalProcessedFallback++
+	// 			}
+	// 			tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events", "count", totalProcessed, "transmitter", transmitter)
 
-			tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events",
-				"count", len(records), "transmitter", transmitter)
-		}
+	// 			return totalProcessedFallback, nil
+	// 		}
 
-		tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events", "records", records)
+	// 		tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events",
+	// 			"count", len(records), "transmitter", transmitter)
+	// 	}
 
-		return totalProcessed, nil
-	}
+	// 	tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events", "records", records)
+
+	// 	return totalProcessed, nil
+	// }
+	return 0, nil
 }
 
 // getTransmitters method retrieves the transmitters from the OCRConfigSet event in the 'ocr3_base.move' contract.

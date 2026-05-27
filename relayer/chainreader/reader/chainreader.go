@@ -249,7 +249,7 @@ func (s *suiChainReader) preloadParentObjectIDs(ctx context.Context, binding pkg
 	var ccipPackageID string
 	if strings.EqualFold(binding.Name, offrampName) {
 		var err error
-		ccipPackageID, err = s.client.GetCCIPPackageID(ctx, binding.Address, binding.Address)
+		ccipPackageID, err = s.client.GetCCIPPackageID(ctx, binding.Address)
 		if err != nil {
 			s.logger.Warnw("Failed to get CCIP package ID for OffRamp", "error", err)
 		} else {
@@ -710,9 +710,9 @@ func (s *suiChainReader) fetchGenericDependency(
 			return "", fmt.Errorf("failed to read state object: %w", err)
 		}
 
-		s.logger.Debugw("stateObjectType", "stateObjectType", stateObject.Type)
+		s.logger.Debugw("stateObjectType", "stateObjectType", stateObject.GetObjectType())
 
-		genericType, err := parseGenericTypeFromObjectType(stateObject.Type)
+		genericType, err := parseGenericTypeFromObjectType(stateObject.GetObjectType())
 		if err != nil {
 			return "", err
 		}
@@ -834,7 +834,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 				// Special case for OffRamp->CCIP pointer (legacy behavior)
 				// This is needed to override the specified address (will be offramp package ID) with the CCIP package ID
 				// Only handle offRamp case because other modules are within ccip package
-				ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address, functionConfig.SignerAddress)
+				ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address)
 				if err != nil {
 					return nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
 				}
@@ -945,7 +945,7 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 		}
 	}
 
-	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, parsed.contractName, parsed.readName, args, argTypes, typeArgs)
+	values, err := s.client.ReadFunction(ctx, parsed.address, parsed.contractName, parsed.readName, args, argTypes, typeArgs)
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
 			"error", err,

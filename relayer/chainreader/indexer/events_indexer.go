@@ -2,22 +2,18 @@ package indexer
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/mr-tron/base58"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
 
 type EventsIndexer struct {
@@ -82,7 +78,6 @@ func (eIndexer *EventsIndexer) Start(ctx context.Context) error {
 
 	ticker := time.NewTicker(eIndexer.pollingInterval)
 	defer ticker.Stop()
-
 
 	for {
 		select {
@@ -163,234 +158,235 @@ func (eIndexer *EventsIndexer) SyncAllEvents(ctx context.Context) error {
 }
 
 func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.EventSelector) error {
-	if selector == nil {
-		return fmt.Errorf("unspecified selector for SyncEvent call")
-	}
+	eIndexer.logger.Warnf("Pending gRPC migration")
+	// 	if selector == nil {
+	// 		return fmt.Errorf("unspecified selector for SyncEvent call")
+	// 	}
 
-	eventKey := fmt.Sprintf("%s::%s", selector.Module, selector.Event)
-	eventHandle := fmt.Sprintf("%s::%s::%s", selector.Package, selector.Module, selector.Event)
+	// 	eventKey := fmt.Sprintf("%s::%s", selector.Module, selector.Event)
+	// 	eventHandle := fmt.Sprintf("%s::%s::%s", selector.Package, selector.Module, selector.Event)
 
-	// check if the event selector is already tracked, if not add it to the list
-	if !eIndexer.isEventSelectorAdded(*selector) {
-		eIndexer.configMutex.Lock()
-		// Double-check after acquiring write lock (avoid race with concurrent adds)
-		if !eIndexer.isEventSelectorAddedLocked(*selector) {
-			eIndexer.eventConfigurations = append(eIndexer.eventConfigurations, selector)
-		}
-		eIndexer.configMutex.Unlock()
-	}
+	// 	// check if the event selector is already tracked, if not add it to the list
+	// 	if !eIndexer.isEventSelectorAdded(*selector) {
+	// 		eIndexer.configMutex.Lock()
+	// 		// Double-check after acquiring write lock (avoid race with concurrent adds)
+	// 		if !eIndexer.isEventSelectorAddedLocked(*selector) {
+	// 			eIndexer.eventConfigurations = append(eIndexer.eventConfigurations, selector)
+	// 		}
+	// 		eIndexer.configMutex.Unlock()
+	// 	}
 
-	eIndexer.logger.Debugw("syncEvent: searching for event", "handle", eventHandle)
+	// 	eIndexer.logger.Debugw("syncEvent: searching for event", "handle", eventHandle)
 
-	// Get the cursor for pagination - either from memory or start fresh
-	eIndexer.cursorMutex.RLock()
-	cursor := eIndexer.lastProcessedCursors[eventHandle]
+	// 	// Get the cursor for pagination - either from memory or start fresh
+	// 	eIndexer.cursorMutex.RLock()
+	// 	cursor := eIndexer.lastProcessedCursors[eventHandle]
 
-	var totalCount uint64
+	// 	var totalCount uint64
 
-	if cursor == nil {
-		// attempt to get the latest event sync of the given type and use its data to construct a cursor
-		dbOffsetCursor, dbTotalCount, offsetErr := eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
-		if offsetErr != nil {
-			eIndexer.cursorMutex.RUnlock()
-			eIndexer.logger.Errorw("syncEvent: failed to get latest offset", "error", offsetErr)
-			return offsetErr
-		}
+	// 	if cursor == nil {
+	// 		// attempt to get the latest event sync of the given type and use its data to construct a cursor
+	// 		dbOffsetCursor, dbTotalCount, offsetErr := eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
+	// 		if offsetErr != nil {
+	// 			eIndexer.cursorMutex.RUnlock()
+	// 			eIndexer.logger.Errorw("syncEvent: failed to get latest offset", "error", offsetErr)
+	// 			return offsetErr
+	// 		}
 
-		if dbOffsetCursor != nil {
-			// Some DB records have hex formatted txDigest while newer entries have base58 formatted txDigest.
-			// We check if the txDigest is hex formatted and decode it if needed for backwards compatibility.
-			if strings.ToLower(dbOffsetCursor.TxDigest[:2]) == "0x" {
-				txDigestBytes, err := hex.DecodeString(dbOffsetCursor.TxDigest[2:])
-				if err != nil {
-					eIndexer.cursorMutex.RUnlock()
-					eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err, "txDigest", dbOffsetCursor.TxDigest)
-					return fmt.Errorf("syncEvent: failed to decode tx digest: %w", err)
-				}
-				// convert the db offset cursor digest from hex (the format stored in the DB) to base58 (the format expected by the client)
-				cursor = &models.EventId{
-					TxDigest: base58.Encode(txDigestBytes),
-					EventSeq: dbOffsetCursor.EventSeq,
-				}
-			} else {
-				// DB already has base58
-				cursor = &models.EventId{
-					TxDigest: dbOffsetCursor.TxDigest,
-					EventSeq: dbOffsetCursor.EventSeq,
-				}
-			}
+	// 		if dbOffsetCursor != nil {
+	// 			// Some DB records have hex formatted txDigest while newer entries have base58 formatted txDigest.
+	// 			// We check if the txDigest is hex formatted and decode it if needed for backwards compatibility.
+	// 			if strings.ToLower(dbOffsetCursor.TxDigest[:2]) == "0x" {
+	// 				txDigestBytes, err := hex.DecodeString(dbOffsetCursor.TxDigest[2:])
+	// 				if err != nil {
+	// 					eIndexer.cursorMutex.RUnlock()
+	// 					eIndexer.logger.Errorw("syncEvent: failed to decode tx digest", "error", err, "txDigest", dbOffsetCursor.TxDigest)
+	// 					return fmt.Errorf("syncEvent: failed to decode tx digest: %w", err)
+	// 				}
+	// 				// convert the db offset cursor digest from hex (the format stored in the DB) to base58 (the format expected by the client)
+	// 				cursor = &models.EventId{
+	// 					TxDigest: base58.Encode(txDigestBytes),
+	// 					EventSeq: dbOffsetCursor.EventSeq,
+	// 				}
+	// 			} else {
+	// 				// DB already has base58
+	// 				cursor = &models.EventId{
+	// 					TxDigest: dbOffsetCursor.TxDigest,
+	// 					EventSeq: dbOffsetCursor.EventSeq,
+	// 				}
+	// 			}
 
-			totalCount = dbTotalCount
-		} else {
-			eIndexer.configMutex.RLock()
-			if override, ok := eIndexer.eventOffsetOverrides[eventKey]; ok {
-				cursor = &models.EventId{
-					TxDigest: override.TxDigest,
-					EventSeq: override.EventSeq,
-				}
-			} else {
-				eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle)
-			}
-			eIndexer.configMutex.RUnlock()
-		}
-	}
+	// 			totalCount = dbTotalCount
+	// 		} else {
+	// 			eIndexer.configMutex.RLock()
+	// 			if override, ok := eIndexer.eventOffsetOverrides[eventKey]; ok {
+	// 				cursor = &models.EventId{
+	// 					TxDigest: override.TxDigest,
+	// 					EventSeq: override.EventSeq,
+	// 				}
+	// 			} else {
+	// 				eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle)
+	// 			}
+	// 			eIndexer.configMutex.RUnlock()
+	// 		}
+	// 	}
 
-	batchSize := uint(batchSizeRecords)
-	var totalProcessed int
+	// 	batchSize := uint(batchSizeRecords)
+	// 	var totalProcessed int
 
-	sortOptions := &client.QuerySortOptions{
-		Descending: false, // Process events in chronological order
-	}
+	// 	sortOptions := &client.QuerySortOptions{
+	// 		Descending: false, // Process events in chronological order
+	// 	}
 
-	// Convert cursor to client format if we have one
-	var clientCursor *client.EventId
-	if cursor != nil {
-		clientCursor = &client.EventId{
-			TxDigest: cursor.TxDigest,
-			EventSeq: cursor.EventSeq,
-		}
-	}
-	eIndexer.cursorMutex.RUnlock()
+	// 	// Convert cursor to client format if we have one
+	// 	var clientCursor *client.EventId
+	// 	if cursor != nil {
+	// 		clientCursor = &client.EventId{
+	// 			TxDigest: cursor.TxDigest,
+	// 			EventSeq: cursor.EventSeq,
+	// 		}
+	// 	}
+	// 	eIndexer.cursorMutex.RUnlock()
 
-eventLoop:
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			// Query events from the Sui blockchain
-			eventsPage, err := eIndexer.client.QueryEvents(ctx, *selector, &batchSize, clientCursor, sortOptions)
-			if err != nil {
-				eIndexer.logger.Errorw("syncEvent: failed to fetch events",
-					"error", err, "handle", eventHandle)
+	// eventLoop:
+	// 	for {
+	// 		select {
+	// 		case <-ctx.Done():
+	// 			return ctx.Err()
+	// 		default:
+	// 			// Query events from the Sui blockchain
+	// 			eventsPage, err := eIndexer.client.QueryEvents(ctx, *selector, &batchSize, clientCursor, sortOptions)
+	// 			if err != nil {
+	// 				eIndexer.logger.Errorw("syncEvent: failed to fetch events",
+	// 					"error", err, "handle", eventHandle)
 
-				return fmt.Errorf("syncEvent: failed to fetch events: %w", err)
-			}
+	// 				return fmt.Errorf("syncEvent: failed to fetch events: %w", err)
+	// 			}
 
-			eIndexer.logger.Debugw("syncEvent: fetched events",
-				"count", len(eventsPage.Data),
-				"handle", eventHandle,
-				"cursor", clientCursor)
+	// 			eIndexer.logger.Debugw("syncEvent: fetched events",
+	// 				"count", len(eventsPage.Data),
+	// 				"handle", eventHandle,
+	// 				"cursor", clientCursor)
 
-			if len(eventsPage.Data) == 0 {
-				break eventLoop
-			}
+	// 			if len(eventsPage.Data) == 0 {
+	// 				break eventLoop
+	// 			}
 
-			// Convert events to database records
-			var batchRecords []database.EventRecord
-			for i, event := range eventsPage.Data {
-				// Get block information
-				block, err := eIndexer.client.BlockByDigest(ctx, event.Id.TxDigest)
-				if err != nil {
-					eIndexer.logger.Errorw("syncEvent: failed to fetch block metadata",
-						"txDigest", event.Id.TxDigest, "error", err)
+	// 			// Convert events to database records
+	// 			var batchRecords []database.EventRecord
+	// 			for i, event := range eventsPage.Data {
+	// 				// Get block information
+	// 				block, err := eIndexer.client.BlockByDigest(ctx, event.Id.TxDigest)
+	// 				if err != nil {
+	// 					eIndexer.logger.Errorw("syncEvent: failed to fetch block metadata",
+	// 						"txDigest", event.Id.TxDigest, "error", err)
 
-					continue
-				}
+	// 					continue
+	// 				}
 
-				// We simply increment the inserted event count to get the next offset.
-				// Each new loop interation will increment the totalCount, so we add 1 to the offset.
-				// This is done on LoC 375 if there are more events pages to fetch and process.
-				//nolint:gosec
-				offset := uint64(i) + totalCount + 1
+	// 				// We simply increment the inserted event count to get the next offset.
+	// 				// Each new loop interation will increment the totalCount, so we add 1 to the offset.
+	// 				// This is done on LoC 375 if there are more events pages to fetch and process.
+	// 				//nolint:gosec
+	// 				offset := uint64(i) + totalCount + 1
 
-				// normalize the data, convert snake case to camel case
-				normalizedData := common.ConvertMapKeysToCamelCase(event.ParsedJson)
+	// 				// normalize the data, convert snake case to camel case
+	// 				normalizedData := common.ConvertMapKeysToCamelCase(event.ParsedJson)
 
-				// Convert the txDigest to hex
-				txDigestHex := event.Id.TxDigest
-				if base58Bytes, err := base58.Decode(txDigestHex); err == nil {
-					hexTxId := hex.EncodeToString(base58Bytes)
-					txDigestHex = "0x" + hexTxId
-				}
+	// 				// Convert the txDigest to hex
+	// 				txDigestHex := event.Id.TxDigest
+	// 				if base58Bytes, err := base58.Decode(txDigestHex); err == nil {
+	// 					hexTxId := hex.EncodeToString(base58Bytes)
+	// 					txDigestHex = "0x" + hexTxId
+	// 				}
 
-				blockHashBytes, err := base58.Decode(block.TxDigest)
-				if err != nil {
-					eIndexer.logger.Errorw("Failed to decode block hash", "error", err)
-					// fallback
-					blockHashBytes = []byte(block.TxDigest)
-				}
+	// 				blockHashBytes, err := base58.Decode(block.TxDigest)
+	// 				if err != nil {
+	// 					eIndexer.logger.Errorw("Failed to decode block hash", "error", err)
+	// 					// fallback
+	// 					blockHashBytes = []byte(block.TxDigest)
+	// 				}
 
-				// Convert event to database record
-				record := database.EventRecord{
-					EventAccountAddress: selector.Package,
-					EventHandle:         eventHandle,
-					EventOffset:         offset,
-					TxDigest:            txDigestHex,
-					BlockVersion:        0,
-					BlockHeight:         fmt.Sprintf("%d", block.Height),
-					BlockHash:           blockHashBytes,
-					// Sui returns block.Timestamp in ms; convert to seconds for consistency with CCIP readers.
-					BlockTimestamp: block.Timestamp / 1000,
-					Data:           normalizedData.(map[string]any),
-					IsSynthetic:    false,
-				}
-				batchRecords = append(batchRecords, record)
-			}
+	// 				// Convert event to database record
+	// 				record := database.EventRecord{
+	// 					EventAccountAddress: selector.Package,
+	// 					EventHandle:         eventHandle,
+	// 					EventOffset:         offset,
+	// 					TxDigest:            txDigestHex,
+	// 					BlockVersion:        0,
+	// 					BlockHeight:         fmt.Sprintf("%d", block.Height),
+	// 					BlockHash:           blockHashBytes,
+	// 					// Sui returns block.Timestamp in ms; convert to seconds for consistency with CCIP readers.
+	// 					BlockTimestamp: block.Timestamp / 1000,
+	// 					Data:           normalizedData.(map[string]any),
+	// 					IsSynthetic:    false,
+	// 				}
+	// 				batchRecords = append(batchRecords, record)
+	// 			}
 
-			// Insert batch of events into database
-			if len(batchRecords) > 0 {
-				if err := eIndexer.db.InsertEvents(ctx, batchRecords); err != nil {
-					eIndexer.logger.Errorw("syncEvent: failed to insert batch of events, falling back to per-event insert", "error", err)
+	// 			// Insert batch of events into database
+	// 			if len(batchRecords) > 0 {
+	// 				if err := eIndexer.db.InsertEvents(ctx, batchRecords); err != nil {
+	// 					eIndexer.logger.Errorw("syncEvent: failed to insert batch of events, falling back to per-event insert", "error", err)
 
-					// Fallback: insert each record individually, skip bad ones
-					totalProcessedFallback := 0
-					for _, record := range batchRecords {
-						if err := eIndexer.db.InsertEvents(ctx, []database.EventRecord{record}); err != nil {
-							eIndexer.logger.Errorw("Failed to insert single event, skipping...",
-								"error", err,
-								"handle", eventHandle,
-								"txDigest", record.TxDigest,
-								"offset", record.EventOffset,
-							)
+	// 					// Fallback: insert each record individually, skip bad ones
+	// 					totalProcessedFallback := 0
+	// 					for _, record := range batchRecords {
+	// 						if err := eIndexer.db.InsertEvents(ctx, []database.EventRecord{record}); err != nil {
+	// 							eIndexer.logger.Errorw("Failed to insert single event, skipping...",
+	// 								"error", err,
+	// 								"handle", eventHandle,
+	// 								"txDigest", record.TxDigest,
+	// 								"offset", record.EventOffset,
+	// 							)
 
-							continue
-						}
+	// 							continue
+	// 						}
 
-						totalProcessedFallback++
-					}
-					eIndexer.logger.Debugw("syncEvent: inserted batch of events", "count", totalProcessedFallback, "handle", eventHandle)
-					totalProcessed += totalProcessedFallback
-				} else {
-					totalProcessed += len(batchRecords)
-				}
+	// 						totalProcessedFallback++
+	// 					}
+	// 					eIndexer.logger.Debugw("syncEvent: inserted batch of events", "count", totalProcessedFallback, "handle", eventHandle)
+	// 					totalProcessed += totalProcessedFallback
+	// 				} else {
+	// 					totalProcessed += len(batchRecords)
+	// 				}
 
-				eIndexer.logger.Debugw("syncEvent: saved batch of events",
-					"batch_count", len(batchRecords),
-					"total_processed", totalProcessed,
-					"handle", eventHandle)
-			}
+	// 				eIndexer.logger.Debugw("syncEvent: saved batch of events",
+	// 					"batch_count", len(batchRecords),
+	// 					"total_processed", totalProcessed,
+	// 					"handle", eventHandle)
+	// 			}
 
-			// Update cursor for next iteration and the total count of events processed so far
-			if eventsPage.HasNextPage && eventsPage.NextCursor.TxDigest != "" && eventsPage.NextCursor.EventSeq != "" {
-				cursor = &models.EventId{
-					TxDigest: eventsPage.NextCursor.TxDigest,
-					EventSeq: eventsPage.NextCursor.EventSeq,
-				}
-				clientCursor = &client.EventId{
-					TxDigest: eventsPage.NextCursor.TxDigest,
-					EventSeq: eventsPage.NextCursor.EventSeq,
-				}
+	// 			// Update cursor for next iteration and the total count of events processed so far
+	// 			if eventsPage.HasNextPage && eventsPage.NextCursor.TxDigest != "" && eventsPage.NextCursor.EventSeq != "" {
+	// 				cursor = &models.EventId{
+	// 					TxDigest: eventsPage.NextCursor.TxDigest,
+	// 					EventSeq: eventsPage.NextCursor.EventSeq,
+	// 				}
+	// 				clientCursor = &client.EventId{
+	// 					TxDigest: eventsPage.NextCursor.TxDigest,
+	// 					EventSeq: eventsPage.NextCursor.EventSeq,
+	// 				}
 
-				eIndexer.cursorMutex.Lock()
-				eIndexer.lastProcessedCursors[eventHandle] = cursor
-				eIndexer.cursorMutex.Unlock()
+	// 				eIndexer.cursorMutex.Lock()
+	// 				eIndexer.lastProcessedCursors[eventHandle] = cursor
+	// 				eIndexer.cursorMutex.Unlock()
 
-				totalCount, err = eIndexer.db.GetTotalCount(ctx, selector.Package, eventHandle)
-				if err != nil {
-					return fmt.Errorf("syncEvent: failed to get total count: %w", err)
-				}
-			} else {
-				// No more events to process
-				break eventLoop
-			}
+	// 				totalCount, err = eIndexer.db.GetTotalCount(ctx, selector.Package, eventHandle)
+	// 				if err != nil {
+	// 					return fmt.Errorf("syncEvent: failed to get total count: %w", err)
+	// 				}
+	// 			} else {
+	// 				// No more events to process
+	// 				break eventLoop
+	// 			}
 
-			// If we received fewer events than the batch size, we're caught up
-			if uint(len(eventsPage.Data)) < batchSize {
-				break eventLoop
-			}
-		}
-	}
+	// 			// If we received fewer events than the batch size, we're caught up
+	// 			if uint(len(eventsPage.Data)) < batchSize {
+	// 				break eventLoop
+	// 			}
+	// 		}
+	// 	}
 
 	return nil
 }

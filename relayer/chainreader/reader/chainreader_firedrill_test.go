@@ -29,7 +29,6 @@ func TestChainReaderFiredrill(t *testing.T) {
 	t.Skip("skipping ChainReaderFiredrill test, this is used as a sanity check only and not to be included in CI")
 
 	log := logger.Test(t)
-	rpcUrl := "https://sui-testnet-rpc.publicnode.com" // testutils.TestnetUrl
 
 	offrampContractName := "OffRamp"
 	offrampPackageId := "0xe2d83f15195acd57b798610d167dc241fcb30b5cc3808af497c33d97512b7970"
@@ -52,7 +51,16 @@ func TestChainReaderFiredrill(t *testing.T) {
 			clientMaxConcurrentRequests = int64(parsed)
 		}
 	}
-	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
+
+	testCfg := client.PTBClientConfig{
+		GrpcTarget:            "127.0.0.1:9000",
+		GrpcToken:             "test",
+		TransactionTimeout:    10 * time.Second,
+		MaxConcurrentRequests: clientMaxConcurrentRequests,
+		KeystoreService:       keystoreInstance,
+	}
+
+	relayerClient, clientErr := client.NewPTBClient(log, testCfg)
 	require.NoError(t, clientErr)
 
 	type SourceChainConfig struct {
