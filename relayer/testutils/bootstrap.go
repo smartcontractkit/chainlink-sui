@@ -59,7 +59,15 @@ func SetupClients(
 ) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore) {
 	t.Helper()
 
-	relayerClient, err := client.NewPTBClient(logg, rpcURL, nil, defaultTransactionTimeout, keystore, maxConcurrentRequests, "WaitForEffectsCert")
+	relayerClient, err := client.NewPTBClient(logg, client.PTBClientConfig{
+		GrpcTarget:            rpcURL,
+		GrpcToken:             "test",
+		MaxRetries:            IntPointer(defaultNumberRetries),
+		TransactionTimeout:    defaultTransactionTimeout,
+		KeystoreService:       keystore,
+		MaxConcurrentRequests: maxConcurrentRequests,
+		DefaultRequestType:    "WaitForEffectsCert",
+	})
 	if err != nil {
 		t.Fatalf("Failed to create relayer client: %v", err)
 	}

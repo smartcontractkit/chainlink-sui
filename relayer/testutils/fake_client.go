@@ -10,6 +10,8 @@ import (
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/patrickmn/go-cache"
 
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
@@ -29,28 +31,28 @@ func (c *FakeSuiPTBClient) MoveCall(ctx context.Context, req client.MoveCallRequ
 	return client.TxnMetaData{}, nil
 }
 
-func (c *FakeSuiPTBClient) SendTransaction(ctx context.Context, payload client.TransactionBlockRequest) (client.SuiTransactionBlockResponse, error) {
-	return client.SuiTransactionBlockResponse{}, nil
+func (c *FakeSuiPTBClient) SendTransaction(ctx context.Context, execRequest *suirpcv2.ExecuteTransactionRequest) (*suirpcv2.ExecuteTransactionResponse, error) {
+	return nil, nil
 }
 
-func (c *FakeSuiPTBClient) ReadObjectId(ctx context.Context, objectId string) (models.SuiObjectData, error) {
-	return models.SuiObjectData{}, nil
+func (c *FakeSuiPTBClient) ReadObjectId(ctx context.Context, objectId string) (*suirpcv2.Object, error) {
+	return nil, nil
 }
 
-func (c *FakeSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor string) ([]models.SuiObjectData, error) {
-	return []models.SuiObjectData{}, nil
+func (c *FakeSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor []byte) ([]*suirpcv2.Object, error) {
+	return nil, nil
 }
 
-func (c *FakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error) {
-	return []models.SuiObjectResponse{}, nil
+func (c *FakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor []byte) ([]*suirpcv2.Object, error) {
+	return nil, nil
 }
 
 func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	return []any{}, nil
 }
 
-func (c *FakeSuiPTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType client.TransactionRequestType) (client.SuiTransactionBlockResponse, error) {
-	return client.SuiTransactionBlockResponse{}, nil
+func (c *FakeSuiPTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte) (*suirpcv2.ExecuteTransactionResponse, error) {
+	return nil, nil
 }
 
 func (c *FakeSuiPTBClient) QueryEvents(ctx context.Context, filter client.EventFilterByMoveEventModule, limit *uint, cursor *client.EventId, sortOptions *client.QuerySortOptions) (*models.PaginatedEventsResponse, error) {
@@ -61,22 +63,12 @@ func (c *FakeSuiPTBClient) GetTransactionStatus(ctx context.Context, digest stri
 	return c.Status, nil
 }
 
-func (c *FakeSuiPTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error) {
-	// If CoinsData is set, return it; otherwise return default coins with sufficient balance
-	if len(c.CoinsData) > 0 {
-		return c.CoinsData, nil
-	}
+func (c *FakeSuiPTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]*suirpcv2.Object, error) {
+	return nil, nil
+}
 
-	// Return default coins with sufficient balance for gas
-	return []models.CoinData{
-		{
-			CoinType:     "0x2::sui::SUI",
-			Balance:      "100000000", // 100M units, should be enough for most gas budgets
-			CoinObjectId: "0x1234567890abcdef1234567890abcdef12345678",
-			Version:      "1",
-			Digest:       "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT", // Valid base58 digest
-		},
-	}, nil
+func (c *FakeSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]*suirpcv2.Object, error) {
+	return nil, nil
 }
 
 // WithRateLimit is provided to maintain compatibility with previous implementations
@@ -88,20 +80,20 @@ func (c *FakeSuiPTBClient) ToPTBArg(ctx context.Context, builder any, argValue a
 	return argValue, nil
 }
 
-func (c *FakeSuiPTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
+func (c *FakeSuiPTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction) (uint64, error) {
 	return 0, nil
 }
 
-func (c *FakeSuiPTBClient) BlockByDigest(ctx context.Context, txDigest string) (*client.SuiTransactionBlockResponse, error) {
-	return &client.SuiTransactionBlockResponse{}, nil
+func (c *FakeSuiPTBClient) BlockByDigest(ctx context.Context, txDigest string) (*suirpcv2.Checkpoint, error) {
+	return &suirpcv2.Checkpoint{}, nil
 }
 
-func (c *FakeSuiPTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType client.TransactionRequestType) (client.SuiTransactionBlockResponse, error) {
-	return client.SuiTransactionBlockResponse{}, nil
+func (c *FakeSuiPTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType client.TransactionRequestType) (*suirpcv2.ExecuteTransactionResponse, error) {
+	return nil, nil
 }
 
-func (c *FakeSuiPTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int, error) {
-	return big.NewInt(0), nil
+func (c *FakeSuiPTBClient) GetSUIBalance(ctx context.Context, address string) (*suirpcv2.Balance, error) {
+	return &suirpcv2.Balance{}, nil
 }
 
 func (c *FakeSuiPTBClient) GetNormalizedModule(ctx context.Context, packageId string, module string) (models.GetNormalizedMoveModuleResponse, error) {
@@ -116,16 +108,16 @@ func (c *FakeSuiPTBClient) GetClient() sui.ISuiAPI {
 	return c.MockClient
 }
 
-func (c *FakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error) {
-	return models.CheckpointResponse{}, nil
+func (c *FakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string) (*suirpcv2.Checkpoint, error) {
+	return &suirpcv2.Checkpoint{}, nil
 }
 
-func (c *FakeSuiPTBClient) GetLatestEpoch(ctx context.Context) (string, error) {
-	return "1000", nil
+func (c *FakeSuiPTBClient) GetLatestEpoch(ctx context.Context) (*suirpcv2.Epoch, error) {
+	return &suirpcv2.Epoch{}, nil
 }
 
-func (c *FakeSuiPTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error) {
-	return models.SuiXQueryTransactionBlocksResponse{}, nil
+func (c *FakeSuiPTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *suirpcv2.Checkpoint, limit *uint64) ([]*suirpcv2.ExecutedTransaction, error) {
+	return nil, nil
 }
 
 func (c *FakeSuiPTBClient) HashTxBytes(txBytes []byte) []byte {
@@ -181,10 +173,6 @@ func (c *FakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, 
 	return big.NewInt(1000), nil
 }
 
-func (c *FakeSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error) {
-	return []models.CoinData{}, nil
-}
-
 func (c *FakeSuiPTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error) {
 	return module_token_admin_registry.TokenConfig{}, nil
 }
@@ -209,28 +197,28 @@ func (c *StatefulFakeSuiPTBClient) MoveCall(ctx context.Context, req client.Move
 	return client.TxnMetaData{}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) SendTransaction(ctx context.Context, payload client.TransactionBlockRequest) (client.SuiTransactionBlockResponse, error) {
-	return client.SuiTransactionBlockResponse{}, nil
+func (c *StatefulFakeSuiPTBClient) SendTransaction(ctx context.Context, execRequest *suirpcv2.ExecuteTransactionRequest) (*suirpcv2.ExecuteTransactionResponse, error) {
+	return nil, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) ReadObjectId(ctx context.Context, objectId string) (models.SuiObjectData, error) {
-	return models.SuiObjectData{}, nil
+func (c *StatefulFakeSuiPTBClient) ReadObjectId(ctx context.Context, objectId string) (*suirpcv2.Object, error) {
+	return nil, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor string) ([]models.SuiObjectData, error) {
-	return []models.SuiObjectData{}, nil
+func (c *StatefulFakeSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor []byte) ([]*suirpcv2.Object, error) {
+	return nil, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error) {
-	return []models.SuiObjectResponse{}, nil
+func (c *StatefulFakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor []byte) ([]*suirpcv2.Object, error) {
+	return nil, nil
 }
 
 func (c *StatefulFakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	return []any{}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType client.TransactionRequestType) (client.SuiTransactionBlockResponse, error) {
-	return client.SuiTransactionBlockResponse{}, nil
+func (c *StatefulFakeSuiPTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte) (*suirpcv2.ExecuteTransactionResponse, error) {
+	return nil, nil
 }
 
 func (c *StatefulFakeSuiPTBClient) QueryEvents(ctx context.Context, filter client.EventFilterByMoveEventModule, limit *uint, cursor *client.EventId, sortOptions *client.QuerySortOptions) (*models.PaginatedEventsResponse, error) {
@@ -262,21 +250,8 @@ func (c *StatefulFakeSuiPTBClient) GetTransactionStatus(ctx context.Context, dig
 	}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error) {
-	if len(c.CoinsData) > 0 {
-		return c.CoinsData, nil
-	}
-
-	// Return default coins with sufficient balance for gas
-	return []models.CoinData{
-		{
-			CoinType:     "0x2::sui::SUI",
-			Balance:      "100000000",
-			CoinObjectId: "0x1234567890abcdef1234567890abcdef12345678",
-			Version:      "1",
-			Digest:       "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT",
-		},
-	}, nil
+func (c *StatefulFakeSuiPTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]*suirpcv2.Object, error) {
+	return nil, nil
 }
 
 func (c *StatefulFakeSuiPTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
@@ -287,16 +262,16 @@ func (c *StatefulFakeSuiPTBClient) ToPTBArg(ctx context.Context, builder any, ar
 	return argValue, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
+func (c *StatefulFakeSuiPTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction) (uint64, error) {
 	return 0, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) BlockByDigest(ctx context.Context, txDigest string) (*client.SuiTransactionBlockResponse, error) {
-	return &client.SuiTransactionBlockResponse{}, nil
+func (c *StatefulFakeSuiPTBClient) BlockByDigest(ctx context.Context, txDigest string) (*suirpcv2.Checkpoint, error) {
+	return &suirpcv2.Checkpoint{}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType client.TransactionRequestType) (client.SuiTransactionBlockResponse, error) {
-	return client.SuiTransactionBlockResponse{}, nil
+func (c *StatefulFakeSuiPTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType client.TransactionRequestType) (*suirpcv2.ExecuteTransactionResponse, error) {
+	return nil, nil
 }
 
 func (c *StatefulFakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error) {
@@ -307,8 +282,8 @@ func (c *StatefulFakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, pac
 	return []string{}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int, error) {
-	return big.NewInt(0), nil
+func (c *StatefulFakeSuiPTBClient) GetSUIBalance(ctx context.Context, address string) (*suirpcv2.Balance, error) {
+	return nil, nil
 }
 
 func (c *StatefulFakeSuiPTBClient) GetNormalizedModule(ctx context.Context, packageId string, module string) (models.GetNormalizedMoveModuleResponse, error) {
@@ -323,16 +298,16 @@ func (c *StatefulFakeSuiPTBClient) GetClient() sui.ISuiAPI {
 	return c.MockClient
 }
 
-func (c *StatefulFakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error) {
-	return models.CheckpointResponse{}, nil
+func (c *StatefulFakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string) (*suirpcv2.Checkpoint, error) {
+	return &suirpcv2.Checkpoint{}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) GetLatestEpoch(ctx context.Context) (string, error) {
-	return "1000", nil
+func (c *StatefulFakeSuiPTBClient) GetLatestEpoch(ctx context.Context) (*suirpcv2.Epoch, error) {
+	return &suirpcv2.Epoch{}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error) {
-	return models.SuiXQueryTransactionBlocksResponse{}, nil
+func (c *StatefulFakeSuiPTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *suirpcv2.Checkpoint, limit *uint64) ([]*suirpcv2.ExecutedTransaction, error) {
+	return nil, nil
 }
 
 func (c *StatefulFakeSuiPTBClient) HashTxBytes(txBytes []byte) []byte {
@@ -377,8 +352,8 @@ func (c *StatefulFakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*b
 	return big.NewInt(1000), nil
 }
 
-func (c *StatefulFakeSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]models.CoinData, error) {
-	return []models.CoinData{}, nil
+func (c *StatefulFakeSuiPTBClient) QueryCoinsByAddress(ctx context.Context, address string, coinType string) ([]*suirpcv2.Object, error) {
+	return nil, nil
 }
 
 func (c *StatefulFakeSuiPTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error) {
