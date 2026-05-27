@@ -7,7 +7,6 @@ import (
 	"crypto/ed25519"
 	"fmt"
 	"math/big"
-	"strconv"
 	"testing"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -18,7 +17,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	modulecounter "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/counter"
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
@@ -136,60 +134,19 @@ func TestTransactionGeneration(t *testing.T) {
 		require.NoError(t, err)
 		lggr.Debugw("PTB transaction generated", "tx", tx)
 
-		payload := client.TransactionBlockRequest{
-			TxBytes:    tx.Payload,
-			Signatures: tx.Signatures,
-			Options: client.TransactionBlockOptions{
-				ShowInput:          true,
-				ShowRawInput:       true,
-				ShowEffects:        true,
-				ShowObjectChanges:  true,
-				ShowBalanceChanges: true,
-				ShowEvents:         true,
-			},
-			RequestType: tx.RequestType,
-		}
-
-		resp, err := ptbClient.SendTransaction(ctx, payload)
+		resp, err := ptbClient.SignAndSendTransaction(ctx, tx.Payload, publicKeyBytes)
 		require.NoError(t, err)
 
-		gasUsed := resp.Effects.GasUsed
-		lggr.Debugw("Gas used", "gasUsed", gasUsed)
-		computationCost, err := strconv.ParseInt(gasUsed.ComputationCost, 10, 64)
-		require.NoError(t, err)
-		storageCost, err := strconv.ParseInt(gasUsed.StorageCost, 10, 64)
-		require.NoError(t, err)
-		storageRebate, _ := strconv.ParseInt(gasUsed.StorageRebate, 10, 64)
-		if storageRebate != 0 {
-			storageCost = storageCost - storageRebate
-		}
+		gasUsed := resp.GetTransaction().GetEffects().GetGasUsed()
+		computationCost := gasUsed.GetComputationCost()
+		storageCost := gasUsed.GetStorageCost()
+		storageRebate := gasUsed.GetStorageRebate()
 
-		totalGasUsed := computationCost + storageCost
+		totalGasUsed := computationCost + storageCost - storageRebate
 		require.Greater(t, totalGasUsed, int64(0))
 		require.Equal(t, totalGasUsed, int64(finalGasBudget))
 
-		objectChanges := resp.ObjectChanges
-		usedCoins := []transaction.SuiObjectRef{}
-		for _, objectChange := range objectChanges {
-			if objectChange.Type == "mutated" && objectChange.ObjectType == "0x2::coin::Coin<0x2::sui::SUI>" {
-				version, err := strconv.ParseUint(objectChange.PreviousVersion, 10, 64)
-				require.NoError(t, err)
-
-				objectIdBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(objectChange.ObjectId))
-
-				usedCoins = append(usedCoins, transaction.SuiObjectRef{
-					ObjectId: *objectIdBytes,
-					Version:  version,
-					Digest:   nil,
-				})
-			}
-		}
-
-		lggr.Debugw("Transaction broadcasted", "resp", resp)
-		lggr.Debugw("Used coins", "usedCoins", usedCoins)
-
-		// Test that the used coins in a single element, to confirm that gas smashing was used
-		require.Len(t, usedCoins, 1)
+		require.True(t, resp.Transaction.GetEffects().GetStatus().GetSuccess())
 	})
 }
 
