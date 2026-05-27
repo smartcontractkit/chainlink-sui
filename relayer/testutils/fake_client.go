@@ -47,7 +47,7 @@ func (c *FakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress st
 	return nil, nil
 }
 
-func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	return []any{}, nil
 }
 
@@ -165,7 +165,7 @@ func (c *FakeSuiPTBClient) SetCachedValue(key string, value any) {
 func (c *FakeSuiPTBClient) SetCachedValues(keyValues map[string]any) {
 }
 
-func (c *FakeSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
+func (c *FakeSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string) (string, error) {
 	return "", nil
 }
 
@@ -213,7 +213,7 @@ func (c *StatefulFakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAd
 	return nil, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+func (c *StatefulFakeSuiPTBClient) ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
 	return []any{}, nil
 }
 
@@ -344,7 +344,7 @@ func (c *StatefulFakeSuiPTBClient) SetCachedValue(key string, value any) {
 func (c *StatefulFakeSuiPTBClient) SetCachedValues(keyValues map[string]any) {
 }
 
-func (c *StatefulFakeSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
+func (c *StatefulFakeSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string) (string, error) {
 	return "", nil
 }
 

@@ -118,7 +118,7 @@ func (s *SuiGasManager) MaxGasBudget() *big.Int {
 //   - uint64: The estimated gas budget.
 //   - error: An error if the estimation fails.
 func (s *SuiGasManager) EstimateGasBudget(ctx context.Context, tx *SuiTx) (uint64, error) {
-	gasBudget, err := s.ptbClient.EstimateGas(ctx, tx.Payload)
+	gasBudget, err := s.ptbClient.EstimateGas(ctx, tx.Ptb)
 	if err != nil {
 		return 0, fmt.Errorf("failed to estimate gas budget: %w", err)
 	}

@@ -8,8 +8,6 @@ import (
 	"sort"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
-
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 // broadcastLoop is the main goroutine responsible for processing transactions from the broadcast channel
@@ -56,84 +54,87 @@ func (txm *SuiTxm) broadcastLoop() {
 	}
 }
 
+// TODO: migrate to gRPC client
 func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []SuiTx) {
-	for _, tx := range transactions {
-		// Process the transaction for broadcasting
-		payload := client.TransactionBlockRequest{
-			TxBytes:    tx.Payload,
-			Signatures: tx.Signatures,
-			Options: client.TransactionBlockOptions{
-				ShowInput:          true,
-				ShowRawInput:       true,
-				ShowEffects:        true,
-				ShowObjectChanges:  true,
-				ShowBalanceChanges: true,
-				ShowEvents:         true,
-			},
-			RequestType: tx.RequestType,
-		}
+	return
 
-		txm.lggr.Infow("Broadcasting transaction", "txID", tx.TransactionID, "payload", tx)
+	// for _, tx := range transactions {
+	// 	// Process the transaction for broadcasting
+	// 	payload := client.TransactionBlockRequest{
+	// 		TxBytes:    tx.Payload,
+	// 		Signatures: tx.Signatures,
+	// 		Options: client.TransactionBlockOptions{
+	// 			ShowInput:          true,
+	// 			ShowRawInput:       true,
+	// 			ShowEffects:        true,
+	// 			ShowObjectChanges:  true,
+	// 			ShowBalanceChanges: true,
+	// 			ShowEvents:         true,
+	// 		},
+	// 		RequestType: tx.RequestType,
+	// 	}
 
-		resp, err := txm.suiGateway.SendTransaction(loopCtx, payload)
+	// 	txm.lggr.Infow("Broadcasting transaction", "txID", tx.TransactionID, "payload", tx)
 
-		// We increment the attempts here regardless of the error
-		// This is because we want to keep track of how many times we tried to broadcast the transaction
-		// Even in the case the transaction is malformed (e.g wrong function name)
-		attemptErr := txm.transactionRepository.IncrementAttempts(tx.TransactionID)
-		if attemptErr != nil {
-			txm.lggr.Errorw("Failed to increment transaction attempts", "txID", tx.TransactionID, "error", attemptErr)
-			continue
-		}
-		if err != nil {
-			// In the case there is an error submitting
-			txm.lggr.Errorw("Failed to broadcast transaction", "txID", tx.TransactionID, "function inputs", tx.Functions, "error", err)
+	// 	resp, err := txm.suiGateway.SendTransaction(loopCtx, payload)
 
-			// Default to retrying the transaction
-			newState := StateRetriable
+	// 	// We increment the attempts here regardless of the error
+	// 	// This is because we want to keep track of how many times we tried to broadcast the transaction
+	// 	// Even in the case the transaction is malformed (e.g wrong function name)
+	// 	attemptErr := txm.transactionRepository.IncrementAttempts(tx.TransactionID)
+	// 	if attemptErr != nil {
+	// 		txm.lggr.Errorw("Failed to increment transaction attempts", "txID", tx.TransactionID, "error", attemptErr)
+	// 		continue
+	// 	}
+	// 	if err != nil {
+	// 		// In the case there is an error submitting
+	// 		txm.lggr.Errorw("Failed to broadcast transaction", "txID", tx.TransactionID, "function inputs", tx.Functions, "error", err)
 
-			// Attach the transaction submission error to the transaction object. If it remains marked as retriable, 
-			// the "confirmer" loop will pick it up and potentially retry it.
-			err = txm.transactionRepository.UpdateTransactionBroadcastError(tx.TransactionID, err.Error())
-			if err != nil {
-				txm.lggr.Errorw("Failed to update transaction broadcast error", "txID", tx.TransactionID, "error", err)
-			}
+	// 		// Default to retrying the transaction
+	// 		newState := StateRetriable
 
-			if resp.Effects.Status.Status != "" && resp.TxDigest == "" {
-				// Update the transaction state to Failed if the digest is empty
-				// An empty digest indicates a total failure of the transaction
-				txm.lggr.Errorw("Transaction failed without a digest", "txID", tx.TransactionID, "function inputs", tx.Functions)
-				newState = StateFailed
-			}
+	// 		// Attach the transaction submission error to the transaction object. If it remains marked as retriable,
+	// 		// the "confirmer" loop will pick it up and potentially retry it.
+	// 		err = txm.transactionRepository.UpdateTransactionBroadcastError(tx.TransactionID, err.Error())
+	// 		if err != nil {
+	// 			txm.lggr.Errorw("Failed to update transaction broadcast error", "txID", tx.TransactionID, "error", err)
+	// 		}
 
-			// Attempt updating the state if it has changed
-			if tx.State != newState {
-				err = txm.transactionRepository.ChangeState(tx.TransactionID, newState)
-				if err != nil {
-					txm.lggr.Errorw("Failed to change transaction state", "txID", tx.TransactionID, "error", err)
-				}
-			}
+	// 		if resp.Effects.Status.Status != "" && resp.TxDigest == "" {
+	// 			// Update the transaction state to Failed if the digest is empty
+	// 			// An empty digest indicates a total failure of the transaction
+	// 			txm.lggr.Errorw("Transaction failed without a digest", "txID", tx.TransactionID, "function inputs", tx.Functions)
+	// 			newState = StateFailed
+	// 		}
 
-			continue
-		}
-		txm.lggr.Infow("Transaction broadcasted", "response", resp, "txID", tx.TransactionID)
+	// 		// Attempt updating the state if it has changed
+	// 		if tx.State != newState {
+	// 			err = txm.transactionRepository.ChangeState(tx.TransactionID, newState)
+	// 			if err != nil {
+	// 				txm.lggr.Errorw("Failed to change transaction state", "txID", tx.TransactionID, "error", err)
+	// 			}
+	// 		}
 
-		err = txm.transactionRepository.UpdateTransactionDigest(tx.TransactionID, resp.TxDigest)
-		if err != nil {
-			txm.lggr.Errorw("Failed to update transaction digest", "txID", tx.TransactionID, "error", err)
-			continue
-		}
+	// 		continue
+	// 	}
+	// 	txm.lggr.Infow("Transaction broadcasted", "response", resp, "txID", tx.TransactionID)
 
-		// Update the transaction state to submitted as we have not yet confirmed its status.
-		// The "confirmer" loop checks the transactions statuses and possibly marks them as finalized.
-		err = txm.transactionRepository.ChangeState(tx.TransactionID, StateSubmitted)
-		if err != nil {
-			txm.lggr.Errorw("Failed to change transaction state to Submitted", "txID", tx.TransactionID, "error", err)
-			continue
-		}
+	// 	err = txm.transactionRepository.UpdateTransactionDigest(tx.TransactionID, resp.TxDigest)
+	// 	if err != nil {
+	// 		txm.lggr.Errorw("Failed to update transaction digest", "txID", tx.TransactionID, "error", err)
+	// 		continue
+	// 	}
 
-		txm.lggr.Infow("Transaction state updated to Submitted", "txID", tx.TransactionID)
-	}
+	// 	// Update the transaction state to submitted as we have not yet confirmed its status.
+	// 	// The "confirmer" loop checks the transactions statuses and possibly marks them as finalized.
+	// 	err = txm.transactionRepository.ChangeState(tx.TransactionID, StateSubmitted)
+	// 	if err != nil {
+	// 		txm.lggr.Errorw("Failed to change transaction state to Submitted", "txID", tx.TransactionID, "error", err)
+	// 		continue
+	// 	}
+
+	// 	txm.lggr.Infow("Transaction state updated to Submitted", "txID", tx.TransactionID)
+	// }
 }
 
 func getInflightTransactions(txm *SuiTxm, broadcastIds []string) []SuiTx {

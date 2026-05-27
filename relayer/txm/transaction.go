@@ -197,7 +197,7 @@ func GeneratePTBTransactionWithGasEstimation(
 		"preliminaryGasBudget", preliminaryGasBudget)
 
 	preliminaryTx, err := buildPreliminaryTransaction(
-		ctx, signerAddress, suiClient, ptb, 
+		ctx, signerAddress, suiClient, ptb,
 		preliminaryGasBudget, lggr, coinManager,
 	)
 	if err != nil {
@@ -375,7 +375,7 @@ func preparePTBTransaction(
 	// Filter coins that are not locked
 	filteredCoinData := make([]models.CoinData, 0)
 	for _, coin := range coinData {
-		coinObjectIdBytes, coinErr := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coin.CoinObjectId))
+		coinObjectIdBytes, coinErr := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coin.GetObjectId()))
 		if coinErr != nil {
 			return "", nil, fmt.Errorf("failed to convert coin object ID to bytes: %w", coinErr)
 		}
@@ -384,7 +384,13 @@ func preparePTBTransaction(
 			continue
 		}
 
-		filteredCoinData = append(filteredCoinData, coin)
+		filteredCoinData = append(filteredCoinData, models.CoinData{
+			CoinType:     coin.GetObjectType(),
+			Balance:      strconv.FormatUint(coin.GetBalance(), 10),
+			CoinObjectId: coin.GetObjectId(),
+			Version:      strconv.FormatUint(coin.GetVersion(), 10),
+			Digest:       coin.GetDigest(),
+		})
 	}
 
 	// Select coins for gas budget
