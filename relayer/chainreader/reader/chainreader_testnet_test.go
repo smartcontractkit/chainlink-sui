@@ -30,7 +30,6 @@ import (
 
 func TestChainReaderTestnet(t *testing.T) {
 	log := logger.Test(t)
-	rpcUrl := testutils.TestnetUrl
 
 	burnMintTokenPoolContractName := "BurnMintTokenPool"
 	burnMintTokenPoolPackageId := "0xfeff675b624e55da49f80fda3b676fe1ef5a957a8334cb675ca35de8918f612d"
@@ -53,7 +52,25 @@ func TestChainReaderTestnet(t *testing.T) {
 			clientMaxConcurrentRequests = int64(parsed)
 		}
 	}
-	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
+
+	grpcTarget := os.Getenv("GRPC_TARGET")
+	if grpcTarget == "" {
+		t.Fatal("evn value for GRPC_TARGET is not set")
+	}
+	grpcToken := os.Getenv("GRPC_TOKEN")
+	if grpcToken == "" {
+		t.Fatal("evn value for GRPC_TOKEN is not set")
+	}
+
+	testCfg := client.PTBClientConfig{
+		GrpcTarget:            grpcTarget,
+		GrpcToken:             grpcToken,
+		TransactionTimeout:    10 * time.Second,
+		MaxConcurrentRequests: clientMaxConcurrentRequests,
+		KeystoreService:       keystoreInstance,
+	}
+
+	relayerClient, clientErr := client.NewPTBClient(log, testCfg)
 	require.NoError(t, clientErr)
 
 	chainReaderConfig := config.ChainReaderConfig{
@@ -190,7 +207,7 @@ func TestChainReaderTestnet(t *testing.T) {
 	dbStore := database.NewDBStore(db, log)
 	require.NoError(t, dbStore.EnsureSchema(ctx))
 
-	indexerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
+	indexerClient, clientErr := client.NewPTBClient(log, testCfg)
 	require.NoError(t, clientErr)
 	// Create the indexers
 	txnIndexer := indexer.NewTransactionsIndexer(
@@ -204,7 +221,7 @@ func TestChainReaderTestnet(t *testing.T) {
 		map[string]*config.ChainReaderEvent{},
 	)
 
-	eventIndexerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
+	eventIndexerClient, clientErr := client.NewPTBClient(log, testCfg)
 	require.NoError(t, clientErr)
 	evIndexer := indexer.NewEventIndexer(
 		db,
