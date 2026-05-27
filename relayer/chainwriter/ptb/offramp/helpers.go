@@ -60,14 +60,7 @@ func GetOfframpAddressMappings(
 		OffRampState:     "",
 	}
 
-	// Use the `toAddress` (offramp package ID) from the config overrides to get the offramp pointer object
-	signerAddress, err := client.GetAddressFromPublicKey(publicKey)
-	if err != nil {
-		lggr.Errorw("Error getting signer address", "error", err)
-		return OffRampAddressMappings{}, err
-	}
-
-	ccipPkgID, err := ptbClient.GetCCIPPackageID(ctx, addressMappings.OffRampPackageId, signerAddress)
+	ccipPkgID, err := ptbClient.GetCCIPPackageID(ctx, addressMappings.OffRampPackageId)
 	if err != nil {
 		return OffRampAddressMappings{}, err
 	}

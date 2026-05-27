@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"strconv"
 	"testing"
 	"time"
 
@@ -121,7 +122,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			return "", callBackErr
 		}
 
-		return objectDetails.Content.SuiMoveObject.Fields["value"].(string), nil
+		return strconv.FormatFloat(objectDetails.GetJson().GetNumberValue(), 'f', -1, 64), nil
 	}
 	//getCoinBalance := func() (string, error) {
 	//	return testCoin.Balance, nil

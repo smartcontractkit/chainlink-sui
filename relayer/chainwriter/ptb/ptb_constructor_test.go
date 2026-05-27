@@ -68,7 +68,15 @@ func setupTestEnvironment(t *testing.T) (
 		return err == nil
 	}, time.Second*10, time.Second)
 
-	relayerClient, err = client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	testCfg := client.PTBClientConfig{
+		GrpcTarget:            "127.0.0.1:9000",
+		GrpcToken:             "test",
+		TransactionTimeout:    10 * time.Second,
+		MaxConcurrentRequests: 5,
+		KeystoreService:       keystoreInstance,
+	}
+
+	relayerClient, err = client.NewPTBClient(log, testCfg)
 	require.NoError(t, err)
 
 	chainID, chainIDErr := testutils.GetChainIdentifier(testutils.LocalUrl)
@@ -553,15 +561,15 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "success", ptbResult.Status.Status)
+		require.True(t, ptbResult.Transaction.GetEffects().GetStatus().GetSuccess())
 		prettyPrintDebug(log, ptbResult)
 
 		// Borrow the Counter from the manager and pass it to increment then put it back
 		var managerObjectId string
 		// iterate through object changes
-		for _, change := range ptbResult.ObjectChanges {
-			if strings.Contains(change.ObjectType, "counter_manager") {
-				managerObjectId = change.ObjectId
+		for _, changedObj := range ptbResult.GetTransaction().GetEffects().GetChangedObjects() {
+			if strings.Contains(changedObj.GetObjectType(), "counter_manager") {
+				managerObjectId = changedObj.GetObjectId()
 			}
 		}
 
@@ -578,12 +586,12 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		ptbResult, err = ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "success", ptbResult.Status.Status)
+		require.True(t, ptbResult.Transaction.GetEffects().GetStatus().GetSuccess())
 
 		// Expect 2 increment events
 		incrementEventsCounter := 0
-		for _, event := range ptbResult.Events {
-			if strings.Contains(event.Type, "CounterIncremented") {
+		for _, event := range ptbResult.Transaction.GetEvents().Events {
+			if strings.Contains(event.GetEventType(), "CounterIncremented") {
 				incrementEventsCounter += 1
 			}
 		}
@@ -609,7 +617,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
 		prettyPrintDebug(log, ptbResult)
-		require.Equal(t, "success", ptbResult.Status.Status)
+		require.True(t, ptbResult.Transaction.GetEffects().GetStatus().GetSuccess())
 	})
 
 	//nolint:paralleltest
@@ -625,14 +633,14 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 
 		// Use the first coin as the test input
 		testCoin := coins[1]
-		log.Debugw("Using test coin with PTB constructor", "coinId", testCoin.CoinObjectId, "coinType", testCoin.CoinType)
+		log.Debugw("Using test coin with PTB constructor", "coinId", testCoin.GetObjectId(), "coinType", testCoin.GetObjectType())
 
 		suiTypeTag := "0x2::sui::SUI"
 
 		// Prepare arguments for the PTB constructor
 		args := config.Arguments{
 			Args: map[string]any{
-				"coin": testCoin.CoinObjectId,
+				"coin": testCoin.GetObjectId(),
 			},
 			ArgTypes: map[string]string{
 				"coin": suiTypeTag,
@@ -652,7 +660,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "success", ptbResult.Status.Status)
+		require.True(t, ptbResult.Transaction.GetEffects().GetStatus().GetSuccess())
 		// Verify the function executed successfully
 		log.Debugw("PTB Constructor generic function call successful", "coinValue", testCoin.Balance)
 	})
