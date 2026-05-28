@@ -116,6 +116,14 @@ func (c *FakeSuiPTBClient) GetLatestEpoch(ctx context.Context) (*suirpcv2.Epoch,
 	return &suirpcv2.Epoch{}, nil
 }
 
+func (c *FakeSuiPTBClient) GetLatestCheckpoint(ctx context.Context) (*suirpcv2.Checkpoint, error) {
+	return &suirpcv2.Checkpoint{}, nil
+}
+
+func (c *FakeSuiPTBClient) GetCheckpointData(ctx context.Context, checkpointSequenceNumber uint64) (*client.CheckpointData, error) {
+	return &client.CheckpointData{}, nil
+}
+
 func (c *FakeSuiPTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *suirpcv2.Checkpoint, limit *uint64) ([]*suirpcv2.ExecutedTransaction, error) {
 	return nil, nil
 }
@@ -304,6 +312,14 @@ func (c *StatefulFakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointI
 
 func (c *StatefulFakeSuiPTBClient) GetLatestEpoch(ctx context.Context) (*suirpcv2.Epoch, error) {
 	return &suirpcv2.Epoch{}, nil
+}
+
+func (c *StatefulFakeSuiPTBClient) GetLatestCheckpoint(ctx context.Context) (*suirpcv2.Checkpoint, error) {
+	return &suirpcv2.Checkpoint{}, nil
+}
+
+func (c *StatefulFakeSuiPTBClient) GetCheckpointData(ctx context.Context, checkpointSequenceNumber uint64) (*client.CheckpointData, error) {
+	return &client.CheckpointData{}, nil
 }
 
 func (c *StatefulFakeSuiPTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *suirpcv2.Checkpoint, limit *uint64) ([]*suirpcv2.ExecutedTransaction, error) {

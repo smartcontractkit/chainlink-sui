@@ -55,6 +55,11 @@ func NewDecodedTOMLConfig(rawConfig string) (*TOMLConfig, error) {
 	}
 	cfg.EventsIndexer.setDefaults()
 
+	if cfg.ChainPoller == nil {
+		cfg.ChainPoller = &ChainPollerConfig{}
+	}
+	cfg.ChainPoller.setDefaults()
+
 	return &cfg, nil
 }
 
@@ -195,6 +200,31 @@ func (i *IndexerConfig) setDefaults() {
 	}
 }
 
+// ChainPollerConfig holds the configuration for the ChainPoller which fetches
+// checkpoint data and fans it out to the EventsIndexer and TransactionsIndexer.
+type ChainPollerConfig struct {
+	PollingIntervalSecs       *uint64
+	SyncTimeoutSecs           *uint64
+	BackfillCheckpointCount   *uint64
+	StartCheckpointSequence   *uint64
+	ChannelBufferSize         *uint64
+}
+
+func (c *ChainPollerConfig) setDefaults() {
+	if c.PollingIntervalSecs == nil {
+		v := DefaultChainPollerPollIntervalSecs
+		c.PollingIntervalSecs = &v
+	}
+	if c.SyncTimeoutSecs == nil {
+		v := DefaultChainPollerSyncTimeoutSecs
+		c.SyncTimeoutSecs = &v
+	}
+	if c.ChannelBufferSize == nil {
+		v := DefaultChainPollerChannelBufferSize
+		c.ChannelBufferSize = &v
+	}
+}
+
 func (t *TransactionManagerConfig) setDefaults() {
 	if t.BroadcastChanSize == nil {
 		defaultVal := DefaultBroadcastChannelSize
@@ -303,6 +333,10 @@ type TOMLConfig struct {
 	// Events indexer configs (without any event selectors, those are attached later)
 	EventsIndexer *IndexerConfig
 
+	// ChainPoller config drives checkpoint-based polling and fans out to indexers.
+	// When set, it supersedes EventsIndexer.PollingIntervalSecs and TransactionsIndexer.PollingIntervalSecs.
+	ChainPoller *ChainPollerConfig
+
 	// Nodes is a collection of node configurations for this chain
 	Nodes NodeConfigs
 }
@@ -332,6 +366,31 @@ func (c *TOMLConfig) SetFrom(f *TOMLConfig) {
 		setFromBalanceMonitor(c.BalanceMonitor, f.BalanceMonitor)
 	}
 	c.Nodes.SetFrom(&f.Nodes)
+	if f.ChainPoller != nil {
+		if c.ChainPoller == nil {
+			c.ChainPoller = &ChainPollerConfig{}
+			c.ChainPoller.setDefaults()
+		}
+		setFromChainPoller(c.ChainPoller, f.ChainPoller)
+	}
+}
+
+func setFromChainPoller(c, f *ChainPollerConfig) {
+	if f.PollingIntervalSecs != nil {
+		c.PollingIntervalSecs = f.PollingIntervalSecs
+	}
+	if f.SyncTimeoutSecs != nil {
+		c.SyncTimeoutSecs = f.SyncTimeoutSecs
+	}
+	if f.BackfillCheckpointCount != nil {
+		c.BackfillCheckpointCount = f.BackfillCheckpointCount
+	}
+	if f.StartCheckpointSequence != nil {
+		c.StartCheckpointSequence = f.StartCheckpointSequence
+	}
+	if f.ChannelBufferSize != nil {
+		c.ChannelBufferSize = f.ChannelBufferSize
+	}
 }
 
 func setFromTransactionManager(c, f *TransactionManagerConfig) {

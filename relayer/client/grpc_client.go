@@ -71,6 +71,9 @@ var RateLimitWeights = map[string]int64{
 	"GetCCIPPackageID":                   0,
 	"GetTokenPoolConfigByPackageAddress": 0,
 	"GetLatestEpoch":                     0,
+	"GetTransactionsByCheckpoint":        1,
+	"GetLatestCheckpoint":                1,
+	"GetCheckpointData":                  1,
 }
 
 // var since it's passed via pointer
@@ -95,6 +98,8 @@ type SuiPTBClient interface {
 	BlockByDigest(ctx context.Context, txDigest string) (*suirpcv2.Checkpoint, error)
 	GetBlockById(ctx context.Context, checkpointDigest string) (*suirpcv2.Checkpoint, error)
 	GetLatestEpoch(ctx context.Context) (*suirpcv2.Epoch, error)
+	GetLatestCheckpoint(ctx context.Context) (*suirpcv2.Checkpoint, error)
+	GetCheckpointData(ctx context.Context, checkpointSequenceNumber uint64) (*CheckpointData, error)
 	GetNormalizedModule(ctx context.Context, packageId string, moduleId string) (models.GetNormalizedMoveModuleResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*suirpcv2.Balance, error)
 	LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error)
@@ -664,6 +669,83 @@ func (c *PTBClient) GetTransactionsByCheckpoint(ctx context.Context, checkpointS
 	}
 
 	return response.GetCheckpoint().GetTransactions(), nil
+}
+
+// CheckpointData combines checkpoint metadata with its transactions.
+type CheckpointData struct {
+	Checkpoint   *suirpcv2.Checkpoint
+	Transactions []*suirpcv2.ExecutedTransaction
+}
+
+// GetCheckpointData returns checkpoint metadata plus all transactions for a given sequence number.
+func (c *PTBClient) GetCheckpointData(ctx context.Context, checkpointSequenceNumber uint64) (*CheckpointData, error) {
+	var result *CheckpointData
+
+	err := c.WithRateLimit(ctx, "GetCheckpointData", func(ctx context.Context) error {
+		ledgerService, err := c.getLedgerService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get ledger service: %w", err)
+		}
+
+		response, err := ledgerService.GetCheckpoint(ctx, &suirpcv2.GetCheckpointRequest{
+			CheckpointId: &suirpcv2.GetCheckpointRequest_SequenceNumber{
+				SequenceNumber: checkpointSequenceNumber,
+			},
+			ReadMask: &fieldmaskpb.FieldMask{
+				Paths: []string{
+					"sequence_number",
+					"digest",
+					"summary.timestamp",
+					"transactions",
+					"transactions.effects",
+					"transactions.events",
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get checkpoint: %w", err)
+		}
+
+		result = &CheckpointData{
+			Checkpoint:   response.GetCheckpoint(),
+			Transactions: response.GetCheckpoint().GetTransactions(),
+		}
+		return nil
+	})
+
+	return result, err
+}
+
+// GetLatestCheckpoint returns the latest checkpoint from the chain.
+// Uses GetCheckpointRequest with empty CheckpointId which returns the latest.
+func (c *PTBClient) GetLatestCheckpoint(ctx context.Context) (*suirpcv2.Checkpoint, error) {
+	var result *suirpcv2.Checkpoint
+
+	err := c.WithRateLimit(ctx, "GetLatestCheckpoint", func(ctx context.Context) error {
+		ledgerService, err := c.getLedgerService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get ledger service: %w", err)
+		}
+
+		response, err := ledgerService.GetCheckpoint(ctx, &suirpcv2.GetCheckpointRequest{
+			// Empty CheckpointId returns the latest checkpoint
+			ReadMask: &fieldmaskpb.FieldMask{
+				Paths: []string{
+					"sequence_number",
+					"digest",
+					"summary.timestamp",
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get latest checkpoint: %w", err)
+		}
+
+		result = response.GetCheckpoint()
+		return nil
+	})
+
+	return result, err
 }
 
 // GetCoinsByAddress returns all coin objects for a given address.

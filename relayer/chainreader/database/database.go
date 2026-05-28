@@ -143,7 +143,7 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 	}
 	baseSQL += fmt.Sprintf(" LIMIT %d", limit)
 
-	store.lgr.Debugw("querying events", "sql", baseSQL, "args", args)
+	// store.lgr.Debugw("querying events", "sql", baseSQL, "args", args)
 
 	rows, err := store.ds.QueryContext(ctx, baseSQL, args...)
 	if err != nil {
@@ -168,7 +168,7 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 		records = append(records, record)
 	}
 
-	store.lgr.Debugw("fetched DB events", "records", records)
+	// store.lgr.Debugw("fetched DB events", "records", records)
 
 	return records, nil
 }
