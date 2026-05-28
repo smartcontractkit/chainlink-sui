@@ -1763,6 +1763,355 @@ public fun mcms_remove_allowed_modules(
     mcms_registry::remove_allowed_modules(registry, McmsCallback {}, module_names, ctx);
 }
 
+// ================================================================
+// |                    V2 Execution (Object Binding)             |
+// ================================================================
+
+public struct Any2SuiRampMessageV2 has drop {
+    header: RampMessageHeader,
+    sender: vector<u8>,
+    data: vector<u8>,
+    receiver: address,
+    gas_limit: u256,
+    token_receiver: address,
+    receiver_object_ids: vector<address>,
+    token_amounts: vector<Any2SuiTokenTransfer>,
+}
+
+public struct ExecutionReportV2 has drop {
+    source_chain_selector: u64,
+    message: Any2SuiRampMessageV2,
+    offchain_token_data: vector<vector<u8>>,
+    proofs: vector<vector<u8>>,
+}
+
+public fun init_execute_v2(
+    ref: &CCIPObjectRef,
+    state: &mut OffRampState,
+    clock: &clock::Clock,
+    report_context: vector<vector<u8>>,
+    report: vector<u8>,
+    ctx: &mut TxContext,
+): osh::ReceiverParamsV2 {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"init_execute_v2"),
+        VERSION,
+    );
+    assert!(report_context.length() == 2, EInvalidReportContextLength);
+    let reports = deserialize_execution_report_v2(report);
+
+    ocr3_base::transmit(
+        &state.ocr3_base_state,
+        ctx.sender(),
+        ocr3_base::ocr_plugin_type_execution(),
+        report_context,
+        report,
+        vector[],
+        ctx,
+    );
+
+    pre_execute_single_report_v2(ref, state, clock, reports, false)
+}
+
+public fun manually_init_execute_v2(
+    ref: &CCIPObjectRef,
+    state: &mut OffRampState,
+    clock: &clock::Clock,
+    report_bytes: vector<u8>,
+): osh::ReceiverParamsV2 {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"manually_init_execute_v2"),
+        VERSION,
+    );
+    let reports = deserialize_execution_report_v2(report_bytes);
+
+    pre_execute_single_report_v2(ref, state, clock, reports, true)
+}
+
+public fun finish_execute_v2(
+    ref: &CCIPObjectRef,
+    state: &mut OffRampState,
+    receiver_params: osh::ReceiverParamsV2,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"finish_execute_v2"),
+        VERSION,
+    );
+    assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
+    osh::deconstruct_receiver_params_v2(state.dest_transfer_cap.borrow(), receiver_params);
+}
+
+fun deserialize_execution_report_v2(report_bytes: vector<u8>): ExecutionReportV2 {
+    let mut stream = bcs_stream::new(report_bytes);
+    let source_chain_selector = bcs_stream::deserialize_u64(&mut stream);
+
+    let message_id = bcs_stream::deserialize_fixed_vector_u8(&mut stream, 32);
+    let header_source_chain_selector = bcs_stream::deserialize_u64(&mut stream);
+    let dest_chain_selector = bcs_stream::deserialize_u64(&mut stream);
+    let sequence_number = bcs_stream::deserialize_u64(&mut stream);
+    let nonce = bcs_stream::deserialize_u64(&mut stream);
+
+    let header = RampMessageHeader {
+        message_id,
+        source_chain_selector: header_source_chain_selector,
+        dest_chain_selector,
+        sequence_number,
+        nonce,
+    };
+
+    assert!(source_chain_selector == header_source_chain_selector, ESourceChainSelectorMismatch);
+
+    let sender = bcs_stream::deserialize_vector_u8(&mut stream);
+    let data = bcs_stream::deserialize_vector_u8(&mut stream);
+    let receiver = bcs_stream::deserialize_address(&mut stream);
+    let gas_limit = bcs_stream::deserialize_u256(&mut stream);
+    let token_receiver = bcs_stream::deserialize_address(&mut stream);
+
+    let receiver_object_ids = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
+    );
+
+    let token_amounts = bcs_stream::deserialize_vector!(&mut stream, |stream| {
+        let source_pool_address = bcs_stream::deserialize_vector_u8(stream);
+        let dest_token_address = bcs_stream::deserialize_address(stream);
+        let dest_gas_amount = bcs_stream::deserialize_u32(stream);
+        let extra_data = bcs_stream::deserialize_vector_u8(stream);
+        let amount = bcs_stream::deserialize_u256(stream);
+
+        Any2SuiTokenTransfer {
+            source_pool_address,
+            dest_token_address,
+            dest_gas_amount,
+            extra_data,
+            amount,
+        }
+    });
+
+    let message = Any2SuiRampMessageV2 {
+        header,
+        sender,
+        data,
+        receiver,
+        gas_limit,
+        token_receiver,
+        receiver_object_ids,
+        token_amounts,
+    };
+
+    let offchain_token_data = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector_u8(stream),
+    );
+
+    let proofs = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_fixed_vector_u8(stream, 32) },
+    );
+
+    bcs_stream::assert_is_consumed(&stream);
+
+    ExecutionReportV2 { source_chain_selector, message, offchain_token_data, proofs }
+}
+
+#[allow(implicit_const_copy)]
+fun pre_execute_single_report_v2(
+    ref: &CCIPObjectRef,
+    state: &mut OffRampState,
+    clock: &clock::Clock,
+    execution_report: ExecutionReportV2,
+    manual_execution: bool,
+): osh::ReceiverParamsV2 {
+    let source_chain_selector = execution_report.source_chain_selector;
+    assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
+
+    if (rmn_remote::is_cursed_u128(ref, source_chain_selector as u128)) {
+        assert!(!manual_execution, ECursedByRmn);
+
+        event::emit(SkippedReportExecution { source_chain_selector });
+
+        return osh::create_receiver_params_v2(state.dest_transfer_cap.borrow(), source_chain_selector)
+    };
+
+    assert_source_chain_enabled(state, source_chain_selector);
+
+    assert!(
+        execution_report.message.header.dest_chain_selector == state.chain_selector,
+        EDestChainSelectorMismatch,
+    );
+
+    let source_chain_config = state.source_chain_configs[&source_chain_selector];
+    let metadata_hash = calculate_metadata_hash(
+        ref,
+        source_chain_selector,
+        state.chain_selector,
+        source_chain_config.on_ramp,
+    );
+
+    let hashed_leaf = calculate_message_hash_v2(
+        &execution_report.message,
+        metadata_hash,
+    );
+
+    let root = merkle_proof::merkle_root(hashed_leaf, execution_report.proofs);
+
+    let is_old_commit_report = is_committed_root(state, clock, root);
+
+    if (manual_execution) {
+        assert!(is_old_commit_report, EManualExecutionNotYetEnabled);
+    };
+
+    let source_chain_execution_states = state.execution_states.borrow_mut(source_chain_selector);
+
+    let message = &execution_report.message;
+    let sequence_number = message.header.sequence_number;
+    if (!source_chain_execution_states.contains(sequence_number)) {
+        source_chain_execution_states.add(sequence_number, EXECUTION_STATE_UNTOUCHED);
+    };
+    let execution_state_ref = source_chain_execution_states.borrow_mut(sequence_number);
+
+    if (*execution_state_ref != EXECUTION_STATE_UNTOUCHED) {
+        event::emit(SkippedAlreadyExecuted { source_chain_selector, sequence_number });
+
+        return osh::create_receiver_params_v2(state.dest_transfer_cap.borrow(), source_chain_selector)
+    };
+
+    assert!(message.header.nonce == 0, EMustBeOutOfOrderExec);
+
+    let number_of_tokens_in_msg = message.token_amounts.length();
+    assert!(number_of_tokens_in_msg <= TOKEN_TRANSFER_LIMIT, ETokenTransferLimitExceeded);
+    assert!(
+        number_of_tokens_in_msg == execution_report.offchain_token_data.length(),
+        ETokenDataMismatch,
+    );
+    assert!(
+        message.token_receiver == @0x0 && number_of_tokens_in_msg == 0 ||
+            (message.token_receiver != @0x0 && number_of_tokens_in_msg > 0),
+        EInvalidTokenReceiver,
+    );
+
+    let mut receiver_params = osh::create_receiver_params_v2(
+        state.dest_transfer_cap.borrow(),
+        source_chain_selector,
+    );
+
+    let mut token_addresses = vector[];
+    let mut token_amounts = vector[];
+
+    if (number_of_tokens_in_msg == TOKEN_TRANSFER_LIMIT) {
+        let token_pool_address: address = token_admin_registry::get_pool(
+            ref,
+            message.token_amounts[0].dest_token_address,
+        );
+        assert!(token_pool_address != @0x0, EUnsupportedToken);
+
+        osh::add_dest_token_transfer_v2(
+            state.dest_transfer_cap.borrow(),
+            &mut receiver_params,
+            message.token_receiver,
+            source_chain_selector,
+            message.token_amounts[0].amount,
+            message.token_amounts[0].dest_token_address,
+            token_pool_address,
+            message.token_amounts[0].source_pool_address,
+            message.token_amounts[0].extra_data,
+            execution_report.offchain_token_data[0],
+        );
+        token_addresses.push_back(message.token_amounts[0].dest_token_address);
+        token_amounts.push_back(message.token_amounts[0].amount);
+    };
+
+    let has_valid_message_receiver =
+        (!message.data.is_empty() || message.gas_limit != 0) && receiver_registry::is_registered_receiver(ref, message.receiver);
+
+    if (has_valid_message_receiver) {
+        let any2sui_message = osh::new_any2sui_message_v2(
+            state.dest_transfer_cap.borrow(),
+            message.header.message_id,
+            message.header.source_chain_selector,
+            message.sender,
+            message.data,
+            message.receiver,
+            message.token_receiver,
+            message.receiver_object_ids,
+            token_addresses,
+            token_amounts,
+        );
+
+        osh::populate_message_v2(
+            state.dest_transfer_cap.borrow(),
+            &mut receiver_params,
+            any2sui_message,
+        );
+    };
+
+    *execution_state_ref = EXECUTION_STATE_SUCCESS;
+
+    event::emit(ExecutionStateChanged {
+        source_chain_selector,
+        sequence_number,
+        message_id: message.header.message_id,
+        message_hash: hashed_leaf,
+        state: EXECUTION_STATE_SUCCESS,
+    });
+
+    receiver_params
+}
+
+fun calculate_message_hash_v2(
+    message: &Any2SuiRampMessageV2,
+    metadata_hash: vector<u8>,
+): vector<u8> {
+    let mut outer_hash = vector[];
+    eth_abi::encode_right_padded_bytes32(&mut outer_hash, merkle_proof::leaf_domain_separator());
+    eth_abi::encode_right_padded_bytes32(&mut outer_hash, metadata_hash);
+
+    let mut inner_hash = vector[];
+    eth_abi::encode_right_padded_bytes32(&mut inner_hash, message.header.message_id);
+    eth_abi::encode_address(&mut inner_hash, message.receiver);
+    eth_abi::encode_u64(&mut inner_hash, message.header.sequence_number);
+    eth_abi::encode_u256(&mut inner_hash, message.gas_limit);
+    eth_abi::encode_address(&mut inner_hash, message.token_receiver);
+    eth_abi::encode_u64(&mut inner_hash, message.header.nonce);
+    eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&inner_hash));
+
+    eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&message.sender));
+    eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&message.data));
+
+    let mut token_hash = vector[];
+    eth_abi::encode_u256(
+        &mut token_hash,
+        message.token_amounts.length() as u256,
+    );
+    message.token_amounts.do_ref!(|token_transfer| {
+        let token_transfer: &Any2SuiTokenTransfer = token_transfer;
+        eth_abi::encode_bytes(&mut token_hash, token_transfer.source_pool_address);
+        eth_abi::encode_address(&mut token_hash, token_transfer.dest_token_address);
+        eth_abi::encode_u32(&mut token_hash, token_transfer.dest_gas_amount);
+        eth_abi::encode_bytes(&mut token_hash, token_transfer.extra_data);
+        eth_abi::encode_u256(&mut token_hash, token_transfer.amount);
+    });
+    eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&token_hash));
+
+    let mut object_ids_hash = vector[];
+    eth_abi::encode_u256(
+        &mut object_ids_hash,
+        message.receiver_object_ids.length() as u256,
+    );
+    message.receiver_object_ids.do_ref!(|id| {
+        eth_abi::encode_address(&mut object_ids_hash, *id);
+    });
+    eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&object_ids_hash));
+
+    hash::keccak256(&outer_hash)
+}
+
 // ============================== Test Functions ============================== //
 
 #[test_only]
