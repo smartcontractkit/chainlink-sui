@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -343,7 +344,6 @@ func ProcessReceivers(
 ) ([]transaction.Argument, error) {
 	sdkClient := ptbClient.GetClient()
 
-	// Create a receiver binding interface to filter out non-registered receivers
 	receiverRegistryPkg, err := receiver_registry.NewReceiverRegistry(addressMappings.CcipPackageId, sdkClient)
 	if err != nil {
 		return nil, err
@@ -351,30 +351,35 @@ func ProcessReceivers(
 	receiverRegistryDevInspect := receiverRegistryPkg.DevInspect()
 
 	receiverCommandsResults := make([]transaction.Argument, 0)
-	// Generate receiver call commands
 	for _, message := range messages {
-		// If there is no receiver, skip this message
 		if len(message.Receiver) == 0 || message.Receiver == nil {
 			lggr.Errorw("unexpected nil or zero length receiver, skipping message in offramp execution...", "message", message)
 			continue
 		}
 
-		// Check if receiver is a zero address (0x0....0 // 32 bytes of 0)
 		if bytes.Equal(message.Receiver, codec.AccountZero) {
 			lggr.Debugw("receiver is zero address, skipping message in offramp execution...", "message", message)
 			continue
 		}
 
-		// Parse the receiver address into a hex string
+		// Mirror on-chain gating: skip receiver call when on-chain would not populate the message.
+		// On-chain: has_valid_message_receiver = (!data.is_empty() || gas_limit != 0) && is_registered_receiver
+		if !needsAppDelivery(message, extraArgs) {
+			lggr.Debugw("message has no data and zero gas limit, skipping receiver call",
+				"receiver", hex.EncodeToString(message.Receiver))
+			continue
+		}
+
 		receiverPackageId := "0x" + hex.EncodeToString(message.Receiver)
 
 		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
 		}
-		// If the receiver is not registered, fail the entire execution
 		if !isRegistered {
-			return nil, fmt.Errorf("receiver is not registered in offramp execution: %s", message.Receiver)
+			lggr.Warnw("receiver not registered, skipping receiver call (on-chain will not populate message)",
+				"receiver", receiverPackageId)
+			continue
 		}
 
 		receiverConfig, err := receiverRegistryDevInspect.GetReceiverConfig(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
@@ -384,7 +389,7 @@ func ProcessReceivers(
 
 		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverConfig.ModuleName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get normalized module for token pool: %w", err)
+			return nil, fmt.Errorf("failed to get normalized module for receiver: %w", err)
 		}
 
 		receiverCommandResult, err := AppendPTBCommandForReceiver(
@@ -403,12 +408,27 @@ func ProcessReceivers(
 			extraArgs,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to build receiver command for %s: %w", receiverPackageId, err)
 		}
 		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
 	}
 
 	return receiverCommandsResults, nil
+}
+
+func needsAppDelivery(message ccipocr3.Message, extraArgs map[string]any) bool {
+	if len(message.Data) > 0 {
+		return true
+	}
+	if val, ok := extraArgs["gasLimit"]; ok {
+		switch gl := val.(type) {
+		case *big.Int:
+			return gl != nil && gl.Sign() > 0
+		case uint64:
+			return gl > 0
+		}
+	}
+	return false
 }
 
 func AppendPTBCommandForReceiver(
