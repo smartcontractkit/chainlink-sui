@@ -126,6 +126,12 @@ public fun backfill_local_decimals(
     coin_metadata_address: address,
     local_decimals: u8,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"backfill_local_decimals"),
+        VERSION,
+    );
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
     insert_local_decimals(ref, coin_metadata_address, local_decimals);
 }
