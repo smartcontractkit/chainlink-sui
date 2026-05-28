@@ -525,9 +525,12 @@ func AppendPTBCommandForReceiver(
 	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
 
 	// Append extra args to the paramValues for the receiver call.
+	// Missing receiverObjectIds is non-fatal: treat as empty and let the on-chain call
+	// determine success or failure based on the receiver's actual parameter requirements.
 	receiverObjectIds, ok := extraArgs["receiverObjectIds"]
 	if !ok {
-		return nil, fmt.Errorf("missing extra args for receiver function not found in module (%s)", functionName)
+		lggr.Warnw("receiverObjectIds not present in extraArgs, defaulting to empty", "module", functionName)
+		receiverObjectIds = [][]byte{}
 	}
 
 	// note: we cannot expect receiverObjectIds to be [][]byte, so check for []any type
