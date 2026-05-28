@@ -88,6 +88,7 @@ const ETokenPoolPackageIdNotRegistered: u64 = 11;
 const EUseV2: u64 = 12;
 const ELocalDecimalsNotRegistered: u64 = 13;
 const ELocalDecimalsAlreadyInitialized: u64 = 14;
+const ELocalDecimalsNotInitialized: u64 = 15;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.1")
@@ -119,16 +120,28 @@ public fun initialize_local_decimals(
     state_object::add(ref, owner_cap, state, ctx);
 }
 
+public fun backfill_local_decimals(
+    owner_cap: &OwnerCap,
+    ref: &mut CCIPObjectRef,
+    coin_metadata_address: address,
+    local_decimals: u8,
+) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    insert_local_decimals(ref, coin_metadata_address, local_decimals);
+}
+
 public(package) fun get_local_decimals_for_token(
     ref: &CCIPObjectRef,
     coin_metadata_address: address,
 ): u8 {
+    assert!(state_object::contains<LocalDecimalsState>(ref), ELocalDecimalsNotInitialized);
     let state = state_object::borrow<LocalDecimalsState>(ref);
     assert!(state.decimals.contains(coin_metadata_address), ELocalDecimalsNotRegistered);
     *state.decimals.borrow(coin_metadata_address)
 }
 
 fun insert_local_decimals(ref: &mut CCIPObjectRef, coin_metadata_address: address, decimals: u8) {
+    assert!(state_object::contains<LocalDecimalsState>(ref), ELocalDecimalsNotInitialized);
     let state = state_object::borrow_mut<LocalDecimalsState>(ref);
     if (!state.decimals.contains(coin_metadata_address)) {
         state.decimals.push_back(coin_metadata_address, decimals);
@@ -924,4 +937,9 @@ public fun test_mcms_register_entrypoint(
         vector[b"fee_quoter", b"rmn_remote", b"state_object", b"token_admin_registry"], // Allowed CCIP modules
         ctx,
     );
+}
+
+#[test_only]
+public fun test_get_local_decimals(ref: &CCIPObjectRef, coin_metadata_address: address): u8 {
+    get_local_decimals_for_token(ref, coin_metadata_address)
 }

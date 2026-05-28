@@ -100,6 +100,48 @@ var TokenAdminRegistryInitializeLocalDecimalsOp = cld_ops.NewOperation(
 	initLocalDecimalsHandler,
 )
 
+type BackfillLocalDecimalsInput struct {
+	CCIPPackageId       string
+	StateObjectId       string
+	OwnerCapObjectId    string
+	CoinMetadataAddress string
+	LocalDecimals       byte
+}
+
+var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BackfillLocalDecimalsInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.BackfillLocalDecimals(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectId},
+		input.CoinMetadataAddress,
+		input.LocalDecimals,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute backfill local decimals: %w", err)
+	}
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   NoObjects{},
+	}, nil
+}
+
+var TokenAdminRegistryBackfillLocalDecimalsOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "token_admin_registry", "backfill_local_decimals"),
+	semver.MustParse("0.1.0"),
+	"Backfills local token decimals for an already-registered pool",
+	backfillLocalDecimalsHandler,
+)
+
 // ================================================================
 // |                    Unregister Pool                          |
 // ================================================================
