@@ -20,7 +20,6 @@ import (
 	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	aptosCRUtils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
@@ -883,7 +882,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 		// Derive each field's object ID from parent using derivation key and add to arg map
 		for _, pointerVal := range pointerVals {
-			derivedID, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(pointerVal.derivationKey))
+			derivedID, err := client.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(pointerVal.derivationKey))
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to derive object ID for %s using key %s: %w", pointerVal.paramName, pointerVal.derivationKey, err)
 			}

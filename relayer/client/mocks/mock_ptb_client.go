@@ -17,7 +17,6 @@ import (
 	go_cache "github.com/patrickmn/go-cache"
 	"go.uber.org/mock/gomock"
 
-	token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	client "github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -280,21 +279,6 @@ func (m *MockSuiPTBClient) GetSUIBalance(ctx context.Context, address string) (*
 func (mr *MockSuiPTBClientMockRecorder) GetSUIBalance(ctx, address interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSUIBalance", reflect.TypeOf((*MockSuiPTBClient)(nil).GetSUIBalance), ctx, address)
-}
-
-// GetTokenPoolConfigByPackageAddress mocks base method.
-func (m *MockSuiPTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress, tokenPoolAddress, ccipPackageAddress string) (token_admin_registry.TokenConfig, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTokenPoolConfigByPackageAddress", ctx, accountAddress, tokenPoolAddress, ccipPackageAddress)
-	ret0, _ := ret[0].(token_admin_registry.TokenConfig)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetTokenPoolConfigByPackageAddress indicates an expected call of GetTokenPoolConfigByPackageAddress.
-func (mr *MockSuiPTBClientMockRecorder) GetTokenPoolConfigByPackageAddress(ctx, accountAddress, tokenPoolAddress, ccipPackageAddress interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTokenPoolConfigByPackageAddress", reflect.TypeOf((*MockSuiPTBClient)(nil).GetTokenPoolConfigByPackageAddress), ctx, accountAddress, tokenPoolAddress, ccipPackageAddress)
 }
 
 // GetTransactionStatus mocks base method.
