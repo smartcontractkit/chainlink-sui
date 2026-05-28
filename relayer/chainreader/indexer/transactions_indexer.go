@@ -230,7 +230,7 @@ func (tIndexer *TransactionsIndexer) waitForInitialEvent(ctx context.Context) er
 
 		select {
 		case <-ticker.C:
-			tIndexer.logger.Infow(fmt.Sprintf("No %s::%s events found yet, waiting...", moduleKey, eventKey))
+			// tIndexer.logger.Infow(fmt.Sprintf("No %s::%s events found yet, waiting...", moduleKey, eventKey))
 			continue
 		case <-ctx.Done():
 			tIndexer.logger.Infow(fmt.Sprintf("Transaction processing stopped during initial wait for %s::%s event.", moduleKey, eventKey))
@@ -343,6 +343,13 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 	latestOfframpPackageId string,
 	checkpoint CheckpointMeta,
 ) (*database.EventRecord, error) {
+	tIndexer.logger.Debugw("Processing failed transaction",
+		"txDigest", tx.GetDigest(),
+		"eventHandle", eventHandle,
+		"eventAccountAddress", eventAccountAddress,
+		"latestOfframpPackageId", latestOfframpPackageId,
+		"checkpoint", checkpoint)
+
 	// Get the abort info from the error string
 	errStr := tx.GetEffects().GetStatus().GetError().String()
 	moveAbort, err := tIndexer.parseMoveAbort(errStr)

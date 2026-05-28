@@ -4,6 +4,7 @@ package indexer_test
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -11,14 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	v2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
-	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
-	cwPTB "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
 	"github.com/stretchr/testify/require"
 
@@ -123,120 +123,9 @@ func TestTransactionsIndexer(t *testing.T) {
 	offrampStateObjectId, err := testutils.QueryCreatedObjectID(tx.ObjectChanges, packageId, "offramp", "OffRampState")
 	require.NoError(t, err)
 
-	chainWriterConfig := cwConfig.ChainWriterConfig{
-		Modules: map[string]*cwConfig.ChainWriterModule{
-			"counter": {
-				Name:     "counter",
-				ModuleID: packageId,
-				Functions: map[string]*cwConfig.ChainWriterFunction{
-					"increment_by": {
-						Name:      "increment_by",
-						PublicKey: publicKeyBytes,
-						Params:    []codec.SuiFunctionParam{},
-						PTBCommands: []cwConfig.ChainWriterPTBCommand{
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: &packageId,
-								ModuleId:  testutils.StringPointer("counter"),
-								Function:  testutils.StringPointer("increment_by"),
-								Params: []codec.SuiFunctionParam{
-									{
-										Name:     "counter",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:     "by",
-										Type:     "u64",
-										Required: true,
-									},
-								},
-							},
-						},
-					},
-					"increment_by_bytes_length": {
-						Name:      "increment_by_bytes_length",
-						PublicKey: publicKeyBytes,
-						Params:    []codec.SuiFunctionParam{},
-						PTBCommands: []cwConfig.ChainWriterPTBCommand{
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: &packageId,
-								ModuleId:  testutils.StringPointer("counter"),
-								Function:  testutils.StringPointer("increment_by_bytes_length"),
-								Params: []codec.SuiFunctionParam{
-									{
-										Name:     "counter",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:     "bytes",
-										Type:     "vector<u8>",
-										Required: true,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			"offramp": {
-				Name:     "offramp",
-				ModuleID: packageId,
-				Functions: map[string]*cwConfig.ChainWriterFunction{
-					"offramp_execution_with_error": {
-						Name:      "offramp_execution_with_error",
-						PublicKey: publicKeyBytes,
-						Params:    []codec.SuiFunctionParam{},
-						PTBCommands: []cwConfig.ChainWriterPTBCommand{
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: &packageId,
-								ModuleId:  testutils.StringPointer("offramp"),
-								Function:  testutils.StringPointer("init_execute"),
-								Params: []codec.SuiFunctionParam{
-									{
-										Name:     "ref",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:     "state",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:      "clock",
-										Type:      "object_id",
-										Required:  true,
-										IsMutable: testutils.BoolPointer(false),
-									},
-									{
-										Name:     "report_context",
-										Type:     "vector<vector<u8>>",
-										Required: true,
-									},
-									{
-										Name:     "report",
-										Type:     "vector<u8>",
-										Required: true,
-									},
-								},
-							},
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: &packageId,
-								ModuleId:  testutils.StringPointer("offramp"),
-								Function:  testutils.StringPointer("finish_execute"),
-								Params:    []codec.SuiFunctionParam{},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	publishCheckpoint, err := relayerClient.GetLatestCheckpoint(ctx)
+	require.NoError(t, err)
+	publishCheckpointSeq := publishCheckpoint.GetSequenceNumber()
 
 	type OfframpExecutionStateChanged struct {
 		SourceChainSelector uint64 `json:"sourceChainSelector"`
@@ -323,7 +212,7 @@ func TestTransactionsIndexer(t *testing.T) {
 			PollingInterval:         1 * time.Second,
 			SyncTimeout:             30 * time.Second,
 			ChannelBufferSize:       16,
-			BackfillCheckpointCount: ptr(uint64(1)),
+			StartCheckpointSequence: &publishCheckpointSeq,
 		},
 		evIndexer.GetEventSelectors,
 	)
@@ -346,19 +235,6 @@ func TestTransactionsIndexer(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	err = indexerInstance.Start(ctx)
-	require.NoError(t, err)
-
-	// Clean the events table again with a temporary connection
-	func() {
-		dbConn, dbConnErr := db.Connx(ctx)
-		require.NoError(t, dbConnErr)
-		defer dbConn.Close()
-
-		_, deleteEventsErr := dbConn.ExecContext(ctx, `DELETE FROM sui.events WHERE TRUE`)
-		require.NoError(t, deleteEventsErr)
-	}()
-
 	boundContracts := []types.BoundContract{
 		{
 			Name:    "OffRamp",
@@ -367,6 +243,9 @@ func TestTransactionsIndexer(t *testing.T) {
 	}
 
 	err = cReader.Bind(ctx, boundContracts)
+	require.NoError(t, err)
+
+	err = indexerInstance.Start(ctx)
 	require.NoError(t, err)
 
 	t.Run("TestBasicFailedTransactionIndexing", func(t *testing.T) {
@@ -449,19 +328,14 @@ func TestTransactionsIndexer(t *testing.T) {
 		reportBytes, err := hex.DecodeString(reportStr)
 		require.NoError(t, err)
 
-		ptb := cwPTB.NewPTBConstructor(chainWriterConfig, relayerClient, log)
-		ptbTx, err := ptb.BuildPTBCommands(context.Background(), "offramp", "offramp_execution_with_error", cwConfig.Arguments{
-			Args: map[string]any{
-				"ref":            ccipObjectRefId,
-				"state":          offrampStateObjectId,
-				"clock":          "0x06",
-				"report_context": [][]byte{},
-				"report":         reportBytes,
-			},
-		}, packageId, chainWriterConfig.Modules["offramp"].Functions["offramp_execution_with_error"])
+		ptbTx := BuildFailedOfframpExecutionPTB(ctx, t, relayerClient, packageId, accountAddress, ccipObjectRefId, offrampStateObjectId, reportBytes)
+		ptbTx.SetSigner(txnSigner)
+
+		bcsBytes, err := ptbTx.BuildBCSBytes(ctx)
 		require.NoError(t, err)
 
-		response, _ := relayerClient.FinishPTBAndSend(ctx, txnSigner, ptbTx, client.WaitForLocalExecution)
+		response, err := relayerClient.SignAndSendTransaction(ctx, base64.StdEncoding.EncodeToString(bcsBytes), publicKeyBytes)
+		require.NoError(t, err)
 		require.False(t, response.Transaction.GetEffects().GetStatus().GetSuccess())
 
 		// 5.b. Wait for the execution state changed event to be indexed
@@ -484,23 +358,70 @@ func TestTransactionsIndexer(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func BuildFailedOfframpExecutionPTB(
+	ctx context.Context,
+	t *testing.T,
+	relayerClient *client.PTBClient,
+	packageId string,
+	accountAddress string,
+	ccipObjectRefId string,
+	offrampStateObjectId string,
+	reportBytes []byte,
+) *transaction.Transaction {
+	t.Helper()
+
+	txn := transaction.NewTransaction()
+	txn.SetSender(models.SuiAddress(accountAddress))
+
+	refArg, err := relayerClient.TransformTransactionArg(ctx, txn, ccipObjectRefId, "object_id", false)
+	require.NoError(t, err)
+
+	stateArg, err := relayerClient.TransformTransactionArg(ctx, txn, offrampStateObjectId, "object_id", true)
+	require.NoError(t, err)
+
+	clockArg, err := relayerClient.TransformTransactionArg(ctx, txn, "0x6", "object_id", false)
+	require.NoError(t, err)
+
+	reportContextArg := txn.Pure([][]byte{})
+	reportArg := txn.Pure(reportBytes)
+
+	txn.MoveCall(
+		models.SuiAddress(packageId),
+		"offramp",
+		"init_execute",
+		nil,
+		[]transaction.Argument{*refArg, *stateArg, *clockArg, reportContextArg, reportArg},
+	)
+	txn.MoveCall(
+		models.SuiAddress(packageId),
+		"offramp",
+		"finish_execute",
+		nil,
+		nil,
+	)
+
+	referenceGasPrice, err := relayerClient.GetReferenceGasPrice(ctx)
+	require.NoError(t, err)
+	txn.SetGasPrice(referenceGasPrice.Uint64())
+
+	txn.SetGasBudget(1000000000)
+
+	return txn
+}
+
 func CreateFailedTransaction(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) {
 	t.Helper()
-	// Verify we can execute the transaction
-	resp, err := BasicIncrementBy(t, relayerClient, packageId, counterObjectId, accountAddress, signerPublicKey, "1000")
+	_, err := BasicIncrementBy(t, relayerClient, packageId, counterObjectId, accountAddress, signerPublicKey, 1000, false)
 	require.NoError(t, err)
-	require.False(t, resp.Transaction.GetEffects().GetStatus().GetSuccess(), "Expected move call to fail")
 }
 
 func CreateSuccessfulTransaction(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) {
 	t.Helper()
-	// Verify we can execute the transaction
-	resp, err := BasicIncrementBy(t, relayerClient, packageId, counterObjectId, accountAddress, signerPublicKey, "10")
+	_, err := BasicIncrementBy(t, relayerClient, packageId, counterObjectId, accountAddress, signerPublicKey, 10, true)
 	require.NoError(t, err)
-	require.True(t, resp.Transaction.GetEffects().GetStatus().GetSuccess(), "Expected move call to succeed")
 }
 
-func BasicIncrementBy(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte, val string) (*v2.ExecuteTransactionResponse, error) {
+func BasicIncrementBy(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte, val uint64, expectSuccess bool) (*v2.ExecuteTransactionResponse, error) {
 	t.Helper()
 	// Prepare arguments for a move call
 	moveCallReq := client.MoveCallRequest{
@@ -523,11 +444,19 @@ func BasicIncrementBy(t *testing.T, relayerClient *client.PTBClient, packageId s
 		txnMetadata.TxBytes,
 		signerPublicKey,
 	)
+	require.NoError(t, err)
 
-	// wait for transaction confirmation
+	// SignAndSendTransaction may return before effects are finalized; poll for the
+	// terminal on-chain status and assert against that instead of the initial response.
 	require.Eventually(t, func() bool {
 		status, err := relayerClient.GetTransactionStatus(context.Background(), resp.Transaction.GetDigest())
-		return err == nil && status.Status == "success"
+		if err != nil {
+			return false
+		}
+		if expectSuccess {
+			return status.Status == "success"
+		}
+		return status.Status == "failure"
 	}, 10*time.Second, 200*time.Millisecond)
 
 	return resp, err
@@ -535,14 +464,21 @@ func BasicIncrementBy(t *testing.T, relayerClient *client.PTBClient, packageId s
 
 func SetOCRConfig(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) (*v2.ExecuteTransactionResponse, error) {
 	t.Helper()
+
 	// Prepare arguments for a move call
 	moveCallReq := client.MoveCallRequest{
 		Signer:          accountAddress,
 		PackageObjectId: packageId,
 		Module:          "ocr3_base",
 		Function:        "set_ocr3_config",
-		Arguments:       []any{[]byte{1, 2, 3, 4, 5}, uint8(0), uint8(1), [][]byte{signerPublicKey}, []string{accountAddress}},
-		GasBudget:       1000000000,
+		Arguments: []any{
+			[]byte{1, 2, 3, 4, 5},
+			uint8(0),
+			uint8(1),
+			[][]byte{signerPublicKey},
+			[]string{accountAddress},
+		},
+		GasBudget: 1000000000,
 	}
 
 	// Call MoveCall to prepare the transaction
@@ -556,6 +492,11 @@ func SetOCRConfig(t *testing.T, relayerClient *client.PTBClient, packageId strin
 		txnMetadata.TxBytes,
 		signerPublicKey,
 	)
+
+	require.Eventually(t, func() bool {
+		status, err := relayerClient.GetTransactionStatus(context.Background(), resp.Transaction.GetDigest())
+		return err == nil && status.Status == "success"
+	}, 10*time.Second, 200*time.Millisecond)
 
 	return resp, err
 }

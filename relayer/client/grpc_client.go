@@ -204,9 +204,8 @@ func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaD
 	}
 
 	for i, arg := range req.Arguments {
-		argType := functionDefinition.GetFunction().GetParameters()[i].Body.GetType()
-		argTypeString := v2.OpenSignatureBody_Type_name[int32(argType)]
-		arg, err := c.TransformTransactionArg(ctx, txn, arg, argTypeString, true)
+		paramBody := functionDefinition.GetFunction().GetParameters()[i].GetBody()
+		arg, err := c.transformMoveCallArgFromSignature(ctx, txn, arg, paramBody, true)
 		if err != nil {
 			return TxnMetaData{}, fmt.Errorf("failed to transform transaction arg: %w", err)
 		}
