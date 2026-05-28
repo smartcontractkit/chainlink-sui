@@ -163,9 +163,6 @@ func TestChainReaderFiredrill(t *testing.T) {
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
 		log,
-		relayerClient,
-		chainReaderConfig.TransactionsIndexer.PollingInterval,
-		chainReaderConfig.TransactionsIndexer.SyncTimeout,
 		// start without any configs, they will be set when ChainReader is initialized and gets a reference
 		// to the transaction indexer to avoid having to reading ChainReader configs here as well
 		map[string]*config.ChainReaderEvent{},
@@ -173,14 +170,23 @@ func TestChainReaderFiredrill(t *testing.T) {
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		log,
-		relayerClient,
 		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
-		chainReaderConfig.EventsIndexer.PollingInterval,
-		chainReaderConfig.EventsIndexer.SyncTimeout,
 	)
+
+	chainPoller := indexer.NewChainPoller(
+		relayerClient,
+		log,
+		config.ChainPollerConfig{
+			PollingInterval: 1 * time.Second,
+			SyncTimeout:     60 * time.Second,
+		},
+		evIndexer.GetEventSelectors,
+	)
+
 	indexerInstance := indexer.NewIndexer(
 		log,
+		chainPoller,
 		evIndexer,
 		txnIndexer,
 	)
