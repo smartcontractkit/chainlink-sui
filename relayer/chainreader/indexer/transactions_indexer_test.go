@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	v2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
@@ -87,7 +89,15 @@ func TestTransactionsIndexer(t *testing.T) {
 
 	txnSigner := keystoreInstance.GetSuiSigner(ctx, hex.EncodeToString(publicKeyBytes))
 
-	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	ptbClientConfig := client.PTBClientConfig{
+		GrpcTarget:            testutils.LocalGrpcUrl,
+		GrpcToken:             "test",
+		TransactionTimeout:    10 * time.Second,
+		MaxConcurrentRequests: 5,
+		KeystoreService:       keystoreInstance,
+		DefaultRequestType:    client.WaitForLocalExecution,
+	}
+	relayerClient, err := client.NewPTBClient(log, ptbClientConfig)
 	require.NoError(t, err)
 
 	chainID, chainIDErr := testutils.GetChainIdentifier(testutils.LocalUrl)
@@ -412,7 +422,7 @@ func TestTransactionsIndexer(t *testing.T) {
 		// 2. Query the transactions and ensure that they are findable from the RPC
 		txs_1, err := relayerClient.QueryTransactions(ctx, accountAddress, nil, nil)
 		require.NoError(t, err)
-		require.GreaterOrEqual(t, len(txs_1.Data), 3, "Expected at least 3 transactions")
+		require.GreaterOrEqual(t, len(txs_1), 3, "Expected at least 3 transactions")
 
 		// 3. Start the indexers and ensure that the events / transactions are indexed
 		go func() {
@@ -460,7 +470,7 @@ func TestTransactionsIndexer(t *testing.T) {
 		require.NoError(t, err)
 
 		response, _ := relayerClient.FinishPTBAndSend(ctx, txnSigner, ptbTx, client.WaitForLocalExecution)
-		require.Equal(t, "failure", response.Status.Status)
+		require.False(t, response.Transaction.GetEffects().GetStatus().GetSuccess())
 
 		// 5.b. Wait for the execution state changed event to be indexed
 		require.Eventually(t, func() bool {
@@ -483,7 +493,7 @@ func CreateFailedTransaction(t *testing.T, relayerClient *client.PTBClient, pack
 	// Verify we can execute the transaction
 	resp, err := BasicIncrementBy(t, relayerClient, packageId, counterObjectId, accountAddress, signerPublicKey, "1000")
 	require.NoError(t, err)
-	require.Equal(t, "failure", resp.Status.Status, "Expected move call to fail")
+	require.False(t, resp.Transaction.GetEffects().GetStatus().GetSuccess(), "Expected move call to fail")
 }
 
 func CreateSuccessfulTransaction(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) {
@@ -491,10 +501,10 @@ func CreateSuccessfulTransaction(t *testing.T, relayerClient *client.PTBClient, 
 	// Verify we can execute the transaction
 	resp, err := BasicIncrementBy(t, relayerClient, packageId, counterObjectId, accountAddress, signerPublicKey, "10")
 	require.NoError(t, err)
-	require.Equal(t, "success", resp.Status.Status, "Expected move call to succeed")
+	require.True(t, resp.Transaction.GetEffects().GetStatus().GetSuccess(), "Expected move call to succeed")
 }
 
-func BasicIncrementBy(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte, val string) (client.SuiTransactionBlockResponse, error) {
+func BasicIncrementBy(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte, val string) (*v2.ExecuteTransactionResponse, error) {
 	t.Helper()
 	// Prepare arguments for a move call
 	moveCallReq := client.MoveCallRequest{
@@ -516,13 +526,12 @@ func BasicIncrementBy(t *testing.T, relayerClient *client.PTBClient, packageId s
 		context.Background(),
 		txnMetadata.TxBytes,
 		signerPublicKey,
-		"WaitForLocalExecution",
 	)
 
 	return resp, err
 }
 
-func SetOCRConfig(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) (client.SuiTransactionBlockResponse, error) {
+func SetOCRConfig(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) (*v2.ExecuteTransactionResponse, error) {
 	t.Helper()
 	// Prepare arguments for a move call
 	moveCallReq := client.MoveCallRequest{
@@ -544,7 +553,6 @@ func SetOCRConfig(t *testing.T, relayerClient *client.PTBClient, packageId strin
 		context.Background(),
 		txnMetadata.TxBytes,
 		signerPublicKey,
-		"WaitForLocalExecution",
 	)
 
 	return resp, err

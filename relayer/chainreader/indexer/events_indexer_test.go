@@ -74,7 +74,16 @@ func TestEventsIndexer(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	ptbClientConfig := client.PTBClientConfig{
+		GrpcTarget:            testutils.LocalGrpcUrl,
+		GrpcToken:             "test",
+		TransactionTimeout:    10 * time.Second,
+		MaxConcurrentRequests: 5,
+		KeystoreService:       keystoreInstance,
+		DefaultRequestType:    client.WaitForLocalExecution,
+	}
+
+	relayerClient, err := client.NewPTBClient(log, ptbClientConfig)
 	require.NoError(t, err)
 
 	chainID, err := testutils.GetChainIdentifier(testutils.LocalUrl)
@@ -131,10 +140,10 @@ func TestEventsIndexer(t *testing.T) {
 		txMetadata, callErr := relayerClient.MoveCall(ctx, moveCallReq)
 		require.NoError(t, callErr)
 
-		txnResult, sendErr := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+		txnResult, sendErr := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
 		require.NoError(t, sendErr)
 
-		log.Debugw("Event created successfully", "eventNumber", eventNum, "txDigest", txnResult.TxDigest)
+		log.Debugw("Event created successfully", "eventNumber", eventNum, "txDigest", txnResult.Transaction.GetDigest())
 	}
 
 	// Helper function to wait for events to be indexed
