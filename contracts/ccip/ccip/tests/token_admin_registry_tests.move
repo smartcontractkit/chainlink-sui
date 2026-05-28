@@ -1316,6 +1316,18 @@ fun test_backfill_local_decimals_not_initialized() {
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let ctx = scenario.ctx();
+
+        upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
+
+        scenario.return_to_sender(owner_cap);
+        ts::return_shared(ref);
+    };
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         // Don't call initialize_local_decimals — should abort
         registry::backfill_local_decimals(&owner_cap, &mut ref, @0xABC, 9);
