@@ -350,11 +350,10 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 		"latestOfframpPackageId", latestOfframpPackageId,
 		"checkpoint", checkpoint)
 
-	// Get the abort info from the error string
-	errStr := tx.GetEffects().GetStatus().GetError().String()
-	moveAbort, err := tIndexer.parseMoveAbort(errStr)
+	execErr := tx.GetEffects().GetStatus().GetError()
+	moveAbort, err := tIndexer.parseMoveAbortFromExecutionError(execErr)
 	if err != nil {
-		tIndexer.logger.Debugw("Failed to parse move abort (not necessarily an error)", "error", err)
+		tIndexer.logger.Debugw("Failed to parse move abort (not necessarily an error)", "error", err, "moveErrString", execErr)
 		// Continue processing - some failures may not have abort info
 		return nil, nil
 	}
@@ -660,7 +659,43 @@ var abortRe = regexp.MustCompile(
 		`(\d+)\) in command (\d+)$`,
 )
 
-// parseMoveAbort parses the error string into a MoveAbort struct.
+// parseMoveAbortFromExecutionError extracts abort metadata from gRPC v2 ExecutionError.
+func (tIndexer *TransactionsIndexer) parseMoveAbortFromExecutionError(execErr *suirpcv2.ExecutionError) (*MoveAbort, error) {
+	if execErr == nil {
+		return nil, fmt.Errorf("execution error is nil")
+	}
+
+	abort := execErr.GetAbort()
+	if abort == nil {
+		return nil, fmt.Errorf("execution error has no abort details")
+	}
+
+	location := abort.GetLocation()
+	if location == nil {
+		return nil, fmt.Errorf("abort has no location")
+	}
+
+	var functionName *string
+	if name := location.GetFunctionName(); name != "" {
+		functionName = &name
+	}
+
+	return &MoveAbort{
+		Location: MoveLocation{
+			Module: ModuleId{
+				Address: location.GetPackage(),
+				Name:    location.GetModule(),
+			},
+			Function:     uint64(location.GetFunction()),
+			Instruction:  uint64(location.GetInstruction()),
+			FunctionName: functionName,
+		},
+		AbortCode:    abort.GetAbortCode(),
+		CommandIndex: execErr.GetCommand(),
+	}, nil
+}
+
+// parseMoveAbort parses the legacy Rust debug error string into a MoveAbort struct.
 func (tIndexer *TransactionsIndexer) parseMoveAbort(s string) (*MoveAbort, error) {
 	m := abortRe.FindStringSubmatch(s)
 	if m == nil {

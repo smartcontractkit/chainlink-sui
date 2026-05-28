@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -10,6 +11,8 @@ import (
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -215,6 +218,13 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 			return
 		default:
 			if err := cp.processCheckpoint(ctx, seq); err != nil {
+				if isCheckpointNotFound(err) && seq == endSeq {
+					cp.logger.Debugw("Latest checkpoint not yet available",
+						"sequence", seq,
+						"error", err,
+					)
+					return
+				}
 				cp.logger.Errorw("Failed to process checkpoint",
 					"sequence", seq,
 					"error", err,
@@ -224,6 +234,19 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 			}
 		}
 	}
+}
+
+func isCheckpointNotFound(err error) bool {
+	for err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return true
+		}
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return true
+		}
+		err = errors.Unwrap(err)
+	}
+	return false
 }
 
 // processCheckpoint fetches and processes a single checkpoint.

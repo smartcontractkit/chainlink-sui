@@ -300,12 +300,10 @@ func TestTransactionsIndexer(t *testing.T) {
 		require.NotNil(t, latestCheckpoint)
 		log.Debugw("Latest checkpoint found", "sequence", latestCheckpoint.GetSequenceNumber())
 
-		// 3. The indexers are already running via the full pipeline
-		// Create a successful transaction to trigger the transactions indexer
+		// 3. Create a successful transaction (exercises the checkpoint pipeline)
 		CreateSuccessfulTransaction(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-		time.Sleep(15 * time.Second)
 
-		// 5. Create the initial OCR event to initiate transaction indexing
+		// 4. Create the initial OCR event to initiate transaction indexing
 		setConfigResponse, setConfigErr := SetOCRConfig(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
 		require.NoError(t, setConfigErr)
 		testutils.PrettyPrintDebug(log, setConfigResponse, "setConfigResponse")
@@ -403,8 +401,17 @@ func BuildFailedOfframpExecutionPTB(
 	referenceGasPrice, err := relayerClient.GetReferenceGasPrice(ctx)
 	require.NoError(t, err)
 	txn.SetGasPrice(referenceGasPrice.Uint64())
+	txn.SetGasBudget(client.DefaultGasBudget)
 
-	txn.SetGasBudget(1000000000)
+	paymentCoinBytes, paymentCoinVersion, paymentCoinDigest, err := relayerClient.GetTransactionPaymentCoinForAddress(ctx, accountAddress)
+	require.NoError(t, err)
+	txn.SetGasPayment([]transaction.SuiObjectRef{
+		{
+			ObjectId: paymentCoinBytes,
+			Version:  paymentCoinVersion,
+			Digest:   paymentCoinDigest,
+		},
+	})
 
 	return txn
 }
