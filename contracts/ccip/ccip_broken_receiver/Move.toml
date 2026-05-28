@@ -1,0 +1,6 @@
+[package]
+name = "ccip_broken_receiver"
+edition = "2024"
+
+[dependencies]
+ccip = { local = "../ccip" }

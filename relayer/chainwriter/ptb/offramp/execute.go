@@ -384,11 +384,13 @@ func ProcessReceivers(
 
 		receiverConfig, err := receiverRegistryDevInspect.GetReceiverConfig(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
 		if err != nil {
+			// RPC/network error — propagate so the caller can retry later.
 			return nil, fmt.Errorf("failed to get receiver config in offramp execution: %w", err)
 		}
 
 		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverConfig.ModuleName)
 		if err != nil {
+			// RPC/network error — propagate so the caller can retry later.
 			return nil, fmt.Errorf("failed to get normalized module for receiver: %w", err)
 		}
 
@@ -408,7 +410,18 @@ func ProcessReceivers(
 			extraArgs,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build receiver command for %s: %w", receiverPackageId, err)
+			// Permanent failure (e.g. unsupported ABI with TypeParameter/generics).
+			// Skip the receiver leg and let the PTB be submitted without it.
+			// On-chain, populate_message will have set ReceiverParams.message to Some,
+			// so finish_execute → deconstruct_receiver_params will abort with ECCIPReceiveFailed.
+			// The transactions indexer observes this failed PTB and creates a synthetic
+			// ExecutionStateChanged(FAILURE) event, causing the DON to stop retrying.
+			// The message remains UNTOUCHED on-chain (atomic rollback) and available
+			// for manually_init_execute once the receiver is fixed or unregistered.
+			lggr.Errorw("skipping receiver command due to permanent build failure; PTB will fail on-chain",
+				"receiver", receiverPackageId,
+				"error", err)
+			continue
 		}
 		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
 	}
