@@ -187,67 +187,6 @@ func TestGrpcClient(t *testing.T) {
 	})
 
 	//nolint:paralleltest
-	t.Run("QueryEvents", func(t *testing.T) {
-		// Increment the counter 3 times to create multiple events
-		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-
-		// Create event filter for the counter module
-		filter := client.EventFilterByMoveEventModule{
-			Package: packageId,
-			Module:  "counter",
-			Event:   "CounterIncremented",
-		}
-
-		limit := uint(1)
-		descending := true
-
-		// Query events
-		events, err := relayerClient.QueryEvents(context.Background(), filter, &limit, nil, &client.QuerySortOptions{
-			Descending: descending,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, events)
-		require.Equal(t, 1, len(events.Data))
-
-		// Query events again with the cursor of the previous query
-		cursor := client.EventId{
-			TxDigest: events.Data[0].Id.TxDigest,
-			EventSeq: events.Data[0].Id.EventSeq,
-		}
-		eventsWithCursor, errWithCursor := relayerClient.QueryEvents(context.Background(), filter, &limit, &cursor, &client.QuerySortOptions{
-			Descending: descending,
-		})
-		require.NoError(t, errWithCursor)
-		require.NotNil(t, eventsWithCursor)
-		require.True(t, len(eventsWithCursor.Data) > 0)
-	})
-
-	//nolint:paralleltest
-	t.Run("QueryEvents_(high_limit)", func(t *testing.T) {
-		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-
-		// Create event filter for the counter module
-		filter := client.EventFilterByMoveEventModule{
-			Package: packageId,
-			Module:  "counter",
-			Event:   "CounterIncremented",
-		}
-
-		limit := uint(50)
-		descending := true
-
-		// Query events
-		events, err := relayerClient.QueryEvents(context.Background(), filter, &limit, nil, &client.QuerySortOptions{
-			Descending: descending,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, events)
-		require.True(t, len(events.Data) > 0)
-	})
-
-	//nolint:paralleltest
 	t.Run("GetCoinsByAddress", func(t *testing.T) {
 		// Get coins owned by the account
 		coins, err := relayerClient.GetCoinsByAddress(context.Background(), accountAddress)
@@ -326,7 +265,8 @@ func TestGrpcClient(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("GetTransactionStatus", func(t *testing.T) {
-		txDigest := IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
+		tx := IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
+		txDigest := tx.GetDigest()
 
 		// Now check its status
 		assert.Eventually(t, func() bool {
@@ -447,57 +387,6 @@ func TestGrpcClient(t *testing.T) {
 		utils.PrettyPrint(values)
 	})
 
-	t.Run("QueryTransactions", func(t *testing.T) {
-		transactions, err := relayerClient.QueryTransactions(
-			context.Background(),
-			accountAddress,
-			nil,
-			nil,
-		)
-		require.NoError(t, err)
-		require.NotNil(t, transactions)
-		require.True(t, len(transactions) > 0)
-	})
-
-	t.Run("QueryFailedTransactions", func(t *testing.T) {
-		CreateFailedTransaction(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-
-		transactions, err := relayerClient.QueryTransactions(
-			context.Background(),
-			accountAddress,
-			nil,
-			nil,
-		)
-		require.NoError(t, err)
-		require.NotNil(t, transactions)
-		require.True(t, len(transactions) > 0)
-
-		failuresCount := 0
-		for _, tx := range transactions {
-			if !tx.GetEffects().Status.GetSuccess() {
-				failuresCount++
-			}
-		}
-
-		// expect to find the failed transaction in the list
-		require.True(t, failuresCount > 0, "Expected at least one failure")
-
-		// create another failed transaction and use the cursor to ignore the previously fetched ones
-		CreateFailedTransaction(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-		queryLimit := uint64(1)
-		transactions, err = relayerClient.QueryTransactions(
-			context.Background(),
-			accountAddress,
-			&suirpcv2.Checkpoint{
-				SequenceNumber: transactions[0].Checkpoint,
-			},
-			&queryLimit,
-		)
-		require.NoError(t, err)
-		require.NotNil(t, transactions)
-		require.Equal(t, 1, len(transactions))
-	})
-
 	t.Run("GetLatestPackageId", func(t *testing.T) {
 		latestPackageId, err := relayerClient.GetLatestPackageId(
 			context.Background(),
@@ -529,11 +418,45 @@ func TestGrpcClient(t *testing.T) {
 		checkpoint, err := relayerClient.GetLatestCheckpoint(context.Background())
 		require.NoError(t, err)
 		require.NotNil(t, checkpoint)
-		utils.PrettyPrint(checkpoint)
+		require.NotZero(t, checkpoint.GetSequenceNumber())
+	})
+
+	t.Run("GetCheckpointData", func(t *testing.T) {
+		// create a random tranaction to be included in the next checkpoint
+		tx := IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
+		txDigest := tx.GetDigest()
+		require.NotEmpty(t, txDigest)
+
+		var checkpoint uint64
+
+		// assert the transaction is included in the next checkpoint
+		assert.Eventually(t, func() bool {
+			transaction, err := relayerClient.GetTransactionStatus(context.Background(), txDigest)
+			checkpoint = transaction.Checkpoint
+			return transaction.Status == "success" && err == nil
+		}, 10*time.Second, 1*time.Second)
+
+		checkpointData, err := relayerClient.GetCheckpointData(context.Background(), checkpoint)
+		require.NoError(t, err)
+		require.NotNil(t, checkpoint)
+		require.Equal(t, checkpoint, checkpointData.Checkpoint.GetSequenceNumber())
+
+		// assert the transaction is included in the checkpoint data
+		var found bool
+		for _, tx := range checkpointData.Transactions {
+			if tx.GetDigest() == txDigest {
+				require.Equal(t, tx.GetCheckpoint(), checkpoint)
+				require.Contains(t, checkpointData.Transactions, tx)
+				found = true
+				break
+			}
+		}
+
+		require.True(t, found, "Transaction not found in checkpoint data")
 	})
 }
 
-func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) string {
+func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) *suirpcv2.ExecutedTransaction {
 	t.Helper()
 	// Prepare arguments for a move call
 	moveCallReq := client.MoveCallRequest{
@@ -560,7 +483,7 @@ func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient,
 	require.NoError(t, err)
 	require.Equal(t, true, resp.Transaction.GetEffects().GetStatus().GetSuccess(), "Expected move call to succeed")
 
-	return resp.Transaction.GetDigest()
+	return resp.GetTransaction()
 }
 
 func CreateManyObjects(t *testing.T, relayerClient *client.PTBClient, packageId string, accountAddress string, signerPublicKey []byte) {

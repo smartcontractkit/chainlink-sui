@@ -59,7 +59,6 @@ var RateLimitWeights = map[string]int64{
 	"GetValuesFromPackageOwnedObjectField": 1,
 	"GetReferenceGasPrice":                 1,
 	"FinishPTBAndSend":                     1,
-	"BlockByDigest":                        1,
 	// Keep 0, these methods are often called at the same time as ReadFunction
 	// from ChainReader, high load of GetLatestValue calls could cause a deadlock.
 	"ReadFilterOwnedObjectIds":           0,
@@ -95,7 +94,6 @@ type SuiPTBClient interface {
 	EstimateGas(ctx context.Context, tx *transaction.Transaction) (uint64, error)
 	GetReferenceGasPrice(ctx context.Context) (*big.Int, error)
 	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (*suirpcv2.ExecuteTransactionResponse, error)
-	BlockByDigest(ctx context.Context, txDigest string) (*suirpcv2.Checkpoint, error)
 	GetBlockById(ctx context.Context, checkpointDigest string) (*suirpcv2.Checkpoint, error)
 	GetLatestEpoch(ctx context.Context) (*suirpcv2.Epoch, error)
 	GetLatestCheckpoint(ctx context.Context) (*suirpcv2.Checkpoint, error)
@@ -608,7 +606,7 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 		response, err := ledgerService.GetTransaction(ctx, &suirpcv2.GetTransactionRequest{
 			Digest: &digest,
 			ReadMask: &fieldmaskpb.FieldMask{
-				Paths: []string{"effects.status", "effects.gas_used"},
+				Paths: []string{"effects.status", "effects.gas_used", "checkpoint"},
 			},
 		})
 		if err != nil {
@@ -624,8 +622,9 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 		}
 
 		result = TransactionResult{
-			Status: status,
-			Error:  response.Transaction.GetEffects().GetStatus().GetError().String(),
+			Status:     status,
+			Error:      response.Transaction.GetEffects().GetStatus().GetError().String(),
+			Checkpoint: response.Transaction.GetCheckpoint(),
 		}
 
 		return nil
@@ -888,47 +887,6 @@ func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Sign
 	encodedBcsBytes := base64.StdEncoding.EncodeToString(bcsBytes)
 
 	return c.SignAndSendTransaction(ctx, encodedBcsBytes, txnSigner.PubKey)
-}
-
-// BlockByDigest returns the transaction block using the transaction digest.
-func (c *PTBClient) BlockByDigest(ctx context.Context, txDigest string) (*suirpcv2.Checkpoint, error) {
-	ledgerService, err := c.getLedgerService(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ledger service: %w", err)
-	}
-
-	var result *suirpcv2.Checkpoint
-	err = c.WithRateLimit(ctx, "BlockByDigest", func(ctx context.Context) error {
-		response, err := ledgerService.GetTransaction(ctx, &suirpcv2.GetTransactionRequest{
-			Digest: &txDigest,
-			ReadMask: &fieldmaskpb.FieldMask{
-				Paths: []string{"transaction.checkpoint"},
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("failed to get transaction block: %w", err)
-		}
-
-		checkpointSeqNumber := response.Transaction.Checkpoint
-		if checkpointSeqNumber == nil {
-			return fmt.Errorf("checkpoint sequence number not found")
-		}
-
-		checkpoint, err := ledgerService.GetCheckpoint(ctx, &suirpcv2.GetCheckpointRequest{
-			CheckpointId: &suirpcv2.GetCheckpointRequest_SequenceNumber{
-				SequenceNumber: *checkpointSeqNumber,
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("failed to get checkpoint: %w", err)
-		}
-
-		result = checkpoint.GetCheckpoint()
-
-		return nil
-	})
-
-	return result, err
 }
 
 // GetBlockById (i.e. get checkpoint by id) returns the checkpoint details given its ID
