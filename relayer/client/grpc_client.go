@@ -71,6 +71,9 @@ var RateLimitWeights = map[string]int64{
 	"GetCCIPPackageID":                   0,
 	"GetTokenPoolConfigByPackageAddress": 0,
 	"GetLatestEpoch":                     0,
+	"GetTransactionsByCheckpoint":        1,
+	"GetLatestCheckpoint":                1,
+	"GetCheckpointData":                  1,
 }
 
 // var since it's passed via pointer
@@ -95,6 +98,8 @@ type SuiPTBClient interface {
 	BlockByDigest(ctx context.Context, txDigest string) (*suirpcv2.Checkpoint, error)
 	GetBlockById(ctx context.Context, checkpointDigest string) (*suirpcv2.Checkpoint, error)
 	GetLatestEpoch(ctx context.Context) (*suirpcv2.Epoch, error)
+	GetLatestCheckpoint(ctx context.Context) (*suirpcv2.Checkpoint, error)
+	GetCheckpointData(ctx context.Context, checkpointSequenceNumber uint64) (*CheckpointData, error)
 	GetNormalizedModule(ctx context.Context, packageId string, moduleId string) (models.GetNormalizedMoveModuleResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*suirpcv2.Balance, error)
 	LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error)
@@ -199,9 +204,8 @@ func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaD
 	}
 
 	for i, arg := range req.Arguments {
-		argType := functionDefinition.GetFunction().GetParameters()[i].Body.GetType()
-		argTypeString := v2.OpenSignatureBody_Type_name[int32(argType)]
-		arg, err := c.TransformTransactionArg(ctx, txn, arg, argTypeString, true)
+		paramBody := functionDefinition.GetFunction().GetParameters()[i].GetBody()
+		arg, err := c.transformMoveCallArgFromSignature(ctx, txn, arg, paramBody, true)
 		if err != nil {
 			return TxnMetaData{}, fmt.Errorf("failed to transform transaction arg: %w", err)
 		}
@@ -651,12 +655,7 @@ func (c *PTBClient) GetTransactionsByCheckpoint(ctx context.Context, checkpointS
 			SequenceNumber: checkpointSequenceNumber,
 		},
 		ReadMask: &fieldmaskpb.FieldMask{
-			Paths: []string{
-				"checkpoint",
-				"checkpoint.transactions",
-				"checkpoint.transactions.effects",
-				"checkpoint.transactions.events",
-			},
+			Paths: checkpointTransactionReadMaskPaths,
 		},
 	})
 	if err != nil {
@@ -664,6 +663,171 @@ func (c *PTBClient) GetTransactionsByCheckpoint(ctx context.Context, checkpointS
 	}
 
 	return response.GetCheckpoint().GetTransactions(), nil
+}
+
+// CheckpointData combines checkpoint metadata with its transactions.
+type CheckpointData struct {
+	Checkpoint   *suirpcv2.Checkpoint
+	Transactions []*suirpcv2.ExecutedTransaction
+}
+
+// Read mask paths for checkpoint indexing. Nested event fields must be listed
+// explicitly; requesting only "transactions.events" can return TransactionEvents
+// containers without Event metadata, causing the indexer to skip real events.
+var checkpointTransactionReadMaskPaths = []string{
+	"sequence_number",
+	"digest",
+	"summary.timestamp",
+	"transactions",
+	"transactions.digest",
+	"transactions.transaction.sender",
+	"transactions.transaction.kind",
+	"transactions.transaction.kind.programmable_transaction.commands",
+	"transactions.transaction.kind.programmable_transaction.commands.move_call.package",
+	"transactions.transaction.kind.programmable_transaction.commands.move_call.module",
+	"transactions.transaction.kind.programmable_transaction.commands.move_call.function",
+	"transactions.transaction.kind.programmable_transaction.commands.move_call.arguments",
+	"transactions.transaction.kind.programmable_transaction.commands.move_call.arguments.kind",
+	"transactions.transaction.kind.programmable_transaction.commands.move_call.arguments.input",
+	"transactions.transaction.kind.programmable_transaction.inputs",
+	"transactions.transaction.kind.programmable_transaction.inputs.pure",
+	"transactions.effects.status",
+	"transactions.effects.status.success",
+	"transactions.effects.status.error",
+	"transactions.effects.status.error.command",
+	"transactions.effects.status.error.abort",
+	"transactions.effects.status.error.abort.abort_code",
+	"transactions.effects.status.error.abort.location",
+	"transactions.effects.events_digest",
+	"transactions.events.events.package_id",
+	"transactions.events.events.module",
+	"transactions.events.events.event_type",
+	"transactions.events.events.json",
+}
+
+var transactionEventsReadMaskPaths = []string{
+	"digest",
+	"effects.events_digest",
+	"events.events.package_id",
+	"events.events.module",
+	"events.events.event_type",
+	"events.events.json",
+}
+
+// TODO: this should be the responsibility of the indexer, not the client
+// hydrateTransactionEventsIfNeeded fetches full event payloads when a checkpoint
+// transaction reports an events_digest but omits inline TransactionEvents.
+func (c *PTBClient) hydrateTransactionEventsIfNeeded(ctx context.Context, tx *suirpcv2.ExecutedTransaction) {
+	if tx == nil {
+		return
+	}
+	if tx.GetEvents() != nil && len(tx.GetEvents().GetEvents()) > 0 {
+		return
+	}
+	if tx.GetEffects() == nil || tx.GetEffects().GetEventsDigest() == "" {
+		return
+	}
+
+	digest := tx.GetDigest()
+	if digest == "" {
+		return
+	}
+
+	err := c.WithRateLimit(ctx, "GetTransactionStatus", func(ctx context.Context) error {
+		ledgerService, err := c.getLedgerService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get ledger service: %w", err)
+		}
+
+		response, err := ledgerService.GetTransaction(ctx, &suirpcv2.GetTransactionRequest{
+			Digest: &digest,
+			ReadMask: &fieldmaskpb.FieldMask{
+				Paths: transactionEventsReadMaskPaths,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get transaction %s: %w", digest, err)
+		}
+
+		events := response.GetTransaction().GetEvents()
+		if events != nil && len(events.GetEvents()) > 0 {
+			tx.Events = events
+		}
+
+		return nil
+	})
+	if err != nil {
+		c.log.Warnw("Failed to hydrate transaction events", "digest", digest, "error", err)
+	}
+}
+
+// GetCheckpointData returns checkpoint metadata plus all transactions for a given sequence number.
+func (c *PTBClient) GetCheckpointData(ctx context.Context, checkpointSequenceNumber uint64) (*CheckpointData, error) {
+	var result *CheckpointData
+
+	err := c.WithRateLimit(ctx, "GetCheckpointData", func(ctx context.Context) error {
+		ledgerService, err := c.getLedgerService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get ledger service: %w", err)
+		}
+
+		response, err := ledgerService.GetCheckpoint(ctx, &suirpcv2.GetCheckpointRequest{
+			CheckpointId: &suirpcv2.GetCheckpointRequest_SequenceNumber{
+				SequenceNumber: checkpointSequenceNumber,
+			},
+			ReadMask: &fieldmaskpb.FieldMask{
+				Paths: checkpointTransactionReadMaskPaths,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get checkpoint: %w", err)
+		}
+
+		transactions := response.GetCheckpoint().GetTransactions()
+		for _, tx := range transactions {
+			c.hydrateTransactionEventsIfNeeded(ctx, tx)
+		}
+
+		result = &CheckpointData{
+			Checkpoint:   response.GetCheckpoint(),
+			Transactions: transactions,
+		}
+		return nil
+	})
+
+	return result, err
+}
+
+// GetLatestCheckpoint returns the latest checkpoint from the chain.
+// Uses GetCheckpointRequest with empty CheckpointId which returns the latest.
+func (c *PTBClient) GetLatestCheckpoint(ctx context.Context) (*suirpcv2.Checkpoint, error) {
+	var result *suirpcv2.Checkpoint
+
+	err := c.WithRateLimit(ctx, "GetLatestCheckpoint", func(ctx context.Context) error {
+		ledgerService, err := c.getLedgerService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get ledger service: %w", err)
+		}
+
+		response, err := ledgerService.GetCheckpoint(ctx, &suirpcv2.GetCheckpointRequest{
+			// Empty CheckpointId returns the latest checkpoint
+			ReadMask: &fieldmaskpb.FieldMask{
+				Paths: []string{
+					"sequence_number",
+					"digest",
+					"summary.timestamp",
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get latest checkpoint: %w", err)
+		}
+
+		result = response.GetCheckpoint()
+		return nil
+	})
+
+	return result, err
 }
 
 // GetCoinsByAddress returns all coin objects for a given address.

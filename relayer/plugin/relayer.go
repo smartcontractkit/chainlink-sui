@@ -125,30 +125,45 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
 
-	// Setup indexers
+	// Setup indexers with checkpoint-based architecture
+	// ChainPoller fetches checkpoints and fans out to EventsIndexer and TransactionsIndexer
+
+	// Create consumer indexers first (they get channels from poller)
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
 		loggerInstance,
-		suiClientIndexers,
-		time.Duration(*cfg.TransactionsIndexer.PollingIntervalSecs)*time.Second,
-		time.Duration(*cfg.TransactionsIndexer.SyncTimeoutSecs)*time.Second,
-		// start without any configs, they will be set when ChainReader is initialized and gets a reference
-		// to the transaction indexer to avoid having to reading ChainReader configs here as well
+		// start without any configs, they will be set when ChainReader is initialized
 		map[string]*chainreaderConfig.ChainReaderEvent{},
 	)
 
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		loggerInstance,
-		suiClientIndexers,
-		// start without any selectors, they will be added during .Bind() calls on ChainReader
+		// start without any selectors, they will be added during .Bind() calls
 		[]*client.EventSelector{},
-		time.Duration(*cfg.EventsIndexer.PollingIntervalSecs)*time.Second,
-		time.Duration(*cfg.EventsIndexer.SyncTimeoutSecs)*time.Second,
 	)
 
+	// Build ChainPoller config from TOML settings
+	pollerConfig := chainreaderConfig.ChainPollerConfig{
+		PollingInterval:         time.Duration(*cfg.ChainPoller.PollingIntervalSecs) * time.Second,
+		SyncTimeout:             time.Duration(*cfg.ChainPoller.SyncTimeoutSecs) * time.Second,
+		BackfillCheckpointCount: cfg.ChainPoller.BackfillCheckpointCount,
+		StartCheckpointSequence: cfg.ChainPoller.StartCheckpointSequence,
+		ChannelBufferSize:       int(*cfg.ChainPoller.ChannelBufferSize),
+	}
+
+	// Create ChainPoller - it provides channels via EventsChannel() and TransactionsChannel()
+	chainPoller := indexer.NewChainPoller(
+		suiClientIndexers,
+		loggerInstance,
+		pollerConfig,
+		evIndexer.GetEventSelectors, // SelectorProvider callback for dynamic registration
+	)
+
+	// Create main indexer that orchestrates poller + consumers
 	indexerInstance := indexer.NewIndexer(
 		loggerInstance,
+		chainPoller,
 		evIndexer,
 		txnIndexer,
 	)

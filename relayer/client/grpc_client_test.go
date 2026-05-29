@@ -524,6 +524,13 @@ func TestGrpcClient(t *testing.T) {
 
 		utils.PrettyPrint(coins)
 	})
+
+	t.Run("GetLatestCheckpoint", func(t *testing.T) {
+		checkpoint, err := relayerClient.GetLatestCheckpoint(context.Background())
+		require.NoError(t, err)
+		require.NotNil(t, checkpoint)
+		utils.PrettyPrint(checkpoint)
+	})
 }
 
 func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) string {

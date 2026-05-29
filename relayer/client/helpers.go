@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/blake2b"
@@ -14,6 +13,96 @@ import (
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/transaction"
 )
+
+func (c *PTBClient) transformMoveCallArgFromSignature(
+	ctx context.Context,
+	tx *transaction.Transaction,
+	arg any,
+	body *suirpcv2.OpenSignatureBody,
+	mutable bool,
+) (*transaction.Argument, error) {
+	if body == nil {
+		return nil, fmt.Errorf("missing parameter type signature")
+	}
+
+	c.log.Debugw("transformMoveCallArgFromSignature", "type", body.GetType(), "arg", arg)
+
+	switch body.GetType() {
+	case suirpcv2.OpenSignatureBody_VECTOR:
+		instantiations := body.GetTypeParameterInstantiation()
+		if len(instantiations) != 1 {
+			return nil, fmt.Errorf("unsupported vector type arity: %d", len(instantiations))
+		}
+
+		inner := instantiations[0]
+		switch inner.GetType() {
+		case suirpcv2.OpenSignatureBody_U8:
+			pureArg := tx.Pure(arg)
+			return &pureArg, nil
+		case suirpcv2.OpenSignatureBody_ADDRESS:
+			return c.transformVectorAddressArg(tx, arg)
+		case suirpcv2.OpenSignatureBody_VECTOR:
+			nested := inner.GetTypeParameterInstantiation()
+			if len(nested) == 1 && nested[0].GetType() == suirpcv2.OpenSignatureBody_U8 {
+				pureArg := tx.Pure(arg)
+				return &pureArg, nil
+			}
+			return nil, fmt.Errorf("unsupported nested vector type")
+		default:
+			return nil, fmt.Errorf("unsupported vector element type: %v", inner.GetType())
+		}
+	case suirpcv2.OpenSignatureBody_U8,
+		suirpcv2.OpenSignatureBody_U16,
+		suirpcv2.OpenSignatureBody_U32,
+		suirpcv2.OpenSignatureBody_U64,
+		suirpcv2.OpenSignatureBody_U128,
+		suirpcv2.OpenSignatureBody_U256,
+		suirpcv2.OpenSignatureBody_BOOL,
+		suirpcv2.OpenSignatureBody_ADDRESS:
+		pureArg := tx.Pure(arg)
+		return &pureArg, nil
+	default:
+		argTypeString := suirpcv2.OpenSignatureBody_Type_name[int32(body.GetType())]
+		return c.TransformTransactionArg(ctx, tx, arg, argTypeString, mutable)
+	}
+}
+
+func (c *PTBClient) transformVectorAddressArg(tx *transaction.Transaction, arg any) (*transaction.Argument, error) {
+	switch v := arg.(type) {
+	case []string:
+		return convertAddresses(tx, v)
+	case []interface{}:
+		addresses := make([]models.SuiAddressBytes, len(v))
+		for i, raw := range v {
+			s, ok := raw.(string)
+			if !ok {
+				return nil, fmt.Errorf("vector<address> element is not string: %T", raw)
+			}
+
+			s = strings.TrimPrefix(s, "0x")
+			b, err := hex.DecodeString(s)
+			if err != nil {
+				b, err = base64.StdEncoding.DecodeString(s)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decode address %q: %w", s, err)
+				}
+			}
+
+			if len(b) != 32 {
+				return nil, fmt.Errorf("address at index %d has wrong length %d, want 32", i, len(b))
+			}
+
+			var addr models.SuiAddressBytes
+			copy(addr[:], b)
+			addresses[i] = addr
+		}
+
+		pureArg := tx.Pure(addresses)
+		return &pureArg, nil
+	default:
+		return nil, fmt.Errorf("expected []string or []interface{} for vector<address>, got %T", arg)
+	}
+}
 
 func (c *PTBClient) TransformTransactionArg(
 	ctx context.Context,
@@ -106,45 +195,7 @@ func (c *PTBClient) TransformTransactionArg(
 			return &pureArg, nil
 		}
 	case "vector<address>", "VECTOR":
-		switch v := arg.(type) {
-		case []string:
-			// Already []string, convert directly
-			return convertAddresses(tx, v)
-
-		case []interface{}:
-			// JSON-decoded slice -> could be []byte or hex or base64 strings
-			addresses := make([]models.SuiAddressBytes, len(v))
-			for i, raw := range v {
-				s, ok := raw.(string)
-				if !ok {
-					return nil, fmt.Errorf("vector<address> element is not string: %T", raw)
-				}
-
-				s = strings.TrimPrefix(s, "0x")
-				b, err := hex.DecodeString(s)
-				if err != nil {
-					// fallback: base64 decode (Go JSON encodes []byte → base64 string)
-					b, err = base64.StdEncoding.DecodeString(s)
-					if err != nil {
-						return nil, fmt.Errorf("failed to decode address %q: %w", s, err)
-					}
-				}
-
-				if len(b) != 32 {
-					return nil, fmt.Errorf("address at index %d has wrong length %d, want 32", i, len(b))
-				}
-
-				var addr models.SuiAddressBytes
-				copy(addr[:], b)
-				addresses[i] = addr
-			}
-
-			pureArg := tx.Pure(addresses)
-			return &pureArg, nil
-
-		default:
-			return nil, fmt.Errorf("expected []string or []interface{} for vector<address>, got %T", arg)
-		}
+		return c.transformVectorAddressArg(tx, arg)
 
 	default:
 		pureArg := tx.Pure(arg)
@@ -175,49 +226,6 @@ func (c *PTBClient) GetTransactionPaymentCoinForAddress(ctx context.Context, pay
 	}
 
 	return *coinObjectIdBytes, versionUint, *digestBytes, nil
-}
-
-func (c *PTBClient) convertBlockvisionResponse(resp *models.SuiTransactionBlockResponse) SuiTransactionBlockResponse {
-	result := SuiTransactionBlockResponse{
-		TxDigest: resp.Digest,
-		Timestamp: func() uint64 {
-			if resp.TimestampMs == "" {
-				return 0
-			}
-			ts, err := strconv.ParseUint(resp.TimestampMs, 10, 64)
-			if err != nil {
-				c.log.Errorw("failed to parse timestamp", "error", err, "timestamp", resp.TimestampMs)
-				return 0
-			}
-
-			return ts
-		}(),
-		Height: func() uint64 {
-			if resp.Checkpoint == "" {
-				return 0
-			}
-			h, err := strconv.ParseUint(resp.Checkpoint, 10, 64)
-			if err != nil {
-				c.log.Errorw("failed to parse height", "error", err, "height", resp.Checkpoint)
-				return 0
-			}
-
-			return h
-		}(),
-		Status: SuiExecutionStatus{
-			Status: resp.Effects.Status.Status,
-			Error:  resp.Effects.Status.Error,
-		},
-		ObjectChanges: resp.ObjectChanges,
-		Events:        resp.Events,
-		Effects:       resp.Effects,
-	}
-
-	// Note: Full conversion of effects, events, and object changes would require
-	// detailed mapping between blockvision and internal models
-	// For now, keeping the basic structure
-
-	return result
 }
 
 // HashTxBytes is a helper method to hash (Blake2) the transaction bytes before signing

@@ -73,3 +73,11 @@ type TransactionsIndexerConfig struct {
 	PollingInterval time.Duration
 	SyncTimeout     time.Duration
 }
+
+type ChainPollerConfig struct {
+	PollingInterval           time.Duration
+	SyncTimeout               time.Duration
+	BackfillCheckpointCount   *uint64 // optional: latest - N
+	StartCheckpointSequence   *uint64 // optional: explicit start (overrides backfill if set)
+	ChannelBufferSize         int     // default e.g. 16
+}
