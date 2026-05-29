@@ -163,3 +163,77 @@ public fun get_amount(input: &Any2SuiTokenAmount): u256 {
 public fun get_token_and_amount(input: &Any2SuiTokenAmount): (address, u256) {
     (input.token, input.amount)
 }
+
+// ================================================================
+// |                        V2 Types                              |
+// ================================================================
+
+public struct Any2SuiMessageV2 {
+    message_id: vector<u8>,
+    source_chain_selector: u64,
+    sender: vector<u8>,
+    data: vector<u8>,
+    message_receiver: address,
+    token_receiver: address,
+    receiver_object_ids: vector<address>,
+    dest_token_amounts: vector<Any2SuiTokenAmount>,
+}
+
+public(package) fun new_any2sui_message_v2(
+    message_id: vector<u8>,
+    source_chain_selector: u64,
+    sender: vector<u8>,
+    data: vector<u8>,
+    message_receiver: address,
+    token_receiver: address,
+    receiver_object_ids: vector<address>,
+    dest_token_amounts: vector<Any2SuiTokenAmount>,
+): Any2SuiMessageV2 {
+    Any2SuiMessageV2 {
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        message_receiver,
+        token_receiver,
+        receiver_object_ids,
+        dest_token_amounts,
+    }
+}
+
+public(package) fun consume_any2sui_message_v2(
+    message: Any2SuiMessageV2,
+    receiver_package_id: address,
+): (vector<u8>, u64, vector<u8>, vector<u8>, address, address, vector<address>, vector<Any2SuiTokenAmount>) {
+    let Any2SuiMessageV2 {
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        message_receiver,
+        token_receiver,
+        receiver_object_ids,
+        dest_token_amounts,
+    } = message;
+    assert!(message_receiver == receiver_package_id, EMessageReceiverMismatch);
+
+    (
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        message_receiver,
+        token_receiver,
+        receiver_object_ids,
+        dest_token_amounts,
+    )
+}
+
+public fun get_receiver_object_ids(message: &Any2SuiMessageV2): &vector<address> {
+    &message.receiver_object_ids
+}
+
+public fun assert_receiver_object<T: key>(message: &Any2SuiMessageV2, index: u64, object: &T) {
+    let expected_id = message.receiver_object_ids[index];
+    assert!(object::id_address(object) == expected_id, EMessageReceiverMismatch);
+}

@@ -145,7 +145,11 @@ type SuiArgumentMetadata struct {
 	Type          string          `json:"type"`
 }
 
-func decodeParam(lggr logger.Logger, param any, reference string) SuiArgumentMetadata {
+func decodeParam(lggr logger.Logger, param any, reference string) (SuiArgumentMetadata, error) {
+	if param == nil {
+		return SuiArgumentMetadata{}, fmt.Errorf("nil parameter")
+	}
+
 	// Handle primitive types (strings like "U64", "Bool", etc.)
 	if str, ok := param.(string); ok {
 		return SuiArgumentMetadata{
@@ -155,51 +159,133 @@ func decodeParam(lggr logger.Logger, param any, reference string) SuiArgumentMet
 			Reference:     reference,
 			TypeArguments: []TypeParameter{},
 			Type:          ParseParamType(lggr, str),
-		}
+		}, nil
 	}
 
-	// Handle complex types (maps)
-	m := param.(map[string]any)
+	m, ok := param.(map[string]any)
+	if !ok {
+		return SuiArgumentMetadata{}, fmt.Errorf("expected map[string]any, got %T", param)
+	}
+
 	for k, v := range m {
 		switch k {
 		case "Struct":
-			// Direct struct
-			s := v.(map[string]any)
-			typeArguments := []TypeParameter{}
-			for _, ta := range s["typeArguments"].([]any) {
-				typeArgument := ta.(map[string]any)
-				typeArguments = append(typeArguments, TypeParameter{TypeParameter: typeArgument["TypeParameter"].(float64)})
-			}
-			return SuiArgumentMetadata{
-				Address:       s["address"].(string),
-				Module:        s["module"].(string),
-				Name:          s["name"].(string),
-				Reference:     reference,
-				TypeArguments: typeArguments,
-				Type:          ParseParamType(lggr, v),
-			}
+			return decodeStructParam(lggr, v, reference)
 		case "Reference", "MutableReference", "Vector":
-			// Reference and MutableReference are the same thing
-			// We need to unwrap the struct
 			return decodeParam(lggr, v, k)
+		case "TypeParameter":
+			return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: TypeParameter (receiver uses generics)")
 		default:
-			inner := v.(map[string]any)["Struct"].(map[string]any)
-			typeArguments := []TypeParameter{}
-			for _, ta := range inner["typeArguments"].([]any) {
-				typeArgument := ta.(map[string]any)
-				typeArguments = append(typeArguments, TypeParameter{TypeParameter: typeArgument["TypeParameter"].(float64)})
+			vMap, ok := v.(map[string]any)
+			if !ok {
+				return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q has non-map value of type %T", k, v)
+			}
+			innerRaw, exists := vMap["Struct"]
+			if !exists {
+				return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q missing inner Struct", k)
+			}
+			inner, ok := innerRaw.(map[string]any)
+			if !ok {
+				return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q Struct value is %T, not map", k, innerRaw)
+			}
+			typeArguments, err := decodeTypeArguments(inner)
+			if err != nil {
+				return SuiArgumentMetadata{}, fmt.Errorf("key %q: %w", k, err)
+			}
+			address, module, name, err := extractStructFields(inner)
+			if err != nil {
+				return SuiArgumentMetadata{}, fmt.Errorf("key %q: %w", k, err)
 			}
 			return SuiArgumentMetadata{
-				Address:       inner["address"].(string),
-				Module:        inner["module"].(string),
-				Name:          inner["name"].(string),
+				Address:       address,
+				Module:        module,
+				Name:          name,
 				Reference:     k,
 				TypeArguments: typeArguments,
 				Type:          ParseParamType(lggr, v),
-			}
+			}, nil
 		}
 	}
-	return SuiArgumentMetadata{}
+	return SuiArgumentMetadata{}, fmt.Errorf("empty parameter map")
+}
+
+func decodeStructParam(lggr logger.Logger, v any, reference string) (SuiArgumentMetadata, error) {
+	s, ok := v.(map[string]any)
+	if !ok {
+		return SuiArgumentMetadata{}, fmt.Errorf("Struct value is %T, expected map[string]any", v)
+	}
+	typeArguments, err := decodeTypeArguments(s)
+	if err != nil {
+		return SuiArgumentMetadata{}, fmt.Errorf("Struct: %w", err)
+	}
+	address, module, name, err := extractStructFields(s)
+	if err != nil {
+		return SuiArgumentMetadata{}, fmt.Errorf("Struct: %w", err)
+	}
+	return SuiArgumentMetadata{
+		Address:       address,
+		Module:        module,
+		Name:          name,
+		Reference:     reference,
+		TypeArguments: typeArguments,
+		Type:          ParseParamType(lggr, v),
+	}, nil
+}
+
+func decodeTypeArguments(s map[string]any) ([]TypeParameter, error) {
+	taRaw, exists := s["typeArguments"]
+	if !exists {
+		return []TypeParameter{}, nil
+	}
+	taSlice, ok := taRaw.([]any)
+	if !ok {
+		return nil, fmt.Errorf("typeArguments is %T, expected []any", taRaw)
+	}
+	typeArguments := make([]TypeParameter, 0, len(taSlice))
+	for i, ta := range taSlice {
+		taMap, ok := ta.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("typeArguments[%d] is %T, expected map[string]any", i, ta)
+		}
+		tpRaw, exists := taMap["TypeParameter"]
+		if !exists {
+			return nil, fmt.Errorf("typeArguments[%d] missing TypeParameter key", i)
+		}
+		tp, ok := tpRaw.(float64)
+		if !ok {
+			return nil, fmt.Errorf("typeArguments[%d].TypeParameter is %T, expected float64", i, tpRaw)
+		}
+		typeArguments = append(typeArguments, TypeParameter{TypeParameter: tp})
+	}
+	return typeArguments, nil
+}
+
+func extractStructFields(s map[string]any) (address, module, name string, err error) {
+	addrRaw, ok := s["address"]
+	if !ok {
+		return "", "", "", fmt.Errorf("missing field \"address\"")
+	}
+	address, ok = addrRaw.(string)
+	if !ok {
+		return "", "", "", fmt.Errorf("field \"address\" is %T, expected string", addrRaw)
+	}
+	modRaw, ok := s["module"]
+	if !ok {
+		return "", "", "", fmt.Errorf("missing field \"module\"")
+	}
+	module, ok = modRaw.(string)
+	if !ok {
+		return "", "", "", fmt.Errorf("field \"module\" is %T, expected string", modRaw)
+	}
+	nameRaw, ok := s["name"]
+	if !ok {
+		return "", "", "", fmt.Errorf("missing field \"name\"")
+	}
+	name, ok = nameRaw.(string)
+	if !ok {
+		return "", "", "", fmt.Errorf("field \"name\" is %T, expected string", nameRaw)
+	}
+	return address, module, name, nil
 }
 
 func ParseParamType(lggr logger.Logger, param interface{}) string {
@@ -276,7 +362,11 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 	defaultReference := "Reference"
 	decodedParameters := make([]SuiArgumentMetadata, len(parameters))
 	for i, parameter := range parameters {
-		decodedParameters[i] = decodeParam(lggr, parameter, defaultReference)
+		decoded, err := decodeParam(lggr, parameter, defaultReference)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode parameter %d: %w", i, err)
+		}
+		decodedParameters[i] = decoded
 	}
 
 	lggr.Debugw("decoded parameters", "decodedParameters", decodedParameters)
@@ -289,7 +379,6 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 
 		if param.Reference == "Reference" {
 			if strings.HasPrefix(param.Type, "u") || param.Type == "bool" {
-				// It's a primitive, not an object reference
 				paramTypes = append(paramTypes, param.Type)
 			} else {
 				paramTypes = append(paramTypes, "&object")

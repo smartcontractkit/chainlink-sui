@@ -277,6 +277,196 @@ public fun deconstruct_receiver_params(_: &DestTransferCap, receiver_params: Rec
     message_op.destroy_none();
 }
 
+// ================================================================
+// |                        V2 Types and Functions                |
+// ================================================================
+
+const EReceiverObjectMismatch: u64 = 11;
+
+public struct ReceiverParamsV2 {
+    token_transfer: Option<DestTokenTransfer>,
+    message: Option<client::Any2SuiMessageV2>,
+    source_chain_selector: u64,
+    receipt: Option<CompletedDestTokenTransfer>,
+}
+
+public fun new_any2sui_message_v2(
+    _: &DestTransferCap,
+    message_id: vector<u8>,
+    source_chain_selector: u64,
+    sender: vector<u8>,
+    data: vector<u8>,
+    message_receiver: address,
+    token_receiver: address,
+    receiver_object_ids: vector<address>,
+    token_addresses: vector<address>,
+    token_amounts: vector<u256>,
+): client::Any2SuiMessageV2 {
+    client::new_any2sui_message_v2(
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        message_receiver,
+        token_receiver,
+        receiver_object_ids,
+        client::new_dest_token_amounts(token_addresses, token_amounts),
+    )
+}
+
+public fun create_receiver_params_v2(_: &DestTransferCap, source_chain_selector: u64): ReceiverParamsV2 {
+    ReceiverParamsV2 {
+        token_transfer: option::none(),
+        message: option::none(),
+        source_chain_selector,
+        receipt: option::none(),
+    }
+}
+
+public fun add_dest_token_transfer_v2(
+    _: &DestTransferCap,
+    receiver_params: &mut ReceiverParamsV2,
+    token_receiver: address,
+    remote_chain_selector: u64,
+    source_amount: u256,
+    dest_token_address: address,
+    dest_token_pool_package_id: address,
+    source_pool_address: vector<u8>,
+    source_pool_data: vector<u8>,
+    offchain_data: vector<u8>,
+) {
+    assert!(receiver_params.token_transfer.is_none(), ETokenTransferAlreadyExists);
+
+    receiver_params
+        .token_transfer
+        .fill(DestTokenTransfer {
+            token_receiver,
+            remote_chain_selector,
+            source_amount,
+            dest_token_address,
+            dest_token_pool_package_id,
+            source_pool_address,
+            source_pool_data,
+            offchain_token_data: offchain_data,
+        });
+}
+
+public fun populate_message_v2(
+    _: &DestTransferCap,
+    receiver_params: &mut ReceiverParamsV2,
+    any2sui_message: client::Any2SuiMessageV2,
+) {
+    assert!(receiver_params.message.is_none(), EMessageAlreadyExists);
+    receiver_params.message.fill(any2sui_message);
+}
+
+/// Extracts the V2 message from ReceiverParams. Enforces that the declared `used_object_ids`
+/// match the source-committed `receiver_object_ids` in the message. This is the protocol-level
+/// object binding enforcement point.
+public fun extract_any2sui_message_v2(
+    receiver_params: &mut ReceiverParamsV2,
+    used_object_ids: vector<address>,
+): client::Any2SuiMessageV2 {
+    assert!(receiver_params.message.is_some(), ENoMessageToExtract);
+    let message = receiver_params.message.extract();
+    assert!(used_object_ids == *client::get_receiver_object_ids(&message), EReceiverObjectMismatch);
+    message
+}
+
+public fun consume_any2sui_message_v2<TypeProof: drop>(
+    ref: &CCIPObjectRef,
+    message: client::Any2SuiMessageV2,
+    _: TypeProof,
+): (vector<u8>, u64, vector<u8>, vector<u8>, address, address, vector<address>, vector<client::Any2SuiTokenAmount>) {
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
+    let address_str = type_name::address_string(&proof_tn);
+    let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
+
+    let receiver_config = receiver_registry::get_receiver_config(ref, receiver_package_id);
+    let (_, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
+    assert!(proof_typename == proof_tn.into_string(), ETypeProofMismatch);
+
+    client::consume_any2sui_message_v2(message, receiver_package_id)
+}
+
+public fun get_dest_token_transfer_data_v2(
+    receiver_params: &ReceiverParamsV2,
+): (address, u64, u256, address, address, vector<u8>, vector<u8>, vector<u8>) {
+    assert!(receiver_params.token_transfer.is_some(), ETokenTransferDoesNotExist);
+
+    let token_transfer = receiver_params.token_transfer.borrow();
+    (
+        token_transfer.token_receiver,
+        token_transfer.remote_chain_selector,
+        token_transfer.source_amount,
+        token_transfer.dest_token_address,
+        token_transfer.dest_token_pool_package_id,
+        token_transfer.source_pool_address,
+        token_transfer.source_pool_data,
+        token_transfer.offchain_token_data,
+    )
+}
+
+public fun complete_token_transfer_v2<TypeProof: drop>(
+    ref: &CCIPObjectRef,
+    receiver_params: &mut ReceiverParamsV2,
+    _: TypeProof,
+) {
+    let dest_token_transfer = receiver_params.token_transfer.borrow();
+    let token_receiver = dest_token_transfer.token_receiver;
+    let dest_token_address = dest_token_transfer.dest_token_address;
+    let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
+        ref,
+        dest_token_address,
+    );
+
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
+    let proof_tn_str = type_name::into_string(proof_tn);
+    assert!(type_proof == proof_tn_str, ETypeProofMismatch);
+
+    let receipt = CompletedDestTokenTransfer {
+        token_receiver,
+        dest_token_address,
+    };
+
+    assert!(receiver_params.receipt.is_none(), ETokenTransferAlreadyCompleted);
+    receiver_params.receipt.fill(receipt);
+}
+
+public fun deconstruct_receiver_params_v2(_: &DestTransferCap, receiver_params: ReceiverParamsV2) {
+    let ReceiverParamsV2 {
+        token_transfer: mut token_transfer_op,
+        message: message_op,
+        source_chain_selector: _,
+        receipt: mut receipt_op,
+    } = receiver_params;
+
+    assert!(
+        token_transfer_op.is_none() && receipt_op.is_none() || (token_transfer_op.is_some() && receipt_op.is_some()),
+        EWrongReceiptAndTokenTransfer,
+    );
+    if (token_transfer_op.is_some()) {
+        let token_transfer = token_transfer_op.extract();
+        let receipt = receipt_op.extract();
+        let CompletedDestTokenTransfer {
+            token_receiver,
+            dest_token_address,
+        } = receipt;
+
+        assert!(
+            token_receiver == token_transfer.token_receiver &&
+            dest_token_address == token_transfer.dest_token_address,
+            ETokenTransferMismatch,
+        );
+    };
+
+    token_transfer_op.destroy_none();
+    receipt_op.destroy_none();
+
+    assert!(message_op.is_none(), ECCIPReceiveFailed);
+    message_op.destroy_none();
+}
+
 // =========================== Test Functions =========================== //
 
 #[test_only]
@@ -311,4 +501,32 @@ public fun deconstruct_receiver_params_with_message_for_test(
     };
     message_op.destroy_none();
     r.destroy_none();
+}
+
+#[test_only]
+public fun deconstruct_receiver_params_v2_with_message_for_test(
+    _: &DestTransferCap,
+    receiver_package_id: address,
+    receiver_params: ReceiverParamsV2,
+    message: client::Any2SuiMessageV2,
+) {
+    let ReceiverParamsV2 {
+        token_transfer: _,
+        message: message_op,
+        source_chain_selector: _,
+        receipt: mut r,
+    } = receiver_params;
+
+    if (r.is_some()) {
+        let completed_transfer = r.extract();
+        let CompletedDestTokenTransfer {
+            token_receiver: _,
+            dest_token_address: _,
+        } = completed_transfer;
+    };
+
+    message_op.destroy_none();
+    r.destroy_none();
+
+    client::consume_any2sui_message_v2(message, receiver_package_id);
 }
