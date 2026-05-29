@@ -42,7 +42,19 @@ const (
 	DefaultCacheExpiration      time.Duration = 120 * time.Minute
 	DefaultCacheCleanupInterval time.Duration = 240 * time.Minute
 	DefaultHTTPTimeout          time.Duration = 30 * time.Second
+	// PackageIDCacheExpiration bounds how long a resolved (package,module)->package-IDs mapping
+	// is cached. Package IDs only change on a package upgrade, but the chain reader resolves the
+	// latest package ID on *every* read (loadModulePackageIdsInternal does ~4 RPCs each), which
+	// dominates the dest-config batch latency in CCIP commit observation. Caching it removes that
+	// fan-out and self-heals within the TTL after an upgrade; call InvalidatePackageIDCache for an
+	// immediate refresh.
+	PackageIDCacheExpiration time.Duration = 30 * time.Second
 )
+
+// packageIDCacheKey builds the cache key for a resolved (package,module)->package-IDs mapping.
+func packageIDCacheKey(packageID, module string) string {
+	return fmt.Sprintf("modulePackageIds::%s::%s", packageID, module)
+}
 
 var RateLimitWeights = map[string]int64{
 	"MoveCall":                             1,
@@ -1073,8 +1085,39 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 	return result, err
 }
 
-// loadModulePackageIdsInternal is the internal implementation without rate limiting
+// loadModulePackageIdsInternal is the internal implementation without rate limiting. It caches the
+// resolved package-ID chain per (packageId, module) for PackageIDCacheExpiration to avoid the
+// ~4 RPCs that loadModulePackageIdsUncached performs on every chain-reader read. The cached slice
+// is copied on the way in and out so callers can't mutate shared state.
 func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId string, module string) ([]string, error) {
+	cacheKey := packageIDCacheKey(packageId, module)
+	if cached, found := c.cache.Get(cacheKey); found {
+		if ids, ok := cached.([]string); ok {
+			return append([]string(nil), ids...), nil
+		}
+	}
+
+	ids, err := c.loadModulePackageIdsUncached(ctx, packageId, module)
+	if err != nil {
+		return nil, err
+	}
+
+	c.cache.Set(cacheKey, append([]string(nil), ids...), PackageIDCacheExpiration)
+
+	return ids, nil
+}
+
+// InvalidatePackageIDCache evicts the cached package-ID chain for (packageId, module). Call this
+// immediately after a package upgrade so the next read re-resolves the upgrade chain instead of
+// waiting for PackageIDCacheExpiration to elapse.
+func (c *PTBClient) InvalidatePackageIDCache(packageId string, module string) {
+	c.cache.Delete(packageIDCacheKey(packageId, module))
+}
+
+// loadModulePackageIdsUncached resolves the full package-ID upgrade chain for a module by reading
+// on-chain state (normalized module + owned objects + pointer/state objects). It performs several
+// RPCs and is therefore wrapped by loadModulePackageIdsInternal for caching.
+func (c *PTBClient) loadModulePackageIdsUncached(ctx context.Context, packageId string, module string) ([]string, error) {
 	// Ensure that the module keeps track of its package IDs by checking that it has `add_package_id` function
 	normalizedModule, err := c.getNormalizedModuleInternal(ctx, packageId, module)
 	if err != nil {
