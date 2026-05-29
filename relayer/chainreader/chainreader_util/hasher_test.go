@@ -348,6 +348,13 @@ func TestMessageHasherV2_Deterministic(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, hash1, hash2, "same inputs must produce same hash")
+
+	// Cross-language parity: this expected value matches the Move test
+	// test_calculate_message_hash_v2_parity in offramp_test.move
+	expectedHashHex := "1463b1b58f28f74dd73d4447da139d065051ddbb292549847a8c315d19148fc1"
+	actualHashHex := hex.EncodeToString(hash1[:])
+	assert.Equal(t, expectedHashHex, actualHashHex,
+		"Go V2 hash must match Move calculate_message_hash_v2 for identical inputs")
 }
 
 // Helper function to convert hex string to [32]byte array

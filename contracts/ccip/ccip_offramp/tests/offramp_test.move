@@ -1027,3 +1027,70 @@ public fun test_calculate_metadata_hash() {
     transfer::public_transfer(fee_quoter_cap, OWNER);
     transfer::public_transfer(dest_transfer_cap, OWNER);
 }
+
+#[test]
+public fun test_calculate_message_hash_v2_parity() {
+    // Uses the same inputs as Go TestMessageHasherV2_Deterministic in hasher_test.go.
+    // The expected hash here is the ground truth that the Go test must match.
+    let message_id = x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+    let source_chain_selector = 1000u64;
+    let dest_chain_selector = 2000u64;
+    let sequence_number = 1u64;
+    let nonce = 0u64;
+    let sender = x"8765432109fedcba8765432109fedcba87654321";
+    let receiver = @0x1234;
+    let on_ramp = b"onramp";
+    let data = b"test payload";
+    let gas_limit = 200000u256;
+    let token_receiver = @0x5678;
+    let receiver_object_ids = vector[@0xaabbcc];
+
+    let hash_v2 = offramp::test_calculate_message_hash_v2(
+        message_id,
+        source_chain_selector,
+        dest_chain_selector,
+        sequence_number,
+        nonce,
+        sender,
+        receiver,
+        on_ramp,
+        data,
+        gas_limit,
+        token_receiver,
+        receiver_object_ids,
+        vector<vector<u8>>[],
+        vector<address>[],
+        vector<u32>[],
+        vector<vector<u8>>[],
+        vector<u256>[],
+    );
+
+    assert!(hash_v2.length() == 32, 0);
+
+    // Cross-language parity: this value must match Go computeMessageDataHashV2 with same inputs.
+    let expected_hash_v2 = x"1463b1b58f28f74dd73d4447da139d065051ddbb292549847a8c315d19148fc1";
+    assert!(hash_v2 == expected_hash_v2, 2);
+
+    // Verify different receiver_object_ids produce a different hash
+    let hash_v2_different = offramp::test_calculate_message_hash_v2(
+        message_id,
+        source_chain_selector,
+        dest_chain_selector,
+        sequence_number,
+        nonce,
+        sender,
+        receiver,
+        on_ramp,
+        data,
+        gas_limit,
+        token_receiver,
+        vector[@0xddeeff],
+        vector<vector<u8>>[],
+        vector<address>[],
+        vector<u32>[],
+        vector<vector<u8>>[],
+        vector<u256>[],
+    );
+
+    assert!(hash_v2 != hash_v2_different, 1);
+}

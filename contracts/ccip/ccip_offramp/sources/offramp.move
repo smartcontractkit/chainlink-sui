@@ -2118,3 +2118,70 @@ fun calculate_message_hash_v2(
 public fun test_init(ctx: &mut TxContext) {
     init(OFFRAMP {}, ctx);
 }
+
+#[test_only]
+public fun test_calculate_message_hash_v2(
+    message_id: vector<u8>,
+    source_chain_selector: u64,
+    dest_chain_selector: u64,
+    sequence_number: u64,
+    nonce: u64,
+    sender: vector<u8>,
+    receiver: address,
+    on_ramp: vector<u8>,
+    data: vector<u8>,
+    gas_limit: u256,
+    token_receiver: address,
+    receiver_object_ids: vector<address>,
+    source_pool_addresses: vector<vector<u8>>,
+    dest_token_addresses: vector<address>,
+    dest_gas_amounts: vector<u32>,
+    extra_datas: vector<vector<u8>>,
+    amounts: vector<u256>,
+): vector<u8> {
+    let source_pool_addresses_len = source_pool_addresses.length();
+
+    let mut token_amounts = vector[];
+    let mut i = 0;
+    while (i < source_pool_addresses_len) {
+        token_amounts.push_back(Any2SuiTokenTransfer {
+            source_pool_address: source_pool_addresses[i],
+            dest_token_address: dest_token_addresses[i],
+            dest_gas_amount: dest_gas_amounts[i],
+            extra_data: extra_datas[i],
+            amount: amounts[i],
+        });
+        i = i + 1;
+    };
+
+    let message = Any2SuiRampMessageV2 {
+        header: RampMessageHeader {
+            message_id,
+            source_chain_selector,
+            dest_chain_selector,
+            sequence_number,
+            nonce,
+        },
+        sender,
+        data,
+        receiver,
+        gas_limit,
+        token_receiver,
+        receiver_object_ids,
+        token_amounts,
+    };
+
+    let metadata_hash = sui::hash::keccak256(&{
+        let mut packed = vector[];
+        eth_abi::encode_right_padded_bytes32(
+            &mut packed,
+            sui::hash::keccak256(&b"Any2SuiMessageHashV1"),
+        );
+        eth_abi::encode_u64(&mut packed, source_chain_selector);
+        eth_abi::encode_u64(&mut packed, dest_chain_selector);
+        eth_abi::encode_right_padded_bytes32(&mut packed, sui::hash::keccak256(&on_ramp));
+        packed
+    });
+
+    calculate_message_hash_v2(&message, metadata_hash)
+}
