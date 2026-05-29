@@ -276,6 +276,182 @@ func encodeBytes(b []byte) []byte {
 	return result
 }
 
+// MessageHasherV2 computes the V2 leaf hash which includes receiver_object_ids.
+// This matches calculate_message_hash_v2 in offramp.move.
+type MessageHasherV2 struct {
+	lggr logger.Logger
+}
+
+func NewMessageHasherV2(lggr logger.Logger) *MessageHasherV2 {
+	return &MessageHasherV2{lggr: lggr}
+}
+
+func (h *MessageHasherV2) Hash(ctx context.Context, report *codec.ExecutionReport, onRampAddress []byte, receiverObjectIds [][32]byte) ([32]byte, error) {
+	rampTokenAmounts := make([]any2SuiTokenTransfer, len(report.Message.TokenAmounts))
+	for i, rta := range report.Message.TokenAmounts {
+		var destTokenAddress [32]byte
+		destTokenBytes, err := hex.DecodeString("0x" + string(rta.DestTokenAddress))
+		if err != nil {
+			return [32]byte{}, fmt.Errorf("failed to decode dest token address: %w", err)
+		}
+		if len(destTokenBytes) != 32 {
+			return [32]byte{}, fmt.Errorf("invalid dest token address length: expected 32, got %d", len(destTokenBytes))
+		}
+		copy(destTokenAddress[:], destTokenBytes)
+
+		rampTokenAmounts[i] = any2SuiTokenTransfer{
+			SourcePoolAddress: rta.SourcePoolAddress,
+			DestTokenAddress:  destTokenAddress,
+			DestGasAmount:     rta.DestGasAmount,
+			ExtraData:         rta.ExtraData,
+			Amount:            rta.Amount,
+		}
+	}
+
+	metaDataHash, err := computeMetadataHash(
+		report.SourceChainSelector,
+		report.Message.Header.DestChainSelector,
+		onRampAddress,
+	)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("compute metadata hash: %w", err)
+	}
+
+	var messageID [32]byte
+	copy(messageID[:], report.Message.Header.MessageID)
+
+	var receiverAddress [32]byte
+	receiverBytes, err := hex.DecodeString("0x" + string(report.Message.Receiver))
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to decode receiver address: %w", err)
+	}
+	if len(receiverBytes) != 32 {
+		return [32]byte{}, fmt.Errorf("invalid receiver address length: expected 32, got %d", len(receiverBytes))
+	}
+	copy(receiverAddress[:], receiverBytes)
+
+	msgHash, err := computeMessageDataHashV2(
+		metaDataHash,
+		messageID,
+		receiverAddress,
+		report.Message.Header.SequenceNumber,
+		report.Message.GasLimit,
+		[32]byte(report.Message.TokenReceiver),
+		report.Message.Header.Nonce,
+		report.Message.Sender,
+		report.Message.Data,
+		rampTokenAmounts,
+		receiverObjectIds,
+	)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("compute message hash v2: %w", err)
+	}
+
+	return msgHash, nil
+}
+
+func computeMessageDataHashV2(
+	metadataHash [32]byte,
+	messageID [32]byte,
+	receiver [32]byte,
+	sequenceNumber uint64,
+	gasLimit *big.Int,
+	tokenReceiver [32]byte,
+	nonce uint64,
+	sender []byte,
+	data []byte,
+	tokenAmounts []any2SuiTokenTransfer,
+	receiverObjectIds [][32]byte,
+) ([32]byte, error) {
+	uint64Type, err := abi.NewType("uint64", "", nil)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to create uint64 ABI type: %w", err)
+	}
+
+	uint256Type, err := abi.NewType("uint256", "", nil)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to create uint256 ABI type: %w", err)
+	}
+
+	bytes32Type, err := abi.NewType("bytes32", "", nil)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to create bytes32 ABI type: %w", err)
+	}
+
+	headerArgs := abi.Arguments{
+		{Type: bytes32Type},
+		{Type: bytes32Type},
+		{Type: uint64Type},
+		{Type: uint256Type},
+		{Type: bytes32Type},
+		{Type: uint64Type},
+	}
+	headerEncoded, err := headerArgs.Pack(messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce)
+	if err != nil {
+		return [32]byte{}, err
+	}
+	headerHash := crypto.Keccak256Hash(headerEncoded)
+
+	senderHash := crypto.Keccak256Hash(sender)
+	dataHash := crypto.Keccak256Hash(data)
+
+	var tokenHashData []byte
+	encodedLen, err := encodeUint256(big.NewInt(int64(len(tokenAmounts))))
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to encode token length: %w", err)
+	}
+	tokenHashData = append(tokenHashData, encodedLen...)
+	for _, token := range tokenAmounts {
+		tokenHashData = append(tokenHashData, encodeBytes(token.SourcePoolAddress)...)
+		tokenHashData = append(tokenHashData, token.DestTokenAddress[:]...)
+		tokenHashData = append(tokenHashData, encodeUint32(token.DestGasAmount)...)
+		tokenHashData = append(tokenHashData, encodeBytes(token.ExtraData)...)
+		encodedAmount, err := encodeUint256(token.Amount)
+		if err != nil {
+			return [32]byte{}, fmt.Errorf("failed to encode token amount: %w", err)
+		}
+		tokenHashData = append(tokenHashData, encodedAmount...)
+	}
+	tokenAmountsHash := crypto.Keccak256Hash(tokenHashData)
+
+	// V2: compute objectIdsHash = keccak256(encode_u256(len) || encode_address(id[0]) || ...)
+	var objectIdsHashData []byte
+	encodedObjLen, err := encodeUint256(big.NewInt(int64(len(receiverObjectIds))))
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to encode object ids length: %w", err)
+	}
+	objectIdsHashData = append(objectIdsHashData, encodedObjLen...)
+	for _, id := range receiverObjectIds {
+		objectIdsHashData = append(objectIdsHashData, id[:]...)
+	}
+	objectIdsHash := crypto.Keccak256Hash(objectIdsHashData)
+
+	finalArgs := abi.Arguments{
+		{Type: bytes32Type}, // LEAF_DOMAIN_SEPARATOR
+		{Type: bytes32Type}, // metadataHash
+		{Type: bytes32Type}, // headerHash
+		{Type: bytes32Type}, // senderHash
+		{Type: bytes32Type}, // dataHash
+		{Type: bytes32Type}, // tokenAmountsHash
+		{Type: bytes32Type}, // objectIdsHash (V2 addition)
+	}
+
+	finalEncoded, err := finalArgs.Pack(
+		leafDomainSeparator,
+		metadataHash,
+		headerHash,
+		senderHash,
+		dataHash,
+		tokenAmountsHash,
+		objectIdsHash,
+	)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	return crypto.Keccak256Hash(finalEncoded), nil
+}
+
 func keccak256Fixed(in []byte) [32]byte {
 	hash := sha3.NewLegacyKeccak256()
 	// Note this Keccak256 cannot error https://github.com/golang/crypto/blob/master/sha3/sha3.go#L126

@@ -385,3 +385,131 @@ func serializeAny2SuiTokenTransfer(s *bcs.Serializer, transfer Any2SuiTokenTrans
 
 	return nil
 }
+
+// ================================================================
+// V2 Types and Serializer (includes receiver_object_ids)
+// ================================================================
+
+type Any2SuiRampMessageV2 struct {
+	Header            RampMessageHeader      `json:"header"`
+	Sender            []byte                 `json:"sender"`
+	Data              []byte                 `json:"data"`
+	Receiver          []byte                 `json:"receiver"`
+	GasLimit          *big.Int               `json:"gas_limit"`
+	TokenReceiver     []byte                 `json:"token_receiver"`
+	ReceiverObjectIds [][]byte               `json:"receiver_object_ids"`
+	TokenAmounts      []Any2SuiTokenTransfer `json:"token_amounts"`
+}
+
+type ExecutionReportV2 struct {
+	SourceChainSelector uint64               `json:"source_chain_selector"`
+	Message             Any2SuiRampMessageV2 `json:"message"`
+	OffchainTokenData   [][]byte             `json:"offchain_token_data"`
+	Proofs              [][]byte             `json:"proofs"`
+}
+
+func SerializeExecutionReportV2(report ExecutionReportV2) ([]byte, error) {
+	s := &bcs.Serializer{}
+
+	s.U64(report.SourceChainSelector)
+	if s.Error() != nil {
+		return nil, fmt.Errorf("failed to serialize SourceChainSelector: %w", s.Error())
+	}
+
+	if err := serializeAny2SuiRampMessageV2(s, report.Message); err != nil {
+		return nil, fmt.Errorf("failed to serialize Message: %w", err)
+	}
+
+	bcs.SerializeSequenceWithFunction(report.OffchainTokenData, s, func(s *bcs.Serializer, item []byte) {
+		s.WriteBytes(item)
+	})
+	if s.Error() != nil {
+		return nil, fmt.Errorf("failed to serialize OffchainTokenData: %w", s.Error())
+	}
+
+	bcs.SerializeSequenceWithFunction(report.Proofs, s, func(s *bcs.Serializer, item []byte) {
+		s.WriteBytes(item)
+	})
+	if s.Error() != nil {
+		return nil, fmt.Errorf("failed to serialize Proofs: %w", s.Error())
+	}
+
+	return s.ToBytes(), nil
+}
+
+func serializeAny2SuiRampMessageV2(s *bcs.Serializer, message Any2SuiRampMessageV2) error {
+	if err := serializeRampMessageHeader(s, message.Header); err != nil {
+		return fmt.Errorf("failed to serialize Header: %w", err)
+	}
+
+	s.WriteBytes(message.Sender)
+	if s.Error() != nil {
+		return fmt.Errorf("failed to serialize Sender: %w", s.Error())
+	}
+
+	dataBytes := message.Data
+	if dataBytes == nil {
+		dataBytes = make([]byte, 0)
+	}
+	s.WriteBytes(dataBytes)
+	if s.Error() != nil {
+		return fmt.Errorf("failed to serialize Data: %w", s.Error())
+	}
+
+	receiverBytes := make([]byte, DefaultByteSize)
+	if len(message.Receiver) > 0 && string(message.Receiver) != "0x" {
+		receiverStr := string(message.Receiver)
+		if strings.Contains(receiverStr, "::") {
+			parts := strings.Split(receiverStr, "::")
+			if len(parts) >= 1 {
+				receiverStr = parts[0]
+			}
+		}
+		receiverStr = strings.TrimPrefix(receiverStr, "0x")
+		if decoded, err := hex.DecodeString(receiverStr); err == nil && len(decoded) <= DefaultByteSize {
+			copy(receiverBytes[DefaultByteSize-len(decoded):], decoded)
+		}
+	}
+	s.FixedBytes(receiverBytes)
+	if s.Error() != nil {
+		return fmt.Errorf("failed to serialize Receiver: %w", s.Error())
+	}
+
+	if message.GasLimit == nil {
+		s.U256(*big.NewInt(0))
+	} else {
+		s.U256(*message.GasLimit)
+	}
+	if s.Error() != nil {
+		return fmt.Errorf("failed to serialize GasLimit: %w", s.Error())
+	}
+
+	s.FixedBytes(message.TokenReceiver)
+	if s.Error() != nil {
+		return fmt.Errorf("failed to serialize TokenReceiver: %w", s.Error())
+	}
+
+	// V2: serialize receiver_object_ids as vector<address> (each 32 bytes)
+	bcs.SerializeSequenceWithFunction(message.ReceiverObjectIds, s, func(s *bcs.Serializer, item []byte) {
+		addrBytes := make([]byte, DefaultByteSize)
+		if len(item) <= DefaultByteSize {
+			copy(addrBytes[DefaultByteSize-len(item):], item)
+		}
+		s.FixedBytes(addrBytes)
+	})
+	if s.Error() != nil {
+		return fmt.Errorf("failed to serialize ReceiverObjectIds: %w", s.Error())
+	}
+
+	// Serialize TokenAmounts
+	bcs.SerializeSequenceWithFunction(message.TokenAmounts, s, func(s *bcs.Serializer, item Any2SuiTokenTransfer) {
+		if err := serializeAny2SuiTokenTransfer(s, item); err != nil {
+			s.SetError(err)
+		}
+	})
+	if s.Error() != nil {
+		return fmt.Errorf("failed to serialize TokenAmounts: %w", s.Error())
+	}
+
+	return nil
+}

@@ -238,6 +238,118 @@ func TestMessageHasherV1_MessageHash(t *testing.T) {
 	})
 }
 
+func TestMessageHasherV2_DifferentObjectIds_DifferentHash(t *testing.T) {
+	messageID := hexTo32Bytes(t, "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	receiver := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000001234")
+	sender, err := hex.DecodeString("8765432109fedcba8765432109fedcba87654321")
+	require.NoError(t, err)
+	tokenReceiver := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000000000")
+	data := []byte("sample message data")
+	gasLimit := big.NewInt(500000)
+	sequenceNumber := uint64(42)
+	nonce := uint64(0)
+
+	metadataHash, err := computeMetadataHash(uint64(123456789), uint64(987654321), []byte("source-onramp-address"))
+	require.NoError(t, err)
+
+	objectIdA := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000001111")
+	objectIdB := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000002222")
+
+	t.Run("hash with object IDs [A] differs from hash with object IDs [B]", func(t *testing.T) {
+		hashA, err := computeMessageDataHashV2(
+			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
+			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIdA},
+		)
+		require.NoError(t, err)
+
+		hashB, err := computeMessageDataHashV2(
+			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
+			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIdB},
+		)
+		require.NoError(t, err)
+
+		assert.NotEqual(t, hashA, hashB)
+	})
+
+	t.Run("hash with empty object IDs differs from hash with [A]", func(t *testing.T) {
+		hashEmpty, err := computeMessageDataHashV2(
+			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
+			sender, data, []any2SuiTokenTransfer{}, [][32]byte{},
+		)
+		require.NoError(t, err)
+
+		hashWithA, err := computeMessageDataHashV2(
+			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
+			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIdA},
+		)
+		require.NoError(t, err)
+
+		assert.NotEqual(t, hashEmpty, hashWithA)
+	})
+
+	t.Run("hash with [A,B] differs from [B,A] (order matters)", func(t *testing.T) {
+		hashAB, err := computeMessageDataHashV2(
+			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
+			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIdA, objectIdB},
+		)
+		require.NoError(t, err)
+
+		hashBA, err := computeMessageDataHashV2(
+			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
+			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIdB, objectIdA},
+		)
+		require.NoError(t, err)
+
+		assert.NotEqual(t, hashAB, hashBA)
+	})
+
+	t.Run("V2 hash with empty object IDs differs from V1 hash (different structure)", func(t *testing.T) {
+		hashV1, err := computeMessageDataHash(
+			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
+			sender, data, []any2SuiTokenTransfer{},
+		)
+		require.NoError(t, err)
+
+		hashV2Empty, err := computeMessageDataHashV2(
+			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
+			sender, data, []any2SuiTokenTransfer{}, [][32]byte{},
+		)
+		require.NoError(t, err)
+
+		assert.NotEqual(t, hashV1, hashV2Empty,
+			"V2 hash must differ from V1 even with empty objectIds because V2 includes the objectIdsHash term")
+	})
+}
+
+func TestMessageHasherV2_Deterministic(t *testing.T) {
+	messageID := hexTo32Bytes(t, "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	receiver := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000001234")
+	sender, err := hex.DecodeString("8765432109fedcba8765432109fedcba87654321")
+	require.NoError(t, err)
+	tokenReceiver := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000005678")
+	data := []byte("test payload")
+	gasLimit := big.NewInt(200000)
+
+	metadataHash, err := computeMetadataHash(uint64(1000), uint64(2000), []byte("onramp"))
+	require.NoError(t, err)
+
+	objectId := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000aabbcc")
+
+	hash1, err := computeMessageDataHashV2(
+		metadataHash, messageID, receiver, uint64(1), gasLimit, tokenReceiver, uint64(0),
+		sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectId},
+	)
+	require.NoError(t, err)
+
+	hash2, err := computeMessageDataHashV2(
+		metadataHash, messageID, receiver, uint64(1), gasLimit, tokenReceiver, uint64(0),
+		sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectId},
+	)
+	require.NoError(t, err)
+
+	assert.Equal(t, hash1, hash2, "same inputs must produce same hash")
+}
+
 // Helper function to convert hex string to [32]byte array
 func hexTo32Bytes(t *testing.T, hexStr string) [32]byte {
 	bytes, err := hex.DecodeString(hexStr)
