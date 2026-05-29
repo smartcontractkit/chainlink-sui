@@ -153,3 +153,83 @@ func TestProcessReceivers_RequiresAppDeliveryForGasLimitMessage(t *testing.T) {
 	assert.True(t, needsAppDelivery(msg, extraArgs),
 		"message with gasLimit > 0 should need app delivery")
 }
+
+func TestExtractReceiverObjectIdStrings(t *testing.T) {
+	tests := []struct {
+		name      string
+		extraArgs map[string]any
+		expected  []string
+	}{
+		{
+			name:      "missing key returns empty slice",
+			extraArgs: map[string]any{},
+			expected:  []string{},
+		},
+		{
+			name:      "nil extraArgs returns empty slice",
+			extraArgs: nil,
+			expected:  []string{},
+		},
+		{
+			name: "[][]byte with one entry",
+			extraArgs: map[string]any{
+				"receiverObjectIds": [][]byte{
+					{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11},
+				},
+			},
+			expected: []string{"0x0000000000000000000000000000000000000000000000000000000000001111"},
+		},
+		{
+			name: "[][]byte with multiple entries",
+			extraArgs: map[string]any{
+				"receiverObjectIds": [][]byte{
+					{0xAA, 0xBB},
+					{0xCC, 0xDD},
+				},
+			},
+			expected: []string{"0xaabb", "0xccdd"},
+		},
+		{
+			name: "[]any with []byte elements",
+			extraArgs: map[string]any{
+				"receiverObjectIds": []any{
+					[]byte{0x11, 0x22},
+					[]byte{0x33, 0x44},
+				},
+			},
+			expected: []string{"0x1122", "0x3344"},
+		},
+		{
+			name: "[]any with non-byte elements skipped",
+			extraArgs: map[string]any{
+				"receiverObjectIds": []any{
+					[]byte{0x11, 0x22},
+					"not-bytes",
+					[]byte{0x33, 0x44},
+				},
+			},
+			expected: []string{"0x1122", "0x3344"},
+		},
+		{
+			name: "unexpected type returns empty",
+			extraArgs: map[string]any{
+				"receiverObjectIds": "not-a-slice",
+			},
+			expected: []string{},
+		},
+		{
+			name: "empty [][]byte returns empty",
+			extraArgs: map[string]any{
+				"receiverObjectIds": [][]byte{},
+			},
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := extractReceiverObjectIdStrings(tc.extraArgs)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
