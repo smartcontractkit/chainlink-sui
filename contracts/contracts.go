@@ -13,6 +13,7 @@ type Package string
 const (
 	// CCIP
 	CCIP                 = Package("ccip")
+	CCIPBrokenReceiver   = Package("ccip_broken_receiver")
 	CCIPDummyReceiver    = Package("ccip_dummy_receiver")
 	CCIPOfframp          = Package("ccip_offramp")
 	CCIPOnramp           = Package("ccip_onramp")
@@ -41,6 +42,7 @@ const (
 var Contracts map[Package]string = map[Package]string{
 	// CCIP
 	CCIP:                 filepath.Join("ccip", "ccip"),
+	CCIPBrokenReceiver:   filepath.Join("ccip", "ccip_broken_receiver"),
 	CCIPDummyReceiver:    filepath.Join("ccip", "ccip_dummy_receiver"),
 	CCIPBnM:              filepath.Join("ccip", "ccip_burn_mint_token"),
 	CCIPOfframp:          filepath.Join("ccip", "ccip_offramp"),

@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_offramp","module":"offramp","name":"accept_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"accept_ownership_from_object","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_offramp","module":"offramp","name":"add_package_id","parameters":[{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"apply_source_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"source_chains_selector","type":"vector<u64>"},{"name":"source_chains_is_enabled","type":"vector<bool>"},{"name":"source_chains_is_rmn_verification_disabled","type":"vector<bool>"},{"name":"source_chains_on_ramp","type":"vector<vector<u8>>"}]},{"package":"ccip_offramp","module":"offramp","name":"calculate_message_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"message_id","type":"vector<u8>"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"},{"name":"nonce","type":"u64"},{"name":"sender","type":"vector<u8>"},{"name":"receiver","type":"address"},{"name":"on_ramp","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"gas_limit","type":"u256"},{"name":"token_receiver","type":"address"},{"name":"source_pool_addresses","type":"vector<vector<u8>>"},{"name":"dest_token_addresses","type":"vector<address>"},{"name":"dest_gas_amounts","type":"vector<u32>"},{"name":"extra_datas","type":"vector<vector<u8>>"},{"name":"amounts","type":"vector<u256>"}]},{"package":"ccip_offramp","module":"offramp","name":"calculate_metadata_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"on_ramp","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"commit","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_context","type":"vector<vector<u8>>"},{"name":"report","type":"vector<u8>"},{"name":"signatures","type":"vector<vector<u8>>"}]},{"package":"ccip_offramp","module":"offramp","name":"config_signers","parameters":[{"name":"state","type":"OCRConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"config_transmitters","parameters":[{"name":"state","type":"OCRConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"execute_ownership_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OffRampState"},{"name":"to","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OffRampState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"finish_execute","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"receiver_params","type":"osh::ReceiverParams"}]},{"package":"ccip_offramp","module":"offramp","name":"get_all_source_chain_configs","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_ccip_package_id","parameters":null},{"package":"ccip_offramp","module":"offramp","name":"get_dynamic_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_dynamic_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"cfg","type":"DynamicConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"get_execution_state","parameters":[{"name":"state","type":"OffRampState"},{"name":"source_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"}]},{"package":"ccip_offramp","module":"offramp","name":"get_merkle_root","parameters":[{"name":"state","type":"OffRampState"},{"name":"root","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"get_ocr3_base","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_source_chain_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"source_chain_selector","type":"u64"}]},{"package":"ccip_offramp","module":"offramp","name":"get_source_chain_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"source_chain_config","type":"SourceChainConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"get_static_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_static_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"cfg","type":"StaticConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"has_pending_transfer","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"init_execute","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_context","type":"vector<vector<u8>>"},{"name":"report","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"initialize","parameters":[{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_quoter_cap","type":"FeeQuoterCap"},{"name":"dest_transfer_cap","type":"osh::DestTransferCap"},{"name":"chain_selector","type":"u64"},{"name":"permissionless_execution_threshold_seconds","type":"u32"},{"name":"source_chains_selectors","type":"vector<u64>"},{"name":"source_chains_is_enabled","type":"vector<bool>"},{"name":"source_chains_is_rmn_verification_disabled","type":"vector<bool>"},{"name":"source_chains_on_ramp","type":"vector<vector<u8>>"}]},{"package":"ccip_offramp","module":"offramp","name":"manually_init_execute","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_bytes","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"owner","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"pending_transfer_from","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"pending_transfer_to","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"remove_package_id","parameters":[{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"set_dynamic_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"permissionless_execution_threshold_seconds","type":"u32"}]},{"package":"ccip_offramp","module":"offramp","name":"set_ocr3_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"config_digest","type":"vector<u8>"},{"name":"ocr_plugin_type","type":"u8"},{"name":"big_f","type":"u8"},{"name":"is_signature_verification_enabled","type":"bool"},{"name":"signers","type":"vector<vector<u8>>"},{"name":"transmitters","type":"vector<address>"}]},{"package":"ccip_offramp","module":"offramp","name":"transfer_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"ccip_offramp","module":"offramp","name":"accept_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"accept_ownership_from_object","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_offramp","module":"offramp","name":"add_package_id","parameters":[{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"apply_source_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"source_chains_selector","type":"vector<u64>"},{"name":"source_chains_is_enabled","type":"vector<bool>"},{"name":"source_chains_is_rmn_verification_disabled","type":"vector<bool>"},{"name":"source_chains_on_ramp","type":"vector<vector<u8>>"}]},{"package":"ccip_offramp","module":"offramp","name":"calculate_message_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"message_id","type":"vector<u8>"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"},{"name":"nonce","type":"u64"},{"name":"sender","type":"vector<u8>"},{"name":"receiver","type":"address"},{"name":"on_ramp","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"gas_limit","type":"u256"},{"name":"token_receiver","type":"address"},{"name":"source_pool_addresses","type":"vector<vector<u8>>"},{"name":"dest_token_addresses","type":"vector<address>"},{"name":"dest_gas_amounts","type":"vector<u32>"},{"name":"extra_datas","type":"vector<vector<u8>>"},{"name":"amounts","type":"vector<u256>"}]},{"package":"ccip_offramp","module":"offramp","name":"calculate_metadata_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"on_ramp","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"commit","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_context","type":"vector<vector<u8>>"},{"name":"report","type":"vector<u8>"},{"name":"signatures","type":"vector<vector<u8>>"}]},{"package":"ccip_offramp","module":"offramp","name":"config_signers","parameters":[{"name":"state","type":"OCRConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"config_transmitters","parameters":[{"name":"state","type":"OCRConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"execute_ownership_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OffRampState"},{"name":"to","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OffRampState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"finish_execute","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"receiver_params","type":"osh::ReceiverParams"}]},{"package":"ccip_offramp","module":"offramp","name":"finish_execute_v2","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"receiver_params","type":"osh::ReceiverParamsV2"}]},{"package":"ccip_offramp","module":"offramp","name":"get_all_source_chain_configs","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_ccip_package_id","parameters":null},{"package":"ccip_offramp","module":"offramp","name":"get_dynamic_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_dynamic_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"cfg","type":"DynamicConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"get_execution_state","parameters":[{"name":"state","type":"OffRampState"},{"name":"source_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"}]},{"package":"ccip_offramp","module":"offramp","name":"get_merkle_root","parameters":[{"name":"state","type":"OffRampState"},{"name":"root","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"get_ocr3_base","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_source_chain_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"source_chain_selector","type":"u64"}]},{"package":"ccip_offramp","module":"offramp","name":"get_source_chain_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"source_chain_config","type":"SourceChainConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"get_static_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_static_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"cfg","type":"StaticConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"has_pending_transfer","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"init_execute","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_context","type":"vector<vector<u8>>"},{"name":"report","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"init_execute_v2","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_context","type":"vector<vector<u8>>"},{"name":"report","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"initialize","parameters":[{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_quoter_cap","type":"FeeQuoterCap"},{"name":"dest_transfer_cap","type":"osh::DestTransferCap"},{"name":"chain_selector","type":"u64"},{"name":"permissionless_execution_threshold_seconds","type":"u32"},{"name":"source_chains_selectors","type":"vector<u64>"},{"name":"source_chains_is_enabled","type":"vector<bool>"},{"name":"source_chains_is_rmn_verification_disabled","type":"vector<bool>"},{"name":"source_chains_on_ramp","type":"vector<vector<u8>>"}]},{"package":"ccip_offramp","module":"offramp","name":"manually_init_execute","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_bytes","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"manually_init_execute_v2","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_bytes","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"owner","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"pending_transfer_from","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"pending_transfer_to","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"remove_package_id","parameters":[{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"set_dynamic_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"permissionless_execution_threshold_seconds","type":"u32"}]},{"package":"ccip_offramp","module":"offramp","name":"set_ocr3_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"config_digest","type":"vector<u8>"},{"name":"ocr_plugin_type","type":"u8"},{"name":"big_f","type":"u8"},{"name":"is_signature_verification_enabled","type":"bool"},{"name":"signers","type":"vector<vector<u8>>"},{"name":"transmitters","type":"vector<address>"}]},{"package":"ccip_offramp","module":"offramp","name":"transfer_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"type_and_version","parameters":null}]`
 
 type IOfframp interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -69,6 +69,9 @@ type IOfframp interface {
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	InitExecuteV2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*models.SuiTransactionBlockResponse, error)
+	ManuallyInitExecuteV2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*models.SuiTransactionBlockResponse, error)
+	FinishExecuteV2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOfframpDevInspect
 	Encoder() OfframpEncoder
 	Bound() bind.IBoundContract
@@ -98,6 +101,8 @@ type IOfframpDevInspect interface {
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error)
 	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error)
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*bool, error)
+	InitExecuteV2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (bind.Object, error)
+	ManuallyInitExecuteV2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (bind.Object, error)
 }
 
 type OfframpEncoder interface {
@@ -195,6 +200,12 @@ type OfframpEncoder interface {
 	McmsAddAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsRemoveAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsRemoveAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
+	InitExecuteV2(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*bind.EncodedCall, error)
+	InitExecuteV2WithArgs(args ...any) (*bind.EncodedCall, error)
+	ManuallyInitExecuteV2(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*bind.EncodedCall, error)
+	ManuallyInitExecuteV2WithArgs(args ...any) (*bind.EncodedCall, error)
+	FinishExecuteV2(ref bind.Object, state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error)
+	FinishExecuteV2WithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type OfframpContract struct {
@@ -386,6 +397,24 @@ type McmsCallback struct {
 }
 
 type McmsAcceptOwnershipProof struct {
+}
+
+type Any2SuiRampMessageV2 struct {
+	Header            RampMessageHeader      `move:"RampMessageHeader"`
+	Sender            []byte                 `move:"vector<u8>"`
+	Data              []byte                 `move:"vector<u8>"`
+	Receiver          string                 `move:"address"`
+	GasLimit          *big.Int               `move:"u256"`
+	TokenReceiver     string                 `move:"address"`
+	ReceiverObjectIds []string               `move:"vector<address>"`
+	TokenAmounts      []Any2SuiTokenTransfer `move:"vector<Any2SuiTokenTransfer>"`
+}
+
+type ExecutionReportV2 struct {
+	SourceChainSelector uint64               `move:"u64"`
+	Message             Any2SuiRampMessageV2 `move:"Any2SuiRampMessageV2"`
+	OffchainTokenData   [][]byte             `move:"vector<vector<u8>>"`
+	Proofs              [][]byte             `move:"vector<vector<u8>>"`
 }
 
 type bcsOffRampState struct {
@@ -623,6 +652,62 @@ func convertSourceChainConfigSetFromBCS(bcs bcsSourceChainConfigSet) (SourceChai
 	return SourceChainConfigSet{
 		SourceChainSelector: bcs.SourceChainSelector,
 		SourceChainConfig:   SourceChainConfigField,
+	}, nil
+}
+
+type bcsAny2SuiRampMessageV2 struct {
+	Header            RampMessageHeader
+	Sender            []byte
+	Data              []byte
+	Receiver          [32]byte
+	GasLimit          [32]byte
+	TokenReceiver     [32]byte
+	ReceiverObjectIds [][32]byte
+	TokenAmounts      []Any2SuiTokenTransfer
+}
+
+func convertAny2SuiRampMessageV2FromBCS(bcs bcsAny2SuiRampMessageV2) (Any2SuiRampMessageV2, error) {
+	GasLimitField, err := bind.DecodeU256Value(bcs.GasLimit)
+	if err != nil {
+		return Any2SuiRampMessageV2{}, fmt.Errorf("failed to decode u256 field GasLimit: %w", err)
+	}
+
+	return Any2SuiRampMessageV2{
+		Header:        bcs.Header,
+		Sender:        bcs.Sender,
+		Data:          bcs.Data,
+		Receiver:      fmt.Sprintf("0x%x", bcs.Receiver),
+		GasLimit:      GasLimitField,
+		TokenReceiver: fmt.Sprintf("0x%x", bcs.TokenReceiver),
+		ReceiverObjectIds: func() []string {
+			addrs := make([]string, len(bcs.ReceiverObjectIds))
+			for i, addr := range bcs.ReceiverObjectIds {
+				addrs[i] = fmt.Sprintf("0x%x", addr)
+			}
+			return addrs
+		}(),
+		TokenAmounts: bcs.TokenAmounts,
+	}, nil
+}
+
+type bcsExecutionReportV2 struct {
+	SourceChainSelector uint64
+	Message             bcsAny2SuiRampMessageV2
+	OffchainTokenData   [][]byte
+	Proofs              [][]byte
+}
+
+func convertExecutionReportV2FromBCS(bcs bcsExecutionReportV2) (ExecutionReportV2, error) {
+	MessageField, err := convertAny2SuiRampMessageV2FromBCS(bcs.Message)
+	if err != nil {
+		return ExecutionReportV2{}, fmt.Errorf("failed to convert nested struct Message: %w", err)
+	}
+
+	return ExecutionReportV2{
+		SourceChainSelector: bcs.SourceChainSelector,
+		Message:             MessageField,
+		OffchainTokenData:   bcs.OffchainTokenData,
+		Proofs:              bcs.Proofs,
 	}, nil
 }
 
@@ -1220,6 +1305,68 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("ccip_offramp::offramp::Any2SuiRampMessageV2", func(data []byte) (interface{}, error) {
+		var temp bcsAny2SuiRampMessageV2
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertAny2SuiRampMessageV2FromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for Any2SuiRampMessageV2
+	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::Any2SuiRampMessageV2>", func(data []byte) (interface{}, error) {
+		var temps []bcsAny2SuiRampMessageV2
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Any2SuiRampMessageV2, len(temps))
+		for i, temp := range temps {
+			result, err := convertAny2SuiRampMessageV2FromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip_offramp::offramp::ExecutionReportV2", func(data []byte) (interface{}, error) {
+		var temp bcsExecutionReportV2
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertExecutionReportV2FromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for ExecutionReportV2
+	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::ExecutionReportV2>", func(data []byte) (interface{}, error) {
+		var temps []bcsExecutionReportV2
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]ExecutionReportV2, len(temps))
+		for i, temp := range temps {
+			result, err := convertExecutionReportV2FromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -1685,6 +1832,36 @@ func (c *OfframpContract) McmsAddAllowedModules(ctx context.Context, opts *bind.
 // McmsRemoveAllowedModules executes the mcms_remove_allowed_modules Move function.
 func (c *OfframpContract) McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.offrampEncoder.McmsRemoveAllowedModules(registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// InitExecuteV2 executes the init_execute_v2 Move function.
+func (c *OfframpContract) InitExecuteV2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.InitExecuteV2(ref, state, clock, reportContext, report)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// ManuallyInitExecuteV2 executes the manually_init_execute_v2 Move function.
+func (c *OfframpContract) ManuallyInitExecuteV2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.ManuallyInitExecuteV2(ref, state, clock, reportBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// FinishExecuteV2 executes the finish_execute_v2 Move function.
+func (c *OfframpContract) FinishExecuteV2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.FinishExecuteV2(ref, state, receiverParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2167,6 +2344,50 @@ func (d *OfframpDevInspect) PendingTransferAccepted(ctx context.Context, opts *b
 	result, ok := results[0].(*bool)
 	if !ok {
 		return nil, fmt.Errorf("unexpected return type: expected *bool, got %T", results[0])
+	}
+	return result, nil
+}
+
+// InitExecuteV2 executes the init_execute_v2 Move function using DevInspect to get return values.
+//
+// Returns: osh::ReceiverParamsV2
+func (d *OfframpDevInspect) InitExecuteV2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (bind.Object, error) {
+	encoded, err := d.contract.offrampEncoder.InitExecuteV2(ref, state, clock, reportContext, report)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	}
+	return result, nil
+}
+
+// ManuallyInitExecuteV2 executes the manually_init_execute_v2 Move function using DevInspect to get return values.
+//
+// Returns: osh::ReceiverParamsV2
+func (d *OfframpDevInspect) ManuallyInitExecuteV2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (bind.Object, error) {
+	encoded, err := d.contract.offrampEncoder.ManuallyInitExecuteV2(ref, state, clock, reportBytes)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
 	}
 	return result, nil
 }
@@ -3838,4 +4059,117 @@ func (c offrampEncoder) McmsRemoveAllowedModulesWithArgs(args ...any) (*bind.Enc
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_remove_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// InitExecuteV2 encodes a call to the init_execute_v2 Move function.
+func (c offrampEncoder) InitExecuteV2(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("init_execute_v2", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"&mut OffRampState",
+		"&clock::Clock",
+		"vector<vector<u8>>",
+		"vector<u8>",
+	}, []any{
+		ref,
+		state,
+		clock,
+		reportContext,
+		report,
+	}, []string{
+		"osh::ReceiverParamsV2",
+	})
+}
+
+// InitExecuteV2WithArgs encodes a call to the init_execute_v2 Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) InitExecuteV2WithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"&mut OffRampState",
+		"&clock::Clock",
+		"vector<vector<u8>>",
+		"vector<u8>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("init_execute_v2", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"osh::ReceiverParamsV2",
+	})
+}
+
+// ManuallyInitExecuteV2 encodes a call to the manually_init_execute_v2 Move function.
+func (c offrampEncoder) ManuallyInitExecuteV2(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("manually_init_execute_v2", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"&mut OffRampState",
+		"&clock::Clock",
+		"vector<u8>",
+	}, []any{
+		ref,
+		state,
+		clock,
+		reportBytes,
+	}, []string{
+		"osh::ReceiverParamsV2",
+	})
+}
+
+// ManuallyInitExecuteV2WithArgs encodes a call to the manually_init_execute_v2 Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) ManuallyInitExecuteV2WithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"&mut OffRampState",
+		"&clock::Clock",
+		"vector<u8>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("manually_init_execute_v2", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"osh::ReceiverParamsV2",
+	})
+}
+
+// FinishExecuteV2 encodes a call to the finish_execute_v2 Move function.
+func (c offrampEncoder) FinishExecuteV2(ref bind.Object, state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("finish_execute_v2", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"&mut OffRampState",
+		"osh::ReceiverParamsV2",
+	}, []any{
+		ref,
+		state,
+		receiverParams,
+	}, nil)
+}
+
+// FinishExecuteV2WithArgs encodes a call to the finish_execute_v2 Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) FinishExecuteV2WithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"&mut OffRampState",
+		"osh::ReceiverParamsV2",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("finish_execute_v2", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
