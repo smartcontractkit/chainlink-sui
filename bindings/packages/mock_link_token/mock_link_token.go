@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_mock_link_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/mock_link_token/mock_link_token"
@@ -32,13 +32,13 @@ func (p MockLinkTokenPackage) MockLinkToken() module_mock_link_token.IMockLinkTo
 	return p.mockLinkToken
 }
 
-func NewMockLinkToken(address string, client sui.ISuiAPI) (MockLinkToken, error) {
+func NewMockLinkToken(address string, chainClient client.BindingsClient) (MockLinkToken, error) {
 	pkgObjectId, err := bind.ToSuiAddress(address)
 	if err != nil {
 		return nil, err
 	}
 
-	mockLinkTokenContract, err := module_mock_link_token.NewMockLinkToken(address, client)
+	mockLinkTokenContract, err := module_mock_link_token.NewMockLinkToken(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func NewMockLinkToken(address string, client sui.ISuiAPI) (MockLinkToken, error)
 	}, nil
 }
 
-func PublishMockLinkToken(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, suiRPC string) (MockLinkToken, *models.SuiTransactionBlockResponse, error) {
+func PublishMockLinkToken(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, suiRPC string) (MockLinkToken, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -63,7 +63,7 @@ func PublishMockLinkToken(ctx context.Context, opts *bind.CallOpts, client sui.I
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
@@ -71,7 +71,7 @@ func PublishMockLinkToken(ctx context.Context, opts *bind.CallOpts, client sui.I
 		return nil, nil, err
 	}
 
-	contract, err := NewMockLinkToken(packageId, client)
+	contract, err := NewMockLinkToken(packageId, chainClient)
 	if err != nil {
 		return nil, nil, err
 	}

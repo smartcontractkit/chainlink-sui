@@ -12,7 +12,6 @@ import (
 	models "github.com/block-vision/sui-go-sdk/models"
 	v2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	signer "github.com/block-vision/sui-go-sdk/signer"
-	sui "github.com/block-vision/sui-go-sdk/sui"
 	transaction "github.com/block-vision/sui-go-sdk/transaction"
 	"go.uber.org/mock/gomock"
 	cache "github.com/patrickmn/go-cache"
@@ -176,18 +175,19 @@ func (mr *MockSuiPTBClientMockRecorder) GetCheckpointData(ctx, checkpointSequenc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCheckpointData", reflect.TypeOf((*MockSuiPTBClient)(nil).GetCheckpointData), ctx, checkpointSequenceNumber)
 }
 
-// GetClient mocks base method.
-func (m *MockSuiPTBClient) GetClient() sui.ISuiAPI {
+// SimulatePTB mocks base method.
+func (m *MockSuiPTBClient) SimulatePTB(ctx context.Context, bcsBytes []byte) ([]any, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetClient")
-	ret0, _ := ret[0].(sui.ISuiAPI)
-	return ret0
+	ret := m.ctrl.Call(m, "SimulatePTB", ctx, bcsBytes)
+	ret0, _ := ret[0].([]any)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// GetClient indicates an expected call of GetClient.
-func (mr *MockSuiPTBClientMockRecorder) GetClient() *gomock.Call {
+// SimulatePTB indicates an expected call of SimulatePTB.
+func (mr *MockSuiPTBClientMockRecorder) SimulatePTB(ctx, bcsBytes interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetClient", reflect.TypeOf((*MockSuiPTBClient)(nil).GetClient))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SimulatePTB", reflect.TypeOf((*MockSuiPTBClient)(nil).SimulatePTB), ctx, bcsBytes)
 }
 
 // GetCoinsByAddress mocks base method.
@@ -248,6 +248,21 @@ func (m *MockSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId, mo
 func (mr *MockSuiPTBClientMockRecorder) GetLatestPackageId(ctx, packageId, module interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestPackageId", reflect.TypeOf((*MockSuiPTBClient)(nil).GetLatestPackageId), ctx, packageId, module)
+}
+
+// GetCoinMetadata mocks base method.
+func (m *MockSuiPTBClient) GetCoinMetadata(ctx context.Context, coinType string) (models.CoinMetadataResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCoinMetadata", ctx, coinType)
+	ret0, _ := ret[0].(models.CoinMetadataResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCoinMetadata indicates an expected call of GetCoinMetadata.
+func (mr *MockSuiPTBClientMockRecorder) GetCoinMetadata(ctx, coinType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCoinMetadata", reflect.TypeOf((*MockSuiPTBClient)(nil).GetCoinMetadata), ctx, coinType)
 }
 
 // GetNormalizedModule mocks base method.

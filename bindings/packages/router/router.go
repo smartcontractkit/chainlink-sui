@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
@@ -27,8 +27,8 @@ func (p CCIPRouterPackage) Address() string {
 	return p.address
 }
 
-func NewCCIPRouter(address string, client sui.ISuiAPI) (CCIPRouter, error) {
-	routerContract, err := module_router.NewRouter(address, client)
+func NewCCIPRouter(address string, chainClient client.BindingsClient) (CCIPRouter, error) {
+	routerContract, err := module_router.NewRouter(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func NewCCIPRouter(address string, client sui.ISuiAPI) (CCIPRouter, error) {
 	}, nil
 }
 
-func PublishCCIPRouter(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, mcmsAddress string, mcmsOwner, suiRPC string) (CCIPRouter, *models.SuiTransactionBlockResponse, error) {
+func PublishCCIPRouter(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, mcmsAddress string, mcmsOwner, suiRPC string) (CCIPRouter, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -61,7 +61,7 @@ func PublishCCIPRouter(ctx context.Context, opts *bind.CallOpts, client sui.ISui
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
@@ -69,7 +69,7 @@ func PublishCCIPRouter(ctx context.Context, opts *bind.CallOpts, client sui.ISui
 		return nil, nil, err
 	}
 
-	contract, err := NewCCIPRouter(packageId, client)
+	contract, err := NewCCIPRouter(packageId, chainClient)
 	if err != nil {
 		return nil, nil, err
 	}

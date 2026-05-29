@@ -73,10 +73,25 @@ var RateLimitWeights = map[string]int64{
 	"GetTransactionsByCheckpoint":        1,
 	"GetLatestCheckpoint":                1,
 	"GetCheckpointData":                  1,
+	"SimulatePTB":                        1,
+	"GetCoinMetadata":                    1,
 }
 
 // var since it's passed via pointer
 var maxPageSize uint = 50
+
+// BindingsClient is the subset of SuiPTBClient used by the bindings module.
+type BindingsClient interface {
+	ReadObjectId(ctx context.Context, objectId string) (*suirpcv2.Object, error)
+	QueryCoinsByAddress(ctx context.Context, address, coinType string) ([]*suirpcv2.Object, error)
+	GetReferenceGasPrice(ctx context.Context) (*big.Int, error)
+	SimulatePTB(ctx context.Context, bcsBytes []byte) ([]any, error)
+	SendTransaction(ctx context.Context, req *suirpcv2.ExecuteTransactionRequest) (*suirpcv2.ExecuteTransactionResponse, error)
+	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
+	FinishPTBAndSend(ctx context.Context, signer *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (*suirpcv2.ExecuteTransactionResponse, error)
+}
+
+var _ BindingsClient = (*PTBClient)(nil)
 
 type SuiPTBClient interface {
 	MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error)
@@ -85,6 +100,7 @@ type SuiPTBClient interface {
 	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor []byte) ([]*suirpcv2.Object, error)
 	ReadObjectId(ctx context.Context, objectId string) (*suirpcv2.Object, error)
 	ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error)
+	SimulatePTB(ctx context.Context, bcsBytes []byte) ([]any, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte) (*suirpcv2.ExecuteTransactionResponse, error)
 	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error)
 	QueryTransactions(ctx context.Context, fromAddress string, cursor *suirpcv2.Checkpoint, limit *uint64) ([]*suirpcv2.ExecutedTransaction, error)
@@ -102,7 +118,7 @@ type SuiPTBClient interface {
 	GetSUIBalance(ctx context.Context, address string) (*suirpcv2.Balance, error)
 	LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error)
 	GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error)
-	GetClient() sui.ISuiAPI
+	GetCoinMetadata(ctx context.Context, coinType string) (models.CoinMetadataResponse, error)
 	GetCache() *cache.Cache
 	GetCachedValue(key string) (any, bool)
 	SetCachedValue(key string, value any)
@@ -119,7 +135,7 @@ type SuiPTBClient interface {
 // migrated methods use gRPC service accessors; others continue via JSON-RPC.
 type PTBClient struct {
 	log                 logger.Logger
-	client              sui.ISuiAPI // TODO: remove this once the gRPC migration is complete
+	moveModuleClient    sui.ISuiAPI // internal JSON-RPC client for unmigrated read APIs
 	graphqlClient       *graphql.Client
 	grpcClient          *grpcconn.SuiGrpcClient
 	grpcServicesMu      sync.Mutex
@@ -380,7 +396,12 @@ func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction
 		}
 
 		doGasSelection := true
-		response, err := c.txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
+		txExecService, err := c.getTransactionExecutionService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get transaction execution service: %w", err)
+		}
+
+		response, err := txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
 			Transaction:    &v2.Transaction{Bcs: &v2.Bcs{Value: bcsBytes}},
 			DoGasSelection: &doGasSelection,
 			ReadMask: &fieldmaskpb.FieldMask{
@@ -420,7 +441,12 @@ func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction
 func (c *PTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
 	var result *big.Int
 	err := c.WithRateLimit(ctx, "GetReferenceGasPrice", func(ctx context.Context) error {
-		resp, err := c.ledgerService.GetEpoch(ctx, &v2.GetEpochRequest{
+		ledgerService, err := c.getLedgerService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get ledger service: %w", err)
+		}
+
+		resp, err := ledgerService.GetEpoch(ctx, &v2.GetEpochRequest{
 			ReadMask: &fieldmaskpb.FieldMask{Paths: []string{"reference_gas_price"}},
 		})
 		if err != nil {
@@ -502,6 +528,33 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 		return nil, fmt.Errorf("failed to build bcs bytes: %w", err)
 	}
 
+	results, err = c.simulatePTBInternal(ctx, txExecService, bcsBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	c.log.Debugw("ReadFunction results", "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function), "results", results)
+
+	return results, nil
+}
+
+// SimulatePTB simulates a pre-built PTB and returns JSON-decoded Move return values.
+func (c *PTBClient) SimulatePTB(ctx context.Context, bcsBytes []byte) ([]any, error) {
+	var results []any
+	err := c.WithRateLimit(ctx, "SimulatePTB", func(ctx context.Context) error {
+		txExecService, err := c.getTransactionExecutionService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get transaction execution service: %w", err)
+		}
+
+		var simErr error
+		results, simErr = c.simulatePTBInternal(ctx, txExecService, bcsBytes)
+		return simErr
+	})
+	return results, err
+}
+
+func (c *PTBClient) simulatePTBInternal(ctx context.Context, txExecService suirpcv2.TransactionExecutionServiceClient, bcsBytes []byte) ([]any, error) {
 	doGasSelection := false
 	response, err := txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
 		Transaction:    &v2.Transaction{Bcs: &v2.Bcs{Value: bcsBytes}},
@@ -511,23 +564,31 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 		return nil, fmt.Errorf("failed to simulate transaction: %w", err)
 	}
 
-	c.log.Debugw("ReadFunction RPC response", "RPC response", response, "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function))
+	c.log.Debugw("SimulatePTB RPC response", "RPC response", response)
+
+	if response.Transaction != nil && response.Transaction.Effects != nil && response.Transaction.Effects.Status != nil {
+		if !response.Transaction.Effects.Status.GetSuccess() {
+			errMsg := response.Transaction.Effects.Status.GetError()
+			if errMsg != nil {
+				return nil, fmt.Errorf("simulate failed: %s", errMsg.GetDescription())
+			}
+			return nil, fmt.Errorf("simulate failed")
+		}
+	}
 
 	if len(response.CommandOutputs) == 0 {
-		return nil, fmt.Errorf("no results from function call: %+v", response)
+		return []any{}, nil
 	}
 
 	returnedValues := response.CommandOutputs[0].GetReturnValues()
 	if len(returnedValues) == 0 {
-		return nil, fmt.Errorf("no return values from function call: %+v", response)
+		return []any{}, nil
 	}
 
-	results = make([]any, len(returnedValues))
+	results := make([]any, len(returnedValues))
 	for i, returnedValue := range returnedValues {
 		results[i] = returnedValue.Json.AsInterface()
 	}
-
-	c.log.Debugw("ReadFunction results", "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function), "results", results)
 
 	return results, nil
 }
@@ -631,6 +692,46 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 	})
 
 	return result, err
+}
+
+func (c *PTBClient) GetTransactionChangedObjects(ctx context.Context, digest string) ([]*suirpcv2.ChangedObject, error) {
+	ledgerService, err := c.getLedgerService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ledger service: %w", err)
+	}
+
+	var changed []*suirpcv2.ChangedObject
+	err = c.WithRateLimit(ctx, "GetTransactionChangedObjects", func(ctx context.Context) error {
+		response, err := ledgerService.GetTransaction(ctx, &suirpcv2.GetTransactionRequest{
+			Digest: &digest,
+			ReadMask: &fieldmaskpb.FieldMask{
+				Paths: []string{
+					"effects.changed_objects",
+					"effects.changed_objects.object_id",
+					"effects.changed_objects.object_type",
+					"effects.changed_objects.id_operation",
+					"effects.changed_objects.output_state",
+					"effects.changed_objects.output_owner",
+					"effects.changed_objects.output_version",
+					"effects.changed_objects.output_digest",
+					"effects.changed_objects.input_version",
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+		if response.GetTransaction() == nil || response.GetTransaction().GetEffects() == nil {
+			return fmt.Errorf("transaction %s missing effects", digest)
+		}
+		changed = response.GetTransaction().GetEffects().GetChangedObjects()
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return changed, nil
 }
 
 // QueryTransactions queries the transactions for a given address.
@@ -982,7 +1083,11 @@ func (c *PTBClient) getNormalizedModuleInternal(ctx context.Context, packageId s
 		return normalizedModule, nil
 	}
 
-	normalizedModule, err := c.client.SuiGetNormalizedMoveModule(ctx, models.GetNormalizedMoveModuleRequest{
+	if c.moveModuleClient == nil {
+		return models.GetNormalizedMoveModuleResponse{}, fmt.Errorf("move module client not configured")
+	}
+
+	normalizedModule, err := c.moveModuleClient.SuiGetNormalizedMoveModule(ctx, models.GetNormalizedMoveModuleRequest{
 		Package:    packageId,
 		ModuleName: module,
 	})
@@ -998,6 +1103,26 @@ func (c *PTBClient) getNormalizedModuleInternal(ctx context.Context, packageId s
 	c.normalizedModules[packageId][module] = normalizedModule
 
 	return normalizedModule, nil
+}
+
+func (c *PTBClient) GetCoinMetadata(ctx context.Context, coinType string) (models.CoinMetadataResponse, error) {
+	if c.moveModuleClient == nil {
+		return models.CoinMetadataResponse{}, fmt.Errorf("move module client not configured")
+	}
+
+	var result models.CoinMetadataResponse
+	err := c.WithRateLimit(ctx, "GetCoinMetadata", func(ctx context.Context) error {
+		rsp, err := c.moveModuleClient.SuiXGetCoinMetadata(ctx, models.SuiXGetCoinMetadataRequest{
+			CoinType: coinType,
+		})
+		if err != nil {
+			return err
+		}
+		result = rsp
+		return nil
+	})
+
+	return result, err
 }
 
 // LoadModulePackages returns the set of package IDs for a given module using its original package ID
@@ -1125,10 +1250,6 @@ func (c *PTBClient) getLatestPackageIdInternal(ctx context.Context, packageId st
 	}
 
 	return packageIds[len(packageIds)-1], nil
-}
-
-func (c *PTBClient) GetClient() sui.ISuiAPI {
-	return c.client
 }
 
 func (c *PTBClient) GetCache() *cache.Cache {

@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -78,8 +77,8 @@ type GenericsDevInspect struct {
 var _ IGenerics = (*GenericsContract)(nil)
 var _ IGenericsDevInspect = (*GenericsDevInspect)(nil)
 
-func NewGenerics(packageID string, client sui.ISuiAPI) (IGenerics, error) {
-	contract, err := bind.NewBoundContract(packageID, "test", "generics", client)
+func NewGenerics(packageID string, chainClient client.BindingsClient) (IGenerics, error) {
+	contract, err := bind.NewBoundContract(packageID, "test", "generics", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -117,60 +116,6 @@ type Token struct {
 type Pair struct {
 	First  bind.Object `move:"T"`
 	Second bind.Object `move:"U"`
-}
-
-func init() {
-	bind.RegisterStructDecoder("test::generics::Box", func(data []byte) (interface{}, error) {
-		var result Box
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Box
-	bind.RegisterStructDecoder("vector<test::generics::Box>", func(data []byte) (interface{}, error) {
-		var results []Box
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::generics::Token", func(data []byte) (interface{}, error) {
-		var result Token
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Token
-	bind.RegisterStructDecoder("vector<test::generics::Token>", func(data []byte) (interface{}, error) {
-		var results []Token
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::generics::Pair", func(data []byte) (interface{}, error) {
-		var result Pair
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Pair
-	bind.RegisterStructDecoder("vector<test::generics::Pair>", func(data []byte) (interface{}, error) {
-		var results []Pair
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // CreateBox executes the create_box Move function.
@@ -314,9 +259,9 @@ func (d *GenericsDevInspect) Balance(ctx context.Context, opts *bind.CallOpts, t
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -354,9 +299,9 @@ func (d *GenericsDevInspect) CreateSuiToken(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

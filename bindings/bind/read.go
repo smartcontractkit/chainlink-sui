@@ -6,44 +6,49 @@ import (
 	"fmt"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
-func ReadObject(ctx context.Context, objectId string, client sui.ISuiAPI) (*models.SuiObjectResponse, error) {
-	// Normalize the object ID
+func ReadObject(ctx context.Context, objectId string, chainClient client.BindingsClient) (*models.SuiObjectResponse, error) {
 	normalizedId, err := bindutils.ConvertAddressToString(objectId)
 	if err != nil {
 		return nil, fmt.Errorf("invalid object ID %v: %w", objectId, err)
 	}
 
-	req := models.SuiGetObjectRequest{
-		ObjectId: normalizedId,
-		Options: models.SuiObjectDataOptions{
-			ShowContent: true,
-			ShowOwner:   true,
-			ShowType:    true,
-		},
-	}
-
-	object, err := client.SuiGetObject(ctx, req)
+	obj, err := chainClient.ReadObjectId(ctx, normalizedId)
 	if err != nil {
 		return nil, fmt.Errorf("error getting object with id %s: %w", objectId, err)
 	}
 
-	// Return the object data
-	return &object, nil
+	resp := &models.SuiObjectResponse{
+		Data: &models.SuiObjectData{
+			ObjectId: obj.GetObjectId(),
+			Version:  fmt.Sprintf("%d", obj.GetVersion()),
+			Digest:   obj.GetDigest(),
+		},
+	}
+
+	if obj.GetJson() != nil {
+		fields := obj.GetJson().AsInterface()
+		if fieldMap, ok := fields.(map[string]any); ok {
+			resp.Data.Content = &models.SuiParsedData{
+				SuiMoveObject: models.SuiMoveObject{
+					Fields: fieldMap,
+				},
+			}
+		}
+	}
+
+	return resp, nil
 }
 
-// Decodes "value" field into a user provided pointer of any type.
 func GetCustomValueFromObjectData[T any](resp *models.SuiObjectResponse, target *T) error {
 	if resp == nil || resp.Data == nil || resp.Data.Content == nil {
 		return fmt.Errorf("object does not contain any content")
 	}
 
-	// The content should be a SuiMoveObject which embeds Fields
-	// is already a map[string]interface{}
 	if resp.Data.Content.SuiMoveObject.Fields == nil {
 		return fmt.Errorf("object content does not have fields")
 	}

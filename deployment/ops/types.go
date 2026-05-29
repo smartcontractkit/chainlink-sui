@@ -3,9 +3,8 @@ package operations
 import (
 	"fmt"
 
-	"github.com/block-vision/sui-go-sdk/sui"
-
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
@@ -32,7 +31,7 @@ type TransactionCall struct {
 }
 
 type OpTxDeps struct {
-	Client sui.ISuiAPI
+	Client client.SuiPTBClient
 	Signer rel.SuiSigner
 	// We could have some logic to modify the gas based on input
 	GetCallOpts func() *bind.CallOpts

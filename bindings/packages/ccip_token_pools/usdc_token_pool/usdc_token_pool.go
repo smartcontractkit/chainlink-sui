@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_usdc_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/usdc_token_pool"
@@ -27,8 +27,8 @@ func (p CCIPUSDCTokenPoolPackage) Address() string {
 	return p.address
 }
 
-func NewCCIPUSDCTokenPool(address string, client sui.ISuiAPI) (USDCTokenPool, error) {
-	usdcTokenPoolContract, err := module_usdc_token_pool.NewUsdcTokenPool(address, client)
+func NewCCIPUSDCTokenPool(address string, chainClient client.BindingsClient) (USDCTokenPool, error) {
+	usdcTokenPoolContract, err := module_usdc_token_pool.NewUsdcTokenPool(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func NewCCIPUSDCTokenPool(address string, client sui.ISuiAPI) (USDCTokenPool, er
 func PublishCCIPUSDCTokenPool(
 	ctx context.Context,
 	opts *bind.CallOpts,
-	client sui.ISuiAPI,
+	chainClient client.BindingsClient,
 	ccipAddress,
 	usdcCoinMetadataObjectId,
 	tokenMessengerMinterPackageId,
@@ -80,7 +80,7 @@ func PublishCCIPUSDCTokenPool(
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
@@ -88,7 +88,7 @@ func PublishCCIPUSDCTokenPool(
 		return nil, nil, err
 	}
 
-	contract, err := NewCCIPUSDCTokenPool(packageId, client)
+	contract, err := NewCCIPUSDCTokenPool(packageId, chainClient)
 	if err != nil {
 		return nil, nil, err
 	}

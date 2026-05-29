@@ -64,19 +64,6 @@ func TestGenerics(t *testing.T) {
 		require.Equal(t, uint64(0), balance)
 	})
 
-	t.Run("Resolve generics", func(t *testing.T) {
-		typeArgs := []string{"vector<Box<u64>>", "Pair<address,bool>"}
-
-		resolver, err := bind.NewTypeResolver([]string{"T", "U"}, typeArgs)
-		require.NoError(t, err)
-
-		resolved := resolver.ResolveType("Box<T>")
-		require.Equal(t, "Box<vector<Box<u64>>>", resolved)
-
-		resolved = resolver.ResolveType("Pair<T,U>")
-		require.Equal(t, "Pair<vector<Box<u64>>,Pair<address,bool>>", resolved)
-	})
-
 	t.Run("DevInspect with generic", func(t *testing.T) {
 		tx, err := genericsContract.CreateAndTransferSuiToken(ctx, opts)
 		require.NoError(t, err)
