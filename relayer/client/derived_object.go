@@ -10,8 +10,6 @@ import (
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/block-vision/sui-go-sdk/utils"
-
-	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
 
 const (
@@ -74,7 +72,10 @@ func DeriveObjectIDWithVectorU8Key(parentAddress string, keyBytes []byte) (strin
 		return "", fmt.Errorf("failed to BCS serialize key bytes: %w", err)
 	}
 
-	suiFrameworkBytes := common.NormalizeTo32Bytes(SuiFrameworkAddress)
+	suiFrameworkAddr, err := transaction.ConvertSuiAddressStringToBytes(utils.NormalizeSuiAddress(SuiFrameworkAddress))
+	if err != nil {
+		return "", fmt.Errorf("failed to convert Sui framework address to bytes: %w", err)
+	}
 
 	// Manually construct BCS bytes for: TypeTag::Struct(DerivedObjectKey<vector<u8>>)
 	// This avoids the SDK's BCS encoder bug with nested TypeTag enums.
@@ -89,7 +90,7 @@ func DeriveObjectIDWithVectorU8Key(parentAddress string, keyBytes []byte) (strin
 
 	var typeTagBytes []byte
 	typeTagBytes = append(typeTagBytes, 0x07)                          // TypeTag::Struct
-	typeTagBytes = append(typeTagBytes, suiFrameworkBytes[:]...)       // address
+	typeTagBytes = append(typeTagBytes, suiFrameworkAddr[:]...)       // address
 	typeTagBytes = append(typeTagBytes, 0x0e)                          // module length
 	typeTagBytes = append(typeTagBytes, []byte("derived_object")...)   // module name
 	typeTagBytes = append(typeTagBytes, 0x10)                          // struct name length
