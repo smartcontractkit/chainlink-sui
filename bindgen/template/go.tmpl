@@ -9,11 +9,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 {{- range .Imports}}
   {{.PackageName}} "{{.Path}}"
@@ -67,8 +66,8 @@ type {{toUpperCamel .Module}}DevInspect struct {
 var _ I{{toUpperCamel .Module}} = (*{{toUpperCamel .Module}}Contract)(nil)
 var _ I{{toUpperCamel .Module}}DevInspect = (*{{toUpperCamel .Module}}DevInspect)(nil)
 
-func New{{toUpperCamel .Module}}(packageID string, client sui.ISuiAPI) (I{{toUpperCamel .Module}}, error) {
-	contract, err := bind.NewBoundContract(packageID, "{{.Package}}", "{{.Module}}", client)
+func New{{toUpperCamel .Module}}(packageID string, chainClient client.BindingsClient) (I{{toUpperCamel .Module}}, error) {
+	contract, err := bind.NewBoundContract(packageID, "{{.Package}}", "{{.Module}}", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -99,128 +98,6 @@ type {{.Name}} struct { {{range $field := .Fields}}
   {{$field.Name}} {{$field.Type.GoType}} `move:"{{$field.Type.MoveType}}"` {{end}}
 }
 {{end}}
-
-{{range $structs}}
-{{- if needsCustomDecoder .Name}}
-type bcs{{.Name}} struct { {{range $field := .Fields}}
-  {{$field.Name}} {{getBCSType $field}} {{end}}
-}
-
-func convert{{.Name}}FromBCS(bcs bcs{{.Name}}) ({{.Name}}, error) {
-	{{- $structName := .Name}}
-	{{- range .Fields}}
-	{{- if eq .Type.MoveType "u256"}}
-	{{.Name}}Field, err := bind.DecodeU256Value(bcs.{{.Name}})
-	if err != nil {
-		return {{$structName}}{}, fmt.Errorf("failed to decode u256 field {{.Name}}: %w", err)
-	}
-	{{- else if eq .Type.MoveType "u128"}}
-	{{.Name}}Field, err := bind.DecodeU128Value(bcs.{{.Name}})
-	if err != nil {
-		return {{$structName}}{}, fmt.Errorf("failed to decode u128 field {{.Name}}: %w", err)
-	}
-	{{- else if isNestedStructWithDecoder .Type.MoveType}}
-	{{.Name}}Field, err := convert{{.Type.MoveType}}FromBCS(bcs.{{.Name}})
-	if err != nil {
-		return {{$structName}}{}, fmt.Errorf("failed to convert nested struct {{.Name}}: %w", err)
-	}
-	{{- end}}
-	{{- end}}
-
-	return {{.Name}}{
-	{{- range .Fields}}
-		{{- if eq .Type.MoveType "address"}}
-		{{.Name}}: fmt.Sprintf("0x%x", bcs.{{.Name}}),
-		{{- else if eq .Type.MoveType "vector<address>"}}
-		{{.Name}}: func() []string {
-			addrs := make([]string, len(bcs.{{.Name}}))
-			for i, addr := range bcs.{{.Name}} {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		{{- else if eq .Type.MoveType "vector<vector<address>>"}}
-		{{.Name}}: func() [][]string {
-			addrs := make([][]string, len(bcs.{{.Name}}))
-			for i, a := range bcs.{{.Name}} {
-        subAddrs := make([]string, len(a))
-        for j, addr := range a {
-          subAddrs[j] = fmt.Sprintf("0x%x", addr)
-        }
-        addrs[i] = subAddrs
-			}
-			return addrs
-		}(),
-		{{- else if eq .Type.MoveType "u256"}}
-		{{.Name}}: {{.Name}}Field,
-		{{- else if eq .Type.MoveType "u128"}}
-		{{.Name}}: {{.Name}}Field,
-		{{- else if isNestedStructWithDecoder .Type.MoveType}}
-		{{.Name}}: {{.Name}}Field,
-		{{- else}}
-		{{.Name}}: bcs.{{.Name}},
-		{{- end}}
-	{{- end}}
-	}, nil
-}
-{{end}}
-{{- end}}
-
-func init() {
-{{- range $structs}}
-	{{- if needsCustomDecoder .Name}}
-	bind.RegisterStructDecoder("{{$.Package}}::{{$.Module}}::{{.Name}}", func(data []byte) (interface{}, error) {
-		var temp bcs{{.Name}}
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convert{{.Name}}FromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for {{.Name}}
-	bind.RegisterStructDecoder("vector<{{$.Package}}::{{$.Module}}::{{.Name}}>", func(data []byte) (interface{}, error) {
-		var temps []bcs{{.Name}}
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]{{.Name}}, len(temps))
-		for i, temp := range temps {
-			result, err := convert{{.Name}}FromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	{{- else}}
-	bind.RegisterStructDecoder("{{$.Package}}::{{$.Module}}::{{.Name}}", func(data []byte) (interface{}, error) {
-		var result {{.Name}}
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for {{.Name}}
-	bind.RegisterStructDecoder("vector<{{$.Package}}::{{$.Module}}::{{.Name}}>", func(data []byte) (interface{}, error) {
-		var results []{{.Name}}
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	{{- end}}
-{{- end}}
-}
 
 {{range .Funcs}}
 // {{.Name}} executes the {{.MoveName}} Move function.
@@ -270,14 +147,29 @@ func (d *{{toUpperCamel $.Module}}DevInspect) {{.Name}}(ctx context.Context, opt
 {{- if .HasGenericReturns}}
 	return results[0], nil
 {{- else}}
-	result, ok := results[0].({{.GetSingleReturnGoTypeForDevInspect}})
-	if !ok {
-		return {{getZeroValue .GetSingleReturnGoTypeForDevInspect}}, fmt.Errorf("unexpected return type: expected {{.GetSingleReturnGoTypeForDevInspect}}, got %T", results[0])
+	var result {{.GetSingleReturnGoTypeForDevInspect}}
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return {{getZeroValue .GetSingleReturnGoTypeForDevInspect}}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 {{- end}}
 {{- else}}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != {{len .Returns}} {
+		return nil, fmt.Errorf("expected {{len .Returns}} return values, got %d", len(results))
+	}
+	decoded := make([]any, {{len .Returns}})
+	{{- range $i, $ret := .Returns}}
+	var ret{{$i}} {{$ret.GoType}}
+	if err := bind.DecodeJSONReturn(results[{{$i}}], &ret{{$i}}); err != nil {
+		return nil, fmt.Errorf("failed to decode return value {{$i}}: %w", err)
+	}
+	decoded[{{$i}}] = ret{{$i}}
+	{{- end}}
+	return decoded, nil
 {{- end}}
 }
 {{- end}}

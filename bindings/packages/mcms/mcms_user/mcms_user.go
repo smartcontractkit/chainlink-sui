@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_mcms_user "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms_user"
@@ -32,8 +32,8 @@ func (p MCMSUserPackage) MCMSUser() module_mcms_user.IMcmsUser {
 	return p.mcmsUser
 }
 
-func NewMCMSUser(address string, client sui.ISuiAPI) (MCMSUser, error) {
-	mcmsUserContract, err := module_mcms_user.NewMcmsUser(address, client)
+func NewMCMSUser(address string, chainClient client.BindingsClient) (MCMSUser, error) {
+	mcmsUserContract, err := module_mcms_user.NewMcmsUser(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func NewMCMSUser(address string, client sui.ISuiAPI) (MCMSUser, error) {
 	}, nil
 }
 
-func PublishMCMSUser(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, mcmsAddress, mcmsOwnerAddress, suiRPC string) (MCMSUser, *models.SuiTransactionBlockResponse, error) {
+func PublishMCMSUser(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, mcmsAddress, mcmsOwnerAddress, suiRPC string) (MCMSUser, *models.SuiTransactionBlockResponse, error) {
 
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
@@ -66,7 +66,7 @@ func PublishMCMSUser(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAP
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
@@ -74,7 +74,7 @@ func PublishMCMSUser(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAP
 		return nil, nil, err
 	}
 
-	contract, err := NewMCMSUser(packageId, client)
+	contract, err := NewMCMSUser(packageId, chainClient)
 	if err != nil {
 		return nil, nil, err
 	}

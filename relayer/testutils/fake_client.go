@@ -6,7 +6,6 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/signer"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/patrickmn/go-cache"
 
@@ -21,8 +20,7 @@ type FakeSuiPTBClient struct {
 	// Status controls the simulated response for GetTransactionStatus
 	Status client.TransactionResult
 	// CoinsData controls the simulated response for GetCoinsByAddress
-	CoinsData  []models.CoinData
-	MockClient sui.ISuiAPI
+	CoinsData []models.CoinData
 }
 
 var _ client.SuiPTBClient = (*FakeSuiPTBClient)(nil)
@@ -48,6 +46,10 @@ func (c *FakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress st
 }
 
 func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+	return []any{}, nil
+}
+
+func (c *FakeSuiPTBClient) SimulatePTB(ctx context.Context, bcsBytes []byte) ([]any, error) {
 	return []any{}, nil
 }
 
@@ -100,14 +102,6 @@ func (c *FakeSuiPTBClient) GetNormalizedModule(ctx context.Context, packageId st
 	return models.GetNormalizedMoveModuleResponse{}, nil
 }
 
-func (c *FakeSuiPTBClient) GetClient() sui.ISuiAPI {
-	// Return the mock client if set, otherwise nil.
-	// Tests that need specific ISuiAPI behavior should set MockClient explicitly.
-	// Note: Returning nil is acceptable since most tests don't use GetClient(),
-	// and those that do should provide their own mock implementation.
-	return c.MockClient
-}
-
 func (c *FakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string) (*suirpcv2.Checkpoint, error) {
 	return &suirpcv2.Checkpoint{}, nil
 }
@@ -140,6 +134,10 @@ func (c *FakeSuiPTBClient) SuiXGetReferenceGasPrice(ctx context.Context) (string
 func (c *FakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error) {
 	// Return the provided package ID as the latest for testing
 	return packageId, nil
+}
+
+func (c *FakeSuiPTBClient) GetCoinMetadata(ctx context.Context, coinType string) (models.CoinMetadataResponse, error) {
+	return models.CoinMetadataResponse{}, nil
 }
 
 func (c *FakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error) {
@@ -193,10 +191,6 @@ type StatefulFakeSuiPTBClient struct {
 	CallCount                    int    // Track number of calls to GetTransactionStatus
 	ForcedTransactionStatusError string // Force the transaction status to be this value
 	CurrentGasBudget             uint64 // Track the current gas budget being tested
-	// MockClient allows tests to inject custom ISuiAPI behavior when GetClient() is called.
-	// If nil, GetClient() will return nil, which is fine for most tests that don't use it.
-	// Tests that need specific ISuiAPI behavior should set this field explicitly.
-	MockClient sui.ISuiAPI
 }
 
 var _ client.SuiPTBClient = (*StatefulFakeSuiPTBClient)(nil)
@@ -222,6 +216,10 @@ func (c *StatefulFakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAd
 }
 
 func (c *StatefulFakeSuiPTBClient) ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+	return []any{}, nil
+}
+
+func (c *StatefulFakeSuiPTBClient) SimulatePTB(ctx context.Context, bcsBytes []byte) ([]any, error) {
 	return []any{}, nil
 }
 
@@ -286,6 +284,10 @@ func (c *StatefulFakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packa
 	return "", nil
 }
 
+func (c *StatefulFakeSuiPTBClient) GetCoinMetadata(ctx context.Context, coinType string) (models.CoinMetadataResponse, error) {
+	return models.CoinMetadataResponse{}, nil
+}
+
 func (c *StatefulFakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error) {
 	return []string{}, nil
 }
@@ -296,14 +298,6 @@ func (c *StatefulFakeSuiPTBClient) GetSUIBalance(ctx context.Context, address st
 
 func (c *StatefulFakeSuiPTBClient) GetNormalizedModule(ctx context.Context, packageId string, module string) (models.GetNormalizedMoveModuleResponse, error) {
 	return models.GetNormalizedMoveModuleResponse{}, nil
-}
-
-func (c *StatefulFakeSuiPTBClient) GetClient() sui.ISuiAPI {
-	// Return the mock client if set, otherwise nil.
-	// Tests that need specific ISuiAPI behavior should set MockClient explicitly.
-	// Note: Returning nil is acceptable since most tests don't use GetClient(),
-	// and those that do should provide their own mock implementation.
-	return c.MockClient
 }
 
 func (c *StatefulFakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string) (*suirpcv2.Checkpoint, error) {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
@@ -28,8 +28,8 @@ func (p CCIPLockReleaseTokenPool) Address() string {
 	return p.address
 }
 
-func NewCCIPLockReleaseTokenPool(address string, client sui.ISuiAPI) (LockReleaseTokenPool, error) {
-	tokenPoolContract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(address, client)
+func NewCCIPLockReleaseTokenPool(address string, chainClient client.BindingsClient) (LockReleaseTokenPool, error) {
+	tokenPoolContract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func NewCCIPLockReleaseTokenPool(address string, client sui.ISuiAPI) (LockReleas
 func PublishCCIPLockReleaseTokenPool(
 	ctx context.Context,
 	opts *bind.CallOpts,
-	client sui.ISuiAPI,
+	chainClient client.BindingsClient,
 	ccipAddress string,
 	mcmsAddress,
 	mcmsOwnerAddress, suiRPC string) (LockReleaseTokenPool, *models.SuiTransactionBlockResponse, error) {
@@ -68,7 +68,7 @@ func PublishCCIPLockReleaseTokenPool(
 		return nil, nil, fmt.Errorf("failed to compile package: %w", err)
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
@@ -76,7 +76,7 @@ func PublishCCIPLockReleaseTokenPool(
 		return nil, nil, fmt.Errorf("failed to publish package: %w", err)
 	}
 
-	contract, err := NewCCIPLockReleaseTokenPool(packageId, client)
+	contract, err := NewCCIPLockReleaseTokenPool(packageId, chainClient)
 	if err != nil {
 		return nil, nil, err
 	}

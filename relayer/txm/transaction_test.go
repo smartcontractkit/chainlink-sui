@@ -71,13 +71,11 @@ func TestTransactionGeneration(t *testing.T) {
 		GasBudget:        &gasBudget,
 	}
 
-	suiClient := ptbClient.GetClient()
-
 	lggr.Debugw("Published Contract", "packageId", packageId)
 	lggr.Debugw("Account Address", "accountAddress", accountAddress)
 	lggr.Debugw("Counter object created", "counterObjectId", counterObjectId)
 
-	counterInterface, err := modulecounter.NewCounter(packageId, suiClient)
+	counterInterface, err := modulecounter.NewCounter(packageId, ptbClient)
 	require.NoError(t, err)
 	counter, ok := counterInterface.(*modulecounter.CounterContract)
 	require.True(t, ok, "Failed to cast to CounterContract")
