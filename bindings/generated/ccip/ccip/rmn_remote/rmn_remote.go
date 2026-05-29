@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"rmn_remote","name":"curse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"rmn_remote","name":"get_cursed_subjects","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_local_chain_selector","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_report_digest_header","parameters":null},{"package":"ccip","module":"rmn_remote","name":"get_versioned_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"local_chain_selector","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_global","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_u128","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject_value","type":"u128"}]},{"package":"ccip","module":"rmn_remote","name":"set_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"rmn_home_contract_config_digest","type":"vector<u8>"},{"name":"signer_onchain_public_keys","type":"vector<vector<u8>>"},{"name":"node_indexes","type":"vector<u64>"},{"name":"f_sign","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"type_and_version","parameters":null},{"package":"ccip","module":"rmn_remote","name":"uncurse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"uncurse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"rmn_remote","name":"create_curser_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"rmn_remote","name":"curse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_multiple_with_curser_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_curser_cap","type":"CurserCap"},{"name":"subjects","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_with_curser_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"curser_cap","type":"CurserCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"get_cursed_subjects","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_local_chain_selector","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_report_digest_header","parameters":null},{"package":"ccip","module":"rmn_remote","name":"get_versioned_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"local_chain_selector","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_global","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_u128","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject_value","type":"u128"}]},{"package":"ccip","module":"rmn_remote","name":"set_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"rmn_home_contract_config_digest","type":"vector<u8>"},{"name":"signer_onchain_public_keys","type":"vector<vector<u8>>"},{"name":"node_indexes","type":"vector<u64>"},{"name":"f_sign","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"type_and_version","parameters":null},{"package":"ccip","module":"rmn_remote","name":"uncurse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"uncurse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]}]`
 
 type IRmnRemote interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -30,6 +30,9 @@ type IRmnRemote interface {
 	GetReportDigestHeader(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Curse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error)
 	CurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
+	CurseWithCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, curserCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error)
+	CurseMultipleWithCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, curserCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
+	CreateCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Uncurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error)
 	UncurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
 	GetCursedSubjects(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -41,6 +44,11 @@ type IRmnRemote interface {
 	McmsCurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsUncurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsUncurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsCurseWithCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsCurseMultipleWithCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsCreateCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsRegisterCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, slowRegistry bind.Object, fastRegistry bind.Object, params bind.Object, curserCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsMintAndRegisterCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, slowRegistry bind.Object, fastRegistry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IRmnRemoteDevInspect
 	Encoder() RmnRemoteEncoder
 	Bound() bind.IBoundContract
@@ -51,10 +59,12 @@ type IRmnRemoteDevInspect interface {
 	GetVersionedConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([]any, error)
 	GetLocalChainSelector(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (uint64, error)
 	GetReportDigestHeader(ctx context.Context, opts *bind.CallOpts) ([]byte, error)
+	CreateCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (bind.Object, error)
 	GetCursedSubjects(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([][]byte, error)
 	IsCursedGlobal(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (bool, error)
 	IsCursed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, subject []byte) (bool, error)
 	IsCursedU128(ctx context.Context, opts *bind.CallOpts, ref bind.Object, subjectValue *big.Int) (bool, error)
+	McmsCreateCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (bind.Object, error)
 }
 
 type RmnRemoteEncoder interface {
@@ -74,6 +84,12 @@ type RmnRemoteEncoder interface {
 	CurseWithArgs(args ...any) (*bind.EncodedCall, error)
 	CurseMultiple(ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error)
 	CurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error)
+	CurseWithCurserCap(ref bind.Object, curserCap bind.Object, subject []byte) (*bind.EncodedCall, error)
+	CurseWithCurserCapWithArgs(args ...any) (*bind.EncodedCall, error)
+	CurseMultipleWithCurserCap(ref bind.Object, curserCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error)
+	CurseMultipleWithCurserCapWithArgs(args ...any) (*bind.EncodedCall, error)
+	CreateCurserCap(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
+	CreateCurserCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	Uncurse(ref bind.Object, ownerCap bind.Object, subject []byte) (*bind.EncodedCall, error)
 	UncurseWithArgs(args ...any) (*bind.EncodedCall, error)
 	UncurseMultiple(ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error)
@@ -96,6 +112,16 @@ type RmnRemoteEncoder interface {
 	McmsUncurseWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsUncurseMultiple(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsUncurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsCurseWithCurserCap(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsCurseWithCurserCapWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsCurseMultipleWithCurserCap(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsCurseMultipleWithCurserCapWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsCreateCurserCap(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsCreateCurserCapWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsRegisterCurserCap(ref bind.Object, slowRegistry bind.Object, fastRegistry bind.Object, params bind.Object, curserCap bind.Object) (*bind.EncodedCall, error)
+	McmsRegisterCurserCapWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsMintAndRegisterCurserCap(ref bind.Object, slowRegistry bind.Object, fastRegistry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsMintAndRegisterCurserCapWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type RmnRemoteContract struct {
@@ -168,6 +194,10 @@ type Cursed struct {
 
 type Uncursed struct {
 	Subjects [][]byte `move:"vector<vector<u8>>"`
+}
+
+type CurserCap struct {
+	Id string `move:"sui::object::UID"`
 }
 
 func init() {
@@ -273,6 +303,23 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("ccip::rmn_remote::CurserCap", func(data []byte) (interface{}, error) {
+		var result CurserCap
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for CurserCap
+	bind.RegisterStructDecoder("vector<ccip::rmn_remote::CurserCap>", func(data []byte) (interface{}, error) {
+		var results []CurserCap
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -348,6 +395,36 @@ func (c *RmnRemoteContract) Curse(ctx context.Context, opts *bind.CallOpts, ref 
 // CurseMultiple executes the curse_multiple Move function.
 func (c *RmnRemoteContract) CurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.rmnRemoteEncoder.CurseMultiple(ref, ownerCap, subjects)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// CurseWithCurserCap executes the curse_with_curser_cap Move function.
+func (c *RmnRemoteContract) CurseWithCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, curserCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.CurseWithCurserCap(ref, curserCap, subject)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// CurseMultipleWithCurserCap executes the curse_multiple_with_curser_cap Move function.
+func (c *RmnRemoteContract) CurseMultipleWithCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, curserCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.CurseMultipleWithCurserCap(ref, curserCap, subjects)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// CreateCurserCap executes the create_curser_cap Move function.
+func (c *RmnRemoteContract) CreateCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.CreateCurserCap(ref, ownerCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -465,6 +542,56 @@ func (c *RmnRemoteContract) McmsUncurseMultiple(ctx context.Context, opts *bind.
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// McmsCurseWithCurserCap executes the mcms_curse_with_curser_cap Move function.
+func (c *RmnRemoteContract) McmsCurseWithCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.McmsCurseWithCurserCap(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsCurseMultipleWithCurserCap executes the mcms_curse_multiple_with_curser_cap Move function.
+func (c *RmnRemoteContract) McmsCurseMultipleWithCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.McmsCurseMultipleWithCurserCap(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsCreateCurserCap executes the mcms_create_curser_cap Move function.
+func (c *RmnRemoteContract) McmsCreateCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.McmsCreateCurserCap(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsRegisterCurserCap executes the mcms_register_curser_cap Move function.
+func (c *RmnRemoteContract) McmsRegisterCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, slowRegistry bind.Object, fastRegistry bind.Object, params bind.Object, curserCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.McmsRegisterCurserCap(ref, slowRegistry, fastRegistry, params, curserCap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsMintAndRegisterCurserCap executes the mcms_mint_and_register_curser_cap Move function.
+func (c *RmnRemoteContract) McmsMintAndRegisterCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, slowRegistry bind.Object, fastRegistry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.McmsMintAndRegisterCurserCap(ref, slowRegistry, fastRegistry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // TypeAndVersion executes the type_and_version Move function using DevInspect to get return values.
 //
 // Returns: 0x1::string::String
@@ -541,6 +668,28 @@ func (d *RmnRemoteDevInspect) GetReportDigestHeader(ctx context.Context, opts *b
 	result, ok := results[0].([]byte)
 	if !ok {
 		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	}
+	return result, nil
+}
+
+// CreateCurserCap executes the create_curser_cap Move function using DevInspect to get return values.
+//
+// Returns: CurserCap
+func (d *RmnRemoteDevInspect) CreateCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.rmnRemoteEncoder.CreateCurserCap(ref, ownerCap)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
 	}
 	return result, nil
 }
@@ -629,6 +778,28 @@ func (d *RmnRemoteDevInspect) IsCursedU128(ctx context.Context, opts *bind.CallO
 	result, ok := results[0].(bool)
 	if !ok {
 		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	}
+	return result, nil
+}
+
+// McmsCreateCurserCap executes the mcms_create_curser_cap Move function using DevInspect to get return values.
+//
+// Returns: CurserCap
+func (d *RmnRemoteDevInspect) McmsCreateCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.rmnRemoteEncoder.McmsCreateCurserCap(ref, registry, params)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
 	}
 	return result, nil
 }
@@ -882,6 +1053,103 @@ func (c rmnRemoteEncoder) CurseMultipleWithArgs(args ...any) (*bind.EncodedCall,
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("curse_multiple", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// CurseWithCurserCap encodes a call to the curse_with_curser_cap Move function.
+func (c rmnRemoteEncoder) CurseWithCurserCap(ref bind.Object, curserCap bind.Object, subject []byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("curse_with_curser_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&CurserCap",
+		"vector<u8>",
+	}, []any{
+		ref,
+		curserCap,
+		subject,
+	}, nil)
+}
+
+// CurseWithCurserCapWithArgs encodes a call to the curse_with_curser_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) CurseWithCurserCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&CurserCap",
+		"vector<u8>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("curse_with_curser_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// CurseMultipleWithCurserCap encodes a call to the curse_multiple_with_curser_cap Move function.
+func (c rmnRemoteEncoder) CurseMultipleWithCurserCap(ref bind.Object, curserCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("curse_multiple_with_curser_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&CurserCap",
+		"vector<vector<u8>>",
+	}, []any{
+		ref,
+		curserCap,
+		subjects,
+	}, nil)
+}
+
+// CurseMultipleWithCurserCapWithArgs encodes a call to the curse_multiple_with_curser_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) CurseMultipleWithCurserCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&CurserCap",
+		"vector<vector<u8>>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("curse_multiple_with_curser_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// CreateCurserCap encodes a call to the create_curser_cap Move function.
+func (c rmnRemoteEncoder) CreateCurserCap(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("create_curser_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+	}, []any{
+		ref,
+		ownerCap,
+	}, []string{
+		"ccip::rmn_remote::CurserCap",
+	})
+}
+
+// CreateCurserCapWithArgs encodes a call to the create_curser_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) CreateCurserCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("create_curser_cap", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"ccip::rmn_remote::CurserCap",
+	})
 }
 
 // Uncurse encodes a call to the uncurse Move function.
@@ -1232,4 +1500,177 @@ func (c rmnRemoteEncoder) McmsUncurseMultipleWithArgs(args ...any) (*bind.Encode
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_uncurse_multiple", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsCurseWithCurserCap encodes a call to the mcms_curse_with_curser_cap Move function.
+func (c rmnRemoteEncoder) McmsCurseWithCurserCap(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_curse_with_curser_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsCurseWithCurserCapWithArgs encodes a call to the mcms_curse_with_curser_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) McmsCurseWithCurserCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_curse_with_curser_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsCurseMultipleWithCurserCap encodes a call to the mcms_curse_multiple_with_curser_cap Move function.
+func (c rmnRemoteEncoder) McmsCurseMultipleWithCurserCap(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_curse_multiple_with_curser_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsCurseMultipleWithCurserCapWithArgs encodes a call to the mcms_curse_multiple_with_curser_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) McmsCurseMultipleWithCurserCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_curse_multiple_with_curser_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsCreateCurserCap encodes a call to the mcms_create_curser_cap Move function.
+func (c rmnRemoteEncoder) McmsCreateCurserCap(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_create_curser_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, []string{
+		"ccip::rmn_remote::CurserCap",
+	})
+}
+
+// McmsCreateCurserCapWithArgs encodes a call to the mcms_create_curser_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) McmsCreateCurserCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_create_curser_cap", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"ccip::rmn_remote::CurserCap",
+	})
+}
+
+// McmsRegisterCurserCap encodes a call to the mcms_register_curser_cap Move function.
+func (c rmnRemoteEncoder) McmsRegisterCurserCap(ref bind.Object, slowRegistry bind.Object, fastRegistry bind.Object, params bind.Object, curserCap bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_register_curser_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+		"ccip::rmn_remote::CurserCap",
+	}, []any{
+		ref,
+		slowRegistry,
+		fastRegistry,
+		params,
+		curserCap,
+	}, nil)
+}
+
+// McmsRegisterCurserCapWithArgs encodes a call to the mcms_register_curser_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) McmsRegisterCurserCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+		"ccip::rmn_remote::CurserCap",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_register_curser_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsMintAndRegisterCurserCap encodes a call to the mcms_mint_and_register_curser_cap Move function.
+func (c rmnRemoteEncoder) McmsMintAndRegisterCurserCap(ref bind.Object, slowRegistry bind.Object, fastRegistry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_mint_and_register_curser_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		slowRegistry,
+		fastRegistry,
+		params,
+	}, nil)
+}
+
+// McmsMintAndRegisterCurserCapWithArgs encodes a call to the mcms_mint_and_register_curser_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) McmsMintAndRegisterCurserCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_mint_and_register_curser_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
