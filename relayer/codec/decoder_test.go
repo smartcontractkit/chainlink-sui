@@ -3,6 +3,7 @@
 package codec
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/block-vision/sui-go-sdk/utils"
@@ -2693,4 +2695,20 @@ func TestCustomReportDeserializer(t *testing.T) {
 		dataStr := string(report.Message.Data)
 		require.Equal(t, "I am a test ccip message", dataStr)
 	})
+}
+
+func TestDeserializeExecutionReportFromPure(t *testing.T) {
+	t.Parallel()
+
+	reportStr := "9b3c1f221aa3f0cc579b9518768ead0a57cc3d9d782049b702fab91dd723c757f287d20217d8e69b9b3c1f221aa3f0ccec1182faa7c27b87a40200000000000000000000000000001407775923481a094e41d51449b0b0f979c126a3b003486579b4dcbf61d5f5f447ae448e3c1503a811d83bdc074a8712ebeb241fd649b372e040420f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+	reportBytes, err := hex.DecodeString(reportStr)
+	require.NoError(t, err)
+
+	bcsEncoded := bytes.Buffer{}
+	bcsEncoder := mystenbcs.NewEncoder(&bcsEncoded)
+	require.NoError(t, bcsEncoder.Encode(reportBytes))
+
+	report, err := DeserializeExecutionReportFromPure(bcsEncoded.Bytes())
+	require.NoError(t, err)
+	require.Equal(t, uint64(14767482510784806043), report.SourceChainSelector)
 }

@@ -576,3 +576,30 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 		Proofs:              proofs,
 	}, nil
 }
+
+// UnwrapBCSPureBytes decodes a BCS-encoded pure input value stored on-chain.
+// Pure vector<u8> arguments are stored with a ULEB128 length prefix.
+func UnwrapBCSPureBytes(pure []byte) ([]byte, error) {
+	if len(pure) == 0 {
+		return nil, fmt.Errorf("pure bytes are empty")
+	}
+
+	deserializer := aptosBCS.NewDeserializer(pure)
+	unwrapped := deserializer.ReadBytes()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to unwrap pure bytes: %w", err)
+	}
+
+	return unwrapped, nil
+}
+
+// DeserializeExecutionReportFromPure deserializes an execution report from a
+// BCS-encoded pure input containing vector<u8>.
+func DeserializeExecutionReportFromPure(pure []byte) (*ExecutionReport, error) {
+	reportBytes, err := UnwrapBCSPureBytes(pure)
+	if err != nil {
+		return nil, err
+	}
+
+	return DeserializeExecutionReport(reportBytes)
+}

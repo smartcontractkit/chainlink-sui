@@ -445,7 +445,7 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 	}
 
 	// Deserialize execution report
-	execReport, err := codec.DeserializeExecutionReport(reportBytes)
+	execReport, err := codec.DeserializeExecutionReportFromPure(reportBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
 	}

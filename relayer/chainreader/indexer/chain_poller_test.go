@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -403,4 +404,11 @@ func TestChainPoller_ComputeStartSequence(t *testing.T) {
 
 func ptr[T any](v T) *T {
 	return &v
+}
+
+func TestIsCheckpointNotFound(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, isCheckpointNotFound(fmt.Errorf("failed to get checkpoint: rpc error: code = NotFound desc = Checkpoint 208294 not found")))
+	require.False(t, isCheckpointNotFound(fmt.Errorf("context deadline exceeded")))
 }

@@ -218,12 +218,19 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 			return
 		default:
 			if err := cp.processCheckpoint(ctx, seq); err != nil {
-				if isCheckpointNotFound(err) && seq == endSeq {
-					cp.logger.Debugw("Latest checkpoint not yet available",
+				if isCheckpointNotFound(err) {
+					if seq == endSeq {
+						cp.logger.Debugw("Latest checkpoint not yet available",
+							"sequence", seq,
+							"error", err,
+						)
+						return
+					}
+					cp.logger.Warnw("Checkpoint not found during catch-up, skipping",
 						"sequence", seq,
 						"error", err,
 					)
-					return
+					continue
 				}
 				cp.logger.Errorw("Failed to process checkpoint",
 					"sequence", seq,
