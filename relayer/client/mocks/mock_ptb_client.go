@@ -14,9 +14,8 @@ import (
 	signer "github.com/block-vision/sui-go-sdk/signer"
 	sui "github.com/block-vision/sui-go-sdk/sui"
 	transaction "github.com/block-vision/sui-go-sdk/transaction"
-	go_cache "github.com/patrickmn/go-cache"
 	"go.uber.org/mock/gomock"
-
+	cache "github.com/patrickmn/go-cache"
 	client "github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -119,10 +118,10 @@ func (mr *MockSuiPTBClientMockRecorder) GetCCIPPackageID(ctx, offRampPackageID i
 }
 
 // GetCache mocks base method.
-func (m *MockSuiPTBClient) GetCache() *go_cache.Cache {
+func (m *MockSuiPTBClient) GetCache() *cache.Cache {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCache")
-	ret0, _ := ret[0].(*go_cache.Cache)
+	ret0, _ := ret[0].(*cache.Cache)
 	return ret0
 }
 
@@ -162,6 +161,21 @@ func (mr *MockSuiPTBClientMockRecorder) GetCachedValues(keys interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCachedValues", reflect.TypeOf((*MockSuiPTBClient)(nil).GetCachedValues), keys)
 }
 
+// GetCheckpointData mocks base method.
+func (m *MockSuiPTBClient) GetCheckpointData(ctx context.Context, checkpointSequenceNumber uint64) (*client.CheckpointData, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCheckpointData", ctx, checkpointSequenceNumber)
+	ret0, _ := ret[0].(*client.CheckpointData)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCheckpointData indicates an expected call of GetCheckpointData.
+func (mr *MockSuiPTBClientMockRecorder) GetCheckpointData(ctx, checkpointSequenceNumber interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCheckpointData", reflect.TypeOf((*MockSuiPTBClient)(nil).GetCheckpointData), ctx, checkpointSequenceNumber)
+}
+
 // GetClient mocks base method.
 func (m *MockSuiPTBClient) GetClient() sui.ISuiAPI {
 	m.ctrl.T.Helper()
@@ -189,6 +203,21 @@ func (m *MockSuiPTBClient) GetCoinsByAddress(ctx context.Context, address string
 func (mr *MockSuiPTBClientMockRecorder) GetCoinsByAddress(ctx, address interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCoinsByAddress", reflect.TypeOf((*MockSuiPTBClient)(nil).GetCoinsByAddress), ctx, address)
+}
+
+// GetLatestCheckpoint mocks base method.
+func (m *MockSuiPTBClient) GetLatestCheckpoint(ctx context.Context) (*v2.Checkpoint, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLatestCheckpoint", ctx)
+	ret0, _ := ret[0].(*v2.Checkpoint)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLatestCheckpoint indicates an expected call of GetLatestCheckpoint.
+func (mr *MockSuiPTBClientMockRecorder) GetLatestCheckpoint(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestCheckpoint", reflect.TypeOf((*MockSuiPTBClient)(nil).GetLatestCheckpoint), ctx)
 }
 
 // GetLatestEpoch mocks base method.
