@@ -19,6 +19,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/transaction"
 	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
@@ -140,6 +141,10 @@ type PTBClient struct {
 	normalizedModules map[string]map[string]models.GetNormalizedMoveModuleResponse
 
 	cache *cache.Cache // used for caching object IDs (e.g. offramp state object ID or state pointers)
+
+	// pkgIDGroup de-duplicates concurrent package-ID resolutions for the same (package,module)
+	// so a cold cache / TTL expiry doesn't let parallel chain-reader reads stampede the resolution.
+	pkgIDGroup singleflight.Group
 }
 
 var _ SuiPTBClient = (*PTBClient)(nil)
@@ -1097,14 +1102,33 @@ func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId 
 		}
 	}
 
-	ids, err := c.loadModulePackageIdsUncached(ctx, packageId, module)
+	// Single-flight the resolution so a cold cache / TTL expiry doesn't let concurrent
+	// chain-reader reads each run the ~3-RPC package-ID resolution for the same module.
+	resolved, err, _ := c.pkgIDGroup.Do(cacheKey, func() (any, error) {
+		// Another flight may have populated the cache while we were queued.
+		if cached, found := c.cache.Get(cacheKey); found {
+			if ids, ok := cached.([]string); ok {
+				return ids, nil
+			}
+		}
+
+		ids, err := c.loadModulePackageIdsUncached(ctx, packageId, module)
+		if err != nil {
+			return nil, err
+		}
+
+		c.cache.Set(cacheKey, append([]string(nil), ids...), PackageIDCacheExpiration)
+
+		return ids, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	c.cache.Set(cacheKey, append([]string(nil), ids...), PackageIDCacheExpiration)
+	// Copy: the single-flight result is shared across all waiters.
+	ids, _ := resolved.([]string)
 
-	return ids, nil
+	return append([]string(nil), ids...), nil
 }
 
 // InvalidatePackageIDCache evicts the cached package-ID chain for (packageId, module). Call this

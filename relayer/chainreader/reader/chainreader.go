@@ -484,59 +484,97 @@ func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgt
 func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgtypes.BatchGetLatestValuesRequest) (pkgtypes.BatchGetLatestValuesResult, error) {
 	result := make(pkgtypes.BatchGetLatestValuesResult)
 
+	// Process each contract's batch concurrently. Reads *within* a contract are already
+	// parallelized in processContractBatch; parallelizing *across* contracts as well keeps the
+	// whole batch within the caller's (often tight) deadline — e.g. the CCIP commit observation
+	// budget, where a serial per-contract loop over the offRamp/RMN config reads was exceeding
+	// the deadline and causing OffRampNextSeqNums consensus to fail.
+	var (
+		mu       sync.Mutex
+		wg       sync.WaitGroup
+		firstErr error
+	)
+
 	for contract, batch := range request {
-		batchResults := make(pkgtypes.ContractBatchResults, len(batch))
-		resultChan := make(chan struct {
-			index  int
-			result pkgtypes.BatchReadResult
-		}, len(batch))
+		wg.Add(1)
+		go func(contract pkgtypes.BoundContract, batch pkgtypes.ContractBatch) {
+			defer wg.Done()
 
-		var waitgroup sync.WaitGroup
-		waitgroup.Add(len(batch))
+			batchResults, err := s.processContractBatch(ctx, contract, batch)
 
-		for i, read := range batch {
-			go func(index int, read pkgtypes.BatchRead, contract pkgtypes.BoundContract) {
-				defer waitgroup.Done()
-				readResult := pkgtypes.BatchReadResult{ReadName: read.ReadName}
-
-				err := s.GetLatestValue(ctx, contract.ReadIdentifier(read.ReadName), primitives.Finalized, read.Params, read.ReturnVal)
-				readResult.SetResult(read.ReturnVal, err)
-
-				select {
-				case resultChan <- struct {
-					index  int
-					result pkgtypes.BatchReadResult
-				}{index, readResult}:
-				case <-ctx.Done():
-					return
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				if firstErr == nil {
+					firstErr = err
 				}
-			}(i, read, contract)
-		}
-
-		// wait for all the results to be processed then close the channel
-		go func() {
-			waitgroup.Wait()
-			close(resultChan)
-		}()
-
-		resultsReceived := 0
-		for res := range resultChan {
-			batchResults[res.index] = res.result
-			resultsReceived++
-		}
-
-		// check if all the results were received
-		if resultsReceived != len(batch) {
-			if err := ctx.Err(); err != nil {
-				return nil, err
+				return
 			}
-			return nil, fmt.Errorf("batch processing failed: expected %d results, received %d", len(batch), resultsReceived)
-		}
+			result[contract] = batchResults
+		}(contract, batch)
+	}
 
-		result[contract] = batchResults
+	wg.Wait()
+
+	if firstErr != nil {
+		return nil, firstErr
 	}
 
 	return result, nil
+}
+
+// processContractBatch executes all reads for a single bound contract concurrently and returns
+// the results in request order.
+func (s *suiChainReader) processContractBatch(ctx context.Context, contract pkgtypes.BoundContract, batch pkgtypes.ContractBatch) (pkgtypes.ContractBatchResults, error) {
+	batchResults := make(pkgtypes.ContractBatchResults, len(batch))
+	resultChan := make(chan struct {
+		index  int
+		result pkgtypes.BatchReadResult
+	}, len(batch))
+
+	var waitgroup sync.WaitGroup
+	waitgroup.Add(len(batch))
+
+	for i, read := range batch {
+		go func(index int, read pkgtypes.BatchRead, contract pkgtypes.BoundContract) {
+			defer waitgroup.Done()
+			readResult := pkgtypes.BatchReadResult{ReadName: read.ReadName}
+
+			err := s.GetLatestValue(ctx, contract.ReadIdentifier(read.ReadName), primitives.Finalized, read.Params, read.ReturnVal)
+			readResult.SetResult(read.ReturnVal, err)
+
+			select {
+			case resultChan <- struct {
+				index  int
+				result pkgtypes.BatchReadResult
+			}{index, readResult}:
+			case <-ctx.Done():
+				return
+			}
+		}(i, read, contract)
+	}
+
+	// wait for all the results to be processed then close the channel
+	go func() {
+		waitgroup.Wait()
+		close(resultChan)
+	}()
+
+	resultsReceived := 0
+	for res := range resultChan {
+		batchResults[res.index] = res.result
+		resultsReceived++
+	}
+
+	// check if all the results were received
+	if resultsReceived != len(batch) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("batch processing failed: expected %d results, received %d", len(batch), resultsReceived)
+	}
+
+	return batchResults, nil
 }
 
 func (s *suiChainReader) CreateContractType(readName string, forEncoding bool) (any, error) {
