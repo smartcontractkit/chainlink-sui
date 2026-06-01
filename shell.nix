@@ -35,8 +35,8 @@
     unset GOROOT
     unset GOPATH
     unset GOTOOLDIR
-    # Use the nix-provided Go toolchain; disable Go's auto-download behavior
-    export GOTOOLCHAIN=local
+    # Require Go 1.26.2; allow toolchain auto-selection to upgrade if needed
+    export GOTOOLCHAIN=go1.26.2
     # Add Nix-provided Go binary path to ensure consistency
     export PATH=$(go env GOROOT)/bin:$PATH
     # Debug info
