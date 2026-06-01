@@ -76,11 +76,11 @@ func TestChainReaderTestnet(t *testing.T) {
 	chainReaderConfig := config.ChainReaderConfig{
 		IsLoopPlugin: false,
 		EventsIndexer: config.EventsIndexerConfig{
-			PollingInterval: 15 * time.Second,
+			PollingInterval: 1 * time.Second,
 			SyncTimeout:     60 * time.Second,
 		},
 		TransactionsIndexer: config.TransactionsIndexerConfig{
-			PollingInterval: 15 * time.Second,
+			PollingInterval: 1 * time.Second,
 			SyncTimeout:     60 * time.Second,
 		},
 		Modules: map[string]*config.ChainReaderModule{
@@ -227,7 +227,7 @@ func TestChainReaderTestnet(t *testing.T) {
 		relayerClient,
 		log,
 		config.ChainPollerConfig{
-			PollingInterval: 15 * time.Second,
+			PollingInterval: 1 * time.Second,
 			SyncTimeout:     60 * time.Second,
 		},
 		evIndexer.GetEventSelectors,

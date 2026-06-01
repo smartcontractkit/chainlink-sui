@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/block-vision/sui-go-sdk/models"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -21,6 +21,22 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
+
+func newTestCoin(t *testing.T, coinType string, balance uint64) *suirpcv2.Object {
+	t.Helper()
+
+	objectID := fmt.Sprintf("0xcoin-%d", balance)
+	digest := fmt.Sprintf("digest-%d", balance)
+	version := uint64(1)
+
+	return &suirpcv2.Object{
+		ObjectId:   &objectID,
+		ObjectType: &coinType,
+		Balance:    &balance,
+		Version:    &version,
+		Digest:     &digest,
+	}
+}
 
 // TestTransactionGeneration tests the complete flow of generating and executing a Sui transaction
 // using PTBs. This integration test verifies:
@@ -125,11 +141,11 @@ func TestTransactionGeneration(t *testing.T) {
 			gasManager,
 			coinManager,
 		)
+		require.NoError(t, err)
+		require.NotNil(t, tx)
 
 		finalGasBudget := tx.GasBudget
 		lggr.Debugw("Final gas budget", "finalGasBudget", finalGasBudget)
-
-		require.NoError(t, err)
 		lggr.Debugw("PTB transaction generated", "tx", tx)
 
 		resp, err := ptbClient.SignAndSendTransaction(ctx, tx.Payload, publicKeyBytes)
@@ -156,18 +172,15 @@ func TestCoinSelectionEdgeCases(t *testing.T) {
 
 	// Test case 1: Empty coin list
 	t.Run("EmptyCoinList", func(t *testing.T) {
-		_, err := txm.SelectCoinsForGasBudget(1000000, []models.CoinData{})
+		_, err := txm.SelectCoinsForGasBudget(1000000, []*suirpcv2.Object{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no coins available")
 	})
 
 	// Test case 2: No SUI coins available
 	t.Run("NoSUICoins", func(t *testing.T) {
-		nonSuiCoins := []models.CoinData{
-			{
-				CoinType: "0x123::other::TOKEN",
-				Balance:  "1000000000",
-			},
+		nonSuiCoins := []*suirpcv2.Object{
+			newTestCoin(t, "0x123::other::TOKEN", 1000000000),
 		}
 		_, err := txm.SelectCoinsForGasBudget(1000000, nonSuiCoins)
 		require.Error(t, err)
@@ -176,11 +189,8 @@ func TestCoinSelectionEdgeCases(t *testing.T) {
 
 	// Test case 3: Insufficient balance
 	t.Run("InsufficientBalance", func(t *testing.T) {
-		insufficientCoins := []models.CoinData{
-			{
-				CoinType: "0x2::sui::SUI",
-				Balance:  "500000", // Less than required
-			},
+		insufficientCoins := []*suirpcv2.Object{
+			newTestCoin(t, "0x2::coin::Coin<0x2::sui::SUI>", 500000), // Less than required
 		}
 		_, err := txm.SelectCoinsForGasBudget(1000000, insufficientCoins)
 		require.Error(t, err)
@@ -189,11 +199,8 @@ func TestCoinSelectionEdgeCases(t *testing.T) {
 
 	// Test case 4: Exact balance match
 	t.Run("ExactBalanceMatch", func(t *testing.T) {
-		exactCoins := []models.CoinData{
-			{
-				CoinType: "0x2::sui::SUI",
-				Balance:  "1000000", // Exactly what's needed
-			},
+		exactCoins := []*suirpcv2.Object{
+			newTestCoin(t, "0x2::coin::Coin<0x2::sui::SUI>", 1000000), // Exactly what's needed
 		}
 		selected, err := txm.SelectCoinsForGasBudget(1000000, exactCoins)
 		require.NoError(t, err)
@@ -202,15 +209,9 @@ func TestCoinSelectionEdgeCases(t *testing.T) {
 
 	// Test case 5: Multiple coins needed
 	t.Run("MultipleCoinsCombined", func(t *testing.T) {
-		multipleCoins := []models.CoinData{
-			{
-				CoinType: "0x2::sui::SUI",
-				Balance:  "600000",
-			},
-			{
-				CoinType: "0x2::sui::SUI",
-				Balance:  "500000",
-			},
+		multipleCoins := []*suirpcv2.Object{
+			newTestCoin(t, "0x2::coin::Coin<0x2::sui::SUI>", 600000),
+			newTestCoin(t, "0x2::coin::Coin<0x2::sui::SUI>", 500000),
 		}
 		selected, err := txm.SelectCoinsForGasBudget(1000000, multipleCoins)
 		require.NoError(t, err)
@@ -218,10 +219,7 @@ func TestCoinSelectionEdgeCases(t *testing.T) {
 
 		var totalBalance uint64
 		for _, coin := range selected {
-			var balance uint64
-			_, parseErr := fmt.Sscanf(coin.Balance, "%d", &balance)
-			require.NoError(t, parseErr)
-			totalBalance += balance
+			totalBalance += coin.GetBalance()
 		}
 		require.GreaterOrEqual(t, totalBalance, uint64(1000000))
 	})

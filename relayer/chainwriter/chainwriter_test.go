@@ -56,6 +56,21 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 								DefaultValue: nil,
 							},
 						},
+						PTBCommands: []config.ChainWriterPTBCommand{
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: &packageId,
+								ModuleId:  strPtr("counter"),
+								Function:  strPtr("increment"),
+								Params: []codec.SuiFunctionParam{
+									{
+										Name:     "counter",
+										Type:     "object_id",
+										Required: true,
+									},
+								},
+							},
+						},
 					},
 				},
 			},

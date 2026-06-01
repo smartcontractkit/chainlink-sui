@@ -355,6 +355,7 @@ func (c *PTBClient) readFilterOwnedObjectIdsInternal(ctx context.Context, ownerA
 				"version",
 				"digest",
 				"json",
+				"balance",
 			},
 		},
 	})
@@ -390,23 +391,25 @@ func (c *PTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, c
 
 func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction) (uint64, error) {
 	var result uint64
-	err := c.WithRateLimit(ctx, "EstimateGas", func(ctx context.Context) error {
+	txExecService, err := c.getTransactionExecutionService(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get transaction execution service: %w", err)
+	}
+
+	err = c.WithRateLimit(ctx, "EstimateGas", func(ctx context.Context) error {
 		bcsBytes, err := tx.BuildBCSBytes(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to build bcs bytes: %w", err)
 		}
 
 		doGasSelection := true
-		txExecService, err := c.getTransactionExecutionService(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get transaction execution service: %w", err)
-		}
 
 		response, err := txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
 			Transaction:    &v2.Transaction{Bcs: &v2.Bcs{Value: bcsBytes}},
 			DoGasSelection: &doGasSelection,
 			ReadMask: &fieldmaskpb.FieldMask{
 				Paths: []string{
+					"transaction",
 					"transaction.effects.status",
 					"transaction.effects.gas_used",
 				},
@@ -419,16 +422,9 @@ func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction
 		gasUsed := response.Transaction.Effects.GasUsed
 
 		// Extract gas used from response
-		var computationCost, storageCost, storageRebate uint64
-		if gasUsed.ComputationCost != nil {
-			computationCost = *gasUsed.ComputationCost
-		}
-		if gasUsed.StorageCost != nil {
-			storageCost = *gasUsed.StorageCost
-		}
-		if gasUsed.StorageRebate != nil {
-			storageRebate = *gasUsed.StorageRebate
-		}
+		computationCost := gasUsed.GetComputationCost()
+		storageCost := gasUsed.GetStorageCost()
+		storageRebate := gasUsed.GetStorageRebate()
 
 		// Override the estimate with a minimum threshold
 		result = max(computationCost+storageCost-storageRebate, DefaultMinGasBudget)
@@ -668,15 +664,26 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 		response, err := ledgerService.GetTransaction(ctx, &suirpcv2.GetTransactionRequest{
 			Digest: &digest,
 			ReadMask: &fieldmaskpb.FieldMask{
-				Paths: []string{"effects.status", "effects.gas_used", "checkpoint"},
+				Paths: []string{
+					"effects.status",
+					"effects.status.success",
+					"effects.status.error",
+					"effects.gas_used",
+					"checkpoint",
+				},
 			},
 		})
 		if err != nil {
 			return err
 		}
 
+		tx := response.GetTransaction()
+		if tx == nil || tx.GetEffects() == nil || tx.GetEffects().GetStatus() == nil {
+			return fmt.Errorf("transaction %s missing status", digest)
+		}
+
 		var status string
-		success := response.Transaction.GetEffects().GetStatus().GetSuccess()
+		success := tx.GetEffects().GetStatus().GetSuccess()
 		if success {
 			status = "success"
 		} else {
@@ -685,8 +692,8 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 
 		result = TransactionResult{
 			Status:     status,
-			Error:      response.Transaction.GetEffects().GetStatus().GetError().String(),
-			Checkpoint: response.Transaction.GetCheckpoint(),
+			Error:      tx.GetEffects().GetStatus().GetError().String(),
+			Checkpoint: tx.GetCheckpoint(),
 		}
 
 		return nil
@@ -980,6 +987,19 @@ func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Sign
 	tx.SetGasPrice(gasPrice.Uint64())
 	tx.SetSigner(txnSigner)
 	tx.SetGasBudget(DefaultGasBudget)
+
+	paymentCoinBytes, paymentCoinVersion, paymentCoinDigest, err := c.GetTransactionPaymentCoinForAddress(ctx, txnSigner.Address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction payment coin for address: %w", err)
+	}
+
+	tx.SetGasPayment([]transaction.SuiObjectRef{
+		{
+			ObjectId: paymentCoinBytes,
+			Version:  paymentCoinVersion,
+			Digest:   paymentCoinDigest,
+		},
+	})
 
 	bcsBytes, err := tx.BuildBCSBytes(ctx)
 	if err != nil {

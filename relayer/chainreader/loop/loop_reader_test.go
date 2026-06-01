@@ -217,12 +217,12 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			},
 		},
 		EventsIndexer: config.EventsIndexerConfig{
-			PollingInterval: 10 * time.Second,
-			SyncTimeout:     30 * time.Second,
+			PollingInterval: 2 * time.Second,
+			SyncTimeout:     60 * time.Second,
 		},
 		TransactionsIndexer: config.TransactionsIndexerConfig{
-			PollingInterval: 10 * time.Second,
-			SyncTimeout:     30 * time.Second,
+			PollingInterval: 2 * time.Second,
+			SyncTimeout:     60 * time.Second,
 		},
 	}
 
@@ -259,8 +259,9 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		relayerClient,
 		log,
 		config.ChainPollerConfig{
-			PollingInterval: 15 * time.Second,
-			SyncTimeout:     60 * time.Second,
+			PollingInterval:         1 * time.Second,
+			SyncTimeout:             60 * time.Second,
+			BackfillCheckpointCount: testutils.Uint64Pointer(uint64(10)),
 		},
 		evIndexer.GetEventSelectors,
 	)
@@ -453,8 +454,15 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			txMetadata, err := relayerClient.MoveCall(ctx, moveCallReq)
 			require.NoError(t, err)
 
-			_, err = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
+			txResponse, err := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
 			require.NoError(t, err)
+
+			// Make sure the transaction succeeded to make sure the event is indexed
+			require.Eventually(t, func() bool {
+				status, err := relayerClient.GetTransactionStatus(ctx, txResponse.Transaction.GetDigest())
+				log.Debugw("Transaction status for SingleValueEvent", "status", status, "error", err)
+				return err == nil && status.Status == "success"
+			}, 30*time.Second, 1*time.Second)
 
 			require.Eventually(t, func() bool {
 				sequences, err = loopReader.QueryKey(
@@ -474,7 +482,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 				}
 
 				return err == nil && len(sequences) > 0
-			}, 30*time.Second, 1*time.Second)
+			}, 60*time.Second, 1*time.Second)
 
 			require.NoError(t, err)
 			require.NotEmpty(t, sequences, "Expected to find SingleValueEvent")
