@@ -13,9 +13,9 @@ import (
 	v2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	signer "github.com/block-vision/sui-go-sdk/signer"
 	transaction "github.com/block-vision/sui-go-sdk/transaction"
-	"go.uber.org/mock/gomock"
 	cache "github.com/patrickmn/go-cache"
 	client "github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"go.uber.org/mock/gomock"
 )
 
 // MockSuiPTBClient is a mock of SuiPTBClient interface.

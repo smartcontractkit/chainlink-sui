@@ -2,6 +2,7 @@ package bind
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -15,7 +16,7 @@ const defaultGasPrice uint64 = 10_000
 
 func mapExecuteResponseToModels(resp *suirpcv2.ExecuteTransactionResponse) (*models.SuiTransactionBlockResponse, error) {
 	if resp == nil || resp.Transaction == nil {
-		return nil, fmt.Errorf("empty execute transaction response")
+		return nil, errors.New("empty execute transaction response")
 	}
 
 	tx := resp.Transaction
@@ -112,7 +113,7 @@ func mapOwnerToInterface(owner *suirpcv2.Owner) any {
 
 func mapGrpcObjectToResolved(obj *suirpcv2.Object) (*resolvedObject, error) {
 	if obj == nil {
-		return nil, fmt.Errorf("object is nil")
+		return nil, errors.New("object is nil")
 	}
 
 	resolved := &resolvedObject{

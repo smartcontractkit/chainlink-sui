@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -50,7 +51,6 @@ func NewMCMSUser(address string, chainClient client.BindingsClient) (MCMSUser, e
 }
 
 func PublishMCMSUser(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, mcmsAddress, mcmsOwnerAddress, suiRPC string) (MCMSUser, *models.SuiTransactionBlockResponse, error) {
-
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err

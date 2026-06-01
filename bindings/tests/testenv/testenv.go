@@ -37,7 +37,7 @@ const (
 	// Brief pause after releasing ephemeral port reservations so another process is less likely
 	// to steal the same port before `sui start` binds (TOCTOU under parallel `go test` packages).
 	portReleaseSettleDelay = 50 * time.Millisecond
-	loopbackHost = "127.0.0.1"
+	loopbackHost           = "127.0.0.1"
 )
 
 type TestEnvironment struct {

@@ -17,9 +17,9 @@ import (
 
 // Polling parameters for waitForTransactionIndexed.
 var (
-	WaitForTxIndexedTimeout         = 30 * time.Second
-	WaitForTxIndexedInitialBackoff  = 100 * time.Millisecond
-	WaitForTxIndexedMaxBackoff      = 1 * time.Second
+	WaitForTxIndexedTimeout        = 30 * time.Second
+	WaitForTxIndexedInitialBackoff = 100 * time.Millisecond
+	WaitForTxIndexedMaxBackoff     = 1 * time.Second
 )
 
 var ErrTxIndexingTimeout = errors.New("tx submitted but fullnode indexing wait timed out")

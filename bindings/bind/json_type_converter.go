@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -642,7 +643,7 @@ func (tc *TypeConverter) bytesToUint(from, to reflect.Type, data any) (any, erro
 	}
 
 	if len(bytes) == 0 {
-		return nil, fmt.Errorf("empty byte array cannot be converted to numeric value")
+		return nil, errors.New("empty byte array cannot be converted to numeric value")
 	}
 
 	var result uint64

@@ -2,6 +2,7 @@ package bind
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -13,7 +14,7 @@ import (
 // DecodeJSONReturn decodes gRPC/JSON Move return values into the provided target.
 func DecodeJSONReturn(data any, target any) error {
 	if target == nil {
-		return fmt.Errorf("target cannot be nil")
+		return errors.New("target cannot be nil")
 	}
 
 	if raw, ok := data.(json.RawMessage); ok {

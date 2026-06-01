@@ -203,11 +203,11 @@ func (i *IndexerConfig) setDefaults() {
 // ChainPollerConfig holds the configuration for the ChainPoller which fetches
 // checkpoint data and fans it out to the EventsIndexer and TransactionsIndexer.
 type ChainPollerConfig struct {
-	PollingIntervalSecs       *uint64
-	SyncTimeoutSecs           *uint64
-	BackfillCheckpointCount   *uint64
-	StartCheckpointSequence   *uint64
-	ChannelBufferSize         *uint64
+	PollingIntervalSecs     *uint64
+	SyncTimeoutSecs         *uint64
+	BackfillCheckpointCount *uint64
+	StartCheckpointSequence *uint64
+	ChannelBufferSize       *uint64
 }
 
 func (c *ChainPollerConfig) setDefaults() {

@@ -41,10 +41,10 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/router"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 type DeployCCIPRouterInput struct {

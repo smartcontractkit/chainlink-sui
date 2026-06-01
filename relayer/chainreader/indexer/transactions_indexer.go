@@ -3,6 +3,7 @@ package indexer
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/mr-tron/base58"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
@@ -361,11 +363,11 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 	// Find init_execute command and extract call args
 	kind := tx.GetTransaction().GetKind()
 	if kind == nil {
-		return nil, fmt.Errorf("transaction has no kind")
+		return nil, errors.New("transaction has no kind")
 	}
 	programmableTx := kind.GetProgrammableTransaction()
 	if programmableTx == nil {
-		return nil, fmt.Errorf("not a programmable transaction")
+		return nil, errors.New("not a programmable transaction")
 	}
 
 	var executionMethodIndex int
@@ -411,7 +413,7 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 
 	moveCall := programmableTx.Commands[executionMethodIndex].GetMoveCall()
 	if moveCall == nil {
-		return nil, fmt.Errorf("command is not a MoveCall")
+		return nil, errors.New("command is not a MoveCall")
 	}
 
 	// Extract arguments from the move call
@@ -437,11 +439,11 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 	// Extract report bytes from input - Pure input type contains raw bytes
 	reportInput := callArgs[4]
 	if reportInput == nil {
-		return nil, fmt.Errorf("report input is nil")
+		return nil, errors.New("report input is nil")
 	}
 	reportBytes := reportInput.GetPure()
 	if reportBytes == nil {
-		return nil, fmt.Errorf("report input is not Pure type")
+		return nil, errors.New("report input is not Pure type")
 	}
 
 	// Deserialize execution report
@@ -470,8 +472,8 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 
 	// Create synthetic ExecutionStateChanged event
 	executionStateChanged := map[string]any{
-		"source_chain_selector": fmt.Sprintf("%d", sourceChainSelector),
-		"sequence_number":       fmt.Sprintf("%d", execReport.Message.Header.SequenceNumber),
+		"source_chain_selector": strconv.FormatUint(sourceChainSelector, 10),
+		"sequence_number":       strconv.FormatUint(execReport.Message.Header.SequenceNumber, 10),
 		"message_id":            codec.BytesToAnySlice(execReport.Message.Header.MessageID),
 		"message_hash":          codec.BytesToAnySlice(messageHash[:]),
 		"state":                 uint8(3), // 3 = FAILURE
@@ -506,7 +508,7 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 		EventOffset:         0, // Synthetic events have offset 0
 		TxDigest:            txDigestHex,
 		BlockVersion:        0,
-		BlockHeight:         fmt.Sprintf("%d", checkpoint.SequenceNumber),
+		BlockHeight:         strconv.FormatUint(checkpoint.SequenceNumber, 10),
 		BlockHash:           blockHashBytes,
 		BlockTimestamp:      checkpoint.TimestampMs / 1000, // Convert ms to seconds
 		Data:                executionStateChanged,
@@ -662,17 +664,17 @@ var abortRe = regexp.MustCompile(
 // parseMoveAbortFromExecutionError extracts abort metadata from gRPC v2 ExecutionError.
 func (tIndexer *TransactionsIndexer) parseMoveAbortFromExecutionError(execErr *suirpcv2.ExecutionError) (*MoveAbort, error) {
 	if execErr == nil {
-		return nil, fmt.Errorf("execution error is nil")
+		return nil, errors.New("execution error is nil")
 	}
 
 	abort := execErr.GetAbort()
 	if abort == nil {
-		return nil, fmt.Errorf("execution error has no abort details")
+		return nil, errors.New("execution error has no abort details")
 	}
 
 	location := abort.GetLocation()
 	if location == nil {
-		return nil, fmt.Errorf("abort has no location")
+		return nil, errors.New("abort has no location")
 	}
 
 	var functionName *string

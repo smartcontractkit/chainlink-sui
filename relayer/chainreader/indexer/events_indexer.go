@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/mr-tron/base58"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
@@ -251,7 +253,7 @@ func (eIndexer *EventsIndexer) processEventsForHandle(
 			EventOffset:         offset,
 			TxDigest:            txDigestHex,
 			BlockVersion:        0,
-			BlockHeight:         fmt.Sprintf("%d", meta.SequenceNumber),
+			BlockHeight:         strconv.FormatUint(meta.SequenceNumber, 10),
 			BlockHash:           blockHashBytes,
 			BlockTimestamp:      meta.TimestampMs / 1000, // Convert ms to seconds
 			Data:                data,

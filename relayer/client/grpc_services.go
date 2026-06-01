@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/block-vision/sui-go-sdk/common/grpcconn"
@@ -67,7 +68,7 @@ func (c *PTBClient) VerifyGrpcServices(ctx context.Context) error {
 
 func (c *PTBClient) requireGrpcClient() (*grpcconn.SuiGrpcClient, error) {
 	if c.grpcClient == nil {
-		return nil, fmt.Errorf("gRPC client is not configured")
+		return nil, errors.New("gRPC client is not configured")
 	}
 	return c.grpcClient, nil
 }

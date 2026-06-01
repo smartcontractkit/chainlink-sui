@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -9,11 +8,12 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
 	cache "github.com/patrickmn/go-cache"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 )
 
 // gRPC support requires sui-go-sdk with grpcconn (main branch or v2+):
@@ -97,7 +97,7 @@ func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient,
 		grpcConfig.UseTLS = false
 		grpcClient = NewSuiGrpcClient(grpcConfig)
 		moveModuleClient = sui.NewSuiClientWithCustomClient(
-			fmt.Sprintf("http://%s", cfg.GrpcTarget),
+			"http://"+cfg.GrpcTarget,
 			&http.Client{Timeout: cfg.TransactionTimeout},
 		)
 	} else {

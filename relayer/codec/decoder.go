@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -554,7 +555,7 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 // Pure vector<u8> arguments are stored with a ULEB128 length prefix.
 func UnwrapBCSPureBytes(pure []byte) ([]byte, error) {
 	if len(pure) == 0 {
-		return nil, fmt.Errorf("pure bytes are empty")
+		return nil, errors.New("pure bytes are empty")
 	}
 
 	deserializer := aptosBCS.NewDeserializer(pure)

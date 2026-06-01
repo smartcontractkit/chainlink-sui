@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -22,7 +23,7 @@ func (c *PTBClient) transformMoveCallArgFromSignature(
 	mutable bool,
 ) (*transaction.Argument, error) {
 	if body == nil {
-		return nil, fmt.Errorf("missing parameter type signature")
+		return nil, errors.New("missing parameter type signature")
 	}
 
 	c.log.Debugw("transformMoveCallArgFromSignature", "type", body.GetType(), "arg", arg)
@@ -47,7 +48,7 @@ func (c *PTBClient) transformMoveCallArgFromSignature(
 				pureArg := tx.Pure(arg)
 				return &pureArg, nil
 			}
-			return nil, fmt.Errorf("unsupported nested vector type")
+			return nil, errors.New("unsupported nested vector type")
 		default:
 			return nil, fmt.Errorf("unsupported vector element type: %v", inner.GetType())
 		}
@@ -252,7 +253,7 @@ func convertAddresses(tx *transaction.Transaction, addresses []string) (*transac
 // Add helper method to create type tags
 func (c *PTBClient) CreateTypeTag(typeStr string) (transaction.TypeTag, error) {
 	if typeStr == "" {
-		return transaction.TypeTag{}, fmt.Errorf("type string cannot be empty")
+		return transaction.TypeTag{}, errors.New("type string cannot be empty")
 	}
 
 	// Handle struct types (package::module::name)

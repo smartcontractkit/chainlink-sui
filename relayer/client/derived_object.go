@@ -90,7 +90,7 @@ func DeriveObjectIDWithVectorU8Key(parentAddress string, keyBytes []byte) (strin
 
 	var typeTagBytes []byte
 	typeTagBytes = append(typeTagBytes, 0x07)                          // TypeTag::Struct
-	typeTagBytes = append(typeTagBytes, suiFrameworkAddr[:]...)       // address
+	typeTagBytes = append(typeTagBytes, suiFrameworkAddr[:]...)        // address
 	typeTagBytes = append(typeTagBytes, 0x0e)                          // module length
 	typeTagBytes = append(typeTagBytes, []byte("derived_object")...)   // module name
 	typeTagBytes = append(typeTagBytes, 0x10)                          // struct name length

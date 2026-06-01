@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math/big"
 	"slices"
@@ -572,7 +573,7 @@ func (c *PTBClient) simulatePTBInternal(ctx context.Context, txExecService suirp
 			if errMsg != nil {
 				return nil, fmt.Errorf("simulate failed: %s", errMsg.GetDescription())
 			}
-			return nil, fmt.Errorf("simulate failed")
+			return nil, errors.New("simulate failed")
 		}
 	}
 
@@ -629,7 +630,7 @@ func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw strin
 }
 
 func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error) {
-	return nil, fmt.Errorf("method implementation pending gRPC migration")
+	return nil, errors.New("method implementation pending gRPC migration")
 }
 
 // GetEventsByCheckpoint returns all the events for a given checkpoint sequence number.
@@ -740,7 +741,7 @@ func (c *PTBClient) GetTransactionChangedObjects(ctx context.Context, digest str
 // @param limit - the limit of transactions to return
 // @return the transactions and an error if any
 func (c *PTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *suirpcv2.Checkpoint, limit *uint64) ([]*suirpcv2.ExecutedTransaction, error) {
-	return nil, fmt.Errorf("method implementation pending gRPC migration")
+	return nil, errors.New("method implementation pending gRPC migration")
 }
 
 // GetTransactionsByCheckpoint returns all the transactions for a given checkpoint sequence number.
@@ -969,7 +970,7 @@ func (c *PTBClient) QueryCoinsByAddress(ctx context.Context, address string, coi
 func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (*suirpcv2.ExecuteTransactionResponse, error) {
 	// This method should only be used in test environments
 	if !testing.Testing() {
-		return nil, fmt.Errorf("FinishPTBAndSend is only available in test environments")
+		return nil, errors.New("FinishPTBAndSend is only available in test environments")
 	}
 
 	gasPrice, err := c.GetReferenceGasPrice(ctx)
@@ -1084,7 +1085,7 @@ func (c *PTBClient) getNormalizedModuleInternal(ctx context.Context, packageId s
 	}
 
 	if c.moveModuleClient == nil {
-		return models.GetNormalizedMoveModuleResponse{}, fmt.Errorf("move module client not configured")
+		return models.GetNormalizedMoveModuleResponse{}, errors.New("move module client not configured")
 	}
 
 	normalizedModule, err := c.moveModuleClient.SuiGetNormalizedMoveModule(ctx, models.GetNormalizedMoveModuleRequest{
@@ -1107,7 +1108,7 @@ func (c *PTBClient) getNormalizedModuleInternal(ctx context.Context, packageId s
 
 func (c *PTBClient) GetCoinMetadata(ctx context.Context, coinType string) (models.CoinMetadataResponse, error) {
 	if c.moveModuleClient == nil {
-		return models.CoinMetadataResponse{}, fmt.Errorf("move module client not configured")
+		return models.CoinMetadataResponse{}, errors.New("move module client not configured")
 	}
 
 	var result models.CoinMetadataResponse

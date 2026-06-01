@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/block-vision/sui-go-sdk/models"
 
@@ -25,7 +26,7 @@ func ReadObject(ctx context.Context, objectId string, chainClient client.Binding
 	resp := &models.SuiObjectResponse{
 		Data: &models.SuiObjectData{
 			ObjectId: obj.GetObjectId(),
-			Version:  fmt.Sprintf("%d", obj.GetVersion()),
+			Version:  strconv.FormatUint(obj.GetVersion(), 10),
 			Digest:   obj.GetDigest(),
 		},
 	}
