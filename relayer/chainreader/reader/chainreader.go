@@ -1110,15 +1110,17 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 
 		s.logger.Debugw("Processing database event record", "data", record.Data, "offset", record.EventOffset, "eventDataType", reflect.TypeOf(eventData).Elem())
 
+		normalizedData := codec.ConvertBase64StringsToHex(record.Data)
+
 		// if we are running in loop plugin mode, we will want to decode into JSON and then into JSON bytes always
 		if s.config.IsLoopPlugin {
 			// decode into JSON and then into JSON bytes
-			jsonData, err := json.Marshal(record.Data)
+			jsonData, err := json.Marshal(normalizedData)
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal data for LOOP: %w", err)
 			}
 			eventData = &jsonData
-		} else if err := codec.DecodeSuiJsonValue(record.Data, eventData); err != nil {
+		} else if err := codec.DecodeSuiJsonValue(normalizedData, eventData); err != nil {
 			return nil, fmt.Errorf("failed to decode event data: %w", err)
 		}
 

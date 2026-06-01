@@ -1,7 +1,9 @@
 package codec
 
 import (
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
@@ -34,6 +36,64 @@ const (
 // DecodeSuiJsonValue decodes Sui JSON response data into the provided target.
 func DecodeSuiJsonValue(data any, target any) error {
 	return bind.DecodeJSONReturn(data, target)
+}
+
+// ConvertBase64StringsToHex walks arbitrary JSON-like structures and converts any
+// base64-encoded strings into 0x-prefixed hex strings, preserving []byte slices.
+func ConvertBase64StringsToHex(data any) any {
+	switch v := data.(type) {
+	case nil:
+		return nil
+	case string:
+		decoded, err := base64.StdEncoding.DecodeString(v)
+		if err == nil && len(decoded) > 0 {
+			return "0x" + hex.EncodeToString(decoded)
+		}
+		return v
+	case json.RawMessage:
+		var inner any
+		if err := json.Unmarshal(v, &inner); err != nil {
+			return v
+		}
+		return ConvertBase64StringsToHex(inner)
+	case map[string]any:
+		result := make(map[string]any, len(v))
+		for key, value := range v {
+			result[key] = ConvertBase64StringsToHex(value)
+		}
+		return result
+	case []any:
+		result := make([]any, len(v))
+		for i, value := range v {
+			result[i] = ConvertBase64StringsToHex(value)
+		}
+		return result
+	default:
+		rv := reflect.ValueOf(data)
+		if rv.Kind() == reflect.Slice {
+			// Preserve []byte and other byte slices as-is
+			if rv.Type().Elem().Kind() == reflect.Uint8 {
+				return data
+			}
+
+			result := make([]any, rv.Len())
+			for i := 0; i < rv.Len(); i++ {
+				result[i] = ConvertBase64StringsToHex(rv.Index(i).Interface())
+			}
+			return result
+		}
+
+		if rv.Kind() == reflect.Map && rv.Type().Key().Kind() == reflect.String {
+			result := make(map[string]any, rv.Len())
+			iter := rv.MapRange()
+			for iter.Next() {
+				result[iter.Key().String()] = ConvertBase64StringsToHex(iter.Value().Interface())
+			}
+			return result
+		}
+	}
+
+	return data
 }
 
 // DecodeSuiStructToJSON decodes a Sui struct into a JSON object
