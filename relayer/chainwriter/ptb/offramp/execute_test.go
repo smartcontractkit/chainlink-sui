@@ -1,11 +1,20 @@
 package offramp
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNeedsAppDelivery(t *testing.T) {
@@ -109,7 +118,7 @@ func TestProcessReceivers_SkipsZeroAddressReceiver(t *testing.T) {
 	assert.True(t, allZero)
 }
 
-func TestProcessReceivers_SkipsTokenOnlyMessage(t *testing.T) {
+func TestNeedsAppDelivery_ReturnsFalseForTokenOnlyMessage(t *testing.T) {
 	// Token-only messages (empty data, zero gas) should skip receiver processing.
 	receiver := make([]byte, 32)
 	receiver[31] = 0x01 // non-zero receiver
@@ -124,7 +133,7 @@ func TestProcessReceivers_SkipsTokenOnlyMessage(t *testing.T) {
 		"token-only message should not need app delivery")
 }
 
-func TestProcessReceivers_RequiresAppDeliveryForDataMessage(t *testing.T) {
+func TestNeedsAppDelivery_ReturnsTrueForDataMessage(t *testing.T) {
 	// Message with data should require app delivery.
 	receiver := make([]byte, 32)
 	receiver[31] = 0x01
@@ -139,7 +148,7 @@ func TestProcessReceivers_RequiresAppDeliveryForDataMessage(t *testing.T) {
 		"message with data should need app delivery")
 }
 
-func TestProcessReceivers_RequiresAppDeliveryForGasLimitMessage(t *testing.T) {
+func TestNeedsAppDelivery_ReturnsTrueForPositiveGasLimit(t *testing.T) {
 	// Message with non-zero gasLimit should require app delivery even without data.
 	receiver := make([]byte, 32)
 	receiver[31] = 0x01
@@ -232,4 +241,165 @@ func TestExtractReceiverObjectIdStrings(t *testing.T) {
 			assert.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func TestClassifyReceiverBuildError(t *testing.T) {
+	receiverPackageId := "0x00000000000000000000000000000000000000000000000000000000000000ab"
+
+	tests := []struct {
+		name          string
+		err           error
+		expectSkip    bool
+		expectErr     bool
+		expectErrText string
+	}{
+		{
+			name:       "nil error",
+			err:        nil,
+			expectSkip: false,
+			expectErr:  false,
+		},
+		{
+			name:       "71024 poison ABI wrapped as unsupported",
+			err:        fmt.Errorf("%w: TypeParameter (generic parameters are not supported)", ErrUnsupportedReceiverABI),
+			expectSkip: true,
+			expectErr:  false,
+		},
+		{
+			name:       "71024 missing ccip_receive wrapped as unsupported",
+			err:        fmt.Errorf("%w: function %q not found in module", ErrUnsupportedReceiverABI, "ccip_receive"),
+			expectSkip: true,
+			expectErr:  false,
+		},
+		{
+			name:          "transient PTB build error propagates for ProcessReceiversV2",
+			err:           fmt.Errorf("failed to build PTB (receiver call) using bindings: network timeout"),
+			expectSkip:    false,
+			expectErr:     true,
+			expectErrText: "failed to build receiver command for " + receiverPackageId,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			skip, retErr := classifyReceiverBuildError(receiverPackageId, tc.err)
+			assert.Equal(t, tc.expectSkip, skip)
+			if tc.expectErr {
+				require.Error(t, retErr)
+				assert.Contains(t, retErr.Error(), tc.expectErrText)
+				return
+			}
+			require.NoError(t, retErr)
+		})
+	}
+}
+
+func TestAppendCcipReceiveCommand_MissingCcipReceive(t *testing.T) {
+	ctx := context.Background()
+	lggr := logger.Test(t)
+	ptb := transaction.NewTransaction()
+	extractedArg := ptb.MoveCall("0x2", "extract", "extract", nil, nil)
+	callOpts := &bind.CallOpts{Signer: signer.NewDevInspectSigner("0x1")}
+
+	boundReceiverContract, err := bind.NewBoundContract(
+		"0x0000000000000000000000000000000000000000000000000000000000000001",
+		"0x0000000000000000000000000000000000000000000000000000000000000001",
+		"receiver",
+		nil,
+	)
+	require.NoError(t, err)
+
+	_, err = appendCcipReceiveCommand(
+		ctx, lggr, ptb, callOpts, boundReceiverContract, "ccip_receive",
+		&OffRampAddressMappings{CcipObjectRef: "0x3"},
+		[32]byte{},
+		&models.GetNormalizedMoveModuleResponse{ExposedFunctions: map[string]any{}},
+		&extractedArg,
+		nil,
+	)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI))
+}
+
+func TestAppendCcipReceiveCommand_PoisonABI(t *testing.T) {
+	ctx := context.Background()
+	lggr := logger.Test(t)
+	ptb := transaction.NewTransaction()
+	extractedArg := ptb.MoveCall("0x2", "extract", "extract", nil, nil)
+	callOpts := &bind.CallOpts{Signer: signer.NewDevInspectSigner("0x1")}
+
+	boundReceiverContract, err := bind.NewBoundContract(
+		"0x0000000000000000000000000000000000000000000000000000000000000001",
+		"0x0000000000000000000000000000000000000000000000000000000000000001",
+		"receiver",
+		nil,
+	)
+	require.NoError(t, err)
+
+	normalizedModule := models.GetNormalizedMoveModuleResponse{
+		ExposedFunctions: map[string]any{
+			"ccip_receive": map[string]any{
+				"parameters": []any{
+					map[string]any{"Vector": map[string]any{"TypeParameter": float64(0)}},
+				},
+			},
+		},
+	}
+
+	_, err = appendCcipReceiveCommand(
+		ctx, lggr, ptb, callOpts, boundReceiverContract, "ccip_receive",
+		&OffRampAddressMappings{CcipObjectRef: "0x3"},
+		[32]byte{}, &normalizedModule, &extractedArg, nil,
+	)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI))
+	assert.Contains(t, err.Error(), "failed to decode receiver parameters")
+}
+
+func TestAppendPTBCommandForReceiver_PoisonABI(t *testing.T) {
+	ctx := context.Background()
+	lggr := logger.Test(t)
+	ptb := transaction.NewTransaction()
+	receiverParams := ptb.MoveCall("0x2", "init", "init", nil, nil)
+	callOpts := &bind.CallOpts{Signer: signer.NewDevInspectSigner("0x1")}
+
+	normalizedModule := models.GetNormalizedMoveModuleResponse{
+		ExposedFunctions: map[string]any{
+			"ccip_receive": map[string]any{
+				"parameters": []any{
+					map[string]any{"Vector": map[string]any{"TypeParameter": float64(0)}},
+				},
+			},
+		},
+	}
+
+	_, err := AppendPTBCommandForReceiver(
+		ctx, lggr, nil, ptb, callOpts,
+		"0x0000000000000000000000000000000000000000000000000000000000000001",
+		"receiver", "ccip_receive",
+		&OffRampAddressMappings{
+			CcipPackageId: "0x0000000000000000000000000000000000000000000000000000000000000002",
+			CcipObjectRef: "0x3",
+		},
+		[32]byte{}, &normalizedModule, &receiverParams, map[string]any{},
+	)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI))
+	assert.Contains(t, err.Error(), "failed to decode receiver parameters")
+}
+
+func TestProcessReceiversV2_GatingParityWithV1(t *testing.T) {
+	// 74572: ProcessReceiversV2 uses the same needsAppDelivery gate and non-fatal
+	// missing receiverObjectIds handling as ProcessReceivers.
+	receiver := make([]byte, 32)
+	receiver[31] = 0x01
+
+	tokenOnlyMsg := ccipocr3.Message{
+		Receiver: receiver,
+		Data:     nil,
+	}
+	extraArgs := map[string]any{"gasLimit": big.NewInt(0)}
+
+	assert.False(t, needsAppDelivery(tokenOnlyMsg, extraArgs))
+	assert.Empty(t, extractReceiverObjectIdStrings(extraArgs))
 }

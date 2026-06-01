@@ -2,6 +2,7 @@ package offramp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -11,6 +12,11 @@ import (
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
+
+// ErrUnsupportedReceiverABI indicates a receiver's on-chain ABI contains shapes
+// that the relayer cannot build a PTB command for (e.g. generic TypeParameter).
+// This is a permanent failure: retrying with the same receiver will always fail.
+var ErrUnsupportedReceiverABI = errors.New("unsupported receiver ABI")
 
 func AnyPointer[T any](v T) *T {
 	return &v
@@ -174,19 +180,19 @@ func decodeParam(lggr logger.Logger, param any, reference string) (SuiArgumentMe
 		case "Reference", "MutableReference", "Vector":
 			return decodeParam(lggr, v, k)
 		case "TypeParameter":
-			return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: TypeParameter (receiver uses generics)")
+			return SuiArgumentMetadata{}, fmt.Errorf("%w: TypeParameter (generic parameters are not supported)", ErrUnsupportedReceiverABI)
 		default:
 			vMap, ok := v.(map[string]any)
 			if !ok {
-				return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q has non-map value of type %T", k, v)
+				return SuiArgumentMetadata{}, fmt.Errorf("%w: key %q has non-map value of type %T", ErrUnsupportedReceiverABI, k, v)
 			}
 			innerRaw, exists := vMap["Struct"]
 			if !exists {
-				return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q missing inner Struct", k)
+				return SuiArgumentMetadata{}, fmt.Errorf("%w: key %q missing inner Struct", ErrUnsupportedReceiverABI, k)
 			}
 			inner, ok := innerRaw.(map[string]any)
 			if !ok {
-				return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q Struct value is %T, not map", k, innerRaw)
+				return SuiArgumentMetadata{}, fmt.Errorf("%w: key %q Struct value is %T, not map", ErrUnsupportedReceiverABI, k, innerRaw)
 			}
 			typeArguments, err := decodeTypeArguments(inner)
 			if err != nil {

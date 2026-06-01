@@ -48,9 +48,6 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		}
 	})
 
-	// Wait for the node to be fully ready
-	time.Sleep(3 * time.Second)
-
 	c := context.Background()
 	ctx, cancel := context.WithCancel(c)
 	defer cancel()
@@ -58,11 +55,9 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	keystoreInstance, accountAddress, publicKeyBytes := testutils.SetupTestSigner(t, context.Background(), lggr, gasBudget)
 	lggr.Infow("Using account", "address", accountAddress)
 
-	// Fund the account for gas payments
-	for range 3 {
-		err := testutils.FundWithFaucet(lggr, "localnet", accountAddress)
-		require.NoError(t, err)
-	}
+	require.Eventually(t, func() bool {
+		return testutils.FundWithFaucet(lggr, testutils.SuiLocalnet, accountAddress) == nil
+	}, 10*time.Second, time.Second)
 
 	t.Run("CCIP SUI messaging", func(t *testing.T) {
 		t.Skip("Skipping CCIP SUI messaging test in favor of E2E tests. Re-enable and run in CI for details on errors.")
@@ -382,16 +377,11 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 		}
 	})
 
-	// Wait for the node to be fully ready
-	time.Sleep(3 * time.Second)
-
 	accountAddress, publicKeyBytes, signer, keystoreInstance, client, deps, bundle := environment.BasicSetUp(t, lggr, gasBudget)
 
-	// Fund the account for gas payments
-	for range 3 {
-		err := testutils.FundWithFaucet(lggr, "localnet", accountAddress)
-		require.NoError(t, err)
-	}
+	require.Eventually(t, func() bool {
+		return testutils.FundWithFaucet(lggr, testutils.SuiLocalnet, accountAddress) == nil
+	}, 10*time.Second, time.Second)
 
 	envSettings := environment.SetupTestEnvironmentForManagedTokenPool(t, client, signer, accountAddress, bundle, deps, localChainSelector, destChainSelector, keystoreInstance)
 

@@ -969,7 +969,7 @@ func getDynamicSuiRPC() (string, error) {
 		return envRPC, nil
 	}
 
-	cmd := exec.Command("docker", "ps", "--filter", "ancestor=mysten/sui-tools:mainnet-v1.72.2", "--format", "{{.Ports}}")
+	cmd := exec.Command("docker", "ps", "--filter", "ancestor=mysten/sui-tools:mainnet-v1.72.5", "--format", "{{.Ports}}")
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("docker ps failed: %w", err)

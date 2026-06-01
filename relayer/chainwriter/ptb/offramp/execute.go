@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -530,19 +531,15 @@ func ProcessReceivers(
 			receiverParams,
 			extraArgs,
 		)
-		if err != nil {
-			// Permanent failure (e.g. unsupported ABI with TypeParameter/generics).
-			// Skip the receiver leg and let the PTB be submitted without it.
-			// On-chain, populate_message will have set ReceiverParams.message to Some,
-			// so finish_execute → deconstruct_receiver_params will abort with ECCIPReceiveFailed.
-			// The transactions indexer observes this failed PTB and creates a synthetic
-			// ExecutionStateChanged(FAILURE) event, causing the DON to stop retrying.
-			// The message remains UNTOUCHED on-chain (atomic rollback) and available
-			// for manually_init_execute once the receiver is fixed or unregistered.
-			lggr.Errorw("skipping receiver command due to permanent build failure; PTB will fail on-chain",
+		skip, retErr := classifyReceiverBuildError(receiverPackageId, err)
+		if skip {
+			lggr.Errorw("skipping receiver command due to unsupported ABI; PTB will fail on-chain",
 				"receiver", receiverPackageId,
 				"error", err)
 			continue
+		}
+		if retErr != nil {
+			return nil, retErr
 		}
 		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
 	}
@@ -591,6 +588,76 @@ func extractReceiverObjectIdStrings(extraArgs map[string]any) []string {
 		return []string{}
 	}
 	return result
+}
+
+// classifyReceiverBuildError distinguishes permanent unsupported-ABI failures from
+// transient build errors. Unsupported ABI errors are skipped so the PTB can be
+// submitted and fail on-chain with ECCIPReceiveFailed.
+func classifyReceiverBuildError(receiverPackageId string, err error) (skip bool, retErr error) {
+	if err == nil {
+		return false, nil
+	}
+	if errors.Is(err, ErrUnsupportedReceiverABI) {
+		return true, nil
+	}
+	return false, fmt.Errorf("failed to build receiver command for %s: %w", receiverPackageId, err)
+}
+
+func appendCcipReceiveCommand(
+	ctx context.Context,
+	lggr logger.Logger,
+	ptb *transaction.Transaction,
+	callOpts *bind.CallOpts,
+	boundReceiverContract *bind.BoundContract,
+	functionName string,
+	addressMappings *OffRampAddressMappings,
+	messageID [32]byte,
+	normalizedModule *models.GetNormalizedMoveModuleResponse,
+	extractedAny2SuiMessageResult *transaction.Argument,
+	receiverObjectIdStrings []string,
+) (*transaction.Argument, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	paramValues := []any{
+		messageID,
+		bind.Object{Id: addressMappings.CcipObjectRef},
+		extractedAny2SuiMessageResult,
+	}
+
+	functionSignature, ok := normalizedModule.ExposedFunctions[functionName]
+	if !ok {
+		return nil, fmt.Errorf("%w: function %q not found in module", ErrUnsupportedReceiverABI, functionName)
+	}
+
+	paramTypes, err := DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode receiver parameters: %w", err)
+	}
+
+	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
+
+	for _, objectId := range receiverObjectIdStrings {
+		paramValues = append(paramValues, bind.Object{Id: objectId})
+	}
+
+	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(
+		functionName,
+		typeArgsList,
+		typeParamsList,
+		paramTypes,
+		paramValues,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode receiver call: %w", err)
+	}
+
+	receiverCommandResult, err := boundReceiverContract.AppendPTB(ctx, callOpts, ptb, encodedReceiverCall)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build PTB (receiver call) using bindings: %w", err)
+	}
+
+	return receiverCommandResult, nil
 }
 
 func AppendPTBCommandForReceiver(
@@ -651,50 +718,19 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("failed to build PTB (extract_any2sui_message) using bindings: %w", err)
 	}
 
-	typeArgsList = []string{}
-	typeParamsList = []string{}
-	paramValues = []any{
-		messageID,
-		bind.Object{Id: addressMappings.CcipObjectRef},
-		extractedAny2SuiMessageResult,
-	}
-
-	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
-	functionSignature, ok := normalizedModule.ExposedFunctions[functionName]
-	if !ok {
-		return nil, fmt.Errorf("missing function signature for receiver function not found in module (%s)", functionName)
-	}
-
-	// Figure out the parameter types from the normalized module of the token pool
-	paramTypes, err = DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode parameters for receiver function: %w", err)
-	}
-
-	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
-
-	for _, objectId := range extractReceiverObjectIdStrings(extraArgs) {
-		paramValues = append(paramValues, bind.Object{Id: objectId})
-	}
-
-	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(
+	return appendCcipReceiveCommand(
+		ctx,
+		lggr,
+		ptb,
+		callOpts,
+		boundReceiverContract,
 		functionName,
-		typeArgsList,
-		typeParamsList,
-		paramTypes,
-		paramValues,
-		nil,
+		addressMappings,
+		messageID,
+		normalizedModule,
+		extractedAny2SuiMessageResult,
+		extractReceiverObjectIdStrings(extraArgs),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode receiver call: %w", err)
-	}
-
-	receiverCommandResult, err := boundReceiverContract.AppendPTB(ctx, callOpts, ptb, encodedReceiverCall)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build PTB (receiver call) using bindings: %w", err)
-	}
-
-	return receiverCommandResult, nil
 }
 
 // ProcessReceiversV2 processes receiver calls using V2 protocol with object binding enforcement.
@@ -774,11 +810,15 @@ func ProcessReceiversV2(
 			receiverParams,
 			extraArgs,
 		)
-		if err != nil {
-			lggr.Errorw("skipping receiver command due to permanent build failure; PTB will fail on-chain",
+		skip, retErr := classifyReceiverBuildError(receiverPackageId, err)
+		if skip {
+			lggr.Errorw("skipping receiver command due to unsupported ABI; PTB will fail on-chain",
 				"receiver", receiverPackageId,
 				"error", err)
 			continue
+		}
+		if retErr != nil {
+			return nil, retErr
 		}
 		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
 	}
@@ -852,48 +892,17 @@ func AppendPTBCommandForReceiverV2(
 		return nil, fmt.Errorf("failed to build PTB (extract_any2sui_message_v2) using bindings: %w", err)
 	}
 
-	// Build the receiver function call
-	typeArgsList = []string{}
-	typeParamsList = []string{}
-	paramValues = []any{
-		messageID,
-		bind.Object{Id: addressMappings.CcipObjectRef},
-		extractedAny2SuiMessageResult,
-	}
-
-	functionSignature, ok := normalizedModule.ExposedFunctions[functionName]
-	if !ok {
-		return nil, fmt.Errorf("missing function signature for receiver function not found in module (%s)", functionName)
-	}
-
-	paramTypes, err = DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode parameters for receiver function: %w", err)
-	}
-
-	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
-
-	// Pass the same receiver object IDs as PTB object arguments to ccip_receive
-	for _, objectId := range receiverObjectIdStrings {
-		paramValues = append(paramValues, bind.Object{Id: objectId})
-	}
-
-	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(
+	return appendCcipReceiveCommand(
+		ctx,
+		lggr,
+		ptb,
+		callOpts,
+		boundReceiverContract,
 		functionName,
-		typeArgsList,
-		typeParamsList,
-		paramTypes,
-		paramValues,
-		nil,
+		addressMappings,
+		messageID,
+		normalizedModule,
+		extractedAny2SuiMessageResult,
+		receiverObjectIdStrings,
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode receiver call: %w", err)
-	}
-
-	receiverCommandResult, err := boundReceiverContract.AppendPTB(ctx, callOpts, ptb, encodedReceiverCall)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build PTB (receiver call) using bindings: %w", err)
-	}
-
-	return receiverCommandResult, nil
 }
