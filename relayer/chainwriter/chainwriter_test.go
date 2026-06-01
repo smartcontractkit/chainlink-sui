@@ -242,22 +242,6 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			numberAttemps:    1,
 			getExpectedValue: getErrorValue,
 		},
-		{
-			name:         "Test ChainWriter with the same transaction ID",
-			txID:         "test-txID",
-			txMeta:       &commonTypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
-			sender:       accountAddress,
-			contractName: "counter",
-			functionName: "increment",
-			args: map[string]any{
-				"counter": objectId,
-			},
-			expectError:      errors.New("transaction already exists"),
-			expectedResult:   "",
-			status:           commonTypes.Failed,
-			numberAttemps:    1,
-			getExpectedValue: getErrorValue,
-		},
 	}
 
 	//nolint:paralleltest

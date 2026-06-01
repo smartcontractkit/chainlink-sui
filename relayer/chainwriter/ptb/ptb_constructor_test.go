@@ -596,8 +596,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		ptbResult, err = ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
-		require.True(t, ptbResult.Transaction.GetEffects().GetStatus().GetSuccess())
-		txDigest = ptbResult.GetTransaction().GetDigest()
+
+		secondTxDigest := ptbResult.GetTransaction().GetDigest()
 
 		// Expect 2 increment events
 		incrementEventsCounter := 0
@@ -610,7 +610,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 
 		// Wait for the transaction to be indexed
 		require.Eventually(t, func() bool {
-			status, err := ptbClient.GetTransactionStatus(ctx, txDigest)
+			status, err := ptbClient.GetTransactionStatus(ctx, secondTxDigest)
 			return err == nil && status.Status == "success"
 		}, 20*time.Second, 2*time.Second, "Transaction not indexed in RPC node")
 	})

@@ -440,11 +440,9 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 				PackageObjectId: packageId,
 				Module:          "echo",
 				Function:        "simple_event_echo",
-				TypeArguments: []any{
-					"u64",
-				},
+				TypeArguments:   []any{},
 				Arguments: []any{
-					fmt.Sprintf("%d", testNumber),
+					uint64(testNumber),
 				},
 				GasBudget: 2000000,
 			}

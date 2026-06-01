@@ -4,7 +4,6 @@ package txm_test
 
 import (
 	"context"
-	"crypto/ed25519"
 	"fmt"
 	"math/big"
 	"testing"
@@ -17,7 +16,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	modulecounter "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/counter"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
+	"github.com/smartcontractkit/chainlink-sui/bindings/utils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
@@ -63,26 +62,18 @@ func TestTransactionGeneration(t *testing.T) {
 	lggr.Debugw("Starting Sui node")
 
 	gasLimit := int64(200000000000)
-	ptbClient, _, _, accountAddress, _, publicKeyBytes, packageId, counterObjectId := testutils.SetupTestEnv(t, ctx, lggr, gasLimit)
+	ptbClient, _, _, accountAddress, keystore, publicKeyBytes, packageId, counterObjectId := testutils.SetupTestEnv(t, ctx, lggr, gasLimit)
 
-	// Generate key pair and create a signer - use the same key for both signer and keystore
-	pk, _, _, err := testutils.GenerateAccountKeyPair(t)
+	err := testutils.FundWithFaucet(lggr, "localnet", accountAddress)
 	require.NoError(t, err)
-	signer := rel.NewPrivateKeySigner(pk)
-	accountAddress, err = signer.GetAddress()
-	require.NoError(t, err)
-
-	err = testutils.FundWithFaucet(lggr, "localnet", accountAddress)
-	require.NoError(t, err)
-
-	coins, err := ptbClient.GetCoinsByAddress(ctx, accountAddress)
-	require.NoError(t, err)
-	lggr.Debugw("Coins", "coins", coins)
 
 	gasBudget := uint64(200000000000)
 
+	publicKey := fmt.Sprintf("%064x", publicKeyBytes)
+	suiSigner := utils.NewTestPrivateKeySigner(keystore.GetSuiSigner(ctx, publicKey).PriKey)
+
 	opts := &bind.CallOpts{
-		Signer:           signer,
+		Signer:           suiSigner,
 		WaitForExecution: true,
 		GasBudget:        &gasBudget,
 	}
@@ -103,13 +94,6 @@ func TestTransactionGeneration(t *testing.T) {
 
 	gasManager := txm.NewSuiGasManager(lggr, ptbClient, *big.NewInt(int64(gasBudget)), 0)
 	txID := "1"
-
-	// Create a test keystore and add the signer's key (use the same key as the publicKeyBytes)
-	keystore := testutils.NewTestKeystore(t)
-	keystore.AddKey(pk)
-
-	// Get the public key bytes from the private key for the transaction
-	publicKeyBytes = pk.Public().(ed25519.PublicKey)
 
 	t.Run("GeneratePTBTransactionWithGasEstimation", func(t *testing.T) {
 		ptb := transaction.NewTransaction()
@@ -157,8 +141,8 @@ func TestTransactionGeneration(t *testing.T) {
 		storageRebate := gasUsed.GetStorageRebate()
 
 		totalGasUsed := computationCost + storageCost - storageRebate
-		require.Greater(t, totalGasUsed, int64(0))
-		require.Equal(t, totalGasUsed, int64(finalGasBudget))
+		require.Greater(t, totalGasUsed, uint64(0))
+		require.Equal(t, totalGasUsed, finalGasBudget)
 
 		require.True(t, resp.Transaction.GetEffects().GetStatus().GetSuccess())
 	})
