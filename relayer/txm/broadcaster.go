@@ -86,7 +86,7 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 			Transaction: &v2.Transaction{Bcs: &v2.Bcs{Value: payloadBytes}},
 			Signatures:  signatures,
 			ReadMask: &fieldmaskpb.FieldMask{
-				Paths: []string{"digest", "effects.status", "effects.gas_used"},
+				Paths: []string{"transaction", "digest", "effects.digest", "effects.status", "effects.gas_used"},
 			},
 		}
 

@@ -621,7 +621,19 @@ func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw strin
 			},
 		},
 		ReadMask: &fieldmaskpb.FieldMask{
-			Paths: []string{"digest", "effects.status", "effects.gas_used"},
+			Paths: []string{
+				"transaction",
+				"transaction.digest",
+				"digest",
+				"effects.digest",
+				"effects.status",
+				"effects.gas_used",
+				"events",
+				"events.events.package_id",
+				"events.events.module",
+				"events.events.event_type",
+				"events.events.json",
+			},
 		},
 	})
 

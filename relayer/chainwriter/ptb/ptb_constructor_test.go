@@ -561,13 +561,23 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
-		require.True(t, ptbResult.Transaction.GetEffects().GetStatus().GetSuccess())
-		prettyPrintDebug(log, ptbResult)
+
+		txDigest := ptbResult.GetTransaction().GetDigest()
+
+		// Wait for the transaction to be indexed
+		require.Eventually(t, func() bool {
+			status, err := ptbClient.GetTransactionStatus(ctx, txDigest)
+			return err == nil && status.Status == "success"
+		}, 20*time.Second, 2*time.Second, "Transaction not indexed in RPC node")
+
+		changedObjects, err := ptbClient.GetTransactionChangedObjects(ctx, txDigest)
+		require.NoError(t, err)
+		require.NotEmpty(t, changedObjects)
 
 		// Borrow the Counter from the manager and pass it to increment then put it back
 		var managerObjectId string
 		// iterate through object changes
-		for _, changedObj := range ptbResult.GetTransaction().GetEffects().GetChangedObjects() {
+		for _, changedObj := range changedObjects {
 			if strings.Contains(changedObj.GetObjectType(), "counter_manager") {
 				managerObjectId = changedObj.GetObjectId()
 			}
@@ -587,17 +597,22 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
 		require.True(t, ptbResult.Transaction.GetEffects().GetStatus().GetSuccess())
+		txDigest = ptbResult.GetTransaction().GetDigest()
 
 		// Expect 2 increment events
 		incrementEventsCounter := 0
-		for _, event := range ptbResult.Transaction.GetEvents().Events {
+		for _, event := range ptbResult.GetTransaction().GetEvents().GetEvents() {
 			if strings.Contains(event.GetEventType(), "CounterIncremented") {
 				incrementEventsCounter += 1
 			}
 		}
 		require.Equal(t, 2, incrementEventsCounter)
 
-		prettyPrintDebug(log, ptbResult)
+		// Wait for the transaction to be indexed
+		require.Eventually(t, func() bool {
+			status, err := ptbClient.GetTransactionStatus(ctx, txDigest)
+			return err == nil && status.Status == "success"
+		}, 20*time.Second, 2*time.Second, "Transaction not indexed in RPC node")
 	})
 
 	//nolint:paralleltest
