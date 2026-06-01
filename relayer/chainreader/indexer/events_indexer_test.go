@@ -51,17 +51,6 @@ func TestEventsIndexer(t *testing.T) {
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
-	t.Cleanup(func() {
-		testutils.CleanupTestContracts()
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
-			if perr != nil {
-				t.Logf("Failed to kill process: %v", perr)
-			}
-		}
-		dbConnection.Close()
-	})
-
 	log.Debugw("Started Sui node")
 
 	// Create keystore for PTB client and add the generated key
@@ -148,6 +137,19 @@ func TestEventsIndexer(t *testing.T) {
 		for range chainPoller.TransactionsChannel() {
 		}
 	}()
+
+	t.Cleanup(func() {
+		testutils.CleanupTestContracts()
+		if cmd.Process != nil {
+			perr := cmd.Process.Kill()
+			if perr != nil {
+				t.Logf("Failed to kill process: %v", perr)
+			}
+		}
+		dbConnection.Close()
+		evIndexer.Close()
+		chainPoller.Close()
+	})
 
 	// Helper function to create events by calling contract
 	createEvent := func(eventNum int) {

@@ -55,17 +55,6 @@ func TestTransactionsIndexer(t *testing.T) {
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
-	t.Cleanup(func() {
-		testutils.CleanupTestContracts()
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
-			if perr != nil {
-				t.Logf("Failed to kill process: %v", perr)
-			}
-		}
-		dbConnection.Close()
-	})
-
 	log.Debugw("Started Sui node")
 
 	// Setup keystore and client
@@ -258,6 +247,19 @@ func TestTransactionsIndexer(t *testing.T) {
 
 	err = indexerInstance.Start(ctx)
 	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		testutils.CleanupTestContracts()
+		if cmd.Process != nil {
+			perr := cmd.Process.Kill()
+			if perr != nil {
+				t.Logf("Failed to kill process: %v", perr)
+			}
+		}
+		dbConnection.Close()
+		indexerInstance.Close()
+		cReader.Close()
+	})
 
 	t.Run("TestBasicFailedTransactionIndexing", func(t *testing.T) {
 		ctx := context.Background()
