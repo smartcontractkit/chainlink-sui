@@ -79,7 +79,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		GrpcTarget:            "127.0.0.1:9000",
 		GrpcToken:             "test",
 		TransactionTimeout:    10 * time.Second,
-		MaxConcurrentRequests: 5,
+		MaxConcurrentRequests: 50,
 		KeystoreService:       keystoreInstance,
 	}
 
@@ -534,8 +534,9 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		relayerClient,
 		log,
 		config.ChainPollerConfig{
-			PollingInterval: 15 * time.Second,
-			SyncTimeout:     60 * time.Second,
+			PollingInterval:         2 * time.Second,
+			SyncTimeout:             60 * time.Second,
+			BackfillCheckpointCount: testutils.Uint64Pointer(uint64(100)),
 		},
 		evIndexer.GetEventSelectors,
 	)
@@ -559,12 +560,14 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.NoError(t, err)
 		log.Debugw("ChainReader started")
 	}()
-	// TODO: re-enable when indexers are migrated to the gRPC client
-	// go func() {
-	// 	err = indexerInstance.Start(ctx)
-	// 	require.NoError(t, err)
-	// 	log.Debugw("Indexers started")
-	// }()
+
+	err = indexerInstance.Start(ctx)
+	require.NoError(t, err)
+	// Drain the transactions channel so the poller never blocks.
+	go func() {
+		for range chainPoller.TransactionsChannel() {
+		}
+	}()
 
 	t.Run("GetLatestValue_FunctionRead", func(t *testing.T) {
 		expectedUint64 := uint64(0)
@@ -780,10 +783,16 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	})
 
 	t.Run("QueryKey_Events", func(t *testing.T) {
-		t.Skip("Skipping QueryKey_Events test is pending gRPC migration for indexers")
-
 		// Increment the counter to emit an event
 		log.Debugw("Incrementing counter to emit event", "counterObjectId", counterObjectId)
+
+		// Add the event selector so the poller starts filtering for it
+		err := evIndexer.AddEventSelector(ctx, &client.EventSelector{
+			Package: packageId,
+			Module:  "counter",
+			Event:   "CounterIncremented",
+		})
+		require.NoError(t, err)
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
@@ -805,6 +814,13 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.NoError(t, testErr)
 
 		log.Debugw("Transaction result", "result", txnResult)
+
+		// Make sure the transaction succeeded to make sure the event is indexed
+		require.Eventually(t, func() bool {
+			status, err := relayerClient.GetTransactionStatus(ctx, txnResult.Transaction.GetDigest())
+			log.Debugw("Transaction status", "status", status, "error", err)
+			return err == nil && status.Status == "success"
+		}, 30*time.Second, 1*time.Second)
 
 		// Query for counter increment events
 		type CounterEvent struct {
@@ -864,10 +880,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	})
 
 	t.Run("QueryKeyWithMetadata_RenamedFields", func(t *testing.T) {
-		t.Skip("Skipping QueryKeyWithMetadata_RenamedFields test is pending gRPC migration for indexers")
-
 		// Increment the counter to emit an event
 		log.Debugw("Emitting UsdPerTokenUpdated event")
+
+		evIndexer.AddEventSelector(ctx, &client.EventSelector{
+			Package: packageId,
+			Module:  "fee_quoter",
+			Event:   "UsdPerTokenUpdated",
+		})
+		require.NoError(t, err)
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
@@ -875,15 +896,11 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			PackageObjectId: packageId,
 			Module:          "fee_quoter",
 			Function:        "emit_usd_per_token_updated_event",
-			TypeArguments: []any{
-				"address",
-				"u256",
-				"u64",
-			},
+			TypeArguments:   []any{},
 			Arguments: []any{
-				"0x0000000000000000000000000000000000000000000000000000000000000001",
+				"0x0000000000000000000000000000000000000001",
 				"1000000000000000000",
-				"1714953600",
+				uint64(1714953600),
 			},
 			GasBudget: 2000000,
 		}
@@ -893,8 +910,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
 		require.NoError(t, testErr)
 
-		_, testErr = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
+		txnResult, testErr := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
 		require.NoError(t, testErr)
+
+		// Make sure the transaction succeeded to make sure the event is indexed
+		require.Eventually(t, func() bool {
+			status, err := relayerClient.GetTransactionStatus(ctx, txnResult.Transaction.GetDigest())
+			log.Debugw("Transaction status for UsdPerTokenUpdated", "status", status, "error", err)
+			return err == nil && status.Status == "success"
+		}, 30*time.Second, 1*time.Second)
 
 		// Create a filter for events
 		filter := query.KeyFilter{
@@ -956,10 +980,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	})
 
 	t.Run("QueryKey_CCIPMessageSent_concrete_sequenceDataType", func(t *testing.T) {
-		t.Skip("Skipping QueryKey_CCIPMessageSent_concrete_sequenceDataType test is pending gRPC migration for indexers")
-
 		// Increment the counter to emit an event
 		log.Debugw("Emitting CCIPMessageSent event")
+
+		evIndexer.AddEventSelector(ctx, &client.EventSelector{
+			Package: packageId,
+			Module:  "onramp",
+			Event:   "CCIPMessageSent",
+		})
+		require.NoError(t, err)
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
@@ -977,8 +1006,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
 		require.NoError(t, testErr)
 
-		_, testErr = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
+		txnResult, testErr := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
 		require.NoError(t, testErr)
+
+		// Make sure the transaction succeeded to make sure the event is indexed
+		require.Eventually(t, func() bool {
+			status, err := relayerClient.GetTransactionStatus(ctx, txnResult.Transaction.GetDigest())
+			log.Debugw("Transaction status for CCIPMessageSent", "status", status, "error", err)
+			return err == nil && status.Status == "success"
+		}, 30*time.Second, 1*time.Second)
 
 		// Create a filter for events
 		filter := query.KeyFilter{
@@ -1037,10 +1073,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	})
 
 	t.Run("QueryKey_CCIPMessageSent_map[string]any_sequenceDataType", func(t *testing.T) {
-		t.Skip("Skipping QueryKey_CCIPMessageSent_map[string]any_sequenceDataType test is pending gRPC migration for indexers")
-
 		// Increment the counter to emit an event
 		log.Debugw("Emitting CCIPMessageSent event")
+
+		evIndexer.AddEventSelector(ctx, &client.EventSelector{
+			Package: packageId,
+			Module:  "onramp",
+			Event:   "CCIPMessageSent",
+		})
+		require.NoError(t, err)
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
@@ -1058,8 +1099,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
 		require.NoError(t, testErr)
 
-		_, testErr = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
+		txnResult, testErr := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
 		require.NoError(t, testErr)
+
+		// Make sure the transaction succeeded to make sure the event is indexed
+		require.Eventually(t, func() bool {
+			status, err := relayerClient.GetTransactionStatus(ctx, txnResult.Transaction.GetDigest())
+			log.Debugw("Transaction status for CCIPMessageSent", "status", status, "error", err)
+			return err == nil && status.Status == "success"
+		}, 30*time.Second, 1*time.Second)
 
 		// Create a filter for events
 		filter := query.KeyFilter{
@@ -1126,10 +1174,16 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	})
 
 	t.Run("QueryKey_WithFilter", func(t *testing.T) {
-		t.Skip("Skipping QueryKey_WithFilter test is pending gRPC migration for indexers")
-
 		// Decrement the counter to emit an event (different from what has been previously emitted)
 		log.Debugw("Decrementing counter to emit event", "counterObjectId", counterObjectId)
+
+		evIndexer.AddEventSelector(ctx, &client.EventSelector{
+			Package: packageId,
+			Module:  "counter",
+			Event:   "CounterDecremented",
+		})
+		require.NoError(t, err)
+
 		moveCallReq := client.MoveCallRequest{
 			Signer:          accountAddress,
 			PackageObjectId: packageId,
@@ -1143,8 +1197,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
 		require.NoError(t, testErr)
 
-		_, testErr = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
+		txnResult, testErr := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
 		require.NoError(t, testErr)
+
+		// Make sure the transaction succeeded to make sure the event is indexed
+		require.Eventually(t, func() bool {
+			status, err := relayerClient.GetTransactionStatus(ctx, txnResult.Transaction.GetDigest())
+			log.Debugw("Transaction status for CounterDecremented", "status", status, "error", err)
+			return err == nil && status.Status == "success"
+		}, 30*time.Second, 1*time.Second)
 
 		// Query for counter increment events
 		type CounterDecrementEvent struct {
@@ -1190,8 +1251,6 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	})
 
 	t.Run("QueryKey_WithMetadata", func(t *testing.T) {
-		t.Skip("Skipping QueryKey_WithMetadata test is pending gRPC migration for indexers")
-
 		type CounterDecrementEvent struct {
 			EventType string `json:"eventType"`
 			CounterID string `json:"counterId"`
@@ -1235,8 +1294,6 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	})
 
 	t.Run("QueryKey_WithMetadata_CCIPMessageSent_untyped", func(t *testing.T) {
-		t.Skip("Skipping QueryKey_WithMetadata_CCIPMessageSent_untyped test is pending gRPC migration for indexers")
-
 		// Increment the counter to emit an event
 		log.Debugw("Emitting CCIPMessageSent event")
 
@@ -1256,8 +1313,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
 		require.NoError(t, testErr)
 
-		_, testErr = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
+		txnResult, testErr := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
 		require.NoError(t, testErr)
+
+		// Make sure the transaction succeeded to make sure the event is indexed
+		require.Eventually(t, func() bool {
+			status, err := relayerClient.GetTransactionStatus(ctx, txnResult.Transaction.GetDigest())
+			log.Debugw("Transaction status for CCIPMessageSent", "status", status, "error", err)
+			return err == nil && status.Status == "success"
+		}, 30*time.Second, 1*time.Second)
 
 		// Create a filter for events
 		filter := query.KeyFilter{
@@ -1324,8 +1388,6 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	})
 
 	t.Run("QueryKey_WithMetadata_ExecutionStateChanged_untyped", func(t *testing.T) {
-		t.Skip("Skipping QueryKey_WithMetadata_ExecutionStateChanged_untyped test is pending gRPC migration for indexers")
-
 		// Increment the counter to emit an event
 		log.Debugw("Emitting ExecutionStateChanged event")
 

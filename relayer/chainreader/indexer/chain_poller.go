@@ -184,6 +184,8 @@ func (cp *ChainPoller) computeStartSequence(ctx context.Context) (uint64, error)
 		return 0, fmt.Errorf("failed to get latest checkpoint: %w", err)
 	}
 
+	cp.logger.Infow("Latest checkpoint fetched in chain poller", "sequence", latestSeq)
+
 	// If BackfillCheckpointCount is configured, start from latest - N
 	if cp.config.BackfillCheckpointCount != nil {
 		count := *cp.config.BackfillCheckpointCount
@@ -232,7 +234,7 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 					)
 					continue
 				}
-				cp.logger.Errorw("Failed to process checkpoint",
+				cp.logger.Errorw("Failed to process checkpoint, will retry on next poll",
 					"sequence", seq,
 					"error", err,
 				)

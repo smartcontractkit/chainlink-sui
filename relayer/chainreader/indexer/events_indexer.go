@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mr-tron/base58"
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	"github.com/mr-tron/base58"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
@@ -22,9 +22,9 @@ import (
 // EventsIndexer consumes checkpoint event batches from a channel and persists them to the database.
 // It no longer polls the RPC directly; instead, the ChainPoller feeds it checkpoint data.
 type EventsIndexer struct {
-	db    *database.DBStore
+	db     *database.DBStore
 	logger logger.Logger
-	wg    sync.WaitGroup
+	wg     sync.WaitGroup
 
 	// Protected by configMutex
 	eventConfigurations []*client.EventSelector
@@ -151,6 +151,7 @@ func (eIndexer *EventsIndexer) ProcessCheckpointEvents(ctx context.Context, batc
 // findMatchingSelector returns the first selector that matches the given event.
 func (eIndexer *EventsIndexer) findMatchingSelector(event *suirpcv2.Event) *client.EventSelector {
 	if event == nil {
+		eIndexer.logger.Warnw("Event is nil, skipping", "event", event)
 		return nil
 	}
 
