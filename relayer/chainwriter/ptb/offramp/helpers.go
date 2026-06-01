@@ -174,7 +174,7 @@ func decodeParam(lggr logger.Logger, param any, reference string) (SuiArgumentMe
 		case "Reference", "MutableReference", "Vector":
 			return decodeParam(lggr, v, k)
 		case "TypeParameter":
-			return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: TypeParameter (receiver uses generics)")
+			return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: TypeParameter (generic parameters are not supported)")
 		default:
 			vMap, ok := v.(map[string]any)
 			if !ok {
