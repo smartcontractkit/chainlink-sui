@@ -10,6 +10,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/google/uuid"
@@ -292,7 +293,10 @@ func SelectCoinsForGasBudget(gasBudget uint64, suiCoins []*suirpcv2.Object) ([]*
 	}
 
 	totalBalance := uint64(0)
+	selected := make([]*suirpcv2.Object, 0, len(suiCoins))
+
 	for _, coin := range suiCoins {
+		selected = append(selected, coin)
 		totalBalance += coin.GetBalance()
 
 		if totalBalance >= gasBudget {
@@ -305,7 +309,7 @@ func SelectCoinsForGasBudget(gasBudget uint64, suiCoins []*suirpcv2.Object) ([]*
 			gasBudget, totalBalance)
 	}
 
-	return suiCoins, nil
+	return selected, nil
 }
 
 // preparePTBTransaction handles the common logic for setting up a PTB transaction.
@@ -349,8 +353,7 @@ func preparePTBTransaction(
 
 	lggr.Debugw("Gas budget coins selected",
 		"gasBudget", gasBudget,
-		"numCoins", len(gasBudgetCoins),
-		"gasBudgetCoins", gasBudgetCoins)
+		"numCoins", len(gasBudgetCoins))
 
 	// Create payment coins using block-vision SDK format
 	// TODO: use mapGrpcCoinToObjectRef instead
@@ -376,6 +379,7 @@ func preparePTBTransaction(
 	ptb.SetSender(models.SuiAddress(signerAddress))
 	ptb.SetGasOwner(models.SuiAddress(signerAddress))
 	ptb.SetGasPayment(paymentCoins)
+	ptb.SetSigner(&signer.Signer{Address: signerAddress})
 
 	// Set the gas price
 	gasPrice, err := suiClient.GetReferenceGasPrice(ctx)
@@ -450,8 +454,6 @@ func toBCSBase64(
 	if !tx.Data.V1.GasData.IsAllSet() {
 		return "", errors.New("gas data not all set")
 	}
-
-	lggr.Debugw("Transaction Data", "Transaction Data", tx.Data)
 
 	bcsEncodedMsg, err := tx.Data.Marshal()
 	if err != nil {

@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"math/big"
-	"strconv"
 	"testing"
 	"time"
 
@@ -34,7 +33,7 @@ func strPtr(s string) *string {
 //nolint:paralleltest
 func TestChainWriterSubmitTransaction(t *testing.T) {
 	ctx := context.Background()
-	gasLimit := int64(10000000)
+	gasLimit := int64(50000000000000)
 	_logger := logger.Test(t)
 	suiClient, txManager, txStore, accountAddress, _, publicKeyBytes, packageId, objectId := testutils.SetupTestEnv(t, ctx, _logger, gasLimit)
 
@@ -137,11 +136,8 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			return "", callBackErr
 		}
 
-		return strconv.FormatFloat(objectDetails.GetJson().GetNumberValue(), 'f', -1, 64), nil
+		return objectDetails.GetJson().AsInterface().(map[string]any)["value"].(string), nil
 	}
-	//getCoinBalance := func() (string, error) {
-	//	return testCoin.Balance, nil
-	//}
 
 	getErrorValue := func() (string, error) {
 		return "", nil
@@ -171,7 +167,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			functionName:     "increment",
 			args:             map[string]any{"counter": objectId},
 			expectError:      nil,
-			expectedResult:   "0",
+			expectedResult:   "1",
 			status:           commonTypes.Finalized,
 			numberAttemps:    1,
 			getExpectedValue: getCounterValue,
@@ -185,7 +181,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			functionName:     "ptb_call",
 			args:             simpleArgs,
 			expectError:      nil,
-			expectedResult:   "1",
+			expectedResult:   "2",
 			status:           commonTypes.Finalized,
 			numberAttemps:    1,
 			getExpectedValue: getCounterValue,
@@ -213,7 +209,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			functionName:     "ptb_call",
 			args:             simpleArgs,
 			expectError:      nil,
-			expectedResult:   "2",
+			expectedResult:   "3",
 			status:           commonTypes.Finalized,
 			numberAttemps:    1,
 			getExpectedValue: getCounterValue,
@@ -286,7 +282,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 					}
 
 					return status == scenario.status
-				}, 10*time.Second, 1*time.Second, "Transaction final state not reached")
+				}, 30*time.Second, 1*time.Second, "Transaction final state not reached")
 
 				actualValue, err := scenario.getExpectedValue()
 				require.NoError(t, err)

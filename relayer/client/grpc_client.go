@@ -412,6 +412,9 @@ func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction
 					"transaction",
 					"transaction.effects.status",
 					"transaction.effects.gas_used",
+					"transaction.effects.gas_used.computation_cost",
+					"transaction.effects.gas_used.storage_cost",
+					"transaction.effects.gas_used.storage_rebate",
 				},
 			},
 		})
@@ -419,15 +422,15 @@ func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction
 			return fmt.Errorf("failed to simulate transaction: %w", err)
 		}
 
+		// Avoid uint64 underflow in case of a node bug since this is a simulated transaction
 		gasUsed := response.Transaction.Effects.GasUsed
-
-		// Extract gas used from response
-		computationCost := gasUsed.GetComputationCost()
-		storageCost := gasUsed.GetStorageCost()
-		storageRebate := gasUsed.GetStorageRebate()
-
-		// Override the estimate with a minimum threshold
-		result = max(computationCost+storageCost-storageRebate, DefaultMinGasBudget)
+		used := gasUsed.GetComputationCost() + gasUsed.GetStorageCost()
+		if rebate := gasUsed.GetStorageRebate(); rebate < used {
+			used -= rebate
+		} else {
+			used = 0
+		}
+		result = max(used, DefaultMinGasBudget)
 
 		return nil
 	})
