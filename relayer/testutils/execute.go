@@ -499,11 +499,11 @@ func serializeAny2SuiRampMessageV2(s *bcs.Serializer, message Any2SuiRampMessage
 
 	// V2: serialize receiver_object_ids as vector<address> (each 32 bytes)
 	bcs.SerializeSequenceWithFunction(message.ReceiverObjectIds, s, func(s *bcs.Serializer, item []byte) {
-		addrBytes := make([]byte, DefaultByteSize)
-		if len(item) <= DefaultByteSize {
-			copy(addrBytes[DefaultByteSize-len(item):], item)
+		if len(item) != DefaultByteSize {
+			s.SetError(fmt.Errorf("receiver_object_id must be exactly %d bytes, got %d", DefaultByteSize, len(item)))
+			return
 		}
-		s.FixedBytes(addrBytes)
+		s.FixedBytes(item)
 	})
 	if s.Error() != nil {
 		return fmt.Errorf("failed to serialize ReceiverObjectIds: %w", s.Error())

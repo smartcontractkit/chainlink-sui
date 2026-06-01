@@ -642,8 +642,8 @@ func deserializeReceiverObjectIds(deserializer *aptosBCS.Deserializer) ([]models
 
 	receiverObjectIds := make([]models.SuiAddressBytes, receiverObjectIdsLen)
 	for i := range receiverObjectIdsLen {
-		objectID := make([]byte, 32)
-		deserializer.ReadFixedBytesInto(objectID)
+		var objectID [32]byte
+		deserializer.ReadFixedBytesInto(objectID[:])
 		if deserializer.Error() != nil {
 			return nil, fmt.Errorf("failed to deserialize receiver_object_ids[%d]: %w", i, deserializer.Error())
 		}

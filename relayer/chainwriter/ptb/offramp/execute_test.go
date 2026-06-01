@@ -400,6 +400,30 @@ func TestFormatReceiverObjectIDStrings(t *testing.T) {
 	assert.Empty(t, codec.FormatReceiverObjectIDStrings(nil))
 }
 
+func TestExtractAny2suiMessageV2_EncodeUsesVectorAddress(t *testing.T) {
+	ptb := transaction.NewTransaction()
+	receiverParams := ptb.MoveCall("0x2", "init_execute_v2", "init_execute_v2", nil, nil)
+
+	contract, err := bind.NewBoundContract(
+		"0x0000000000000000000000000000000000000000000000000000000000000002",
+		"0x0000000000000000000000000000000000000000000000000000000000000002",
+		"offramp_state_helper",
+		nil,
+	)
+	require.NoError(t, err)
+
+	receiverObjectIDs := []string{"0x0000000000000000000000000000000000000000000000000000000000000011"}
+	_, err = contract.EncodeCallArgsWithGenerics(
+		"extract_any2sui_message_v2",
+		nil,
+		nil,
+		[]string{"&mut object", "vector<address>"},
+		[]any{receiverParams, receiverObjectIDs},
+		nil,
+	)
+	require.NoError(t, err)
+}
+
 func TestProcessReceiversV2_GatingParityWithV1(t *testing.T) {
 	// Receiver object IDs are sourced from the V2 execution report, not ExtraArgsDecoded.
 	receiver := make([]byte, 32)

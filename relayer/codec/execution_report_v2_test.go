@@ -112,6 +112,36 @@ func TestDeserializeExecutionReportV2_EmptyReceiverObjectIds(t *testing.T) {
 	assert.Empty(t, decoded.Message.ReceiverObjectIds)
 }
 
+func TestSerializeExecutionReportV2_RejectsInvalidReceiverObjectIds(t *testing.T) {
+	tokenReceiver := leftPad32(t, "5678")
+	receiverPackage := leftPad32(t, "1234")
+	oversizedObjectID := make([]byte, 33)
+
+	report := testutils.ExecutionReportV2{
+		SourceChainSelector: 1000,
+		Message: testutils.Any2SuiRampMessageV2{
+			Header: testutils.NewRampMessageHeader(
+				leftPad32(t, "1111111111111111111111111111111111111111111111111111111111111111"),
+				1000,
+				2000,
+				1,
+				0,
+			),
+			Sender:            []byte("sender"),
+			Data:              []byte("payload"),
+			Receiver:          receiverPackage,
+			GasLimit:          big.NewInt(0),
+			TokenReceiver:     tokenReceiver,
+			ReceiverObjectIds: [][]byte{oversizedObjectID},
+			TokenAmounts:      []testutils.Any2SuiTokenTransfer{},
+		},
+	}
+
+	_, err := testutils.SerializeExecutionReportV2(report)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "receiver_object_id must be exactly 32 bytes")
+}
+
 func TestDeserializeExecutionReportV2_LongerThanV1ForSameMessage(t *testing.T) {
 	objectID := leftPad32(t, "aabbcc")
 	tokenReceiver := leftPad32(t, "5678")

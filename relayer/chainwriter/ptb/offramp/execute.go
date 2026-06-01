@@ -872,7 +872,7 @@ func AppendPTBCommandForReceiverV2(
 	typeParamsList := []string{}
 	paramTypes := []string{
 		"&mut object",
-		"vector<object_id>",
+		"vector<address>",
 	}
 	paramValues := []any{
 		receiverParams,
