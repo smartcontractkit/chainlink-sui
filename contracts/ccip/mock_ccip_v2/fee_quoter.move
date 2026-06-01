@@ -702,6 +702,7 @@ public fun get_validated_fee(
     let tokens_len = local_token_addresses.length();
     validate_message(dest_chain_config, data_len, tokens_len);
 
+    let mut svm_payload_overhead: u64 = 0;
     let gas_limit = if (
         chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
             || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
@@ -710,7 +711,7 @@ public fun get_validated_fee(
     } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
         resolve_sui_gas_limit(dest_chain_config, extra_args)
     } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
-        resolve_svm_gas_limit(
+        let (gas, overhead) = resolve_svm_gas_limit(
             dest_chain_config,
             state,
             dest_chain_selector,
@@ -719,7 +720,9 @@ public fun get_validated_fee(
             data_len,
             tokens_len,
             local_token_addresses,
-        )
+        );
+        svm_payload_overhead = overhead;
+        gas
     } else {
         abort EUnknownChainFamilySelector
     };
@@ -762,13 +765,14 @@ public fun get_validated_fee(
         get_data_availability_cost(
             dest_chain_config,
             data_availability_gas_price,
-            data_len,
+            data_len + svm_payload_overhead,
             tokens_len,
             token_transfer_bytes_overhead,
         )
     } else { 0 };
 
-    let call_data_length: u256 = (data_len as u256) + (token_transfer_bytes_overhead as u256);
+    let billing_data_len = (data_len + svm_payload_overhead) as u256;
+    let call_data_length: u256 = billing_data_len + (token_transfer_bytes_overhead as u256);
     let mut dest_call_data_cost =
         call_data_length * (dest_chain_config.dest_gas_per_payload_byte_base as u256);
     if (call_data_length > (dest_chain_config.dest_gas_per_payload_byte_threshold as u256)) {
@@ -878,6 +882,20 @@ fun resolve_sui_gas_limit(dest_chain_config: &DestChainConfig, extra_args: vecto
     gas_limit as u256
 }
 
+fun check_svm_writable_bitmap(account_is_writable_bitmap: u64, accounts_length: u64) {
+    assert!(accounts_length <= SVM_EXTRA_ARGS_MAX_ACCOUNTS, ETooManySvmExtraArgsAccounts);
+    // Move aborts on u64 >> 64; at the max account count every bitmap bit is already in use.
+    if (accounts_length < SVM_EXTRA_ARGS_MAX_ACCOUNTS) {
+        assert!(
+            (account_is_writable_bitmap >> (accounts_length as u8)) == 0,
+            EInvalidSvmExtraArgsWritableBitmap,
+        );
+    };
+}
+
+/// Returns `(gas_limit, svm_payload_overhead_bytes)`.
+/// `svm_payload_overhead_bytes` is the SVM-specific payload size counted in maxDataBytes validation
+/// but not already included in `data_len` or per-token `dest_bytes_overhead` billing.
 fun resolve_svm_gas_limit(
     dest_chain_config: &DestChainConfig,
     state: &FeeQuoterState,
@@ -887,7 +905,7 @@ fun resolve_svm_gas_limit(
     data_len: u64,
     tokens_len: u64,
     local_token_addresses: vector<address>,
-): u256 {
+): (u256, u64) {
     let extra_args_len = extra_args.length();
     assert!(extra_args_len > 0, EInvalidExtraArgsData);
 
@@ -908,9 +926,9 @@ fun resolve_svm_gas_limit(
     assert!(gas_limit <= dest_chain_config.max_per_msg_gas_limit, EMessageComputeUnitLimitTooHigh);
 
     let accounts_length = accounts.length();
-    // The max payload size for SVM is heavily dependent on the accounts passed into extra args and the number of
-    // tokens. Below, token and account overhead will count towards maxDataBytes.
-    let mut svm_expanded_data_length = data_len;
+    // SVM account overhead and static per-token transfer overhead are validated against maxDataBytes
+    // and returned for billing so validation and fee quotes stay aligned.
+    let mut svm_payload_overhead = tokens_len * SVM_TOKEN_TRANSFER_DATA_OVERHEAD;
 
     // The receiver length has not yet been validated before this point.
     assert!(receiver.length() == 32, EInvalidSvmReceiverLength);
@@ -923,8 +941,8 @@ fun resolve_svm_gas_limit(
         // The messaging accounts needed for CCIP receiver on SVM are:
         // message receiver, offramp PDA signer,
         // plus remaining accounts specified in SVM extraArgs. Each account is 32 bytes.
-        svm_expanded_data_length =
-            svm_expanded_data_length + (
+        svm_payload_overhead =
+            svm_payload_overhead + (
             accounts_length + SVM_MESSAGING_ACCOUNTS_OVERHEAD
         ) * SVM_ACCOUNT_BYTE_SIZE;
     };
@@ -943,14 +961,9 @@ fun resolve_svm_gas_limit(
         );
     };
 
-    assert!(accounts_length <= SVM_EXTRA_ARGS_MAX_ACCOUNTS, ETooManySvmExtraArgsAccounts);
-    assert!(
-        (account_is_writable_bitmap >> (accounts_length as u8)) == 0,
-        EInvalidSvmExtraArgsWritableBitmap,
-    );
+    check_svm_writable_bitmap(account_is_writable_bitmap, accounts_length);
 
-    svm_expanded_data_length =
-        svm_expanded_data_length + tokens_len * SVM_TOKEN_TRANSFER_DATA_OVERHEAD;
+    let mut svm_expanded_data_length = data_len + svm_payload_overhead;
 
     // The token destBytesOverhead can be very different per token so we have to take it into account as well.
     let mut i = 0;
@@ -978,7 +991,15 @@ fun resolve_svm_gas_limit(
         EMessageTooLarge,
     );
 
-    gas_limit as u256
+    (gas_limit as u256, svm_payload_overhead)
+}
+
+#[test_only]
+public fun check_svm_writable_bitmap_for_test(
+    account_is_writable_bitmap: u64,
+    accounts_length: u64,
+) {
+    check_svm_writable_bitmap(account_is_writable_bitmap, accounts_length);
 }
 
 fun decode_generic_extra_args(
