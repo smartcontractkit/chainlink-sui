@@ -33,7 +33,7 @@ func strPtr(s string) *string {
 //nolint:paralleltest
 func TestChainWriterSubmitTransaction(t *testing.T) {
 	ctx := context.Background()
-	gasLimit := int64(50000000000000)
+	gasLimit := int64(900000000000)
 	_logger := logger.Test(t)
 	suiClient, txManager, txStore, accountAddress, _, publicKeyBytes, packageId, objectId := testutils.SetupTestEnv(t, ctx, _logger, gasLimit)
 
