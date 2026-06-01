@@ -12,7 +12,7 @@
 
       # Required for Sui CLI (Move compilation)
       git
-      # Go 1.26 + tools
+      # Go 1.26.2+ + tools
       go_1_26
       gopls
       mockgen
@@ -42,6 +42,12 @@
     # Debug info
     >&2 echo "Using Go at: $(which go)"
     >&2 go version
+    required_go="1.26.2"
+    current_go=$(go version | awk '{print $3}' | sed 's/go//')
+    if [ "$(printf '%s\n' "$required_go" "$current_go" | sort -V | head -n1)" != "$required_go" ]; then
+      >&2 echo "Go $current_go found, but >= $required_go is required. Update Nix or go_1_26."
+      return 1
+    fi
     >&2 bun --version
     # use upstream golangci-lint config from core Chainlink repository, overriding the local prefixes
     alias golint="golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml | yq e '.formatters.settings.goimports.local-prefixes = [\"github.com/smartcontractkit/chainlink-ton\"]' -) --path-mode \"abs\""
