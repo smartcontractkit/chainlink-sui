@@ -12,8 +12,8 @@
 
       # Required for Sui CLI (Move compilation)
       git
-      # Go 1.25 + tools
-      go_1_25
+      # Go 1.26 + tools
+      go_1_26
       gopls
       mockgen
 
