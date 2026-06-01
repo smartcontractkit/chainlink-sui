@@ -12,7 +12,9 @@ use sui::coin::Coin;
 use sui::dynamic_field as df;
 use sui::event;
 use sui::package::{Self, Publisher};
+use sui::transfer;
 use sui::transfer::Receiving;
+use sui::tx_context::TxContext;
 
 const EMessageIdMismatch: u64 = 0;
 
@@ -152,10 +154,15 @@ public fun receive_coin_no_owner_cap<T>(
 public fun ccip_receive(
     expected_message_id: vector<u8>,
     ref: &CCIPObjectRef,
-    message: client::Any2SuiMessage,
-    _: &Clock, // this is a precompile, but remain the same across all messages
-    state: &mut CCIPReceiverState, // this is a singleton, but remain the same across all messages
+    message: client::Any2SuiMessageV2,
+    _: &Clock,
+    state: &mut CCIPReceiverState,
 ) {
+    let object_ids = client::get_receiver_object_ids(&message);
+    if (!object_ids.is_empty()) {
+        client::assert_receiver_object(&message, 0, state);
+    };
+
     let (
         message_id,
         source_chain_selector,
@@ -163,8 +170,9 @@ public fun ccip_receive(
         data,
         message_receiver,
         token_receiver,
+        _receiver_object_ids,
         dest_token_amounts,
-    ) = osh::consume_any2sui_message(ref, message, DummyReceiverProof {});
+    ) = osh::consume_any2sui_message_v2(ref, message, DummyReceiverProof {});
 
     assert!(message_id == expected_message_id, EMessageIdMismatch);
 
@@ -193,4 +201,31 @@ public fun ccip_receive(
         dest_token_transfer_length: state.dest_token_transfer_length,
         dest_token_amounts: state.dest_token_amounts,
     });
+}
+
+#[test_only]
+public fun test_setup(ctx: &mut TxContext) {
+    let state = CCIPReceiverState {
+        id: object::new(ctx),
+        counter: 0,
+        message_id: vector[],
+        source_chain_selector: 0,
+        sender: vector[],
+        data: vector[],
+        message_receiver: @0x0,
+        token_receiver: @0x0,
+        dest_token_transfer_length: 0,
+        dest_token_amounts: vector[],
+    };
+
+    let mut owner_cap = OwnerCap {
+        id: object::new(ctx),
+        receiver_address: object::id_to_address(object::borrow_id(&state)),
+    };
+
+    let publisher = package::test_claim(DUMMY_RECEIVER {}, ctx);
+    df::add(&mut owner_cap.id, PublisherKey {}, publisher);
+
+    transfer::share_object(state);
+    transfer::transfer(owner_cap, ctx.sender());
 }

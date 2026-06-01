@@ -1094,3 +1094,26 @@ public fun test_calculate_message_hash_v2_parity() {
 
     assert!(hash_v2 != hash_v2_different, 1);
 }
+
+#[test]
+#[expected_failure(abort_code = offramp::EV1ExecuteDeprecated)]
+public fun test_init_execute_v1_aborts() {
+    let (env, owner_cap, fee_quoter_cap, dest_transfer_cap) = setup();
+    let TestEnv { mut scenario, mut state, ref, clock } = env;
+
+    let receiver_params = offramp::init_execute(
+        &ref,
+        &mut state,
+        &clock,
+        vector[],
+        vector[],
+        scenario.ctx(),
+    );
+    osh::deconstruct_receiver_params(&dest_transfer_cap, receiver_params);
+
+    let env = TestEnv { scenario, state, ref, clock };
+    tear_down(env);
+    ts::return_to_address(OWNER, owner_cap);
+    ts::return_to_address(OWNER, fee_quoter_cap);
+    ts::return_to_address(OWNER, dest_transfer_cap);
+}

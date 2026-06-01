@@ -286,7 +286,7 @@ func TestDecodeParameters_ValidDummyReceiverSignature(t *testing.T) {
 	lggr := logger.Test(t)
 
 	// Matches the normalized ABI of dummy_receiver::ccip_receive:
-	// ccip_receive(expected_message_id: vector<u8>, ref: &CCIPObjectRef, message: Any2SuiMessage, _: &Clock, state: &mut CCIPReceiverState)
+	// ccip_receive(expected_message_id: vector<u8>, ref: &CCIPObjectRef, message: Any2SuiMessageV2, _: &Clock, state: &mut CCIPReceiverState)
 	function := map[string]any{
 		"parameters": []any{
 			map[string]any{"Vector": "U8"},
@@ -294,7 +294,7 @@ func TestDecodeParameters_ValidDummyReceiverSignature(t *testing.T) {
 				"address": "0xccip", "module": "state_object", "name": "CCIPObjectRef", "typeArguments": []any{},
 			}}},
 			map[string]any{"Struct": map[string]any{
-				"address": "0xccip", "module": "client", "name": "Any2SuiMessage", "typeArguments": []any{},
+				"address": "0xccip", "module": "client", "name": "Any2SuiMessageV2", "typeArguments": []any{},
 			}},
 			map[string]any{"Reference": map[string]any{"Struct": map[string]any{
 				"address": "0x2", "module": "clock", "name": "Clock", "typeArguments": []any{},
@@ -311,7 +311,7 @@ func TestDecodeParameters_ValidDummyReceiverSignature(t *testing.T) {
 	result, err := DecodeParameters(lggr, function, "parameters")
 	require.NoError(t, err)
 
-	// TxContext is skipped. Any2SuiMessage is a Struct with default reference "Reference" → "&object"
+	// TxContext is skipped. Any2SuiMessageV2 is a Struct with default reference "Reference" → "&object"
 	expected := []string{
 		"vector<u8>",
 		"&object",

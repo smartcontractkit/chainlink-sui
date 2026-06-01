@@ -237,3 +237,40 @@ public fun assert_receiver_object<T: key>(message: &Any2SuiMessageV2, index: u64
     let expected_id = message.receiver_object_ids[index];
     assert!(object::id_address(object) == expected_id, EMessageReceiverMismatch);
 }
+
+#[test_only]
+public fun new_any2sui_message_v2_for_test(
+    message_id: vector<u8>,
+    source_chain_selector: u64,
+    sender: vector<u8>,
+    data: vector<u8>,
+    message_receiver: address,
+    token_receiver: address,
+    receiver_object_ids: vector<address>,
+    dest_token_amounts: vector<Any2SuiTokenAmount>,
+): Any2SuiMessageV2 {
+    new_any2sui_message_v2(
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        message_receiver,
+        token_receiver,
+        receiver_object_ids,
+        dest_token_amounts,
+    )
+}
+
+#[test_only]
+public fun destroy_any2sui_message_v2_for_test(message: Any2SuiMessageV2) {
+    let Any2SuiMessageV2 {
+        message_id: _,
+        source_chain_selector: _,
+        sender: _,
+        data: _,
+        message_receiver: _,
+        token_receiver: _,
+        receiver_object_ids: _,
+        dest_token_amounts: _,
+    } = message;
+}

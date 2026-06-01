@@ -5,6 +5,7 @@ use ccip::client;
 use ccip::eth_abi;
 use mcms::bcs_stream;
 use sui::bcs;
+use sui::transfer;
 
 #[test]
 fun test_encode_decode_vector_u8() {
@@ -434,4 +435,37 @@ fun test_message_with_token_amounts() {
     assert!(client::get_token(&returned_dest_token_amounts[1]) == @0xb, 8);
     assert!(client::get_amount(&returned_dest_token_amounts[1]) == 2000u256, 9);
     assert!(returned_message_receiver == message_receiver, 10);
+}
+
+public struct TestBindingObject has key {
+    id: UID,
+}
+
+#[test]
+#[expected_failure(abort_code = client::EMessageReceiverMismatch)]
+public fun test_assert_receiver_object_wrong_object_aborts() {
+    let mut scenario = sui::test_scenario::begin(@0x1);
+    let ctx = scenario.ctx();
+
+    let object_a = TestBindingObject { id: object::new(ctx) };
+    let object_a_addr = object::id_address(&object_a);
+    let object_b = TestBindingObject { id: object::new(ctx) };
+
+    let message = client::new_any2sui_message_v2_for_test(
+        b"message_id_32_bytes_padding_ok!!",
+        1000,
+        b"sender",
+        b"payload",
+        @0xABCD,
+        @0x0,
+        vector[object_a_addr],
+        vector[],
+    );
+
+    client::assert_receiver_object(&message, 0, &object_b);
+    client::destroy_any2sui_message_v2_for_test(message);
+
+    transfer::share_object(object_a);
+    transfer::share_object(object_b);
+    sui::test_scenario::end(scenario);
 }
