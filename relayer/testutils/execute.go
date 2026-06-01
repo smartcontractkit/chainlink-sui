@@ -210,9 +210,13 @@ func SerializeExecutionReport(report ExecutionReport) ([]byte, error) {
 		return nil, fmt.Errorf("failed to serialize OffchainTokenData: %w", s.Error())
 	}
 
-	// Serialize Proofs as vector<vector<u8>>
+	// Serialize Proofs as vector<fixed_vector_u8(32)>
 	bcs.SerializeSequenceWithFunction(report.Proofs, s, func(s *bcs.Serializer, item []byte) {
-		s.WriteBytes(item)
+		if len(item) != DefaultByteSize {
+			s.SetError(fmt.Errorf("proof must be exactly %d bytes, got %d", DefaultByteSize, len(item)))
+			return
+		}
+		s.FixedBytes(item)
 	})
 	if s.Error() != nil {
 		return nil, fmt.Errorf("failed to serialize Proofs: %w", s.Error())
@@ -428,7 +432,11 @@ func SerializeExecutionReportV2(report ExecutionReportV2) ([]byte, error) {
 	}
 
 	bcs.SerializeSequenceWithFunction(report.Proofs, s, func(s *bcs.Serializer, item []byte) {
-		s.WriteBytes(item)
+		if len(item) != DefaultByteSize {
+			s.SetError(fmt.Errorf("proof must be exactly %d bytes, got %d", DefaultByteSize, len(item)))
+			return
+		}
+		s.FixedBytes(item)
 	})
 	if s.Error() != nil {
 		return nil, fmt.Errorf("failed to serialize Proofs: %w", s.Error())

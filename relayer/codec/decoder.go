@@ -478,10 +478,128 @@ func overflowUint(t reflect.Type, x uint64) bool {
 func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 	deserializer := aptosBCS.NewDeserializer(data)
 
-	// 1. Read source_chain_selector (u64)
+	sourceChainSelector, fields, err := deserializeExecutionReportMessageFields(deserializer)
+	if err != nil {
+		return nil, err
+	}
+
+	tokenAmounts, err := deserializeAny2SuiTokenTransfers(deserializer)
+	if err != nil {
+		return nil, err
+	}
+
+	offchainData, proofs, err := deserializeOffchainTokenDataAndProofs(deserializer)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := finalizeExecutionReportDecode(deserializer, false, "execution report"); err != nil {
+		return nil, err
+	}
+
+	message := Any2SuiRampMessage{
+		Header:        fields.Header,
+		Sender:        fields.Sender,
+		Data:          fields.Data,
+		Receiver:      fields.Receiver,
+		GasLimit:      fields.GasLimit,
+		TokenReceiver: fields.TokenReceiver,
+		TokenAmounts:  tokenAmounts,
+	}
+
+	return &ExecutionReport{
+		SourceChainSelector: sourceChainSelector,
+		Message:             message,
+		OffchainTokenData:   offchainData,
+		Proofs:              proofs,
+	}, nil
+}
+
+func DeserializeExecutionReportV2(data []byte) (*ExecutionReportV2, error) {
+	deserializer := aptosBCS.NewDeserializer(data)
+
+	sourceChainSelector, fields, err := deserializeExecutionReportMessageFields(deserializer)
+	if err != nil {
+		return nil, err
+	}
+
+	receiverObjectIds, err := deserializeReceiverObjectIds(deserializer)
+	if err != nil {
+		return nil, err
+	}
+
+	tokenAmounts, err := deserializeAny2SuiTokenTransfers(deserializer)
+	if err != nil {
+		return nil, err
+	}
+
+	offchainData, proofs, err := deserializeOffchainTokenDataAndProofs(deserializer)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := finalizeExecutionReportDecode(deserializer, true, "V2 execution report"); err != nil {
+		return nil, err
+	}
+
+	message := Any2SuiRampMessageV2{
+		Header:            fields.Header,
+		Sender:            fields.Sender,
+		Data:              fields.Data,
+		Receiver:          fields.Receiver,
+		GasLimit:          fields.GasLimit,
+		TokenReceiver:     fields.TokenReceiver,
+		ReceiverObjectIds: receiverObjectIds,
+		TokenAmounts:      tokenAmounts,
+	}
+
+	return &ExecutionReportV2{
+		SourceChainSelector: sourceChainSelector,
+		Message:             message,
+		OffchainTokenData:   offchainData,
+		Proofs:              proofs,
+	}, nil
+}
+
+type executionReportMessageFields struct {
+	Header        RampMessageHeader
+	Sender        []byte
+	Data          []byte
+	Receiver      models.SuiAddress
+	GasLimit      *big.Int
+	TokenReceiver models.SuiAddressBytes
+}
+
+func deserializeExecutionReportMessageFields(deserializer *aptosBCS.Deserializer) (uint64, executionReportMessageFields, error) {
 	sourceChainSelector := deserializer.U64()
 
-	// 2. Read message header
+	header, err := deserializeRampMessageHeader(deserializer, sourceChainSelector)
+	if err != nil {
+		return 0, executionReportMessageFields{}, err
+	}
+
+	sender := deserializer.ReadBytes()
+	msgData := deserializer.ReadBytes()
+	receiver := deserializer.ReadFixedBytes(32)
+	gasLimit := deserializer.U256()
+
+	tokenReceiver := [32]byte{}
+	deserializer.ReadFixedBytesInto(tokenReceiver[:])
+	if err := deserializer.Error(); err != nil {
+		return 0, executionReportMessageFields{}, fmt.Errorf("failed to deserialize ramp message fields: %w", err)
+	}
+
+	return sourceChainSelector, executionReportMessageFields{
+		Header:        header,
+		Sender:        sender,
+		Data:          msgData,
+		Receiver:      models.SuiAddress(hex.EncodeToString(receiver)),
+		GasLimit:      &gasLimit,
+		TokenReceiver: models.SuiAddressBytes(tokenReceiver),
+	}, nil
+}
+
+func deserializeRampMessageHeader(deserializer *aptosBCS.Deserializer, sourceChainSelector uint64) (RampMessageHeader, error) {
 	messageID := make([]byte, 32)
 	deserializer.ReadFixedBytesInto(messageID)
 
@@ -489,38 +607,59 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 	destChainSelector := deserializer.U64()
 	sequenceNumber := deserializer.U64()
 	nonce := deserializer.U64()
-
-	if sourceChainSelector != headerSourceChain {
-		return nil, fmt.Errorf("source chain selector mismatch: %d != %d", sourceChainSelector, headerSourceChain)
+	if err := deserializer.Error(); err != nil {
+		return RampMessageHeader{}, fmt.Errorf("failed to deserialize message header: %w", err)
 	}
 
-	header := RampMessageHeader{
+	if sourceChainSelector != headerSourceChain {
+		return RampMessageHeader{}, fmt.Errorf("source chain selector mismatch: %d != %d", sourceChainSelector, headerSourceChain)
+	}
+
+	return RampMessageHeader{
 		MessageID:           messageID,
 		SourceChainSelector: headerSourceChain,
 		DestChainSelector:   destChainSelector,
 		SequenceNumber:      sequenceNumber,
 		Nonce:               nonce,
+	}, nil
+}
+
+func finalizeExecutionReportDecode(deserializer *aptosBCS.Deserializer, requireFullyConsumed bool, context string) error {
+	if requireFullyConsumed && deserializer.Remaining() > 0 {
+		return fmt.Errorf("unexpected remaining bytes after decoding %s: %d", context, deserializer.Remaining())
+	}
+	if err := deserializer.Error(); err != nil {
+		return fmt.Errorf("failed to deserialize %s: %w", context, err)
+	}
+	return nil
+}
+
+func deserializeReceiverObjectIds(deserializer *aptosBCS.Deserializer) ([]models.SuiAddressBytes, error) {
+	receiverObjectIdsLen := deserializer.Uleb128()
+	if deserializer.Error() != nil {
+		return nil, fmt.Errorf("failed to deserialize receiver_object_ids length: %w", deserializer.Error())
 	}
 
-	// 3. Read sender (vector<u8>)
-	sender := deserializer.ReadBytes()
+	receiverObjectIds := make([]models.SuiAddressBytes, receiverObjectIdsLen)
+	for i := range receiverObjectIdsLen {
+		objectID := make([]byte, 32)
+		deserializer.ReadFixedBytesInto(objectID)
+		if deserializer.Error() != nil {
+			return nil, fmt.Errorf("failed to deserialize receiver_object_ids[%d]: %w", i, deserializer.Error())
+		}
+		receiverObjectIds[i] = models.SuiAddressBytes(objectID)
+	}
 
-	// 4. Read data (vector<u8>)
-	msgData := deserializer.ReadBytes()
+	return receiverObjectIds, nil
+}
 
-	// 5. Read receiver (address)
-	receiver := deserializer.ReadFixedBytes(32)
-
-	// 6. Read gas_limit (u256)
-	gasLimit := deserializer.U256()
-
-	tokenReceiver := [32]byte{}
-	deserializer.ReadFixedBytesInto(tokenReceiver[:])
-
-	// 7. Read token_amounts vector
+func deserializeAny2SuiTokenTransfers(deserializer *aptosBCS.Deserializer) ([]Any2SuiTokenTransfer, error) {
 	tokenAmountsLen := deserializer.Uleb128()
-	tokenAmounts := make([]Any2SuiTokenTransfer, tokenAmountsLen)
+	if deserializer.Error() != nil {
+		return nil, fmt.Errorf("failed to deserialize token_amounts length: %w", deserializer.Error())
+	}
 
+	tokenAmounts := make([]Any2SuiTokenTransfer, tokenAmountsLen)
 	for i := range tokenAmountsLen {
 		sourcePoolAddr := deserializer.ReadBytes()
 
@@ -529,6 +668,10 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 		destGas := deserializer.U32()
 		extraData := deserializer.ReadBytes()
 		amount := deserializer.U256()
+
+		if deserializer.Error() != nil {
+			return nil, fmt.Errorf("failed to deserialize token_amounts[%d]: %w", i, deserializer.Error())
+		}
 
 		tokenAmounts[i] = Any2SuiTokenTransfer{
 			SourcePoolAddress: sourcePoolAddr,
@@ -539,40 +682,48 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 		}
 	}
 
-	message := Any2SuiRampMessage{
-		Header:        header,
-		Sender:        sender,
-		Data:          msgData,
-		Receiver:      models.SuiAddress(hex.EncodeToString(receiver)),
-		GasLimit:      &gasLimit,
-		TokenReceiver: models.SuiAddressBytes(tokenReceiver),
-		TokenAmounts:  tokenAmounts,
+	return tokenAmounts, nil
+}
+
+func deserializeOffchainTokenDataAndProofs(deserializer *aptosBCS.Deserializer) ([][]byte, [][]byte, error) {
+	offchainDataLen := deserializer.Uleb128()
+	if deserializer.Error() != nil {
+		return nil, nil, fmt.Errorf("failed to deserialize offchain_token_data length: %w", deserializer.Error())
 	}
 
-	// 8. Read offchain_token_data (vector<vector<u8>>)
-	offchainDataLen := deserializer.Uleb128()
 	offchainData := make([][]byte, offchainDataLen)
-
 	for i := range offchainDataLen {
 		offchainData[i] = deserializer.ReadBytes()
+		if deserializer.Error() != nil {
+			return nil, nil, fmt.Errorf("failed to deserialize offchain_token_data[%d]: %w", i, deserializer.Error())
+		}
 	}
 
-	// 9. Read proofs (vector<vector<u8>>)
 	proofsLen := deserializer.Uleb128()
-	proofs := make([][]byte, proofsLen)
+	if deserializer.Error() != nil {
+		return nil, nil, fmt.Errorf("failed to deserialize proofs length: %w", deserializer.Error())
+	}
 
+	proofs := make([][]byte, proofsLen)
 	for i := range proofsLen {
 		proofs[i] = deserializer.ReadFixedBytes(32)
+		if deserializer.Error() != nil {
+			return nil, nil, fmt.Errorf("failed to deserialize proofs[%d]: %w", i, deserializer.Error())
+		}
 	}
 
-	if err := deserializer.Error(); err != nil {
-		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
+	return offchainData, proofs, nil
+}
+
+// FormatReceiverObjectIDStrings converts report-bound receiver object IDs to 0x-prefixed hex strings.
+func FormatReceiverObjectIDStrings(ids []models.SuiAddressBytes) []string {
+	if len(ids) == 0 {
+		return []string{}
 	}
 
-	return &ExecutionReport{
-		SourceChainSelector: sourceChainSelector,
-		Message:             message,
-		OffchainTokenData:   offchainData,
-		Proofs:              proofs,
-	}, nil
+	result := make([]string, len(ids))
+	for i, id := range ids {
+		result[i] = "0x" + hex.EncodeToString(id[:])
+	}
+	return result
 }

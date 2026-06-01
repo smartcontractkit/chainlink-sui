@@ -285,6 +285,13 @@ func BuildOffRampExecutePTBV2(
 
 	lggr.Debugw("finished processing token pool calls", "tokenPoolCalls", tokenPoolCommandsResults)
 
+	executionReport, err := codec.DeserializeExecutionReportV2(offrampArgs.Report)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize V2 execution report: %w", err)
+	}
+
+	receiverObjectIdStrings := codec.FormatReceiverObjectIDStrings(executionReport.Message.ReceiverObjectIds)
+
 	_, err = ProcessReceiversV2(
 		ctx,
 		lggr,
@@ -295,6 +302,7 @@ func BuildOffRampExecutePTBV2(
 		callOpts,
 		initExecuteResult,
 		offrampArgs.ExtraData.ExtraArgsDecoded,
+		receiverObjectIdStrings,
 	)
 	if err != nil {
 		return err
@@ -746,6 +754,7 @@ func ProcessReceiversV2(
 	callOpts *bind.CallOpts,
 	receiverParams *transaction.Argument,
 	extraArgs map[string]any,
+	receiverObjectIdStrings []string,
 ) ([]transaction.Argument, error) {
 	sdkClient := ptbClient.GetClient()
 
@@ -808,7 +817,7 @@ func ProcessReceiversV2(
 			message.Header.MessageID,
 			&receiverNormalizedModule,
 			receiverParams,
-			extraArgs,
+			receiverObjectIdStrings,
 		)
 		skip, retErr := classifyReceiverBuildError(receiverPackageId, err)
 		if skip {
@@ -841,7 +850,7 @@ func AppendPTBCommandForReceiverV2(
 	messageID [32]byte,
 	normalizedModule *models.GetNormalizedMoveModuleResponse,
 	receiverParams *transaction.Argument,
-	extraArgs map[string]any,
+	receiverObjectIdStrings []string,
 ) (*transaction.Argument, error) {
 	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, sdkClient)
 	if err != nil {
@@ -857,8 +866,6 @@ func AppendPTBCommandForReceiverV2(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create offramp state helper bound contract when appending PTB command: %w", err)
 	}
-
-	receiverObjectIdStrings := extractReceiverObjectIdStrings(extraArgs)
 
 	// Call extract_any2sui_message_v2 with receiver_object_ids for protocol-level binding enforcement
 	typeArgsList := []string{}

@@ -231,6 +231,7 @@ const EPackageIdNotFound: u64 = 29;
 const EInvalidOwnerCap: u64 = 30;
 const EUnknownSequenceNumber: u64 = 31;
 const EInvalidReportContextLength: u64 = 32;
+const EV1ExecuteDeprecated: u64 = 33;
 
 const VERSION: u8 = 1;
 
@@ -425,13 +426,14 @@ fun assert_source_chain_enabled(state: &OffRampState, source_chain_selector: u64
 // |                          Execution                           |
 // ================================================================
 
+// Deprecated: use init_execute_v2.
 public fun init_execute(
     ref: &CCIPObjectRef,
-    state: &mut OffRampState,
-    clock: &clock::Clock,
-    report_context: vector<vector<u8>>,
-    report: vector<u8>,
-    ctx: &mut TxContext,
+    _state: &mut OffRampState,
+    _clock: &clock::Clock,
+    _report_context: vector<vector<u8>>,
+    _report: vector<u8>,
+    _ctx: &mut TxContext,
 ): osh::ReceiverParams {
     verify_function_allowed(
         ref,
@@ -439,20 +441,7 @@ public fun init_execute(
         string::utf8(b"init_execute"),
         VERSION,
     );
-    assert!(report_context.length() == 2, EInvalidReportContextLength);
-    let reports = deserialize_execution_report(report);
-
-    ocr3_base::transmit(
-        &state.ocr3_base_state,
-        ctx.sender(),
-        ocr3_base::ocr_plugin_type_execution(),
-        report_context,
-        report,
-        vector[],
-        ctx,
-    );
-
-    pre_execute_single_report(ref, state, clock, reports, false)
+    abort EV1ExecuteDeprecated
 }
 
 public fun finish_execute(
@@ -470,12 +459,12 @@ public fun finish_execute(
     osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params);
 }
 
-// this function does not involve ocr3 transmit & it sets manual_execution to true
+// Deprecated: use manually_init_execute_v2.
 public fun manually_init_execute(
     ref: &CCIPObjectRef,
-    state: &mut OffRampState,
-    clock: &clock::Clock,
-    report_bytes: vector<u8>,
+    _state: &mut OffRampState,
+    _clock: &clock::Clock,
+    _report_bytes: vector<u8>,
 ): osh::ReceiverParams {
     verify_function_allowed(
         ref,
@@ -483,9 +472,7 @@ public fun manually_init_execute(
         string::utf8(b"manually_init_execute"),
         VERSION,
     );
-    let reports = deserialize_execution_report(report_bytes);
-
-    pre_execute_single_report(ref, state, clock, reports, true)
+    abort EV1ExecuteDeprecated
 }
 
 public fun get_execution_state(

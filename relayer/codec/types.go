@@ -110,6 +110,15 @@ type ExecutionReport struct {
 	Proofs              [][]byte
 }
 
+// ExecutionReportV2 is the V2 execute plugin report format. It includes receiver_object_ids
+// in the message body after token_receiver, matching deserialize_execution_report_v2 in offramp.move.
+type ExecutionReportV2 struct {
+	SourceChainSelector uint64
+	Message             Any2SuiRampMessageV2
+	OffchainTokenData   [][]byte
+	Proofs              [][]byte
+}
+
 // RampMessageHeader event data
 type RampMessageHeader struct {
 	MessageID           []byte
@@ -137,6 +146,18 @@ type Any2SuiRampMessage struct {
 	GasLimit      *big.Int
 	TokenReceiver models.SuiAddressBytes
 	TokenAmounts  []Any2SuiTokenTransfer
+}
+
+// Any2SuiRampMessageV2 extends Any2SuiRampMessage with receiver_object_ids bound into the leaf hash.
+type Any2SuiRampMessageV2 struct {
+	Header            RampMessageHeader
+	Sender            []byte
+	Data              []byte
+	Receiver          models.SuiAddress
+	GasLimit          *big.Int
+	TokenReceiver     models.SuiAddressBytes
+	ReceiverObjectIds []models.SuiAddressBytes
+	TokenAmounts      []Any2SuiTokenTransfer
 }
 
 // ExecutionStateChanged event data

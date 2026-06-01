@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -286,18 +287,68 @@ func NewMessageHasherV2(lggr logger.Logger) *MessageHasherV2 {
 	return &MessageHasherV2{lggr: lggr}
 }
 
-func (h *MessageHasherV2) Hash(ctx context.Context, report *codec.ExecutionReport, onRampAddress []byte, receiverObjectIds [][32]byte) ([32]byte, error) {
-	rampTokenAmounts := make([]any2SuiTokenTransfer, len(report.Message.TokenAmounts))
-	for i, rta := range report.Message.TokenAmounts {
-		var destTokenAddress [32]byte
-		destTokenBytes, err := hex.DecodeString("0x" + string(rta.DestTokenAddress))
+func (h *MessageHasherV2) HashExecutionReportV2(ctx context.Context, report *codec.ExecutionReportV2, onRampAddress []byte) ([32]byte, error) {
+	return h.hashRampMessageV2(report.SourceChainSelector, report.Message, onRampAddress)
+}
+
+func (h *MessageHasherV2) hashRampMessageV2(
+	sourceChainSelector uint64,
+	msg codec.Any2SuiRampMessageV2,
+	onRampAddress []byte,
+) ([32]byte, error) {
+	rampTokenAmounts, err := rampTokenAmountsFromCodec(msg.TokenAmounts)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	metaDataHash, err := computeMetadataHash(
+		sourceChainSelector,
+		msg.Header.DestChainSelector,
+		onRampAddress,
+	)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("compute metadata hash: %w", err)
+	}
+
+	if len(msg.Header.MessageID) != 32 {
+		h.lggr.Warnw("Invalid message ID length, messageID will be padded or truncated", "messageID", msg.Header.MessageID)
+	}
+
+	var messageID [32]byte
+	copy(messageID[:], msg.Header.MessageID)
+
+	receiverAddress, err := suiAddressTo32Bytes(msg.Receiver)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to decode receiver address: %w", err)
+	}
+
+	receiverObjectIds := make([][32]byte, len(msg.ReceiverObjectIds))
+	for i, id := range msg.ReceiverObjectIds {
+		receiverObjectIds[i] = [32]byte(id)
+	}
+
+	return computeMessageDataHashV2(
+		metaDataHash,
+		messageID,
+		receiverAddress,
+		msg.Header.SequenceNumber,
+		msg.GasLimit,
+		[32]byte(msg.TokenReceiver),
+		msg.Header.Nonce,
+		msg.Sender,
+		msg.Data,
+		rampTokenAmounts,
+		receiverObjectIds,
+	)
+}
+
+func rampTokenAmountsFromCodec(tokenAmounts []codec.Any2SuiTokenTransfer) ([]any2SuiTokenTransfer, error) {
+	rampTokenAmounts := make([]any2SuiTokenTransfer, len(tokenAmounts))
+	for i, rta := range tokenAmounts {
+		destTokenAddress, err := suiAddressTo32Bytes(rta.DestTokenAddress)
 		if err != nil {
-			return [32]byte{}, fmt.Errorf("failed to decode dest token address: %w", err)
+			return nil, fmt.Errorf("failed to decode dest token address: %w", err)
 		}
-		if len(destTokenBytes) != 32 {
-			return [32]byte{}, fmt.Errorf("invalid dest token address length: expected 32, got %d", len(destTokenBytes))
-		}
-		copy(destTokenAddress[:], destTokenBytes)
 
 		rampTokenAmounts[i] = any2SuiTokenTransfer{
 			SourcePoolAddress: rta.SourcePoolAddress,
@@ -308,46 +359,23 @@ func (h *MessageHasherV2) Hash(ctx context.Context, report *codec.ExecutionRepor
 		}
 	}
 
-	metaDataHash, err := computeMetadataHash(
-		report.SourceChainSelector,
-		report.Message.Header.DestChainSelector,
-		onRampAddress,
-	)
+	return rampTokenAmounts, nil
+}
+
+func suiAddressTo32Bytes(addr models.SuiAddress) ([32]byte, error) {
+	var result [32]byte
+
+	addrBytes, err := hex.DecodeString("0x" + string(addr))
 	if err != nil {
-		return [32]byte{}, fmt.Errorf("compute metadata hash: %w", err)
+		return result, err
+	}
+	if len(addrBytes) != 32 {
+		return result, fmt.Errorf("invalid address length: expected 32, got %d", len(addrBytes))
 	}
 
-	var messageID [32]byte
-	copy(messageID[:], report.Message.Header.MessageID)
+	copy(result[:], addrBytes)
 
-	var receiverAddress [32]byte
-	receiverBytes, err := hex.DecodeString("0x" + string(report.Message.Receiver))
-	if err != nil {
-		return [32]byte{}, fmt.Errorf("failed to decode receiver address: %w", err)
-	}
-	if len(receiverBytes) != 32 {
-		return [32]byte{}, fmt.Errorf("invalid receiver address length: expected 32, got %d", len(receiverBytes))
-	}
-	copy(receiverAddress[:], receiverBytes)
-
-	msgHash, err := computeMessageDataHashV2(
-		metaDataHash,
-		messageID,
-		receiverAddress,
-		report.Message.Header.SequenceNumber,
-		report.Message.GasLimit,
-		[32]byte(report.Message.TokenReceiver),
-		report.Message.Header.Nonce,
-		report.Message.Sender,
-		report.Message.Data,
-		rampTokenAmounts,
-		receiverObjectIds,
-	)
-	if err != nil {
-		return [32]byte{}, fmt.Errorf("compute message hash v2: %w", err)
-	}
-
-	return msgHash, nil
+	return result, nil
 }
 
 func computeMessageDataHashV2(

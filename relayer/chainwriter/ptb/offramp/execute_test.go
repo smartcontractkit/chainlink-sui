@@ -12,6 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -388,9 +389,19 @@ func TestAppendPTBCommandForReceiver_PoisonABI(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to decode receiver parameters")
 }
 
+func TestFormatReceiverObjectIDStrings(t *testing.T) {
+	objectIDBytes := make([]byte, 32)
+	objectIDBytes[31] = 0x11
+	var objectID models.SuiAddressBytes
+	copy(objectID[:], objectIDBytes)
+
+	result := codec.FormatReceiverObjectIDStrings([]models.SuiAddressBytes{objectID})
+	assert.Equal(t, []string{"0x0000000000000000000000000000000000000000000000000000000000000011"}, result)
+	assert.Empty(t, codec.FormatReceiverObjectIDStrings(nil))
+}
+
 func TestProcessReceiversV2_GatingParityWithV1(t *testing.T) {
-	// 74572: ProcessReceiversV2 uses the same needsAppDelivery gate and non-fatal
-	// missing receiverObjectIds handling as ProcessReceivers.
+	// Receiver object IDs are sourced from the V2 execution report, not ExtraArgsDecoded.
 	receiver := make([]byte, 32)
 	receiver[31] = 0x01
 

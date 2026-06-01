@@ -25,6 +25,15 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
 
+const (
+	executeFunctionV1 = "init_execute"
+	executeFunctionV2 = "init_execute_v2"
+)
+
+func isExecuteInitFunction(functionName string) bool {
+	return functionName == executeFunctionV1 || functionName == executeFunctionV2
+}
+
 type TransactionsIndexer struct {
 	db              *database.DBStore
 	client          client.SuiPTBClient
@@ -81,7 +90,7 @@ func NewTransactionsIndexer(
 		executionEventKey:       "ExecutionStateChanged",
 		configEventModuleKey:    "ocr3_base",
 		configEventKey:          "ConfigSet",
-		executeFunction:         "init_execute",
+		executeFunction:         executeFunctionV1,
 		eventConfigs:            eventConfigs,
 		offrampPackageIdReady:   make(chan struct{}),
 	}
@@ -360,6 +369,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 
 			executionMethodIndex := 0
 			includesValidPTBCommand := false
+			detectedExecuteFunction := ""
 
 			// Check if any of the transaction's commands match with the expected (offramp) package and module
 			for i, raw := range transactionRecord.Transaction.Data.Transaction.Transactions {
@@ -370,8 +380,9 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 
 					if (packageID == eventAccountAddress || packageID == latestOfframpPackageId) &&
 						moduleName == tIndexer.executionEventModuleKey &&
-						functionName == tIndexer.executeFunction {
+						isExecuteInitFunction(functionName) {
 						executionMethodIndex = i
+						detectedExecuteFunction = functionName
 						includesValidPTBCommand = true
 						break
 					}
@@ -383,7 +394,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			// creating an event record with a failure state against an digest that is not checked.
 			if !includesValidPTBCommand {
 				tIndexer.logger.Warnw(
-					"Expected PTB command (_::offramp::init_execute) not found in commands of failed PTB originating from known transmitter",
+					"Expected PTB command (_::offramp::init_execute or init_execute_v2) not found in commands of failed PTB originating from known transmitter",
 					"transmitter", transmitter,
 					"digest", transactionRecord.Digest,
 					"transactionRecord", transactionRecord,
@@ -391,9 +402,9 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				continue
 			}
 
-			// The failure should NOT take place at `init_execute`. This command must be valid to ensure that the report can be extracted.
-			if moveAbort.Location.FunctionName == nil || *moveAbort.Location.FunctionName == tIndexer.executeFunction {
-				tIndexer.logger.Debugw("Skipping transaction for failed function against init_execute function",
+			// The failure should NOT take place at init_execute/init_execute_v2. This command must be valid to ensure that the report can be extracted.
+			if moveAbort.Location.FunctionName == nil || *moveAbort.Location.FunctionName == detectedExecuteFunction {
+				tIndexer.logger.Debugw("Skipping transaction for failed function against init execute function",
 					"transmitter", transmitter,
 					"location", moveAbort.Location,
 					"functionName", *moveAbort.Location.FunctionName,
@@ -448,51 +459,98 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 
 			tIndexer.logger.Infow("Report bytes", "reportBytes", reportBytes)
 
-			execReport, err := codec.DeserializeExecutionReport(reportBytes)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to deserialize execution report",
-					"transmitter", transmitter, "txDigest", transactionRecord.Digest, "error", err)
+			var (
+				sourceChainSelector uint64
+				sequenceNumber      uint64
+				messageID           []byte
+				messageHash         [32]byte
+			)
 
-				continue
-			}
+			if detectedExecuteFunction == executeFunctionV2 {
+				execReportV2, err := codec.DeserializeExecutionReportV2(reportBytes)
+				if err != nil {
+					tIndexer.logger.Errorw("Failed to deserialize execution report v2",
+						"transmitter", transmitter, "txDigest", transactionRecord.Digest, "error", err)
 
-			tIndexer.logger.Debugw("Deserialized execution report", "execReport", execReport)
+					continue
+				}
 
-			sourceChainSelector := execReport.Message.Header.SourceChainSelector
-			sourceChainConfig, err := tIndexer.getSourceChainConfig(ctx, sourceChainSelector)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to get source chain config",
-					"transmitter", transmitter, "sourceChainSelector", sourceChainSelector, "error", err)
+				tIndexer.logger.Debugw("Deserialized execution report v2", "execReport", execReportV2)
 
-				continue
-			}
+				sourceChainSelector = execReportV2.Message.Header.SourceChainSelector
+				sourceChainConfig, err := tIndexer.getSourceChainConfig(ctx, sourceChainSelector)
+				if err != nil {
+					tIndexer.logger.Errorw("Failed to get source chain config",
+						"transmitter", transmitter, "sourceChainSelector", sourceChainSelector, "error", err)
 
-			if sourceChainConfig == nil {
-				tIndexer.logger.Debugw("No source chain config found for selector",
-					"transmitter", transmitter, "sourceChainSelector", sourceChainSelector)
+					continue
+				}
 
-				continue
-			}
+				if sourceChainConfig == nil {
+					tIndexer.logger.Debugw("No source chain config found for selector",
+						"transmitter", transmitter, "sourceChainSelector", sourceChainSelector)
 
-			tIndexer.logger.Debugw("Source chain config", "sourceChainConfig", sourceChainConfig)
-			tIndexer.logger.Debugw("Execution report", "execReport", execReport)
+					continue
+				}
 
-			hasher := crUtil.NewMessageHasherV1(tIndexer.logger)
-			messageHash, err := hasher.Hash(ctx, execReport, sourceChainConfig.OnRamp)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to calculate message hash",
-					"transmitter", transmitter, "txDigest", transactionRecord.Digest, "error", err)
+				hasher := crUtil.NewMessageHasherV2(tIndexer.logger)
+				messageHash, err = hasher.HashExecutionReportV2(ctx, execReportV2, sourceChainConfig.OnRamp)
+				if err != nil {
+					tIndexer.logger.Errorw("Failed to calculate message hash v2",
+						"transmitter", transmitter, "txDigest", transactionRecord.Digest, "error", err)
 
-				continue
+					continue
+				}
+
+				sequenceNumber = execReportV2.Message.Header.SequenceNumber
+				messageID = execReportV2.Message.Header.MessageID
+			} else {
+				execReport, err := codec.DeserializeExecutionReport(reportBytes)
+				if err != nil {
+					tIndexer.logger.Errorw("Failed to deserialize execution report",
+						"transmitter", transmitter, "txDigest", transactionRecord.Digest, "error", err)
+
+					continue
+				}
+
+				tIndexer.logger.Debugw("Deserialized execution report", "execReport", execReport)
+
+				sourceChainSelector = execReport.Message.Header.SourceChainSelector
+				sourceChainConfig, err := tIndexer.getSourceChainConfig(ctx, sourceChainSelector)
+				if err != nil {
+					tIndexer.logger.Errorw("Failed to get source chain config",
+						"transmitter", transmitter, "sourceChainSelector", sourceChainSelector, "error", err)
+
+					continue
+				}
+
+				if sourceChainConfig == nil {
+					tIndexer.logger.Debugw("No source chain config found for selector",
+						"transmitter", transmitter, "sourceChainSelector", sourceChainSelector)
+
+					continue
+				}
+
+				hasher := crUtil.NewMessageHasherV1(tIndexer.logger)
+				messageHash, err = hasher.Hash(ctx, execReport, sourceChainConfig.OnRamp)
+				if err != nil {
+					tIndexer.logger.Errorw("Failed to calculate message hash",
+						"transmitter", transmitter, "txDigest", transactionRecord.Digest, "error", err)
+
+					continue
+				}
+
+				sequenceNumber = execReport.Message.Header.SequenceNumber
+				messageID = execReport.Message.Header.MessageID
 			}
 
 			// Create synthetic ExecutionStateChanged event
 			// The fields map one-to-one the onchain event
 			executionStateChanged := map[string]any{
 				"source_chain_selector": fmt.Sprintf("%d", sourceChainSelector),
-				"sequence_number":       fmt.Sprintf("%d", execReport.Message.Header.SequenceNumber),
+				"sequence_number":       fmt.Sprintf("%d", sequenceNumber),
 				// The conversion to []any is needed to avoid the default Go DB SDK behaviour of converting the byte slice to encoded base64 string.
-				"message_id":   codec.BytesToAnySlice(execReport.Message.Header.MessageID),
+				"message_id":   codec.BytesToAnySlice(messageID),
 				"message_hash": codec.BytesToAnySlice(messageHash[:]),
 				"state":        uint8(3), // 3 = FAILURE
 			}

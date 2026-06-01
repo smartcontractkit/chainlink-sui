@@ -1,12 +1,18 @@
 package chainreaderutil
 
 import (
+	"context"
 	"encoding/hex"
 	"math/big"
 	"testing"
 
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
 func TestMessageHasherV1_MetadataHash(t *testing.T) {
@@ -355,6 +361,89 @@ func TestMessageHasherV2_Deterministic(t *testing.T) {
 	actualHashHex := hex.EncodeToString(hash1[:])
 	assert.Equal(t, expectedHashHex, actualHashHex,
 		"Go V2 hash must match Move calculate_message_hash_v2 for identical inputs")
+}
+
+func TestHashExecutionReportV2_MatchesMoveParity(t *testing.T) {
+	messageID := hexTo32Bytes(t, "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	objectID := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000aabbcc")
+	tokenReceiver := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000005678")
+	sender, err := hex.DecodeString("8765432109fedcba8765432109fedcba87654321")
+	require.NoError(t, err)
+
+	report := &codec.ExecutionReportV2{
+		SourceChainSelector: 1000,
+		Message: codec.Any2SuiRampMessageV2{
+			Header: codec.RampMessageHeader{
+				MessageID:           messageID[:],
+				SourceChainSelector: 1000,
+				DestChainSelector:   2000,
+				SequenceNumber:      1,
+				Nonce:               0,
+			},
+			Sender: sender,
+			Data:   []byte("test payload"),
+			Receiver: models.SuiAddress(
+				"0000000000000000000000000000000000000000000000000000000000001234",
+			),
+			GasLimit:          big.NewInt(200000),
+			TokenReceiver:     models.SuiAddressBytes(tokenReceiver),
+			ReceiverObjectIds: []models.SuiAddressBytes{models.SuiAddressBytes(objectID)},
+			TokenAmounts:      []codec.Any2SuiTokenTransfer{},
+		},
+	}
+
+	hasher := NewMessageHasherV2(logger.Test(t))
+	hash, err := hasher.HashExecutionReportV2(context.Background(), report, []byte("onramp"))
+	require.NoError(t, err)
+
+	expectedHashHex := "1463b1b58f28f74dd73d4447da139d065051ddbb292549847a8c315d19148fc1"
+	assert.Equal(t, expectedHashHex, hex.EncodeToString(hash[:]))
+}
+
+func TestHashExecutionReportV2_AfterDeserializeRoundtrip(t *testing.T) {
+	messageID := hexTo32Bytes(t, "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	objectID := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000aabbcc")
+	tokenReceiver := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000005678")
+	sender, err := hex.DecodeString("8765432109fedcba8765432109fedcba87654321")
+	require.NoError(t, err)
+
+	report := testutils.ExecutionReportV2{
+		SourceChainSelector: 1000,
+		Message: testutils.Any2SuiRampMessageV2{
+			Header: testutils.NewRampMessageHeader(messageID[:], 1000, 2000, 1, 0),
+			Sender: sender,
+			Data:   []byte("test payload"),
+			Receiver: []byte(
+				"0000000000000000000000000000000000000000000000000000000000001234",
+			),
+			GasLimit:          big.NewInt(200000),
+			TokenReceiver:     tokenReceiver[:],
+			ReceiverObjectIds: [][]byte{objectID[:]},
+			TokenAmounts:      []testutils.Any2SuiTokenTransfer{},
+		},
+	}
+
+	encoded, err := testutils.SerializeExecutionReportV2(report)
+	require.NoError(t, err)
+
+	decoded, err := codec.DeserializeExecutionReportV2(encoded)
+	require.NoError(t, err)
+
+	hasher := NewMessageHasherV2(logger.Test(t))
+	hashFromReport, err := hasher.HashExecutionReportV2(context.Background(), decoded, []byte("onramp"))
+	require.NoError(t, err)
+
+	directReport := &codec.ExecutionReportV2{
+		SourceChainSelector: decoded.SourceChainSelector,
+		Message:             decoded.Message,
+	}
+	hashDirect, err := hasher.HashExecutionReportV2(context.Background(), directReport, []byte("onramp"))
+	require.NoError(t, err)
+
+	assert.Equal(t, hashDirect, hashFromReport)
+
+	expectedHashHex := "1463b1b58f28f74dd73d4447da139d065051ddbb292549847a8c315d19148fc1"
+	assert.Equal(t, expectedHashHex, hex.EncodeToString(hashFromReport[:]))
 }
 
 // Helper function to convert hex string to [32]byte array
