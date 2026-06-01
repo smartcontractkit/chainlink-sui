@@ -46,6 +46,11 @@ func ConvertBase64StringsToHex(data any) any {
 	case nil:
 		return nil
 	case string:
+		// check if the string is entirely numeric
+		if _, err := strconv.ParseUint(v, 10, 64); err == nil {
+			return v
+		}
+
 		decoded, err := base64.StdEncoding.DecodeString(v)
 		if err == nil && len(decoded) > 0 {
 			return "0x" + hex.EncodeToString(decoded)
@@ -303,42 +308,6 @@ func DecodeVectorOfStructs(bcsDecoder *aptosBCS.Deserializer, vectorType string,
 	}
 
 	return decodeVectorField(bcsDecoder, vectorTypedef, normalizedStructs)
-}
-
-// temp fix for uint64 and int64 to string when marshaling to JSON
-func preprocessForJSONSafeInteger(data any) any {
-	switch v := data.(type) {
-	case uint64:
-		return strconv.FormatUint(v, 10)
-	case int64:
-		return strconv.FormatInt(v, 10)
-	case []uint64:
-		result := make([]any, len(v))
-		for i, item := range v {
-			result[i] = strconv.FormatUint(item, 10)
-		}
-		return result
-	case []int64:
-		result := make([]any, len(v))
-		for i, item := range v {
-			result[i] = strconv.FormatInt(item, 10)
-		}
-		return result
-	case []any:
-		result := make([]any, len(v))
-		for i, item := range v {
-			result[i] = preprocessForJSONSafeInteger(item)
-		}
-		return result
-	case map[string]any:
-		result := make(map[string]any, len(v))
-		for key, val := range v {
-			result[key] = preprocessForJSONSafeInteger(val)
-		}
-		return result
-	default:
-		return data
-	}
 }
 
 // numericToBytes converts a number to byte slice (little-endian)

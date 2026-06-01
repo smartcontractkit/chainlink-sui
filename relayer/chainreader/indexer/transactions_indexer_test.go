@@ -202,15 +202,26 @@ func TestTransactionsIndexer(t *testing.T) {
 		db,
 		log,
 		// start without any selectors, they will be added during .Bind() calls on ChainReader
-		[]*client.EventSelector{},
+		[]*client.EventSelector{
+			{
+				Package: packageId,
+				Module:  "ocr3_base",
+				Event:   "ConfigSet",
+			},
+			{
+				Package: packageId,
+				Module:  "offramp",
+				Event:   "SourceChainConfigSet",
+			},
+		},
 	)
 
 	chainPoller := indexer.NewChainPoller(
 		relayerClient,
 		log,
 		config.ChainPollerConfig{
-			PollingInterval:         1 * time.Second,
-			SyncTimeout:             30 * time.Second,
+			PollingInterval:         2 * time.Second,
+			SyncTimeout:             60 * time.Second,
 			ChannelBufferSize:       16,
 			StartCheckpointSequence: &publishCheckpointSeq,
 		},

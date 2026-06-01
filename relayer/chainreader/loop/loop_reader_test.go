@@ -261,7 +261,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		config.ChainPollerConfig{
 			PollingInterval:         1 * time.Second,
 			SyncTimeout:             60 * time.Second,
-			BackfillCheckpointCount: testutils.Uint64Pointer(uint64(10)),
+			BackfillCheckpointCount: testutils.Uint64Pointer(uint64(1)),
 		},
 		evIndexer.GetEventSelectors,
 	)
@@ -433,6 +433,12 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			var sequences []types.Sequence
 			//nolint:govet
 			var err error
+
+			evIndexer.AddEventSelector(ctx, &client.EventSelector{
+				Package: packageId,
+				Module:  "echo",
+				Event:   "SingleValueEvent",
+			})
 
 			// Use relayerClient to call increment instead of using CLI
 			moveCallReq := client.MoveCallRequest{
