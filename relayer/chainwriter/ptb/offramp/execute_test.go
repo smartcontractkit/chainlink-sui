@@ -109,7 +109,7 @@ func TestProcessReceivers_SkipsZeroAddressReceiver(t *testing.T) {
 	assert.True(t, allZero)
 }
 
-func TestProcessReceivers_SkipsTokenOnlyMessage(t *testing.T) {
+func TestNeedsAppDelivery_ReturnsFalseForTokenOnlyMessage(t *testing.T) {
 	// Token-only messages (empty data, zero gas) should skip receiver processing.
 	receiver := make([]byte, 32)
 	receiver[31] = 0x01 // non-zero receiver
@@ -124,7 +124,7 @@ func TestProcessReceivers_SkipsTokenOnlyMessage(t *testing.T) {
 		"token-only message should not need app delivery")
 }
 
-func TestProcessReceivers_RequiresAppDeliveryForDataMessage(t *testing.T) {
+func TestNeedsAppDelivery_ReturnsTrueForDataMessage(t *testing.T) {
 	// Message with data should require app delivery.
 	receiver := make([]byte, 32)
 	receiver[31] = 0x01
@@ -139,7 +139,7 @@ func TestProcessReceivers_RequiresAppDeliveryForDataMessage(t *testing.T) {
 		"message with data should need app delivery")
 }
 
-func TestProcessReceivers_RequiresAppDeliveryForGasLimitMessage(t *testing.T) {
+func TestNeedsAppDelivery_ReturnsTrueForPositiveGasLimit(t *testing.T) {
 	// Message with non-zero gasLimit should require app delivery even without data.
 	receiver := make([]byte, 32)
 	receiver[31] = 0x01

@@ -1,6 +1,7 @@
 package offramp
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -37,13 +38,45 @@ func TestDecodeParam_PoisonABI_TypeParameter(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := decodeParam(lggr, tc.param, "Reference")
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "TypeParameter")
+			assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI),
+				"expected ErrUnsupportedReceiverABI, got: %v", err)
 			assert.Equal(t, SuiArgumentMetadata{}, result)
 		})
 	}
 }
 
-func TestDecodeParam_MalformedInput_NoP(t *testing.T) {
+func TestDecodeParam_UnsupportedABI_DefaultBranch(t *testing.T) {
+	lggr := logger.Test(t)
+
+	tests := []struct {
+		name  string
+		param any
+	}{
+		{
+			name:  "unknown key with non-map value",
+			param: map[string]any{"SomeUnknownKey": float64(99)},
+		},
+		{
+			name:  "unknown key with map missing Struct",
+			param: map[string]any{"SomeKey": map[string]any{"NotStruct": "x"}},
+		},
+		{
+			name:  "unknown key with non-map Struct value",
+			param: map[string]any{"SomeKey": map[string]any{"Struct": "not-a-map"}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := decodeParam(lggr, tc.param, "Reference")
+			assert.Error(t, err)
+			assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI),
+				"expected ErrUnsupportedReceiverABI, got: %v", err)
+		})
+	}
+}
+
+func TestDecodeParam_MalformedInput_NotUnsupportedABI(t *testing.T) {
 	lggr := logger.Test(t)
 
 	tests := []struct {
@@ -75,6 +108,31 @@ func TestDecodeParam_MalformedInput_NoP(t *testing.T) {
 			param: map[string]any{"Struct": map[string]any{"module": "m", "name": "S", "typeArguments": []any{}}},
 		},
 		{
+			name:  "empty map",
+			param: map[string]any{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NotPanics(t, func() {
+				_, err := decodeParam(lggr, tc.param, "Reference")
+				assert.Error(t, err)
+				assert.False(t, errors.Is(err, ErrUnsupportedReceiverABI),
+					"should NOT be ErrUnsupportedReceiverABI for malformed input: %v", err)
+			})
+		})
+	}
+}
+
+func TestDecodeParam_MalformedInput_NoPanic(t *testing.T) {
+	lggr := logger.Test(t)
+
+	tests := []struct {
+		name  string
+		param any
+	}{
+		{
 			name:  "Struct with non-string address",
 			param: map[string]any{"Struct": map[string]any{"address": 123, "module": "m", "name": "S", "typeArguments": []any{}}},
 		},
@@ -85,18 +143,6 @@ func TestDecodeParam_MalformedInput_NoP(t *testing.T) {
 		{
 			name:  "Struct with typeArgument missing TypeParameter key",
 			param: map[string]any{"Struct": map[string]any{"address": "0x1", "module": "m", "name": "S", "typeArguments": []any{map[string]any{"NotTypeParameter": float64(0)}}}},
-		},
-		{
-			name:  "empty map",
-			param: map[string]any{},
-		},
-		{
-			name:  "default key with non-map value",
-			param: map[string]any{"SomeUnknownKey": float64(99)},
-		},
-		{
-			name:  "default key with map missing Struct",
-			param: map[string]any{"SomeKey": map[string]any{"NotStruct": "x"}},
 		},
 	}
 
@@ -231,7 +277,8 @@ func TestDecodeParameters_PoisonABI_ReturnsError(t *testing.T) {
 		result, err := DecodeParameters(lggr, function, "parameters")
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "TypeParameter")
+		assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI),
+			"expected ErrUnsupportedReceiverABI to propagate through DecodeParameters, got: %v", err)
 	})
 }
 

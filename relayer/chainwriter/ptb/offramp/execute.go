@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -410,18 +411,21 @@ func ProcessReceivers(
 			extraArgs,
 		)
 		if err != nil {
-			// Permanent failure (e.g. unsupported ABI with TypeParameter/generics).
-			// Skip the receiver leg and let the PTB be submitted without it.
-			// On-chain, populate_message will have set ReceiverParams.message to Some,
-			// so finish_execute → deconstruct_receiver_params will abort with ECCIPReceiveFailed.
-			// The transactions indexer observes this failed PTB and creates a synthetic
-			// ExecutionStateChanged(FAILURE) event, causing the DON to stop retrying.
-			// The message remains UNTOUCHED on-chain (atomic rollback) and available
-			// for manually_init_execute once the receiver is fixed or unregistered.
-			lggr.Errorw("skipping receiver command due to permanent build failure; PTB will fail on-chain",
-				"receiver", receiverPackageId,
-				"error", err)
-			continue
+			if errors.Is(err, ErrUnsupportedReceiverABI) {
+				// Permanent failure: the receiver's on-chain ABI uses shapes the relayer
+				// cannot handle (e.g. TypeParameter/generics, missing ccip_receive).
+				// Skip the receiver leg so the PTB is submitted without it.
+				// On-chain, populate_message will have set ReceiverParams.message to Some,
+				// so finish_execute → deconstruct_receiver_params will abort with
+				// ECCIPReceiveFailed. The message remains UNTOUCHED (atomic rollback)
+				// and available for manually_init_execute once the receiver is fixed
+				// or unregistered.
+				lggr.Errorw("skipping receiver command due to unsupported ABI; PTB will fail on-chain",
+					"receiver", receiverPackageId,
+					"error", err)
+				continue
+			}
+			return nil, fmt.Errorf("failed to build receiver command for %s: %w", receiverPackageId, err)
 		}
 		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
 	}
@@ -513,13 +517,13 @@ func AppendPTBCommandForReceiver(
 	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
 	functionSignature, ok := normalizedModule.ExposedFunctions[functionName]
 	if !ok {
-		return nil, fmt.Errorf("missing function signature for receiver function not found in module (%s)", functionName)
+		return nil, fmt.Errorf("%w: function %q not found in module", ErrUnsupportedReceiverABI, functionName)
 	}
 
 	// Figure out the parameter types from the normalized module of the token pool
 	paramTypes, err = DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
+		return nil, fmt.Errorf("failed to decode receiver parameters: %w", err)
 	}
 
 	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
@@ -529,7 +533,7 @@ func AppendPTBCommandForReceiver(
 	// determine success or failure based on the receiver's actual parameter requirements.
 	receiverObjectIds, ok := extraArgs["receiverObjectIds"]
 	if !ok {
-		lggr.Warnw("receiverObjectIds not present in extraArgs, defaulting to empty", "module", functionName)
+		lggr.Warnw("receiverObjectIds not present in extraArgs, defaulting to empty", "function", functionName)
 		receiverObjectIds = [][]byte{}
 	}
 

@@ -38,16 +38,12 @@ func TestBrokenReceiverABI_NoPanic(t *testing.T) {
 		}
 	})
 
-	time.Sleep(3 * time.Second)
-
-	// Setup signer and fund account
 	keystoreInstance, accountAddress, publicKeyBytes := testutils.SetupTestSigner(t, context.Background(), lggr, gasBudget)
 	lggr.Infow("Using account", "address", accountAddress)
 
-	for range 3 {
-		fundErr := testutils.FundWithFaucet(lggr, "localnet", accountAddress)
-		require.NoError(t, fundErr)
-	}
+	require.Eventually(t, func() bool {
+		return testutils.FundWithFaucet(lggr, testutils.SuiLocalnet, accountAddress) == nil
+	}, 10*time.Second, time.Second)
 
 	// Setup client
 	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
@@ -145,15 +141,12 @@ func TestValidReceiverABI_DecodesSuccessfully(t *testing.T) {
 		}
 	})
 
-	time.Sleep(3 * time.Second)
-
 	keystoreInstance, accountAddress, publicKeyBytes := testutils.SetupTestSigner(t, context.Background(), lggr, gasBudget)
 	lggr.Infow("Using account", "address", accountAddress)
 
-	for range 3 {
-		fundErr := testutils.FundWithFaucet(lggr, "localnet", accountAddress)
-		require.NoError(t, fundErr)
-	}
+	require.Eventually(t, func() bool {
+		return testutils.FundWithFaucet(lggr, testutils.SuiLocalnet, accountAddress) == nil
+	}, 10*time.Second, time.Second)
 
 	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
 	suiClient := ptbClient.GetClient()
