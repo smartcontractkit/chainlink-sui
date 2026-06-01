@@ -1110,6 +1110,8 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 
 		s.logger.Debugw("Processing database event record", "data", record.Data, "offset", record.EventOffset, "eventDataType", reflect.TypeOf(eventData).Elem())
 
+		// This is needed by the data ingestion pipeline events data transform vec<u8> to base64 strings.
+		// The data ingestion pipeline expects to read those values (e.g., an ethereum address) as hex strings.
 		normalizedData := codec.ConvertBase64StringsToHex(record.Data)
 
 		// if we are running in loop plugin mode, we will want to decode into JSON and then into JSON bytes always

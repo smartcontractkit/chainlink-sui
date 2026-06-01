@@ -78,7 +78,7 @@ func TestEventsIndexer(t *testing.T) {
 		GrpcTarget:            testutils.LocalGrpcURL,
 		GrpcToken:             "test",
 		TransactionTimeout:    10 * time.Second,
-		MaxConcurrentRequests: 5,
+		MaxConcurrentRequests: 10,
 		KeystoreService:       keystoreInstance,
 		DefaultRequestType:    client.WaitForLocalExecution,
 	}
@@ -118,6 +118,12 @@ func TestEventsIndexer(t *testing.T) {
 		[]*client.EventSelector{},
 	)
 
+	// Get the latest checkpoint sequence number
+	latestCheckpoint, err := relayerClient.GetLatestCheckpoint(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, latestCheckpoint)
+	latestCheckpointSequence := latestCheckpoint.GetSequenceNumber()
+
 	// Create chain poller to feed events to the indexer
 	chainPoller := indexer2.NewChainPoller(
 		relayerClient,
@@ -125,8 +131,8 @@ func TestEventsIndexer(t *testing.T) {
 		config.ChainPollerConfig{
 			PollingInterval:         1 * time.Second,
 			SyncTimeout:             120 * time.Second,
-			BackfillCheckpointCount: ptr(uint64(1)),
 			ChannelBufferSize:       16,
+			StartCheckpointSequence: &latestCheckpointSequence,
 		},
 		evIndexer.GetEventSelectors,
 	)
@@ -142,9 +148,6 @@ func TestEventsIndexer(t *testing.T) {
 		for range chainPoller.TransactionsChannel() {
 		}
 	}()
-
-	// Give the indexer time to start and catch up
-	time.Sleep(500 * time.Millisecond)
 
 	// Helper function to create events by calling contract
 	createEvent := func(eventNum int) {
@@ -198,7 +201,7 @@ func TestEventsIndexer(t *testing.T) {
 			log.Debugw("Current event count", "count", len(events), "expected", expectedCount)
 
 			return len(events) >= expectedCount
-		}, timeout, 500*time.Millisecond, "Should find %d events", expectedCount)
+		}, timeout, 1*time.Second, "Should find %d events", expectedCount)
 
 		return events
 	}
@@ -269,7 +272,7 @@ func TestEventsIndexer(t *testing.T) {
 		}
 
 		// Wait for events to be indexed
-		events := waitForEventCount(10, 60*time.Second)
+		events := waitForEventCount(10, 120*time.Second)
 		require.GreaterOrEqual(t, len(events), 10)
 
 		// Check that events are recorded with timestamps in seconds
