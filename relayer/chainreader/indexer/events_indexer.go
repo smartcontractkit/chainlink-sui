@@ -203,9 +203,9 @@ func (eIndexer *EventsIndexer) processEventsForHandle(
 	if len(parts) != 3 {
 		return fmt.Errorf("invalid event handle format: %s", handle)
 	}
-	packageId := parts[0]
+	packageID := parts[0]
 
-	totalCount, err := eIndexer.db.GetTotalCount(ctx, packageId, handle)
+	totalCount, err := eIndexer.db.GetTotalCount(ctx, packageID, handle)
 	if err != nil {
 		return fmt.Errorf("failed to get total count: %w", err)
 	}
@@ -248,7 +248,7 @@ func (eIndexer *EventsIndexer) processEventsForHandle(
 		}
 
 		record := database.EventRecord{
-			EventAccountAddress: packageId,
+			EventAccountAddress: packageID,
 			EventHandle:         handle,
 			EventOffset:         offset,
 			TxDigest:            txDigestHex,

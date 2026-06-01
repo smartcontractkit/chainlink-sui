@@ -25,6 +25,7 @@ func FetchDefaultGasCoinRef(ctx context.Context, chainClient client.BindingsClie
 	return suiCoins[0], nil
 }
 
+//nolint:revive // var-naming: parameter name matches Sui SDK conventions.
 func ToSuiObjectRef(ctx context.Context, chainClient client.BindingsClient, objectId string, address string) (*models.SuiObjectRef, error) {
 	normalizedObjId, err := bindutils.ConvertAddressToString(objectId)
 	if err != nil {

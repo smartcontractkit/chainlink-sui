@@ -22,7 +22,6 @@ func (c *PTBClient) Close() error {
 	c.stateService = nil
 	c.txExecService = nil
 	c.movePkgService = nil
-	c.subscriptionService = nil
 
 	err := c.grpcClient.Close()
 	c.grpcClient = nil
@@ -163,39 +162,4 @@ func (c *PTBClient) getMovePackageService(ctx context.Context) (suirpcv2.MovePac
 
 	c.movePkgService = service
 	return service, nil
-}
-
-func (c *PTBClient) getSubscriptionService(ctx context.Context) (suirpcv2.SubscriptionServiceClient, error) {
-	c.grpcServicesMu.Lock()
-	defer c.grpcServicesMu.Unlock()
-
-	if c.subscriptionService != nil {
-		return c.subscriptionService, nil
-	}
-
-	grpcClient, err := c.requireGrpcClient()
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := grpcClient.SubscriptionService(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get subscription service: %w", err)
-	}
-
-	c.subscriptionService = service
-	return service, nil
-}
-
-// resetGrpcServices clears cached service stubs so the next call re-initializes them.
-// Used after connection errors when the underlying client reconnects.
-func (c *PTBClient) resetGrpcServices() {
-	c.grpcServicesMu.Lock()
-	defer c.grpcServicesMu.Unlock()
-
-	c.ledgerService = nil
-	c.stateService = nil
-	c.txExecService = nil
-	c.movePkgService = nil
-	c.subscriptionService = nil
 }

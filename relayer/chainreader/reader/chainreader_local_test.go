@@ -59,7 +59,7 @@ func TestChainReaderLocal(t *testing.T) {
 
 	log.Debugw("Started Sui node")
 
-	runChainReaderCounterTest(t, log, testutils.LocalUrl)
+	runChainReaderCounterTest(t, log, testutils.LocalURL)
 }
 
 func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {

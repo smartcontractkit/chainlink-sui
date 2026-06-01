@@ -126,7 +126,7 @@ func SetupTestEnv(
 	faucetFundErr := FundWithFaucet(lgr, SuiLocalnet, accountAddress)
 	require.NoError(t, faucetFundErr)
 
-	chainID, err := GetChainIdentifier(LocalUrl)
+	chainID, err := GetChainIdentifier(LocalURL)
 	require.NoError(t, err)
 
 	// Patch toml files for test contracts
@@ -148,7 +148,7 @@ func SetupTestEnv(
 	counterObjectId, err := QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	suiClient, txManager, transactionRepository := SetupClients(t, LocalGrpcUrl, keystoreInstance, lgr, gasLimit)
+	suiClient, txManager, transactionRepository := SetupClients(t, LocalGrpcURL, keystoreInstance, lgr, gasLimit)
 
 	return suiClient, txManager, transactionRepository, accountAddress, keystoreInstance, publicKeyBytes, packageId, counterObjectId
 }

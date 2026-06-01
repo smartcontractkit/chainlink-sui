@@ -41,6 +41,7 @@ func NewObjectResolver(chainClient client.BindingsClient) *ObjectResolver {
 	}
 }
 
+//nolint:revive // var-naming: parameter name matches Sui SDK conventions.
 func GetSharedObject(ctx context.Context, chainClient client.BindingsClient, objectId string) (*Object, error) {
 	resolver := NewObjectResolver(chainClient)
 	return resolver.GetSharedObject(ctx, objectId)

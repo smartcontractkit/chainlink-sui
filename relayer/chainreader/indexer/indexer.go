@@ -16,7 +16,7 @@ type Indexer struct {
 	log     logger.Logger
 	starter services.StateMachine
 
-	chainPoller ChainPollerApi
+	chainPoller ChainPollerAPI
 
 	eventsIndexer       EventsIndexerApi
 	eventsIndexerCancel *context.CancelFunc
@@ -48,7 +48,7 @@ type IndexerApi interface {
 // The channels are created inside the ChainPoller and exposed via EventsChannel() and TransactionsChannel().
 func NewIndexer(
 	l logger.Logger,
-	chainPoller ChainPollerApi,
+	chainPoller ChainPollerAPI,
 	eventsIndexer EventsIndexerApi,
 	transactionIndexer TransactionsIndexerApi,
 ) *Indexer {
@@ -70,6 +70,7 @@ func (i *Indexer) Name() string {
 func (i *Indexer) Start(_ context.Context) error {
 	return i.starter.StartOnce(i.Name(), func() error {
 		// Chain poller - runs first and creates the channels
+		//nolint:gosec // G118: pollerCancel is invoked from Stop()
 		pollerCtx, pollerCancel := context.WithCancel(context.Background())
 		i.pollerCancel = &pollerCancel
 

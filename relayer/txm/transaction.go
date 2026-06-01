@@ -14,6 +14,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/google/uuid"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -289,7 +290,7 @@ func GeneratePTBTransactionWithGasEstimation(
 // SelectCoinsForGasBudget selects the set of SUI coin objects that match the required gas budget.
 func SelectCoinsForGasBudget(gasBudget uint64, suiCoins []*suirpcv2.Object) ([]*suirpcv2.Object, error) {
 	if len(suiCoins) == 0 {
-		return nil, fmt.Errorf("no coins available for gas budget")
+		return nil, errors.New("no coins available for gas budget")
 	}
 
 	totalBalance := uint64(0)
@@ -333,12 +334,12 @@ func preparePTBTransaction(
 	// Filter coins that are not locked
 	filteredCoinData := make([]*suirpcv2.Object, 0, len(coinData))
 	for _, coin := range coinData {
-		coinObjectIdBytes, coinErr := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coin.GetObjectId()))
+		coinObjectIDBytes, coinErr := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coin.GetObjectId()))
 		if coinErr != nil {
 			return "", nil, fmt.Errorf("failed to convert coin object ID to bytes: %w", coinErr)
 		}
 
-		if coinManager.IsCoinReserved(*coinObjectIdBytes) {
+		if coinManager.IsCoinReserved(*coinObjectIDBytes) {
 			continue
 		}
 
@@ -359,7 +360,7 @@ func preparePTBTransaction(
 	// TODO: use mapGrpcCoinToObjectRef instead
 	paymentCoins = make([]transaction.SuiObjectRef, 0, len(gasBudgetCoins))
 	for _, coin := range gasBudgetCoins {
-		coinObjectIdBytes, coinErr := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coin.GetObjectId()))
+		coinObjectIDBytes, coinErr := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coin.GetObjectId()))
 		if coinErr != nil {
 			return "", nil, coinErr
 		}
@@ -368,7 +369,7 @@ func preparePTBTransaction(
 			return "", nil, fmt.Errorf("failed to convert object digest for payment coin: %w", coinErr)
 		}
 		paymentCoins = append(paymentCoins, transaction.SuiObjectRef{
-			ObjectId: *coinObjectIdBytes,
+			ObjectId: *coinObjectIDBytes,
 			Version:  coin.GetVersion(),
 			Digest:   *digestBytes,
 		})

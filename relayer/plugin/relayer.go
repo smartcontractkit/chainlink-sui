@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
+	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
@@ -144,12 +145,25 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	)
 
 	// Build ChainPoller config from TOML settings
+	pollingInterval, err := common.DurationFromSeconds(*cfg.ChainPoller.PollingIntervalSecs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller polling interval: %w", err)
+	}
+	syncTimeout, err := common.DurationFromSeconds(*cfg.ChainPoller.SyncTimeoutSecs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller sync timeout: %w", err)
+	}
+	channelBufferSize, err := common.IntFromUint64(*cfg.ChainPoller.ChannelBufferSize)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller channel buffer size: %w", err)
+	}
+
 	pollerConfig := chainreaderConfig.ChainPollerConfig{
-		PollingInterval:         time.Duration(*cfg.ChainPoller.PollingIntervalSecs) * time.Second,
-		SyncTimeout:             time.Duration(*cfg.ChainPoller.SyncTimeoutSecs) * time.Second,
+		PollingInterval:         pollingInterval,
+		SyncTimeout:             syncTimeout,
 		BackfillCheckpointCount: cfg.ChainPoller.BackfillCheckpointCount,
 		StartCheckpointSequence: cfg.ChainPoller.StartCheckpointSequence,
-		ChannelBufferSize:       int(*cfg.ChainPoller.ChannelBufferSize),
+		ChannelBufferSize:       channelBufferSize,
 	}
 
 	// Create ChainPoller - it provides channels via EventsChannel() and TransactionsChannel()

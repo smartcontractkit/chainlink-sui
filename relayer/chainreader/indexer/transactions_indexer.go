@@ -39,10 +39,10 @@ type TransactionsIndexer struct {
 	eventConfigs map[string]*config.ChainReaderEvent
 
 	// Offramp package tracking
-	offrampPackageId       string
-	latestOfframpPackageId string
+	offrampPackageID       string
+	latestOfframpPackageID string
 	mu                     sync.RWMutex
-	offrampPackageIdReady  chan struct{}
+	offrampPackageIDReady  chan struct{}
 	offrampPackageOnce     sync.Once
 
 	// Constants for event/module identification
@@ -86,7 +86,7 @@ func NewTransactionsIndexer(
 		configEventModuleKey:    "ocr3_base",
 		configEventKey:          "ConfigSet",
 		executeFunction:         "init_execute",
-		offrampPackageIdReady:   make(chan struct{}),
+		offrampPackageIDReady:   make(chan struct{}),
 	}
 }
 
@@ -152,21 +152,21 @@ func (t *TransactionsIndexer) SetOffRampPackage(pkg string, latestPkg string) {
 		return
 	}
 	t.mu.Lock()
-	t.offrampPackageId = pkg
-	t.latestOfframpPackageId = latestPkg
+	t.offrampPackageID = pkg
+	t.latestOfframpPackageID = latestPkg
 	t.mu.Unlock()
 
 	t.logger.Infow("OffRamp package set", "offrampPackageId", pkg, "latestOfframpPackageId", latestPkg)
 
-	t.offrampPackageOnce.Do(func() { close(t.offrampPackageIdReady) })
+	t.offrampPackageOnce.Do(func() { close(t.offrampPackageIDReady) })
 }
 
 // waitForOffRampPackage blocks until the OffRamp package ID is available or the
 // provided context is canceled.
 func (t *TransactionsIndexer) waitForOffRampPackage(ctx context.Context) (string, error) {
 	t.mu.RLock()
-	pkg := t.offrampPackageId
-	ch := t.offrampPackageIdReady
+	pkg := t.offrampPackageID
+	ch := t.offrampPackageIDReady
 	t.mu.RUnlock()
 	if pkg != "" {
 		return pkg, nil
@@ -175,7 +175,7 @@ func (t *TransactionsIndexer) waitForOffRampPackage(ctx context.Context) (string
 	select {
 	case <-ch:
 		t.mu.RLock()
-		pkg = t.offrampPackageId
+		pkg = t.offrampPackageID
 		t.mu.RUnlock()
 		if pkg == "" {
 			return "", fmt.Errorf("package ready signaled but empty")
@@ -342,14 +342,14 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 	tx *suirpcv2.ExecutedTransaction,
 	eventHandle string,
 	eventAccountAddress string,
-	latestOfframpPackageId string,
+	latestOfframpPackageID string,
 	checkpoint CheckpointMeta,
 ) (*database.EventRecord, error) {
 	tIndexer.logger.Debugw("Processing failed transaction",
 		"txDigest", tx.GetDigest(),
 		"eventHandle", eventHandle,
 		"eventAccountAddress", eventAccountAddress,
-		"latestOfframpPackageId", latestOfframpPackageId,
+		"latestOfframpPackageId", latestOfframpPackageID,
 		"checkpoint", checkpoint)
 
 	execErr := tx.GetEffects().GetStatus().GetError()
@@ -383,7 +383,7 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 		module := moveCall.GetModule()
 		function := moveCall.GetFunction()
 
-		if (pkg == eventAccountAddress || pkg == latestOfframpPackageId) &&
+		if (pkg == eventAccountAddress || pkg == latestOfframpPackageID) &&
 			module == tIndexer.executionEventModuleKey &&
 			function == tIndexer.executeFunction {
 			executionMethodIndex = i
@@ -425,7 +425,7 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 			continue
 		}
 		inputIdx := arg.GetInput()
-		if inputIdx >= uint32(len(inputs)) {
+		if int(inputIdx) >= len(inputs) {
 			return nil, fmt.Errorf("input index %d out of range", inputIdx)
 		}
 		callArgs = append(callArgs, inputs[inputIdx])
@@ -622,8 +622,8 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 // getEventPackageIdFromConfig returns the cached OffRamp package.
 func (t *TransactionsIndexer) getEventPackageIdFromConfig() (string, string, error) {
 	t.mu.RLock()
-	pkg := t.offrampPackageId
-	latestPkg := t.latestOfframpPackageId
+	pkg := t.offrampPackageID
+	latestPkg := t.latestOfframpPackageID
 	t.mu.RUnlock()
 
 	if pkg != "" {

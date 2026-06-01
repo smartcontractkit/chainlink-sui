@@ -1,3 +1,4 @@
+//nolint:revive // var-naming: public client API mirrors Sui RPC parameter names (objectId, packageId).
 package client
 
 import (
@@ -16,11 +17,9 @@ import (
 	"github.com/block-vision/sui-go-sdk/common/grpcconn"
 	"github.com/block-vision/sui-go-sdk/models"
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
-	v2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
-	"github.com/hasura/go-graphql-client"
 	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -78,9 +77,6 @@ var RateLimitWeights = map[string]int64{
 	"GetCoinMetadata":                    1,
 }
 
-// var since it's passed via pointer
-var maxPageSize uint = 50
-
 // BindingsClient is the subset of SuiPTBClient used by the bindings module.
 type BindingsClient interface {
 	ReadObjectId(ctx context.Context, objectId string) (*suirpcv2.Object, error)
@@ -135,21 +131,19 @@ type SuiPTBClient interface {
 // During the gRPC migration, JSON-RPC (client) and gRPC (grpcClient) coexist:
 // migrated methods use gRPC service accessors; others continue via JSON-RPC.
 type PTBClient struct {
-	log                 logger.Logger
-	moveModuleClient    sui.ISuiAPI // internal JSON-RPC client for unmigrated read APIs
-	graphqlClient       *graphql.Client
-	grpcClient          *grpcconn.SuiGrpcClient
-	grpcServicesMu      sync.Mutex
-	ledgerService       suirpcv2.LedgerServiceClient
-	stateService        suirpcv2.StateServiceClient
-	txExecService       suirpcv2.TransactionExecutionServiceClient
-	movePkgService      suirpcv2.MovePackageServiceClient
-	subscriptionService suirpcv2.SubscriptionServiceClient
-	maxRetries          *int
-	transactionTimeout  time.Duration
-	keystoreService     loop.Keystore
-	rateLimiter         *semaphore.Weighted
-	defaultRequestType  TransactionRequestType
+	log                logger.Logger
+	moveModuleClient   sui.ISuiAPI // internal JSON-RPC client for unmigrated read APIs
+	grpcClient         *grpcconn.SuiGrpcClient
+	grpcServicesMu     sync.Mutex
+	ledgerService      suirpcv2.LedgerServiceClient
+	stateService       suirpcv2.StateServiceClient
+	txExecService      suirpcv2.TransactionExecutionServiceClient
+	movePkgService     suirpcv2.MovePackageServiceClient
+	maxRetries         *int
+	transactionTimeout time.Duration
+	keystoreService    loop.Keystore
+	rateLimiter        *semaphore.Weighted
+	defaultRequestType TransactionRequestType
 
 	// map of module name to normalized module definition (similar to an ABI)
 	normalizedModules map[string]map[string]models.GetNormalizedMoveModuleResponse
@@ -209,7 +203,7 @@ func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaD
 	var args []transaction.Argument
 	var typeArgs []transaction.TypeTag
 
-	functionDefinition, err := movePkgService.GetFunction(ctx, &v2.GetFunctionRequest{
+	functionDefinition, err := movePkgService.GetFunction(ctx, &suirpcv2.GetFunctionRequest{
 		PackageId:  &req.PackageObjectId,
 		ModuleName: &req.Module,
 		Name:       &req.Function,
@@ -220,11 +214,11 @@ func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaD
 
 	for i, arg := range req.Arguments {
 		paramBody := functionDefinition.GetFunction().GetParameters()[i].GetBody()
-		arg, err := c.transformMoveCallArgFromSignature(ctx, txn, arg, paramBody, true)
-		if err != nil {
-			return TxnMetaData{}, fmt.Errorf("failed to transform transaction arg: %w", err)
+		txArg, transformErr := c.transformMoveCallArgFromSignature(ctx, txn, arg, paramBody, true)
+		if transformErr != nil {
+			return TxnMetaData{}, fmt.Errorf("failed to transform transaction arg: %w", transformErr)
 		}
-		args = append(args, *arg)
+		args = append(args, *txArg)
 	}
 
 	txn.MoveCall(models.SuiAddress(req.PackageObjectId), req.Module, req.Function, typeArgs, args)
@@ -397,15 +391,15 @@ func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction
 	}
 
 	err = c.WithRateLimit(ctx, "EstimateGas", func(ctx context.Context) error {
-		bcsBytes, err := tx.BuildBCSBytes(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to build bcs bytes: %w", err)
+		bcsBytes, buildErr := tx.BuildBCSBytes(ctx)
+		if buildErr != nil {
+			return fmt.Errorf("failed to build bcs bytes: %w", buildErr)
 		}
 
 		doGasSelection := true
 
-		response, err := txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
-			Transaction:    &v2.Transaction{Bcs: &v2.Bcs{Value: bcsBytes}},
+		response, simErr := txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
+			Transaction:    &suirpcv2.Transaction{Bcs: &suirpcv2.Bcs{Value: bcsBytes}},
 			DoGasSelection: &doGasSelection,
 			ReadMask: &fieldmaskpb.FieldMask{
 				Paths: []string{
@@ -418,8 +412,8 @@ func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction
 				},
 			},
 		})
-		if err != nil {
-			return fmt.Errorf("failed to simulate transaction: %w", err)
+		if simErr != nil {
+			return fmt.Errorf("failed to simulate transaction: %w", simErr)
 		}
 
 		// Avoid uint64 underflow in case of a node bug since this is a simulated transaction
@@ -446,7 +440,7 @@ func (c *PTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) 
 			return fmt.Errorf("failed to get ledger service: %w", err)
 		}
 
-		resp, err := ledgerService.GetEpoch(ctx, &v2.GetEpochRequest{
+		resp, err := ledgerService.GetEpoch(ctx, &suirpcv2.GetEpochRequest{
 			ReadMask: &fieldmaskpb.FieldMask{Paths: []string{"reference_gas_price"}},
 		})
 		if err != nil {
@@ -488,9 +482,9 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 
 	// Process type arguments
 	for _, typeArg := range typeArgs {
-		typeTag, err := c.CreateTypeTag(typeArg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create type tag for %s: %w", typeArg, err)
+		typeTag, typeTagErr := c.CreateTypeTag(typeArg)
+		if typeTagErr != nil {
+			return nil, fmt.Errorf("failed to create type tag for %s: %w", typeArg, typeTagErr)
 		}
 		txnTypeArgs = append(txnTypeArgs, typeTag)
 	}
@@ -501,18 +495,18 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 			argType = common.InferArgumentType(arg)
 		}
 
-		arg, err := c.TransformTransactionArg(ctx, txn, arg, argType, true)
-		if err != nil {
-			return nil, fmt.Errorf("failed to transform transaction arg: %w", err)
+		txArg, transformErr := c.TransformTransactionArg(ctx, txn, arg, argType, true)
+		if transformErr != nil {
+			return nil, fmt.Errorf("failed to transform transaction arg: %w", transformErr)
 		}
-		txnArgs = append(txnArgs, *arg)
+		txnArgs = append(txnArgs, *txArg)
 	}
 
 	// TODO: use a "read-only" signer for this operation instead of creating a new one
 	// each time, it can be empty since gas selection is disabled
 	seed := make([]byte, 32)
-	if _, err := rand.Read(seed); err != nil {
-		return nil, fmt.Errorf("failed to generate random seed: %w", err)
+	if _, seedErr := rand.Read(seed); seedErr != nil {
+		return nil, fmt.Errorf("failed to generate random seed: %w", seedErr)
 	}
 	devInspectSigner := signer.NewSigner(seed)
 	txn.SetSigner(devInspectSigner)
@@ -557,7 +551,7 @@ func (c *PTBClient) SimulatePTB(ctx context.Context, bcsBytes []byte) ([]any, er
 func (c *PTBClient) simulatePTBInternal(ctx context.Context, txExecService suirpcv2.TransactionExecutionServiceClient, bcsBytes []byte) ([]any, error) {
 	doGasSelection := false
 	response, err := txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
-		Transaction:    &v2.Transaction{Bcs: &v2.Bcs{Value: bcsBytes}},
+		Transaction:    &suirpcv2.Transaction{Bcs: &suirpcv2.Bcs{Value: bcsBytes}},
 		DoGasSelection: &doGasSelection,
 	})
 	if err != nil {
@@ -614,10 +608,10 @@ func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw strin
 
 	// Verify we can execute the transaction
 	resp, err := c.SendTransaction(ctx, &suirpcv2.ExecuteTransactionRequest{
-		Transaction: &v2.Transaction{Bcs: &v2.Bcs{Value: bcsBytes}},
-		Signatures: []*v2.UserSignature{
+		Transaction: &suirpcv2.Transaction{Bcs: &suirpcv2.Bcs{Value: bcsBytes}},
+		Signatures: []*suirpcv2.UserSignature{
 			{
-				Bcs: &v2.Bcs{Value: suiSignature},
+				Bcs: &suirpcv2.Bcs{Value: suiSignature},
 			},
 		},
 		ReadMask: &fieldmaskpb.FieldMask{
@@ -676,7 +670,7 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 	var result TransactionResult
 
 	err = c.WithRateLimit(ctx, "GetTransactionStatus", func(ctx context.Context) error {
-		response, err := ledgerService.GetTransaction(ctx, &suirpcv2.GetTransactionRequest{
+		response, txErr := ledgerService.GetTransaction(ctx, &suirpcv2.GetTransactionRequest{
 			Digest: &digest,
 			ReadMask: &fieldmaskpb.FieldMask{
 				Paths: []string{
@@ -688,8 +682,8 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 				},
 			},
 		})
-		if err != nil {
-			return err
+		if txErr != nil {
+			return txErr
 		}
 
 		tx := response.GetTransaction()
@@ -725,7 +719,7 @@ func (c *PTBClient) GetTransactionChangedObjects(ctx context.Context, digest str
 
 	var changed []*suirpcv2.ChangedObject
 	err = c.WithRateLimit(ctx, "GetTransactionChangedObjects", func(ctx context.Context) error {
-		response, err := ledgerService.GetTransaction(ctx, &suirpcv2.GetTransactionRequest{
+		response, txErr := ledgerService.GetTransaction(ctx, &suirpcv2.GetTransactionRequest{
 			Digest: &digest,
 			ReadMask: &fieldmaskpb.FieldMask{
 				Paths: []string{
@@ -741,8 +735,8 @@ func (c *PTBClient) GetTransactionChangedObjects(ctx context.Context, digest str
 				},
 			},
 		})
-		if err != nil {
-			return err
+		if txErr != nil {
+			return txErr
 		}
 		if response.GetTransaction() == nil || response.GetTransaction().GetEffects() == nil {
 			return fmt.Errorf("transaction %s missing effects", digest)
@@ -1035,13 +1029,13 @@ func (c *PTBClient) GetBlockById(ctx context.Context, checkpointDigest string) (
 
 	var result *suirpcv2.Checkpoint
 	err = c.WithRateLimit(ctx, "GetBlockById", func(ctx context.Context) error {
-		response, err := ledgerService.GetCheckpoint(ctx, &suirpcv2.GetCheckpointRequest{
+		response, cpErr := ledgerService.GetCheckpoint(ctx, &suirpcv2.GetCheckpointRequest{
 			CheckpointId: &suirpcv2.GetCheckpointRequest_Digest{
 				Digest: checkpointDigest,
 			},
 		})
-		if err != nil {
-			return fmt.Errorf("failed to get checkpoint: %w", err)
+		if cpErr != nil {
+			return fmt.Errorf("failed to get checkpoint: %w", cpErr)
 		}
 
 		result = response.GetCheckpoint()
@@ -1059,11 +1053,11 @@ func (c *PTBClient) GetLatestEpoch(ctx context.Context) (*suirpcv2.Epoch, error)
 
 	var result *suirpcv2.Epoch
 	err = c.WithRateLimit(ctx, "GetLatestEpoch", func(ctx context.Context) error {
-		response, err := ledgerService.GetEpoch(ctx, &suirpcv2.GetEpochRequest{
+		response, epochErr := ledgerService.GetEpoch(ctx, &suirpcv2.GetEpochRequest{
 			Epoch: nil,
 		})
-		if err != nil {
-			return fmt.Errorf("failed to get latest epoch: %w", err)
+		if epochErr != nil {
+			return fmt.Errorf("failed to get latest epoch: %w", epochErr)
 		}
 		result = response.Epoch
 		return nil
@@ -1080,12 +1074,12 @@ func (c *PTBClient) GetCoinBalanceByAddress(ctx context.Context, address string,
 
 	var result *suirpcv2.Balance
 	err = c.WithRateLimit(ctx, "GetCoinBalanceByAddress", func(ctx context.Context) error {
-		response, err := stateService.GetBalance(ctx, &suirpcv2.GetBalanceRequest{
+		response, balanceErr := stateService.GetBalance(ctx, &suirpcv2.GetBalanceRequest{
 			Owner:    &address,
 			CoinType: &coinType,
 		})
-		if err != nil {
-			return fmt.Errorf("failed to get coin balance: %w", err)
+		if balanceErr != nil {
+			return fmt.Errorf("failed to get coin balance: %w", balanceErr)
 		}
 
 		result = response.Balance

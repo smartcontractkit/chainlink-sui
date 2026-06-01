@@ -8,7 +8,6 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/models"
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
-	v2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
@@ -136,6 +135,8 @@ func mapGrpcObjectToResolved(obj *suirpcv2.Object) (*resolvedObject, error) {
 			}
 		case suirpcv2.Owner_IMMUTABLE:
 			resolved.Owner = models.ObjectOwner{}
+		case suirpcv2.Owner_OWNER_KIND_UNKNOWN, suirpcv2.Owner_CONSENSUS_ADDRESS:
+			// no additional owner metadata to map
 		}
 	}
 
@@ -183,19 +184,19 @@ func transactionChangedObjectsReadMaskPaths() []string {
 	}
 }
 
-func buildExecuteRequest(bcsBytes []byte, signatures []string) (*v2.ExecuteTransactionRequest, error) {
+func buildExecuteRequest(bcsBytes []byte, signatures []string) (*suirpcv2.ExecuteTransactionRequest, error) {
 	sigBytes, err := decodeSignatureStrings(signatures)
 	if err != nil {
 		return nil, err
 	}
 
-	userSigs := make([]*v2.UserSignature, len(sigBytes))
+	userSigs := make([]*suirpcv2.UserSignature, len(sigBytes))
 	for i, sig := range sigBytes {
-		userSigs[i] = &v2.UserSignature{Bcs: &v2.Bcs{Value: sig}}
+		userSigs[i] = &suirpcv2.UserSignature{Bcs: &suirpcv2.Bcs{Value: sig}}
 	}
 
-	return &v2.ExecuteTransactionRequest{
-		Transaction: &v2.Transaction{Bcs: &v2.Bcs{Value: bcsBytes}},
+	return &suirpcv2.ExecuteTransactionRequest{
+		Transaction: &suirpcv2.Transaction{Bcs: &suirpcv2.Bcs{Value: bcsBytes}},
 		Signatures:  userSigs,
 		ReadMask: &fieldmaskpb.FieldMask{
 			Paths: transactionChangedObjectsReadMaskPaths(),

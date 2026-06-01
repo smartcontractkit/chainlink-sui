@@ -75,7 +75,7 @@ func TestEventsIndexer(t *testing.T) {
 	}
 
 	ptbClientConfig := client.PTBClientConfig{
-		GrpcTarget:            testutils.LocalGrpcUrl,
+		GrpcTarget:            testutils.LocalGrpcURL,
 		GrpcToken:             "test",
 		TransactionTimeout:    10 * time.Second,
 		MaxConcurrentRequests: 5,
@@ -86,7 +86,7 @@ func TestEventsIndexer(t *testing.T) {
 	relayerClient, err := client.NewPTBClient(log, ptbClientConfig)
 	require.NoError(t, err)
 
-	chainID, err := testutils.GetChainIdentifier(testutils.LocalUrl)
+	chainID, err := testutils.GetChainIdentifier(testutils.LocalURL)
 	require.NoError(t, err)
 	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
 	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)

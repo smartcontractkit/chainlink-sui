@@ -13,7 +13,6 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
-	v2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 )
 
 // broadcastLoop is the main goroutine responsible for processing transactions from the broadcast channel
@@ -63,7 +62,7 @@ func (txm *SuiTxm) broadcastLoop() {
 func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []SuiTx) {
 	for _, tx := range transactions {
 		// Process the transaction for broadcasting
-		signatures := []*v2.UserSignature{}
+		signatures := []*suirpcv2.UserSignature{}
 		for _, signature := range tx.Signatures {
 			signatureBytes, err := base64.StdEncoding.DecodeString(signature)
 			if err != nil {
@@ -71,8 +70,8 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 				continue
 			}
 
-			signatures = append(signatures, &v2.UserSignature{
-				Bcs: &v2.Bcs{Value: signatureBytes},
+			signatures = append(signatures, &suirpcv2.UserSignature{
+				Bcs: &suirpcv2.Bcs{Value: signatureBytes},
 			})
 		}
 
@@ -83,7 +82,7 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 		}
 
 		payload := &suirpcv2.ExecuteTransactionRequest{
-			Transaction: &v2.Transaction{Bcs: &v2.Bcs{Value: payloadBytes}},
+			Transaction: &suirpcv2.Transaction{Bcs: &suirpcv2.Bcs{Value: payloadBytes}},
 			Signatures:  signatures,
 			ReadMask: &fieldmaskpb.FieldMask{
 				Paths: []string{"transaction", "digest", "effects.digest", "effects.status", "effects.gas_used"},

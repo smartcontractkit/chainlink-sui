@@ -51,7 +51,7 @@ func TestLoopChainReaderLocal(t *testing.T) {
 
 	log.Debugw("Started Sui node")
 
-	runLoopChainReaderEchoTest(t, log, testutils.LocalGrpcUrl)
+	runLoopChainReaderEchoTest(t, log, testutils.LocalGrpcURL)
 }
 
 func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) {

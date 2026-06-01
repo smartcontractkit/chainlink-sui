@@ -80,6 +80,7 @@ func PublishCCIPUSDCTokenPool(
 		return nil, nil, err
 	}
 
+	//nolint:revive // var-naming: generated bindings keep packageId naming
 	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,

@@ -155,7 +155,11 @@ func (c *PTBClient) TransformTransactionArg(
 		}
 
 		// construct the objectArg
-		if objectDetails.Owner.GetKind() == suirpcv2.Owner_SHARED && objectDetails.Owner.GetVersion() != 0 {
+		switch objectDetails.Owner.GetKind() {
+		case suirpcv2.Owner_SHARED:
+			if objectDetails.Owner.GetVersion() == 0 {
+				return nil, fmt.Errorf("shared object %s missing initial shared version", arg.(string))
+			}
 			objectArg = transaction.ObjectArg{
 				SharedObject: &transaction.SharedObjectRef{
 					ObjectId:             *objectIdBytes,
@@ -163,7 +167,10 @@ func (c *PTBClient) TransformTransactionArg(
 					Mutable:              mutable,
 				},
 			}
-		} else if objectDetails.Owner.GetKind() == suirpcv2.Owner_ADDRESS && objectDetails.Owner.GetAddress() != "" {
+		case suirpcv2.Owner_ADDRESS:
+			if objectDetails.Owner.GetAddress() == "" {
+				return nil, fmt.Errorf("address-owned object %s missing owner address", arg.(string))
+			}
 			digestBytes, err := transaction.ConvertObjectDigestStringToBytes(models.ObjectDigest(objectDetails.GetDigest()))
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert object digest: %w", err)
@@ -175,7 +182,7 @@ func (c *PTBClient) TransformTransactionArg(
 					Digest:   *digestBytes,
 				},
 			}
-		} else {
+		default:
 			return nil, fmt.Errorf("unknown object owner: %v", objectDetails.Owner.GetAddress())
 		}
 
@@ -215,6 +222,7 @@ func (c *PTBClient) GetTransactionPaymentCoinForAddress(ctx context.Context, pay
 		return models.SuiAddressBytes{}, 0, nil, fmt.Errorf("no coins available for gas payment")
 	}
 
+	//nolint:revive // var-naming: matches Sui object ID field naming
 	coinObjectIdBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coins[0].GetObjectId()))
 	if err != nil {
 		return models.SuiAddressBytes{}, 0, nil, err

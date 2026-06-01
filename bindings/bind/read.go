@@ -12,6 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
+//nolint:revive // var-naming: parameter name matches Sui SDK conventions.
 func ReadObject(ctx context.Context, objectId string, chainClient client.BindingsClient) (*models.SuiObjectResponse, error) {
 	normalizedId, err := bindutils.ConvertAddressToString(objectId)
 	if err != nil {

@@ -79,7 +79,7 @@ func setupTestEnvironment(t *testing.T) (
 	relayerClient, err = client.NewPTBClient(log, testCfg)
 	require.NoError(t, err)
 
-	chainID, chainIDErr := testutils.GetChainIdentifier(testutils.LocalUrl)
+	chainID, chainIDErr := testutils.GetChainIdentifier(testutils.LocalURL)
 	require.NoError(t, chainIDErr)
 	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
 	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)

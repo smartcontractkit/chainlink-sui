@@ -1,3 +1,4 @@
+//nolint:revive // var-naming: public client API mirrors Sui RPC parameter names (objectId, packageId).
 package testutils
 
 import (

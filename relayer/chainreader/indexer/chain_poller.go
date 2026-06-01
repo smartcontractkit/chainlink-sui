@@ -19,9 +19,9 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
-// ChainPollerApi defines the interface for the ChainPoller.
+// ChainPollerAPI defines the interface for the ChainPoller.
 // It fetches checkpoint data and fans it out to EventsIndexer and TransactionsIndexer via channels.
-type ChainPollerApi interface {
+type ChainPollerAPI interface {
 	Start(ctx context.Context) error
 	EventsChannel() <-chan CheckpointEventsBatch
 	TransactionsChannel() <-chan CheckpointTransactionsBatch
@@ -75,6 +75,7 @@ func NewChainPoller(
 // Start begins the polling loop.
 func (cp *ChainPoller) Start(ctx context.Context) error {
 	return cp.starter.StartOnce("ChainPoller", func() error {
+		//nolint:gosec // G118: cancel is invoked from Close()
 		pollerCtx, cancel := context.WithCancel(ctx)
 		cp.cancel = cancel
 
@@ -261,7 +262,7 @@ func isCheckpointNotFound(err error) bool {
 
 // processCheckpoint fetches and processes a single checkpoint.
 func (cp *ChainPoller) processCheckpoint(ctx context.Context, seq uint64) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(cp.config.SyncTimeout))
+	ctx, cancel := context.WithTimeout(ctx, cp.config.SyncTimeout)
 	defer cancel()
 
 	cp.logger.Debugw("Processing checkpoint", "sequence", seq)
@@ -282,7 +283,12 @@ func (cp *ChainPoller) processCheckpoint(ctx context.Context, seq uint64) error 
 	// Convert protobuf timestamp (seconds) to milliseconds
 	timestampMs := uint64(0)
 	if ts := checkpoint.GetSummary().GetTimestamp(); ts != nil {
-		timestampMs = uint64(ts.GetSeconds()) * 1000
+		secs := ts.GetSeconds()
+		if secs < 0 {
+			return fmt.Errorf("checkpoint %d has negative timestamp", seq)
+		}
+
+		timestampMs = uint64(secs) * 1000
 	}
 
 	meta := CheckpointMeta{

@@ -90,6 +90,7 @@ func PublishTest(ctx context.Context, opts *bind.CallOpts, chainClient client.Bi
 
 	artifact.Dependencies = append(artifact.Dependencies, testSecondary)
 
+	//nolint:revive // var-naming: generated bindings keep packageId naming
 	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
@@ -121,6 +122,7 @@ func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, chainClient 
 		return nil, nil, err
 	}
 
+	//nolint:revive // var-naming: generated bindings keep packageId naming
 	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
