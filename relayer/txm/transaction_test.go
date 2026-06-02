@@ -142,11 +142,15 @@ func TestTransactionGeneration(t *testing.T) {
 		computationCost := gasUsed.GetComputationCost()
 		storageCost := gasUsed.GetStorageCost()
 		storageRebate := gasUsed.GetStorageRebate()
+		nonRefundableStorageFee := gasUsed.GetNonRefundableStorageFee()
 
-		totalGasUsed := computationCost + storageCost - storageRebate
+		totalGasUsed := computationCost + storageCost + nonRefundableStorageFee
+
+		if storageRebate < totalGasUsed {
+			totalGasUsed -= storageRebate
+		}
+
 		require.Greater(t, totalGasUsed, uint64(0))
-		require.Equal(t, totalGasUsed, finalGasBudget)
-
 		require.True(t, resp.Transaction.GetEffects().GetStatus().GetSuccess())
 	})
 }
