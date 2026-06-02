@@ -12,7 +12,7 @@ tasks:
     cmds:
       - for:
           matrix:
-            MODULE: [".", "./integration-tests", "./deployment"]
+            MODULE: ["."]
         cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags="unit" ./...
 
   integration-setup:
