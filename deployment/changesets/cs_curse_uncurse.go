@@ -31,11 +31,12 @@ type CurseUncurseChainsConfig struct {
 	IsGlobalCurse      bool                  `yaml:"isGlobalCurse"`
 	DestChainSelectors []uint64              `yaml:"destChainSelectors"`
 	TimelockConfig     *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
-	// IsFastCurse selects the fastcurse MCMS instance when generating a timelock
-	// proposal. Has no effect when TimelockConfig is nil.
+	// IsFastCurse selects the CurserCap-based fast-curse path.
+	// When TimelockConfig is set, the generated proposal targets the fastcurse MCMS instance.
+	// When TimelockConfig is nil, the curse is executed directly using CurserCapObjectId (or the registered cap in chain state).
 	IsFastCurse bool `yaml:"isFastCurse,omitempty"`
 	// CurserCapObjectId is the CurserCap object ID registered in the fast MCMS Registry.
-	// Required when isFastCurse is true and timelockConfig is set.
+	// Optional if chain state already records the cap; otherwise required when IsFastCurse is true.
 	CurserCapObjectId string `yaml:"curserCapObjectId,omitempty"`
 }
 

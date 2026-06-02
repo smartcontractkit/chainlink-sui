@@ -68,12 +68,20 @@ func createCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Creat
 		return sui_ops.OpTxResult[CreateCurserCapObjects]{}, fmt.Errorf("failed to execute create_curser_cap: %w", err)
 	}
 
-	b.Logger.Infow("CurserCap minted", "digest", tx.Digest)
+	curserCapObjectID, err := bind.FindObjectIdFromPublishTx(*tx, "rmn_remote", "CurserCap")
+	if err != nil {
+		return sui_ops.OpTxResult[CreateCurserCapObjects]{}, fmt.Errorf("failed to find CurserCap object ID in tx: %w", err)
+	}
+
+	b.Logger.Infow("CurserCap minted", "digest", tx.Digest, "curserCapObjectId", curserCapObjectID)
 
 	return sui_ops.OpTxResult[CreateCurserCapObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Call:      call,
+		Objects: CreateCurserCapObjects{
+			CurserCapObjectId: curserCapObjectID,
+		},
 	}, nil
 }
 

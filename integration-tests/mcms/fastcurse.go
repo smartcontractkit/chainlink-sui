@@ -76,6 +76,8 @@ func (s *CCIPCurseMCMSTestSuite) deployFastMCMS() {
 	s.fastAccountObj = report.Output.Objects.McmsAccountStateObjectId
 	s.fastBypasserConfig = s.bypasserConfig
 
+	s.Require().NotEqual(s.mcmsObj, s.fastMcmsObj, "fast and slow MCMS must be distinct instances")
+
 	acceptProposal := report.Output.AcceptOwnershipProposal
 	s.executeFastProposalE2e(&acceptProposal, s.proposerConfig, 0)
 
@@ -208,9 +210,7 @@ func (s *CCIPCurseMCMSTestSuite) testMCMSCurseProposal() {
 }
 
 func (s *CCIPCurseMCMSTestSuite) bootstrapCurserCap() {
-	s.RunOwnershipCCIPTransfer()
-
-	bundle := s.NewOpBundle()
+	bundle := s.NewOpBundleWithRegistry()
 	deps := s.deps
 	deps.Signer = nil
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
 	"github.com/smartcontractkit/mcms/types"
@@ -86,7 +85,7 @@ func (c RegisterCurserCap) Apply(e cldf.Environment, cfg RegisterCurserCapConfig
 		FastRegistryObjectId: fastMCMS.RegistryObjectID,
 	}
 
-	report, err := operations.ExecuteOperation(e.OperationsBundle, rmn_ops.McmsMintAndRegisterCurserCapOp, deps, input)
+	report, err := cld_ops.ExecuteOperation(e.OperationsBundle, rmn_ops.McmsMintAndRegisterCurserCapOp, deps, input)
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
 	}
@@ -110,7 +109,7 @@ func (c RegisterCurserCap) Apply(e cldf.Environment, cfg RegisterCurserCapConfig
 	}
 
 	return cldf.ChangesetOutput{
-		Reports:               []operations.Report[any, any]{report.ToGenericReport()},
+		Reports:               []cld_ops.Report[any, any]{report.ToGenericReport()},
 		MCMSTimelockProposals: []mcms.TimelockProposal{result.Output},
 	}, nil
 }
