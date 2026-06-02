@@ -409,6 +409,7 @@ func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction
 					"transaction.effects.gas_used.computation_cost",
 					"transaction.effects.gas_used.storage_cost",
 					"transaction.effects.gas_used.storage_rebate",
+					"transaction.effects.gas_used.non_refundable_storage_fee",
 				},
 			},
 		})
@@ -416,15 +417,21 @@ func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction
 			return fmt.Errorf("failed to simulate transaction: %w", simErr)
 		}
 
+		gasUsed := response.GetTransaction().GetEffects().GetGasUsed()
+
+		computationCost := gasUsed.GetComputationCost()
+		storageCost := gasUsed.GetStorageCost()
+		storageRebate := gasUsed.GetStorageRebate()
+		nonRefundableStorageFee := gasUsed.GetNonRefundableStorageFee()
+
+		result = computationCost + storageCost + nonRefundableStorageFee
+
 		// Avoid uint64 underflow in case of a node bug since this is a simulated transaction
-		gasUsed := response.Transaction.Effects.GasUsed
-		used := gasUsed.GetComputationCost() + gasUsed.GetStorageCost()
-		if rebate := gasUsed.GetStorageRebate(); rebate < used {
-			used -= rebate
-		} else {
-			used = 0
+		if storageRebate < result {
+			result -= storageRebate
 		}
-		result = max(used, DefaultMinGasBudget)
+
+		c.log.Debugw("Estimated gas", "computationCost", computationCost, "storageCost", storageCost, "storageRebate", storageRebate, "nonRefundableStorageFee", nonRefundableStorageFee, "result", result)
 
 		return nil
 	})

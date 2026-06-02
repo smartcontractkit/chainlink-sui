@@ -64,8 +64,11 @@ func TestTransactionGeneration(t *testing.T) {
 	gasLimit := int64(200000000000)
 	ptbClient, _, _, accountAddress, keystore, publicKeyBytes, packageId, counterObjectId := testutils.SetupTestEnv(t, ctx, lggr, gasLimit)
 
-	err := testutils.FundWithFaucet(lggr, "localnet", accountAddress)
-	require.NoError(t, err)
+	// Fund the account multiple times to ensure sufficient balance as separate objects
+	for i := 0; i < 5; i++ {
+		err := testutils.FundWithFaucet(lggr, "localnet", accountAddress)
+		require.NoError(t, err)
+	}
 
 	gasBudget := uint64(200000000000)
 

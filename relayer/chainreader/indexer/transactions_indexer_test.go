@@ -65,7 +65,7 @@ func TestTransactionsIndexer(t *testing.T) {
 	require.Eventually(t, func() bool {
 		failed := false
 
-		for i := 0; i < 3; i++ {
+		for i := 0; i < 5; i++ {
 			err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
 			if err != nil {
 				failed = true
