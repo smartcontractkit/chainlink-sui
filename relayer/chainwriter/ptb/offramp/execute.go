@@ -611,6 +611,10 @@ func classifyReceiverBuildError(receiverPackageId string, err error) (skip bool,
 	return false, fmt.Errorf("failed to build receiver command for %s: %w", receiverPackageId, err)
 }
 
+// ccipReceiveFixedParamCount is the number of protocol-fixed ccip_receive arguments
+// supplied by the relayer before tail object args from receiver_object_ids.
+const ccipReceiveFixedParamCount = 3
+
 func appendCcipReceiveCommand(
 	ctx context.Context,
 	lggr logger.Logger,
@@ -640,6 +644,24 @@ func appendCcipReceiveCommand(
 	paramTypes, err := DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode receiver parameters: %w", err)
+	}
+
+	expectedTailCount := len(paramTypes) - ccipReceiveFixedParamCount
+	if expectedTailCount < 0 {
+		return nil, fmt.Errorf(
+			"%w: ccip_receive has %d parameters, expected at least %d (expected_message_id, ref, message)",
+			ErrUnsupportedReceiverABI,
+			len(paramTypes),
+			ccipReceiveFixedParamCount,
+		)
+	}
+	if len(receiverObjectIdStrings) != expectedTailCount {
+		return nil, fmt.Errorf(
+			"%w: receiver_object_ids count %d does not match ccip_receive tail parameter count %d",
+			ErrUnsupportedReceiverABI,
+			len(receiverObjectIdStrings),
+			expectedTailCount,
+		)
 	}
 
 	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)

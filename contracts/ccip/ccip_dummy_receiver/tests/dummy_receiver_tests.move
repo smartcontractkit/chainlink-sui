@@ -48,8 +48,9 @@ public fun test_ccip_receive_v2_happy_path() {
     let owner_cap = ts::take_from_sender<DummyOwnerCap>(&sc);
     dummy_receiver::register_receiver(&owner_cap, &mut ref);
 
-    let mut clock = clock::create_for_testing(sc.ctx());
+    let clock = clock::create_for_testing(sc.ctx());
     let message_id = b"message_id_32_bytes_padding_ok!!";
+    let clock_addr = object::id_address(&clock);
     let state_addr = object::id_address(&state);
     let message = client::new_any2sui_message_v2_for_test(
         message_id,
@@ -58,7 +59,7 @@ public fun test_ccip_receive_v2_happy_path() {
         b"payload",
         receiver_package_id(),
         @0x0,
-        vector[state_addr],
+        vector[clock_addr, state_addr],
         vector[],
     );
 

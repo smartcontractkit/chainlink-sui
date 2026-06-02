@@ -17,6 +17,8 @@ use sui::transfer::Receiving;
 use sui::tx_context::TxContext;
 
 const EMessageIdMismatch: u64 = 0;
+// `ccip_receive` tail is `[&Clock, &mut CCIPReceiverState]`; sender commits both IDs in order.
+const STATE_RECEIVER_OBJECT_INDEX: u64 = 1;
 
 public struct DUMMY_RECEIVER has drop {}
 
@@ -159,8 +161,8 @@ public fun ccip_receive(
     state: &mut CCIPReceiverState,
 ) {
     let object_ids = client::get_receiver_object_ids(&message);
-    if (!object_ids.is_empty()) {
-        client::assert_receiver_object(&message, 0, state);
+    if (object_ids.length() > STATE_RECEIVER_OBJECT_INDEX) {
+        client::assert_receiver_object(&message, STATE_RECEIVER_OBJECT_INDEX, state);
     };
 
     let (

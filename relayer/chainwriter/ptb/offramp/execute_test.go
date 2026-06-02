@@ -295,6 +295,55 @@ func TestClassifyReceiverBuildError(t *testing.T) {
 	}
 }
 
+func TestAppendCcipReceiveCommand_ReceiverObjectIdCountMismatch(t *testing.T) {
+	ctx := context.Background()
+	lggr := logger.Test(t)
+	ptb := transaction.NewTransaction()
+	extractedArg := ptb.MoveCall("0x2", "extract", "extract", nil, nil)
+	callOpts := &bind.CallOpts{Signer: signer.NewDevInspectSigner("0x1")}
+
+	boundReceiverContract, err := bind.NewBoundContract(
+		"0x0000000000000000000000000000000000000000000000000000000000000001",
+		"0x0000000000000000000000000000000000000000000000000000000000000001",
+		"dummy_receiver",
+		nil,
+	)
+	require.NoError(t, err)
+
+	// Dummy receiver ABI: 3 fixed + clock + state = 5 params (TxContext omitted by DecodeParameters).
+	normalizedModule := models.GetNormalizedMoveModuleResponse{
+		ExposedFunctions: map[string]any{
+			"ccip_receive": map[string]any{
+				"parameters": []any{
+					map[string]any{"Vector": "U8"},
+					map[string]any{"Reference": map[string]any{"Struct": map[string]any{
+						"address": "0xccip", "module": "state_object", "name": "CCIPObjectRef", "typeArguments": []any{},
+					}}},
+					map[string]any{"Struct": map[string]any{
+						"address": "0xccip", "module": "client", "name": "Any2SuiMessageV2", "typeArguments": []any{},
+					}},
+					map[string]any{"Reference": map[string]any{"Struct": map[string]any{
+						"address": "0x2", "module": "clock", "name": "Clock", "typeArguments": []any{},
+					}}},
+					map[string]any{"MutableReference": map[string]any{"Struct": map[string]any{
+						"address": "0xreceiver", "module": "dummy_receiver", "name": "CCIPReceiverState", "typeArguments": []any{},
+					}}},
+				},
+			},
+		},
+	}
+
+	_, err = appendCcipReceiveCommand(
+		ctx, lggr, ptb, callOpts, boundReceiverContract, "ccip_receive",
+		&OffRampAddressMappings{CcipObjectRef: "0x3"},
+		[32]byte{}, &normalizedModule, &extractedArg,
+		[]string{"0x00000000000000000000000000000000000000000000000000000000000000aa"},
+	)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI))
+	assert.Contains(t, err.Error(), "receiver_object_ids count 1 does not match ccip_receive tail parameter count 2")
+}
+
 func TestAppendCcipReceiveCommand_MissingCcipReceive(t *testing.T) {
 	ctx := context.Background()
 	lggr := logger.Test(t)

@@ -446,6 +446,21 @@ func TestHashExecutionReportV2_AfterDeserializeRoundtrip(t *testing.T) {
 	assert.Equal(t, expectedHashHex, hex.EncodeToString(hashFromReport[:]))
 }
 
+func TestSuiAddressTo32Bytes(t *testing.T) {
+	want := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000001234")
+	hexNoPrefix := "0000000000000000000000000000000000000000000000000000000000001234"
+	hexWithPrefix := "0x0000000000000000000000000000000000000000000000000000000000001234"
+
+	for _, addr := range []models.SuiAddress{
+		models.SuiAddress(hexNoPrefix),
+		models.SuiAddress(hexWithPrefix),
+	} {
+		got, err := suiAddressTo32Bytes(addr)
+		require.NoError(t, err)
+		assert.Equal(t, want, got)
+	}
+}
+
 // Helper function to convert hex string to [32]byte array
 func hexTo32Bytes(t *testing.T, hexStr string) [32]byte {
 	bytes, err := hex.DecodeString(hexStr)

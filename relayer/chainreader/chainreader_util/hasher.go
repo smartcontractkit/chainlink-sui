@@ -6,13 +6,14 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/transaction"
+	suiutils "github.com/block-vision/sui-go-sdk/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/utils/hex"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
@@ -52,18 +53,10 @@ func NewMessageHasherV1(lggr logger.Logger) *MessageHasherV1 {
 func (h *MessageHasherV1) Hash(ctx context.Context, report *codec.ExecutionReport, onRampAddress []byte) ([32]byte, error) {
 	rampTokenAmounts := make([]any2SuiTokenTransfer, len(report.Message.TokenAmounts))
 	for i, rta := range report.Message.TokenAmounts {
-		// Convert Sui address to 32-byte array
-		var destTokenAddress [32]byte
-
-		// Handle the conversion from models.SuiAddress to [32]byte
-		destTokenBytes, err := hex.DecodeString("0x" + string(rta.DestTokenAddress))
+		destTokenAddress, err := suiAddressTo32Bytes(rta.DestTokenAddress)
 		if err != nil {
 			return [32]byte{}, fmt.Errorf("failed to decode dest token address: %w", err)
 		}
-		if len(destTokenBytes) != 32 {
-			return [32]byte{}, fmt.Errorf("invalid dest token address length: expected 32, got %d", len(destTokenBytes))
-		}
-		copy(destTokenAddress[:], destTokenBytes)
 
 		rampTokenAmounts[i] = any2SuiTokenTransfer{
 			SourcePoolAddress: rta.SourcePoolAddress,
@@ -90,16 +83,10 @@ func (h *MessageHasherV1) Hash(ctx context.Context, report *codec.ExecutionRepor
 	var messageID [32]byte
 	copy(messageID[:], report.Message.Header.MessageID)
 
-	// Convert Sui address to 32-byte array
-	var receiverAddress [32]byte
-	receiverBytes, err := hex.DecodeString("0x" + string(report.Message.Receiver))
+	receiverAddress, err := suiAddressTo32Bytes(report.Message.Receiver)
 	if err != nil {
 		return [32]byte{}, fmt.Errorf("failed to decode receiver address: %w", err)
 	}
-	if len(receiverBytes) != 32 {
-		return [32]byte{}, fmt.Errorf("invalid receiver address length: expected 32, got %d", len(receiverBytes))
-	}
-	copy(receiverAddress[:], receiverBytes)
 
 	msgHash, err := computeMessageDataHash(
 		metaDataHash,
@@ -365,17 +352,13 @@ func rampTokenAmountsFromCodec(tokenAmounts []codec.Any2SuiTokenTransfer) ([]any
 func suiAddressTo32Bytes(addr models.SuiAddress) ([32]byte, error) {
 	var result [32]byte
 
-	addrBytes, err := hex.DecodeString("0x" + string(addr))
+	normalized := suiutils.NormalizeSuiAddress(string(addr))
+	addrBytes, err := transaction.ConvertSuiAddressStringToBytes(normalized)
 	if err != nil {
-		return result, err
-	}
-	if len(addrBytes) != 32 {
-		return result, fmt.Errorf("invalid address length: expected 32, got %d", len(addrBytes))
+		return result, fmt.Errorf("failed to decode sui address %q: %w", addr, err)
 	}
 
-	copy(result[:], addrBytes)
-
-	return result, nil
+	return *addrBytes, nil
 }
 
 func computeMessageDataHashV2(
