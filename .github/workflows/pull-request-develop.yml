@@ -151,6 +151,9 @@ jobs:
   testnet-integration-tests:
     name: Testnet Integration Tests
     runs-on: ubuntu-latest
+    env:
+      GRPC_TARGET: ${{ secrets.GRPC_TARGET }}
+      GRPC_TOKEN: ${{ secrets.GRPC_TOKEN }}
 
     steps:
       - name: Checkout repo
