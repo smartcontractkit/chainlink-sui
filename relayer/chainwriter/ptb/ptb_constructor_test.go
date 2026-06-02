@@ -4,7 +4,6 @@ package ptb_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -105,15 +104,6 @@ func stringPointer(s string) *string {
 
 func fakeExecutePTB(ctx context.Context, tx *transaction.Transaction) (string, error) {
 	return "0x1234567890abcdef", nil
-}
-
-func prettyPrintDebug(log logger.Logger, data any) {
-	resultJSON, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		log.Errorw("Failed to marshal data to JSON", "error", err)
-	} else {
-		log.Debugf("PTB Result:\n%s", string(resultJSON))
-	}
 }
 
 // ------------------------------------------
@@ -631,7 +621,6 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
-		prettyPrintDebug(log, ptbResult)
 		require.True(t, ptbResult.Transaction.GetEffects().GetStatus().GetSuccess())
 	})
 
