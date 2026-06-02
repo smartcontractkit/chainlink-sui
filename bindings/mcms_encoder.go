@@ -19,6 +19,7 @@ import (
 	module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
 	module_usdc_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/usdc_token_pool"
 	module_managed_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/managed_token/managed_token"
+	module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
 )
 
 var SuiAddressLength = 32
@@ -312,6 +313,62 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return encodeExecuteOwnershipTransferWithTypeArgs()
 		case "set_chain_rate_limiter_configs", "set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
+		}
+
+	// RMN REMOTE
+	case "rmn_remote":
+		rmnRemote, err := module_rmn_remote.NewRmnRemote(target, nil)
+		if err != nil {
+			return nil, err
+		}
+		ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+		switch function {
+		case "curse", "curse_multiple":
+			entrypointCall, err := rmnRemote.Encoder().McmsCurseMultipleWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "uncurse", "uncurse_multiple":
+			entrypointCall, err := rmnRemote.Encoder().McmsUncurseMultipleWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "curse_with_curser_cap", "curse_multiple_with_curser_cap":
+			entrypointCall, err := rmnRemote.Encoder().McmsCurseMultipleWithCurserCapWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "create_curser_cap":
+			entrypointCall, err := rmnRemote.Encoder().McmsCreateCurserCapWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "register_curser_cap":
+			deserializer := bcs.NewDeserializer(data)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			fastRegBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			fastReg := bind.Object{Id: toHexString(fastRegBytes)}
+			entrypointCall, err := rmnRemote.Encoder().McmsRegisterCurserCapWithArgs(ccipRef, registryObj, fastReg, executingCallbackParams, bind.Object{})
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "mint_and_register_curser_cap":
+			deserializer := bcs.NewDeserializer(data)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			fastRegBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			fastReg := bind.Object{Id: toHexString(fastRegBytes)}
+			entrypointCall, err := rmnRemote.Encoder().McmsMintAndRegisterCurserCapWithArgs(ccipRef, registryObj, fastReg, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
 		}
 
 	// MANAGED TOKEN

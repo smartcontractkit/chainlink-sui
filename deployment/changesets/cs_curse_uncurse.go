@@ -34,6 +34,9 @@ type CurseUncurseChainsConfig struct {
 	// IsFastCurse selects the fastcurse MCMS instance when generating a timelock
 	// proposal. Has no effect when TimelockConfig is nil.
 	IsFastCurse bool `yaml:"isFastCurse,omitempty"`
+	// CurserCapObjectId is the CurserCap object ID registered in the fast MCMS Registry.
+	// Required when isFastCurse is true and timelockConfig is set.
+	CurserCapObjectId string `yaml:"curserCapObjectId,omitempty"`
 }
 
 var _ cldf.ChangeSetV2[CurseUncurseChainsConfig] = CurseUncurseChains{}
@@ -43,6 +46,12 @@ type CurseUncurseChains struct{}
 func (c CurseUncurseChains) VerifyPreconditions(e cldf.Environment, cfg CurseUncurseChainsConfig) error {
 	if cfg.OperationType != string(CurseOperationType) && cfg.OperationType != string(UncurseOperationType) {
 		return fmt.Errorf("invalid operation type %s", cfg.OperationType)
+	}
+	if cfg.IsFastCurse && cfg.OperationType == string(UncurseOperationType) {
+		return errors.New("uncurse via fastcurse MCMS is not supported; use slow MCMS")
+	}
+	if cfg.IsFastCurse && cfg.CurserCapObjectId == "" {
+		return errors.New("curserCapObjectId is required when isFastCurse is true")
 	}
 	if cfg.IsGlobalCurse {
 		if len(cfg.DestChainSelectors) > 0 {
@@ -111,6 +120,18 @@ func (c CurseUncurseChains) Apply(e cldf.Environment, cfg CurseUncurseChainsConf
 	var genericReport operations.Report[any, any]
 	if cfg.OperationType == string(UncurseOperationType) {
 		report, execErr := operations.ExecuteOperation(e.OperationsBundle, rmn_ops.UncurseChainOp, deps, input)
+		if execErr != nil {
+			return cldf.ChangesetOutput{}, execErr
+		}
+		genericReport = report.ToGenericReport()
+	} else if cfg.IsFastCurse {
+		fastInput := rmn_ops.CurseWithCurserCapInput{
+			CCIPPackageId:     chainState.CCIPAddress,
+			StateObjectId:     chainState.CCIPObjectRef,
+			CurserCapObjectId: cfg.CurserCapObjectId,
+			Subjects:          subjects,
+		}
+		report, execErr := operations.ExecuteOperation(e.OperationsBundle, rmn_ops.CurseWithCurserCapOp, deps, fastInput)
 		if execErr != nil {
 			return cldf.ChangesetOutput{}, execErr
 		}

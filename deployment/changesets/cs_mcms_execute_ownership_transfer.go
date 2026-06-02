@@ -198,11 +198,14 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
 func (d MCMSExecuteTransferOwnership) VerifyPreconditions(e cldf.Environment, config MCMSExecuteTransferOwnershipInput) error {
+	if config.IsFastCurse && config.StateObject {
+		return fmt.Errorf("fastcurse MCMS cannot receive CCIP ownership transfer; CCIP OwnerCap must remain with slow MCMS")
+	}
 	// Check that at least one contract type is selected
 	if !config.MCMS && !config.StateObject && !config.OnRamp &&
 		!config.OffRamp && !config.Router && !config.ManagedToken &&
-		!config.UsdcTokenPool && config.LockReleaseTokenPoolTokenSymbol != "" &&
-		config.ManagedTokenPoolTokenSymbol != "" && config.BurnMintTokenPoolTokenSymbol != "" {
+		!config.UsdcTokenPool && config.LockReleaseTokenPoolTokenSymbol == "" &&
+		config.ManagedTokenPoolTokenSymbol == "" && config.BurnMintTokenPoolTokenSymbol == "" {
 		return fmt.Errorf("at least one contract type must be selected for ownership transfer")
 	}
 	return nil

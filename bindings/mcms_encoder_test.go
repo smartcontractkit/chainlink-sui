@@ -1192,3 +1192,63 @@ func TestNewCCIPEntrypointArgEncoder(t *testing.T) {
 	assert.Equal(t, registryObjID, encoder.registryObjID)
 	assert.Equal(t, deployerStateObjID, encoder.deployerStateObjID)
 }
+
+func TestEncodeEntryPointArg_RmnRemoteCurserCapCurse(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	curserCap := "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	subject := make([]byte, 16)
+	subject[15] = 1
+
+	data := serializeAddresses(ccipRef, curserCap)
+	s := &bcs.Serializer{}
+	s.Uleb128(1)
+	s.Uleb128(uint32(len(subject)))
+	s.FixedBytes(subject)
+	data = append(data, s.ToBytes()...)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"rmn_remote",
+		"curse_multiple_with_curser_cap",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_curse_multiple_with_curser_cap", encoded.Function)
+	require.Equal(t, "rmn_remote", encoded.Module.ModuleName)
+}
+
+func TestEncodeEntryPointArg_RmnRemoteMintAndRegisterCurserCap(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	fastReg := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	data := serializeAddresses(ccipRef, ownerCap, fastReg)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"rmn_remote",
+		"mint_and_register_curser_cap",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_mint_and_register_curser_cap", encoded.Function)
+}
