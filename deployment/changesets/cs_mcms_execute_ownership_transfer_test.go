@@ -51,10 +51,11 @@ func TestCurseUncurseChains_VerifyPreconditions_FastCurseAllowed(t *testing.T) {
 
 	cs := CurseUncurseChains{}
 	err := cs.VerifyPreconditions(cldf.Environment{}, CurseUncurseChainsConfig{
-		SuiChainSelector: 1,
-		OperationType:    string(CurseOperationType),
-		IsGlobalCurse:    true,
-		IsFastCurse:        true,
+		SuiChainSelector:  1,
+		OperationType:     string(CurseOperationType),
+		IsGlobalCurse:     true,
+		IsFastCurse:       true,
+		CurserCapObjectId: "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
 	})
 	require.NoError(t, err)
 }

@@ -1037,7 +1037,7 @@ public fun test_mcms_mint_and_register_curser_cap_succeeds() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms_registry::EPackageCapNotRegistered)]
+#[expected_failure(abort_code = mcms_registry::EPackageNotRegistered)]
 public fun test_mcms_curse_with_curser_cap_unregistered_registry() {
     let (mut scenario, owner_cap, mut ref, mut fast_registry, curser_cap_id) =
         setup_fast_registry_with_cap();
@@ -1089,7 +1089,7 @@ public fun test_mcms_curse_and_uncurse_via_owner_cap() {
         curse_data,
         BATCH_ID_3,
         0,
-        1,
+        2,
     );
 
     rmn_remote::mcms_curse_multiple(&mut ref, &mut slow_registry, curse_params);
@@ -1106,8 +1106,8 @@ public fun test_mcms_curse_and_uncurse_via_owner_cap() {
         string::utf8(b"uncurse_multiple"),
         uncurse_data,
         BATCH_ID_3,
-        0,
         1,
+        2,
     );
 
     rmn_remote::mcms_uncurse_multiple(&mut ref, &mut slow_registry, uncurse_params);
