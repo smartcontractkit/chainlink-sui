@@ -18,8 +18,8 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	"github.com/smartcontractkit/chainlink-sui/deployment/adapters"
 	"github.com/smartcontractkit/chainlink-sui/deployment/changesets"
-	rmn_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/rmn"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	rmn_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/rmn"
 	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
@@ -64,7 +64,8 @@ func (s *CCIPCurseMCMSTestSuite) deployFastMCMS() {
 		Proposer:      s.proposerConfig.Config,
 	}
 
-	report, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.DeployMCMSSequence, s.deps, deployInput)
+	bundle := s.NewOpBundleWithRegistry()
+	report, err := cld_ops.ExecuteSequence(bundle, mcmsops.DeployMCMSSequence, s.deps, deployInput)
 	s.Require().NoError(err, "deploying fast MCMS contract")
 
 	s.fastMcmsPackageID = report.Output.PackageId
@@ -76,9 +77,9 @@ func (s *CCIPCurseMCMSTestSuite) deployFastMCMS() {
 	s.fastBypasserConfig = s.bypasserConfig
 
 	acceptProposal := report.Output.AcceptOwnershipProposal
-	s.ExecuteProposalE2e(&acceptProposal, s.proposerConfig, 0)
+	s.executeFastProposalE2e(&acceptProposal, s.proposerConfig, 0)
 
-	_, err = cld_ops.ExecuteOperation(s.bundle, mcmsops.MCMSExecuteTransferOwnershipOp, s.deps, mcmsops.MCMSExecuteTransferOwnershipInput{
+	_, err = cld_ops.ExecuteOperation(bundle, mcmsops.MCMSExecuteTransferOwnershipOp, s.deps, mcmsops.MCMSExecuteTransferOwnershipInput{
 		McmsPackageID:         s.fastMcmsPackageID,
 		OwnerCap:              report.Output.Objects.McmsAccountOwnerCapObjectId,
 		AccountObjectID:       s.fastAccountObj,

@@ -232,6 +232,19 @@ func (s *MCMSTestSuite) NewOpBundle() cld_ops.Bundle {
 	)
 }
 
+// NewOpBundleWithRegistry returns a fresh operation bundle so sequences are not
+// deduplicated against prior runs on s.bundle.
+func (s *MCMSTestSuite) NewOpBundleWithRegistry() cld_ops.Bundle {
+	registry := cld_ops.NewOperationRegistry(opregistry.AllOperations...)
+	reporter := cld_ops.NewMemoryReporter()
+	return cld_ops.NewBundle(
+		s.T().Context,
+		logger.Test(s.T()),
+		reporter,
+		cld_ops.WithOperationRegistry(registry),
+	)
+}
+
 func (s *MCMSTestSuite) SetupCCIP() {
 	// Deploy LINK
 	linkReport, err := cld_ops.ExecuteOperation(s.bundle, linkops.DeployLINKOp, s.deps, cld_ops.EmptyInput{})
