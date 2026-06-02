@@ -50,8 +50,10 @@ func (c CurseUncurseChains) VerifyPreconditions(e cldf.Environment, cfg CurseUnc
 	if cfg.IsFastCurse && cfg.OperationType == string(UncurseOperationType) {
 		return errors.New("uncurse via fastcurse MCMS is not supported; use slow MCMS")
 	}
-	if cfg.IsFastCurse && cfg.CurserCapObjectId == "" {
-		return errors.New("curserCapObjectId is required when isFastCurse is true")
+	if cfg.IsFastCurse {
+		if _, err := resolveCurserCapObjectID(e, cfg.SuiChainSelector, cfg.CurserCapObjectId); err != nil {
+			return err
+		}
 	}
 	if cfg.IsGlobalCurse {
 		if len(cfg.DestChainSelectors) > 0 {
@@ -125,10 +127,14 @@ func (c CurseUncurseChains) Apply(e cldf.Environment, cfg CurseUncurseChainsConf
 		}
 		genericReport = report.ToGenericReport()
 	} else if cfg.IsFastCurse {
+		curserCapObjectID, err := resolveCurserCapObjectID(e, cfg.SuiChainSelector, cfg.CurserCapObjectId)
+		if err != nil {
+			return cldf.ChangesetOutput{}, err
+		}
 		fastInput := rmn_ops.CurseWithCurserCapInput{
 			CCIPPackageId:     chainState.CCIPAddress,
 			StateObjectId:     chainState.CCIPObjectRef,
-			CurserCapObjectId: cfg.CurserCapObjectId,
+			CurserCapObjectId: curserCapObjectID,
 			Subjects:          subjects,
 		}
 		report, execErr := operations.ExecuteOperation(e.OperationsBundle, rmn_ops.CurseWithCurserCapOp, deps, fastInput)
@@ -187,4 +193,33 @@ func buildCurseSubjects(cfg CurseUncurseChainsConfig) ([][]byte, error) {
 		subjects = append(subjects, s[:])
 	}
 	return subjects, nil
+}
+
+// resolveCurserCapObjectID returns the CurserCap object ID to use for a fast curse.
+// When chain state already records the registered cap, cfg may omit the id or must match it.
+func resolveCurserCapObjectID(e cldf.Environment, chainSelector uint64, cfgCurserCapObjectID string) (string, error) {
+	state, err := deployment.LoadOnchainStatesui(e)
+	if err != nil {
+		return "", fmt.Errorf("failed to load Sui chain state: %w", err)
+	}
+	chainState, ok := state[chainSelector]
+	if !ok {
+		return "", fmt.Errorf("no Sui chain state for selector %d", chainSelector)
+	}
+
+	registered := chainState.CurserCapObjectId
+	if cfgCurserCapObjectID != "" {
+		if registered != "" && cfgCurserCapObjectID != registered {
+			return "", fmt.Errorf(
+				"curserCapObjectId %q does not match registered CurserCap %q",
+				cfgCurserCapObjectID,
+				registered,
+			)
+		}
+		return cfgCurserCapObjectID, nil
+	}
+	if registered == "" {
+		return "", errors.New("curserCapObjectId is required when isFastCurse is true and no CurserCap is recorded in chain state")
+	}
+	return registered, nil
 }

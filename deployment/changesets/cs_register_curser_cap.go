@@ -7,6 +7,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
+	"github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
@@ -25,7 +26,7 @@ var _ cldf.ChangeSetV2[RegisterCurserCapConfig] = RegisterCurserCap{}
 
 type RegisterCurserCap struct{}
 
-func (c RegisterCurserCap) VerifyPreconditions(e cldf.Environment, cfg RegisterCurserCapConfig) error {
+func (c RegisterCurserCap) VerifyPreconditions(_ cldf.Environment, cfg RegisterCurserCapConfig) error {
 	if cfg.TimelockConfig == nil {
 		return fmt.Errorf("timelockConfig is required")
 	}
@@ -98,4 +99,15 @@ func (c RegisterCurserCap) Apply(e cldf.Environment, cfg RegisterCurserCapConfig
 		Reports:               []operations.Report[any, any]{report.ToGenericReport()},
 		MCMSTimelockProposals: []mcms.TimelockProposal{result.Output},
 	}, nil
+}
+
+// LastSuccessfulReportTxDigest returns the transaction hash from the last successful
+// MCMS timelock execution report.
+func LastSuccessfulReportTxDigest(reports []types.TransactionResult) (string, error) {
+	for i := len(reports) - 1; i >= 0; i-- {
+		if reports[i].Hash != "" {
+			return reports[i].Hash, nil
+		}
+	}
+	return "", fmt.Errorf("no transaction hash in execution reports")
 }

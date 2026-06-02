@@ -3,6 +3,9 @@ package changesets
 import (
 	"testing"
 
+	cselectors "github.com/smartcontractkit/chain-selectors"
+	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/stretchr/testify/require"
 )
@@ -49,13 +52,22 @@ func TestCurseUncurseChains_VerifyPreconditions_FastUncurseBlocked(t *testing.T)
 func TestCurseUncurseChains_VerifyPreconditions_FastCurseAllowed(t *testing.T) {
 	t.Parallel()
 
+	const registeredCap = "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	selector := cselectors.SUI_TESTNET.Selector
+	env := cldf.Environment{
+		ExistingAddresses: cldf.NewMemoryAddressBook(),
+		BlockChains: chain.NewBlockChains(map[uint64]chain.BlockChain{
+			selector: sui.Chain{},
+		}),
+	}
+
 	cs := CurseUncurseChains{}
-	err := cs.VerifyPreconditions(cldf.Environment{}, CurseUncurseChainsConfig{
-		SuiChainSelector:  1,
+	err := cs.VerifyPreconditions(env, CurseUncurseChainsConfig{
+		SuiChainSelector:  selector,
 		OperationType:     string(CurseOperationType),
 		IsGlobalCurse:     true,
 		IsFastCurse:       true,
-		CurserCapObjectId: "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+		CurserCapObjectId: registeredCap,
 	})
 	require.NoError(t, err)
 }

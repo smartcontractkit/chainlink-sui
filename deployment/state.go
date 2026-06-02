@@ -101,6 +101,7 @@ type CCIPChainState struct {
 	CCIPAddress            string
 	CCIPObjectRef          string
 	CCIPOwnerCapObjectId   string
+	CurserCapObjectId      string
 	CCIPUpgradeCapObjectId string
 	FeeQuoterCapId         string
 
@@ -489,6 +490,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.CCIPObjectRef = addr
 		case SuiCCIPOwnerCapObjectIDType:
 			chainState.CCIPOwnerCapObjectId = addr
+		case SuiCurserCapObjectIDType:
+			chainState.CurserCapObjectId = addr
 		case SuiCCIPUpgradeCapObjectIDType:
 			chainState.CCIPUpgradeCapObjectId = addr
 		case SuiFeeQuoterCapType:
