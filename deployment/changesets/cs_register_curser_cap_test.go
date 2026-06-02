@@ -26,5 +26,6 @@ func TestRegisterCurserCap_VerifyPreconditions(t *testing.T) {
 		SuiChainSelector: cselectors.SUI_TESTNET.Selector,
 		TimelockConfig:   &utils.TimelockConfig{MCMSAction: types.TimelockActionBypass},
 	})
-	require.NoError(t, err)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no Sui chain state")
 }

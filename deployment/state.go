@@ -148,26 +148,7 @@ type CCIPChainState struct {
 // When isFastCurse is true the fastcurse instance fields are returned;
 // otherwise the normal governance instance fields are returned.
 func (s CCIPChainState) MCMSState(isFastCurse bool) MCMSStateFields {
-	if isFastCurse {
-		return MCMSStateFields{
-			PackageID:               s.FastCurseMCMSPackageID,
-			StateObjectID:           s.FastCurseMCMSStateObjectID,
-			RegistryObjectID:        s.FastCurseMCMSRegistryObjectID,
-			DeployerStateObjectID:   s.FastCurseMCMSDeployerStateObjectID,
-			AccountStateObjectID:    s.FastCurseMCMSAccountStateObjectID,
-			AccountOwnerCapObjectID: s.FastCurseMCMSAccountOwnerCapObjectID,
-			TimelockObjectID:        s.FastCurseMCMSTimelockObjectID,
-		}
-	}
-	return MCMSStateFields{
-		PackageID:               s.MCMSPackageID,
-		StateObjectID:           s.MCMSStateObjectID,
-		RegistryObjectID:        s.MCMSRegistryObjectID,
-		DeployerStateObjectID:   s.MCMSDeployerStateObjectID,
-		AccountStateObjectID:    s.MCMSAccountStateObjectID,
-		AccountOwnerCapObjectID: s.MCMSAccountOwnerCapObjectID,
-		TimelockObjectID:        s.MCMSTimelockObjectID,
-	}
+	return s.MCMSStateByInstance(MCMSInstanceFromFastCurseFlag(isFastCurse))
 }
 
 func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chainName string) (SuiChainView, error) {

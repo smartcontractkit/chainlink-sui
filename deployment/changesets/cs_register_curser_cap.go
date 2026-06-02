@@ -26,9 +26,23 @@ var _ cldf.ChangeSetV2[RegisterCurserCapConfig] = RegisterCurserCap{}
 
 type RegisterCurserCap struct{}
 
-func (c RegisterCurserCap) VerifyPreconditions(_ cldf.Environment, cfg RegisterCurserCapConfig) error {
+func (c RegisterCurserCap) VerifyPreconditions(e cldf.Environment, cfg RegisterCurserCapConfig) error {
 	if cfg.TimelockConfig == nil {
 		return fmt.Errorf("timelockConfig is required")
+	}
+	state, err := deployment.LoadOnchainStatesui(e)
+	if err != nil {
+		return fmt.Errorf("load onchain state: %w", err)
+	}
+	chainState, ok := state[cfg.SuiChainSelector]
+	if !ok {
+		return fmt.Errorf("no Sui chain state for selector %d", cfg.SuiChainSelector)
+	}
+	if !chainState.HasMCMSInstance(deployment.MCMSInstanceSlow) {
+		return fmt.Errorf("slow MCMS must be deployed before registering CurserCap")
+	}
+	if !chainState.HasMCMSInstance(deployment.MCMSInstanceFastCurse) {
+		return fmt.Errorf("fastcurse MCMS must be deployed before registering CurserCap")
 	}
 	return nil
 }
@@ -44,8 +58,8 @@ func (c RegisterCurserCap) Apply(e cldf.Environment, cfg RegisterCurserCapConfig
 		return cldf.ChangesetOutput{}, fmt.Errorf("no Sui chain state for selector %d", cfg.SuiChainSelector)
 	}
 
-	slowMCMS := chainState.MCMSState(false)
-	fastMCMS := chainState.MCMSState(true)
+	slowMCMS := chainState.MCMSStateByInstance(deployment.MCMSInstanceSlow)
+	fastMCMS := chainState.MCMSStateByInstance(deployment.MCMSInstanceFastCurse)
 	if slowMCMS.RegistryObjectID == "" || fastMCMS.RegistryObjectID == "" {
 		return cldf.ChangesetOutput{}, fmt.Errorf("slow and fast MCMS registry object IDs are required")
 	}
