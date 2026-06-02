@@ -493,7 +493,7 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 		return nil, err
 	}
 
-	if err := finalizeExecutionReportDecode(deserializer, false, "execution report"); err != nil {
+	if err := finalizeExecutionReportDecode(deserializer, "execution report"); err != nil {
 		return nil, err
 	}
 
@@ -538,7 +538,7 @@ func DeserializeExecutionReportV2(data []byte) (*ExecutionReportV2, error) {
 		return nil, err
 	}
 
-	if err := finalizeExecutionReportDecode(deserializer, true, "V2 execution report"); err != nil {
+	if err := finalizeExecutionReportDecode(deserializer, "V2 execution report"); err != nil {
 		return nil, err
 	}
 
@@ -624,8 +624,8 @@ func deserializeRampMessageHeader(deserializer *aptosBCS.Deserializer, sourceCha
 	}, nil
 }
 
-func finalizeExecutionReportDecode(deserializer *aptosBCS.Deserializer, requireFullyConsumed bool, context string) error {
-	if requireFullyConsumed && deserializer.Remaining() > 0 {
+func finalizeExecutionReportDecode(deserializer *aptosBCS.Deserializer, context string) error {
+	if deserializer.Remaining() > 0 {
 		return fmt.Errorf("unexpected remaining bytes after decoding %s: %d", context, deserializer.Remaining())
 	}
 	if err := deserializer.Error(); err != nil {
