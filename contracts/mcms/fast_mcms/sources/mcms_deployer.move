@@ -165,6 +165,35 @@ public fun has_upgrade_cap(state: &DeployerState, package_address: address): boo
 }
 
 #[test_only]
+/// Registers `upgrade_cap` under `package_address` while keeping a non-zero `upgrade_cap.package`
+/// id from `package::test_publish` for unit tests when `get_multisig_address()` is `@0x0`.
+public fun test_register_upgrade_cap_for_package(
+    state: &mut DeployerState,
+    registry: &Registry,
+    upgrade_cap: UpgradeCap,
+    package_address: address,
+    ctx: &mut TxContext,
+) {
+    assert!(
+        mcms_registry::is_package_registered(registry, package_address.to_ascii_string()),
+        EPackageAddressNotRegistered,
+    );
+
+    let version = upgrade_cap.version();
+    let policy = upgrade_cap.policy();
+
+    state.cap_to_package.add(object::id(&upgrade_cap), package_address);
+    state.upgrade_caps.add(package_address, upgrade_cap);
+
+    event::emit(UpgradeCapRegistered {
+        prev_owner: ctx.sender(),
+        package_address,
+        version,
+        policy,
+    });
+}
+
+#[test_only]
 public fun test_init(ctx: &mut TxContext) {
     init(MCMS_DEPLOYER {}, ctx);
 }

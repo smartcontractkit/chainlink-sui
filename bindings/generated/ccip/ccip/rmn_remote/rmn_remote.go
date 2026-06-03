@@ -1508,8 +1508,8 @@ func (c rmnRemoteEncoder) McmsCurseWithCurserCap(ref bind.Object, registry bind.
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_curse_with_curser_cap", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
-		"&mut Registry",
-		"ExecutingCallbackParams",
+		"&mut FastRegistry",
+		"FastExecutingCallbackParams",
 	}, []any{
 		ref,
 		registry,
@@ -1522,8 +1522,8 @@ func (c rmnRemoteEncoder) McmsCurseWithCurserCap(ref bind.Object, registry bind.
 func (c rmnRemoteEncoder) McmsCurseWithCurserCapWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
-		"&mut Registry",
-		"ExecutingCallbackParams",
+		"&mut FastRegistry",
+		"FastExecutingCallbackParams",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1540,8 +1540,8 @@ func (c rmnRemoteEncoder) McmsCurseMultipleWithCurserCap(ref bind.Object, regist
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_curse_multiple_with_curser_cap", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
-		"&mut Registry",
-		"ExecutingCallbackParams",
+		"&mut FastRegistry",
+		"FastExecutingCallbackParams",
 	}, []any{
 		ref,
 		registry,
@@ -1554,8 +1554,8 @@ func (c rmnRemoteEncoder) McmsCurseMultipleWithCurserCap(ref bind.Object, regist
 func (c rmnRemoteEncoder) McmsCurseMultipleWithCurserCapWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
-		"&mut Registry",
-		"ExecutingCallbackParams",
+		"&mut FastRegistry",
+		"FastExecutingCallbackParams",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1609,7 +1609,7 @@ func (c rmnRemoteEncoder) McmsRegisterCurserCap(ref bind.Object, slowRegistry bi
 	return c.EncodeCallArgsWithGenerics("mcms_register_curser_cap", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
 		"&mut Registry",
-		"&mut Registry",
+		"&mut FastRegistry",
 		"ExecutingCallbackParams",
 		"ccip::rmn_remote::CurserCap",
 	}, []any{
@@ -1627,7 +1627,7 @@ func (c rmnRemoteEncoder) McmsRegisterCurserCapWithArgs(args ...any) (*bind.Enco
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
 		"&mut Registry",
-		"&mut Registry",
+		"&mut FastRegistry",
 		"ExecutingCallbackParams",
 		"ccip::rmn_remote::CurserCap",
 	}
@@ -1647,7 +1647,7 @@ func (c rmnRemoteEncoder) McmsMintAndRegisterCurserCap(ref bind.Object, slowRegi
 	return c.EncodeCallArgsWithGenerics("mcms_mint_and_register_curser_cap", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
 		"&mut Registry",
-		"&mut Registry",
+		"&mut FastRegistry",
 		"ExecutingCallbackParams",
 	}, []any{
 		ref,
@@ -1663,7 +1663,7 @@ func (c rmnRemoteEncoder) McmsMintAndRegisterCurserCapWithArgs(args ...any) (*bi
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
 		"&mut Registry",
-		"&mut Registry",
+		"&mut FastRegistry",
 		"ExecutingCallbackParams",
 	}
 
