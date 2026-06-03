@@ -6,6 +6,9 @@ use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::upgrade_registry::verify_function_allowed;
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+use fast_mcms::mcms_registry as fast_mcms_registry;
+use fast_mcms::mcms_registry::Registry as FastRegistry;
+use fast_mcms::mcms_registry::ExecutingCallbackParams as FastExecutingCallbackParams;
 use std::bcs;
 use std::string::{Self, String};
 use sui::event;
@@ -251,7 +254,7 @@ fun insert_cursed_subjects(state: &mut RMNRemoteState, subjects: vector<vector<u
 /// a secondary MCMS instance whose Registry holds a `CurserCap` for `@ccip`.
 public fun curse_with_curser_cap(
     ref: &mut CCIPObjectRef,
-    curser_cap: &CurserCap,
+    _curser_cap: &CurserCap,
     subject: vector<u8>,
 ) {
     verify_function_allowed(
@@ -260,7 +263,8 @@ public fun curse_with_curser_cap(
         string::utf8(b"curse_with_curser_cap"),
         VERSION,
     );
-    curse_multiple_with_curser_cap(ref, curser_cap, vector[subject]);
+    let state = state_object::borrow_mut<RMNRemoteState>(ref);
+    insert_cursed_subjects(state, vector[subject]);
 }
 
 /// Curse multiple subjects via possession of a `CurserCap`.
@@ -565,10 +569,10 @@ public fun mcms_uncurse_multiple(
 /// constrains the fast MCMS to curse operations only.
 public fun mcms_curse_with_curser_cap(
     ref: &mut CCIPObjectRef,
-    registry: &mut Registry,
-    params: ExecutingCallbackParams,
+    registry: &mut FastRegistry,
+    params: FastExecutingCallbackParams,
 ) {
-    let (curser_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (curser_cap, function, data) = fast_mcms_registry::get_callback_params_with_caps<
         state_object::McmsCallback,
         CurserCap,
     >(
@@ -592,10 +596,10 @@ public fun mcms_curse_with_curser_cap(
 
 public fun mcms_curse_multiple_with_curser_cap(
     ref: &mut CCIPObjectRef,
-    registry: &mut Registry,
-    params: ExecutingCallbackParams,
+    registry: &mut FastRegistry,
+    params: FastExecutingCallbackParams,
 ) {
-    let (curser_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (curser_cap, function, data) = fast_mcms_registry::get_callback_params_with_caps<
         state_object::McmsCallback,
         CurserCap,
     >(
@@ -669,7 +673,7 @@ public fun mcms_create_curser_cap(
 public fun mcms_register_curser_cap(
     ref: &mut CCIPObjectRef,
     slow_registry: &mut Registry,
-    fast_registry: &mut Registry,
+    fast_registry: &mut FastRegistry,
     params: ExecutingCallbackParams,
     curser_cap: CurserCap,
     ctx: &mut TxContext,
@@ -702,12 +706,12 @@ public fun mcms_register_curser_cap(
         VERSION,
     );
 
-    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+    let publisher_wrapper = fast_mcms_registry::create_publisher_wrapper(
         ownable::borrow_publisher(owner_cap),
         state_object::mcms_callback(),
     );
 
-    mcms_registry::register_entrypoint(
+    fast_mcms_registry::register_entrypoint(
         fast_registry,
         publisher_wrapper,
         state_object::mcms_callback(),
@@ -723,7 +727,7 @@ public fun mcms_register_curser_cap(
 public fun mcms_mint_and_register_curser_cap(
     ref: &mut CCIPObjectRef,
     slow_registry: &mut Registry,
-    fast_registry: &mut Registry,
+    fast_registry: &mut FastRegistry,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -755,14 +759,15 @@ public fun mcms_mint_and_register_curser_cap(
         VERSION,
     );
 
-    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+    let publisher_wrapper = fast_mcms_registry::create_publisher_wrapper(
         ownable::borrow_publisher(owner_cap),
         state_object::mcms_callback(),
     );
 
-    let curser_cap = create_curser_cap(ref, owner_cap, ctx);
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    let curser_cap = CurserCap { id: object::new(ctx) };
 
-    mcms_registry::register_entrypoint(
+    fast_mcms_registry::register_entrypoint(
         fast_registry,
         publisher_wrapper,
         state_object::mcms_callback(),

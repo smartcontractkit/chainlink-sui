@@ -9,6 +9,8 @@ use ccip::upgrade_registry;
 use mcms::mcms_account;
 use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry};
+use fast_mcms::mcms_registry as fast_mcms_registry;
+use fast_mcms::mcms_registry::Registry as FastRegistry;
 use std::string;
 use std::unit_test;
 use sui::bcs;
@@ -699,22 +701,21 @@ const BATCH_ID_2: vector<u8> = x"00000000000000000000000000000000000000000000000
 const BATCH_ID_3: vector<u8> = x"0000000000000000000000000000000000000000000000000000000000000003";
 const BATCH_ID_4: vector<u8> = x"0000000000000000000000000000000000000000000000000000000000000004";
 
-/// Initializes CCIP and a single MCMS Registry (used here as the FAST Registry)
-/// pre-populated with a fresh `CurserCap` for `@ccip` and
-/// `allowed_modules = [b"rmn_remote"]`. Used to exercise the fast-path
-/// callbacks (`mcms_curse_with_curser_cap` etc.) end-to-end.
-fun setup_fast_registry_with_cap(): (Scenario, OwnerCap, CCIPObjectRef, Registry, ID) {
+/// Initializes CCIP and a single fast MCMS Registry pre-populated with a
+/// fresh `CurserCap` for `@ccip` and `allowed_modules = [b"rmn_remote"]`.
+/// Used to exercise the fast-path callbacks end-to-end.
+fun setup_fast_registry_with_cap(): (Scenario, OwnerCap, CCIPObjectRef, FastRegistry, ID) {
     let mut scenario = test_scenario::begin(ADMIN_ADDRESS);
     {
         let ctx = scenario.ctx();
         mcms_account::test_init(ctx);
-        mcms_registry::test_init(ctx);
+        fast_mcms_registry::test_init(ctx);
         mcms_deployer::test_init(ctx);
         state_object::test_init(ctx);
     };
     scenario.next_tx(ADMIN_ADDRESS);
 
-    let mut fast_registry = test_scenario::take_shared<Registry>(&scenario);
+    let mut fast_registry = test_scenario::take_shared<FastRegistry>(&scenario);
     let mut ref = test_scenario::take_shared<CCIPObjectRef>(&scenario);
     let owner_cap = test_scenario::take_from_sender<OwnerCap>(&scenario);
 
@@ -724,11 +725,11 @@ fun setup_fast_registry_with_cap(): (Scenario, OwnerCap, CCIPObjectRef, Registry
     let curser_cap = rmn_remote::create_curser_cap(&mut ref, &owner_cap, scenario.ctx());
     let curser_cap_id = object::id_address(&curser_cap);
 
-    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+    let publisher_wrapper = fast_mcms_registry::create_publisher_wrapper(
         ccip::ownable::borrow_publisher(&owner_cap),
         state_object::test_create_mcms_callback(),
     );
-    mcms_registry::register_entrypoint(
+    fast_mcms_registry::register_entrypoint(
         &mut fast_registry,
         publisher_wrapper,
         state_object::test_create_mcms_callback(),
@@ -746,7 +747,7 @@ fun tear_down_fast_registry(
     scenario: Scenario,
     owner_cap: OwnerCap,
     ref: CCIPObjectRef,
-    fast_registry: Registry,
+    fast_registry: FastRegistry,
 ) {
     test_scenario::return_to_sender(&scenario, owner_cap);
     test_scenario::return_shared(ref);
@@ -764,7 +765,7 @@ public fun test_mcms_curse_with_curser_cap_succeeds() {
     data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
     data.append(bcs::to_bytes(&SUBJECT_1));
 
-    let params = mcms_registry::test_create_executing_callback_params(
+    let params = fast_mcms_registry::test_create_executing_callback_params(
         @ccip,
         string::utf8(b"rmn_remote"),
         string::utf8(b"curse_with_curser_cap"),
@@ -793,7 +794,7 @@ public fun test_mcms_curse_multiple_with_curser_cap_succeeds() {
     data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
     data.append(bcs::to_bytes(&subjects));
 
-    let params = mcms_registry::test_create_executing_callback_params(
+    let params = fast_mcms_registry::test_create_executing_callback_params(
         @ccip,
         string::utf8(b"rmn_remote"),
         string::utf8(b"curse_multiple_with_curser_cap"),
@@ -822,7 +823,7 @@ public fun test_mcms_curse_with_curser_cap_wrong_function_name() {
     data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
     data.append(bcs::to_bytes(&SUBJECT_1));
 
-    let params = mcms_registry::test_create_executing_callback_params(
+    let params = fast_mcms_registry::test_create_executing_callback_params(
         @ccip,
         string::utf8(b"rmn_remote"),
         string::utf8(b"uncurse"),
@@ -842,8 +843,8 @@ public fun test_mcms_curse_with_curser_cap_wrong_function_name() {
 const FAST_RECIPIENT: address = @0xF45CA;
 
 /// Initializes CCIP, transfers `OwnerCap` into a SLOW MCMS Registry, then
-/// shares a second empty Registry to act as the FAST instance.
-fun setup_slow_and_fast_registries(): (Scenario, CCIPObjectRef, Registry /* slow */, Registry /* fast */) {
+/// shares a second empty fast Registry to act as the FAST instance.
+fun setup_slow_and_fast_registries(): (Scenario, CCIPObjectRef, Registry /* slow */, FastRegistry /* fast */) {
     let mut scenario = test_scenario::begin(ADMIN_ADDRESS);
     {
         let ctx = scenario.ctx();
@@ -881,11 +882,11 @@ fun setup_slow_and_fast_registries(): (Scenario, CCIPObjectRef, Registry /* slow
     scenario.next_tx(ADMIN_ADDRESS);
     {
         let ctx = scenario.ctx();
-        mcms_registry::test_init(ctx);
+        fast_mcms_registry::test_init(ctx);
     };
     scenario.next_tx(ADMIN_ADDRESS);
 
-    let fast_registry = test_scenario::take_shared<Registry>(&scenario);
+    let fast_registry = test_scenario::take_shared<FastRegistry>(&scenario);
 
     (scenario, ref, slow_registry, fast_registry)
 }
@@ -894,7 +895,7 @@ fun tear_down_slow_and_fast(
     scenario: Scenario,
     ref: CCIPObjectRef,
     slow_registry: Registry,
-    fast_registry: Registry,
+    fast_registry: FastRegistry,
 ) {
     test_scenario::return_shared(ref);
     test_scenario::return_shared(slow_registry);
@@ -988,7 +989,7 @@ public fun test_mcms_register_curser_cap_succeeds() {
         scenario.ctx(),
     );
 
-    let allowed = mcms_registry::get_allowed_modules(
+    let allowed = fast_mcms_registry::get_allowed_modules(
         &fast_registry,
         sui::address::to_ascii_string(@ccip),
     );
@@ -1027,7 +1028,7 @@ public fun test_mcms_mint_and_register_curser_cap_succeeds() {
         scenario.ctx(),
     );
 
-    let allowed = mcms_registry::get_allowed_modules(
+    let allowed = fast_mcms_registry::get_allowed_modules(
         &fast_registry,
         sui::address::to_ascii_string(@ccip),
     );
@@ -1037,12 +1038,12 @@ public fun test_mcms_mint_and_register_curser_cap_succeeds() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms_registry::EPackageNotRegistered)]
+#[expected_failure(abort_code = fast_mcms_registry::EPackageNotRegistered)]
 public fun test_mcms_curse_with_curser_cap_unregistered_registry() {
     let (mut scenario, owner_cap, mut ref, mut fast_registry, curser_cap_id) =
         setup_fast_registry_with_cap();
 
-    let released_cap = mcms_registry::release_cap<
+    let released_cap = fast_mcms_registry::release_cap<
         state_object::McmsCallback,
         rmn_remote::CurserCap,
     >(
@@ -1056,7 +1057,7 @@ public fun test_mcms_curse_with_curser_cap_unregistered_registry() {
     data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
     data.append(bcs::to_bytes(&SUBJECT_1));
 
-    let params = mcms_registry::test_create_executing_callback_params(
+    let params = fast_mcms_registry::test_create_executing_callback_params(
         @ccip,
         string::utf8(b"rmn_remote"),
         string::utf8(b"curse_with_curser_cap"),
@@ -1116,31 +1117,10 @@ public fun test_mcms_curse_and_uncurse_via_owner_cap() {
     tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
 }
 
-#[test]
-#[expected_failure]
-public fun test_mcms_uncurse_on_fast_registry_aborts() {
-    let (mut scenario, owner_cap, mut ref, mut fast_registry, curser_cap_id) =
-        setup_fast_registry_with_cap();
-
-    let mut data = vector::empty<u8>();
-    data.append(bcs::to_bytes(&object::id_address(&ref)));
-    data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
-    data.append(bcs::to_bytes(&vector[SUBJECT_1]));
-
-    let params = mcms_registry::test_create_executing_callback_params(
-        @ccip,
-        string::utf8(b"rmn_remote"),
-        string::utf8(b"uncurse_multiple"),
-        data,
-        BATCH_ID_3,
-        0,
-        1,
-    );
-
-    rmn_remote::mcms_uncurse_multiple(&mut ref, &mut fast_registry, params);
-
-    tear_down_fast_registry(scenario, owner_cap, ref, fast_registry);
-}
+// test_mcms_uncurse_on_fast_registry_aborts removed: with Option A's type
+// separation, passing a FastRegistry to mcms_uncurse_multiple (which takes
+// slow Registry) is now a compile-time type error — stronger enforcement
+// than the runtime abort this test previously verified.
 
 #[test]
 public fun test_global_curse_via_curser_cap_fast_path() {
@@ -1152,7 +1132,7 @@ public fun test_global_curse_via_curser_cap_fast_path() {
     data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
     data.append(bcs::to_bytes(&x"01000000000000000000000000000001"));
 
-    let params = mcms_registry::test_create_executing_callback_params(
+    let params = fast_mcms_registry::test_create_executing_callback_params(
         @ccip,
         string::utf8(b"rmn_remote"),
         string::utf8(b"curse_with_curser_cap"),
