@@ -1227,6 +1227,60 @@ func TestEncodeEntryPointArg_RmnRemoteCurserCapCurse(t *testing.T) {
 	require.Equal(t, "rmn_remote", encoded.Module.ModuleName)
 }
 
+func TestEncodeEntryPointArg_RmnRemoteCreateCurserCapAndTransfer(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	recipient := "0xf45ca00000000000000000000000000000000000000000000000000000000000"
+	data := serializeAddresses(ccipRef, ownerCap, recipient)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"rmn_remote",
+		"create_curser_cap_and_transfer",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_create_curser_cap_and_transfer", encoded.Function)
+}
+
+func TestEncodeEntryPointArg_RmnRemoteRegisterCurserCap(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	fastReg := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	curserCap := "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	data := serializeAddresses(ccipRef, ownerCap, fastReg, curserCap)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"rmn_remote",
+		"register_curser_cap",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_register_curser_cap", encoded.Function)
+	require.NotEmpty(t, encoded.CallArgs)
+}
+
 func TestEncodeEntryPointArg_RmnRemoteMintAndRegisterCurserCap(t *testing.T) {
 	t.Parallel()
 

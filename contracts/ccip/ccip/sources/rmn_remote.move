@@ -13,6 +13,7 @@ use std::bcs;
 use std::string::{Self, String};
 use sui::event;
 use sui::hash;
+use sui::transfer;
 use sui::vec_map::{Self, VecMap};
 
 const GLOBAL_CURSE_SUBJECT: vector<u8> = x"01000000000000000000000000000001";
@@ -301,6 +302,18 @@ public fun create_curser_cap(
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     CurserCap { id: object::new(ctx) }
+}
+
+/// Mint a `CurserCap` and send it to `recipient`. Used when the cap must be held
+/// off-registry between MCMS executions before `register_curser_cap`.
+public fun create_curser_cap_and_transfer(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    recipient: address,
+    ctx: &mut TxContext,
+) {
+    let cap = create_curser_cap(ref, owner_cap, ctx);
+    transfer::public_transfer(cap, recipient);
 }
 
 public fun uncurse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<u8>) {
@@ -630,7 +643,8 @@ public fun mcms_curse_multiple_with_curser_cap(
 //
 // These callbacks are invoked by the slow MCMS (which holds CCIP `OwnerCap`)
 // to mint a `CurserCap` and register it in the fast MCMS Registry. The slow
-// proposal can batch a mint op then a register op (`mcms_create_curser_cap`
+// proposal can mint then register in separate executions (`mcms_create_curser_cap_and_transfer`
+// → `mcms_register_curser_cap`), batch mint+register in one PTB (`mcms_create_curser_cap`
 // → `mcms_register_curser_cap`), or use the single combined op
 // (`mcms_mint_and_register_curser_cap`).
 //
@@ -666,6 +680,42 @@ public fun mcms_create_curser_cap(
     create_curser_cap(ref, owner_cap, ctx)
 }
 
+/// Slow-MCMS wrapper that mints a `CurserCap` and transfers it to a pinned recipient.
+/// Void return so a standalone MCMS leaf does not leave an unconsumed `CurserCap`.
+public fun mcms_create_curser_cap_and_transfer(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"create_curser_cap_and_transfer"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let recipient = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"create_curser_cap_and_transfer"),
+        VERSION,
+    );
+
+    create_curser_cap_and_transfer(ref, owner_cap, recipient, ctx);
+}
+
 /// Slow-MCMS wrapper that registers a `CurserCap` as the package cap on a
 /// fast MCMS Registry with `allowed_modules = [b"rmn_remote"]`. Built from
 /// the OwnerCap's stored `Publisher` so the proof type binding is rooted in
@@ -694,6 +744,7 @@ public fun mcms_register_curser_cap(
             object::id_address(ref),
             object::id_address(owner_cap),
             object::id_address(fast_registry),
+            object::id_address(&curser_cap),
         ],
         &mut stream,
     );

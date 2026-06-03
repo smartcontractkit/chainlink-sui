@@ -137,6 +137,117 @@ func mcmsMintAndRegisterCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 	}, nil
 }
 
+// McmsCreateCurserCapAndTransferInput builds a slow-MCMS proposal leaf that mints a
+// CurserCap and transfers it to RecipientAddress. Use before McmsRegisterCurserCapOp
+// in a follow-on proposal once the cap object ID is known from the mint tx.
+type McmsCreateCurserCapAndTransferInput struct {
+	CCIPPackageId        string
+	StateObjectId        string
+	SlowOwnerCapObjectId string
+	RecipientAddress     string
+}
+
+var McmsCreateCurserCapAndTransferOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "rmn_remote", "mcms_create_curser_cap_and_transfer"),
+	semver.MustParse("0.1.0"),
+	"Mint a CurserCap and transfer it to a recipient via slow MCMS",
+	mcmsCreateCurserCapAndTransferHandler,
+)
+
+func mcmsCreateCurserCapAndTransferHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input McmsCreateCurserCapAndTransferInput) (sui_ops.OpTxResult[NoObjects], error) {
+	if deps.Signer != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("create_curser_cap_and_transfer must run through slow MCMS proposal execution, not direct signer PTB")
+	}
+	if input.RecipientAddress == "" {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("recipient address is required for create_curser_cap_and_transfer")
+	}
+
+	data, err := SerializeMcmsObjectAddrs(
+		input.StateObjectId,
+		input.SlowOwnerCapObjectId,
+		input.RecipientAddress,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to serialize create_curser_cap_and_transfer data: %w", err)
+	}
+
+	call := sui_ops.TransactionCall{
+		PackageID:  input.CCIPPackageId,
+		Module:     "rmn_remote",
+		Function:     "create_curser_cap_and_transfer",
+		Data:         data,
+		StateObjID:   input.StateObjectId,
+		TypeArgs:     []string{},
+	}
+
+	b.Logger.Infow("Encoded create_curser_cap_and_transfer MCMS leaf",
+		"recipient", input.RecipientAddress,
+	)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		PackageId: input.CCIPPackageId,
+		Call:      call,
+	}, nil
+}
+
+// McmsRegisterCurserCapInput builds a slow-MCMS proposal leaf that registers an
+// existing on-chain CurserCap in the fast MCMS Registry. The cap object ID is
+// pinned in callback data and validated on-chain at execution.
+//
+// MCMS-only: use McmsMintAndRegisterCurserCapOp when the cap does not exist yet.
+type McmsRegisterCurserCapInput struct {
+	CCIPPackageId        string
+	StateObjectId        string
+	SlowOwnerCapObjectId string
+	FastRegistryObjectId string
+	CurserCapObjectId    string
+}
+
+var McmsRegisterCurserCapOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "rmn_remote", "mcms_register_curser_cap"),
+	semver.MustParse("0.1.0"),
+	"Register an existing CurserCap in the fast MCMS Registry via slow MCMS",
+	mcmsRegisterCurserCapHandler,
+)
+
+func mcmsRegisterCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input McmsRegisterCurserCapInput) (sui_ops.OpTxResult[NoObjects], error) {
+	if deps.Signer != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("register_curser_cap must run through slow MCMS proposal execution, not direct signer PTB")
+	}
+	if input.CurserCapObjectId == "" {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("curser cap object id is required for register_curser_cap")
+	}
+
+	data, err := SerializeMcmsObjectAddrs(
+		input.StateObjectId,
+		input.SlowOwnerCapObjectId,
+		input.FastRegistryObjectId,
+		input.CurserCapObjectId,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to serialize register_curser_cap data: %w", err)
+	}
+
+	call := sui_ops.TransactionCall{
+		PackageID:  input.CCIPPackageId,
+		Module:     "rmn_remote",
+		Function:     "register_curser_cap",
+		Data:         data,
+		StateObjID:   input.StateObjectId,
+		TypeArgs:     []string{},
+	}
+
+	b.Logger.Infow("Encoded register_curser_cap MCMS leaf",
+		"fastRegistry", input.FastRegistryObjectId,
+		"curserCap", input.CurserCapObjectId,
+	)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		PackageId: input.CCIPPackageId,
+		Call:      call,
+	}, nil
+}
+
 // CurseWithCurserCapInput curses subjects using CurserCap.
 //
 // Direct path: EOA (or any signer) holds CurserCap and signs the PTB.

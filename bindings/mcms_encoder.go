@@ -347,13 +347,21 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 				return nil, err
 			}
 			return overrideCall(entrypointCall, module, function), nil
+		case "create_curser_cap_and_transfer":
+			entrypointCall, err := rmnRemote.Encoder().McmsCreateCurserCapAndTransferWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
 		case "register_curser_cap":
 			deserializer := bcs.NewDeserializer(data)
 			deserializer.ReadFixedBytes(SuiAddressLength)
 			deserializer.ReadFixedBytes(SuiAddressLength)
 			fastRegBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			curserCapBytes := deserializer.ReadFixedBytes(SuiAddressLength)
 			fastReg := bind.Object{Id: toHexString(fastRegBytes)}
-			entrypointCall, err := rmnRemote.Encoder().McmsRegisterCurserCapWithArgs(ccipRef, registryObj, fastReg, executingCallbackParams, bind.Object{})
+			curserCap := bind.Object{Id: toHexString(curserCapBytes)}
+			entrypointCall, err := rmnRemote.Encoder().McmsRegisterCurserCapWithArgs(ccipRef, registryObj, fastReg, executingCallbackParams, curserCap)
 			if err != nil {
 				return nil, err
 			}

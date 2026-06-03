@@ -5,5 +5,7 @@ var AllOperationsRMN = []any{
 	*UncurseChainOp,
 	*CreateCurserCapOp,
 	*McmsMintAndRegisterCurserCapOp,
+	*McmsCreateCurserCapAndTransferOp,
+	*McmsRegisterCurserCapOp,
 	*CurseWithCurserCapOp,
 }

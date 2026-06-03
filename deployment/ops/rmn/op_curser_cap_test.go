@@ -178,6 +178,129 @@ func TestMcmsMintAndRegisterCurserCapOp_ProposalDataMatchesManualBCS(t *testing.
 	require.Equal(t, expected, report.Output.Call.Data)
 }
 
+func TestMcmsCreateCurserCapAndTransferOp_EncodesProposalLeaf(t *testing.T) {
+	t.Parallel()
+
+	bundle := testBundle(t)
+	report, err := cld_ops.ExecuteOperation(
+		bundle,
+		McmsCreateCurserCapAndTransferOp,
+		sui_ops.OpTxDeps{Signer: nil},
+		McmsCreateCurserCapAndTransferInput{
+			CCIPPackageId:        testCCIPPackageID,
+			StateObjectId:        testStateObjectID,
+			SlowOwnerCapObjectId: testOwnerCapID,
+			RecipientAddress:     "0xf45ca00000000000000000000000000000000000000000000000000000000000",
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "create_curser_cap_and_transfer", report.Output.Call.Function)
+	require.Len(t, report.Output.Call.Data, 96)
+}
+
+func TestMcmsCreateCurserCapAndTransferOp_RequiresRecipient(t *testing.T) {
+	t.Parallel()
+
+	bundle := testBundle(t)
+	_, err := cld_ops.ExecuteOperation(
+		bundle,
+		McmsCreateCurserCapAndTransferOp,
+		sui_ops.OpTxDeps{Signer: nil},
+		McmsCreateCurserCapAndTransferInput{
+			CCIPPackageId:        testCCIPPackageID,
+			StateObjectId:        testStateObjectID,
+			SlowOwnerCapObjectId: testOwnerCapID,
+		},
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "recipient address")
+}
+
+func TestMcmsRegisterCurserCapOp_EncodesProposalLeaf(t *testing.T) {
+	t.Parallel()
+
+	bundle := testBundle(t)
+	report, err := cld_ops.ExecuteOperation(
+		bundle,
+		McmsRegisterCurserCapOp,
+		sui_ops.OpTxDeps{Signer: nil},
+		McmsRegisterCurserCapInput{
+			CCIPPackageId:        testCCIPPackageID,
+			StateObjectId:        testStateObjectID,
+			SlowOwnerCapObjectId: testOwnerCapID,
+			FastRegistryObjectId: testFastRegistry,
+			CurserCapObjectId:    testCurserCapID,
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "rmn_remote", report.Output.Call.Module)
+	require.Equal(t, "register_curser_cap", report.Output.Call.Function)
+	require.Equal(t, testStateObjectID, report.Output.Call.StateObjID)
+	require.Len(t, report.Output.Call.Data, 128)
+}
+
+func TestMcmsRegisterCurserCapOp_ProposalDataMatchesManualBCS(t *testing.T) {
+	t.Parallel()
+
+	bundle := testBundle(t)
+	report, err := cld_ops.ExecuteOperation(
+		bundle,
+		McmsRegisterCurserCapOp,
+		sui_ops.OpTxDeps{Signer: nil},
+		McmsRegisterCurserCapInput{
+			CCIPPackageId:        testCCIPPackageID,
+			StateObjectId:        testStateObjectID,
+			SlowOwnerCapObjectId: testOwnerCapID,
+			FastRegistryObjectId: testFastRegistry,
+			CurserCapObjectId:    testCurserCapID,
+		},
+	)
+	require.NoError(t, err)
+
+	expected, err := SerializeMcmsObjectAddrs(testStateObjectID, testOwnerCapID, testFastRegistry, testCurserCapID)
+	require.NoError(t, err)
+	require.Equal(t, expected, report.Output.Call.Data)
+}
+
+func TestMcmsRegisterCurserCapOp_RequiresCurserCapObjectId(t *testing.T) {
+	t.Parallel()
+
+	bundle := testBundle(t)
+	_, err := cld_ops.ExecuteOperation(
+		bundle,
+		McmsRegisterCurserCapOp,
+		sui_ops.OpTxDeps{Signer: nil},
+		McmsRegisterCurserCapInput{
+			CCIPPackageId:        testCCIPPackageID,
+			StateObjectId:        testStateObjectID,
+			SlowOwnerCapObjectId: testOwnerCapID,
+			FastRegistryObjectId: testFastRegistry,
+		},
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "curser cap object id")
+}
+
+func TestMcmsRegisterCurserCapOp_RejectsDirectSigner(t *testing.T) {
+	t.Parallel()
+
+	bundle := testBundle(t)
+	_, err := cld_ops.ExecuteOperation(
+		bundle,
+		McmsRegisterCurserCapOp,
+		sui_ops.OpTxDeps{Signer: stubSigner{}},
+		McmsRegisterCurserCapInput{
+			CCIPPackageId:        testCCIPPackageID,
+			StateObjectId:        testStateObjectID,
+			SlowOwnerCapObjectId: testOwnerCapID,
+			FastRegistryObjectId: testFastRegistry,
+			CurserCapObjectId:    testCurserCapID,
+		},
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "slow MCMS proposal")
+}
+
 func TestMcmsMintAndRegisterCurserCapOp_RejectsDirectSigner(t *testing.T) {
 	t.Parallel()
 
@@ -322,5 +445,7 @@ func TestCurserCapOpDefinitions(t *testing.T) {
 
 	require.Equal(t, "sui-ccip-rmn_remote-create_curser_cap", CreateCurserCapOp.Def().ID)
 	require.Equal(t, "sui-ccip-rmn_remote-mcms_mint_and_register_curser_cap", McmsMintAndRegisterCurserCapOp.Def().ID)
+	require.Equal(t, "sui-ccip-rmn_remote-mcms_create_curser_cap_and_transfer", McmsCreateCurserCapAndTransferOp.Def().ID)
+	require.Equal(t, "sui-ccip-rmn_remote-mcms_register_curser_cap", McmsRegisterCurserCapOp.Def().ID)
 	require.Equal(t, "sui-ccip-rmn_remote-curse_with_curser_cap", CurseWithCurserCapOp.Def().ID)
 }

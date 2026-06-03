@@ -36,6 +36,14 @@ type FastCurseSeqInput struct {
 	Subjects          []fastcurse.Subject
 }
 
+func subjectsToBytes(subjects []fastcurse.Subject) [][]byte {
+	out := make([][]byte, len(subjects))
+	for i, subject := range subjects {
+		out[i] = append([]byte(nil), subject[:]...)
+	}
+	return out
+}
+
 func executeCurseUncurse(
 	b cldf_ops.Bundle,
 	chains cldf_chain.BlockChains,
@@ -46,12 +54,6 @@ func executeCurseUncurse(
 	chain, ok := chains.SuiChains()[in.ChainSelector]
 	if !ok {
 		return sequences.OnChainOutput{}, fmt.Errorf("Sui chain with selector %d not found in environment", in.ChainSelector)
-	}
-
-	subjectBytes := make([][]byte, len(in.Subjects))
-	for i, subject := range in.Subjects {
-		s := subject
-		subjectBytes[i] = s[:]
 	}
 
 	deps := sui_ops.OpTxDeps{
@@ -68,7 +70,7 @@ func executeCurseUncurse(
 		CCIPPackageId:    in.CCIPAddress,
 		StateObjectId:    in.CCIPObjectRef,
 		OwnerCapObjectId: in.CCIPOwnerCapObjectID,
-		Subjects:         subjectBytes,
+		Subjects:         subjectsToBytes(in.Subjects),
 	}
 
 	report, err := cldf_ops.ExecuteOperation(b, op, deps, opInput)
@@ -127,12 +129,6 @@ func executeFastCurse(
 		return sequences.OnChainOutput{}, fmt.Errorf("curser cap object id is required for fast curse sequence")
 	}
 
-	subjectBytes := make([][]byte, len(in.Subjects))
-	for i, subject := range in.Subjects {
-		s := subject
-		subjectBytes[i] = s[:]
-	}
-
 	deps := sui_ops.OpTxDeps{
 		Client: chain.Client,
 		Signer: chain.Signer,
@@ -147,7 +143,7 @@ func executeFastCurse(
 		CCIPPackageId:     in.CCIPAddress,
 		StateObjectId:     in.CCIPObjectRef,
 		CurserCapObjectId: in.CurserCapObjectID,
-		Subjects:          subjectBytes,
+		Subjects:          subjectsToBytes(in.Subjects),
 	})
 	if err != nil {
 		return sequences.OnChainOutput{}, fmt.Errorf("failed to execute fast curse on Sui chain %d: %w", in.ChainSelector, err)

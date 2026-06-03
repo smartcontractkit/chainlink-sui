@@ -47,6 +47,10 @@ const VERSION_1: u32 = 1;
 const U128_VALUE_256: u128 = 256;
 const U128_VALUE_100: u128 = 100;
 
+// CurserCap bootstrap / Path B staging
+const FAST_RECIPIENT: address = @0xF45CA;
+const WRONG_PINNED_ADDRESS: address = @0xBAD;
+
 // === Helper Functions ===
 
 fun set_up_test(): (Scenario, OwnerCap, CCIPObjectRef) {
@@ -672,6 +676,48 @@ public fun test_curse_with_curser_cap_function_not_allowed() {
 }
 
 #[test]
+public fun test_create_curser_cap_and_transfer_recipient_receives_cap() {
+    let (mut scenario, mut owner_cap, mut ref) = set_up_test();
+    let ctx = scenario.ctx();
+
+    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
+    rmn_remote::create_curser_cap_and_transfer(&mut ref, &owner_cap, FAST_RECIPIENT, ctx);
+
+    test_scenario::return_to_sender(&scenario, owner_cap);
+    test_scenario::return_shared(ref);
+    scenario.next_tx(FAST_RECIPIENT);
+    let curser_cap = scenario.take_from_sender<CurserCap>();
+    unit_test::destroy(curser_cap);
+
+    scenario.next_tx(ADMIN_ADDRESS);
+    owner_cap = scenario.take_from_sender<OwnerCap>();
+    ref = scenario.take_shared<CCIPObjectRef>();
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+#[test]
+#[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
+public fun test_create_curser_cap_and_transfer_function_not_allowed() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+    let ctx = scenario.ctx();
+
+    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
+
+    upgrade_registry::block_function(
+        &mut ref,
+        &owner_cap,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"create_curser_cap"),
+        1,
+        ctx,
+    );
+
+    rmn_remote::create_curser_cap_and_transfer(&mut ref, &owner_cap, FAST_RECIPIENT, ctx);
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+#[test]
 #[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
 public fun test_create_curser_cap_function_not_allowed() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
@@ -840,7 +886,13 @@ public fun test_mcms_curse_with_curser_cap_wrong_function_name() {
 
 // === Slow-MCMS bootstrap tests (two Registries) ===
 
-const FAST_RECIPIENT: address = @0xF45CA;
+fun append_pinned_obj_addrs(data: &mut vector<u8>, addrs: vector<address>) {
+    let mut i = 0;
+    while (i < addrs.length()) {
+        data.append(bcs::to_bytes(&addrs[i]));
+        i = i + 1;
+    };
+}
 
 /// Initializes CCIP, transfers `OwnerCap` into a SLOW MCMS Registry, then
 /// shares a second empty fast Registry to act as the FAST instance.
@@ -904,14 +956,58 @@ fun tear_down_slow_and_fast(
 }
 
 #[test]
-public fun test_mcms_create_curser_cap_succeeds() {
-    let (mut scenario, mut ref, mut slow_registry, fast_registry) = setup_slow_and_fast_registries();
+public fun test_mcms_create_curser_cap_and_transfer_succeeds() {
+    let (mut scenario, mut ref, mut slow_registry, mut fast_registry) = setup_slow_and_fast_registries();
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
     let mut data = vector::empty<u8>();
     data.append(bcs::to_bytes(&object::id_address(&ref)));
     data.append(bcs::to_bytes(&owner_cap_address));
+    data.append(bcs::to_bytes(&FAST_RECIPIENT));
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"create_curser_cap_and_transfer"),
+        data,
+        BATCH_ID_1,
+        0,
+        1,
+    );
+
+    rmn_remote::mcms_create_curser_cap_and_transfer(
+        &mut ref,
+        &mut slow_registry,
+        params,
+        scenario.ctx(),
+    );
+
+    test_scenario::return_shared(ref);
+    test_scenario::return_shared(slow_registry);
+    test_scenario::return_shared(fast_registry);
+    scenario.next_tx(FAST_RECIPIENT);
+    let curser_cap = scenario.take_from_sender<CurserCap>();
+    unit_test::destroy(curser_cap);
+
+    scenario.next_tx(ADMIN_ADDRESS);
+    ref = test_scenario::take_shared<CCIPObjectRef>(&scenario);
+    slow_registry = test_scenario::take_shared<Registry>(&scenario);
+    fast_registry = test_scenario::take_shared<FastRegistry>(&scenario);
+    tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
+}
+
+#[test]
+public fun test_mcms_create_curser_cap_succeeds() {
+    let (mut scenario, mut ref, mut slow_registry, fast_registry) = setup_slow_and_fast_registries();
+
+    let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
+
+    let mut data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut data,
+        vector[object::id_address(&ref), owner_cap_address],
+    );
 
     let params = mcms_registry::test_create_executing_callback_params(
         @ccip,
@@ -929,8 +1025,222 @@ public fun test_mcms_create_curser_cap_succeeds() {
         params,
         scenario.ctx(),
     );
+    unit_test::destroy(curser_cap);
 
-    sui::transfer::public_transfer(curser_cap, FAST_RECIPIENT);
+    tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
+}
+
+#[test]
+#[expected_failure(abort_code = rmn_remote::EInvalidFunction)]
+public fun test_mcms_create_curser_cap_wrong_function_name() {
+    let (mut scenario, mut ref, mut slow_registry, fast_registry) = setup_slow_and_fast_registries();
+
+    let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
+
+    let mut data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut data,
+        vector[object::id_address(&ref), owner_cap_address],
+    );
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"mint_and_register_curser_cap"),
+        data,
+        BATCH_ID_1,
+        0,
+        1,
+    );
+
+    let curser_cap = rmn_remote::mcms_create_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        params,
+        scenario.ctx(),
+    );
+    unit_test::destroy(curser_cap);
+
+    tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
+}
+
+#[test]
+#[expected_failure(abort_code = mcms::bcs_stream::EInvalidObjectAddress)]
+public fun test_mcms_create_curser_cap_wrong_ref_in_bcs() {
+    let (mut scenario, mut ref, mut slow_registry, fast_registry) = setup_slow_and_fast_registries();
+
+    let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
+
+    let mut data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut data,
+        vector[WRONG_PINNED_ADDRESS, owner_cap_address],
+    );
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"create_curser_cap"),
+        data,
+        BATCH_ID_1,
+        0,
+        1,
+    );
+
+    let curser_cap = rmn_remote::mcms_create_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        params,
+        scenario.ctx(),
+    );
+    unit_test::destroy(curser_cap);
+
+    tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
+}
+
+#[test]
+#[expected_failure(abort_code = rmn_remote::EInvalidFunction)]
+public fun test_mcms_create_curser_cap_and_transfer_wrong_function_name() {
+    let (mut scenario, mut ref, mut slow_registry, fast_registry) = setup_slow_and_fast_registries();
+
+    let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
+
+    let mut data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut data,
+        vector[object::id_address(&ref), owner_cap_address],
+    );
+    data.append(bcs::to_bytes(&FAST_RECIPIENT));
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"create_curser_cap"),
+        data,
+        BATCH_ID_1,
+        0,
+        1,
+    );
+
+    rmn_remote::mcms_create_curser_cap_and_transfer(
+        &mut ref,
+        &mut slow_registry,
+        params,
+        scenario.ctx(),
+    );
+
+    tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
+}
+
+#[test]
+#[expected_failure(abort_code = mcms::bcs_stream::EInvalidObjectAddress)]
+public fun test_mcms_create_curser_cap_and_transfer_wrong_owner_cap_in_bcs() {
+    let (mut scenario, mut ref, mut slow_registry, fast_registry) = setup_slow_and_fast_registries();
+
+    let mut data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut data,
+        vector[object::id_address(&ref), WRONG_PINNED_ADDRESS],
+    );
+    data.append(bcs::to_bytes(&FAST_RECIPIENT));
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"create_curser_cap_and_transfer"),
+        data,
+        BATCH_ID_1,
+        0,
+        1,
+    );
+
+    rmn_remote::mcms_create_curser_cap_and_transfer(
+        &mut ref,
+        &mut slow_registry,
+        params,
+        scenario.ctx(),
+    );
+
+    tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
+}
+
+#[test]
+public fun test_mcms_path_b_transfer_then_register_succeeds() {
+    let (mut scenario, mut ref, mut slow_registry, mut fast_registry) =
+        setup_slow_and_fast_registries();
+
+    let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
+
+    let mut transfer_data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut transfer_data,
+        vector[object::id_address(&ref), owner_cap_address],
+    );
+    transfer_data.append(bcs::to_bytes(&FAST_RECIPIENT));
+
+    let transfer_params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"create_curser_cap_and_transfer"),
+        transfer_data,
+        BATCH_ID_2,
+        0,
+        2,
+    );
+
+    rmn_remote::mcms_create_curser_cap_and_transfer(
+        &mut ref,
+        &mut slow_registry,
+        transfer_params,
+        scenario.ctx(),
+    );
+
+    test_scenario::return_shared(ref);
+    test_scenario::return_shared(slow_registry);
+    test_scenario::return_shared(fast_registry);
+    scenario.next_tx(FAST_RECIPIENT);
+
+    ref = test_scenario::take_shared<CCIPObjectRef>(&scenario);
+    slow_registry = test_scenario::take_shared<Registry>(&scenario);
+    fast_registry = test_scenario::take_shared<FastRegistry>(&scenario);
+    let curser_cap = scenario.take_from_sender<CurserCap>();
+    let curser_cap_address = object::id_address(&curser_cap);
+
+    let mut register_data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut register_data,
+        vector[
+            object::id_address(&ref),
+            owner_cap_address,
+            object::id_address(&fast_registry),
+            curser_cap_address,
+        ],
+    );
+
+    let register_params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"register_curser_cap"),
+        register_data,
+        BATCH_ID_2,
+        1,
+        2,
+    );
+
+    rmn_remote::mcms_register_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        &mut fast_registry,
+        register_params,
+        curser_cap,
+        scenario.ctx(),
+    );
+
+    let allowed = fast_mcms_registry::get_allowed_modules(
+        &fast_registry,
+        sui::address::to_ascii_string(@ccip),
+    );
+    assert!(allowed == vector[b"rmn_remote"]);
 
     tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
 }
@@ -969,6 +1279,7 @@ public fun test_mcms_register_curser_cap_succeeds() {
     register_data.append(bcs::to_bytes(&object::id_address(&ref)));
     register_data.append(bcs::to_bytes(&owner_cap_address));
     register_data.append(bcs::to_bytes(&object::id_address(&fast_registry)));
+    register_data.append(bcs::to_bytes(&object::id_address(&curser_cap)));
 
     let register_params = mcms_registry::test_create_executing_callback_params(
         @ccip,
@@ -994,6 +1305,246 @@ public fun test_mcms_register_curser_cap_succeeds() {
         sui::address::to_ascii_string(@ccip),
     );
     assert!(allowed == vector[b"rmn_remote"]);
+
+    tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
+}
+
+#[test]
+#[expected_failure(abort_code = rmn_remote::EInvalidFunction)]
+public fun test_mcms_register_curser_cap_wrong_function_name() {
+    let (mut scenario, mut ref, mut slow_registry, mut fast_registry) =
+        setup_slow_and_fast_registries();
+
+    let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
+
+    let mut create_data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut create_data,
+        vector[object::id_address(&ref), owner_cap_address],
+    );
+
+    let curser_cap = rmn_remote::mcms_create_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"rmn_remote"),
+            string::utf8(b"create_curser_cap"),
+            create_data,
+            BATCH_ID_3,
+            0,
+            2,
+        ),
+        scenario.ctx(),
+    );
+
+    let curser_cap_address = object::id_address(&curser_cap);
+    let mut register_data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut register_data,
+        vector[
+            object::id_address(&ref),
+            owner_cap_address,
+            object::id_address(&fast_registry),
+            curser_cap_address,
+        ],
+    );
+
+    let register_params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"mint_and_register_curser_cap"),
+        register_data,
+        BATCH_ID_3,
+        1,
+        2,
+    );
+
+    rmn_remote::mcms_register_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        &mut fast_registry,
+        register_params,
+        curser_cap,
+        scenario.ctx(),
+    );
+
+    tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
+}
+
+#[test]
+#[expected_failure(abort_code = mcms::bcs_stream::EInvalidObjectAddress)]
+public fun test_mcms_register_curser_cap_wrong_cap_id_in_bcs() {
+    let (mut scenario, mut ref, mut slow_registry, mut fast_registry) =
+        setup_slow_and_fast_registries();
+
+    let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
+
+    let mut create_data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut create_data,
+        vector[object::id_address(&ref), owner_cap_address],
+    );
+
+    let curser_cap = rmn_remote::mcms_create_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"rmn_remote"),
+            string::utf8(b"create_curser_cap"),
+            create_data,
+            BATCH_ID_4,
+            0,
+            2,
+        ),
+        scenario.ctx(),
+    );
+
+    let mut register_data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut register_data,
+        vector[
+            object::id_address(&ref),
+            owner_cap_address,
+            object::id_address(&fast_registry),
+            WRONG_PINNED_ADDRESS,
+        ],
+    );
+
+    let register_params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"register_curser_cap"),
+        register_data,
+        BATCH_ID_4,
+        1,
+        2,
+    );
+
+    rmn_remote::mcms_register_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        &mut fast_registry,
+        register_params,
+        curser_cap,
+        scenario.ctx(),
+    );
+
+    tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
+}
+
+#[test]
+#[expected_failure(abort_code = fast_mcms_registry::EPackageCapAlreadyRegistered)]
+public fun test_mcms_register_curser_cap_double_register_aborts() {
+    let (mut scenario, mut ref, mut slow_registry, mut fast_registry) =
+        setup_slow_and_fast_registries();
+
+    let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
+
+    let mut create_data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut create_data,
+        vector[object::id_address(&ref), owner_cap_address],
+    );
+
+    let curser_cap = rmn_remote::mcms_create_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"rmn_remote"),
+            string::utf8(b"create_curser_cap"),
+            create_data,
+            BATCH_ID_1,
+            0,
+            4,
+        ),
+        scenario.ctx(),
+    );
+
+    let curser_cap_address = object::id_address(&curser_cap);
+    let mut register_data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut register_data,
+        vector[
+            object::id_address(&ref),
+            owner_cap_address,
+            object::id_address(&fast_registry),
+            curser_cap_address,
+        ],
+    );
+
+    let register_params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"register_curser_cap"),
+        register_data,
+        BATCH_ID_1,
+        1,
+        4,
+    );
+
+    rmn_remote::mcms_register_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        &mut fast_registry,
+        register_params,
+        curser_cap,
+        scenario.ctx(),
+    );
+
+    let mut create_data2 = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut create_data2,
+        vector[object::id_address(&ref), owner_cap_address],
+    );
+
+    let curser_cap2 = rmn_remote::mcms_create_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"rmn_remote"),
+            string::utf8(b"create_curser_cap"),
+            create_data2,
+            BATCH_ID_1,
+            2,
+            4,
+        ),
+        scenario.ctx(),
+    );
+
+    let curser_cap2_address = object::id_address(&curser_cap2);
+    let mut register_data2 = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut register_data2,
+        vector[
+            object::id_address(&ref),
+            owner_cap_address,
+            object::id_address(&fast_registry),
+            curser_cap2_address,
+        ],
+    );
+
+    let register_params2 = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"register_curser_cap"),
+        register_data2,
+        BATCH_ID_1,
+        3,
+        4,
+    );
+
+    rmn_remote::mcms_register_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        &mut fast_registry,
+        register_params2,
+        curser_cap2,
+        scenario.ctx(),
+    );
 
     tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
 }
@@ -1033,6 +1584,142 @@ public fun test_mcms_mint_and_register_curser_cap_succeeds() {
         sui::address::to_ascii_string(@ccip),
     );
     assert!(allowed == vector[b"rmn_remote"]);
+
+    tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
+}
+
+#[test]
+#[expected_failure(abort_code = rmn_remote::EInvalidFunction)]
+public fun test_mcms_mint_and_register_curser_cap_wrong_function_name() {
+    let (mut scenario, mut ref, mut slow_registry, mut fast_registry) =
+        setup_slow_and_fast_registries();
+
+    let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
+
+    let mut data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut data,
+        vector[
+            object::id_address(&ref),
+            owner_cap_address,
+            object::id_address(&fast_registry),
+        ],
+    );
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"register_curser_cap"),
+        data,
+        BATCH_ID_4,
+        0,
+        1,
+    );
+
+    rmn_remote::mcms_mint_and_register_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        &mut fast_registry,
+        params,
+        scenario.ctx(),
+    );
+
+    tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
+}
+
+#[test]
+#[expected_failure(abort_code = mcms::bcs_stream::EInvalidObjectAddress)]
+public fun test_mcms_mint_and_register_curser_cap_wrong_fast_registry_in_bcs() {
+    let (mut scenario, mut ref, mut slow_registry, mut fast_registry) =
+        setup_slow_and_fast_registries();
+
+    let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
+
+    let mut data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut data,
+        vector[object::id_address(&ref), owner_cap_address, WRONG_PINNED_ADDRESS],
+    );
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"mint_and_register_curser_cap"),
+        data,
+        BATCH_ID_4,
+        0,
+        1,
+    );
+
+    rmn_remote::mcms_mint_and_register_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        &mut fast_registry,
+        params,
+        scenario.ctx(),
+    );
+
+    tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
+}
+
+#[test]
+public fun test_mcms_mint_and_register_then_curse_via_fast_registry() {
+    let (mut scenario, mut ref, mut slow_registry, mut fast_registry) =
+        setup_slow_and_fast_registries();
+
+    let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
+
+    let mut bootstrap_data = vector::empty<u8>();
+    append_pinned_obj_addrs(
+        &mut bootstrap_data,
+        vector[
+            object::id_address(&ref),
+            owner_cap_address,
+            object::id_address(&fast_registry),
+        ],
+    );
+
+    let bootstrap_params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"mint_and_register_curser_cap"),
+        bootstrap_data,
+        BATCH_ID_4,
+        0,
+        1,
+    );
+
+    rmn_remote::mcms_mint_and_register_curser_cap(
+        &mut ref,
+        &mut slow_registry,
+        &mut fast_registry,
+        bootstrap_params,
+        scenario.ctx(),
+    );
+
+    let curser_cap_address = fast_mcms_registry::test_get_cap_address<CurserCap>(
+        &fast_registry,
+        sui::address::to_ascii_string(@ccip),
+    );
+    let curser_cap_id = sui::object::id_from_address(curser_cap_address);
+
+    let mut curse_data = vector::empty<u8>();
+    curse_data.append(bcs::to_bytes(&object::id_address(&ref)));
+    curse_data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
+    curse_data.append(bcs::to_bytes(&SUBJECT_1));
+
+    let curse_params = fast_mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"curse_with_curser_cap"),
+        curse_data,
+        BATCH_ID_1,
+        0,
+        1,
+    );
+
+    rmn_remote::mcms_curse_with_curser_cap(&mut ref, &mut fast_registry, curse_params);
+    assert!(rmn_remote::is_cursed(&ref, SUBJECT_1));
 
     tear_down_slow_and_fast(scenario, ref, slow_registry, fast_registry);
 }
