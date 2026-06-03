@@ -9,6 +9,7 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -131,6 +132,101 @@ type MCMS_USER struct {
 }
 
 type SampleMcmsCallback struct {
+}
+
+type bcsUserData struct {
+	Id           string
+	Invocations  byte
+	A            string
+	B            []byte
+	C            [32]byte
+	D            [16]byte
+	OwnableState bind.Object
+}
+
+func convertUserDataFromBCS(bcs bcsUserData) (UserData, error) {
+	DField, err := bind.DecodeU128Value(bcs.D)
+	if err != nil {
+		return UserData{}, fmt.Errorf("failed to decode u128 field D: %w", err)
+	}
+
+	return UserData{
+		Id:           bcs.Id,
+		Invocations:  bcs.Invocations,
+		A:            bcs.A,
+		B:            bcs.B,
+		C:            fmt.Sprintf("0x%x", bcs.C),
+		D:            DField,
+		OwnableState: bcs.OwnableState,
+	}, nil
+}
+
+func init() {
+	bind.RegisterStructDecoder("mcms_test::mcms_user::UserData", func(data []byte) (interface{}, error) {
+		var temp bcsUserData
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertUserDataFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for UserData
+	bind.RegisterStructDecoder("vector<mcms_test::mcms_user::UserData>", func(data []byte) (interface{}, error) {
+		var temps []bcsUserData
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]UserData, len(temps))
+		for i, temp := range temps {
+			result, err := convertUserDataFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("mcms_test::mcms_user::MCMS_USER", func(data []byte) (interface{}, error) {
+		var result MCMS_USER
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for MCMS_USER
+	bind.RegisterStructDecoder("vector<mcms_test::mcms_user::MCMS_USER>", func(data []byte) (interface{}, error) {
+		var results []MCMS_USER
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("mcms_test::mcms_user::SampleMcmsCallback", func(data []byte) (interface{}, error) {
+		var result SampleMcmsCallback
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for SampleMcmsCallback
+	bind.RegisterStructDecoder("vector<mcms_test::mcms_user::SampleMcmsCallback>", func(data []byte) (interface{}, error) {
+		var results []SampleMcmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.

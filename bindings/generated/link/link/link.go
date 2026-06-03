@@ -9,6 +9,7 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -79,6 +80,26 @@ func (c *LinkContract) DevInspect() ILinkDevInspect {
 }
 
 type LINK struct {
+}
+
+func init() {
+	bind.RegisterStructDecoder("link::link::LINK", func(data []byte) (interface{}, error) {
+		var result LINK
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for LINK
+	bind.RegisterStructDecoder("vector<link::link::LINK>", func(data []byte) (interface{}, error) {
+		var results []LINK
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // MintAndTransfer executes the mint_and_transfer Move function.

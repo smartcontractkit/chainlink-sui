@@ -22,6 +22,20 @@ func RegisterStructDecoder(moveType string, decoder bcsStructDecoder) {
 	bcsStructDecoders[moveType] = decoder
 }
 
+// DecodeU256Value decodes a 32-byte little-endian BCS u256 into *big.Int.
+func DecodeU256Value(bcsBytes [32]byte) (*big.Int, error) {
+	result := new(big.Int)
+	result.SetBytes(reverseBytes(bcsBytes[:]))
+	return result, nil
+}
+
+// DecodeU128Value decodes a 16-byte little-endian BCS u128 into *big.Int.
+func DecodeU128Value(bcsBytes [16]byte) (*big.Int, error) {
+	result := new(big.Int)
+	result.SetBytes(reverseBytes(bcsBytes[:]))
+	return result, nil
+}
+
 // DeserializeBCS decodes BCS-encoded transaction calldata (used by MCMS proposal decoding).
 func DeserializeBCS(data []byte, moveTypes []string) ([]any, error) {
 	reader := bytes.NewReader(data)

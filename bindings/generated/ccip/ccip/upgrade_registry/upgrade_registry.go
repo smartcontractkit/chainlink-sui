@@ -9,6 +9,7 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -137,6 +138,111 @@ type UpgradeRegistry struct {
 }
 
 type McmsCallback struct {
+}
+
+func init() {
+	bind.RegisterStructDecoder("ccip::upgrade_registry::VersionBlocked", func(data []byte) (interface{}, error) {
+		var result VersionBlocked
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for VersionBlocked
+	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::VersionBlocked>", func(data []byte) (interface{}, error) {
+		var results []VersionBlocked
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip::upgrade_registry::VersionUnblocked", func(data []byte) (interface{}, error) {
+		var result VersionUnblocked
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for VersionUnblocked
+	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::VersionUnblocked>", func(data []byte) (interface{}, error) {
+		var results []VersionUnblocked
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip::upgrade_registry::FunctionBlocked", func(data []byte) (interface{}, error) {
+		var result FunctionBlocked
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for FunctionBlocked
+	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::FunctionBlocked>", func(data []byte) (interface{}, error) {
+		var results []FunctionBlocked
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip::upgrade_registry::FunctionUnblocked", func(data []byte) (interface{}, error) {
+		var result FunctionUnblocked
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for FunctionUnblocked
+	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::FunctionUnblocked>", func(data []byte) (interface{}, error) {
+		var results []FunctionUnblocked
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip::upgrade_registry::UpgradeRegistry", func(data []byte) (interface{}, error) {
+		var result UpgradeRegistry
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for UpgradeRegistry
+	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::UpgradeRegistry>", func(data []byte) (interface{}, error) {
+		var results []UpgradeRegistry
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip::upgrade_registry::McmsCallback", func(data []byte) (interface{}, error) {
+		var result McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for McmsCallback
+	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::McmsCallback>", func(data []byte) (interface{}, error) {
+		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // Initialize executes the initialize Move function.

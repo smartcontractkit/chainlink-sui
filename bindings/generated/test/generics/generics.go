@@ -9,6 +9,7 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -116,6 +117,60 @@ type Token struct {
 type Pair struct {
 	First  bind.Object `move:"T"`
 	Second bind.Object `move:"U"`
+}
+
+func init() {
+	bind.RegisterStructDecoder("test::generics::Box", func(data []byte) (interface{}, error) {
+		var result Box
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for Box
+	bind.RegisterStructDecoder("vector<test::generics::Box>", func(data []byte) (interface{}, error) {
+		var results []Box
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("test::generics::Token", func(data []byte) (interface{}, error) {
+		var result Token
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for Token
+	bind.RegisterStructDecoder("vector<test::generics::Token>", func(data []byte) (interface{}, error) {
+		var results []Token
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("test::generics::Pair", func(data []byte) (interface{}, error) {
+		var result Pair
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for Pair
+	bind.RegisterStructDecoder("vector<test::generics::Pair>", func(data []byte) (interface{}, error) {
+		var results []Pair
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // CreateBox executes the create_box Move function.

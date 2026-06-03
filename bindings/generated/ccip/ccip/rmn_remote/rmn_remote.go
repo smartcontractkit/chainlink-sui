@@ -9,6 +9,7 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -704,9 +705,9 @@ func (d *RmnRemoteDevInspect) CreateCurserCap(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -814,9 +815,9 @@ func (d *RmnRemoteDevInspect) McmsCreateCurserCap(ctx context.Context, opts *bin
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

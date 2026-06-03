@@ -9,6 +9,7 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -93,6 +94,43 @@ type NonceManagerCap struct {
 type NonceManagerState struct {
 	Id             string      `move:"sui::object::UID"`
 	OutboundNonces bind.Object `move:"Table<u64, Table<address, u64>>"`
+}
+
+func init() {
+	bind.RegisterStructDecoder("ccip::nonce_manager::NonceManagerCap", func(data []byte) (interface{}, error) {
+		var result NonceManagerCap
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for NonceManagerCap
+	bind.RegisterStructDecoder("vector<ccip::nonce_manager::NonceManagerCap>", func(data []byte) (interface{}, error) {
+		var results []NonceManagerCap
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip::nonce_manager::NonceManagerState", func(data []byte) (interface{}, error) {
+		var result NonceManagerState
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for NonceManagerState
+	bind.RegisterStructDecoder("vector<ccip::nonce_manager::NonceManagerState>", func(data []byte) (interface{}, error) {
+		var results []NonceManagerState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.

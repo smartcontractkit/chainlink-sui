@@ -9,6 +9,7 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -116,6 +117,185 @@ type UpgradeReceiptCommitted struct {
 }
 
 type MCMS_DEPLOYER struct {
+}
+
+type bcsUpgradeCapRegistered struct {
+	PrevOwner      [32]byte
+	PackageAddress [32]byte
+	Version        uint64
+	Policy         byte
+}
+
+func convertUpgradeCapRegisteredFromBCS(bcs bcsUpgradeCapRegistered) (UpgradeCapRegistered, error) {
+
+	return UpgradeCapRegistered{
+		PrevOwner:      fmt.Sprintf("0x%x", bcs.PrevOwner),
+		PackageAddress: fmt.Sprintf("0x%x", bcs.PackageAddress),
+		Version:        bcs.Version,
+		Policy:         bcs.Policy,
+	}, nil
+}
+
+type bcsUpgradeTicketAuthorized struct {
+	PackageAddress [32]byte
+	Policy         byte
+	Digest         []byte
+}
+
+func convertUpgradeTicketAuthorizedFromBCS(bcs bcsUpgradeTicketAuthorized) (UpgradeTicketAuthorized, error) {
+
+	return UpgradeTicketAuthorized{
+		PackageAddress: fmt.Sprintf("0x%x", bcs.PackageAddress),
+		Policy:         bcs.Policy,
+		Digest:         bcs.Digest,
+	}, nil
+}
+
+type bcsUpgradeReceiptCommitted struct {
+	OldPackageAddress [32]byte
+	NewPackageAddress [32]byte
+	OldVersion        uint64
+	NewVersion        uint64
+}
+
+func convertUpgradeReceiptCommittedFromBCS(bcs bcsUpgradeReceiptCommitted) (UpgradeReceiptCommitted, error) {
+
+	return UpgradeReceiptCommitted{
+		OldPackageAddress: fmt.Sprintf("0x%x", bcs.OldPackageAddress),
+		NewPackageAddress: fmt.Sprintf("0x%x", bcs.NewPackageAddress),
+		OldVersion:        bcs.OldVersion,
+		NewVersion:        bcs.NewVersion,
+	}, nil
+}
+
+func init() {
+	bind.RegisterStructDecoder("mcms::mcms_deployer::DeployerState", func(data []byte) (interface{}, error) {
+		var result DeployerState
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for DeployerState
+	bind.RegisterStructDecoder("vector<mcms::mcms_deployer::DeployerState>", func(data []byte) (interface{}, error) {
+		var results []DeployerState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_deployer::UpgradeCapRegistered", func(data []byte) (interface{}, error) {
+		var temp bcsUpgradeCapRegistered
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertUpgradeCapRegisteredFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for UpgradeCapRegistered
+	bind.RegisterStructDecoder("vector<mcms::mcms_deployer::UpgradeCapRegistered>", func(data []byte) (interface{}, error) {
+		var temps []bcsUpgradeCapRegistered
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]UpgradeCapRegistered, len(temps))
+		for i, temp := range temps {
+			result, err := convertUpgradeCapRegisteredFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_deployer::UpgradeTicketAuthorized", func(data []byte) (interface{}, error) {
+		var temp bcsUpgradeTicketAuthorized
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertUpgradeTicketAuthorizedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for UpgradeTicketAuthorized
+	bind.RegisterStructDecoder("vector<mcms::mcms_deployer::UpgradeTicketAuthorized>", func(data []byte) (interface{}, error) {
+		var temps []bcsUpgradeTicketAuthorized
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]UpgradeTicketAuthorized, len(temps))
+		for i, temp := range temps {
+			result, err := convertUpgradeTicketAuthorizedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_deployer::UpgradeReceiptCommitted", func(data []byte) (interface{}, error) {
+		var temp bcsUpgradeReceiptCommitted
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertUpgradeReceiptCommittedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for UpgradeReceiptCommitted
+	bind.RegisterStructDecoder("vector<mcms::mcms_deployer::UpgradeReceiptCommitted>", func(data []byte) (interface{}, error) {
+		var temps []bcsUpgradeReceiptCommitted
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]UpgradeReceiptCommitted, len(temps))
+		for i, temp := range temps {
+			result, err := convertUpgradeReceiptCommittedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_deployer::MCMS_DEPLOYER", func(data []byte) (interface{}, error) {
+		var result MCMS_DEPLOYER
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for MCMS_DEPLOYER
+	bind.RegisterStructDecoder("vector<mcms::mcms_deployer::MCMS_DEPLOYER>", func(data []byte) (interface{}, error) {
+		var results []MCMS_DEPLOYER
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // RegisterUpgradeCap executes the register_upgrade_cap Move function.
