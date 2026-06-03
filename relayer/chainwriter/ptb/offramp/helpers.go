@@ -2,6 +2,7 @@ package offramp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -139,7 +140,7 @@ type SuiArgumentMetadata struct {
 
 func decodeParam(lggr logger.Logger, param any, reference string) (SuiArgumentMetadata, error) {
 	if param == nil {
-		return SuiArgumentMetadata{}, fmt.Errorf("nil parameter")
+		return SuiArgumentMetadata{}, errors.New("nil parameter")
 	}
 
 	// Handle primitive types (strings like "U64", "Bool", etc.)
@@ -166,7 +167,7 @@ func decodeParam(lggr logger.Logger, param any, reference string) (SuiArgumentMe
 		case "Reference", "MutableReference", "Vector":
 			return decodeParam(lggr, v, k)
 		case "TypeParameter":
-			return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: TypeParameter (generic parameters are not supported)")
+			return SuiArgumentMetadata{}, errors.New("unsupported ABI shape: TypeParameter (generic parameters are not supported)")
 		default:
 			vMap, ok := v.(map[string]any)
 			if !ok {
@@ -198,21 +199,21 @@ func decodeParam(lggr logger.Logger, param any, reference string) (SuiArgumentMe
 			}, nil
 		}
 	}
-	return SuiArgumentMetadata{}, fmt.Errorf("empty parameter map")
+	return SuiArgumentMetadata{}, errors.New("empty parameter map")
 }
 
 func decodeStructParam(lggr logger.Logger, v any, reference string) (SuiArgumentMetadata, error) {
 	s, ok := v.(map[string]any)
 	if !ok {
-		return SuiArgumentMetadata{}, fmt.Errorf("Struct value is %T, expected map[string]any", v)
+		return SuiArgumentMetadata{}, fmt.Errorf("struct value is %T, expected map[string]any", v)
 	}
 	typeArguments, err := decodeTypeArguments(s)
 	if err != nil {
-		return SuiArgumentMetadata{}, fmt.Errorf("Struct: %w", err)
+		return SuiArgumentMetadata{}, fmt.Errorf("struct: %w", err)
 	}
 	address, module, name, err := extractStructFields(s)
 	if err != nil {
-		return SuiArgumentMetadata{}, fmt.Errorf("Struct: %w", err)
+		return SuiArgumentMetadata{}, fmt.Errorf("struct: %w", err)
 	}
 	return SuiArgumentMetadata{
 		Address:       address,
@@ -255,7 +256,7 @@ func decodeTypeArguments(s map[string]any) ([]TypeParameter, error) {
 func extractStructFields(s map[string]any) (address, module, name string, err error) {
 	addrRaw, ok := s["address"]
 	if !ok {
-		return "", "", "", fmt.Errorf("missing field \"address\"")
+		return "", "", "", errors.New("missing field \"address\"")
 	}
 	address, ok = addrRaw.(string)
 	if !ok {
@@ -263,7 +264,7 @@ func extractStructFields(s map[string]any) (address, module, name string, err er
 	}
 	modRaw, ok := s["module"]
 	if !ok {
-		return "", "", "", fmt.Errorf("missing field \"module\"")
+		return "", "", "", errors.New("missing field \"module\"")
 	}
 	module, ok = modRaw.(string)
 	if !ok {
@@ -271,7 +272,7 @@ func extractStructFields(s map[string]any) (address, module, name string, err er
 	}
 	nameRaw, ok := s["name"]
 	if !ok {
-		return "", "", "", fmt.Errorf("missing field \"name\"")
+		return "", "", "", errors.New("missing field \"name\"")
 	}
 	name, ok = nameRaw.(string)
 	if !ok {
@@ -340,13 +341,13 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 	parametersRaw, exists := function[key]
 	if !exists || parametersRaw == nil {
 		lggr.Errorw("key field is missing or nil", "function", function, "key", key)
-		return nil, fmt.Errorf("key field is missing or nil")
+		return nil, errors.New("key field is missing or nil")
 	}
 
 	parameters, ok := parametersRaw.([]any)
 	if !ok {
 		lggr.Errorw("key field is not an array", "parametersRaw", parametersRaw, "key", key)
-		return nil, fmt.Errorf("key field is not an array")
+		return nil, errors.New("key field is not an array")
 	}
 
 	lggr.Debugw("Raw parameters", "parameters", parameters, "key", key)

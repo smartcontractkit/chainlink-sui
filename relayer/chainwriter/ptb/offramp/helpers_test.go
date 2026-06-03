@@ -3,9 +3,10 @@ package offramp
 import (
 	"testing"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
 func TestDecodeParam_PoisonABI_TypeParameter(t *testing.T) {
@@ -36,7 +37,7 @@ func TestDecodeParam_PoisonABI_TypeParameter(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := decodeParam(lggr, tc.param, "Reference")
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), "TypeParameter")
 			assert.Equal(t, SuiArgumentMetadata{}, result)
 		})
@@ -104,7 +105,7 @@ func TestDecodeParam_MalformedInput_NoP(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.NotPanics(t, func() {
 				_, err := decodeParam(lggr, tc.param, "Reference")
-				assert.Error(t, err, "expected error for input: %v", tc.param)
+				require.Error(t, err, "expected error for input: %v", tc.param)
 			})
 		})
 	}
@@ -229,7 +230,7 @@ func TestDecodeParameters_PoisonABI_ReturnsError(t *testing.T) {
 
 	assert.NotPanics(t, func() {
 		result, err := DecodeParameters(lggr, function, "parameters")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "TypeParameter")
 	})
@@ -281,7 +282,7 @@ func TestDecodeParameters_MissingKey(t *testing.T) {
 	function := map[string]any{"return": []any{}}
 
 	result, err := DecodeParameters(lggr, function, "parameters")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, result)
 }
 
@@ -291,6 +292,6 @@ func TestDecodeParameters_NilValue(t *testing.T) {
 	function := map[string]any{"parameters": nil}
 
 	result, err := DecodeParameters(lggr, function, "parameters")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, result)
 }
