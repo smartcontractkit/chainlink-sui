@@ -86,6 +86,25 @@ var PointerConfigs = map[string][]PointerConfig{
 	},
 }
 
+var StateObjectNameByModule = map[string]string{
+	"offramp":                 "OffRampState",
+	"onramp":                  "OnRampState",
+	"state_object":            "CCIPObjectRef",
+	"router":                  "RouterState",
+	"burn_mint_token_pool":    "BurnMintTokenPoolState",
+	"lock_release_token_pool": "LockReleaseTokenPoolState",
+	"managed_token_pool":      "ManagedTokenPoolState",
+	"usdc_token_pool":         "USDCTokenPoolState",
+	"counter":                 "Counter",
+}
+
+func GetStateObjectNameByModule(module string) string {
+	if name, ok := StateObjectNameByModule[module]; ok {
+		return name
+	}
+	return ""
+}
+
 func GetParentFieldName(pointerName string) string {
 	for _, configs := range PointerConfigs {
 		for _, config := range configs {

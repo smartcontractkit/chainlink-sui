@@ -14,10 +14,10 @@ var _ cldf.ChangeSetV2[RegisterUpgradeCapConfig] = RegisterUpgradeCap{}
 
 // RegisterUpgradeCapConfig contains the configuration for registering a package upgrade capability
 type RegisterUpgradeCapConfig struct {
-	ChainSelector         uint64 `json:"chainSelector" validate:"required"`
-	PackageName           string `json:"packageName" validate:"required"`
-	PackageID             string `json:"packageID" validate:"required"`
-	UpgradeCapID          string `json:"upgradeCapID" validate:"required"`
+	ChainSelector uint64 `json:"chainSelector" validate:"required"`
+	PackageName   string `json:"packageName" validate:"required"`
+	PackageID     string `json:"packageID" validate:"required"`
+	UpgradeCapID  string `json:"upgradeCapID" validate:"required"`
 	// MCMS details
 	MCMSPackageID         string `json:"mcmsPackageID" validate:"required"`
 	RegistryObjectID      string `json:"registryObjectID" validate:"required"`

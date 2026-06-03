@@ -51,7 +51,7 @@ func TestLoopChainReaderLocal(t *testing.T) {
 
 	log.Debugw("Started Sui node")
 
-	runLoopChainReaderEchoTest(t, log, testutils.LocalUrl)
+	runLoopChainReaderEchoTest(t, log, testutils.LocalGrpcURL)
 }
 
 func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) {
@@ -61,7 +61,14 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	keystoreInstance := testutils.NewTestKeystore(t)
 	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
-	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	relayerClient, clientErr := client.NewPTBClient(log, client.PTBClientConfig{
+		GrpcTarget:            rpcUrl,
+		GrpcToken:             "test",
+		TransactionTimeout:    10 * time.Second,
+		MaxConcurrentRequests: 5,
+		KeystoreService:       keystoreInstance,
+		DefaultRequestType:    client.TransactionRequestType("WaitForLocalExecution"),
+	})
 	require.NoError(t, clientErr)
 
 	faucetFundErr := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
@@ -210,12 +217,12 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			},
 		},
 		EventsIndexer: config.EventsIndexerConfig{
-			PollingInterval: 10 * time.Second,
-			SyncTimeout:     30 * time.Second,
+			PollingInterval: 2 * time.Second,
+			SyncTimeout:     60 * time.Second,
 		},
 		TransactionsIndexer: config.TransactionsIndexerConfig{
-			PollingInterval: 10 * time.Second,
-			SyncTimeout:     30 * time.Second,
+			PollingInterval: 2 * time.Second,
+			SyncTimeout:     60 * time.Second,
 		},
 	}
 
@@ -240,24 +247,28 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
 		log,
-		relayerClient,
-		chainReaderConfigs.TransactionsIndexer.PollingInterval,
-		chainReaderConfigs.TransactionsIndexer.SyncTimeout,
-		// start without any configs, they will be set when ChainReader is initialized and gets a reference
-		// to the transaction indexer to avoid having to reading ChainReader configs here as well
 		map[string]*config.ChainReaderEvent{},
 	)
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		log,
-		relayerClient,
-		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
-		chainReaderConfigs.EventsIndexer.PollingInterval,
-		chainReaderConfigs.EventsIndexer.SyncTimeout,
 	)
+
+	chainPoller := indexer.NewChainPoller(
+		relayerClient,
+		log,
+		config.ChainPollerConfig{
+			PollingInterval:         1 * time.Second,
+			SyncTimeout:             60 * time.Second,
+			BackfillCheckpointCount: testutils.Uint64Pointer(uint64(1)),
+		},
+		evIndexer.GetEventSelectors,
+	)
+
 	indexerInstance := indexer.NewIndexer(
 		log,
+		chainPoller,
 		evIndexer,
 		txnIndexer,
 	)
@@ -423,17 +434,21 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			//nolint:govet
 			var err error
 
+			evIndexer.AddEventSelector(ctx, &client.EventSelector{
+				Package: packageId,
+				Module:  "echo",
+				Event:   "SingleValueEvent",
+			})
+
 			// Use relayerClient to call increment instead of using CLI
 			moveCallReq := client.MoveCallRequest{
 				Signer:          accountAddress,
 				PackageObjectId: packageId,
 				Module:          "echo",
 				Function:        "simple_event_echo",
-				TypeArguments: []any{
-					"u64",
-				},
+				TypeArguments:   []any{},
 				Arguments: []any{
-					fmt.Sprintf("%d", testNumber),
+					uint64(testNumber),
 				},
 				GasBudget: 2000000,
 			}
@@ -443,8 +458,15 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			txMetadata, err := relayerClient.MoveCall(ctx, moveCallReq)
 			require.NoError(t, err)
 
-			_, err = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+			txResponse, err := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
 			require.NoError(t, err)
+
+			// Make sure the transaction succeeded to make sure the event is indexed
+			require.Eventually(t, func() bool {
+				status, err := relayerClient.GetTransactionStatus(ctx, txResponse.Transaction.GetDigest())
+				log.Debugw("Transaction status for SingleValueEvent", "status", status, "error", err)
+				return err == nil && status.Status == "success"
+			}, 30*time.Second, 1*time.Second)
 
 			require.Eventually(t, func() bool {
 				sequences, err = loopReader.QueryKey(
@@ -464,7 +486,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 				}
 
 				return err == nil && len(sequences) > 0
-			}, 30*time.Second, 1*time.Second)
+			}, 60*time.Second, 1*time.Second)
 
 			require.NoError(t, err)
 			require.NotEmpty(t, sequences, "Expected to find SingleValueEvent")

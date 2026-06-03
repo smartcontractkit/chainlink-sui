@@ -5,11 +5,14 @@ package txm
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"sort"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 )
 
 // broadcastLoop is the main goroutine responsible for processing transactions from the broadcast channel
@@ -59,21 +62,34 @@ func (txm *SuiTxm) broadcastLoop() {
 func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []SuiTx) {
 	for _, tx := range transactions {
 		// Process the transaction for broadcasting
-		payload := client.TransactionBlockRequest{
-			TxBytes:    tx.Payload,
-			Signatures: tx.Signatures,
-			Options: client.TransactionBlockOptions{
-				ShowInput:          true,
-				ShowRawInput:       true,
-				ShowEffects:        true,
-				ShowObjectChanges:  true,
-				ShowBalanceChanges: true,
-				ShowEvents:         true,
-			},
-			RequestType: tx.RequestType,
+		signatures := []*suirpcv2.UserSignature{}
+		for _, signature := range tx.Signatures {
+			signatureBytes, err := base64.StdEncoding.DecodeString(signature)
+			if err != nil {
+				txm.lggr.Errorw("Failed to decode signature", "txID", tx.TransactionID, "error", err)
+				continue
+			}
+
+			signatures = append(signatures, &suirpcv2.UserSignature{
+				Bcs: &suirpcv2.Bcs{Value: signatureBytes},
+			})
 		}
 
-		txm.lggr.Infow("Broadcasting transaction", "txID", tx.TransactionID, "payload", tx)
+		payloadBytes, err := base64.StdEncoding.DecodeString(tx.Payload)
+		if err != nil {
+			txm.lggr.Errorw("Failed to decode payload", "txID", tx.TransactionID, "error", err)
+			continue
+		}
+
+		payload := &suirpcv2.ExecuteTransactionRequest{
+			Transaction: &suirpcv2.Transaction{Bcs: &suirpcv2.Bcs{Value: payloadBytes}},
+			Signatures:  signatures,
+			ReadMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"transaction", "digest", "effects.digest", "effects.status", "effects.gas_used"},
+			},
+		}
+
+		txm.lggr.Infow("Broadcasting transaction", "txID", tx.TransactionID)
 
 		resp, err := txm.suiGateway.SendTransaction(loopCtx, payload)
 
@@ -85,6 +101,13 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 			txm.lggr.Errorw("Failed to increment transaction attempts", "txID", tx.TransactionID, "error", attemptErr)
 			continue
 		}
+
+		// If the error is at the tranaction level (submitted but rejected by the node), set it
+		// as the error message
+		if err == nil && resp.GetTransaction().GetEffects().GetStatus().GetError() != nil {
+			err = fmt.Errorf("transaction failed with error: %s", resp.GetTransaction().GetEffects().GetStatus().GetError().GetDescription())
+		}
+
 		if err != nil {
 			// In the case there is an error submitting
 			txm.lggr.Errorw("Failed to broadcast transaction", "txID", tx.TransactionID, "function inputs", tx.Functions, "error", err)
@@ -92,18 +115,11 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 			// Default to retrying the transaction
 			newState := StateRetriable
 
-			// Attach the transaction submission error to the transaction object. If it remains marked as retriable, 
+			// Attach the transaction submission error to the transaction object. If it remains marked as retriable,
 			// the "confirmer" loop will pick it up and potentially retry it.
 			err = txm.transactionRepository.UpdateTransactionBroadcastError(tx.TransactionID, err.Error())
 			if err != nil {
 				txm.lggr.Errorw("Failed to update transaction broadcast error", "txID", tx.TransactionID, "error", err)
-			}
-
-			if resp.Effects.Status.Status != "" && resp.TxDigest == "" {
-				// Update the transaction state to Failed if the digest is empty
-				// An empty digest indicates a total failure of the transaction
-				txm.lggr.Errorw("Transaction failed without a digest", "txID", tx.TransactionID, "function inputs", tx.Functions)
-				newState = StateFailed
 			}
 
 			// Attempt updating the state if it has changed
@@ -118,7 +134,7 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 		}
 		txm.lggr.Infow("Transaction broadcasted", "response", resp, "txID", tx.TransactionID)
 
-		err = txm.transactionRepository.UpdateTransactionDigest(tx.TransactionID, resp.TxDigest)
+		err = txm.transactionRepository.UpdateTransactionDigest(tx.TransactionID, resp.GetTransaction().GetDigest())
 		if err != nil {
 			txm.lggr.Errorw("Failed to update transaction digest", "txID", tx.TransactionID, "error", err)
 			continue

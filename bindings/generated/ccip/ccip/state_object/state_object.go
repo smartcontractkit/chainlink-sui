@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -138,8 +137,8 @@ type StateObjectDevInspect struct {
 var _ IStateObject = (*StateObjectContract)(nil)
 var _ IStateObjectDevInspect = (*StateObjectDevInspect)(nil)
 
-func NewStateObject(packageID string, client sui.ISuiAPI) (IStateObject, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "state_object", client)
+func NewStateObject(packageID string, chainClient client.BindingsClient) (IStateObject, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip", "state_object", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -186,173 +185,6 @@ type McmsCallback struct {
 }
 
 type McmsAcceptOwnershipProof struct {
-}
-
-type bcsCCIPObjectRef struct {
-	Id           string
-	PackageIds   [][32]byte
-	OwnableState bind.Object
-}
-
-func convertCCIPObjectRefFromBCS(bcs bcsCCIPObjectRef) (CCIPObjectRef, error) {
-
-	return CCIPObjectRef{
-		Id: bcs.Id,
-		PackageIds: func() []string {
-			addrs := make([]string, len(bcs.PackageIds))
-			for i, addr := range bcs.PackageIds {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		OwnableState: bcs.OwnableState,
-	}, nil
-}
-
-type bcsCCIPObjectRefPointer struct {
-	Id           string
-	CcipObjectId [32]byte
-}
-
-func convertCCIPObjectRefPointerFromBCS(bcs bcsCCIPObjectRefPointer) (CCIPObjectRefPointer, error) {
-
-	return CCIPObjectRefPointer{
-		Id:           bcs.Id,
-		CcipObjectId: fmt.Sprintf("0x%x", bcs.CcipObjectId),
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip::state_object::CCIPObject", func(data []byte) (interface{}, error) {
-		var result CCIPObject
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CCIPObject
-	bind.RegisterStructDecoder("vector<ccip::state_object::CCIPObject>", func(data []byte) (interface{}, error) {
-		var results []CCIPObject
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::state_object::CCIPObjectRef", func(data []byte) (interface{}, error) {
-		var temp bcsCCIPObjectRef
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertCCIPObjectRefFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CCIPObjectRef
-	bind.RegisterStructDecoder("vector<ccip::state_object::CCIPObjectRef>", func(data []byte) (interface{}, error) {
-		var temps []bcsCCIPObjectRef
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]CCIPObjectRef, len(temps))
-		for i, temp := range temps {
-			result, err := convertCCIPObjectRefFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::state_object::CCIPObjectRefPointer", func(data []byte) (interface{}, error) {
-		var temp bcsCCIPObjectRefPointer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertCCIPObjectRefPointerFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CCIPObjectRefPointer
-	bind.RegisterStructDecoder("vector<ccip::state_object::CCIPObjectRefPointer>", func(data []byte) (interface{}, error) {
-		var temps []bcsCCIPObjectRefPointer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]CCIPObjectRefPointer, len(temps))
-		for i, temp := range temps {
-			result, err := convertCCIPObjectRefPointerFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::state_object::STATE_OBJECT", func(data []byte) (interface{}, error) {
-		var result STATE_OBJECT
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for STATE_OBJECT
-	bind.RegisterStructDecoder("vector<ccip::state_object::STATE_OBJECT>", func(data []byte) (interface{}, error) {
-		var results []STATE_OBJECT
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::state_object::McmsCallback", func(data []byte) (interface{}, error) {
-		var result McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsCallback
-	bind.RegisterStructDecoder("vector<ccip::state_object::McmsCallback>", func(data []byte) (interface{}, error) {
-		var results []McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::state_object::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
-		var result McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsAcceptOwnershipProof
-	bind.RegisterStructDecoder("vector<ccip::state_object::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
-		var results []McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // AddPackageId executes the add_package_id Move function.
@@ -640,9 +472,9 @@ func (d *StateObjectDevInspect) OwnerCapId(ctx context.Context, opts *bind.CallO
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -662,9 +494,9 @@ func (d *StateObjectDevInspect) Contains(ctx context.Context, opts *bind.CallOpt
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -702,9 +534,9 @@ func (d *StateObjectDevInspect) Borrow(ctx context.Context, opts *bind.CallOpts,
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -724,9 +556,9 @@ func (d *StateObjectDevInspect) BorrowMut(ctx context.Context, opts *bind.CallOp
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -746,9 +578,9 @@ func (d *StateObjectDevInspect) Owner(ctx context.Context, opts *bind.CallOpts, 
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -768,9 +600,9 @@ func (d *StateObjectDevInspect) HasPendingTransfer(ctx context.Context, opts *bi
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -790,9 +622,9 @@ func (d *StateObjectDevInspect) PendingTransferFrom(ctx context.Context, opts *b
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -812,9 +644,9 @@ func (d *StateObjectDevInspect) PendingTransferTo(ctx context.Context, opts *bin
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -834,9 +666,9 @@ func (d *StateObjectDevInspect) PendingTransferAccepted(ctx context.Context, opt
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*bool)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *bool, got %T", results[0])
+	var result *bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -856,9 +688,9 @@ func (d *StateObjectDevInspect) McmsCallback(ctx context.Context, opts *bind.Cal
 	if len(results) == 0 {
 		return McmsCallback{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(McmsCallback)
-	if !ok {
-		return McmsCallback{}, fmt.Errorf("unexpected return type: expected McmsCallback, got %T", results[0])
+	var result McmsCallback
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return McmsCallback{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

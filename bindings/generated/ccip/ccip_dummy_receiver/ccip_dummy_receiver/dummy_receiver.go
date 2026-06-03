@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -90,8 +89,8 @@ type DummyReceiverDevInspect struct {
 var _ IDummyReceiver = (*DummyReceiverContract)(nil)
 var _ IDummyReceiverDevInspect = (*DummyReceiverDevInspect)(nil)
 
-func NewDummyReceiver(packageID string, client sui.ISuiAPI) (IDummyReceiver, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_dummy_receiver", "dummy_receiver", client)
+func NewDummyReceiver(packageID string, chainClient client.BindingsClient) (IDummyReceiver, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip_dummy_receiver", "dummy_receiver", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -155,229 +154,6 @@ type PublisherKey struct {
 type TokenAmount struct {
 	Token  string   `move:"address"`
 	Amount *big.Int `move:"u256"`
-}
-
-type bcsOwnerCap struct {
-	Id              string
-	ReceiverAddress [32]byte
-}
-
-func convertOwnerCapFromBCS(bcs bcsOwnerCap) (OwnerCap, error) {
-
-	return OwnerCap{
-		Id:              bcs.Id,
-		ReceiverAddress: fmt.Sprintf("0x%x", bcs.ReceiverAddress),
-	}, nil
-}
-
-type bcsCCIPReceiverState struct {
-	Id                      string
-	Counter                 uint64
-	MessageId               []byte
-	SourceChainSelector     uint64
-	Sender                  []byte
-	Data                    []byte
-	MessageReceiver         [32]byte
-	TokenReceiver           [32]byte
-	DestTokenTransferLength uint64
-	DestTokenAmounts        []TokenAmount
-}
-
-func convertCCIPReceiverStateFromBCS(bcs bcsCCIPReceiverState) (CCIPReceiverState, error) {
-
-	return CCIPReceiverState{
-		Id:                      bcs.Id,
-		Counter:                 bcs.Counter,
-		MessageId:               bcs.MessageId,
-		SourceChainSelector:     bcs.SourceChainSelector,
-		Sender:                  bcs.Sender,
-		Data:                    bcs.Data,
-		MessageReceiver:         fmt.Sprintf("0x%x", bcs.MessageReceiver),
-		TokenReceiver:           fmt.Sprintf("0x%x", bcs.TokenReceiver),
-		DestTokenTransferLength: bcs.DestTokenTransferLength,
-		DestTokenAmounts:        bcs.DestTokenAmounts,
-	}, nil
-}
-
-type bcsTokenAmount struct {
-	Token  [32]byte
-	Amount [32]byte
-}
-
-func convertTokenAmountFromBCS(bcs bcsTokenAmount) (TokenAmount, error) {
-	AmountField, err := bind.DecodeU256Value(bcs.Amount)
-	if err != nil {
-		return TokenAmount{}, fmt.Errorf("failed to decode u256 field Amount: %w", err)
-	}
-
-	return TokenAmount{
-		Token:  fmt.Sprintf("0x%x", bcs.Token),
-		Amount: AmountField,
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::DUMMY_RECEIVER", func(data []byte) (interface{}, error) {
-		var result DUMMY_RECEIVER
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DUMMY_RECEIVER
-	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::DUMMY_RECEIVER>", func(data []byte) (interface{}, error) {
-		var results []DUMMY_RECEIVER
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::OwnerCap", func(data []byte) (interface{}, error) {
-		var temp bcsOwnerCap
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOwnerCapFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OwnerCap
-	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::OwnerCap>", func(data []byte) (interface{}, error) {
-		var temps []bcsOwnerCap
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OwnerCap, len(temps))
-		for i, temp := range temps {
-			result, err := convertOwnerCapFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::ReceivedMessage", func(data []byte) (interface{}, error) {
-		var result ReceivedMessage
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ReceivedMessage
-	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::ReceivedMessage>", func(data []byte) (interface{}, error) {
-		var results []ReceivedMessage
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::CCIPReceiverState", func(data []byte) (interface{}, error) {
-		var temp bcsCCIPReceiverState
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertCCIPReceiverStateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CCIPReceiverState
-	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::CCIPReceiverState>", func(data []byte) (interface{}, error) {
-		var temps []bcsCCIPReceiverState
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]CCIPReceiverState, len(temps))
-		for i, temp := range temps {
-			result, err := convertCCIPReceiverStateFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::DummyReceiverProof", func(data []byte) (interface{}, error) {
-		var result DummyReceiverProof
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DummyReceiverProof
-	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::DummyReceiverProof>", func(data []byte) (interface{}, error) {
-		var results []DummyReceiverProof
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::PublisherKey", func(data []byte) (interface{}, error) {
-		var result PublisherKey
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for PublisherKey
-	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::PublisherKey>", func(data []byte) (interface{}, error) {
-		var results []PublisherKey
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::TokenAmount", func(data []byte) (interface{}, error) {
-		var temp bcsTokenAmount
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertTokenAmountFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TokenAmount
-	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::TokenAmount>", func(data []byte) (interface{}, error) {
-		var temps []bcsTokenAmount
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]TokenAmount, len(temps))
-		for i, temp := range temps {
-			result, err := convertTokenAmountFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -515,9 +291,9 @@ func (d *DummyReceiverDevInspect) TypeAndVersion(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -537,9 +313,9 @@ func (d *DummyReceiverDevInspect) GetCounter(ctx context.Context, opts *bind.Cal
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -559,9 +335,9 @@ func (d *DummyReceiverDevInspect) GetDestTokenAmounts(ctx context.Context, opts 
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]TokenAmount)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []TokenAmount, got %T", results[0])
+	var result []TokenAmount
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -581,9 +357,9 @@ func (d *DummyReceiverDevInspect) GetTokenReceiver(ctx context.Context, opts *bi
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -603,9 +379,9 @@ func (d *DummyReceiverDevInspect) GetTokenAmountToken(ctx context.Context, opts 
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -625,9 +401,9 @@ func (d *DummyReceiverDevInspect) GetTokenAmountAmount(ctx context.Context, opts
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*big.Int)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *big.Int, got %T", results[0])
+	var result *big.Int
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

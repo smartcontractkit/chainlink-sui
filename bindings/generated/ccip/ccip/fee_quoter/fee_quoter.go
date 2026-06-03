@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -161,8 +160,8 @@ type FeeQuoterDevInspect struct {
 var _ IFeeQuoter = (*FeeQuoterContract)(nil)
 var _ IFeeQuoterDevInspect = (*FeeQuoterDevInspect)(nil)
 
-func NewFeeQuoter(packageID string, client sui.ISuiAPI) (IFeeQuoter, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "fee_quoter", client)
+func NewFeeQuoter(packageID string, chainClient client.BindingsClient) (IFeeQuoter, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip", "fee_quoter", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -290,580 +289,6 @@ type DestChainConfigUpdated struct {
 type PremiumMultiplierWeiPerEthUpdated struct {
 	Token                      string `move:"address"`
 	PremiumMultiplierWeiPerEth uint64 `move:"u64"`
-}
-
-type bcsFeeQuoterState struct {
-	Id                           string
-	MaxFeeJuelsPerMsg            [32]byte
-	LinkToken                    [32]byte
-	TokenPriceStalenessThreshold uint64
-	FeeTokens                    [][32]byte
-	UsdPerUnitGasByDestChain     bind.Object
-	UsdPerToken                  bind.Object
-	DestChainConfigs             bind.Object
-	TokenTransferFeeConfigs      bind.Object
-	PremiumMultiplierWeiPerEth   bind.Object
-}
-
-func convertFeeQuoterStateFromBCS(bcs bcsFeeQuoterState) (FeeQuoterState, error) {
-	MaxFeeJuelsPerMsgField, err := bind.DecodeU256Value(bcs.MaxFeeJuelsPerMsg)
-	if err != nil {
-		return FeeQuoterState{}, fmt.Errorf("failed to decode u256 field MaxFeeJuelsPerMsg: %w", err)
-	}
-
-	return FeeQuoterState{
-		Id:                           bcs.Id,
-		MaxFeeJuelsPerMsg:            MaxFeeJuelsPerMsgField,
-		LinkToken:                    fmt.Sprintf("0x%x", bcs.LinkToken),
-		TokenPriceStalenessThreshold: bcs.TokenPriceStalenessThreshold,
-		FeeTokens: func() []string {
-			addrs := make([]string, len(bcs.FeeTokens))
-			for i, addr := range bcs.FeeTokens {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		UsdPerUnitGasByDestChain:   bcs.UsdPerUnitGasByDestChain,
-		UsdPerToken:                bcs.UsdPerToken,
-		DestChainConfigs:           bcs.DestChainConfigs,
-		TokenTransferFeeConfigs:    bcs.TokenTransferFeeConfigs,
-		PremiumMultiplierWeiPerEth: bcs.PremiumMultiplierWeiPerEth,
-	}, nil
-}
-
-type bcsStaticConfig struct {
-	MaxFeeJuelsPerMsg            [32]byte
-	LinkToken                    [32]byte
-	TokenPriceStalenessThreshold uint64
-}
-
-func convertStaticConfigFromBCS(bcs bcsStaticConfig) (StaticConfig, error) {
-	MaxFeeJuelsPerMsgField, err := bind.DecodeU256Value(bcs.MaxFeeJuelsPerMsg)
-	if err != nil {
-		return StaticConfig{}, fmt.Errorf("failed to decode u256 field MaxFeeJuelsPerMsg: %w", err)
-	}
-
-	return StaticConfig{
-		MaxFeeJuelsPerMsg:            MaxFeeJuelsPerMsgField,
-		LinkToken:                    fmt.Sprintf("0x%x", bcs.LinkToken),
-		TokenPriceStalenessThreshold: bcs.TokenPriceStalenessThreshold,
-	}, nil
-}
-
-type bcsTimestampedPrice struct {
-	Value     [32]byte
-	Timestamp uint64
-}
-
-func convertTimestampedPriceFromBCS(bcs bcsTimestampedPrice) (TimestampedPrice, error) {
-	ValueField, err := bind.DecodeU256Value(bcs.Value)
-	if err != nil {
-		return TimestampedPrice{}, fmt.Errorf("failed to decode u256 field Value: %w", err)
-	}
-
-	return TimestampedPrice{
-		Value:     ValueField,
-		Timestamp: bcs.Timestamp,
-	}, nil
-}
-
-type bcsFeeTokenAdded struct {
-	FeeToken [32]byte
-}
-
-func convertFeeTokenAddedFromBCS(bcs bcsFeeTokenAdded) (FeeTokenAdded, error) {
-
-	return FeeTokenAdded{
-		FeeToken: fmt.Sprintf("0x%x", bcs.FeeToken),
-	}, nil
-}
-
-type bcsFeeTokenRemoved struct {
-	FeeToken [32]byte
-}
-
-func convertFeeTokenRemovedFromBCS(bcs bcsFeeTokenRemoved) (FeeTokenRemoved, error) {
-
-	return FeeTokenRemoved{
-		FeeToken: fmt.Sprintf("0x%x", bcs.FeeToken),
-	}, nil
-}
-
-type bcsTokenTransferFeeConfigAdded struct {
-	DestChainSelector      uint64
-	Token                  [32]byte
-	TokenTransferFeeConfig TokenTransferFeeConfig
-}
-
-func convertTokenTransferFeeConfigAddedFromBCS(bcs bcsTokenTransferFeeConfigAdded) (TokenTransferFeeConfigAdded, error) {
-
-	return TokenTransferFeeConfigAdded{
-		DestChainSelector:      bcs.DestChainSelector,
-		Token:                  fmt.Sprintf("0x%x", bcs.Token),
-		TokenTransferFeeConfig: bcs.TokenTransferFeeConfig,
-	}, nil
-}
-
-type bcsTokenTransferFeeConfigRemoved struct {
-	DestChainSelector uint64
-	Token             [32]byte
-}
-
-func convertTokenTransferFeeConfigRemovedFromBCS(bcs bcsTokenTransferFeeConfigRemoved) (TokenTransferFeeConfigRemoved, error) {
-
-	return TokenTransferFeeConfigRemoved{
-		DestChainSelector: bcs.DestChainSelector,
-		Token:             fmt.Sprintf("0x%x", bcs.Token),
-	}, nil
-}
-
-type bcsUsdPerTokenUpdated struct {
-	Token       [32]byte
-	UsdPerToken [32]byte
-	Timestamp   uint64
-}
-
-func convertUsdPerTokenUpdatedFromBCS(bcs bcsUsdPerTokenUpdated) (UsdPerTokenUpdated, error) {
-	UsdPerTokenField, err := bind.DecodeU256Value(bcs.UsdPerToken)
-	if err != nil {
-		return UsdPerTokenUpdated{}, fmt.Errorf("failed to decode u256 field UsdPerToken: %w", err)
-	}
-
-	return UsdPerTokenUpdated{
-		Token:       fmt.Sprintf("0x%x", bcs.Token),
-		UsdPerToken: UsdPerTokenField,
-		Timestamp:   bcs.Timestamp,
-	}, nil
-}
-
-type bcsUsdPerUnitGasUpdated struct {
-	DestChainSelector uint64
-	UsdPerUnitGas     [32]byte
-	Timestamp         uint64
-}
-
-func convertUsdPerUnitGasUpdatedFromBCS(bcs bcsUsdPerUnitGasUpdated) (UsdPerUnitGasUpdated, error) {
-	UsdPerUnitGasField, err := bind.DecodeU256Value(bcs.UsdPerUnitGas)
-	if err != nil {
-		return UsdPerUnitGasUpdated{}, fmt.Errorf("failed to decode u256 field UsdPerUnitGas: %w", err)
-	}
-
-	return UsdPerUnitGasUpdated{
-		DestChainSelector: bcs.DestChainSelector,
-		UsdPerUnitGas:     UsdPerUnitGasField,
-		Timestamp:         bcs.Timestamp,
-	}, nil
-}
-
-type bcsPremiumMultiplierWeiPerEthUpdated struct {
-	Token                      [32]byte
-	PremiumMultiplierWeiPerEth uint64
-}
-
-func convertPremiumMultiplierWeiPerEthUpdatedFromBCS(bcs bcsPremiumMultiplierWeiPerEthUpdated) (PremiumMultiplierWeiPerEthUpdated, error) {
-
-	return PremiumMultiplierWeiPerEthUpdated{
-		Token:                      fmt.Sprintf("0x%x", bcs.Token),
-		PremiumMultiplierWeiPerEth: bcs.PremiumMultiplierWeiPerEth,
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip::fee_quoter::FeeQuoterState", func(data []byte) (interface{}, error) {
-		var temp bcsFeeQuoterState
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertFeeQuoterStateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for FeeQuoterState
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::FeeQuoterState>", func(data []byte) (interface{}, error) {
-		var temps []bcsFeeQuoterState
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]FeeQuoterState, len(temps))
-		for i, temp := range temps {
-			result, err := convertFeeQuoterStateFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::StaticConfig", func(data []byte) (interface{}, error) {
-		var temp bcsStaticConfig
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertStaticConfigFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for StaticConfig
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::StaticConfig>", func(data []byte) (interface{}, error) {
-		var temps []bcsStaticConfig
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]StaticConfig, len(temps))
-		for i, temp := range temps {
-			result, err := convertStaticConfigFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::FeeQuoterCap", func(data []byte) (interface{}, error) {
-		var result FeeQuoterCap
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for FeeQuoterCap
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::FeeQuoterCap>", func(data []byte) (interface{}, error) {
-		var results []FeeQuoterCap
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainConfig", func(data []byte) (interface{}, error) {
-		var result DestChainConfig
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DestChainConfig
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::DestChainConfig>", func(data []byte) (interface{}, error) {
-		var results []DestChainConfig
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfig", func(data []byte) (interface{}, error) {
-		var result TokenTransferFeeConfig
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TokenTransferFeeConfig
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::TokenTransferFeeConfig>", func(data []byte) (interface{}, error) {
-		var results []TokenTransferFeeConfig
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::TimestampedPrice", func(data []byte) (interface{}, error) {
-		var temp bcsTimestampedPrice
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertTimestampedPriceFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TimestampedPrice
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::TimestampedPrice>", func(data []byte) (interface{}, error) {
-		var temps []bcsTimestampedPrice
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]TimestampedPrice, len(temps))
-		for i, temp := range temps {
-			result, err := convertTimestampedPriceFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::FeeTokenAdded", func(data []byte) (interface{}, error) {
-		var temp bcsFeeTokenAdded
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertFeeTokenAddedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for FeeTokenAdded
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::FeeTokenAdded>", func(data []byte) (interface{}, error) {
-		var temps []bcsFeeTokenAdded
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]FeeTokenAdded, len(temps))
-		for i, temp := range temps {
-			result, err := convertFeeTokenAddedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::FeeTokenRemoved", func(data []byte) (interface{}, error) {
-		var temp bcsFeeTokenRemoved
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertFeeTokenRemovedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for FeeTokenRemoved
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::FeeTokenRemoved>", func(data []byte) (interface{}, error) {
-		var temps []bcsFeeTokenRemoved
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]FeeTokenRemoved, len(temps))
-		for i, temp := range temps {
-			result, err := convertFeeTokenRemovedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfigAdded", func(data []byte) (interface{}, error) {
-		var temp bcsTokenTransferFeeConfigAdded
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertTokenTransferFeeConfigAddedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TokenTransferFeeConfigAdded
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::TokenTransferFeeConfigAdded>", func(data []byte) (interface{}, error) {
-		var temps []bcsTokenTransferFeeConfigAdded
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]TokenTransferFeeConfigAdded, len(temps))
-		for i, temp := range temps {
-			result, err := convertTokenTransferFeeConfigAddedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfigRemoved", func(data []byte) (interface{}, error) {
-		var temp bcsTokenTransferFeeConfigRemoved
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertTokenTransferFeeConfigRemovedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TokenTransferFeeConfigRemoved
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::TokenTransferFeeConfigRemoved>", func(data []byte) (interface{}, error) {
-		var temps []bcsTokenTransferFeeConfigRemoved
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]TokenTransferFeeConfigRemoved, len(temps))
-		for i, temp := range temps {
-			result, err := convertTokenTransferFeeConfigRemovedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::UsdPerTokenUpdated", func(data []byte) (interface{}, error) {
-		var temp bcsUsdPerTokenUpdated
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertUsdPerTokenUpdatedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for UsdPerTokenUpdated
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::UsdPerTokenUpdated>", func(data []byte) (interface{}, error) {
-		var temps []bcsUsdPerTokenUpdated
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]UsdPerTokenUpdated, len(temps))
-		for i, temp := range temps {
-			result, err := convertUsdPerTokenUpdatedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::UsdPerUnitGasUpdated", func(data []byte) (interface{}, error) {
-		var temp bcsUsdPerUnitGasUpdated
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertUsdPerUnitGasUpdatedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for UsdPerUnitGasUpdated
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::UsdPerUnitGasUpdated>", func(data []byte) (interface{}, error) {
-		var temps []bcsUsdPerUnitGasUpdated
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]UsdPerUnitGasUpdated, len(temps))
-		for i, temp := range temps {
-			result, err := convertUsdPerUnitGasUpdatedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainAdded", func(data []byte) (interface{}, error) {
-		var result DestChainAdded
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DestChainAdded
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::DestChainAdded>", func(data []byte) (interface{}, error) {
-		var results []DestChainAdded
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainConfigUpdated", func(data []byte) (interface{}, error) {
-		var result DestChainConfigUpdated
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DestChainConfigUpdated
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::DestChainConfigUpdated>", func(data []byte) (interface{}, error) {
-		var results []DestChainConfigUpdated
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::PremiumMultiplierWeiPerEthUpdated", func(data []byte) (interface{}, error) {
-		var temp bcsPremiumMultiplierWeiPerEthUpdated
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertPremiumMultiplierWeiPerEthUpdatedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for PremiumMultiplierWeiPerEthUpdated
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::PremiumMultiplierWeiPerEthUpdated>", func(data []byte) (interface{}, error) {
-		var temps []bcsPremiumMultiplierWeiPerEthUpdated
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]PremiumMultiplierWeiPerEthUpdated, len(temps))
-		for i, temp := range temps {
-			result, err := convertPremiumMultiplierWeiPerEthUpdatedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -1201,9 +626,9 @@ func (d *FeeQuoterDevInspect) TypeAndVersion(ctx context.Context, opts *bind.Cal
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1223,9 +648,9 @@ func (d *FeeQuoterDevInspect) NewFeeQuoterCap(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1245,9 +670,9 @@ func (d *FeeQuoterDevInspect) GetTokenPrice(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return TimestampedPrice{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(TimestampedPrice)
-	if !ok {
-		return TimestampedPrice{}, fmt.Errorf("unexpected return type: expected TimestampedPrice, got %T", results[0])
+	var result TimestampedPrice
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return TimestampedPrice{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1263,7 +688,25 @@ func (d *FeeQuoterDevInspect) GetTimestampedPriceFields(ctx context.Context, opt
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 *big.Int
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 uint64
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 // GetTokenPrices executes the get_token_prices Move function using DevInspect to get return values.
@@ -1281,9 +724,9 @@ func (d *FeeQuoterDevInspect) GetTokenPrices(ctx context.Context, opts *bind.Cal
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]TimestampedPrice)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []TimestampedPrice, got %T", results[0])
+	var result []TimestampedPrice
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1303,9 +746,9 @@ func (d *FeeQuoterDevInspect) GetDestChainGasPrice(ctx context.Context, opts *bi
 	if len(results) == 0 {
 		return TimestampedPrice{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(TimestampedPrice)
-	if !ok {
-		return TimestampedPrice{}, fmt.Errorf("unexpected return type: expected TimestampedPrice, got %T", results[0])
+	var result TimestampedPrice
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return TimestampedPrice{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1321,7 +764,25 @@ func (d *FeeQuoterDevInspect) GetTokenAndGasPrices(ctx context.Context, opts *bi
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 *big.Int
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 *big.Int
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 // ConvertTokenAmount executes the convert_token_amount Move function using DevInspect to get return values.
@@ -1339,9 +800,9 @@ func (d *FeeQuoterDevInspect) ConvertTokenAmount(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1361,9 +822,9 @@ func (d *FeeQuoterDevInspect) GetFeeTokens(ctx context.Context, opts *bind.CallO
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	var result []string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1383,9 +844,9 @@ func (d *FeeQuoterDevInspect) GetTokenTransferFeeConfig(ctx context.Context, opt
 	if len(results) == 0 {
 		return TokenTransferFeeConfig{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(TokenTransferFeeConfig)
-	if !ok {
-		return TokenTransferFeeConfig{}, fmt.Errorf("unexpected return type: expected TokenTransferFeeConfig, got %T", results[0])
+	var result TokenTransferFeeConfig
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return TokenTransferFeeConfig{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1405,9 +866,9 @@ func (d *FeeQuoterDevInspect) GetValidatedFee(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1427,9 +888,9 @@ func (d *FeeQuoterDevInspect) GetPremiumMultiplierWeiPerEth(ctx context.Context,
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1449,9 +910,9 @@ func (d *FeeQuoterDevInspect) GetTokenReceiver(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1469,7 +930,35 @@ func (d *FeeQuoterDevInspect) ProcessMessageArgs(ctx context.Context, opts *bind
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 4 {
+		return nil, fmt.Errorf("expected 4 return values, got %d", len(results))
+	}
+	decoded := make([]any, 4)
+	var ret0 *big.Int
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 bool
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 []byte
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	var ret3 [][]byte
+	if err := bind.DecodeJSONReturn(results[3], &ret3); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 3: %w", err)
+	}
+	decoded[3] = ret3
+	return decoded, nil
 }
 
 // GetDestChainConfig executes the get_dest_chain_config Move function using DevInspect to get return values.
@@ -1487,9 +976,9 @@ func (d *FeeQuoterDevInspect) GetDestChainConfig(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return DestChainConfig{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(DestChainConfig)
-	if !ok {
-		return DestChainConfig{}, fmt.Errorf("unexpected return type: expected DestChainConfig, got %T", results[0])
+	var result DestChainConfig
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return DestChainConfig{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1522,7 +1011,110 @@ func (d *FeeQuoterDevInspect) GetDestChainConfigFields(ctx context.Context, opts
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 19 {
+		return nil, fmt.Errorf("expected 19 return values, got %d", len(results))
+	}
+	decoded := make([]any, 19)
+	var ret0 bool
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 uint16
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 uint32
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	var ret3 uint32
+	if err := bind.DecodeJSONReturn(results[3], &ret3); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 3: %w", err)
+	}
+	decoded[3] = ret3
+	var ret4 uint32
+	if err := bind.DecodeJSONReturn(results[4], &ret4); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 4: %w", err)
+	}
+	decoded[4] = ret4
+	var ret5 byte
+	if err := bind.DecodeJSONReturn(results[5], &ret5); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 5: %w", err)
+	}
+	decoded[5] = ret5
+	var ret6 byte
+	if err := bind.DecodeJSONReturn(results[6], &ret6); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 6: %w", err)
+	}
+	decoded[6] = ret6
+	var ret7 uint16
+	if err := bind.DecodeJSONReturn(results[7], &ret7); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 7: %w", err)
+	}
+	decoded[7] = ret7
+	var ret8 uint32
+	if err := bind.DecodeJSONReturn(results[8], &ret8); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 8: %w", err)
+	}
+	decoded[8] = ret8
+	var ret9 uint16
+	if err := bind.DecodeJSONReturn(results[9], &ret9); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 9: %w", err)
+	}
+	decoded[9] = ret9
+	var ret10 uint16
+	if err := bind.DecodeJSONReturn(results[10], &ret10); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 10: %w", err)
+	}
+	decoded[10] = ret10
+	var ret11 []byte
+	if err := bind.DecodeJSONReturn(results[11], &ret11); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 11: %w", err)
+	}
+	decoded[11] = ret11
+	var ret12 bool
+	if err := bind.DecodeJSONReturn(results[12], &ret12); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 12: %w", err)
+	}
+	decoded[12] = ret12
+	var ret13 uint16
+	if err := bind.DecodeJSONReturn(results[13], &ret13); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 13: %w", err)
+	}
+	decoded[13] = ret13
+	var ret14 uint32
+	if err := bind.DecodeJSONReturn(results[14], &ret14); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 14: %w", err)
+	}
+	decoded[14] = ret14
+	var ret15 uint32
+	if err := bind.DecodeJSONReturn(results[15], &ret15); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 15: %w", err)
+	}
+	decoded[15] = ret15
+	var ret16 uint64
+	if err := bind.DecodeJSONReturn(results[16], &ret16); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 16: %w", err)
+	}
+	decoded[16] = ret16
+	var ret17 uint32
+	if err := bind.DecodeJSONReturn(results[17], &ret17); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 17: %w", err)
+	}
+	decoded[17] = ret17
+	var ret18 uint32
+	if err := bind.DecodeJSONReturn(results[18], &ret18); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 18: %w", err)
+	}
+	decoded[18] = ret18
+	return decoded, nil
 }
 
 // GetStaticConfig executes the get_static_config Move function using DevInspect to get return values.
@@ -1540,9 +1132,9 @@ func (d *FeeQuoterDevInspect) GetStaticConfig(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return StaticConfig{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(StaticConfig)
-	if !ok {
-		return StaticConfig{}, fmt.Errorf("unexpected return type: expected StaticConfig, got %T", results[0])
+	var result StaticConfig
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return StaticConfig{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1559,7 +1151,30 @@ func (d *FeeQuoterDevInspect) GetStaticConfigFields(ctx context.Context, opts *b
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 3 {
+		return nil, fmt.Errorf("expected 3 return values, got %d", len(results))
+	}
+	decoded := make([]any, 3)
+	var ret0 *big.Int
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 string
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 uint64
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	return decoded, nil
 }
 
 // GetTokenTransferFeeConfigFields executes the get_token_transfer_fee_config_fields Move function using DevInspect to get return values.
@@ -1577,7 +1192,45 @@ func (d *FeeQuoterDevInspect) GetTokenTransferFeeConfigFields(ctx context.Contex
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 6 {
+		return nil, fmt.Errorf("expected 6 return values, got %d", len(results))
+	}
+	decoded := make([]any, 6)
+	var ret0 uint32
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 uint32
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 uint16
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	var ret3 uint32
+	if err := bind.DecodeJSONReturn(results[3], &ret3); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 3: %w", err)
+	}
+	decoded[3] = ret3
+	var ret4 uint32
+	if err := bind.DecodeJSONReturn(results[4], &ret4); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 4: %w", err)
+	}
+	decoded[4] = ret4
+	var ret5 bool
+	if err := bind.DecodeJSONReturn(results[5], &ret5); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 5: %w", err)
+	}
+	decoded[5] = ret5
+	return decoded, nil
 }
 
 type feeQuoterEncoder struct {

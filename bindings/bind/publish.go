@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 type PackageID = string
@@ -23,7 +23,7 @@ type PublishRequest struct {
 func PublishPackage(
 	ctx context.Context,
 	opts *CallOpts,
-	client sui.ISuiAPI,
+	chainClient client.BindingsClient,
 	req PublishRequest,
 ) (PackageID, *models.SuiTransactionBlockResponse, error) {
 	if opts == nil {
@@ -68,7 +68,7 @@ func PublishPackage(
 	recArg := ptb.Pure(signerAddress)
 	ptb.TransferObjects([]transaction.Argument{arg}, recArg)
 
-	tx, err := ExecutePTB(ctx, opts, client, ptb)
+	tx, err := ExecutePTB(ctx, opts, chainClient, ptb)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to execute publish transaction: %w", err)
 	}
