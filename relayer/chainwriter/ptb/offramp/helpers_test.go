@@ -76,7 +76,7 @@ func TestDecodeParam_MultiKeyWrapperMap_NestedRejects(t *testing.T) {
 	assert.Equal(t, SuiArgumentMetadata{}, result)
 }
 
-func TestDecodeParam_MalformedInput_NoP(t *testing.T) {
+func TestDecodeParam_MalformedInput_NoPanic(t *testing.T) {
 	lggr := logger.Test(t)
 
 	tests := []struct {
@@ -193,6 +193,17 @@ func TestDecodeParam_ValidABI(t *testing.T) {
 			},
 		},
 		{
+			name:      "nested Vector of U8",
+			param:     map[string]any{"Vector": map[string]any{"Vector": "U8"}},
+			reference: "Reference",
+			expected: SuiArgumentMetadata{
+				Name:          "U8",
+				Reference:     "Vector",
+				TypeArguments: []TypeParameter{},
+				Type:          "vector<u8>",
+			},
+		},
+		{
 			name: "Struct with no type arguments",
 			param: map[string]any{"Struct": map[string]any{
 				"address":       "0x1",
@@ -273,6 +284,20 @@ func TestDecodeParameters_PoisonABI_ReturnsError(t *testing.T) {
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "TypeParameter")
 	})
+}
+
+func TestDecodeParameters_NestedVectorU8(t *testing.T) {
+	lggr := logger.Test(t)
+
+	function := map[string]any{
+		"parameters": []any{
+			map[string]any{"Vector": map[string]any{"Vector": "U8"}},
+		},
+	}
+
+	result, err := DecodeParameters(lggr, function, "parameters")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"vector<vector<u8>>"}, result)
 }
 
 func TestDecodeParameters_ValidDummyReceiverSignature(t *testing.T) {

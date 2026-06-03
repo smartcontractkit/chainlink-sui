@@ -175,7 +175,15 @@ func decodeParam(lggr logger.Logger, param any, reference string) (SuiArgumentMe
 	switch k {
 	case "Struct":
 		return decodeStructParam(lggr, v, reference)
-	case "Reference", "MutableReference", "Vector":
+	case "Vector":
+		decoded, err := decodeParam(lggr, v, reference)
+		if err != nil {
+			return SuiArgumentMetadata{}, err
+		}
+		decoded.Reference = "Vector"
+		decoded.Type = ParseParamType(lggr, v)
+		return decoded, nil
+	case "Reference", "MutableReference":
 		return decodeParam(lggr, v, k)
 	case "TypeParameter":
 		return SuiArgumentMetadata{}, errors.New("unsupported ABI shape: TypeParameter (generic parameters are not supported)")
@@ -316,7 +324,7 @@ func ParseParamType(lggr logger.Logger, param interface{}) string {
 	}
 
 	// Case 2: map structure (e.g., Vector, Reference, Struct)
-	if m, ok := param.(map[string]interface{}); ok {
+	if m, ok := param.(map[string]any); ok {
 		if vectorVal, ok := m["Vector"]; ok {
 			return "vector<" + ParseParamType(lggr, vectorVal) + ">"
 		}
@@ -327,13 +335,11 @@ func ParseParamType(lggr logger.Logger, param interface{}) string {
 			return ParseParamType(lggr, mutRefVal)
 		}
 		if _, ok := m["Struct"]; ok {
-			// Special case for strings
 			if m["address"] == "String" {
 				return "string"
 			}
 			return "object_id"
 		}
-		// Handle direct struct content (when called from decodeParam with unwrapped struct)
 		if address, ok := m["address"]; ok {
 			if address == "String" {
 				return "string"
