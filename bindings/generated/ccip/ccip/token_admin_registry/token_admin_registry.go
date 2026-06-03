@@ -18,11 +18,14 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"token_admin_registry","name":"accept_admin_role","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_all_configured_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"start_key","type":"address"},{"name":"max_count","type":"u64"}]},{"package":"ccip","module":"token_admin_registry","name":"get_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_pool_local_token","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_pool_package_id","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_pools","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_addresses","type":"vector<address>"}]},{"package":"ccip","module":"token_admin_registry","name":"get_token_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_token_config_data","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_token_config_struct","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"token_admin_registry","name":"is_administrator","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"administrator","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"is_pool_registered","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"register_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_","type":"TreasuryCap<T>"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"initial_administrator","type":"address"},{"name":"lock_or_burn_params","type":"vector<address>"},{"name":"release_or_mint_params","type":"vector<address>"},{"name":"publisher_wrapper","type":"PublisherWrapper<TypeProof>"},{"name":"_proof","type":"TypeProof"}]},{"package":"ccip","module":"token_admin_registry","name":"register_pool_as_owner","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"package_address","type":"address"},{"name":"token_pool_module","type":"0x1::string::String"},{"name":"token_type","type":"ascii::String"},{"name":"initial_administrator","type":"address"},{"name":"token_pool_type_proof","type":"ascii::String"},{"name":"lock_or_burn_params","type":"vector<address>"},{"name":"release_or_mint_params","type":"vector<address>"}]},{"package":"ccip","module":"token_admin_registry","name":"transfer_admin_role","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"new_admin","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"type_and_version","parameters":null},{"package":"ccip","module":"token_admin_registry","name":"unregister_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"token_admin_registry","name":"accept_admin_role","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"backfill_local_decimals","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"local_decimals","type":"u8"}]},{"package":"ccip","module":"token_admin_registry","name":"get_all_configured_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"start_key","type":"address"},{"name":"max_count","type":"u64"}]},{"package":"ccip","module":"token_admin_registry","name":"get_local_decimals_for_token","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_pool_local_token","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_pool_package_id","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_pools","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_addresses","type":"vector<address>"}]},{"package":"ccip","module":"token_admin_registry","name":"get_token_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_token_config_data","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_token_config_struct","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"token_admin_registry","name":"initialize_local_decimals","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"token_admin_registry","name":"is_administrator","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"administrator","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"is_pool_registered","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"register_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_","type":"TreasuryCap<T>"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"initial_administrator","type":"address"},{"name":"lock_or_burn_params","type":"vector<address>"},{"name":"release_or_mint_params","type":"vector<address>"},{"name":"publisher_wrapper","type":"PublisherWrapper<TypeProof>"},{"name":"_proof","type":"TypeProof"}]},{"package":"ccip","module":"token_admin_registry","name":"register_pool_as_owner","parameters":[{"name":"_owner_cap","type":"OwnerCap"},{"name":"_ref","type":"CCIPObjectRef"},{"name":"_coin_metadata_address","type":"address"},{"name":"_package_address","type":"address"},{"name":"_token_pool_module","type":"0x1::string::String"},{"name":"_token_type","type":"ascii::String"},{"name":"_initial_administrator","type":"address"},{"name":"_token_pool_type_proof","type":"ascii::String"},{"name":"_lock_or_burn_params","type":"vector<address>"},{"name":"_release_or_mint_params","type":"vector<address>"}]},{"package":"ccip","module":"token_admin_registry","name":"register_pool_as_owner_v2","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"package_address","type":"address"},{"name":"token_pool_module","type":"0x1::string::String"},{"name":"token_type","type":"ascii::String"},{"name":"initial_administrator","type":"address"},{"name":"token_pool_type_proof","type":"ascii::String"},{"name":"lock_or_burn_params","type":"vector<address>"},{"name":"release_or_mint_params","type":"vector<address>"},{"name":"local_decimals","type":"u8"}]},{"package":"ccip","module":"token_admin_registry","name":"transfer_admin_role","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"new_admin","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"type_and_version","parameters":null},{"package":"ccip","module":"token_admin_registry","name":"unregister_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]}]`
 
 type ITokenAdminRegistry interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	InitializeLocalDecimals(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	BackfillLocalDecimals(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ref bind.Object, coinMetadataAddress string, localDecimals byte) (*models.SuiTransactionBlockResponse, error)
+	GetLocalDecimalsForToken(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
 	GetPools(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddresses []string) (*models.SuiTransactionBlockResponse, error)
 	GetPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
 	GetTokenConfigStruct(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
@@ -32,6 +35,7 @@ type ITokenAdminRegistry interface {
 	GetAllConfiguredTokens(ctx context.Context, opts *bind.CallOpts, ref bind.Object, startKey string, maxCount uint64) (*models.SuiTransactionBlockResponse, error)
 	RegisterPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, param bind.Object, coinMetadata bind.Object, initialAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string, publisherWrapper bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
 	RegisterPoolAsOwner(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ref bind.Object, coinMetadataAddress string, packageAddress string, tokenPoolModule string, tokenType string, initialAdministrator string, tokenPoolTypeProof string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error)
+	RegisterPoolAsOwnerV2(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ref bind.Object, coinMetadataAddress string, packageAddress string, tokenPoolModule string, tokenType string, initialAdministrator string, tokenPoolTypeProof string, lockOrBurnParams []string, releaseOrMintParams []string, localDecimals byte) (*models.SuiTransactionBlockResponse, error)
 	UnregisterPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
 	TransferAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, newAdmin string) (*models.SuiTransactionBlockResponse, error)
 	AcceptAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
@@ -48,6 +52,7 @@ type ITokenAdminRegistry interface {
 
 type ITokenAdminRegistryDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
+	GetLocalDecimalsForToken(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (byte, error)
 	GetPools(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddresses []string) ([]string, error)
 	GetPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (string, error)
 	GetTokenConfigStruct(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (TokenConfig, error)
@@ -64,6 +69,12 @@ type TokenAdminRegistryEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
+	InitializeLocalDecimals(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
+	InitializeLocalDecimalsWithArgs(args ...any) (*bind.EncodedCall, error)
+	BackfillLocalDecimals(ownerCap bind.Object, ref bind.Object, coinMetadataAddress string, localDecimals byte) (*bind.EncodedCall, error)
+	BackfillLocalDecimalsWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetLocalDecimalsForToken(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
+	GetLocalDecimalsForTokenWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetPools(ref bind.Object, coinMetadataAddresses []string) (*bind.EncodedCall, error)
 	GetPoolsWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetPool(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
@@ -82,6 +93,8 @@ type TokenAdminRegistryEncoder interface {
 	RegisterPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	RegisterPoolAsOwner(ownerCap bind.Object, ref bind.Object, coinMetadataAddress string, packageAddress string, tokenPoolModule string, tokenType string, initialAdministrator string, tokenPoolTypeProof string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error)
 	RegisterPoolAsOwnerWithArgs(args ...any) (*bind.EncodedCall, error)
+	RegisterPoolAsOwnerV2(ownerCap bind.Object, ref bind.Object, coinMetadataAddress string, packageAddress string, tokenPoolModule string, tokenType string, initialAdministrator string, tokenPoolTypeProof string, lockOrBurnParams []string, releaseOrMintParams []string, localDecimals byte) (*bind.EncodedCall, error)
+	RegisterPoolAsOwnerV2WithArgs(args ...any) (*bind.EncodedCall, error)
 	UnregisterPool(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
 	UnregisterPoolWithArgs(args ...any) (*bind.EncodedCall, error)
 	TransferAdminRole(ref bind.Object, coinMetadataAddress string, newAdmin string) (*bind.EncodedCall, error)
@@ -147,6 +160,11 @@ type TokenAdminRegistryState struct {
 	TokenPoolPackageIdToCoinMetadata bind.Object `move:"LinkedTable<address, address>"`
 }
 
+type LocalDecimalsState struct {
+	Id       string      `move:"sui::object::UID"`
+	Decimals bind.Object `move:"LinkedTable<address, u8>"`
+}
+
 type TokenConfig struct {
 	TokenPoolPackageId   string   `move:"address"`
 	TokenPoolModule      string   `move:"0x1::string::String"`
@@ -203,6 +221,36 @@ func (c *TokenAdminRegistryContract) TypeAndVersion(ctx context.Context, opts *b
 // Initialize executes the initialize Move function.
 func (c *TokenAdminRegistryContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.tokenAdminRegistryEncoder.Initialize(ref, ownerCap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// InitializeLocalDecimals executes the initialize_local_decimals Move function.
+func (c *TokenAdminRegistryContract) InitializeLocalDecimals(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.InitializeLocalDecimals(ref, ownerCap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// BackfillLocalDecimals executes the backfill_local_decimals Move function.
+func (c *TokenAdminRegistryContract) BackfillLocalDecimals(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ref bind.Object, coinMetadataAddress string, localDecimals byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.BackfillLocalDecimals(ownerCap, ref, coinMetadataAddress, localDecimals)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetLocalDecimalsForToken executes the get_local_decimals_for_token Move function.
+func (c *TokenAdminRegistryContract) GetLocalDecimalsForToken(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.GetLocalDecimalsForToken(ref, coinMetadataAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -293,6 +341,16 @@ func (c *TokenAdminRegistryContract) RegisterPool(ctx context.Context, opts *bin
 // RegisterPoolAsOwner executes the register_pool_as_owner Move function.
 func (c *TokenAdminRegistryContract) RegisterPoolAsOwner(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ref bind.Object, coinMetadataAddress string, packageAddress string, tokenPoolModule string, tokenType string, initialAdministrator string, tokenPoolTypeProof string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.tokenAdminRegistryEncoder.RegisterPoolAsOwner(ownerCap, ref, coinMetadataAddress, packageAddress, tokenPoolModule, tokenType, initialAdministrator, tokenPoolTypeProof, lockOrBurnParams, releaseOrMintParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// RegisterPoolAsOwnerV2 executes the register_pool_as_owner_v2 Move function.
+func (c *TokenAdminRegistryContract) RegisterPoolAsOwnerV2(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ref bind.Object, coinMetadataAddress string, packageAddress string, tokenPoolModule string, tokenType string, initialAdministrator string, tokenPoolTypeProof string, lockOrBurnParams []string, releaseOrMintParams []string, localDecimals byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.RegisterPoolAsOwnerV2(ownerCap, ref, coinMetadataAddress, packageAddress, tokenPoolModule, tokenType, initialAdministrator, tokenPoolTypeProof, lockOrBurnParams, releaseOrMintParams, localDecimals)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -408,6 +466,28 @@ func (d *TokenAdminRegistryDevInspect) TypeAndVersion(ctx context.Context, opts 
 	var result string
 	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
 		return "", fmt.Errorf("failed to decode return value: %w", err)
+	}
+	return result, nil
+}
+
+// GetLocalDecimalsForToken executes the get_local_decimals_for_token Move function using DevInspect to get return values.
+//
+// Returns: u8
+func (d *TokenAdminRegistryDevInspect) GetLocalDecimalsForToken(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (byte, error) {
+	encoded, err := d.contract.tokenAdminRegistryEncoder.GetLocalDecimalsForToken(ref, coinMetadataAddress)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return 0, err
+	}
+	if len(results) == 0 {
+		return 0, fmt.Errorf("no return value")
+	}
+	var result byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -743,6 +823,103 @@ func (c tokenAdminRegistryEncoder) InitializeWithArgs(args ...any) (*bind.Encode
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// InitializeLocalDecimals encodes a call to the initialize_local_decimals Move function.
+func (c tokenAdminRegistryEncoder) InitializeLocalDecimals(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("initialize_local_decimals", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+	}, []any{
+		ref,
+		ownerCap,
+	}, nil)
+}
+
+// InitializeLocalDecimalsWithArgs encodes a call to the initialize_local_decimals Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) InitializeLocalDecimalsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("initialize_local_decimals", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// BackfillLocalDecimals encodes a call to the backfill_local_decimals Move function.
+func (c tokenAdminRegistryEncoder) BackfillLocalDecimals(ownerCap bind.Object, ref bind.Object, coinMetadataAddress string, localDecimals byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("backfill_local_decimals", typeArgsList, typeParamsList, []string{
+		"&OwnerCap",
+		"&mut CCIPObjectRef",
+		"address",
+		"u8",
+	}, []any{
+		ownerCap,
+		ref,
+		coinMetadataAddress,
+		localDecimals,
+	}, nil)
+}
+
+// BackfillLocalDecimalsWithArgs encodes a call to the backfill_local_decimals Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) BackfillLocalDecimalsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&OwnerCap",
+		"&mut CCIPObjectRef",
+		"address",
+		"u8",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("backfill_local_decimals", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// GetLocalDecimalsForToken encodes a call to the get_local_decimals_for_token Move function.
+func (c tokenAdminRegistryEncoder) GetLocalDecimalsForToken(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_local_decimals_for_token", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"address",
+	}, []any{
+		ref,
+		coinMetadataAddress,
+	}, []string{
+		"u8",
+	})
+}
+
+// GetLocalDecimalsForTokenWithArgs encodes a call to the get_local_decimals_for_token Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) GetLocalDecimalsForTokenWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_local_decimals_for_token", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u8",
+	})
 }
 
 // GetPools encodes a call to the get_pools Move function.
@@ -1105,6 +1282,62 @@ func (c tokenAdminRegistryEncoder) RegisterPoolAsOwnerWithArgs(args ...any) (*bi
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("register_pool_as_owner", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// RegisterPoolAsOwnerV2 encodes a call to the register_pool_as_owner_v2 Move function.
+func (c tokenAdminRegistryEncoder) RegisterPoolAsOwnerV2(ownerCap bind.Object, ref bind.Object, coinMetadataAddress string, packageAddress string, tokenPoolModule string, tokenType string, initialAdministrator string, tokenPoolTypeProof string, lockOrBurnParams []string, releaseOrMintParams []string, localDecimals byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("register_pool_as_owner_v2", typeArgsList, typeParamsList, []string{
+		"&OwnerCap",
+		"&mut CCIPObjectRef",
+		"address",
+		"address",
+		"0x1::string::String",
+		"ascii::String",
+		"address",
+		"ascii::String",
+		"vector<address>",
+		"vector<address>",
+		"u8",
+	}, []any{
+		ownerCap,
+		ref,
+		coinMetadataAddress,
+		packageAddress,
+		tokenPoolModule,
+		tokenType,
+		initialAdministrator,
+		tokenPoolTypeProof,
+		lockOrBurnParams,
+		releaseOrMintParams,
+		localDecimals,
+	}, nil)
+}
+
+// RegisterPoolAsOwnerV2WithArgs encodes a call to the register_pool_as_owner_v2 Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) RegisterPoolAsOwnerV2WithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&OwnerCap",
+		"&mut CCIPObjectRef",
+		"address",
+		"address",
+		"0x1::string::String",
+		"ascii::String",
+		"address",
+		"ascii::String",
+		"vector<address>",
+		"vector<address>",
+		"u8",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("register_pool_as_owner_v2", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // UnregisterPool encodes a call to the unregister_pool Move function.

@@ -176,6 +176,20 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			return DeployCCIPSeqOutput{}, err
 		}
 
+		_, err = cld_ops.ExecuteOperation(
+			env,
+			TokenAdminRegistryInitializeLocalDecimalsOp,
+			deps,
+			InitLocalDecimalsInput{
+				CCIPPackageId:    deployReport.Output.PackageId,
+				StateObjectId:    deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
+			},
+		)
+		if err != nil {
+			return DeployCCIPSeqOutput{}, err
+		}
+
 		// apply_token_transfer_fee_config_updates
 		_, err = cld_ops.ExecuteOperation(
 			env,
