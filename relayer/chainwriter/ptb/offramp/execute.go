@@ -411,6 +411,7 @@ func ProcessReceivers(
 	return receiverCommandsResults, nil
 }
 
+//nolint:staticcheck // ccipocr3.Message is a deprecated alias; matches ExecuteReport.Messages until ccipocr3common migration.
 func needsAppDelivery(message ccipocr3.Message, extraArgs map[string]any) bool {
 	if len(message.Data) > 0 {
 		return true

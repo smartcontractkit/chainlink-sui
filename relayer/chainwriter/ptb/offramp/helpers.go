@@ -159,47 +159,56 @@ func decodeParam(lggr logger.Logger, param any, reference string) (SuiArgumentMe
 	if !ok {
 		return SuiArgumentMetadata{}, fmt.Errorf("expected map[string]any, got %T", param)
 	}
-
-	for k, v := range m {
-		switch k {
-		case "Struct":
-			return decodeStructParam(lggr, v, reference)
-		case "Reference", "MutableReference", "Vector":
-			return decodeParam(lggr, v, k)
-		case "TypeParameter":
-			return SuiArgumentMetadata{}, errors.New("unsupported ABI shape: TypeParameter (generic parameters are not supported)")
-		default:
-			vMap, ok := v.(map[string]any)
-			if !ok {
-				return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q has non-map value of type %T", k, v)
-			}
-			innerRaw, exists := vMap["Struct"]
-			if !exists {
-				return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q missing inner Struct", k)
-			}
-			inner, ok := innerRaw.(map[string]any)
-			if !ok {
-				return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q Struct value is %T, not map", k, innerRaw)
-			}
-			typeArguments, err := decodeTypeArguments(inner)
-			if err != nil {
-				return SuiArgumentMetadata{}, fmt.Errorf("key %q: %w", k, err)
-			}
-			address, module, name, err := extractStructFields(inner)
-			if err != nil {
-				return SuiArgumentMetadata{}, fmt.Errorf("key %q: %w", k, err)
-			}
-			return SuiArgumentMetadata{
-				Address:       address,
-				Module:        module,
-				Name:          name,
-				Reference:     k,
-				TypeArguments: typeArguments,
-				Type:          ParseParamType(lggr, v),
-			}, nil
-		}
+	if len(m) == 0 {
+		return SuiArgumentMetadata{}, errors.New("empty parameter map")
 	}
-	return SuiArgumentMetadata{}, errors.New("empty parameter map")
+	if len(m) != 1 {
+		return SuiArgumentMetadata{}, fmt.Errorf("expected exactly one ABI wrapper key, got %d", len(m))
+	}
+
+	var k string
+	var v any
+	for key, val := range m {
+		k, v = key, val
+	}
+
+	switch k {
+	case "Struct":
+		return decodeStructParam(lggr, v, reference)
+	case "Reference", "MutableReference", "Vector":
+		return decodeParam(lggr, v, k)
+	case "TypeParameter":
+		return SuiArgumentMetadata{}, errors.New("unsupported ABI shape: TypeParameter (generic parameters are not supported)")
+	default:
+		vMap, ok := v.(map[string]any)
+		if !ok {
+			return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q has non-map value of type %T", k, v)
+		}
+		innerRaw, exists := vMap["Struct"]
+		if !exists {
+			return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q missing inner Struct", k)
+		}
+		inner, ok := innerRaw.(map[string]any)
+		if !ok {
+			return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q Struct value is %T, not map", k, innerRaw)
+		}
+		typeArguments, err := decodeTypeArguments(inner)
+		if err != nil {
+			return SuiArgumentMetadata{}, fmt.Errorf("key %q: %w", k, err)
+		}
+		address, module, name, err := extractStructFields(inner)
+		if err != nil {
+			return SuiArgumentMetadata{}, fmt.Errorf("key %q: %w", k, err)
+		}
+		return SuiArgumentMetadata{
+			Address:       address,
+			Module:        module,
+			Name:          name,
+			Reference:     k,
+			TypeArguments: typeArguments,
+			Type:          ParseParamType(lggr, v),
+		}, nil
+	}
 }
 
 func decodeStructParam(lggr logger.Logger, v any, reference string) (SuiArgumentMetadata, error) {

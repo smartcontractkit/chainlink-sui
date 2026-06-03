@@ -44,6 +44,38 @@ func TestDecodeParam_PoisonABI_TypeParameter(t *testing.T) {
 	}
 }
 
+func TestDecodeParam_MultiKeyWrapperMap_RejectsDeterministically(t *testing.T) {
+	lggr := logger.Test(t)
+
+	poison := map[string]any{
+		"Vector":        map[string]any{"TypeParameter": float64(0)},
+		"TypeParameter": float64(0),
+	}
+
+	for i := 0; i < 50; i++ {
+		result, err := decodeParam(lggr, poison, "Reference")
+		require.Error(t, err, "iteration %d", i)
+		assert.Contains(t, err.Error(), "exactly one ABI wrapper key")
+		assert.Equal(t, SuiArgumentMetadata{}, result)
+	}
+}
+
+func TestDecodeParam_MultiKeyWrapperMap_NestedRejects(t *testing.T) {
+	lggr := logger.Test(t)
+
+	param := map[string]any{
+		"Vector": map[string]any{
+			"Struct":        map[string]any{"address": "0x1", "module": "m", "name": "S", "typeArguments": []any{}},
+			"TypeParameter": float64(0),
+		},
+	}
+
+	result, err := decodeParam(lggr, param, "Reference")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exactly one ABI wrapper key")
+	assert.Equal(t, SuiArgumentMetadata{}, result)
+}
+
 func TestDecodeParam_MalformedInput_NoP(t *testing.T) {
 	lggr := logger.Test(t)
 
@@ -90,6 +122,13 @@ func TestDecodeParam_MalformedInput_NoP(t *testing.T) {
 		{
 			name:  "empty map",
 			param: map[string]any{},
+		},
+		{
+			name: "multiple top-level wrapper keys",
+			param: map[string]any{
+				"Vector":        map[string]any{"U8": nil},
+				"TypeParameter": float64(0),
+			},
 		},
 		{
 			name:  "default key with non-map value",
