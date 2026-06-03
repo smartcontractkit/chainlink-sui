@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -52,8 +51,8 @@ type CcipBurnMintTokenDevInspect struct {
 var _ ICcipBurnMintToken = (*CcipBurnMintTokenContract)(nil)
 var _ ICcipBurnMintTokenDevInspect = (*CcipBurnMintTokenDevInspect)(nil)
 
-func NewCcipBurnMintToken(packageID string, client sui.ISuiAPI) (ICcipBurnMintToken, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_burn_mint_token", "ccip_burn_mint_token", client)
+func NewCcipBurnMintToken(packageID string, chainClient client.BindingsClient) (ICcipBurnMintToken, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip_burn_mint_token", "ccip_burn_mint_token", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -79,26 +78,6 @@ func (c *CcipBurnMintTokenContract) DevInspect() ICcipBurnMintTokenDevInspect {
 }
 
 type CCIP_BURN_MINT_TOKEN struct {
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip_burn_mint_token::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", func(data []byte) (interface{}, error) {
-		var result CCIP_BURN_MINT_TOKEN
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CCIP_BURN_MINT_TOKEN
-	bind.RegisterStructDecoder("vector<ccip_burn_mint_token::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN>", func(data []byte) (interface{}, error) {
-		var results []CCIP_BURN_MINT_TOKEN
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // MintAndTransfer executes the mint_and_transfer Move function.

@@ -2,21 +2,20 @@ package bind
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 type ObjectResolver struct {
-	client sui.ISuiAPI
+	client client.BindingsClient
 	cache  *objectCache
 }
 
@@ -33,17 +32,18 @@ type resolvedObject struct {
 	InitialSharedVersion *uint64
 }
 
-func NewObjectResolver(client sui.ISuiAPI) *ObjectResolver {
+func NewObjectResolver(chainClient client.BindingsClient) *ObjectResolver {
 	return &ObjectResolver{
-		client: client,
+		client: chainClient,
 		cache: &objectCache{
 			cache: make(map[string]*resolvedObject),
 		},
 	}
 }
 
-func GetSharedObject(ctx context.Context, client sui.ISuiAPI, objectId string) (*Object, error) {
-	resolver := NewObjectResolver(client)
+//nolint:revive // var-naming: parameter name matches Sui SDK conventions.
+func GetSharedObject(ctx context.Context, chainClient client.BindingsClient, objectId string) (*Object, error) {
+	resolver := NewObjectResolver(chainClient)
 	return resolver.GetSharedObject(ctx, objectId)
 }
 
@@ -100,60 +100,15 @@ func (r *ObjectResolver) resolveObject(ctx context.Context, objectId string) (*r
 	if cached := r.cache.get(objectId); cached != nil {
 		return cached, nil
 	}
-	resp, err := r.client.SuiGetObject(ctx, models.SuiGetObjectRequest{
-		ObjectId: objectId,
-		Options: models.SuiObjectDataOptions{
-			ShowOwner:               true,
-			ShowType:                true,
-			ShowPreviousTransaction: true,
-		},
-	})
+
+	obj, err := r.client.ReadObjectId(ctx, objectId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch object %s: %w", objectId, err)
 	}
 
-	if resp.Error != nil {
-		return nil, fmt.Errorf("object error for %s: %v", objectId, resp.Error)
-	}
-
-	if resp.Data == nil {
-		return nil, fmt.Errorf("object %s not found", objectId)
-	}
-
-	version, err := parseVersionString(resp.Data.Version)
+	resolved, err := mapGrpcObjectToResolved(obj)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse version for object %s: %w", objectId, err)
-	}
-
-	resolved := &resolvedObject{
-		ObjectId: resp.Data.ObjectId,
-		Version:  version,
-		Digest:   resp.Data.Digest,
-	}
-
-	if resp.Data.Owner != nil {
-		// TODO: check this logic, use mapstructure if this is a map[string]any{}
-		ownerBytes, err := json.Marshal(resp.Data.Owner)
-		if err == nil {
-			var owner models.ObjectOwner
-			if err := json.Unmarshal(ownerBytes, &owner); err == nil {
-				resolved.Owner = owner
-
-				if owner.AddressOwner != "" {
-					resolved.InitialSharedVersion = nil
-				} else if owner.ObjectOwner != "" {
-					resolved.InitialSharedVersion = nil
-				} else if owner.Shared.InitialSharedVersion > 0 {
-					v := owner.Shared.InitialSharedVersion
-					resolved.InitialSharedVersion = &v
-				}
-			} else {
-				var immutableOwner string
-				if err := json.Unmarshal(ownerBytes, &immutableOwner); err == nil && immutableOwner == "Immutable" {
-					resolved.Owner = models.ObjectOwner{}
-				}
-			}
-		}
+		return nil, err
 	}
 
 	r.cache.set(objectId, resolved)
@@ -189,26 +144,6 @@ func (r *ObjectResolver) createObjectArgWithMutability(resolved *resolvedObject,
 				ObjectId:             *objIdBytes,
 				InitialSharedVersion: *resolved.InitialSharedVersion,
 				Mutable:              isMutable,
-			},
-		}, nil
-	}
-
-	if resolved.Owner.AddressOwner != "" {
-		return &transaction.ObjectArg{
-			ImmOrOwnedObject: &transaction.SuiObjectRef{
-				ObjectId: *objIdBytes,
-				Version:  resolved.Version,
-				Digest:   *digestBytes,
-			},
-		}, nil
-	}
-
-	if resolved.Owner.ObjectOwner != "" {
-		return &transaction.ObjectArg{
-			ImmOrOwnedObject: &transaction.SuiObjectRef{
-				ObjectId: *objIdBytes,
-				Version:  resolved.Version,
-				Digest:   *digestBytes,
 			},
 		}, nil
 	}

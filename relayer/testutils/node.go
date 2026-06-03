@@ -63,12 +63,12 @@ func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
 	// Wait for the node to start
 	const defaultDelay = 10 * time.Second
 	const backoffDelay = 100 * time.Millisecond
-	err := waitForConnection(LocalUrl, defaultDelay, backoffDelay)
+	err := waitForConnection(LocalURL, defaultDelay, backoffDelay)
 	if err != nil {
 		return nil, err
 	}
 	// wait for Faucet to be available
-	err = waitForConnection(LocalFaucetUrl, defaultDelay, backoffDelay)
+	err = waitForConnection(LocalFaucetURL, defaultDelay, backoffDelay)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func waitForConnection(url string, timeout time.Duration, backoffDelay time.Dura
 func GetFaucetHost(network string) string {
 	switch network {
 	default:
-		return LocalUrl
+		return LocalURL
 	}
 }
 

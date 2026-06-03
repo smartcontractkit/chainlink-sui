@@ -59,6 +59,7 @@ fun initialize_state_and_registry(scenario: &mut Scenario, admin: address) {
         // Initialize upgrade registry first (required by token_admin_registry functions)
         upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
         registry::initialize(&mut ref, &owner_cap, ctx);
+        registry::initialize_local_decimals(&mut ref, &owner_cap, ctx);
 
         scenario.return_to_sender(owner_cap);
         ts::return_shared(ref);
@@ -229,7 +230,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let ctx = scenario.ctx();
 
-        registry::register_pool_as_owner(
+        registry::register_pool_as_owner_v2(
             &owner_cap,
             &mut ref,
             @0xABC1, // coin_metadata_address #1
@@ -240,6 +241,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
             ascii::string(b"ProofOne"),
             vector[@0x6, @0x1111],
             vector[@0x6, @0x2222],
+            8, // local_decimals
             ctx,
         );
 
@@ -259,7 +261,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let ctx = scenario.ctx();
 
-        registry::register_pool_as_owner(
+        registry::register_pool_as_owner_v2(
             &owner_cap,
             &mut ref,
             @0xABC2, // coin_metadata_address #2
@@ -270,6 +272,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
             ascii::string(b"ProofTwo"),
             vector[@0x6, @0x3333],
             vector[@0x6, @0x4444],
+            8, // local_decimals
             ctx,
         );
 
@@ -1249,5 +1252,89 @@ public fun test_register_pool_function_not_allowed() {
     };
 
     transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+#[test]
+fun test_backfill_local_decimals() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let token_addr = @0xABC;
+
+        registry::backfill_local_decimals(&owner_cap, &mut ref, token_addr, 9);
+        assert!(registry::test_get_local_decimals(&ref, token_addr) == 9);
+
+        scenario.return_to_sender(owner_cap);
+        ts::return_shared(ref);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_backfill_local_decimals_no_overwrite() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let token_addr = @0xABC;
+
+        registry::backfill_local_decimals(&owner_cap, &mut ref, token_addr, 9);
+        registry::backfill_local_decimals(&owner_cap, &mut ref, token_addr, 18);
+        // insert_local_decimals is a no-op if entry already exists
+        assert!(registry::test_get_local_decimals(&ref, token_addr) == 9);
+
+        scenario.return_to_sender(owner_cap);
+        ts::return_shared(ref);
+    };
+
+    ts::end(scenario);
+}
+
+#[test, expected_failure(abort_code = registry::ELocalDecimalsNotInitialized)]
+fun test_backfill_local_decimals_not_initialized() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let ctx = scenario.ctx();
+        mcms_account::test_init(ctx);
+        mcms_registry::test_init(ctx);
+        mcms_deployer::test_init(ctx);
+        state_object::test_init(ctx);
+    };
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let ctx = scenario.ctx();
+
+        upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
+
+        scenario.return_to_sender(owner_cap);
+        ts::return_shared(ref);
+    };
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        // Don't call initialize_local_decimals — should abort
+        registry::backfill_local_decimals(&owner_cap, &mut ref, @0xABC, 9);
+
+        scenario.return_to_sender(owner_cap);
+        ts::return_shared(ref);
+    };
+
     ts::end(scenario);
 }

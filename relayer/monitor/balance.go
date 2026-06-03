@@ -73,7 +73,7 @@ func (c balanceClient) GetAccountBalance(address string) (float64, error) {
 		return 0, fmt.Errorf("failed to get balance: %w", err)
 	}
 
-	return mistToSui(balance.Uint64()), nil
+	return mistToSui(balance.GetBalance()), nil
 }
 
 // Convert MIST to SUI as 1/10^9 SUI

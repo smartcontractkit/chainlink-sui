@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -125,8 +124,8 @@ type RouterDevInspect struct {
 var _ IRouter = (*RouterContract)(nil)
 var _ IRouterDevInspect = (*RouterDevInspect)(nil)
 
-func NewRouter(packageID string, client sui.ISuiAPI) (IRouter, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_router", "router", client)
+func NewRouter(packageID string, chainClient client.BindingsClient) (IRouter, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip_router", "router", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -178,182 +177,6 @@ type McmsCallback struct {
 }
 
 type McmsAcceptOwnershipProof struct {
-}
-
-type bcsOnRampSet struct {
-	DestChainSelector uint64
-	OnRampPackageId   [32]byte
-}
-
-func convertOnRampSetFromBCS(bcs bcsOnRampSet) (OnRampSet, error) {
-
-	return OnRampSet{
-		DestChainSelector: bcs.DestChainSelector,
-		OnRampPackageId:   fmt.Sprintf("0x%x", bcs.OnRampPackageId),
-	}, nil
-}
-
-type bcsRouterStatePointer struct {
-	Id             string
-	RouterObjectId [32]byte
-}
-
-func convertRouterStatePointerFromBCS(bcs bcsRouterStatePointer) (RouterStatePointer, error) {
-
-	return RouterStatePointer{
-		Id:             bcs.Id,
-		RouterObjectId: fmt.Sprintf("0x%x", bcs.RouterObjectId),
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip_router::router::ROUTER", func(data []byte) (interface{}, error) {
-		var result ROUTER
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ROUTER
-	bind.RegisterStructDecoder("vector<ccip_router::router::ROUTER>", func(data []byte) (interface{}, error) {
-		var results []ROUTER
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_router::router::RouterObject", func(data []byte) (interface{}, error) {
-		var result RouterObject
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for RouterObject
-	bind.RegisterStructDecoder("vector<ccip_router::router::RouterObject>", func(data []byte) (interface{}, error) {
-		var results []RouterObject
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_router::router::OnRampSet", func(data []byte) (interface{}, error) {
-		var temp bcsOnRampSet
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOnRampSetFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OnRampSet
-	bind.RegisterStructDecoder("vector<ccip_router::router::OnRampSet>", func(data []byte) (interface{}, error) {
-		var temps []bcsOnRampSet
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OnRampSet, len(temps))
-		for i, temp := range temps {
-			result, err := convertOnRampSetFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_router::router::RouterState", func(data []byte) (interface{}, error) {
-		var result RouterState
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for RouterState
-	bind.RegisterStructDecoder("vector<ccip_router::router::RouterState>", func(data []byte) (interface{}, error) {
-		var results []RouterState
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_router::router::RouterStatePointer", func(data []byte) (interface{}, error) {
-		var temp bcsRouterStatePointer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertRouterStatePointerFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for RouterStatePointer
-	bind.RegisterStructDecoder("vector<ccip_router::router::RouterStatePointer>", func(data []byte) (interface{}, error) {
-		var temps []bcsRouterStatePointer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]RouterStatePointer, len(temps))
-		for i, temp := range temps {
-			result, err := convertRouterStatePointerFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_router::router::McmsCallback", func(data []byte) (interface{}, error) {
-		var result McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsCallback
-	bind.RegisterStructDecoder("vector<ccip_router::router::McmsCallback>", func(data []byte) (interface{}, error) {
-		var results []McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_router::router::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
-		var result McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsAcceptOwnershipProof
-	bind.RegisterStructDecoder("vector<ccip_router::router::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
-		var results []McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // GetUid executes the get_uid Move function.
@@ -601,9 +424,9 @@ func (d *RouterDevInspect) GetUid(ctx context.Context, opts *bind.CallOpts, rout
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -623,9 +446,9 @@ func (d *RouterDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallOp
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -645,9 +468,9 @@ func (d *RouterDevInspect) IsChainSupported(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -667,9 +490,9 @@ func (d *RouterDevInspect) GetOnRamp(ctx context.Context, opts *bind.CallOpts, r
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -689,9 +512,9 @@ func (d *RouterDevInspect) GetDestChains(ctx context.Context, opts *bind.CallOpt
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]uint64)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []uint64, got %T", results[0])
+	var result []uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -711,9 +534,9 @@ func (d *RouterDevInspect) Owner(ctx context.Context, opts *bind.CallOpts, state
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -733,9 +556,9 @@ func (d *RouterDevInspect) HasPendingTransfer(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -755,9 +578,9 @@ func (d *RouterDevInspect) PendingTransferFrom(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -777,9 +600,9 @@ func (d *RouterDevInspect) PendingTransferTo(ctx context.Context, opts *bind.Cal
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -799,9 +622,9 @@ func (d *RouterDevInspect) PendingTransferAccepted(ctx context.Context, opts *bi
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*bool)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *bool, got %T", results[0])
+	var result *bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

@@ -40,6 +40,7 @@ fun setup_test(): (Scenario, OwnerCap, CCIPObjectRef, SourceTransferCap) {
 
     // Initialize token admin registry
     registry::initialize(&mut ref, &owner_cap, scenario.ctx());
+    registry::initialize_local_decimals(&mut ref, &owner_cap, scenario.ctx());
 
     // Create onramp state helper and get source transfer cap
     onramp_state_helper::test_init(scenario.ctx());
@@ -69,7 +70,7 @@ public fun test_create_token_transfer_params() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token in the token admin registry first
-    registry::register_pool_as_owner(
+    registry::register_pool_as_owner_v2(
         &owner_cap,
         &mut ref,
         TOKEN_ADDRESS_1,
@@ -80,6 +81,7 @@ public fun test_create_token_transfer_params() {
         type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        8, // local_decimals
         scenario.ctx(),
     );
 
@@ -126,7 +128,7 @@ public fun test_create_token_transfer_params_basic() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token with TestTypeProof
-    registry::register_pool_as_owner(
+    registry::register_pool_as_owner_v2(
         &owner_cap,
         &mut ref,
         TOKEN_ADDRESS_1,
@@ -137,6 +139,7 @@ public fun test_create_token_transfer_params_basic() {
         type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        8, // local_decimals
         scenario.ctx(),
     );
 
@@ -165,7 +168,7 @@ public fun test_get_remote_chain_selector() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_as_owner(
+    registry::register_pool_as_owner_v2(
         &owner_cap,
         &mut ref,
         TOKEN_ADDRESS_1,
@@ -176,6 +179,7 @@ public fun test_get_remote_chain_selector() {
         type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        8, // local_decimals
         scenario.ctx(),
     );
 
@@ -232,7 +236,7 @@ public fun test_create_and_verify_token_transfer() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token in the token admin registry first
-    registry::register_pool_as_owner(
+    registry::register_pool_as_owner_v2(
         &owner_cap,
         &mut ref,
         TOKEN_ADDRESS_1,
@@ -243,6 +247,7 @@ public fun test_create_and_verify_token_transfer() {
         type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        8, // local_decimals
         scenario.ctx(),
     );
 
@@ -303,7 +308,7 @@ public fun test_add_multiple_token_transfers_should_fail() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_as_owner(
+    registry::register_pool_as_owner_v2(
         &owner_cap,
         &mut ref,
         TOKEN_ADDRESS_1,
@@ -314,6 +319,7 @@ public fun test_add_multiple_token_transfers_should_fail() {
         type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        8, // local_decimals
         scenario.ctx(),
     );
 
@@ -379,7 +385,7 @@ public fun test_get_source_token_transfer_data() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_as_owner(
+    registry::register_pool_as_owner_v2(
         &owner_cap,
         &mut ref,
         TOKEN_ADDRESS_1,
@@ -390,6 +396,7 @@ public fun test_get_source_token_transfer_data() {
         type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        8, // local_decimals
         scenario.ctx(),
     );
 
@@ -436,7 +443,7 @@ public fun test_edge_case_large_amounts() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_as_owner(
+    registry::register_pool_as_owner_v2(
         &owner_cap,
         &mut ref,
         TOKEN_ADDRESS_1,
@@ -447,6 +454,7 @@ public fun test_edge_case_large_amounts() {
         type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        8, // local_decimals
         scenario.ctx(),
     );
 
@@ -483,7 +491,7 @@ public fun test_edge_case_empty_data() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_as_owner(
+    registry::register_pool_as_owner_v2(
         &owner_cap,
         &mut ref,
         TOKEN_ADDRESS_1,
@@ -494,6 +502,7 @@ public fun test_edge_case_empty_data() {
         type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        8, // local_decimals
         scenario.ctx(),
     );
 
@@ -535,7 +544,7 @@ public fun test_zero_amount_transfer() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_as_owner(
+    registry::register_pool_as_owner_v2(
         &owner_cap,
         &mut ref,
         TOKEN_ADDRESS_1,
@@ -546,6 +555,7 @@ public fun test_zero_amount_transfer() {
         type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        8, // local_decimals
         scenario.ctx(),
     );
 
@@ -581,7 +591,7 @@ public fun test_source_transfer_cap_permission() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
 
     // Register a token
-    registry::register_pool_as_owner(
+    registry::register_pool_as_owner_v2(
         &owner_cap,
         &mut ref,
         TOKEN_ADDRESS_1,
@@ -592,6 +602,7 @@ public fun test_source_transfer_cap_permission() {
         type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        8, // local_decimals
         scenario.ctx(),
     );
 

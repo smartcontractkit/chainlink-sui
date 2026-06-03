@@ -5,6 +5,7 @@ package tests
 import (
 	"context"
 	"math/big"
+	"os"
 	"strings"
 	"testing"
 
@@ -25,10 +26,8 @@ func TestComplexModule(t *testing.T) {
 		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
-	chainID, err := client.SuiGetChainIdentifier(ctx)
-	if err != nil {
-		t.Fatalf("failed to get chain identifier: %v", err)
-	}
+	chainID, err := testutils.GetChainIdentifier(os.Getenv("SUI_RPC_URL"))
+	require.NoError(t, err)
 
 	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
 

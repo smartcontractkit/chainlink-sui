@@ -7,7 +7,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
@@ -60,14 +59,7 @@ func GetOfframpAddressMappings(
 		OffRampState:     "",
 	}
 
-	// Use the `toAddress` (offramp package ID) from the config overrides to get the offramp pointer object
-	signerAddress, err := client.GetAddressFromPublicKey(publicKey)
-	if err != nil {
-		lggr.Errorw("Error getting signer address", "error", err)
-		return OffRampAddressMappings{}, err
-	}
-
-	ccipPkgID, err := ptbClient.GetCCIPPackageID(ctx, addressMappings.OffRampPackageId, signerAddress)
+	ccipPkgID, err := ptbClient.GetCCIPPackageID(ctx, addressMappings.OffRampPackageId)
 	if err != nil {
 		return OffRampAddressMappings{}, err
 	}
@@ -92,7 +84,7 @@ func GetOfframpAddressMappings(
 	}
 
 	// Derive OffRampState from parent object ID
-	offRampStateID, err := bind.DeriveObjectIDWithVectorU8Key(offRampObjectID, []byte("OffRampState"))
+	offRampStateID, err := client.DeriveObjectIDWithVectorU8Key(offRampObjectID, []byte("OffRampState"))
 	if err != nil {
 		lggr.Errorw("Error deriving offramp state object ID", "error", err)
 		return OffRampAddressMappings{}, err
@@ -114,7 +106,7 @@ func GetOfframpAddressMappings(
 	}
 
 	// Derive CCIPObjectRef from parent object ID
-	ccipObjectRefID, err := bind.DeriveObjectIDWithVectorU8Key(ccipObjectID, []byte("CCIPObjectRef"))
+	ccipObjectRefID, err := client.DeriveObjectIDWithVectorU8Key(ccipObjectID, []byte("CCIPObjectRef"))
 	if err != nil {
 		lggr.Errorw("Error deriving ccip object ref ID", "error", err)
 		return OffRampAddressMappings{}, err
@@ -122,7 +114,7 @@ func GetOfframpAddressMappings(
 	addressMappings.CcipObjectRef = ccipObjectRefID
 
 	// Derive CCIP OwnerCap from parent object ID
-	ccipOwnerCapID, err := bind.DeriveObjectIDWithVectorU8Key(ccipObjectID, []byte("CCIP_OWNABLE"))
+	ccipOwnerCapID, err := client.DeriveObjectIDWithVectorU8Key(ccipObjectID, []byte("CCIP_OWNABLE"))
 	if err != nil {
 		lggr.Errorw("Error deriving ccip owner cap ID", "error", err)
 		return OffRampAddressMappings{}, err

@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -53,8 +52,8 @@ type LinkDevInspect struct {
 var _ ILink = (*LinkContract)(nil)
 var _ ILinkDevInspect = (*LinkDevInspect)(nil)
 
-func NewLink(packageID string, client sui.ISuiAPI) (ILink, error) {
-	contract, err := bind.NewBoundContract(packageID, "link", "link", client)
+func NewLink(packageID string, chainClient client.BindingsClient) (ILink, error) {
+	contract, err := bind.NewBoundContract(packageID, "link", "link", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -80,26 +79,6 @@ func (c *LinkContract) DevInspect() ILinkDevInspect {
 }
 
 type LINK struct {
-}
-
-func init() {
-	bind.RegisterStructDecoder("link::link::LINK", func(data []byte) (interface{}, error) {
-		var result LINK
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for LINK
-	bind.RegisterStructDecoder("vector<link::link::LINK>", func(data []byte) (interface{}, error) {
-		var results []LINK
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // MintAndTransfer executes the mint_and_transfer Move function.
@@ -137,9 +116,9 @@ func (d *LinkDevInspect) Mint(ctx context.Context, opts *bind.CallOpts, treasury
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

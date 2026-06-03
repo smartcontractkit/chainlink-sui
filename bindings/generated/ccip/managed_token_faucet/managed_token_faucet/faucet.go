@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -60,8 +59,8 @@ type FaucetDevInspect struct {
 var _ IFaucet = (*FaucetContract)(nil)
 var _ IFaucetDevInspect = (*FaucetDevInspect)(nil)
 
-func NewFaucet(packageID string, client sui.ISuiAPI) (IFaucet, error) {
-	contract, err := bind.NewBoundContract(packageID, "managed_token_faucet", "faucet", client)
+func NewFaucet(packageID string, chainClient client.BindingsClient) (IFaucet, error) {
+	contract, err := bind.NewBoundContract(packageID, "managed_token_faucet", "faucet", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -89,26 +88,6 @@ func (c *FaucetContract) DevInspect() IFaucetDevInspect {
 type FaucetState struct {
 	Id      string      `move:"sui::object::UID"`
 	MintCap bind.Object `move:"MintCap<T>"`
-}
-
-func init() {
-	bind.RegisterStructDecoder("managed_token_faucet::faucet::FaucetState", func(data []byte) (interface{}, error) {
-		var result FaucetState
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for FaucetState
-	bind.RegisterStructDecoder("vector<managed_token_faucet::faucet::FaucetState>", func(data []byte) (interface{}, error) {
-		var results []FaucetState
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -166,9 +145,9 @@ func (d *FaucetDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallOp
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

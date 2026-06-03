@@ -57,6 +57,7 @@ fun setup_ccip_environment(scenario: &mut Scenario): (CCIPOwnerCap, CCIPObjectRe
     upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx()); // local chain selector = 1000
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
+    token_admin_registry::initialize_local_decimals(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     onramp_sh::test_init(scenario.ctx());
     offramp_sh::test_init(scenario.ctx());
 
@@ -1312,6 +1313,7 @@ public fun test_lock_or_burn_functionality() {
 
     upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
+    token_admin_registry::initialize_local_decimals(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
     onramp_sh::test_init(scenario.ctx());
 
@@ -1502,6 +1504,7 @@ public fun test_release_or_mint_functionality() {
 
     upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
+    token_admin_registry::initialize_local_decimals(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
     offramp_sh::test_init(scenario.ctx());
 
