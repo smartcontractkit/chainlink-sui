@@ -485,9 +485,9 @@ func (d *TokenAdminRegistryDevInspect) GetLocalDecimalsForToken(ctx context.Cont
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(byte)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected byte, got %T", results[0])
+	var result byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
