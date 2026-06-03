@@ -3,9 +3,15 @@
     local = '../test_secondary'
 
 [environments]
-  local_9a32b313 = '9a32b313'
   devnet = 'a9149565'
-  local = '9a32b313'
+  local = 'bc3779f8'
+  local_34e44cff = '34e44cff'
+  local_580ec4e1 = '580ec4e1'
+  local_585842bb = '585842bb'
+  local_9a32b313 = '9a32b313'
+  local_bebccc7d = 'bebccc7d'
+  local_d317c343 = 'd317c343'
+  local_ec3f93df = 'ec3f93df'
 
 [package]
   edition = '2024'

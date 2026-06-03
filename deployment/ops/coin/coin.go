@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/block-vision/sui-go-sdk/models"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
@@ -30,9 +29,7 @@ var GetCoinSymbolOp = cld_ops.NewOperation(
 var getCoinSymbolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, coinObjectTypeArg string) (GetCoinMetadataOutput, error) {
 	ctx := context.Background()
 
-	rsp, err := deps.Client.SuiXGetCoinMetadata(ctx, models.SuiXGetCoinMetadataRequest{
-		CoinType: coinObjectTypeArg,
-	})
+	rsp, err := deps.Client.GetCoinMetadata(ctx, coinObjectTypeArg)
 	if err != nil {
 		return GetCoinMetadataOutput{}, err
 	}

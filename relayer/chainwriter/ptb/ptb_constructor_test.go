@@ -4,7 +4,6 @@ package ptb_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -68,10 +67,18 @@ func setupTestEnvironment(t *testing.T) (
 		return err == nil
 	}, time.Second*10, time.Second)
 
-	relayerClient, err = client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	testCfg := client.PTBClientConfig{
+		GrpcTarget:            "127.0.0.1:9000",
+		GrpcToken:             "test",
+		TransactionTimeout:    10 * time.Second,
+		MaxConcurrentRequests: 5,
+		KeystoreService:       keystoreInstance,
+	}
+
+	relayerClient, err = client.NewPTBClient(log, testCfg)
 	require.NoError(t, err)
 
-	chainID, chainIDErr := testutils.GetChainIdentifier(testutils.LocalUrl)
+	chainID, chainIDErr := testutils.GetChainIdentifier(testutils.LocalURL)
 	require.NoError(t, chainIDErr)
 	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
 	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
@@ -97,15 +104,6 @@ func stringPointer(s string) *string {
 
 func fakeExecutePTB(ctx context.Context, tx *transaction.Transaction) (string, error) {
 	return "0x1234567890abcdef", nil
-}
-
-func prettyPrintDebug(log logger.Logger, data any) {
-	resultJSON, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		log.Errorw("Failed to marshal data to JSON", "error", err)
-	} else {
-		log.Debugf("PTB Result:\n%s", string(resultJSON))
-	}
 }
 
 // ------------------------------------------
@@ -553,15 +551,25 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "success", ptbResult.Status.Status)
-		prettyPrintDebug(log, ptbResult)
+
+		txDigest := ptbResult.GetTransaction().GetDigest()
+
+		// Wait for the transaction to be indexed
+		require.Eventually(t, func() bool {
+			status, err := ptbClient.GetTransactionStatus(ctx, txDigest)
+			return err == nil && status.Status == "success"
+		}, 20*time.Second, 2*time.Second, "Transaction not indexed in RPC node")
+
+		changedObjects, err := ptbClient.GetTransactionChangedObjects(ctx, txDigest)
+		require.NoError(t, err)
+		require.NotEmpty(t, changedObjects)
 
 		// Borrow the Counter from the manager and pass it to increment then put it back
 		var managerObjectId string
 		// iterate through object changes
-		for _, change := range ptbResult.ObjectChanges {
-			if strings.Contains(change.ObjectType, "counter_manager") {
-				managerObjectId = change.ObjectId
+		for _, changedObj := range changedObjects {
+			if strings.Contains(changedObj.GetObjectType(), "counter_manager") {
+				managerObjectId = changedObj.GetObjectId()
 			}
 		}
 
@@ -578,18 +586,23 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		ptbResult, err = ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "success", ptbResult.Status.Status)
+
+		secondTxDigest := ptbResult.GetTransaction().GetDigest()
 
 		// Expect 2 increment events
 		incrementEventsCounter := 0
-		for _, event := range ptbResult.Events {
-			if strings.Contains(event.Type, "CounterIncremented") {
+		for _, event := range ptbResult.GetTransaction().GetEvents().GetEvents() {
+			if strings.Contains(event.GetEventType(), "CounterIncremented") {
 				incrementEventsCounter += 1
 			}
 		}
 		require.Equal(t, 2, incrementEventsCounter)
 
-		prettyPrintDebug(log, ptbResult)
+		// Wait for the transaction to be indexed
+		require.Eventually(t, func() bool {
+			status, err := ptbClient.GetTransactionStatus(ctx, secondTxDigest)
+			return err == nil && status.Status == "success"
+		}, 20*time.Second, 2*time.Second, "Transaction not indexed in RPC node")
 	})
 
 	//nolint:paralleltest
@@ -608,8 +621,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
-		prettyPrintDebug(log, ptbResult)
-		require.Equal(t, "success", ptbResult.Status.Status)
+		require.True(t, ptbResult.Transaction.GetEffects().GetStatus().GetSuccess())
 	})
 
 	//nolint:paralleltest
@@ -625,14 +637,14 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 
 		// Use the first coin as the test input
 		testCoin := coins[1]
-		log.Debugw("Using test coin with PTB constructor", "coinId", testCoin.CoinObjectId, "coinType", testCoin.CoinType)
+		log.Debugw("Using test coin with PTB constructor", "coinId", testCoin.GetObjectId(), "coinType", testCoin.GetObjectType())
 
 		suiTypeTag := "0x2::sui::SUI"
 
 		// Prepare arguments for the PTB constructor
 		args := config.Arguments{
 			Args: map[string]any{
-				"coin": testCoin.CoinObjectId,
+				"coin": testCoin.GetObjectId(),
 			},
 			ArgTypes: map[string]string{
 				"coin": suiTypeTag,
@@ -652,7 +664,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "success", ptbResult.Status.Status)
+		require.True(t, ptbResult.Transaction.GetEffects().GetStatus().GetSuccess())
 		// Verify the function executed successfully
 		log.Debugw("PTB Constructor generic function call successful", "coinValue", testCoin.Balance)
 	})

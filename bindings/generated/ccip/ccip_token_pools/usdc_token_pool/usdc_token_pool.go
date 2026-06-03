@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -218,8 +217,8 @@ type UsdcTokenPoolDevInspect struct {
 var _ IUsdcTokenPool = (*UsdcTokenPoolContract)(nil)
 var _ IUsdcTokenPoolDevInspect = (*UsdcTokenPoolDevInspect)(nil)
 
-func NewUsdcTokenPool(packageID string, client sui.ISuiAPI) (IUsdcTokenPool, error) {
-	contract, err := bind.NewBoundContract(packageID, "usdc_token_pool", "usdc_token_pool", client)
+func NewUsdcTokenPool(packageID string, chainClient client.BindingsClient) (IUsdcTokenPool, error) {
+	contract, err := bind.NewBoundContract(packageID, "usdc_token_pool", "usdc_token_pool", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -292,206 +291,6 @@ type McmsCallback struct {
 }
 
 type McmsAcceptOwnershipProof struct {
-}
-
-type bcsUSDCTokenPoolStatePointer struct {
-	Id                    string
-	UsdcTokenPoolObjectId [32]byte
-}
-
-func convertUSDCTokenPoolStatePointerFromBCS(bcs bcsUSDCTokenPoolStatePointer) (USDCTokenPoolStatePointer, error) {
-
-	return USDCTokenPoolStatePointer{
-		Id:                    bcs.Id,
-		UsdcTokenPoolObjectId: fmt.Sprintf("0x%x", bcs.UsdcTokenPoolObjectId),
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::USDC_TOKEN_POOL", func(data []byte) (interface{}, error) {
-		var result USDC_TOKEN_POOL
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for USDC_TOKEN_POOL
-	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::USDC_TOKEN_POOL>", func(data []byte) (interface{}, error) {
-		var results []USDC_TOKEN_POOL
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::USDCTokenPoolObject", func(data []byte) (interface{}, error) {
-		var result USDCTokenPoolObject
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for USDCTokenPoolObject
-	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::USDCTokenPoolObject>", func(data []byte) (interface{}, error) {
-		var results []USDCTokenPoolObject
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::USDCTokenPoolStatePointer", func(data []byte) (interface{}, error) {
-		var temp bcsUSDCTokenPoolStatePointer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertUSDCTokenPoolStatePointerFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for USDCTokenPoolStatePointer
-	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::USDCTokenPoolStatePointer>", func(data []byte) (interface{}, error) {
-		var temps []bcsUSDCTokenPoolStatePointer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]USDCTokenPoolStatePointer, len(temps))
-		for i, temp := range temps {
-			result, err := convertUSDCTokenPoolStatePointerFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::Domain", func(data []byte) (interface{}, error) {
-		var result Domain
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Domain
-	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::Domain>", func(data []byte) (interface{}, error) {
-		var results []Domain
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::DomainsSet", func(data []byte) (interface{}, error) {
-		var result DomainsSet
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DomainsSet
-	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::DomainsSet>", func(data []byte) (interface{}, error) {
-		var results []DomainsSet
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::USDCTokenPoolState", func(data []byte) (interface{}, error) {
-		var result USDCTokenPoolState
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for USDCTokenPoolState
-	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::USDCTokenPoolState>", func(data []byte) (interface{}, error) {
-		var results []USDCTokenPoolState
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::TokenBucketWrapper", func(data []byte) (interface{}, error) {
-		var result TokenBucketWrapper
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TokenBucketWrapper
-	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::TokenBucketWrapper>", func(data []byte) (interface{}, error) {
-		var results []TokenBucketWrapper
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::TypeProof", func(data []byte) (interface{}, error) {
-		var result TypeProof
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TypeProof
-	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::TypeProof>", func(data []byte) (interface{}, error) {
-		var results []TypeProof
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::McmsCallback", func(data []byte) (interface{}, error) {
-		var result McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsCallback
-	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::McmsCallback>", func(data []byte) (interface{}, error) {
-		var results []McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
-		var result McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsAcceptOwnershipProof
-	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
-		var results []McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -1019,9 +818,9 @@ func (d *UsdcTokenPoolDevInspect) TypeAndVersion(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1041,9 +840,9 @@ func (d *UsdcTokenPoolDevInspect) GetToken(ctx context.Context, opts *bind.CallO
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1063,9 +862,9 @@ func (d *UsdcTokenPoolDevInspect) GetTokenDecimals(ctx context.Context, opts *bi
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(byte)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected byte, got %T", results[0])
+	var result byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1085,9 +884,9 @@ func (d *UsdcTokenPoolDevInspect) GetRemotePools(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([][]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected [][]byte, got %T", results[0])
+	var result [][]byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1107,9 +906,9 @@ func (d *UsdcTokenPoolDevInspect) IsRemotePool(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1129,9 +928,9 @@ func (d *UsdcTokenPoolDevInspect) GetRemoteToken(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1151,9 +950,9 @@ func (d *UsdcTokenPoolDevInspect) IsSupportedChain(ctx context.Context, opts *bi
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1173,9 +972,9 @@ func (d *UsdcTokenPoolDevInspect) GetSupportedChains(ctx context.Context, opts *
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]uint64)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []uint64, got %T", results[0])
+	var result []uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1195,9 +994,9 @@ func (d *UsdcTokenPoolDevInspect) GetAllowlistEnabled(ctx context.Context, opts 
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1217,9 +1016,9 @@ func (d *UsdcTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	var result []string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1239,9 +1038,9 @@ func (d *UsdcTokenPoolDevInspect) GetPackageAuthCaller(ctx context.Context, opts
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1261,9 +1060,9 @@ func (d *UsdcTokenPoolDevInspect) GetDomain(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return Domain{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(Domain)
-	if !ok {
-		return Domain{}, fmt.Errorf("unexpected return type: expected Domain, got %T", results[0])
+	var result Domain
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return Domain{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1283,9 +1082,9 @@ func (d *UsdcTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx context.
 	if len(results) == 0 {
 		return TokenBucketWrapper{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(TokenBucketWrapper)
-	if !ok {
-		return TokenBucketWrapper{}, fmt.Errorf("unexpected return type: expected TokenBucketWrapper, got %T", results[0])
+	var result TokenBucketWrapper
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return TokenBucketWrapper{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1305,9 +1104,9 @@ func (d *UsdcTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx context
 	if len(results) == 0 {
 		return TokenBucketWrapper{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(TokenBucketWrapper)
-	if !ok {
-		return TokenBucketWrapper{}, fmt.Errorf("unexpected return type: expected TokenBucketWrapper, got %T", results[0])
+	var result TokenBucketWrapper
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return TokenBucketWrapper{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1327,9 +1126,9 @@ func (d *UsdcTokenPoolDevInspect) Owner(ctx context.Context, opts *bind.CallOpts
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1349,9 +1148,9 @@ func (d *UsdcTokenPoolDevInspect) HasPendingTransfer(ctx context.Context, opts *
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1371,9 +1170,9 @@ func (d *UsdcTokenPoolDevInspect) PendingTransferFrom(ctx context.Context, opts 
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1393,9 +1192,9 @@ func (d *UsdcTokenPoolDevInspect) PendingTransferTo(ctx context.Context, opts *b
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1415,9 +1214,9 @@ func (d *UsdcTokenPoolDevInspect) PendingTransferAccepted(ctx context.Context, o
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*bool)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *bool, got %T", results[0])
+	var result *bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

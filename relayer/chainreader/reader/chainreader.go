@@ -20,7 +20,6 @@ import (
 	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	aptosCRUtils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
@@ -249,7 +248,7 @@ func (s *suiChainReader) preloadParentObjectIDs(ctx context.Context, binding pkg
 	var ccipPackageID string
 	if strings.EqualFold(binding.Name, offrampName) {
 		var err error
-		ccipPackageID, err = s.client.GetCCIPPackageID(ctx, binding.Address, binding.Address)
+		ccipPackageID, err = s.client.GetCCIPPackageID(ctx, binding.Address)
 		if err != nil {
 			s.logger.Warnw("Failed to get CCIP package ID for OffRamp", "error", err)
 		} else {
@@ -710,9 +709,9 @@ func (s *suiChainReader) fetchGenericDependency(
 			return "", fmt.Errorf("failed to read state object: %w", err)
 		}
 
-		s.logger.Debugw("stateObjectType", "stateObjectType", stateObject.Type)
+		s.logger.Debugw("stateObjectType", "stateObjectType", stateObject.GetObjectType())
 
-		genericType, err := parseGenericTypeFromObjectType(stateObject.Type)
+		genericType, err := parseGenericTypeFromObjectType(stateObject.GetObjectType())
 		if err != nil {
 			return "", err
 		}
@@ -834,7 +833,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 				// Special case for OffRamp->CCIP pointer (legacy behavior)
 				// This is needed to override the specified address (will be offramp package ID) with the CCIP package ID
 				// Only handle offRamp case because other modules are within ccip package
-				ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address, functionConfig.SignerAddress)
+				ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address)
 				if err != nil {
 					return nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
 				}
@@ -883,7 +882,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 		// Derive each field's object ID from parent using derivation key and add to arg map
 		for _, pointerVal := range pointerVals {
-			derivedID, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(pointerVal.derivationKey))
+			derivedID, err := client.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(pointerVal.derivationKey))
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to derive object ID for %s using key %s: %w", pointerVal.paramName, pointerVal.derivationKey, err)
 			}
@@ -945,7 +944,7 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 		}
 	}
 
-	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, parsed.contractName, parsed.readName, args, argTypes, typeArgs)
+	values, err := s.client.ReadFunction(ctx, parsed.address, parsed.contractName, parsed.readName, args, argTypes, typeArgs)
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
 			"error", err,
@@ -1111,15 +1110,19 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 
 		s.logger.Debugw("Processing database event record", "data", record.Data, "offset", record.EventOffset, "eventDataType", reflect.TypeOf(eventData).Elem())
 
+		// This is needed by the data ingestion pipeline events data transform vec<u8> to base64 strings.
+		// The data ingestion pipeline expects to read those values (e.g., an ethereum address) as hex strings.
+		normalizedData := codec.ConvertBase64StringsToHex(record.Data)
+
 		// if we are running in loop plugin mode, we will want to decode into JSON and then into JSON bytes always
 		if s.config.IsLoopPlugin {
 			// decode into JSON and then into JSON bytes
-			jsonData, err := json.Marshal(record.Data)
+			jsonData, err := json.Marshal(normalizedData)
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal data for LOOP: %w", err)
 			}
 			eventData = &jsonData
-		} else if err := codec.DecodeSuiJsonValue(record.Data, eventData); err != nil {
+		} else if err := codec.DecodeSuiJsonValue(normalizedData, eventData); err != nil {
 			return nil, fmt.Errorf("failed to decode event data: %w", err)
 		}
 

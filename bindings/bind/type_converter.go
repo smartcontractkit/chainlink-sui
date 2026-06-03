@@ -25,6 +25,15 @@ const (
 	HexCharPairLength = 2
 )
 
+func reverseBytes(data []byte) []byte {
+	result := make([]byte, len(data))
+	for i := range data {
+		result[i] = data[len(data)-1-i]
+	}
+
+	return result
+}
+
 func convertToAddressString(value any) (string, error) {
 	switch v := value.(type) {
 	case string:

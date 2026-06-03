@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/holiman/uint256"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -29,6 +28,7 @@ import (
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	mockethtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_eth_token"
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_link_token"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
@@ -62,12 +62,12 @@ type EnvironmentSettings struct {
 	Signer rel.SuiSigner
 
 	// Client
-	Client sui.ISuiAPI
+	Client client.SuiPTBClient
 }
 
 // BasicSetUp performs basic environment setup including account creation, client setup,
 // and bundle initialization. This is the foundation for all test environments.
-func BasicSetUp(t *testing.T, lggr logger.Logger, gasLimit int64) (string, []byte, rel.SuiSigner, *testutils.TestKeystore, sui.ISuiAPI, sui_ops.OpTxDeps, cld_ops.Bundle) {
+func BasicSetUp(t *testing.T, lggr logger.Logger, gasLimit int64) (string, []byte, rel.SuiSigner, *testutils.TestKeystore, client.SuiPTBClient, sui_ops.OpTxDeps, cld_ops.Bundle) {
 	t.Helper()
 
 	keystoreInstance, accountAddress, publicKeyBytes := testutils.SetupTestSigner(t, context.Background(), lggr, gasLimit)
@@ -78,7 +78,7 @@ func BasicSetUp(t *testing.T, lggr logger.Logger, gasLimit int64) (string, []byt
 
 	gasBudget := uint64(gasLimit)
 	deps := sui_ops.OpTxDeps{
-		Client: ptbClient.GetClient(),
+		Client: ptbClient,
 		Signer: privateKeySigner,
 		GetCallOpts: func() *bind.CallOpts {
 			return &bind.CallOpts{
@@ -96,7 +96,7 @@ func BasicSetUp(t *testing.T, lggr logger.Logger, gasLimit int64) (string, []byt
 		reporter,
 	)
 
-	return accountAddress, publicKeyBytes, privateKeySigner, keystoreInstance, ptbClient.GetClient(), deps, bundle
+	return accountAddress, publicKeyBytes, privateKeySigner, keystoreInstance, ptbClient, deps, bundle
 }
 
 // UpdatePrices sets token prices in the fee quoter contract.

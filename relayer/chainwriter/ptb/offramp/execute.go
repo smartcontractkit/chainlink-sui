@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/mitchellh/mapstructure"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
@@ -67,7 +66,6 @@ func BuildOffRampExecutePTB(
 	signerAddress string,
 	addressMappings OffRampAddressMappings,
 ) (err error) {
-	sdkClient := ptbClient.GetClient()
 	offrampArgs, err := DecodeOffRampExecCallArgs(args.Args)
 	if err != nil {
 		return fmt.Errorf("failed to decode args for offramp execute PTB: %w", err)
@@ -115,7 +113,7 @@ func BuildOffRampExecutePTB(
 	addressMappings.CcipPackageId = latestCcipPackageId
 
 	// Set the offramp package interface from bindings
-	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, sdkClient)
+	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, ptbClient)
 	if err != nil {
 		return err
 	}
@@ -201,12 +199,10 @@ func ProcessTokenPools(
 	coinMetadataAddresses []string,
 	receiverParams *transaction.Argument,
 ) ([]transaction.Argument, error) {
-	sdkClient := ptbClient.GetClient()
-
 	lggr.Debugw("processing token pools for offramp execution...", "coinMetadataAddresses", coinMetadataAddresses)
 
 	// Set the ccip package interface from bindings
-	ccipPkg, err := ccip.NewCCIP(addressMappings.CcipPackageId, sdkClient)
+	ccipPkg, err := ccip.NewCCIP(addressMappings.CcipPackageId, ptbClient)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +235,7 @@ func ProcessTokenPools(
 		tokenPoolCommandResult, err := AppendPTBCommandForTokenPool(
 			ctx,
 			lggr,
-			sdkClient,
+			ptbClient,
 			ptb,
 			callOpts,
 			addressMappings,
@@ -260,7 +256,7 @@ func ProcessTokenPools(
 func AppendPTBCommandForTokenPool(
 	ctx context.Context,
 	lggr logger.Logger,
-	sdkClient sui.ISuiAPI,
+	chainClient client.BindingsClient,
 	ptb *transaction.Transaction,
 	callOpts *bind.CallOpts,
 	addressMappings *OffRampAddressMappings,
@@ -272,7 +268,7 @@ func AppendPTBCommandForTokenPool(
 		tokenPoolConfigs.TokenPoolPackageId,
 		tokenPoolConfigs.TokenPoolPackageId,
 		tokenPoolConfigs.TokenPoolModule,
-		sdkClient,
+		chainClient,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create token pool bound contract when appending PTB command: %w", err)
@@ -342,9 +338,8 @@ func ProcessReceivers(
 	receiverParams *transaction.Argument,
 	extraArgs map[string]any,
 ) ([]transaction.Argument, error) {
-	sdkClient := ptbClient.GetClient()
-
-	receiverRegistryPkg, err := receiver_registry.NewReceiverRegistry(addressMappings.CcipPackageId, sdkClient)
+	// Create a receiver binding interface to filter out non-registered receivers
+	receiverRegistryPkg, err := receiver_registry.NewReceiverRegistry(addressMappings.CcipPackageId, ptbClient)
 	if err != nil {
 		return nil, err
 	}
@@ -395,7 +390,7 @@ func ProcessReceivers(
 		receiverCommandResult, err := AppendPTBCommandForReceiver(
 			ctx,
 			lggr,
-			sdkClient,
+			ptbClient,
 			ptb,
 			callOpts,
 			receiverPackageId,
@@ -434,7 +429,7 @@ func needsAppDelivery(message ccipocr3.Message, extraArgs map[string]any) bool {
 func AppendPTBCommandForReceiver(
 	ctx context.Context,
 	lggr logger.Logger,
-	sdkClient sui.ISuiAPI,
+	chainClient client.BindingsClient,
 	ptb *transaction.Transaction,
 	callOpts *bind.CallOpts,
 	packageId string,
@@ -446,7 +441,7 @@ func AppendPTBCommandForReceiver(
 	receiverParams *transaction.Argument,
 	extraArgs map[string]any,
 ) (*transaction.Argument, error) {
-	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, sdkClient)
+	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, chainClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create receiver bound contract when appending PTB command: %w", err)
 	}
@@ -455,7 +450,7 @@ func AppendPTBCommandForReceiver(
 		addressMappings.CcipPackageId,
 		addressMappings.CcipPackageId,
 		"offramp_state_helper",
-		sdkClient,
+		chainClient,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create offramp state helper bound contract when appending PTB command: %w", err)

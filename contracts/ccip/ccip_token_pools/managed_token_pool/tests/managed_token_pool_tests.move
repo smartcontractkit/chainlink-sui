@@ -55,6 +55,7 @@ fun setup_ccip_environment(scenario: &mut Scenario): (CCIPOwnerCap, CCIPObjectRe
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx()); // local chain selector = 1000
     upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
+    token_admin_registry::initialize_local_decimals(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     onramp_sh::test_init(scenario.ctx());
     offramp_sh::test_init(scenario.ctx());
 
@@ -775,6 +776,7 @@ public fun test_invalid_owner_cap_error() {
     let mut ccip_ref2 = scenario.take_shared<CCIPObjectRef>();
     upgrade_registry::initialize(&mut ccip_ref2, &ccip_owner_cap2, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref2, &ccip_owner_cap2, scenario.ctx());
+    token_admin_registry::initialize_local_decimals(&mut ccip_ref2, &ccip_owner_cap2, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref2, &ccip_owner_cap2, 1000, scenario.ctx());
 
     let (treasury_cap2, coin_metadata2) = coin::create_currency(

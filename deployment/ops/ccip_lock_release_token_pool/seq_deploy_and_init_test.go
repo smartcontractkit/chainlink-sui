@@ -83,6 +83,13 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.TokenAdminRegistryInitializeOp, deps, inputTAR)
 	require.NoError(t, err, "failed to initialize token admin registry")
 
+	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.TokenAdminRegistryInitializeLocalDecimalsOp, deps, ccip_ops.InitLocalDecimalsInput{
+		CCIPPackageId:    reportCCIP.Output.PackageId,
+		StateObjectId:    reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		OwnerCapObjectId: reportCCIP.Output.Objects.OwnerCapObjectId,
+	})
+	require.NoError(t, err, "failed to initialize local decimals state")
+
 	// Run LR TokenPool deploy + configure sequence
 	LRTokenPoolInput := DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: LockReleaseTokenPoolDeployInput{

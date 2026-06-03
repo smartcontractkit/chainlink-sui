@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -85,8 +84,8 @@ type ComplexDevInspect struct {
 var _ IComplex = (*ComplexContract)(nil)
 var _ IComplexDevInspect = (*ComplexDevInspect)(nil)
 
-func NewComplex(packageID string, client sui.ISuiAPI) (IComplex, error) {
-	contract, err := bind.NewBoundContract(packageID, "test", "complex", client)
+func NewComplex(packageID string, chainClient client.BindingsClient) (IComplex, error) {
+	contract, err := bind.NewBoundContract(packageID, "test", "complex", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -124,119 +123,6 @@ type DroppableObject struct {
 	SomeNumber    uint64   `move:"u64"`
 	SomeAddress   string   `move:"address"`
 	SomeAddresses []string `move:"vector<address>"`
-}
-
-type bcsSampleObject struct {
-	Id            string
-	SomeId        []byte
-	SomeNumber    uint64
-	SomeAddress   [32]byte
-	SomeAddresses [][32]byte
-}
-
-func convertSampleObjectFromBCS(bcs bcsSampleObject) (SampleObject, error) {
-
-	return SampleObject{
-		Id:          bcs.Id,
-		SomeId:      bcs.SomeId,
-		SomeNumber:  bcs.SomeNumber,
-		SomeAddress: fmt.Sprintf("0x%x", bcs.SomeAddress),
-		SomeAddresses: func() []string {
-			addrs := make([]string, len(bcs.SomeAddresses))
-			for i, addr := range bcs.SomeAddresses {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-	}, nil
-}
-
-type bcsDroppableObject struct {
-	SomeId        []byte
-	SomeNumber    uint64
-	SomeAddress   [32]byte
-	SomeAddresses [][32]byte
-}
-
-func convertDroppableObjectFromBCS(bcs bcsDroppableObject) (DroppableObject, error) {
-
-	return DroppableObject{
-		SomeId:      bcs.SomeId,
-		SomeNumber:  bcs.SomeNumber,
-		SomeAddress: fmt.Sprintf("0x%x", bcs.SomeAddress),
-		SomeAddresses: func() []string {
-			addrs := make([]string, len(bcs.SomeAddresses))
-			for i, addr := range bcs.SomeAddresses {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("test::complex::SampleObject", func(data []byte) (interface{}, error) {
-		var temp bcsSampleObject
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertSampleObjectFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for SampleObject
-	bind.RegisterStructDecoder("vector<test::complex::SampleObject>", func(data []byte) (interface{}, error) {
-		var temps []bcsSampleObject
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]SampleObject, len(temps))
-		for i, temp := range temps {
-			result, err := convertSampleObjectFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::complex::DroppableObject", func(data []byte) (interface{}, error) {
-		var temp bcsDroppableObject
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertDroppableObjectFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DroppableObject
-	bind.RegisterStructDecoder("vector<test::complex::DroppableObject>", func(data []byte) (interface{}, error) {
-		var temps []bcsDroppableObject
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]DroppableObject, len(temps))
-		for i, temp := range temps {
-			result, err := convertDroppableObjectFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
 }
 
 // NewObjectWithTransfer executes the new_object_with_transfer Move function.
@@ -354,9 +240,9 @@ func (d *ComplexDevInspect) NewObject(ctx context.Context, opts *bind.CallOpts, 
 	if len(results) == 0 {
 		return DroppableObject{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(DroppableObject)
-	if !ok {
-		return DroppableObject{}, fmt.Errorf("unexpected return type: expected DroppableObject, got %T", results[0])
+	var result DroppableObject
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return DroppableObject{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -376,9 +262,9 @@ func (d *ComplexDevInspect) FlattenAddress(ctx context.Context, opts *bind.CallO
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	var result []string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -398,9 +284,9 @@ func (d *ComplexDevInspect) FlattenU8(ctx context.Context, opts *bind.CallOpts, 
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -420,9 +306,9 @@ func (d *ComplexDevInspect) CheckU128(ctx context.Context, opts *bind.CallOpts, 
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*big.Int)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *big.Int, got %T", results[0])
+	var result *big.Int
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -442,9 +328,9 @@ func (d *ComplexDevInspect) CheckU256(ctx context.Context, opts *bind.CallOpts, 
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*big.Int)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *big.Int, got %T", results[0])
+	var result *big.Int
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -464,9 +350,9 @@ func (d *ComplexDevInspect) CheckWithObjectRef(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -486,9 +372,9 @@ func (d *ComplexDevInspect) CheckWithMutObjectRef(ctx context.Context, opts *bin
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -508,9 +394,9 @@ func (d *ComplexDevInspect) CheckString(ctx context.Context, opts *bind.CallOpts
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -530,9 +416,9 @@ func (d *ComplexDevInspect) FlattenString(ctx context.Context, opts *bind.CallOp
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	var result []string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

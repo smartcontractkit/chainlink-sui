@@ -30,7 +30,6 @@ import (
 
 func TestChainReaderTestnet(t *testing.T) {
 	log := logger.Test(t)
-	rpcUrl := testutils.TestnetUrl
 
 	burnMintTokenPoolContractName := "BurnMintTokenPool"
 	burnMintTokenPoolPackageId := "0xfeff675b624e55da49f80fda3b676fe1ef5a957a8334cb675ca35de8918f612d"
@@ -53,17 +52,35 @@ func TestChainReaderTestnet(t *testing.T) {
 			clientMaxConcurrentRequests = int64(parsed)
 		}
 	}
-	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
+
+	grpcTarget := os.Getenv("GRPC_TARGET")
+	if grpcTarget == "" {
+		t.Fatal("evn value for GRPC_TARGET is not set")
+	}
+	grpcToken := os.Getenv("GRPC_TOKEN")
+	if grpcToken == "" {
+		t.Fatal("evn value for GRPC_TOKEN is not set")
+	}
+
+	testCfg := client.PTBClientConfig{
+		GrpcTarget:            grpcTarget,
+		GrpcToken:             grpcToken,
+		TransactionTimeout:    10 * time.Second,
+		MaxConcurrentRequests: clientMaxConcurrentRequests,
+		KeystoreService:       keystoreInstance,
+	}
+
+	relayerClient, clientErr := client.NewPTBClient(log, testCfg)
 	require.NoError(t, clientErr)
 
 	chainReaderConfig := config.ChainReaderConfig{
 		IsLoopPlugin: false,
 		EventsIndexer: config.EventsIndexerConfig{
-			PollingInterval: 15 * time.Second,
+			PollingInterval: 1 * time.Second,
 			SyncTimeout:     60 * time.Second,
 		},
 		TransactionsIndexer: config.TransactionsIndexerConfig{
-			PollingInterval: 15 * time.Second,
+			PollingInterval: 1 * time.Second,
 			SyncTimeout:     60 * time.Second,
 		},
 		Modules: map[string]*config.ChainReaderModule{
@@ -190,33 +207,35 @@ func TestChainReaderTestnet(t *testing.T) {
 	dbStore := database.NewDBStore(db, log)
 	require.NoError(t, dbStore.EnsureSchema(ctx))
 
-	indexerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
-	require.NoError(t, clientErr)
 	// Create the indexers
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
 		log,
-		indexerClient,
-		chainReaderConfig.TransactionsIndexer.PollingInterval,
-		chainReaderConfig.TransactionsIndexer.SyncTimeout,
 		// start without any configs, they will be set when ChainReader is initialized and gets a reference
 		// to the transaction indexer to avoid having to reading ChainReader configs here as well
 		map[string]*config.ChainReaderEvent{},
 	)
 
-	eventIndexerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
-	require.NoError(t, clientErr)
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		log,
-		eventIndexerClient,
 		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
-		chainReaderConfig.EventsIndexer.PollingInterval,
-		chainReaderConfig.EventsIndexer.SyncTimeout,
 	)
+
+	chainPoller := indexer.NewChainPoller(
+		relayerClient,
+		log,
+		config.ChainPollerConfig{
+			PollingInterval: 1 * time.Second,
+			SyncTimeout:     60 * time.Second,
+		},
+		evIndexer.GetEventSelectors,
+	)
+
 	indexerInstance := indexer.NewIndexer(
 		log,
+		chainPoller,
 		evIndexer,
 		txnIndexer,
 	)
