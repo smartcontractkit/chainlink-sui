@@ -3733,7 +3733,7 @@ fun test_mcms_dispatch_to_registry_add_allowed_modules() {
         let mut registry = ts::take_shared<Registry>(&env.scenario);
 
         // Prepare data for add_allowed_modules
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&registry))); // Registry address
 
         // Serialize vector of module names

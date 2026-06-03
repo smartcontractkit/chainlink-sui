@@ -149,7 +149,7 @@ fun test_get_accept_ownership_data() {
             mcms_registry::get_multisig_address(),
             string::utf8(MODULE_NAME),
             string::utf8(b"test_function"),
-            vector::empty(),
+            vector[],
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
@@ -194,7 +194,7 @@ fun test_get_accept_ownership_data_with_unregistered_package_cap() {
             mcms_registry::get_multisig_address(),
             string::utf8(MODULE_NAME),
             string::utf8(b"accept_ownership"),
-            vector::empty(),
+            vector[],
             x"0000000000000000000000000000000000000000000000000000000000000002", // batch_id
             0, // sequence_number
             1, // total_in_batch
@@ -260,7 +260,7 @@ fun test_get_callback_params_with_wrong_package_name() {
             @0x001,
             string::utf8(b"mcms_registry_test"),
             string::utf8(b"test_function"),
-            vector::empty(),
+            vector[],
             x"0000000000000000000000000000000000000000000000000000000000000003", // batch_id
             0, // sequence_number
             1, // total_in_batch
