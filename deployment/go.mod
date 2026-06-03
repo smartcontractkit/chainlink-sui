@@ -9,7 +9,7 @@ replace github.com/smartcontractkit/chainlink-sui => ../
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
-	github.com/aptos-labs/aptos-go-sdk v1.12.1
+	github.com/aptos-labs/aptos-go-sdk v1.13.0
 	github.com/block-vision/sui-go-sdk v1.2.1
 	github.com/ethereum/go-ethereum v1.17.3
 	github.com/google/go-cmp v0.7.0
@@ -29,7 +29,6 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
 	github.com/XSAM/otelsql v0.37.0 // indirect
-	github.com/aptos-labs/aptos-go-sdk v1.13.0 // indirect
 	github.com/avast/retry-go/v4 v4.7.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
