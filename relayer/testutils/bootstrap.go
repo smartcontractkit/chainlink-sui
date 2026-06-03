@@ -59,7 +59,15 @@ func SetupClients(
 ) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore) {
 	t.Helper()
 
-	relayerClient, err := client.NewPTBClient(logg, rpcURL, nil, defaultTransactionTimeout, keystore, maxConcurrentRequests, "WaitForEffectsCert")
+	relayerClient, err := client.NewPTBClient(logg, client.PTBClientConfig{
+		GrpcTarget:            rpcURL,
+		GrpcToken:             "test",
+		MaxRetries:            IntPointer(defaultNumberRetries),
+		TransactionTimeout:    defaultTransactionTimeout,
+		KeystoreService:       keystore,
+		MaxConcurrentRequests: maxConcurrentRequests,
+		DefaultRequestType:    "WaitForEffectsCert",
+	})
 	if err != nil {
 		t.Fatalf("Failed to create relayer client: %v", err)
 	}
@@ -118,7 +126,7 @@ func SetupTestEnv(
 	faucetFundErr := FundWithFaucet(lgr, SuiLocalnet, accountAddress)
 	require.NoError(t, faucetFundErr)
 
-	chainID, err := GetChainIdentifier(LocalUrl)
+	chainID, err := GetChainIdentifier(LocalURL)
 	require.NoError(t, err)
 
 	// Patch toml files for test contracts
@@ -140,7 +148,7 @@ func SetupTestEnv(
 	counterObjectId, err := QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	suiClient, txManager, transactionRepository := SetupClients(t, LocalUrl, keystoreInstance, lgr, gasLimit)
+	suiClient, txManager, transactionRepository := SetupClients(t, LocalGrpcURL, keystoreInstance, lgr, gasLimit)
 
 	return suiClient, txManager, transactionRepository, accountAddress, keystoreInstance, publicKeyBytes, packageId, counterObjectId
 }

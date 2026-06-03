@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -129,8 +128,8 @@ type TokenAdminRegistryDevInspect struct {
 var _ ITokenAdminRegistry = (*TokenAdminRegistryContract)(nil)
 var _ ITokenAdminRegistryDevInspect = (*TokenAdminRegistryDevInspect)(nil)
 
-func NewTokenAdminRegistry(packageID string, client sui.ISuiAPI) (ITokenAdminRegistry, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "token_admin_registry", client)
+func NewTokenAdminRegistry(packageID string, chainClient client.BindingsClient) (ITokenAdminRegistry, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip", "token_admin_registry", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -207,357 +206,6 @@ type AdministratorTransferRequested struct {
 type AdministratorTransferred struct {
 	CoinMetadataAddress string `move:"address"`
 	NewAdmin            string `move:"address"`
-}
-
-type bcsTokenConfig struct {
-	TokenPoolPackageId   [32]byte
-	TokenPoolModule      string
-	TokenType            string
-	Administrator        [32]byte
-	PendingAdministrator [32]byte
-	TokenPoolTypeProof   string
-	LockOrBurnParams     [][32]byte
-	ReleaseOrMintParams  [][32]byte
-}
-
-func convertTokenConfigFromBCS(bcs bcsTokenConfig) (TokenConfig, error) {
-
-	return TokenConfig{
-		TokenPoolPackageId:   fmt.Sprintf("0x%x", bcs.TokenPoolPackageId),
-		TokenPoolModule:      bcs.TokenPoolModule,
-		TokenType:            bcs.TokenType,
-		Administrator:        fmt.Sprintf("0x%x", bcs.Administrator),
-		PendingAdministrator: fmt.Sprintf("0x%x", bcs.PendingAdministrator),
-		TokenPoolTypeProof:   bcs.TokenPoolTypeProof,
-		LockOrBurnParams: func() []string {
-			addrs := make([]string, len(bcs.LockOrBurnParams))
-			for i, addr := range bcs.LockOrBurnParams {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		ReleaseOrMintParams: func() []string {
-			addrs := make([]string, len(bcs.ReleaseOrMintParams))
-			for i, addr := range bcs.ReleaseOrMintParams {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-	}, nil
-}
-
-type bcsPoolSet struct {
-	CoinMetadataAddress   [32]byte
-	PreviousPoolPackageId [32]byte
-	NewPoolPackageId      [32]byte
-	TokenPoolTypeProof    string
-	LockOrBurnParams      [][32]byte
-	ReleaseOrMintParams   [][32]byte
-}
-
-func convertPoolSetFromBCS(bcs bcsPoolSet) (PoolSet, error) {
-
-	return PoolSet{
-		CoinMetadataAddress:   fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
-		PreviousPoolPackageId: fmt.Sprintf("0x%x", bcs.PreviousPoolPackageId),
-		NewPoolPackageId:      fmt.Sprintf("0x%x", bcs.NewPoolPackageId),
-		TokenPoolTypeProof:    bcs.TokenPoolTypeProof,
-		LockOrBurnParams: func() []string {
-			addrs := make([]string, len(bcs.LockOrBurnParams))
-			for i, addr := range bcs.LockOrBurnParams {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		ReleaseOrMintParams: func() []string {
-			addrs := make([]string, len(bcs.ReleaseOrMintParams))
-			for i, addr := range bcs.ReleaseOrMintParams {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-	}, nil
-}
-
-type bcsPoolRegistered struct {
-	CoinMetadataAddress [32]byte
-	TokenPoolPackageId  [32]byte
-	Administrator       [32]byte
-	TokenPoolTypeProof  string
-}
-
-func convertPoolRegisteredFromBCS(bcs bcsPoolRegistered) (PoolRegistered, error) {
-
-	return PoolRegistered{
-		CoinMetadataAddress: fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
-		TokenPoolPackageId:  fmt.Sprintf("0x%x", bcs.TokenPoolPackageId),
-		Administrator:       fmt.Sprintf("0x%x", bcs.Administrator),
-		TokenPoolTypeProof:  bcs.TokenPoolTypeProof,
-	}, nil
-}
-
-type bcsPoolUnregistered struct {
-	CoinMetadataAddress [32]byte
-	PreviousPoolAddress [32]byte
-}
-
-func convertPoolUnregisteredFromBCS(bcs bcsPoolUnregistered) (PoolUnregistered, error) {
-
-	return PoolUnregistered{
-		CoinMetadataAddress: fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
-		PreviousPoolAddress: fmt.Sprintf("0x%x", bcs.PreviousPoolAddress),
-	}, nil
-}
-
-type bcsAdministratorTransferRequested struct {
-	CoinMetadataAddress [32]byte
-	CurrentAdmin        [32]byte
-	NewAdmin            [32]byte
-}
-
-func convertAdministratorTransferRequestedFromBCS(bcs bcsAdministratorTransferRequested) (AdministratorTransferRequested, error) {
-
-	return AdministratorTransferRequested{
-		CoinMetadataAddress: fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
-		CurrentAdmin:        fmt.Sprintf("0x%x", bcs.CurrentAdmin),
-		NewAdmin:            fmt.Sprintf("0x%x", bcs.NewAdmin),
-	}, nil
-}
-
-type bcsAdministratorTransferred struct {
-	CoinMetadataAddress [32]byte
-	NewAdmin            [32]byte
-}
-
-func convertAdministratorTransferredFromBCS(bcs bcsAdministratorTransferred) (AdministratorTransferred, error) {
-
-	return AdministratorTransferred{
-		CoinMetadataAddress: fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
-		NewAdmin:            fmt.Sprintf("0x%x", bcs.NewAdmin),
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip::token_admin_registry::TokenAdminRegistryState", func(data []byte) (interface{}, error) {
-		var result TokenAdminRegistryState
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TokenAdminRegistryState
-	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::TokenAdminRegistryState>", func(data []byte) (interface{}, error) {
-		var results []TokenAdminRegistryState
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::token_admin_registry::LocalDecimalsState", func(data []byte) (interface{}, error) {
-		var result LocalDecimalsState
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for LocalDecimalsState
-	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::LocalDecimalsState>", func(data []byte) (interface{}, error) {
-		var results []LocalDecimalsState
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::token_admin_registry::TokenConfig", func(data []byte) (interface{}, error) {
-		var temp bcsTokenConfig
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertTokenConfigFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TokenConfig
-	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::TokenConfig>", func(data []byte) (interface{}, error) {
-		var temps []bcsTokenConfig
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]TokenConfig, len(temps))
-		for i, temp := range temps {
-			result, err := convertTokenConfigFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolSet", func(data []byte) (interface{}, error) {
-		var temp bcsPoolSet
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertPoolSetFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for PoolSet
-	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::PoolSet>", func(data []byte) (interface{}, error) {
-		var temps []bcsPoolSet
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]PoolSet, len(temps))
-		for i, temp := range temps {
-			result, err := convertPoolSetFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolRegistered", func(data []byte) (interface{}, error) {
-		var temp bcsPoolRegistered
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertPoolRegisteredFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for PoolRegistered
-	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::PoolRegistered>", func(data []byte) (interface{}, error) {
-		var temps []bcsPoolRegistered
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]PoolRegistered, len(temps))
-		for i, temp := range temps {
-			result, err := convertPoolRegisteredFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolUnregistered", func(data []byte) (interface{}, error) {
-		var temp bcsPoolUnregistered
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertPoolUnregisteredFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for PoolUnregistered
-	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::PoolUnregistered>", func(data []byte) (interface{}, error) {
-		var temps []bcsPoolUnregistered
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]PoolUnregistered, len(temps))
-		for i, temp := range temps {
-			result, err := convertPoolUnregisteredFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::token_admin_registry::AdministratorTransferRequested", func(data []byte) (interface{}, error) {
-		var temp bcsAdministratorTransferRequested
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertAdministratorTransferRequestedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for AdministratorTransferRequested
-	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::AdministratorTransferRequested>", func(data []byte) (interface{}, error) {
-		var temps []bcsAdministratorTransferRequested
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]AdministratorTransferRequested, len(temps))
-		for i, temp := range temps {
-			result, err := convertAdministratorTransferRequestedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::token_admin_registry::AdministratorTransferred", func(data []byte) (interface{}, error) {
-		var temp bcsAdministratorTransferred
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertAdministratorTransferredFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for AdministratorTransferred
-	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::AdministratorTransferred>", func(data []byte) (interface{}, error) {
-		var temps []bcsAdministratorTransferred
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]AdministratorTransferred, len(temps))
-		for i, temp := range temps {
-			result, err := convertAdministratorTransferredFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -815,9 +463,9 @@ func (d *TokenAdminRegistryDevInspect) TypeAndVersion(ctx context.Context, opts 
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -859,9 +507,9 @@ func (d *TokenAdminRegistryDevInspect) GetPools(ctx context.Context, opts *bind.
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	var result []string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -881,9 +529,9 @@ func (d *TokenAdminRegistryDevInspect) GetPool(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -903,9 +551,9 @@ func (d *TokenAdminRegistryDevInspect) GetTokenConfigStruct(ctx context.Context,
 	if len(results) == 0 {
 		return TokenConfig{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(TokenConfig)
-	if !ok {
-		return TokenConfig{}, fmt.Errorf("unexpected return type: expected TokenConfig, got %T", results[0])
+	var result TokenConfig
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return TokenConfig{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -925,9 +573,9 @@ func (d *TokenAdminRegistryDevInspect) GetPoolLocalToken(ctx context.Context, op
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -944,7 +592,30 @@ func (d *TokenAdminRegistryDevInspect) GetTokenConfig(ctx context.Context, opts 
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 3 {
+		return nil, fmt.Errorf("expected 3 return values, got %d", len(results))
+	}
+	decoded := make([]any, 3)
+	var ret0 string
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 string
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 string
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	return decoded, nil
 }
 
 // GetTokenConfigData executes the get_token_config_data Move function using DevInspect to get return values.
@@ -964,7 +635,55 @@ func (d *TokenAdminRegistryDevInspect) GetTokenConfigData(ctx context.Context, o
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 8 {
+		return nil, fmt.Errorf("expected 8 return values, got %d", len(results))
+	}
+	decoded := make([]any, 8)
+	var ret0 string
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 string
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 string
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	var ret3 string
+	if err := bind.DecodeJSONReturn(results[3], &ret3); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 3: %w", err)
+	}
+	decoded[3] = ret3
+	var ret4 string
+	if err := bind.DecodeJSONReturn(results[4], &ret4); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 4: %w", err)
+	}
+	decoded[4] = ret4
+	var ret5 string
+	if err := bind.DecodeJSONReturn(results[5], &ret5); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 5: %w", err)
+	}
+	decoded[5] = ret5
+	var ret6 []string
+	if err := bind.DecodeJSONReturn(results[6], &ret6); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 6: %w", err)
+	}
+	decoded[6] = ret6
+	var ret7 []string
+	if err := bind.DecodeJSONReturn(results[7], &ret7); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 7: %w", err)
+	}
+	decoded[7] = ret7
+	return decoded, nil
 }
 
 // GetAllConfiguredTokens executes the get_all_configured_tokens Move function using DevInspect to get return values.
@@ -979,7 +698,30 @@ func (d *TokenAdminRegistryDevInspect) GetAllConfiguredTokens(ctx context.Contex
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 3 {
+		return nil, fmt.Errorf("expected 3 return values, got %d", len(results))
+	}
+	decoded := make([]any, 3)
+	var ret0 []string
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 string
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 bool
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	return decoded, nil
 }
 
 // IsPoolRegistered executes the is_pool_registered Move function using DevInspect to get return values.
@@ -997,9 +739,9 @@ func (d *TokenAdminRegistryDevInspect) IsPoolRegistered(ctx context.Context, opt
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1019,9 +761,9 @@ func (d *TokenAdminRegistryDevInspect) IsAdministrator(ctx context.Context, opts
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

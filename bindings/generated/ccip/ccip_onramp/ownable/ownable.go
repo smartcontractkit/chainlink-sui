@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -107,8 +106,8 @@ type OwnableDevInspect struct {
 var _ IOwnable = (*OwnableContract)(nil)
 var _ IOwnableDevInspect = (*OwnableDevInspect)(nil)
 
-func NewOwnable(packageID string, client sui.ISuiAPI) (IOwnable, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_onramp", "ownable", client)
+func NewOwnable(packageID string, chainClient client.BindingsClient) (IOwnable, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip_onramp", "ownable", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -170,311 +169,6 @@ type OwnershipTransferAccepted struct {
 type OwnershipTransferred struct {
 	From string `move:"address"`
 	To   string `move:"address"`
-}
-
-type bcsOwnableState struct {
-	Owner           [32]byte
-	PendingTransfer *PendingTransfer
-	OwnerCapId      bind.Object
-}
-
-func convertOwnableStateFromBCS(bcs bcsOwnableState) (OwnableState, error) {
-
-	return OwnableState{
-		Owner:           fmt.Sprintf("0x%x", bcs.Owner),
-		PendingTransfer: bcs.PendingTransfer,
-		OwnerCapId:      bcs.OwnerCapId,
-	}, nil
-}
-
-type bcsPendingTransfer struct {
-	From     [32]byte
-	To       [32]byte
-	Accepted bool
-}
-
-func convertPendingTransferFromBCS(bcs bcsPendingTransfer) (PendingTransfer, error) {
-
-	return PendingTransfer{
-		From:     fmt.Sprintf("0x%x", bcs.From),
-		To:       fmt.Sprintf("0x%x", bcs.To),
-		Accepted: bcs.Accepted,
-	}, nil
-}
-
-type bcsNewOwnableStateEvent struct {
-	OwnerCapId bind.Object
-	Owner      [32]byte
-}
-
-func convertNewOwnableStateEventFromBCS(bcs bcsNewOwnableStateEvent) (NewOwnableStateEvent, error) {
-
-	return NewOwnableStateEvent{
-		OwnerCapId: bcs.OwnerCapId,
-		Owner:      fmt.Sprintf("0x%x", bcs.Owner),
-	}, nil
-}
-
-type bcsOwnershipTransferRequested struct {
-	From [32]byte
-	To   [32]byte
-}
-
-func convertOwnershipTransferRequestedFromBCS(bcs bcsOwnershipTransferRequested) (OwnershipTransferRequested, error) {
-
-	return OwnershipTransferRequested{
-		From: fmt.Sprintf("0x%x", bcs.From),
-		To:   fmt.Sprintf("0x%x", bcs.To),
-	}, nil
-}
-
-type bcsOwnershipTransferAccepted struct {
-	From [32]byte
-	To   [32]byte
-}
-
-func convertOwnershipTransferAcceptedFromBCS(bcs bcsOwnershipTransferAccepted) (OwnershipTransferAccepted, error) {
-
-	return OwnershipTransferAccepted{
-		From: fmt.Sprintf("0x%x", bcs.From),
-		To:   fmt.Sprintf("0x%x", bcs.To),
-	}, nil
-}
-
-type bcsOwnershipTransferred struct {
-	From [32]byte
-	To   [32]byte
-}
-
-func convertOwnershipTransferredFromBCS(bcs bcsOwnershipTransferred) (OwnershipTransferred, error) {
-
-	return OwnershipTransferred{
-		From: fmt.Sprintf("0x%x", bcs.From),
-		To:   fmt.Sprintf("0x%x", bcs.To),
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip_onramp::ownable::OwnerCap", func(data []byte) (interface{}, error) {
-		var result OwnerCap
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OwnerCap
-	bind.RegisterStructDecoder("vector<ccip_onramp::ownable::OwnerCap>", func(data []byte) (interface{}, error) {
-		var results []OwnerCap
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::ownable::OwnableState", func(data []byte) (interface{}, error) {
-		var temp bcsOwnableState
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOwnableStateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OwnableState
-	bind.RegisterStructDecoder("vector<ccip_onramp::ownable::OwnableState>", func(data []byte) (interface{}, error) {
-		var temps []bcsOwnableState
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OwnableState, len(temps))
-		for i, temp := range temps {
-			result, err := convertOwnableStateFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::ownable::PendingTransfer", func(data []byte) (interface{}, error) {
-		var temp bcsPendingTransfer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertPendingTransferFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for PendingTransfer
-	bind.RegisterStructDecoder("vector<ccip_onramp::ownable::PendingTransfer>", func(data []byte) (interface{}, error) {
-		var temps []bcsPendingTransfer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]PendingTransfer, len(temps))
-		for i, temp := range temps {
-			result, err := convertPendingTransferFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::ownable::PublisherKey", func(data []byte) (interface{}, error) {
-		var result PublisherKey
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for PublisherKey
-	bind.RegisterStructDecoder("vector<ccip_onramp::ownable::PublisherKey>", func(data []byte) (interface{}, error) {
-		var results []PublisherKey
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::ownable::NewOwnableStateEvent", func(data []byte) (interface{}, error) {
-		var temp bcsNewOwnableStateEvent
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertNewOwnableStateEventFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for NewOwnableStateEvent
-	bind.RegisterStructDecoder("vector<ccip_onramp::ownable::NewOwnableStateEvent>", func(data []byte) (interface{}, error) {
-		var temps []bcsNewOwnableStateEvent
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]NewOwnableStateEvent, len(temps))
-		for i, temp := range temps {
-			result, err := convertNewOwnableStateEventFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::ownable::OwnershipTransferRequested", func(data []byte) (interface{}, error) {
-		var temp bcsOwnershipTransferRequested
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOwnershipTransferRequestedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OwnershipTransferRequested
-	bind.RegisterStructDecoder("vector<ccip_onramp::ownable::OwnershipTransferRequested>", func(data []byte) (interface{}, error) {
-		var temps []bcsOwnershipTransferRequested
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OwnershipTransferRequested, len(temps))
-		for i, temp := range temps {
-			result, err := convertOwnershipTransferRequestedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::ownable::OwnershipTransferAccepted", func(data []byte) (interface{}, error) {
-		var temp bcsOwnershipTransferAccepted
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOwnershipTransferAcceptedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OwnershipTransferAccepted
-	bind.RegisterStructDecoder("vector<ccip_onramp::ownable::OwnershipTransferAccepted>", func(data []byte) (interface{}, error) {
-		var temps []bcsOwnershipTransferAccepted
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OwnershipTransferAccepted, len(temps))
-		for i, temp := range temps {
-			result, err := convertOwnershipTransferAcceptedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::ownable::OwnershipTransferred", func(data []byte) (interface{}, error) {
-		var temp bcsOwnershipTransferred
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOwnershipTransferredFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OwnershipTransferred
-	bind.RegisterStructDecoder("vector<ccip_onramp::ownable::OwnershipTransferred>", func(data []byte) (interface{}, error) {
-		var temps []bcsOwnershipTransferred
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OwnershipTransferred, len(temps))
-		for i, temp := range temps {
-			result, err := convertOwnershipTransferredFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
 }
 
 // DefaultKey executes the default_key Move function.
@@ -662,9 +356,9 @@ func (d *OwnableDevInspect) DefaultKey(ctx context.Context, opts *bind.CallOpts)
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -680,7 +374,25 @@ func (d *OwnableDevInspect) New(ctx context.Context, opts *bind.CallOpts, uid st
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 OwnableState
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 bind.Object
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 // NewWithKey executes the new_with_key Move function using DevInspect to get return values.
@@ -694,7 +406,25 @@ func (d *OwnableDevInspect) NewWithKey(ctx context.Context, opts *bind.CallOpts,
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 OwnableState
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 bind.Object
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 // OwnerCapId executes the owner_cap_id Move function using DevInspect to get return values.
@@ -712,9 +442,9 @@ func (d *OwnableDevInspect) OwnerCapId(ctx context.Context, opts *bind.CallOpts,
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -734,9 +464,9 @@ func (d *OwnableDevInspect) Owner(ctx context.Context, opts *bind.CallOpts, stat
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -756,9 +486,9 @@ func (d *OwnableDevInspect) HasPendingTransfer(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -778,9 +508,9 @@ func (d *OwnableDevInspect) PendingTransferFrom(ctx context.Context, opts *bind.
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -800,9 +530,9 @@ func (d *OwnableDevInspect) PendingTransferTo(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -822,9 +552,9 @@ func (d *OwnableDevInspect) PendingTransferAccepted(ctx context.Context, opts *b
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*bool)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *bool, got %T", results[0])
+	var result *bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -844,9 +574,9 @@ func (d *OwnableDevInspect) BorrowPublisher(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

@@ -97,7 +97,7 @@ func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetad
 		return nil, err
 	}
 
-	txm.lggr.Infow("PTB txn generated", "transactionID", transactionID, "ptb", txn)
+	txm.lggr.Infow("PTB txn generated", "transactionID", transactionID)
 
 	err = txm.transactionRepository.AddTransaction(*txn)
 	if err != nil {

@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/utils"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 // Constants for magic numbers and repeated values
@@ -36,7 +37,7 @@ const (
 	// Brief pause after releasing ephemeral port reservations so another process is less likely
 	// to steal the same port before `sui start` binds (TOCTOU under parallel `go test` packages).
 	portReleaseSettleDelay = 50 * time.Millisecond
-	loopbackHost = "127.0.0.1"
+	loopbackHost           = "127.0.0.1"
 )
 
 type TestEnvironment struct {
@@ -54,7 +55,7 @@ var (
 	refMu    sync.Mutex
 )
 
-func SetupEnvironment(t *testing.T) (utils.SuiSigner, sui.ISuiAPI) {
+func SetupEnvironment(t *testing.T) (utils.SuiSigner, client.BindingsClient) {
 	t.Helper()
 
 	log := logger.Test(t)
@@ -146,7 +147,7 @@ func Cleanup() {
 
 // CreateTestAccount creates a new test account with funding from the faucet.
 // This requires the test environment to be set up first (via Setup() or SetupEnvironment()).
-func CreateTestAccount(t *testing.T) (utils.SuiSigner, sui.ISuiAPI) {
+func CreateTestAccount(t *testing.T) (utils.SuiSigner, client.BindingsClient) {
 	t.Helper()
 
 	refMu.Lock()
@@ -159,7 +160,10 @@ func CreateTestAccount(t *testing.T) (utils.SuiSigner, sui.ISuiAPI) {
 	signer, err := createAccount(t)
 	require.NoError(t, err, "Failed to create test account")
 
-	return signer, createClient()
+	ptbClient, err := createPTBClient(logger.Test(t))
+	require.NoError(t, err, "Failed to create PTB client")
+
+	return signer, ptbClient
 }
 
 func (te *TestEnvironment) initialize() error {
@@ -252,10 +256,19 @@ func (te *TestEnvironment) cleanup() {
 	te.cleanupLocked()
 }
 
-func createClient() sui.ISuiAPI {
-	return sui.NewSuiClientWithCustomClient(fmt.Sprintf("http://%s:%d", loopbackHost, instance.rpcPort), &http.Client{
-		Timeout: HTTPClientTimeout,
+func createPTBClient(log logger.Logger) (client.BindingsClient, error) {
+	ptbClient, err := client.NewPTBClient(log, client.PTBClientConfig{
+		GrpcTarget:            fmt.Sprintf("%s:%d", loopbackHost, instance.rpcPort),
+		GrpcToken:             "test",
+		TransactionTimeout:    HTTPClientTimeout,
+		MaxConcurrentRequests: 50,
+		DefaultRequestType:    client.WaitForEffectsCert,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return ptbClient, nil
 }
 
 func createAccount(t *testing.T) (utils.SuiSigner, error) {

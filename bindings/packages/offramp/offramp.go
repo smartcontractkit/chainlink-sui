@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
@@ -32,8 +32,8 @@ func (p OfframpPackage) Offramp() module_offramp.IOfframp {
 	return p.offramp
 }
 
-func NewOfframp(address string, client sui.ISuiAPI) (Offramp, error) {
-	offrampContract, err := module_offramp.NewOfframp(address, client)
+func NewOfframp(address string, chainClient client.BindingsClient) (Offramp, error) {
+	offrampContract, err := module_offramp.NewOfframp(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func NewOfframp(address string, client sui.ISuiAPI) (Offramp, error) {
 	}, nil
 }
 
-func PublishOfframp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, ccipAddress string, mcmsAddress, suiRPC string) (Offramp, *models.SuiTransactionBlockResponse, error) {
+func PublishOfframp(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, ccipAddress string, mcmsAddress, suiRPC string) (Offramp, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -67,7 +67,8 @@ func PublishOfframp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+	//nolint:revive // var-naming: generated bindings keep packageId naming
+	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
@@ -75,7 +76,7 @@ func PublishOfframp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI
 		return nil, nil, err
 	}
 
-	contract, err := NewOfframp(packageId, client)
+	contract, err := NewOfframp(packageId, chainClient)
 	if err != nil {
 		return nil, nil, err
 	}

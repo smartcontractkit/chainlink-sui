@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/stretchr/testify/assert"
@@ -18,6 +19,12 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/mocks"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
+
+func newTestPTB(gasBudget uint64) *transaction.Transaction {
+	ptb := transaction.NewTransaction()
+	ptb.SetGasBudget(gasBudget)
+	return ptb
+}
 
 func TestNewSuiGasManager(t *testing.T) {
 	t.Parallel()
@@ -114,7 +121,7 @@ func TestSuiGasManager_EstimateGasBudget(t *testing.T) {
 				TransactionID: "test-tx-id",
 				Sender:        "0x123",
 				Metadata:      &commontypes.TxMeta{GasLimit: big.NewInt(1000000)},
-				Payload:       "dGVzdC10eC1ieXRlcw==", // base64 encoded "test-tx-bytes"
+				Ptb:           newTestPTB(1_000_000),
 				Functions: []*txm.SuiFunction{
 					{
 						PackageId: "0x456",
@@ -339,7 +346,7 @@ func TestSuiGasManager_GasBump(t *testing.T) {
 				Sender:        "0x123",
 				Metadata:      &commontypes.TxMeta{GasLimit: tt.currentGasLimit},
 				GasBudget:     tt.txGasBudget.Uint64(),
-				Payload:       "dGVzdC10eC1ieXRlcw==",
+				Ptb:           newTestPTB(tt.currentGasLimit.Uint64()),
 				Functions: []*txm.SuiFunction{
 					{
 						PackageId: "0x456",
@@ -377,7 +384,7 @@ func TestSuiGasManager_EstimateGasBudget_CounterIncrementExample(t *testing.T) {
 	// Set up mock to return a realistic gas estimate for counter increment
 	expectedGasForCounterIncrement := uint64(1234567) // Typical gas for simple counter increment
 	mockClient.EXPECT().
-		EstimateGas(gomock.Any(), gomock.Eq("dGVzdC1jb3VudGVyLWluY3JlbWVudC1ieXRlcw==")).
+		EstimateGas(gomock.Any(), gomock.Any()).
 		Return(expectedGasForCounterIncrement, nil).
 		Times(1)
 
@@ -388,7 +395,7 @@ func TestSuiGasManager_EstimateGasBudget_CounterIncrementExample(t *testing.T) {
 		TransactionID: "counter-increment-tx",
 		Sender:        "0x742d35cc6db32e18ac22c0e3b5c4c7c0e5e1a7c3d2b1a0f9e8d7c6b5a4938271",
 		Metadata:      &commontypes.TxMeta{GasLimit: big.NewInt(2000000)},
-		Payload:       "dGVzdC1jb3VudGVyLWluY3JlbWVudC1ieXRlcw==", // base64 encoded counter increment tx bytes
+		Ptb:           newTestPTB(2_000_000),
 		Functions: []*txm.SuiFunction{
 			{
 				PackageId: "0x456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123",
@@ -432,7 +439,7 @@ func TestSuiGasManager_IntegrationWithCounterContract(t *testing.T) {
 		Sender:        "0x742d35cc6db32e18ac22c0e3b5c4c7c0e5e1a7c3d2b1a0f9e8d7c6b5a4938271",
 		Metadata:      &commontypes.TxMeta{GasLimit: txMaxGasLimit},
 		GasBudget:     txGasBudget.Uint64(),
-		Payload:       "counter_increment_payload_bytes",
+		Ptb:           newTestPTB(txMaxGasLimit.Uint64()),
 		Functions: []*txm.SuiFunction{
 			{
 				PackageId: "0x123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef01",
@@ -445,7 +452,7 @@ func TestSuiGasManager_IntegrationWithCounterContract(t *testing.T) {
 
 	// Test gas estimation
 	mockClient.EXPECT().
-		EstimateGas(gomock.Any(), "counter_increment_payload_bytes").
+		EstimateGas(gomock.Any(), gomock.Any()).
 		Return(uint64(1800000), nil).
 		Times(1)
 
