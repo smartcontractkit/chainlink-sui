@@ -342,7 +342,7 @@ func TestAppendCcipReceiveCommand_ReceiverObjectIdCountMismatch(t *testing.T) {
 		[]string{"0x00000000000000000000000000000000000000000000000000000000000000aa"},
 	)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsupportedReceiverABI)
+	require.ErrorIs(t, err, ErrUnsupportedReceiverABI)
 	assert.Contains(t, err.Error(), "receiver_object_ids count 1 does not match ccip_receive tail parameter count 2")
 }
 
@@ -370,7 +370,7 @@ func TestAppendCcipReceiveCommand_MissingCcipReceive(t *testing.T) {
 		nil,
 	)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsupportedReceiverABI)
+	require.ErrorIs(t, err, ErrUnsupportedReceiverABI)
 }
 
 func TestAppendCcipReceiveCommand_PoisonABI(t *testing.T) {
@@ -404,7 +404,7 @@ func TestAppendCcipReceiveCommand_PoisonABI(t *testing.T) {
 		[32]byte{}, &normalizedModule, &extractedArg, nil,
 	)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsupportedReceiverABI)
+	require.ErrorIs(t, err, ErrUnsupportedReceiverABI)
 	assert.Contains(t, err.Error(), "failed to decode receiver parameters")
 }
 
@@ -436,7 +436,7 @@ func TestAppendPTBCommandForReceiver_PoisonABI(t *testing.T) {
 		[32]byte{}, &normalizedModule, &receiverParams, map[string]any{},
 	)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsupportedReceiverABI)
+	require.ErrorIs(t, err, ErrUnsupportedReceiverABI)
 	assert.Contains(t, err.Error(), "failed to decode receiver parameters")
 }
 
