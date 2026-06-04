@@ -9,6 +9,34 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
+func TestExposedFunctionSignature_InvalidShape(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  any
+	}{
+		{name: "string", raw: "not-a-map"},
+		{name: "nil", raw: nil},
+		{name: "float64", raw: float64(1)},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NotPanics(t, func() {
+				m, err := exposedFunctionSignature("ccip_receive", tc.raw)
+				require.Error(t, err)
+				assert.Nil(t, m)
+				assert.ErrorIs(t, err, ErrUnsupportedReceiverABI)
+			})
+		})
+	}
+}
+
+func TestExposedFunctionSignature_ValidMap(t *testing.T) {
+	m, err := exposedFunctionSignature("ccip_receive", map[string]any{"parameters": []any{}})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"parameters": []any{}}, m)
+}
+
 func TestDecodeParam_PoisonABI_TypeParameter(t *testing.T) {
 	lggr := logger.Test(t)
 
@@ -37,8 +65,7 @@ func TestDecodeParam_PoisonABI_TypeParameter(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := decodeParam(lggr, tc.param, "Reference")
-			require.Error(t, err)
-			assert.ErrorIs(t, err, ErrUnsupportedReceiverABI,
+			require.ErrorIs(t, err, ErrUnsupportedReceiverABI,
 				"expected ErrUnsupportedReceiverABI, got: %v", err)
 			assert.Contains(t, err.Error(), "TypeParameter")
 			assert.Equal(t, SuiArgumentMetadata{}, result)

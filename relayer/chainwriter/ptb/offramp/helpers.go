@@ -395,6 +395,14 @@ func ParseParamType(lggr logger.Logger, param interface{}) string {
 	return "unknown"
 }
 
+func exposedFunctionSignature(functionName string, raw any) (map[string]any, error) {
+	m, ok := raw.(map[string]any)
+	if !ok || m == nil {
+		return nil, fmt.Errorf("%w: function %q has invalid signature shape (%T)", ErrUnsupportedReceiverABI, functionName, raw)
+	}
+	return m, nil
+}
+
 func DecodeParameters(lggr logger.Logger, function map[string]any, key string) ([]string, error) {
 	parametersRaw, exists := function[key]
 	if !exists || parametersRaw == nil {

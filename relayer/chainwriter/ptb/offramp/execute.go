@@ -300,8 +300,11 @@ func AppendPTBCommandForTokenPool(
 		return nil, fmt.Errorf("missing function signature for token pool function not found in module (%s)", OfframpTokenPoolFunctionName)
 	}
 
-	// Figure out the parameter types from the normalized module of the token pool
-	paramTypes, err := DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
+	funcMap, ok := functionSignature.(map[string]any)
+	if !ok || funcMap == nil {
+		return nil, fmt.Errorf("invalid function signature shape for %q (%T)", OfframpTokenPoolFunctionName, functionSignature)
+	}
+	paramTypes, err := DecodeParameters(lggr, funcMap, "parameters")
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
 	}
@@ -516,8 +519,11 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("%w: function %q not found in module", ErrUnsupportedReceiverABI, functionName)
 	}
 
-	// Figure out the parameter types from the normalized module of the token pool
-	paramTypes, err = DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
+	funcMap, err := exposedFunctionSignature(functionName, functionSignature)
+	if err != nil {
+		return nil, err
+	}
+	paramTypes, err = DecodeParameters(lggr, funcMap, "parameters")
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode receiver parameters: %w", err)
 	}
