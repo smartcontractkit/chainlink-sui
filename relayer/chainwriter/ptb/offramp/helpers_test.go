@@ -257,6 +257,42 @@ func TestDecodeParam_ValidABI(t *testing.T) {
 				Type:          "object_id",
 			},
 		},
+		{
+			name: "0x1::string::String struct",
+			param: map[string]any{"Struct": map[string]any{
+				"address":       "0x1",
+				"module":        "string",
+				"name":          "String",
+				"typeArguments": []any{},
+			}},
+			reference: "Reference",
+			expected: SuiArgumentMetadata{
+				Address:       "0x1",
+				Module:        "string",
+				Name:          "String",
+				Reference:     "Reference",
+				TypeArguments: []TypeParameter{},
+				Type:          moveStringType,
+			},
+		},
+		{
+			name: "Vector of 0x1::string::String",
+			param: map[string]any{"Vector": map[string]any{"Struct": map[string]any{
+				"address":       "0x1",
+				"module":        "string",
+				"name":          "String",
+				"typeArguments": []any{},
+			}}},
+			reference: "Reference",
+			expected: SuiArgumentMetadata{
+				Address:       "0x1",
+				Module:        "string",
+				Name:          "String",
+				Reference:     "Vector",
+				TypeArguments: []TypeParameter{},
+				Type:          moveStringType,
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -284,6 +320,125 @@ func TestDecodeParameters_PoisonABI_ReturnsError(t *testing.T) {
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "TypeParameter")
 	})
+}
+
+func TestDecodeParameters_StringParam(t *testing.T) {
+	lggr := logger.Test(t)
+
+	function := map[string]any{
+		"parameters": []any{
+			map[string]any{"Struct": map[string]any{
+				"address": "0x1", "module": "string", "name": "String", "typeArguments": []any{},
+			}},
+		},
+	}
+
+	result, err := DecodeParameters(lggr, function, "parameters")
+	require.NoError(t, err)
+	assert.Equal(t, []string{moveStringType}, result)
+}
+
+func TestDecodeParameters_VectorString(t *testing.T) {
+	lggr := logger.Test(t)
+
+	function := map[string]any{
+		"parameters": []any{
+			map[string]any{"Vector": map[string]any{"Struct": map[string]any{
+				"address": "0x1", "module": "string", "name": "String", "typeArguments": []any{},
+			}}},
+		},
+	}
+
+	result, err := DecodeParameters(lggr, function, "parameters")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"vector<" + moveStringType + ">"}, result)
+}
+
+func TestParseParamType_String(t *testing.T) {
+	lggr := logger.Test(t)
+
+	inner := map[string]any{
+		"address": "0x1", "module": "string", "name": "String", "typeArguments": []any{},
+	}
+	wrapper := map[string]any{"Struct": inner}
+
+	assert.Equal(t, moveStringType, ParseParamType(lggr, inner))
+	assert.Equal(t, moveStringType, ParseParamType(lggr, wrapper))
+	assert.Equal(t, "vector<"+moveStringType+">", ParseParamType(lggr, map[string]any{"Vector": wrapper}))
+}
+
+func suiStringStructABI() map[string]any {
+	return map[string]any{
+		"address": "0x1", "module": "string", "name": "String", "typeArguments": []any{},
+	}
+}
+
+func suiObjectStructABI(address, module, name string) map[string]any {
+	return map[string]any{
+		"address": address, "module": module, "name": name, "typeArguments": []any{},
+	}
+}
+
+// TestDecodeParameters_ComplexSignature exercises a mixed parameter list resembling a rich
+// Move entry function: object ref, address, vectors, std::string, and primitives.
+func TestDecodeParameters_ComplexSignature(t *testing.T) {
+	lggr := logger.Test(t)
+
+	function := map[string]any{
+		"parameters": []any{
+			// &CCIPObjectRef (object reference)
+			map[string]any{"Reference": map[string]any{"Struct": suiObjectStructABI(
+				"0xccip", "state_object", "CCIPObjectRef",
+			)}},
+			// address primitive (Move Address)
+			"Address",
+			// vector<u8>
+			map[string]any{"Vector": "U8"},
+			// vector<SomeStruct> (vector of object-like structs)
+			map[string]any{"Vector": map[string]any{"Struct": suiObjectStructABI(
+				"0xpool", "burn_mint", "BurnMintTokenPoolState",
+			)}},
+			// 0x1::string::String by value
+			map[string]any{"Struct": suiStringStructABI()},
+			// vector<0x1::string::String>
+			map[string]any{"Vector": map[string]any{"Struct": suiStringStructABI()}},
+			// bool
+			"Bool",
+		},
+	}
+
+	result, err := DecodeParameters(lggr, function, "parameters")
+	require.NoError(t, err)
+
+	// Address uses default Reference label and object_id typing → &object today (not bindings' "address").
+	expected := []string{
+		"&object",
+		"&object",
+		"vector<u8>",
+		"vector<object_id>",
+		moveStringType,
+		"vector<" + moveStringType + ">",
+		"bool",
+	}
+	assert.Equal(t, expected, result)
+
+	decoded := make([]SuiArgumentMetadata, len(function["parameters"].([]any)))
+	for i, parameter := range function["parameters"].([]any) {
+		meta, decodeErr := decodeParam(lggr, parameter, "Reference")
+		require.NoError(t, decodeErr)
+		decoded[i] = meta
+	}
+
+	assert.Equal(t, "object_id", decoded[0].Type)
+	assert.Equal(t, "CCIPObjectRef", decoded[0].Name)
+	assert.Equal(t, "object_id", decoded[1].Type)
+	assert.Equal(t, "Address", decoded[1].Name)
+	assert.Equal(t, "u8", decoded[2].Type)
+	assert.Equal(t, "object_id", decoded[3].Type)
+	assert.Equal(t, "BurnMintTokenPoolState", decoded[3].Name)
+	assert.Equal(t, moveStringType, decoded[4].Type)
+	assert.Equal(t, moveStringType, decoded[5].Type)
+	assert.Equal(t, "bool", decoded[6].Type)
 }
 
 func TestDecodeParameters_NestedVectorU8(t *testing.T) {

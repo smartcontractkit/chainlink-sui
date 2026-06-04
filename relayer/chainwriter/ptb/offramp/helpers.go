@@ -298,6 +298,41 @@ func extractStructFields(s map[string]any) (address, module, name string, err er
 	return address, module, name, nil
 }
 
+const moveStringType = "0x1::string::String"
+
+func structFieldsToMoveType(address, module, name string) string {
+	switch {
+	case module == "string" && name == "String":
+		return moveStringType
+	case module == "ascii" && name == "String":
+		return "ascii::String"
+	default:
+		return "object_id"
+	}
+}
+
+func structMapToMoveType(m map[string]any) string {
+	address, module, name, err := extractStructFields(m)
+	if err != nil {
+		return "object_id"
+	}
+	return structFieldsToMoveType(address, module, name)
+}
+
+func isPureParamType(paramType string) bool {
+	if strings.HasPrefix(paramType, "u") || paramType == "bool" {
+		return true
+	}
+	return paramType == moveStringType || strings.Contains(paramType, "::string::String")
+}
+
+func formatValueParamType(paramType string) string {
+	if strings.Contains(paramType, "::") {
+		return paramType
+	}
+	return strings.ToLower(paramType)
+}
+
 func ParseParamType(lggr logger.Logger, param interface{}) string {
 	// Case 1: string primitive
 	if str, ok := param.(string); ok {
@@ -334,17 +369,14 @@ func ParseParamType(lggr logger.Logger, param interface{}) string {
 		if mutRefVal, ok := m["MutableReference"]; ok {
 			return ParseParamType(lggr, mutRefVal)
 		}
-		if _, ok := m["Struct"]; ok {
-			if m["address"] == "String" {
-				return "string"
+		if structVal, ok := m["Struct"]; ok {
+			if inner, ok := structVal.(map[string]any); ok {
+				return structMapToMoveType(inner)
 			}
 			return "object_id"
 		}
-		if address, ok := m["address"]; ok {
-			if address == "String" {
-				return "string"
-			}
-			return "object_id"
+		if _, ok := m["address"]; ok {
+			return structMapToMoveType(m)
 		}
 	}
 
@@ -386,7 +418,7 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 		}
 
 		if param.Reference == "Reference" {
-			if strings.HasPrefix(param.Type, "u") || param.Type == "bool" {
+			if isPureParamType(param.Type) {
 				paramTypes = append(paramTypes, param.Type)
 			} else {
 				paramTypes = append(paramTypes, "&object")
@@ -404,7 +436,7 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 			continue
 		}
 
-		paramTypes = append(paramTypes, strings.ToLower(param.Type))
+		paramTypes = append(paramTypes, formatValueParamType(param.Type))
 	}
 
 	return paramTypes, nil
