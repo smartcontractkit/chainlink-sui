@@ -7,7 +7,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
@@ -141,9 +140,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 	}
 
 	// Create a new transaction builder
-	sdkClient := p.client.GetClient()
 	ptb := transaction.NewTransaction()
-	ptb.SetSuiClient(sdkClient.(*sui.Client))
 
 	signerAddress, err := client.GetAddressFromPublicKey(txnConfig.PublicKey)
 	if err != nil {

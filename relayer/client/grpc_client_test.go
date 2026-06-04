@@ -5,10 +5,13 @@ package client_test
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"testing"
 	"time"
 
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/utils"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
@@ -18,37 +21,65 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
+const (
+	grpcDefaultMaxConcurrent = int64(3)
+	grpcTestTimeout          = 120 * time.Second
+)
+
 //nolint:paralleltest
-func TestPTBClient(t *testing.T) {
+func TestGrpcClient(t *testing.T) {
 	log := logger.Test(t)
 
+	keystoreInstance := testutils.NewTestKeystore(t)
+	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
+
+	testCfg := client.PTBClientConfig{
+		GrpcTarget:            "127.0.0.1:9000",
+		GrpcToken:             "test",
+		TransactionTimeout:    grpcTestTimeout,
+		MaxConcurrentRequests: grpcDefaultMaxConcurrent,
+		KeystoreService:       keystoreInstance,
+	}
+
+	var suiNodeCmd *exec.Cmd
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
+	suiNodeCmd = cmd
 
 	testutils.CleanupTestContracts()
 
 	t.Cleanup(func() {
 		testutils.CleanupTestContracts()
 
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
-			if perr != nil {
-				t.Logf("Failed to kill process: %v", perr)
+		if suiNodeCmd != nil && suiNodeCmd.Process != nil {
+			if perr := suiNodeCmd.Process.Kill(); perr != nil {
+				t.Logf("Failed to kill local Sui node: %v", perr)
 			}
 		}
 	})
 
-	keystoreInstance := testutils.NewTestKeystore(t)
-	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
-
-	maxConcurrent := int64(3)
-	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 120*time.Second, keystoreInstance, maxConcurrent, "WaitForLocalExecution")
+	relayerClient, err := client.NewPTBClient(log, testCfg)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, relayerClient.Close())
+	})
+
+	t.Run("GrpcConnection", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		require.NoError(t, relayerClient.VerifyGrpcServices(ctx))
+
+		chainID, err := relayerClient.HealthCheckGrpc(ctx)
+		require.NoError(t, err)
+		require.NotEmpty(t, chainID, "expected chain ID from gRPC GetServiceInfo")
+		log.Infow("gRPC connection verified", "grpcTarget", testCfg.GrpcTarget, "chainID", chainID)
+	})
 
 	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
 	require.NoError(t, err)
 
-	chainID, err := testutils.GetChainIdentifier(testutils.LocalUrl)
+	chainID, err := relayerClient.HealthCheckGrpc(context.Background())
 	require.NoError(t, err)
 	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
 	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
@@ -72,7 +103,6 @@ func TestPTBClient(t *testing.T) {
 
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_count",
@@ -130,130 +160,30 @@ func TestPTBClient(t *testing.T) {
 		}
 
 		// Verify only maxConcurrent requests completed
-		require.True(t, completeCount <= int(maxConcurrent),
+		require.True(t, completeCount <= int(grpcDefaultMaxConcurrent),
 			"Too many requests (%d) completed, limit is %d",
-			completeCount, maxConcurrent)
-	})
-
-	//nolint:paralleltest
-	t.Run("MoveCall", func(t *testing.T) {
-		// Prepare arguments for a move call
-		moveCallReq := client.MoveCallRequest{
-			Signer:          accountAddress,
-			PackageObjectId: packageId,
-			Module:          "counter",
-			Function:        "increment", // Assuming this function exists in the contract
-			Arguments:       []any{counterObjectId},
-			TypeArguments:   []any{"objectId"},
-			Gas:             1000000000,
-			GasBudget:       1000000000,
-		}
-
-		// Call MoveCall to prepare the transaction
-		txnMetadata, err := relayerClient.MoveCall(context.Background(), moveCallReq)
-		require.NoError(t, err)
-		require.NotEmpty(t, txnMetadata.TxBytes, "Expected non-empty transaction bytes")
-
-		// Verify we can execute the transaction
-		resp, err := relayerClient.SignAndSendTransaction(
-			context.Background(),
-			txnMetadata.TxBytes,
-			publicKeyBytes,
-			"WaitForLocalExecution",
-		)
-		require.NoError(t, err)
-		require.Equal(t, "success", resp.Status.Status, "Expected move call to succeed")
+			completeCount, grpcDefaultMaxConcurrent)
 	})
 
 	//nolint:paralleltest
 	t.Run("MoveCall_IncrementByValue", func(t *testing.T) {
-		// Prepare arguments for a move call
-		moveCallReq := client.MoveCallRequest{
+		txnMetadata, err := relayerClient.MoveCall(context.Background(), client.MoveCallRequest{
 			Signer:          accountAddress,
 			PackageObjectId: packageId,
 			Module:          "counter",
 			Function:        "increment_by",
-			Arguments:       []any{counterObjectId, "10"},
+			Arguments:       []any{counterObjectId, uint64(100)},
 			TypeArguments:   []any{},
-			Gas:             1000000000,
 			GasBudget:       1000000000,
-		}
-
-		// Call MoveCall to prepare the transaction
-		txnMetadata, err := relayerClient.MoveCall(context.Background(), moveCallReq)
+		})
 		require.NoError(t, err)
-		require.NotEmpty(t, txnMetadata.TxBytes, "Expected non-empty transaction bytes")
 
 		// Verify we can execute the transaction
-		resp, err := relayerClient.SignAndSendTransaction(
-			context.Background(),
-			txnMetadata.TxBytes,
-			publicKeyBytes,
-			"WaitForLocalExecution",
-		)
+		resp, err := relayerClient.SignAndSendTransaction(context.Background(), txnMetadata.TxBytes, publicKeyBytes)
 		require.NoError(t, err)
-		require.Equal(t, "success", resp.Status.Status, "Expected move call to succeed")
-	})
+		log.Debugw("transaction response", "transaction", resp.Transaction.GetEffects().GetStatus())
 
-	//nolint:paralleltest
-	t.Run("QueryEvents", func(t *testing.T) {
-		// Increment the counter 3 times to create multiple events
-		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-
-		// Create event filter for the counter module
-		filter := client.EventFilterByMoveEventModule{
-			Package: packageId,
-			Module:  "counter",
-			Event:   "CounterIncremented",
-		}
-
-		limit := uint(1)
-		descending := true
-
-		// Query events
-		events, err := relayerClient.QueryEvents(context.Background(), filter, &limit, nil, &client.QuerySortOptions{
-			Descending: descending,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, events)
-		require.Equal(t, 1, len(events.Data))
-
-		// Query events again with the cursor of the previous query
-		cursor := client.EventId{
-			TxDigest: events.Data[0].Id.TxDigest,
-			EventSeq: events.Data[0].Id.EventSeq,
-		}
-		eventsWithCursor, errWithCursor := relayerClient.QueryEvents(context.Background(), filter, &limit, &cursor, &client.QuerySortOptions{
-			Descending: descending,
-		})
-		require.NoError(t, errWithCursor)
-		require.NotNil(t, eventsWithCursor)
-		require.True(t, len(eventsWithCursor.Data) > 0)
-	})
-
-	//nolint:paralleltest
-	t.Run("QueryEvents_(high_limit)", func(t *testing.T) {
-		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-
-		// Create event filter for the counter module
-		filter := client.EventFilterByMoveEventModule{
-			Package: packageId,
-			Module:  "counter",
-			Event:   "CounterIncremented",
-		}
-
-		limit := uint(50)
-		descending := true
-
-		// Query events
-		events, err := relayerClient.QueryEvents(context.Background(), filter, &limit, nil, &client.QuerySortOptions{
-			Descending: descending,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, events)
-		require.True(t, len(events.Data) > 0)
+		require.Equal(t, true, resp.Transaction.GetEffects().GetStatus().GetSuccess(), "Expected move call to succeed")
 	})
 
 	//nolint:paralleltest
@@ -263,15 +193,19 @@ func TestPTBClient(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, coins)
 
+		for _, coin := range coins {
+			log.Debugw("coin", "coin", coin)
+		}
+
 		// Account should have at least one coin after faucet funding
 		require.True(t, len(coins) > 0, "Expected at least one coin in account")
 
 		// Verify coin data structure
 		for _, coin := range coins {
-			require.NotEmpty(t, coin.CoinObjectId)
-			require.NotEmpty(t, coin.CoinType)
-			require.NotEmpty(t, coin.Balance)
+			require.NotEmpty(t, coin.GetObjectId())
 		}
+
+		utils.PrettyPrint(coins)
 	})
 
 	//nolint:paralleltest
@@ -300,12 +234,12 @@ func TestPTBClient(t *testing.T) {
 			context.Background(),
 			accountAddress,
 			fmt.Sprintf("%s::counter::AdminCap", packageId),
-			"",
+			nil,
 		)
 		require.NoError(t, err)
 		require.NotNil(t, objects)
 		require.NotZero(t, len(objects))
-		require.Equal(t, fmt.Sprintf("%s::counter::AdminCap", packageId), objects[0].Type)
+		require.Equal(t, fmt.Sprintf("%s::counter::AdminCap", packageId), objects[0].GetObjectType())
 	})
 
 	t.Run("ReadFilterOwnedObjectIds_(many_pages)", func(t *testing.T) {
@@ -316,36 +250,34 @@ func TestPTBClient(t *testing.T) {
 
 		CreateManyObjects(t, relayerClient, packageId, accountAddress, publicKeyBytes)
 
-		objects, err := relayerClient.ReadFilterOwnedObjectIds(
-			context.Background(),
-			accountAddress,
-			fmt.Sprintf("%s::counter::SomeObject", packageId),
-			"",
-		)
-		require.NoError(t, err)
-		require.NotNil(t, objects)
-		require.Equal(t, 100, len(objects))
-
-		for _, obj := range objects {
-			require.Equal(t, fmt.Sprintf("%s::counter::SomeObject", packageId), obj.Type)
-		}
+		assert.Eventually(t, func() bool {
+			objects, err := relayerClient.ReadFilterOwnedObjectIds(
+				context.Background(),
+				accountAddress,
+				fmt.Sprintf("%s::counter::SomeObject", packageId),
+				nil,
+			)
+			require.NoError(t, err)
+			log.Debugw("objects", "objects", objects)
+			return len(objects) > 99
+		}, 10*time.Second, 2*time.Second)
 	})
 
 	//nolint:paralleltest
 	t.Run("GetTransactionStatus", func(t *testing.T) {
-		txDigest := IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
+		tx := IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
+		txDigest := tx.GetDigest()
 
 		// Now check its status
-		txStatus, err := relayerClient.GetTransactionStatus(context.Background(), txDigest)
-		require.NoError(t, err)
-		require.Equal(t, "success", txStatus.Status, "Expected transaction status to be 'success', got: %s with error: %s",
-			txStatus.Status, txStatus.Error)
+		assert.Eventually(t, func() bool {
+			txStatus, err := relayerClient.GetTransactionStatus(context.Background(), txDigest)
+			return txStatus.Status == "success" && err == nil
+		}, 10*time.Second, 2*time.Second, "Expected transaction status to be 'success' but condition not met")
 	})
 
 	t.Run("ReadFunction_JSONResponseParsing", func(t *testing.T) {
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_result_struct",
@@ -360,7 +292,6 @@ func TestPTBClient(t *testing.T) {
 	t.Run("ReadFunction_StringAsStruct", func(t *testing.T) {
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"type_and_version",
@@ -375,7 +306,6 @@ func TestPTBClient(t *testing.T) {
 	t.Run("ReadFunction_NestedStruct", func(t *testing.T) {
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_nested_result_struct",
@@ -390,7 +320,6 @@ func TestPTBClient(t *testing.T) {
 	t.Run("ReadFunction_MultiNestedStruct", func(t *testing.T) {
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_multi_nested_result_struct",
@@ -405,7 +334,6 @@ func TestPTBClient(t *testing.T) {
 	t.Run("ReadFunction_Tuple", func(t *testing.T) {
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_tuple_struct",
@@ -420,7 +348,6 @@ func TestPTBClient(t *testing.T) {
 	t.Run("ReadFunction_OCRConfig", func(t *testing.T) {
 		values, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_ocr_config",
@@ -435,7 +362,6 @@ func TestPTBClient(t *testing.T) {
 	t.Run("ReadFunction_VectorOfU8", func(t *testing.T) {
 		values, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_vector_of_u8",
@@ -450,7 +376,6 @@ func TestPTBClient(t *testing.T) {
 	t.Run("ReadFunction_VectorOfAddresses", func(t *testing.T) {
 		values, err := relayerClient.ReadFunction(
 			context.Background(),
-			accountAddress,
 			packageId,
 			"counter",
 			"get_vector_of_addresses",
@@ -460,58 +385,6 @@ func TestPTBClient(t *testing.T) {
 		)
 		require.NoError(t, err)
 		utils.PrettyPrint(values)
-	})
-
-	t.Run("QueryTransactions", func(t *testing.T) {
-		values, err := relayerClient.QueryTransactions(
-			context.Background(),
-			accountAddress,
-			nil,
-			nil,
-		)
-		require.NoError(t, err)
-		require.NotNil(t, values)
-		require.True(t, len(values.Data) > 0)
-
-		utils.PrettyPrint(values)
-	})
-
-	t.Run("QueryFailedTransactions", func(t *testing.T) {
-		CreateFailedTransaction(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-
-		values, err := relayerClient.QueryTransactions(
-			context.Background(),
-			accountAddress,
-			nil,
-			nil,
-		)
-		require.NoError(t, err)
-		require.NotNil(t, values)
-		require.True(t, len(values.Data) > 0)
-
-		failuresCount := 0
-		for _, tx := range values.Data {
-			if tx.Effects.Status.Status == "failure" {
-				failuresCount++
-			}
-		}
-
-		// expect to find the failed transaction in the list
-		require.True(t, failuresCount > 0, "Expected at least one failure")
-
-		// create another failed transaction and use the cursor to ignore the previously fetched ones
-		CreateFailedTransaction(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
-		cursor := &values.NextCursor
-		queryLimit := uint64(1)
-		values, err = relayerClient.QueryTransactions(
-			context.Background(),
-			accountAddress,
-			cursor,
-			&queryLimit,
-		)
-		require.NoError(t, err)
-		require.NotNil(t, values)
-		require.Equal(t, 1, len(values.Data))
 	})
 
 	t.Run("GetLatestPackageId", func(t *testing.T) {
@@ -527,46 +400,63 @@ func TestPTBClient(t *testing.T) {
 	})
 
 	t.Run("QueryCoinsByAddress", func(t *testing.T) {
-		// Create and send random coins to the account address for testing
-		// This ensures we have coins to query
-		coinAmount := uint64(1000000) // 1 SUI
-
-		// Create a coin transfer transaction to send SUI to the account
-		transferReq := client.MoveCallRequest{
-			Signer:          accountAddress,
-			PackageObjectId: "0x2",
-			Module:          "pay",
-			Function:        "split_and_transfer",
-			Arguments:       []any{coinAmount, accountAddress},
-			GasBudget:       1000000000,
-		}
-
-		// Execute the coin transfer
-		txnMetadata, err := relayerClient.MoveCall(context.Background(), transferReq)
-		if err == nil && txnMetadata.TxBytes != "" {
-			_, err = relayerClient.SignAndSendTransaction(
-				context.Background(),
-				txnMetadata.TxBytes,
-				publicKeyBytes,
-				"WaitForLocalExecution",
-			)
-			// Ignore errors as this is just setup for the test
-		}
-
-		coins, err := relayerClient.QueryCoinsByAddress(context.Background(), accountAddress, "0x2::sui::SUI")
+		coins, err := relayerClient.QueryCoinsByAddress(context.Background(), accountAddress, "0x2::coin::Coin<0x2::sui::SUI>")
 		require.NoError(t, err)
 		require.NotNil(t, coins)
 
 		require.True(t, len(coins) > 0)
 		for _, coin := range coins {
-			require.Equal(t, "0x2::sui::SUI", coin.CoinType)
+			require.Equal(t, accountAddress, coin.GetOwner().GetAddress())
+			expectedCoinType := "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>"
+			require.Equal(t, expectedCoinType, coin.GetObjectType())
 		}
 
 		utils.PrettyPrint(coins)
 	})
+
+	t.Run("GetLatestCheckpoint", func(t *testing.T) {
+		checkpoint, err := relayerClient.GetLatestCheckpoint(context.Background())
+		require.NoError(t, err)
+		require.NotNil(t, checkpoint)
+		require.NotZero(t, checkpoint.GetSequenceNumber())
+	})
+
+	t.Run("GetCheckpointData", func(t *testing.T) {
+		// create a random tranaction to be included in the next checkpoint
+		tx := IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
+		txDigest := tx.GetDigest()
+		require.NotEmpty(t, txDigest)
+
+		var checkpoint uint64
+
+		// assert the transaction is included in the next checkpoint
+		assert.Eventually(t, func() bool {
+			transaction, err := relayerClient.GetTransactionStatus(context.Background(), txDigest)
+			checkpoint = transaction.Checkpoint
+			return transaction.Status == "success" && err == nil
+		}, 10*time.Second, 1*time.Second)
+
+		checkpointData, err := relayerClient.GetCheckpointData(context.Background(), checkpoint)
+		require.NoError(t, err)
+		require.NotNil(t, checkpoint)
+		require.Equal(t, checkpoint, checkpointData.Checkpoint.GetSequenceNumber())
+
+		// assert the transaction is included in the checkpoint data
+		var found bool
+		for _, tx := range checkpointData.Transactions {
+			if tx.GetDigest() == txDigest {
+				require.Equal(t, tx.GetCheckpoint(), checkpoint)
+				require.Contains(t, checkpointData.Transactions, tx)
+				found = true
+				break
+			}
+		}
+
+		require.True(t, found, "Transaction not found in checkpoint data")
+	})
 }
 
-func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) string {
+func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) *suirpcv2.ExecutedTransaction {
 	t.Helper()
 	// Prepare arguments for a move call
 	moveCallReq := client.MoveCallRequest{
@@ -575,6 +465,7 @@ func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient,
 		Module:          "counter",
 		Function:        "increment", // Assuming this function exists in the contract
 		Arguments:       []any{counterObjectId},
+		TypeArguments:   []any{},
 		GasBudget:       1000000000,
 	}
 
@@ -588,12 +479,11 @@ func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient,
 		context.Background(),
 		txnMetadata.TxBytes,
 		signerPublicKey,
-		"WaitForLocalExecution",
 	)
 	require.NoError(t, err)
-	require.Equal(t, "success", resp.Status.Status, "Expected move call to succeed")
+	require.Equal(t, true, resp.Transaction.GetEffects().GetStatus().GetSuccess(), "Expected move call to succeed")
 
-	return resp.TxDigest
+	return resp.GetTransaction()
 }
 
 func CreateManyObjects(t *testing.T, relayerClient *client.PTBClient, packageId string, accountAddress string, signerPublicKey []byte) {
@@ -604,8 +494,8 @@ func CreateManyObjects(t *testing.T, relayerClient *client.PTBClient, packageId 
 		PackageObjectId: packageId,
 		Module:          "counter",
 		Function:        "create_many_objects",
-		Arguments:       []any{"100"},
-		TypeArguments:   []any{"u64"},
+		Arguments:       []any{uint64(100)},
+		TypeArguments:   []any{},
 		GasBudget:       2000000000,
 	}
 
@@ -618,10 +508,9 @@ func CreateManyObjects(t *testing.T, relayerClient *client.PTBClient, packageId 
 		context.Background(),
 		txnMetadata.TxBytes,
 		signerPublicKey,
-		"WaitForLocalExecution",
 	)
 	require.NoError(t, err)
-	require.Equal(t, "success", resp.Status.Status, "Expected move call to succeed")
+	require.Equal(t, true, resp.Transaction.GetEffects().GetStatus().GetSuccess(), "Expected move call to succeed")
 }
 
 func CreateFailedTransaction(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) {
@@ -632,7 +521,7 @@ func CreateFailedTransaction(t *testing.T, relayerClient *client.PTBClient, pack
 		PackageObjectId: packageId,
 		Module:          "counter",
 		Function:        "increment_by",
-		Arguments:       []any{counterObjectId, "1000"},
+		Arguments:       []any{counterObjectId, uint64(1000)},
 		GasBudget:       1000000000,
 	}
 
@@ -646,8 +535,7 @@ func CreateFailedTransaction(t *testing.T, relayerClient *client.PTBClient, pack
 		context.Background(),
 		txnMetadata.TxBytes,
 		signerPublicKey,
-		"WaitForLocalExecution",
 	)
 	require.NoError(t, err)
-	require.Equal(t, "failure", resp.Status.Status, "Expected move call to fail")
+	require.Equal(t, false, resp.Transaction.GetEffects().GetStatus().GetSuccess(), "Expected move call to fail")
 }

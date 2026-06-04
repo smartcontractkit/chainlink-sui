@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -221,8 +220,8 @@ type OfframpDevInspect struct {
 var _ IOfframp = (*OfframpContract)(nil)
 var _ IOfframpDevInspect = (*OfframpDevInspect)(nil)
 
-func NewOfframp(packageID string, client sui.ISuiAPI) (IOfframp, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_offramp", "offramp", client)
+func NewOfframp(packageID string, chainClient client.BindingsClient) (IOfframp, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip_offramp", "offramp", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -415,958 +414,6 @@ type ExecutionReportV2 struct {
 	Message             Any2SuiRampMessageV2 `move:"Any2SuiRampMessageV2"`
 	OffchainTokenData   [][]byte             `move:"vector<vector<u8>>"`
 	Proofs              [][]byte             `move:"vector<vector<u8>>"`
-}
-
-type bcsOffRampState struct {
-	Id                                      string
-	PackageIds                              [][32]byte
-	Ocr3BaseState                           bind.Object
-	ChainSelector                           uint64
-	PermissionlessExecutionThresholdSeconds uint32
-	SourceChainConfigs                      bind.Object
-	ExecutionStates                         bind.Object
-	Roots                                   bind.Object
-	LatestPriceSequenceNumber               uint64
-	FeeQuoterCap                            *bind.Object
-	DestTransferCap                         *bind.Object
-	OwnableState                            bind.Object
-}
-
-func convertOffRampStateFromBCS(bcs bcsOffRampState) (OffRampState, error) {
-
-	return OffRampState{
-		Id: bcs.Id,
-		PackageIds: func() []string {
-			addrs := make([]string, len(bcs.PackageIds))
-			for i, addr := range bcs.PackageIds {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		Ocr3BaseState:                           bcs.Ocr3BaseState,
-		ChainSelector:                           bcs.ChainSelector,
-		PermissionlessExecutionThresholdSeconds: bcs.PermissionlessExecutionThresholdSeconds,
-		SourceChainConfigs:                      bcs.SourceChainConfigs,
-		ExecutionStates:                         bcs.ExecutionStates,
-		Roots:                                   bcs.Roots,
-		LatestPriceSequenceNumber:               bcs.LatestPriceSequenceNumber,
-		FeeQuoterCap:                            bcs.FeeQuoterCap,
-		DestTransferCap:                         bcs.DestTransferCap,
-		OwnableState:                            bcs.OwnableState,
-	}, nil
-}
-
-type bcsOffRampStatePointer struct {
-	Id              string
-	OffRampObjectId [32]byte
-}
-
-func convertOffRampStatePointerFromBCS(bcs bcsOffRampStatePointer) (OffRampStatePointer, error) {
-
-	return OffRampStatePointer{
-		Id:              bcs.Id,
-		OffRampObjectId: fmt.Sprintf("0x%x", bcs.OffRampObjectId),
-	}, nil
-}
-
-type bcsSourceChainConfig struct {
-	Router                    [32]byte
-	IsEnabled                 bool
-	MinSeqNr                  uint64
-	IsRmnVerificationDisabled bool
-	OnRamp                    []byte
-}
-
-func convertSourceChainConfigFromBCS(bcs bcsSourceChainConfig) (SourceChainConfig, error) {
-
-	return SourceChainConfig{
-		Router:                    fmt.Sprintf("0x%x", bcs.Router),
-		IsEnabled:                 bcs.IsEnabled,
-		MinSeqNr:                  bcs.MinSeqNr,
-		IsRmnVerificationDisabled: bcs.IsRmnVerificationDisabled,
-		OnRamp:                    bcs.OnRamp,
-	}, nil
-}
-
-type bcsAny2SuiRampMessage struct {
-	Header        RampMessageHeader
-	Sender        []byte
-	Data          []byte
-	Receiver      [32]byte
-	GasLimit      [32]byte
-	TokenReceiver [32]byte
-	TokenAmounts  []Any2SuiTokenTransfer
-}
-
-func convertAny2SuiRampMessageFromBCS(bcs bcsAny2SuiRampMessage) (Any2SuiRampMessage, error) {
-	GasLimitField, err := bind.DecodeU256Value(bcs.GasLimit)
-	if err != nil {
-		return Any2SuiRampMessage{}, fmt.Errorf("failed to decode u256 field GasLimit: %w", err)
-	}
-
-	return Any2SuiRampMessage{
-		Header:        bcs.Header,
-		Sender:        bcs.Sender,
-		Data:          bcs.Data,
-		Receiver:      fmt.Sprintf("0x%x", bcs.Receiver),
-		GasLimit:      GasLimitField,
-		TokenReceiver: fmt.Sprintf("0x%x", bcs.TokenReceiver),
-		TokenAmounts:  bcs.TokenAmounts,
-	}, nil
-}
-
-type bcsAny2SuiTokenTransfer struct {
-	SourcePoolAddress []byte
-	DestTokenAddress  [32]byte
-	DestGasAmount     uint32
-	ExtraData         []byte
-	Amount            [32]byte
-}
-
-func convertAny2SuiTokenTransferFromBCS(bcs bcsAny2SuiTokenTransfer) (Any2SuiTokenTransfer, error) {
-	AmountField, err := bind.DecodeU256Value(bcs.Amount)
-	if err != nil {
-		return Any2SuiTokenTransfer{}, fmt.Errorf("failed to decode u256 field Amount: %w", err)
-	}
-
-	return Any2SuiTokenTransfer{
-		SourcePoolAddress: bcs.SourcePoolAddress,
-		DestTokenAddress:  fmt.Sprintf("0x%x", bcs.DestTokenAddress),
-		DestGasAmount:     bcs.DestGasAmount,
-		ExtraData:         bcs.ExtraData,
-		Amount:            AmountField,
-	}, nil
-}
-
-type bcsExecutionReport struct {
-	SourceChainSelector uint64
-	Message             bcsAny2SuiRampMessage
-	OffchainTokenData   [][]byte
-	Proofs              [][]byte
-}
-
-func convertExecutionReportFromBCS(bcs bcsExecutionReport) (ExecutionReport, error) {
-	MessageField, err := convertAny2SuiRampMessageFromBCS(bcs.Message)
-	if err != nil {
-		return ExecutionReport{}, fmt.Errorf("failed to convert nested struct Message: %w", err)
-	}
-
-	return ExecutionReport{
-		SourceChainSelector: bcs.SourceChainSelector,
-		Message:             MessageField,
-		OffchainTokenData:   bcs.OffchainTokenData,
-		Proofs:              bcs.Proofs,
-	}, nil
-}
-
-type bcsTokenPriceUpdate struct {
-	SourceToken [32]byte
-	UsdPerToken [32]byte
-}
-
-func convertTokenPriceUpdateFromBCS(bcs bcsTokenPriceUpdate) (TokenPriceUpdate, error) {
-	UsdPerTokenField, err := bind.DecodeU256Value(bcs.UsdPerToken)
-	if err != nil {
-		return TokenPriceUpdate{}, fmt.Errorf("failed to decode u256 field UsdPerToken: %w", err)
-	}
-
-	return TokenPriceUpdate{
-		SourceToken: fmt.Sprintf("0x%x", bcs.SourceToken),
-		UsdPerToken: UsdPerTokenField,
-	}, nil
-}
-
-type bcsGasPriceUpdate struct {
-	DestChainSelector uint64
-	UsdPerUnitGas     [32]byte
-}
-
-func convertGasPriceUpdateFromBCS(bcs bcsGasPriceUpdate) (GasPriceUpdate, error) {
-	UsdPerUnitGasField, err := bind.DecodeU256Value(bcs.UsdPerUnitGas)
-	if err != nil {
-		return GasPriceUpdate{}, fmt.Errorf("failed to decode u256 field UsdPerUnitGas: %w", err)
-	}
-
-	return GasPriceUpdate{
-		DestChainSelector: bcs.DestChainSelector,
-		UsdPerUnitGas:     UsdPerUnitGasField,
-	}, nil
-}
-
-type bcsStaticConfig struct {
-	ChainSelector      uint64
-	RmnRemote          [32]byte
-	TokenAdminRegistry [32]byte
-	NonceManager       [32]byte
-}
-
-func convertStaticConfigFromBCS(bcs bcsStaticConfig) (StaticConfig, error) {
-
-	return StaticConfig{
-		ChainSelector:      bcs.ChainSelector,
-		RmnRemote:          fmt.Sprintf("0x%x", bcs.RmnRemote),
-		TokenAdminRegistry: fmt.Sprintf("0x%x", bcs.TokenAdminRegistry),
-		NonceManager:       fmt.Sprintf("0x%x", bcs.NonceManager),
-	}, nil
-}
-
-type bcsDynamicConfig struct {
-	FeeQuoter                               [32]byte
-	PermissionlessExecutionThresholdSeconds uint32
-}
-
-func convertDynamicConfigFromBCS(bcs bcsDynamicConfig) (DynamicConfig, error) {
-
-	return DynamicConfig{
-		FeeQuoter:                               fmt.Sprintf("0x%x", bcs.FeeQuoter),
-		PermissionlessExecutionThresholdSeconds: bcs.PermissionlessExecutionThresholdSeconds,
-	}, nil
-}
-
-type bcsDynamicConfigSet struct {
-	DynamicConfig bcsDynamicConfig
-}
-
-func convertDynamicConfigSetFromBCS(bcs bcsDynamicConfigSet) (DynamicConfigSet, error) {
-	DynamicConfigField, err := convertDynamicConfigFromBCS(bcs.DynamicConfig)
-	if err != nil {
-		return DynamicConfigSet{}, fmt.Errorf("failed to convert nested struct DynamicConfig: %w", err)
-	}
-
-	return DynamicConfigSet{
-		DynamicConfig: DynamicConfigField,
-	}, nil
-}
-
-type bcsSourceChainConfigSet struct {
-	SourceChainSelector uint64
-	SourceChainConfig   bcsSourceChainConfig
-}
-
-func convertSourceChainConfigSetFromBCS(bcs bcsSourceChainConfigSet) (SourceChainConfigSet, error) {
-	SourceChainConfigField, err := convertSourceChainConfigFromBCS(bcs.SourceChainConfig)
-	if err != nil {
-		return SourceChainConfigSet{}, fmt.Errorf("failed to convert nested struct SourceChainConfig: %w", err)
-	}
-
-	return SourceChainConfigSet{
-		SourceChainSelector: bcs.SourceChainSelector,
-		SourceChainConfig:   SourceChainConfigField,
-	}, nil
-}
-
-type bcsAny2SuiRampMessageV2 struct {
-	Header            RampMessageHeader
-	Sender            []byte
-	Data              []byte
-	Receiver          [32]byte
-	GasLimit          [32]byte
-	TokenReceiver     [32]byte
-	ReceiverObjectIds [][32]byte
-	TokenAmounts      []Any2SuiTokenTransfer
-}
-
-func convertAny2SuiRampMessageV2FromBCS(bcs bcsAny2SuiRampMessageV2) (Any2SuiRampMessageV2, error) {
-	GasLimitField, err := bind.DecodeU256Value(bcs.GasLimit)
-	if err != nil {
-		return Any2SuiRampMessageV2{}, fmt.Errorf("failed to decode u256 field GasLimit: %w", err)
-	}
-
-	return Any2SuiRampMessageV2{
-		Header:        bcs.Header,
-		Sender:        bcs.Sender,
-		Data:          bcs.Data,
-		Receiver:      fmt.Sprintf("0x%x", bcs.Receiver),
-		GasLimit:      GasLimitField,
-		TokenReceiver: fmt.Sprintf("0x%x", bcs.TokenReceiver),
-		ReceiverObjectIds: func() []string {
-			addrs := make([]string, len(bcs.ReceiverObjectIds))
-			for i, addr := range bcs.ReceiverObjectIds {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		TokenAmounts: bcs.TokenAmounts,
-	}, nil
-}
-
-type bcsExecutionReportV2 struct {
-	SourceChainSelector uint64
-	Message             bcsAny2SuiRampMessageV2
-	OffchainTokenData   [][]byte
-	Proofs              [][]byte
-}
-
-func convertExecutionReportV2FromBCS(bcs bcsExecutionReportV2) (ExecutionReportV2, error) {
-	MessageField, err := convertAny2SuiRampMessageV2FromBCS(bcs.Message)
-	if err != nil {
-		return ExecutionReportV2{}, fmt.Errorf("failed to convert nested struct Message: %w", err)
-	}
-
-	return ExecutionReportV2{
-		SourceChainSelector: bcs.SourceChainSelector,
-		Message:             MessageField,
-		OffchainTokenData:   bcs.OffchainTokenData,
-		Proofs:              bcs.Proofs,
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip_offramp::offramp::OffRampState", func(data []byte) (interface{}, error) {
-		var temp bcsOffRampState
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOffRampStateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OffRampState
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::OffRampState>", func(data []byte) (interface{}, error) {
-		var temps []bcsOffRampState
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OffRampState, len(temps))
-		for i, temp := range temps {
-			result, err := convertOffRampStateFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::OffRampObject", func(data []byte) (interface{}, error) {
-		var result OffRampObject
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OffRampObject
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::OffRampObject>", func(data []byte) (interface{}, error) {
-		var results []OffRampObject
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::OffRampStatePointer", func(data []byte) (interface{}, error) {
-		var temp bcsOffRampStatePointer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOffRampStatePointerFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OffRampStatePointer
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::OffRampStatePointer>", func(data []byte) (interface{}, error) {
-		var temps []bcsOffRampStatePointer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OffRampStatePointer, len(temps))
-		for i, temp := range temps {
-			result, err := convertOffRampStatePointerFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::SourceChainConfig", func(data []byte) (interface{}, error) {
-		var temp bcsSourceChainConfig
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertSourceChainConfigFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for SourceChainConfig
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::SourceChainConfig>", func(data []byte) (interface{}, error) {
-		var temps []bcsSourceChainConfig
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]SourceChainConfig, len(temps))
-		for i, temp := range temps {
-			result, err := convertSourceChainConfigFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::RampMessageHeader", func(data []byte) (interface{}, error) {
-		var result RampMessageHeader
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for RampMessageHeader
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::RampMessageHeader>", func(data []byte) (interface{}, error) {
-		var results []RampMessageHeader
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::Any2SuiRampMessage", func(data []byte) (interface{}, error) {
-		var temp bcsAny2SuiRampMessage
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertAny2SuiRampMessageFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Any2SuiRampMessage
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::Any2SuiRampMessage>", func(data []byte) (interface{}, error) {
-		var temps []bcsAny2SuiRampMessage
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Any2SuiRampMessage, len(temps))
-		for i, temp := range temps {
-			result, err := convertAny2SuiRampMessageFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::Any2SuiTokenTransfer", func(data []byte) (interface{}, error) {
-		var temp bcsAny2SuiTokenTransfer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertAny2SuiTokenTransferFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Any2SuiTokenTransfer
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::Any2SuiTokenTransfer>", func(data []byte) (interface{}, error) {
-		var temps []bcsAny2SuiTokenTransfer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Any2SuiTokenTransfer, len(temps))
-		for i, temp := range temps {
-			result, err := convertAny2SuiTokenTransferFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::ExecutionReport", func(data []byte) (interface{}, error) {
-		var temp bcsExecutionReport
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertExecutionReportFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ExecutionReport
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::ExecutionReport>", func(data []byte) (interface{}, error) {
-		var temps []bcsExecutionReport
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]ExecutionReport, len(temps))
-		for i, temp := range temps {
-			result, err := convertExecutionReportFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::CommitReport", func(data []byte) (interface{}, error) {
-		var result CommitReport
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CommitReport
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::CommitReport>", func(data []byte) (interface{}, error) {
-		var results []CommitReport
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::PriceUpdates", func(data []byte) (interface{}, error) {
-		var result PriceUpdates
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for PriceUpdates
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::PriceUpdates>", func(data []byte) (interface{}, error) {
-		var results []PriceUpdates
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::TokenPriceUpdate", func(data []byte) (interface{}, error) {
-		var temp bcsTokenPriceUpdate
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertTokenPriceUpdateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TokenPriceUpdate
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::TokenPriceUpdate>", func(data []byte) (interface{}, error) {
-		var temps []bcsTokenPriceUpdate
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]TokenPriceUpdate, len(temps))
-		for i, temp := range temps {
-			result, err := convertTokenPriceUpdateFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::GasPriceUpdate", func(data []byte) (interface{}, error) {
-		var temp bcsGasPriceUpdate
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertGasPriceUpdateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for GasPriceUpdate
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::GasPriceUpdate>", func(data []byte) (interface{}, error) {
-		var temps []bcsGasPriceUpdate
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]GasPriceUpdate, len(temps))
-		for i, temp := range temps {
-			result, err := convertGasPriceUpdateFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::MerkleRoot", func(data []byte) (interface{}, error) {
-		var result MerkleRoot
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MerkleRoot
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::MerkleRoot>", func(data []byte) (interface{}, error) {
-		var results []MerkleRoot
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::StaticConfig", func(data []byte) (interface{}, error) {
-		var temp bcsStaticConfig
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertStaticConfigFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for StaticConfig
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::StaticConfig>", func(data []byte) (interface{}, error) {
-		var temps []bcsStaticConfig
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]StaticConfig, len(temps))
-		for i, temp := range temps {
-			result, err := convertStaticConfigFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::DynamicConfig", func(data []byte) (interface{}, error) {
-		var temp bcsDynamicConfig
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertDynamicConfigFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DynamicConfig
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::DynamicConfig>", func(data []byte) (interface{}, error) {
-		var temps []bcsDynamicConfig
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]DynamicConfig, len(temps))
-		for i, temp := range temps {
-			result, err := convertDynamicConfigFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::StaticConfigSet", func(data []byte) (interface{}, error) {
-		var result StaticConfigSet
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for StaticConfigSet
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::StaticConfigSet>", func(data []byte) (interface{}, error) {
-		var results []StaticConfigSet
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::DynamicConfigSet", func(data []byte) (interface{}, error) {
-		var temp bcsDynamicConfigSet
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertDynamicConfigSetFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DynamicConfigSet
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::DynamicConfigSet>", func(data []byte) (interface{}, error) {
-		var temps []bcsDynamicConfigSet
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]DynamicConfigSet, len(temps))
-		for i, temp := range temps {
-			result, err := convertDynamicConfigSetFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::SourceChainConfigSet", func(data []byte) (interface{}, error) {
-		var temp bcsSourceChainConfigSet
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertSourceChainConfigSetFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for SourceChainConfigSet
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::SourceChainConfigSet>", func(data []byte) (interface{}, error) {
-		var temps []bcsSourceChainConfigSet
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]SourceChainConfigSet, len(temps))
-		for i, temp := range temps {
-			result, err := convertSourceChainConfigSetFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::SkippedAlreadyExecuted", func(data []byte) (interface{}, error) {
-		var result SkippedAlreadyExecuted
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for SkippedAlreadyExecuted
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::SkippedAlreadyExecuted>", func(data []byte) (interface{}, error) {
-		var results []SkippedAlreadyExecuted
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::ExecutionStateChanged", func(data []byte) (interface{}, error) {
-		var result ExecutionStateChanged
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ExecutionStateChanged
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::ExecutionStateChanged>", func(data []byte) (interface{}, error) {
-		var results []ExecutionStateChanged
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::CommitReportAccepted", func(data []byte) (interface{}, error) {
-		var result CommitReportAccepted
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CommitReportAccepted
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::CommitReportAccepted>", func(data []byte) (interface{}, error) {
-		var results []CommitReportAccepted
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::SkippedReportExecution", func(data []byte) (interface{}, error) {
-		var result SkippedReportExecution
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for SkippedReportExecution
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::SkippedReportExecution>", func(data []byte) (interface{}, error) {
-		var results []SkippedReportExecution
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::OFFRAMP", func(data []byte) (interface{}, error) {
-		var result OFFRAMP
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OFFRAMP
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::OFFRAMP>", func(data []byte) (interface{}, error) {
-		var results []OFFRAMP
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::McmsCallback", func(data []byte) (interface{}, error) {
-		var result McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsCallback
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::McmsCallback>", func(data []byte) (interface{}, error) {
-		var results []McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
-		var result McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsAcceptOwnershipProof
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
-		var results []McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::Any2SuiRampMessageV2", func(data []byte) (interface{}, error) {
-		var temp bcsAny2SuiRampMessageV2
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertAny2SuiRampMessageV2FromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Any2SuiRampMessageV2
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::Any2SuiRampMessageV2>", func(data []byte) (interface{}, error) {
-		var temps []bcsAny2SuiRampMessageV2
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Any2SuiRampMessageV2, len(temps))
-		for i, temp := range temps {
-			result, err := convertAny2SuiRampMessageV2FromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_offramp::offramp::ExecutionReportV2", func(data []byte) (interface{}, error) {
-		var temp bcsExecutionReportV2
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertExecutionReportV2FromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ExecutionReportV2
-	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::ExecutionReportV2>", func(data []byte) (interface{}, error) {
-		var temps []bcsExecutionReportV2
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]ExecutionReportV2, len(temps))
-		for i, temp := range temps {
-			result, err := convertExecutionReportV2FromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -1884,9 +931,9 @@ func (d *OfframpDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallO
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1906,9 +953,9 @@ func (d *OfframpDevInspect) GetOcr3Base(ctx context.Context, opts *bind.CallOpts
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1928,9 +975,9 @@ func (d *OfframpDevInspect) InitExecute(ctx context.Context, opts *bind.CallOpts
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1950,9 +997,9 @@ func (d *OfframpDevInspect) ManuallyInitExecute(ctx context.Context, opts *bind.
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1972,9 +1019,9 @@ func (d *OfframpDevInspect) GetExecutionState(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(byte)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected byte, got %T", results[0])
+	var result byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1994,9 +1041,9 @@ func (d *OfframpDevInspect) CalculateMetadataHash(ctx context.Context, opts *bin
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2016,9 +1063,9 @@ func (d *OfframpDevInspect) CalculateMessageHash(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2038,9 +1085,9 @@ func (d *OfframpDevInspect) ConfigSigners(ctx context.Context, opts *bind.CallOp
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([][]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected [][]byte, got %T", results[0])
+	var result [][]byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2060,9 +1107,9 @@ func (d *OfframpDevInspect) ConfigTransmitters(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	var result []string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2082,9 +1129,9 @@ func (d *OfframpDevInspect) GetMerkleRoot(ctx context.Context, opts *bind.CallOp
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2104,9 +1151,9 @@ func (d *OfframpDevInspect) GetSourceChainConfig(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return SourceChainConfig{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(SourceChainConfig)
-	if !ok {
-		return SourceChainConfig{}, fmt.Errorf("unexpected return type: expected SourceChainConfig, got %T", results[0])
+	var result SourceChainConfig
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return SourceChainConfig{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2125,7 +1172,40 @@ func (d *OfframpDevInspect) GetSourceChainConfigFields(ctx context.Context, opts
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 5 {
+		return nil, fmt.Errorf("expected 5 return values, got %d", len(results))
+	}
+	decoded := make([]any, 5)
+	var ret0 string
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 bool
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 uint64
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	var ret3 bool
+	if err := bind.DecodeJSONReturn(results[3], &ret3); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 3: %w", err)
+	}
+	decoded[3] = ret3
+	var ret4 []byte
+	if err := bind.DecodeJSONReturn(results[4], &ret4); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 4: %w", err)
+	}
+	decoded[4] = ret4
+	return decoded, nil
 }
 
 // GetAllSourceChainConfigs executes the get_all_source_chain_configs Move function using DevInspect to get return values.
@@ -2139,7 +1219,25 @@ func (d *OfframpDevInspect) GetAllSourceChainConfigs(ctx context.Context, opts *
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 []uint64
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 []SourceChainConfig
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 // GetStaticConfig executes the get_static_config Move function using DevInspect to get return values.
@@ -2157,9 +1255,9 @@ func (d *OfframpDevInspect) GetStaticConfig(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return StaticConfig{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(StaticConfig)
-	if !ok {
-		return StaticConfig{}, fmt.Errorf("unexpected return type: expected StaticConfig, got %T", results[0])
+	var result StaticConfig
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return StaticConfig{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2177,7 +1275,35 @@ func (d *OfframpDevInspect) GetStaticConfigFields(ctx context.Context, opts *bin
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 4 {
+		return nil, fmt.Errorf("expected 4 return values, got %d", len(results))
+	}
+	decoded := make([]any, 4)
+	var ret0 uint64
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 string
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 string
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	var ret3 string
+	if err := bind.DecodeJSONReturn(results[3], &ret3); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 3: %w", err)
+	}
+	decoded[3] = ret3
+	return decoded, nil
 }
 
 // GetDynamicConfig executes the get_dynamic_config Move function using DevInspect to get return values.
@@ -2195,9 +1321,9 @@ func (d *OfframpDevInspect) GetDynamicConfig(ctx context.Context, opts *bind.Cal
 	if len(results) == 0 {
 		return DynamicConfig{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(DynamicConfig)
-	if !ok {
-		return DynamicConfig{}, fmt.Errorf("unexpected return type: expected DynamicConfig, got %T", results[0])
+	var result DynamicConfig
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return DynamicConfig{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2213,7 +1339,25 @@ func (d *OfframpDevInspect) GetDynamicConfigFields(ctx context.Context, opts *bi
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 string
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 uint32
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 // GetCcipPackageId executes the get_ccip_package_id Move function using DevInspect to get return values.
@@ -2231,9 +1375,9 @@ func (d *OfframpDevInspect) GetCcipPackageId(ctx context.Context, opts *bind.Cal
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2253,9 +1397,9 @@ func (d *OfframpDevInspect) Owner(ctx context.Context, opts *bind.CallOpts, stat
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2275,9 +1419,9 @@ func (d *OfframpDevInspect) HasPendingTransfer(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2297,9 +1441,9 @@ func (d *OfframpDevInspect) PendingTransferFrom(ctx context.Context, opts *bind.
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2319,9 +1463,9 @@ func (d *OfframpDevInspect) PendingTransferTo(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2341,9 +1485,9 @@ func (d *OfframpDevInspect) PendingTransferAccepted(ctx context.Context, opts *b
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*bool)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *bool, got %T", results[0])
+	var result *bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2363,9 +1507,9 @@ func (d *OfframpDevInspect) InitExecuteV2(ctx context.Context, opts *bind.CallOp
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2385,9 +1529,9 @@ func (d *OfframpDevInspect) ManuallyInitExecuteV2(ctx context.Context, opts *bin
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

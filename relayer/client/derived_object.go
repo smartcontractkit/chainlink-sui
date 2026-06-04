@@ -1,13 +1,15 @@
-package bind
+package client
 
 import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/utils"
-
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"golang.org/x/crypto/blake2b"
+
+	"github.com/block-vision/sui-go-sdk/utils"
 )
 
 const (
@@ -32,12 +34,8 @@ const (
 //	)
 //	result = hash[0:32]  // First 32 bytes = ObjectID
 func deriveDynamicFieldIDFromBytes(parentAddress string, bcsKeyBytes []byte, bcsKeyTypeTagBytes []byte) (string, error) {
-	normalizedParent, err := utils.ConvertAddressToString(parentAddress)
-	if err != nil {
-		return "", fmt.Errorf("invalid parent address: %w", err)
-	}
-
-	parentBytes, err := utils.ConvertStringToAddressBytes(normalizedParent)
+	normalizedParent := utils.NormalizeSuiAddress(parentAddress)
+	parentBytes, err := transaction.ConvertSuiAddressStringToBytes(normalizedParent)
 	if err != nil {
 		return "", fmt.Errorf("failed to convert parent address to bytes: %w", err)
 	}
@@ -60,12 +58,9 @@ func deriveDynamicFieldIDFromBytes(parentAddress string, bcsKeyBytes []byte, bcs
 
 	hash := hasher.Sum(nil)
 
-	objectID, err := utils.ConvertBytesToAddress(hash)
-	if err != nil {
-		return "", fmt.Errorf("failed to convert hash to address: %w", err)
-	}
+	objectID := transaction.ConvertSuiAddressBytesToString(models.SuiAddressBytes(hash))
 
-	return objectID, nil
+	return string(objectID), nil
 }
 
 // DeriveObjectIDWithVectorU8Key constructs the BCS bytes for DerivedObjectKey<vector<u8>> TypeTag.
@@ -77,9 +72,9 @@ func DeriveObjectIDWithVectorU8Key(parentAddress string, keyBytes []byte) (strin
 		return "", fmt.Errorf("failed to BCS serialize key bytes: %w", err)
 	}
 
-	suiFrameworkBytes, err := utils.ConvertStringToAddressBytes(SuiFrameworkAddress)
+	suiFrameworkAddr, err := transaction.ConvertSuiAddressStringToBytes(utils.NormalizeSuiAddress(SuiFrameworkAddress))
 	if err != nil {
-		return "", fmt.Errorf("failed to convert sui framework address to bytes: %w", err)
+		return "", fmt.Errorf("failed to convert Sui framework address to bytes: %w", err)
 	}
 
 	// Manually construct BCS bytes for: TypeTag::Struct(DerivedObjectKey<vector<u8>>)
@@ -95,7 +90,7 @@ func DeriveObjectIDWithVectorU8Key(parentAddress string, keyBytes []byte) (strin
 
 	var typeTagBytes []byte
 	typeTagBytes = append(typeTagBytes, 0x07)                          // TypeTag::Struct
-	typeTagBytes = append(typeTagBytes, suiFrameworkBytes[:]...)       // address
+	typeTagBytes = append(typeTagBytes, suiFrameworkAddr[:]...)        // address
 	typeTagBytes = append(typeTagBytes, 0x0e)                          // module length
 	typeTagBytes = append(typeTagBytes, []byte("derived_object")...)   // module name
 	typeTagBytes = append(typeTagBytes, 0x10)                          // struct name length

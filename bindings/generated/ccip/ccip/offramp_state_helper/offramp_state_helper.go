@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -122,8 +121,8 @@ type OfframpStateHelperDevInspect struct {
 var _ IOfframpStateHelper = (*OfframpStateHelperContract)(nil)
 var _ IOfframpStateHelperDevInspect = (*OfframpStateHelperDevInspect)(nil)
 
-func NewOfframpStateHelper(packageID string, client sui.ISuiAPI) (IOfframpStateHelper, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "offramp_state_helper", client)
+func NewOfframpStateHelper(packageID string, chainClient client.BindingsClient) (IOfframpStateHelper, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip", "offramp_state_helper", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -183,181 +182,6 @@ type ReceiverParamsV2 struct {
 	Message             *bind.Object                `move:"0x1::option::Option<client::Any2SuiMessageV2>"`
 	SourceChainSelector uint64                      `move:"u64"`
 	Receipt             *CompletedDestTokenTransfer `move:"0x1::option::Option<CompletedDestTokenTransfer>"`
-}
-
-type bcsCompletedDestTokenTransfer struct {
-	TokenReceiver    [32]byte
-	DestTokenAddress [32]byte
-}
-
-func convertCompletedDestTokenTransferFromBCS(bcs bcsCompletedDestTokenTransfer) (CompletedDestTokenTransfer, error) {
-
-	return CompletedDestTokenTransfer{
-		TokenReceiver:    fmt.Sprintf("0x%x", bcs.TokenReceiver),
-		DestTokenAddress: fmt.Sprintf("0x%x", bcs.DestTokenAddress),
-	}, nil
-}
-
-type bcsDestTokenTransfer struct {
-	TokenReceiver          [32]byte
-	RemoteChainSelector    uint64
-	SourceAmount           [32]byte
-	DestTokenAddress       [32]byte
-	DestTokenPoolPackageId [32]byte
-	SourcePoolAddress      []byte
-	SourcePoolData         []byte
-	OffchainTokenData      []byte
-}
-
-func convertDestTokenTransferFromBCS(bcs bcsDestTokenTransfer) (DestTokenTransfer, error) {
-	SourceAmountField, err := bind.DecodeU256Value(bcs.SourceAmount)
-	if err != nil {
-		return DestTokenTransfer{}, fmt.Errorf("failed to decode u256 field SourceAmount: %w", err)
-	}
-
-	return DestTokenTransfer{
-		TokenReceiver:          fmt.Sprintf("0x%x", bcs.TokenReceiver),
-		RemoteChainSelector:    bcs.RemoteChainSelector,
-		SourceAmount:           SourceAmountField,
-		DestTokenAddress:       fmt.Sprintf("0x%x", bcs.DestTokenAddress),
-		DestTokenPoolPackageId: fmt.Sprintf("0x%x", bcs.DestTokenPoolPackageId),
-		SourcePoolAddress:      bcs.SourcePoolAddress,
-		SourcePoolData:         bcs.SourcePoolData,
-		OffchainTokenData:      bcs.OffchainTokenData,
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip::offramp_state_helper::OFFRAMP_STATE_HELPER", func(data []byte) (interface{}, error) {
-		var result OFFRAMP_STATE_HELPER
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OFFRAMP_STATE_HELPER
-	bind.RegisterStructDecoder("vector<ccip::offramp_state_helper::OFFRAMP_STATE_HELPER>", func(data []byte) (interface{}, error) {
-		var results []OFFRAMP_STATE_HELPER
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::offramp_state_helper::ReceiverParams", func(data []byte) (interface{}, error) {
-		var result ReceiverParams
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ReceiverParams
-	bind.RegisterStructDecoder("vector<ccip::offramp_state_helper::ReceiverParams>", func(data []byte) (interface{}, error) {
-		var results []ReceiverParams
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::offramp_state_helper::DestTransferCap", func(data []byte) (interface{}, error) {
-		var result DestTransferCap
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DestTransferCap
-	bind.RegisterStructDecoder("vector<ccip::offramp_state_helper::DestTransferCap>", func(data []byte) (interface{}, error) {
-		var results []DestTransferCap
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::offramp_state_helper::CompletedDestTokenTransfer", func(data []byte) (interface{}, error) {
-		var temp bcsCompletedDestTokenTransfer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertCompletedDestTokenTransferFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CompletedDestTokenTransfer
-	bind.RegisterStructDecoder("vector<ccip::offramp_state_helper::CompletedDestTokenTransfer>", func(data []byte) (interface{}, error) {
-		var temps []bcsCompletedDestTokenTransfer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]CompletedDestTokenTransfer, len(temps))
-		for i, temp := range temps {
-			result, err := convertCompletedDestTokenTransferFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::offramp_state_helper::DestTokenTransfer", func(data []byte) (interface{}, error) {
-		var temp bcsDestTokenTransfer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertDestTokenTransferFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DestTokenTransfer
-	bind.RegisterStructDecoder("vector<ccip::offramp_state_helper::DestTokenTransfer>", func(data []byte) (interface{}, error) {
-		var temps []bcsDestTokenTransfer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]DestTokenTransfer, len(temps))
-		for i, temp := range temps {
-			result, err := convertDestTokenTransferFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::offramp_state_helper::ReceiverParamsV2", func(data []byte) (interface{}, error) {
-		var result ReceiverParamsV2
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ReceiverParamsV2
-	bind.RegisterStructDecoder("vector<ccip::offramp_state_helper::ReceiverParamsV2>", func(data []byte) (interface{}, error) {
-		var results []ReceiverParamsV2
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // NewDestTransferCap executes the new_dest_transfer_cap Move function.
@@ -585,9 +409,9 @@ func (d *OfframpStateHelperDevInspect) NewDestTransferCap(ctx context.Context, o
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -607,9 +431,9 @@ func (d *OfframpStateHelperDevInspect) CreateReceiverParams(ctx context.Context,
 	if len(results) == 0 {
 		return ReceiverParams{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(ReceiverParams)
-	if !ok {
-		return ReceiverParams{}, fmt.Errorf("unexpected return type: expected ReceiverParams, got %T", results[0])
+	var result ReceiverParams
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return ReceiverParams{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -629,9 +453,9 @@ func (d *OfframpStateHelperDevInspect) GetSourceChainSelector(ctx context.Contex
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -653,7 +477,55 @@ func (d *OfframpStateHelperDevInspect) GetDestTokenTransferData(ctx context.Cont
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 8 {
+		return nil, fmt.Errorf("expected 8 return values, got %d", len(results))
+	}
+	decoded := make([]any, 8)
+	var ret0 string
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 uint64
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 *big.Int
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	var ret3 string
+	if err := bind.DecodeJSONReturn(results[3], &ret3); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 3: %w", err)
+	}
+	decoded[3] = ret3
+	var ret4 string
+	if err := bind.DecodeJSONReturn(results[4], &ret4); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 4: %w", err)
+	}
+	decoded[4] = ret4
+	var ret5 []byte
+	if err := bind.DecodeJSONReturn(results[5], &ret5); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 5: %w", err)
+	}
+	decoded[5] = ret5
+	var ret6 []byte
+	if err := bind.DecodeJSONReturn(results[6], &ret6); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 6: %w", err)
+	}
+	decoded[6] = ret6
+	var ret7 []byte
+	if err := bind.DecodeJSONReturn(results[7], &ret7); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 7: %w", err)
+	}
+	decoded[7] = ret7
+	return decoded, nil
 }
 
 // GetTokenParamData executes the get_token_param_data Move function using DevInspect to get return values.
@@ -671,7 +543,45 @@ func (d *OfframpStateHelperDevInspect) GetTokenParamData(ctx context.Context, op
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 6 {
+		return nil, fmt.Errorf("expected 6 return values, got %d", len(results))
+	}
+	decoded := make([]any, 6)
+	var ret0 string
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 *big.Int
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 string
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	var ret3 []byte
+	if err := bind.DecodeJSONReturn(results[3], &ret3); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 3: %w", err)
+	}
+	decoded[3] = ret3
+	var ret4 []byte
+	if err := bind.DecodeJSONReturn(results[4], &ret4); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 4: %w", err)
+	}
+	decoded[4] = ret4
+	var ret5 []byte
+	if err := bind.DecodeJSONReturn(results[5], &ret5); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 5: %w", err)
+	}
+	decoded[5] = ret5
+	return decoded, nil
 }
 
 // ExtractAny2suiMessage executes the extract_any2sui_message Move function using DevInspect to get return values.
@@ -689,9 +599,9 @@ func (d *OfframpStateHelperDevInspect) ExtractAny2suiMessage(ctx context.Context
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -711,9 +621,9 @@ func (d *OfframpStateHelperDevInspect) NewAny2suiMessage(ctx context.Context, op
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -734,7 +644,50 @@ func (d *OfframpStateHelperDevInspect) ConsumeAny2suiMessage(ctx context.Context
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 7 {
+		return nil, fmt.Errorf("expected 7 return values, got %d", len(results))
+	}
+	decoded := make([]any, 7)
+	var ret0 []byte
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 uint64
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 []byte
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	var ret3 []byte
+	if err := bind.DecodeJSONReturn(results[3], &ret3); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 3: %w", err)
+	}
+	decoded[3] = ret3
+	var ret4 string
+	if err := bind.DecodeJSONReturn(results[4], &ret4); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 4: %w", err)
+	}
+	decoded[4] = ret4
+	var ret5 string
+	if err := bind.DecodeJSONReturn(results[5], &ret5); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 5: %w", err)
+	}
+	decoded[5] = ret5
+	var ret6 []bind.Object
+	if err := bind.DecodeJSONReturn(results[6], &ret6); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 6: %w", err)
+	}
+	decoded[6] = ret6
+	return decoded, nil
 }
 
 // NewAny2suiMessageV2 executes the new_any2sui_message_v2 Move function using DevInspect to get return values.
@@ -752,9 +705,9 @@ func (d *OfframpStateHelperDevInspect) NewAny2suiMessageV2(ctx context.Context, 
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -774,9 +727,9 @@ func (d *OfframpStateHelperDevInspect) CreateReceiverParamsV2(ctx context.Contex
 	if len(results) == 0 {
 		return ReceiverParamsV2{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(ReceiverParamsV2)
-	if !ok {
-		return ReceiverParamsV2{}, fmt.Errorf("unexpected return type: expected ReceiverParamsV2, got %T", results[0])
+	var result ReceiverParamsV2
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return ReceiverParamsV2{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -796,9 +749,9 @@ func (d *OfframpStateHelperDevInspect) ExtractAny2suiMessageV2(ctx context.Conte
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -820,7 +773,55 @@ func (d *OfframpStateHelperDevInspect) ConsumeAny2suiMessageV2(ctx context.Conte
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 8 {
+		return nil, fmt.Errorf("expected 8 return values, got %d", len(results))
+	}
+	decoded := make([]any, 8)
+	var ret0 []byte
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 uint64
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 []byte
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	var ret3 []byte
+	if err := bind.DecodeJSONReturn(results[3], &ret3); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 3: %w", err)
+	}
+	decoded[3] = ret3
+	var ret4 string
+	if err := bind.DecodeJSONReturn(results[4], &ret4); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 4: %w", err)
+	}
+	decoded[4] = ret4
+	var ret5 string
+	if err := bind.DecodeJSONReturn(results[5], &ret5); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 5: %w", err)
+	}
+	decoded[5] = ret5
+	var ret6 []string
+	if err := bind.DecodeJSONReturn(results[6], &ret6); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 6: %w", err)
+	}
+	decoded[6] = ret6
+	var ret7 []bind.Object
+	if err := bind.DecodeJSONReturn(results[7], &ret7); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 7: %w", err)
+	}
+	decoded[7] = ret7
+	return decoded, nil
 }
 
 // GetDestTokenTransferDataV2 executes the get_dest_token_transfer_data_v2 Move function using DevInspect to get return values.
@@ -840,7 +841,55 @@ func (d *OfframpStateHelperDevInspect) GetDestTokenTransferDataV2(ctx context.Co
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 8 {
+		return nil, fmt.Errorf("expected 8 return values, got %d", len(results))
+	}
+	decoded := make([]any, 8)
+	var ret0 string
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 uint64
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 *big.Int
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	var ret3 string
+	if err := bind.DecodeJSONReturn(results[3], &ret3); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 3: %w", err)
+	}
+	decoded[3] = ret3
+	var ret4 string
+	if err := bind.DecodeJSONReturn(results[4], &ret4); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 4: %w", err)
+	}
+	decoded[4] = ret4
+	var ret5 []byte
+	if err := bind.DecodeJSONReturn(results[5], &ret5); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 5: %w", err)
+	}
+	decoded[5] = ret5
+	var ret6 []byte
+	if err := bind.DecodeJSONReturn(results[6], &ret6); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 6: %w", err)
+	}
+	decoded[6] = ret6
+	var ret7 []byte
+	if err := bind.DecodeJSONReturn(results[7], &ret7); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 7: %w", err)
+	}
+	decoded[7] = ret7
+	return decoded, nil
 }
 
 type offrampStateHelperEncoder struct {

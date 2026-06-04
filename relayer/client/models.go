@@ -117,8 +117,9 @@ type QuerySortOptions struct {
 }
 
 type TransactionResult struct {
-	Status string `json:"status"`
-	Error  string `json:"error"`
+	Status     string `json:"status"`
+	Error      string `json:"error"`
+	Checkpoint uint64 `json:"checkpoint"`
 }
 
 type FunctionReadResponse struct {

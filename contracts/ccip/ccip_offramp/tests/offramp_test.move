@@ -52,6 +52,7 @@ fun setup(): (TestEnv, OwnerCap, FeeQuoterCap, DestTransferCap) {
     // Initialize required CCIP components
     upgrade_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
+    token_admin_registry::initialize_local_decimals(&mut ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ref, &ccip_owner_cap, 1000, scenario.ctx());
     receiver_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     fee_quoter::initialize(

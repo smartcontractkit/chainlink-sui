@@ -33,6 +33,7 @@ fun setup_ccip_environment(scenario: &mut ts::Scenario): (OwnerCap, CCIPObjectRe
 
     upgrade_registry::initialize(&mut ccip_ref, &owner_cap, scenario.ctx());
     registry::initialize(&mut ccip_ref, &owner_cap, scenario.ctx());
+    registry::initialize_local_decimals(&mut ccip_ref, &owner_cap, scenario.ctx());
 
     (owner_cap, ccip_ref)
 }

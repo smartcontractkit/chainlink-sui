@@ -253,7 +253,7 @@ func TestCoinReservations(t *testing.T) {
 
 		txID := fmt.Sprintf("test-txID-%d", i)
 		_, err = txManager.EnqueuePTB(ctx, txID, &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)}, publicKeyBytes, ptb)
-		
+
 		if err != nil {
 			logger.Errorw("Failed to enqueue PTB", "error", err)
 			continue
@@ -275,13 +275,13 @@ func TestCoinReservations(t *testing.T) {
 
 		for i := range numEnqueuedTransactions {
 			txID := fmt.Sprintf("test-txID-%d", i)
-			
+
 			// Skip if the transaction has already been finalized
 			if _, ok := successfulTransactions[txID]; ok {
 				successCount++
 				continue
 			}
-			
+
 			status, statusErr := txManager.GetTransactionStatus(ctx, txID)
 			if statusErr != nil {
 				return false

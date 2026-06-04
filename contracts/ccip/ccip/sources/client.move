@@ -152,6 +152,10 @@ public(package) fun new_dest_token_amounts(
     })
 }
 
+public(package) fun set_dest_token_amount(message: &mut Any2SuiMessage, index: u64, amount: u256) {
+    message.dest_token_amounts[index].amount = amount;
+}
+
 public fun get_token(input: &Any2SuiTokenAmount): address {
     input.token
 }

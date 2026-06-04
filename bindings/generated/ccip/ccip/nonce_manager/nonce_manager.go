@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -61,8 +60,8 @@ type NonceManagerDevInspect struct {
 var _ INonceManager = (*NonceManagerContract)(nil)
 var _ INonceManagerDevInspect = (*NonceManagerDevInspect)(nil)
 
-func NewNonceManager(packageID string, client sui.ISuiAPI) (INonceManager, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "nonce_manager", client)
+func NewNonceManager(packageID string, chainClient client.BindingsClient) (INonceManager, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip", "nonce_manager", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -94,43 +93,6 @@ type NonceManagerCap struct {
 type NonceManagerState struct {
 	Id             string      `move:"sui::object::UID"`
 	OutboundNonces bind.Object `move:"Table<u64, Table<address, u64>>"`
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip::nonce_manager::NonceManagerCap", func(data []byte) (interface{}, error) {
-		var result NonceManagerCap
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for NonceManagerCap
-	bind.RegisterStructDecoder("vector<ccip::nonce_manager::NonceManagerCap>", func(data []byte) (interface{}, error) {
-		var results []NonceManagerCap
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::nonce_manager::NonceManagerState", func(data []byte) (interface{}, error) {
-		var result NonceManagerState
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for NonceManagerState
-	bind.RegisterStructDecoder("vector<ccip::nonce_manager::NonceManagerState>", func(data []byte) (interface{}, error) {
-		var results []NonceManagerState
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -188,9 +150,9 @@ func (d *NonceManagerDevInspect) TypeAndVersion(ctx context.Context, opts *bind.
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -210,9 +172,9 @@ func (d *NonceManagerDevInspect) GetOutboundNonce(ctx context.Context, opts *bin
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -232,9 +194,9 @@ func (d *NonceManagerDevInspect) GetIncrementedOutboundNonce(ctx context.Context
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

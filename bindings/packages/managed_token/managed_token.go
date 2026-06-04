@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_managed_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/managed_token/managed_token"
@@ -32,8 +32,8 @@ func (p CCIPManagedTokenPackage) ManagedToken() module_managed_token.IManagedTok
 	return p.managedToken
 }
 
-func NewCCIPManagedToken(address string, client sui.ISuiAPI) (ManagedToken, error) {
-	managedTokenContract, err := module_managed_token.NewManagedToken(address, client)
+func NewCCIPManagedToken(address string, chainClient client.BindingsClient) (ManagedToken, error) {
+	managedTokenContract, err := module_managed_token.NewManagedToken(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func NewCCIPManagedToken(address string, client sui.ISuiAPI) (ManagedToken, erro
 func PublishCCIPManagedToken(
 	ctx context.Context,
 	opts *bind.CallOpts,
-	client sui.ISuiAPI,
+	chainClient client.BindingsClient,
 	mcmsAddress,
 	mcmsOwnerAddress, suiRPC string) (ManagedToken, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
@@ -70,7 +70,8 @@ func PublishCCIPManagedToken(
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+	//nolint:revive // var-naming: generated bindings keep packageId naming
+	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
@@ -78,7 +79,7 @@ func PublishCCIPManagedToken(
 		return nil, nil, err
 	}
 
-	contract, err := NewCCIPManagedToken(packageId, client)
+	contract, err := NewCCIPManagedToken(packageId, chainClient)
 	if err != nil {
 		return nil, nil, err
 	}
