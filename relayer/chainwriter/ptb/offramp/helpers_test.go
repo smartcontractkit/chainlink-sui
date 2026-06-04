@@ -338,6 +338,38 @@ func TestDecodeParameters_StringParam(t *testing.T) {
 	assert.Equal(t, []string{moveStringType}, result)
 }
 
+func TestDecodeParameters_AsciiStringParam(t *testing.T) {
+	lggr := logger.Test(t)
+
+	function := map[string]any{
+		"parameters": []any{
+			map[string]any{"Struct": map[string]any{
+				"address": "0x1", "module": "ascii", "name": "String", "typeArguments": []any{},
+			}},
+		},
+	}
+
+	result, err := DecodeParameters(lggr, function, "parameters")
+	require.NoError(t, err)
+	assert.Equal(t, []string{moveAsciiStringType}, result)
+}
+
+func TestDecodeParameters_VectorAsciiString(t *testing.T) {
+	lggr := logger.Test(t)
+
+	function := map[string]any{
+		"parameters": []any{
+			map[string]any{"Vector": map[string]any{"Struct": map[string]any{
+				"address": "0x1", "module": "ascii", "name": "String", "typeArguments": []any{},
+			}}},
+		},
+	}
+
+	result, err := DecodeParameters(lggr, function, "parameters")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"vector<" + moveAsciiStringType + ">"}, result)
+}
+
 func TestDecodeParameters_VectorString(t *testing.T) {
 	lggr := logger.Test(t)
 

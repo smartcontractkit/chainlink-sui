@@ -298,14 +298,17 @@ func extractStructFields(s map[string]any) (address, module, name string, err er
 	return address, module, name, nil
 }
 
-const moveStringType = "0x1::string::String"
+const (
+	moveStringType      = "0x1::string::String"
+	moveAsciiStringType = "ascii::String"
+)
 
 func structFieldsToMoveType(address, module, name string) string {
 	switch {
 	case module == "string" && name == "String":
 		return moveStringType
 	case module == "ascii" && name == "String":
-		return "ascii::String"
+		return moveAsciiStringType
 	default:
 		return "object_id"
 	}
@@ -323,7 +326,10 @@ func isPureParamType(paramType string) bool {
 	if strings.HasPrefix(paramType, "u") || paramType == "bool" {
 		return true
 	}
-	return paramType == moveStringType || strings.Contains(paramType, "::string::String")
+	return paramType == moveStringType ||
+		paramType == moveAsciiStringType ||
+		strings.Contains(paramType, "::string::String") ||
+		strings.Contains(paramType, "::ascii::String")
 }
 
 func formatValueParamType(paramType string) string {
