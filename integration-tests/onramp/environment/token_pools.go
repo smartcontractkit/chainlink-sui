@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/stretchr/testify/require"
@@ -23,6 +22,7 @@ import (
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	mockethtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_eth_token"
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_link_token"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
@@ -41,7 +41,7 @@ func SetupEthTokenPoolBurnMint(
 	remoteTokenAddressString string,
 	destChainSelector uint64,
 	bundle cld_ops.Bundle,
-	client sui.ISuiAPI,
+	client client.SuiPTBClient,
 	lggr logger.Logger,
 ) *cld_ops.SequenceReport[burnmintops.DeployAndInitBurnMintTokenPoolInput, burnmintops.DeployBurnMintTokenPoolOutput] {
 	t.Helper()
@@ -103,7 +103,7 @@ func SetupManagedTokenPool(
 	remoteTokenAddressString string,
 	destChainSelector uint64,
 	bundle cld_ops.Bundle,
-	client sui.ISuiAPI,
+	client client.SuiPTBClient,
 	lggr logger.Logger,
 ) (
 	*cld_ops.SequenceReport[managedtokenpoolops.DeployAndInitManagedTokenPoolInput, managedtokenpoolops.DeployManagedTokenPoolOutput],
@@ -242,7 +242,7 @@ func ConfigureManagedTokenMinter(
 // Returns the mint cap object ID that was transferred to the minter address.
 func configureNewMinter(
 	t *testing.T,
-	client sui.ISuiAPI,
+	client client.SuiPTBClient,
 	signer rel.SuiSigner,
 	managedTokenPackageId string,
 	tokenType string,
@@ -320,7 +320,7 @@ func SetupTokenPool(
 	remoteTokenAddressString string,
 	destChainSelector uint64,
 	bundle cld_ops.Bundle,
-	client sui.ISuiAPI,
+	client client.SuiPTBClient,
 	lggr logger.Logger,
 ) *cld_ops.SequenceReport[lockreleaseops.DeployAndInitLockReleaseTokenPoolInput, lockreleaseops.DeployLockReleaseTokenPoolOutput] {
 	t.Helper()
@@ -412,7 +412,7 @@ func SetupTokenPool(
 // This is a helper function to mint both transfer and fee tokens.
 func MintTestTokens(
 	t *testing.T,
-	client sui.ISuiAPI,
+	client client.SuiPTBClient,
 	signer rel.SuiSigner,
 	packageId, treasuryCapId, tokenType, recipient string,
 	transferAmount, feeAmount uint64,

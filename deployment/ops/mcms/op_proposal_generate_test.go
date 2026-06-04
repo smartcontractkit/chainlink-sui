@@ -1,11 +1,9 @@
 package mcmsops
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/models"
 	cselectors "github.com/smartcontractkit/chain-selectors"
 	mocksui "github.com/smartcontractkit/mcms/sdk/sui/mocks/sui"
 	"github.com/smartcontractkit/mcms/types"
@@ -44,29 +42,8 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		ccipops.AcceptOwnershipStateObjectOp.AsUntyped(),
 	)
 
-	mockClient := mocksui.NewISuiAPI(t)
-	// This response doesn't matter much
-	mockClient.EXPECT().SuiGetObject(mock.Anything, mock.Anything).
-		Return(models.SuiObjectResponse{
-			Data: &models.SuiObjectData{
-				ObjectId: "0xf2facb344885659b11e707838ee131b407654f75f6589984af462c13de41ef84",
-				Version:  "3",
-				Digest:   "4TRR2ZC9r7UUDUeke2DUhHdRQkZWYjkygHrRSNVM4YmX",
-				Owner:    nil,
-			},
-			Error: nil,
-		}, nil)
-	// This is the response from getOpCount
-	mockClient.EXPECT().SuiDevInspectTransactionBlock(mock.Anything, mock.Anything).
-		Return(models.SuiTransactionBlockResponse{
-			Effects: models.SuiEffects{
-				Status: models.ExecutionStatus{
-					Status: "success",
-					Error:  "",
-				},
-			},
-			Results: json.RawMessage(`[{"returnValues":[[[1,0,0,0,0,0,0,0],"u64"]]}]`), // Returns 1
-		}, nil)
+	mockClient := mocksui.NewBindingsClient(t)
+	mockClient.On("SimulatePTB", mock.Anything, mock.Anything).Return([]any{uint64(1)}, nil)
 	// Create mock dependencies
 	deps := sui_ops.OpTxDeps{
 		Client: mockClient,

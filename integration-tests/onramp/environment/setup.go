@@ -71,7 +71,7 @@ func BasicSetUp(t *testing.T, lggr logger.Logger, gasLimit int64) (string, []byt
 	t.Helper()
 
 	keystoreInstance, accountAddress, publicKeyBytes := testutils.SetupTestSigner(t, context.Background(), lggr, gasLimit)
-	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasLimit)
+	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalURL, keystoreInstance, lggr, gasLimit)
 
 	signer := keystoreInstance.GetSuiSigner(context.Background(), fmt.Sprintf("%064x", publicKeyBytes))
 	privateKeySigner := rel.NewPrivateKeySigner(signer.PriKey)
@@ -278,7 +278,7 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 	lggr := logger.Test(t)
 	lggr.Debugw("Starting Sui node")
 
-	os.Setenv("SUI_RPC_URL", testutils.LocalUrl)
+	os.Setenv("SUI_RPC_URL", testutils.LocalURL)
 	os.Setenv("SUI_CONFIG_DIR", filepath.Join(os.Getenv("HOME"), ".sui", "sui_config"))
 
 	accountAddress, _, signer, keystoreInstance, client, deps, bundle := BasicSetUp(t, lggr, gasLimit)
@@ -347,7 +347,7 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 
 // SetupTestEnvironmentForManagedTokenPool sets up a test environment specifically
 // for managed token pool testing.
-func SetupTestEnvironmentForManagedTokenPool(t *testing.T, client sui.ISuiAPI, signer rel.SuiSigner, accountAddress string, bundle cld_ops.Bundle, deps sui_ops.OpTxDeps, localChainSelector uint64, destChainSelector uint64, keystoreInstance *testutils.TestKeystore) *EnvironmentSettings {
+func SetupTestEnvironmentForManagedTokenPool(t *testing.T, client client.SuiPTBClient, signer rel.SuiSigner, accountAddress string, bundle cld_ops.Bundle, deps sui_ops.OpTxDeps, localChainSelector uint64, destChainSelector uint64, keystoreInstance *testutils.TestKeystore) *EnvironmentSettings {
 	t.Helper()
 
 	lggr := logger.Test(t)
@@ -466,7 +466,7 @@ func GetLinkCoins(t *testing.T, envSettings *EnvironmentSettings, linkTokenType 
 
 // GetEthCoins mints ETH tokens for testing CCIP operations.
 // Returns an array of coin IDs for use in testing.
-func GetEthCoins(t *testing.T, client sui.ISuiAPI, signer rel.SuiSigner, ethTokenPackageId string, treasuryCapObjectId string, ethTokenType string, accountAddress string, lggr logger.Logger, tokenAmount uint64, feeAmount uint64) []string {
+func GetEthCoins(t *testing.T, client client.SuiPTBClient, signer rel.SuiSigner, ethTokenPackageId string, treasuryCapObjectId string, ethTokenType string, accountAddress string, lggr logger.Logger, tokenAmount uint64, feeAmount uint64) []string {
 	t.Helper()
 
 	// Mint ETH tokens for the CCIP send operation
