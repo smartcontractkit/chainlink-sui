@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_mock_eth_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/mock_eth_token/mock_eth_token"
@@ -32,13 +32,13 @@ func (p MockEthTokenPackage) MockEthToken() module_mock_eth_token.IMockEthToken 
 	return p.mockEthToken
 }
 
-func NewMockEthToken(address string, client sui.ISuiAPI) (MockEthToken, error) {
+func NewMockEthToken(address string, chainClient client.BindingsClient) (MockEthToken, error) {
 	pkgObjectId, err := bind.ToSuiAddress(address)
 	if err != nil {
 		return nil, err
 	}
 
-	mockEthTokenContract, err := module_mock_eth_token.NewMockEthToken(address, client)
+	mockEthTokenContract, err := module_mock_eth_token.NewMockEthToken(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func NewMockEthToken(address string, client sui.ISuiAPI) (MockEthToken, error) {
 	}, nil
 }
 
-func PublishMockEthToken(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, suiRPC string) (MockEthToken, *models.SuiTransactionBlockResponse, error) {
+func PublishMockEthToken(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, suiRPC string) (MockEthToken, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -63,7 +63,8 @@ func PublishMockEthToken(ctx context.Context, opts *bind.CallOpts, client sui.IS
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+	//nolint:revive // var-naming: generated bindings keep packageId naming
+	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
@@ -71,7 +72,7 @@ func PublishMockEthToken(ctx context.Context, opts *bind.CallOpts, client sui.IS
 		return nil, nil, err
 	}
 
-	contract, err := NewMockEthToken(packageId, client)
+	contract, err := NewMockEthToken(packageId, chainClient)
 	if err != nil {
 		return nil, nil, err
 	}

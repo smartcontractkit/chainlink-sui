@@ -78,6 +78,7 @@ func checkConfirmations(loopCtx context.Context, txm *SuiTxm) {
 			resp.Status = failure
 			resp.Error = tx.BroadcastError
 		} else {
+			txm.lggr.Debugw("Transaction is in not submitted or retriable state", "transactionID", tx.TransactionID, "state", tx.State)
 			continue
 		}
 

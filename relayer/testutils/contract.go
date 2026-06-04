@@ -269,7 +269,7 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	// node's chain ID, then switch to it. This avoids stale chain ID caching
 	// that occurs when "sui client new-env" is called with an alias that
 	// already exists from a previous node (with a different chain ID).
-	chainID, err := GetChainIdentifier(LocalUrl)
+	chainID, err := GetChainIdentifier(LocalURL)
 	require.NoError(t, err, "failed to get chain identifier before publish")
 
 	envName := ensureCLIEnvForChainID(chainID)
@@ -597,7 +597,7 @@ func patchMoveTomlEnvironment(moveTomlPath, envName, newChainID string) {
 func ensureCLIEnvForChainID(chainID string) string {
 	envName := "local_" + chainID
 
-	createCmd := exec.Command("sui", "client", "new-env", "--rpc", LocalUrl, "--alias", envName)
+	createCmd := exec.Command("sui", "client", "new-env", "--rpc", LocalURL, "--alias", envName)
 	createCmd.CombinedOutput() //nolint:errcheck
 
 	switchCmd := exec.Command("sui", "client", "switch", "--env", envName)

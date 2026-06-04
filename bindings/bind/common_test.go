@@ -6,16 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/stretchr/testify/require"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
-type mockTxBlockGetter struct {
-	fn func(ctx context.Context, req models.SuiGetTransactionBlockRequest) (models.SuiTransactionBlockResponse, error)
+type mockTxStatusClient struct {
+	fn func(ctx context.Context, digest string) (client.TransactionResult, error)
 }
 
-func (m *mockTxBlockGetter) SuiGetTransactionBlock(ctx context.Context, req models.SuiGetTransactionBlockRequest) (models.SuiTransactionBlockResponse, error) {
-	return m.fn(ctx, req)
+func (m *mockTxStatusClient) GetTransactionStatus(ctx context.Context, digest string) (client.TransactionResult, error) {
+	return m.fn(ctx, digest)
 }
 
 func TestWaitForTransactionIndexed_SucceedsAfterRetries(t *testing.T) {
@@ -33,14 +34,14 @@ func TestWaitForTransactionIndexed_SucceedsAfterRetries(t *testing.T) {
 
 	const wantDigest = "wantdigest"
 	var calls int
-	mock := &mockTxBlockGetter{
-		fn: func(ctx context.Context, req models.SuiGetTransactionBlockRequest) (models.SuiTransactionBlockResponse, error) {
+	mock := &mockTxStatusClient{
+		fn: func(ctx context.Context, digest string) (client.TransactionResult, error) {
 			calls++
+			require.Equal(t, wantDigest, digest)
 			if calls < 3 {
-				return models.SuiTransactionBlockResponse{}, errors.New("not indexed yet")
+				return client.TransactionResult{}, errors.New("not indexed yet")
 			}
-			require.Equal(t, wantDigest, req.Digest)
-			return models.SuiTransactionBlockResponse{Digest: wantDigest}, nil
+			return client.TransactionResult{Status: "success"}, nil
 		},
 	}
 
@@ -62,9 +63,9 @@ func TestWaitForTransactionIndexed_Timeout(t *testing.T) {
 	WaitForTxIndexedInitialBackoff = 5 * time.Millisecond
 	WaitForTxIndexedMaxBackoff = 5 * time.Millisecond
 
-	mock := &mockTxBlockGetter{
-		fn: func(ctx context.Context, req models.SuiGetTransactionBlockRequest) (models.SuiTransactionBlockResponse, error) {
-			return models.SuiTransactionBlockResponse{}, errors.New("still missing")
+	mock := &mockTxStatusClient{
+		fn: func(ctx context.Context, digest string) (client.TransactionResult, error) {
+			return client.TransactionResult{}, errors.New("still missing")
 		},
 	}
 
@@ -73,7 +74,7 @@ func TestWaitForTransactionIndexed_Timeout(t *testing.T) {
 	require.ErrorIs(t, err, ErrTxIndexingTimeout)
 }
 
-func TestWaitForTransactionIndexed_WrongDigestKeepsPolling(t *testing.T) {
+func TestWaitForTransactionIndexed_NonSuccessStatusKeepsPolling(t *testing.T) {
 	oldTimeout := WaitForTxIndexedTimeout
 	oldInit := WaitForTxIndexedInitialBackoff
 	oldMax := WaitForTxIndexedMaxBackoff
@@ -87,11 +88,10 @@ func TestWaitForTransactionIndexed_WrongDigestKeepsPolling(t *testing.T) {
 	WaitForTxIndexedMaxBackoff = 5 * time.Millisecond
 
 	var calls int
-	mock := &mockTxBlockGetter{
-		fn: func(ctx context.Context, req models.SuiGetTransactionBlockRequest) (models.SuiTransactionBlockResponse, error) {
+	mock := &mockTxStatusClient{
+		fn: func(ctx context.Context, digest string) (client.TransactionResult, error) {
 			calls++
-			// RPC returns a response but digest mismatch (should not happen in practice)
-			return models.SuiTransactionBlockResponse{Digest: "other"}, nil
+			return client.TransactionResult{Status: "pending"}, nil
 		},
 	}
 

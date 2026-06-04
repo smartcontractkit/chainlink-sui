@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -294,8 +293,8 @@ type McmsDevInspect struct {
 var _ IMcms = (*McmsContract)(nil)
 var _ IMcmsDevInspect = (*McmsDevInspect)(nil)
 
-func NewMcms(packageID string, client sui.ISuiAPI) (IMcms, error) {
-	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms", client)
+func NewMcms(packageID string, chainClient client.BindingsClient) (IMcms, error) {
+	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -484,886 +483,6 @@ type FunctionUnblocked struct {
 	Target       string `move:"address"`
 	ModuleName   string `move:"0x1::string::String"`
 	FunctionName string `move:"0x1::string::String"`
-}
-
-type bcsMultisigState struct {
-	Id        string
-	Bypasser  bcsMultisig
-	Canceller bcsMultisig
-	Proposer  bcsMultisig
-}
-
-func convertMultisigStateFromBCS(bcs bcsMultisigState) (MultisigState, error) {
-	BypasserField, err := convertMultisigFromBCS(bcs.Bypasser)
-	if err != nil {
-		return MultisigState{}, fmt.Errorf("failed to convert nested struct Bypasser: %w", err)
-	}
-	CancellerField, err := convertMultisigFromBCS(bcs.Canceller)
-	if err != nil {
-		return MultisigState{}, fmt.Errorf("failed to convert nested struct Canceller: %w", err)
-	}
-	ProposerField, err := convertMultisigFromBCS(bcs.Proposer)
-	if err != nil {
-		return MultisigState{}, fmt.Errorf("failed to convert nested struct Proposer: %w", err)
-	}
-
-	return MultisigState{
-		Id:        bcs.Id,
-		Bypasser:  BypasserField,
-		Canceller: CancellerField,
-		Proposer:  ProposerField,
-	}, nil
-}
-
-type bcsMultisig struct {
-	Role                   byte
-	Signers                bind.Object
-	Config                 Config
-	SeenSignedHashes       bind.Object
-	ExpiringRootAndOpCount ExpiringRootAndOpCount
-	RootMetadata           bcsRootMetadata
-}
-
-func convertMultisigFromBCS(bcs bcsMultisig) (Multisig, error) {
-	RootMetadataField, err := convertRootMetadataFromBCS(bcs.RootMetadata)
-	if err != nil {
-		return Multisig{}, fmt.Errorf("failed to convert nested struct RootMetadata: %w", err)
-	}
-
-	return Multisig{
-		Role:                   bcs.Role,
-		Signers:                bcs.Signers,
-		Config:                 bcs.Config,
-		SeenSignedHashes:       bcs.SeenSignedHashes,
-		ExpiringRootAndOpCount: bcs.ExpiringRootAndOpCount,
-		RootMetadata:           RootMetadataField,
-	}, nil
-}
-
-type bcsOp struct {
-	Role         byte
-	ChainId      [32]byte
-	Multisig     [32]byte
-	Nonce        uint64
-	To           [32]byte
-	ModuleName   string
-	FunctionName string
-	Data         []byte
-}
-
-func convertOpFromBCS(bcs bcsOp) (Op, error) {
-	ChainIdField, err := bind.DecodeU256Value(bcs.ChainId)
-	if err != nil {
-		return Op{}, fmt.Errorf("failed to decode u256 field ChainId: %w", err)
-	}
-
-	return Op{
-		Role:         bcs.Role,
-		ChainId:      ChainIdField,
-		Multisig:     fmt.Sprintf("0x%x", bcs.Multisig),
-		Nonce:        bcs.Nonce,
-		To:           fmt.Sprintf("0x%x", bcs.To),
-		ModuleName:   bcs.ModuleName,
-		FunctionName: bcs.FunctionName,
-		Data:         bcs.Data,
-	}, nil
-}
-
-type bcsRootMetadata struct {
-	Role                 byte
-	ChainId              [32]byte
-	Multisig             [32]byte
-	PreOpCount           uint64
-	PostOpCount          uint64
-	OverridePreviousRoot bool
-}
-
-func convertRootMetadataFromBCS(bcs bcsRootMetadata) (RootMetadata, error) {
-	ChainIdField, err := bind.DecodeU256Value(bcs.ChainId)
-	if err != nil {
-		return RootMetadata{}, fmt.Errorf("failed to decode u256 field ChainId: %w", err)
-	}
-
-	return RootMetadata{
-		Role:                 bcs.Role,
-		ChainId:              ChainIdField,
-		Multisig:             fmt.Sprintf("0x%x", bcs.Multisig),
-		PreOpCount:           bcs.PreOpCount,
-		PostOpCount:          bcs.PostOpCount,
-		OverridePreviousRoot: bcs.OverridePreviousRoot,
-	}, nil
-}
-
-type bcsNewRoot struct {
-	Role       byte
-	Root       []byte
-	ValidUntil uint64
-	Metadata   bcsRootMetadata
-}
-
-func convertNewRootFromBCS(bcs bcsNewRoot) (NewRoot, error) {
-	MetadataField, err := convertRootMetadataFromBCS(bcs.Metadata)
-	if err != nil {
-		return NewRoot{}, fmt.Errorf("failed to convert nested struct Metadata: %w", err)
-	}
-
-	return NewRoot{
-		Role:       bcs.Role,
-		Root:       bcs.Root,
-		ValidUntil: bcs.ValidUntil,
-		Metadata:   MetadataField,
-	}, nil
-}
-
-type bcsOpExecuted struct {
-	Role         byte
-	ChainId      [32]byte
-	Multisig     [32]byte
-	Nonce        uint64
-	To           [32]byte
-	ModuleName   string
-	FunctionName string
-	Data         []byte
-}
-
-func convertOpExecutedFromBCS(bcs bcsOpExecuted) (OpExecuted, error) {
-	ChainIdField, err := bind.DecodeU256Value(bcs.ChainId)
-	if err != nil {
-		return OpExecuted{}, fmt.Errorf("failed to decode u256 field ChainId: %w", err)
-	}
-
-	return OpExecuted{
-		Role:         bcs.Role,
-		ChainId:      ChainIdField,
-		Multisig:     fmt.Sprintf("0x%x", bcs.Multisig),
-		Nonce:        bcs.Nonce,
-		To:           fmt.Sprintf("0x%x", bcs.To),
-		ModuleName:   bcs.ModuleName,
-		FunctionName: bcs.FunctionName,
-		Data:         bcs.Data,
-	}, nil
-}
-
-type bcsCall struct {
-	Function bcsFunction
-	Data     []byte
-}
-
-func convertCallFromBCS(bcs bcsCall) (Call, error) {
-	FunctionField, err := convertFunctionFromBCS(bcs.Function)
-	if err != nil {
-		return Call{}, fmt.Errorf("failed to convert nested struct Function: %w", err)
-	}
-
-	return Call{
-		Function: FunctionField,
-		Data:     bcs.Data,
-	}, nil
-}
-
-type bcsFunction struct {
-	Target       [32]byte
-	ModuleName   string
-	FunctionName string
-}
-
-func convertFunctionFromBCS(bcs bcsFunction) (Function, error) {
-
-	return Function{
-		Target:       fmt.Sprintf("0x%x", bcs.Target),
-		ModuleName:   bcs.ModuleName,
-		FunctionName: bcs.FunctionName,
-	}, nil
-}
-
-type bcsBypasserCallInitiated struct {
-	Index        uint64
-	Target       [32]byte
-	ModuleName   string
-	FunctionName string
-	Data         []byte
-}
-
-func convertBypasserCallInitiatedFromBCS(bcs bcsBypasserCallInitiated) (BypasserCallInitiated, error) {
-
-	return BypasserCallInitiated{
-		Index:        bcs.Index,
-		Target:       fmt.Sprintf("0x%x", bcs.Target),
-		ModuleName:   bcs.ModuleName,
-		FunctionName: bcs.FunctionName,
-		Data:         bcs.Data,
-	}, nil
-}
-
-type bcsCallScheduled struct {
-	Id           []byte
-	Index        uint64
-	Target       [32]byte
-	ModuleName   string
-	FunctionName string
-	Data         []byte
-	Predecessor  []byte
-	Salt         []byte
-	Delay        uint64
-}
-
-func convertCallScheduledFromBCS(bcs bcsCallScheduled) (CallScheduled, error) {
-
-	return CallScheduled{
-		Id:           bcs.Id,
-		Index:        bcs.Index,
-		Target:       fmt.Sprintf("0x%x", bcs.Target),
-		ModuleName:   bcs.ModuleName,
-		FunctionName: bcs.FunctionName,
-		Data:         bcs.Data,
-		Predecessor:  bcs.Predecessor,
-		Salt:         bcs.Salt,
-		Delay:        bcs.Delay,
-	}, nil
-}
-
-type bcsCallInitiated struct {
-	Id           []byte
-	Index        uint64
-	Target       [32]byte
-	ModuleName   string
-	FunctionName string
-	Data         []byte
-}
-
-func convertCallInitiatedFromBCS(bcs bcsCallInitiated) (CallInitiated, error) {
-
-	return CallInitiated{
-		Id:           bcs.Id,
-		Index:        bcs.Index,
-		Target:       fmt.Sprintf("0x%x", bcs.Target),
-		ModuleName:   bcs.ModuleName,
-		FunctionName: bcs.FunctionName,
-		Data:         bcs.Data,
-	}, nil
-}
-
-type bcsFunctionBlocked struct {
-	Target       [32]byte
-	ModuleName   string
-	FunctionName string
-}
-
-func convertFunctionBlockedFromBCS(bcs bcsFunctionBlocked) (FunctionBlocked, error) {
-
-	return FunctionBlocked{
-		Target:       fmt.Sprintf("0x%x", bcs.Target),
-		ModuleName:   bcs.ModuleName,
-		FunctionName: bcs.FunctionName,
-	}, nil
-}
-
-type bcsFunctionUnblocked struct {
-	Target       [32]byte
-	ModuleName   string
-	FunctionName string
-}
-
-func convertFunctionUnblockedFromBCS(bcs bcsFunctionUnblocked) (FunctionUnblocked, error) {
-
-	return FunctionUnblocked{
-		Target:       fmt.Sprintf("0x%x", bcs.Target),
-		ModuleName:   bcs.ModuleName,
-		FunctionName: bcs.FunctionName,
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("mcms::mcms::MultisigState", func(data []byte) (interface{}, error) {
-		var temp bcsMultisigState
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertMultisigStateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MultisigState
-	bind.RegisterStructDecoder("vector<mcms::mcms::MultisigState>", func(data []byte) (interface{}, error) {
-		var temps []bcsMultisigState
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]MultisigState, len(temps))
-		for i, temp := range temps {
-			result, err := convertMultisigStateFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::Multisig", func(data []byte) (interface{}, error) {
-		var temp bcsMultisig
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertMultisigFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Multisig
-	bind.RegisterStructDecoder("vector<mcms::mcms::Multisig>", func(data []byte) (interface{}, error) {
-		var temps []bcsMultisig
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Multisig, len(temps))
-		for i, temp := range temps {
-			result, err := convertMultisigFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::Signer", func(data []byte) (interface{}, error) {
-		var result Signer
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Signer
-	bind.RegisterStructDecoder("vector<mcms::mcms::Signer>", func(data []byte) (interface{}, error) {
-		var results []Signer
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::Config", func(data []byte) (interface{}, error) {
-		var result Config
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Config
-	bind.RegisterStructDecoder("vector<mcms::mcms::Config>", func(data []byte) (interface{}, error) {
-		var results []Config
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::ExpiringRootAndOpCount", func(data []byte) (interface{}, error) {
-		var result ExpiringRootAndOpCount
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ExpiringRootAndOpCount
-	bind.RegisterStructDecoder("vector<mcms::mcms::ExpiringRootAndOpCount>", func(data []byte) (interface{}, error) {
-		var results []ExpiringRootAndOpCount
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::Op", func(data []byte) (interface{}, error) {
-		var temp bcsOp
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOpFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Op
-	bind.RegisterStructDecoder("vector<mcms::mcms::Op>", func(data []byte) (interface{}, error) {
-		var temps []bcsOp
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Op, len(temps))
-		for i, temp := range temps {
-			result, err := convertOpFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::RootMetadata", func(data []byte) (interface{}, error) {
-		var temp bcsRootMetadata
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertRootMetadataFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for RootMetadata
-	bind.RegisterStructDecoder("vector<mcms::mcms::RootMetadata>", func(data []byte) (interface{}, error) {
-		var temps []bcsRootMetadata
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]RootMetadata, len(temps))
-		for i, temp := range temps {
-			result, err := convertRootMetadataFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::TimelockCallbackParams", func(data []byte) (interface{}, error) {
-		var result TimelockCallbackParams
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TimelockCallbackParams
-	bind.RegisterStructDecoder("vector<mcms::mcms::TimelockCallbackParams>", func(data []byte) (interface{}, error) {
-		var results []TimelockCallbackParams
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::MultisigStateInitialized", func(data []byte) (interface{}, error) {
-		var result MultisigStateInitialized
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MultisigStateInitialized
-	bind.RegisterStructDecoder("vector<mcms::mcms::MultisigStateInitialized>", func(data []byte) (interface{}, error) {
-		var results []MultisigStateInitialized
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::ConfigSet", func(data []byte) (interface{}, error) {
-		var result ConfigSet
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ConfigSet
-	bind.RegisterStructDecoder("vector<mcms::mcms::ConfigSet>", func(data []byte) (interface{}, error) {
-		var results []ConfigSet
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::NewRoot", func(data []byte) (interface{}, error) {
-		var temp bcsNewRoot
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertNewRootFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for NewRoot
-	bind.RegisterStructDecoder("vector<mcms::mcms::NewRoot>", func(data []byte) (interface{}, error) {
-		var temps []bcsNewRoot
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]NewRoot, len(temps))
-		for i, temp := range temps {
-			result, err := convertNewRootFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::OpExecuted", func(data []byte) (interface{}, error) {
-		var temp bcsOpExecuted
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOpExecutedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OpExecuted
-	bind.RegisterStructDecoder("vector<mcms::mcms::OpExecuted>", func(data []byte) (interface{}, error) {
-		var temps []bcsOpExecuted
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OpExecuted, len(temps))
-		for i, temp := range temps {
-			result, err := convertOpExecutedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::MCMS", func(data []byte) (interface{}, error) {
-		var result MCMS
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MCMS
-	bind.RegisterStructDecoder("vector<mcms::mcms::MCMS>", func(data []byte) (interface{}, error) {
-		var results []MCMS
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::Timelock", func(data []byte) (interface{}, error) {
-		var result Timelock
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Timelock
-	bind.RegisterStructDecoder("vector<mcms::mcms::Timelock>", func(data []byte) (interface{}, error) {
-		var results []Timelock
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::Call", func(data []byte) (interface{}, error) {
-		var temp bcsCall
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertCallFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Call
-	bind.RegisterStructDecoder("vector<mcms::mcms::Call>", func(data []byte) (interface{}, error) {
-		var temps []bcsCall
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Call, len(temps))
-		for i, temp := range temps {
-			result, err := convertCallFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::Function", func(data []byte) (interface{}, error) {
-		var temp bcsFunction
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertFunctionFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Function
-	bind.RegisterStructDecoder("vector<mcms::mcms::Function>", func(data []byte) (interface{}, error) {
-		var temps []bcsFunction
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Function, len(temps))
-		for i, temp := range temps {
-			result, err := convertFunctionFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::TimelockInitialized", func(data []byte) (interface{}, error) {
-		var result TimelockInitialized
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TimelockInitialized
-	bind.RegisterStructDecoder("vector<mcms::mcms::TimelockInitialized>", func(data []byte) (interface{}, error) {
-		var results []TimelockInitialized
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::BypasserCallInitiated", func(data []byte) (interface{}, error) {
-		var temp bcsBypasserCallInitiated
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertBypasserCallInitiatedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for BypasserCallInitiated
-	bind.RegisterStructDecoder("vector<mcms::mcms::BypasserCallInitiated>", func(data []byte) (interface{}, error) {
-		var temps []bcsBypasserCallInitiated
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]BypasserCallInitiated, len(temps))
-		for i, temp := range temps {
-			result, err := convertBypasserCallInitiatedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::Cancelled", func(data []byte) (interface{}, error) {
-		var result Cancelled
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Cancelled
-	bind.RegisterStructDecoder("vector<mcms::mcms::Cancelled>", func(data []byte) (interface{}, error) {
-		var results []Cancelled
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::CallScheduled", func(data []byte) (interface{}, error) {
-		var temp bcsCallScheduled
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertCallScheduledFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CallScheduled
-	bind.RegisterStructDecoder("vector<mcms::mcms::CallScheduled>", func(data []byte) (interface{}, error) {
-		var temps []bcsCallScheduled
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]CallScheduled, len(temps))
-		for i, temp := range temps {
-			result, err := convertCallScheduledFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::CallInitiated", func(data []byte) (interface{}, error) {
-		var temp bcsCallInitiated
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertCallInitiatedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CallInitiated
-	bind.RegisterStructDecoder("vector<mcms::mcms::CallInitiated>", func(data []byte) (interface{}, error) {
-		var temps []bcsCallInitiated
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]CallInitiated, len(temps))
-		for i, temp := range temps {
-			result, err := convertCallInitiatedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::UpdateMinDelay", func(data []byte) (interface{}, error) {
-		var result UpdateMinDelay
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for UpdateMinDelay
-	bind.RegisterStructDecoder("vector<mcms::mcms::UpdateMinDelay>", func(data []byte) (interface{}, error) {
-		var results []UpdateMinDelay
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::FunctionBlocked", func(data []byte) (interface{}, error) {
-		var temp bcsFunctionBlocked
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertFunctionBlockedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for FunctionBlocked
-	bind.RegisterStructDecoder("vector<mcms::mcms::FunctionBlocked>", func(data []byte) (interface{}, error) {
-		var temps []bcsFunctionBlocked
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]FunctionBlocked, len(temps))
-		for i, temp := range temps {
-			result, err := convertFunctionBlockedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("mcms::mcms::FunctionUnblocked", func(data []byte) (interface{}, error) {
-		var temp bcsFunctionUnblocked
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertFunctionUnblockedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for FunctionUnblocked
-	bind.RegisterStructDecoder("vector<mcms::mcms::FunctionUnblocked>", func(data []byte) (interface{}, error) {
-		var temps []bcsFunctionUnblocked
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]FunctionUnblocked, len(temps))
-		for i, temp := range temps {
-			result, err := convertFunctionUnblockedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
 }
 
 // SetRoot executes the set_root Move function.
@@ -2031,9 +1150,9 @@ func (d *McmsDevInspect) Execute(ctx context.Context, opts *bind.CallOpts, state
 	if len(results) == 0 {
 		return TimelockCallbackParams{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(TimelockCallbackParams)
-	if !ok {
-		return TimelockCallbackParams{}, fmt.Errorf("unexpected return type: expected TimelockCallbackParams, got %T", results[0])
+	var result TimelockCallbackParams
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return TimelockCallbackParams{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2053,9 +1172,9 @@ func (d *McmsDevInspect) DispatchTimelockExecuteBatch(ctx context.Context, opts 
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]bind.Object)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []bind.Object, got %T", results[0])
+	var result []bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2075,9 +1194,9 @@ func (d *McmsDevInspect) DispatchTimelockBypasserExecuteBatch(ctx context.Contex
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]bind.Object)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []bind.Object, got %T", results[0])
+	var result []bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2097,9 +1216,9 @@ func (d *McmsDevInspect) McmsDispatchToDeployer(ctx context.Context, opts *bind.
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2119,9 +1238,9 @@ func (d *McmsDevInspect) McmsTimelockExecuteBatch(ctx context.Context, opts *bin
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]bind.Object)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []bind.Object, got %T", results[0])
+	var result []bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2141,9 +1260,9 @@ func (d *McmsDevInspect) McmsTimelockBypasserExecuteBatch(ctx context.Context, o
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]bind.Object)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []bind.Object, got %T", results[0])
+	var result []bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2163,9 +1282,9 @@ func (d *McmsDevInspect) VerifyMerkleProof(ctx context.Context, opts *bind.CallO
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2185,9 +1304,9 @@ func (d *McmsDevInspect) ComputeEthMessageHash(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2207,9 +1326,9 @@ func (d *McmsDevInspect) HashOpLeaf(ctx context.Context, opts *bind.CallOpts, do
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2229,9 +1348,9 @@ func (d *McmsDevInspect) SeenSignedHashes(ctx context.Context, opts *bind.CallOp
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([][]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected [][]byte, got %T", results[0])
+	var result [][]byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2251,9 +1370,9 @@ func (d *McmsDevInspect) RecentSeenSignedHashes(ctx context.Context, opts *bind.
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([][]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected [][]byte, got %T", results[0])
+	var result [][]byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2273,9 +1392,9 @@ func (d *McmsDevInspect) SeenSignedHashesCount(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2292,7 +1411,30 @@ func (d *McmsDevInspect) ExpiringRootAndOpCount(ctx context.Context, opts *bind.
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 3 {
+		return nil, fmt.Errorf("expected 3 return values, got %d", len(results))
+	}
+	decoded := make([]any, 3)
+	var ret0 []byte
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 uint64
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 uint64
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	return decoded, nil
 }
 
 // RootMetadata executes the root_metadata Move function using DevInspect to get return values.
@@ -2310,9 +1452,9 @@ func (d *McmsDevInspect) RootMetadata(ctx context.Context, opts *bind.CallOpts, 
 	if len(results) == 0 {
 		return RootMetadata{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(RootMetadata)
-	if !ok {
-		return RootMetadata{}, fmt.Errorf("unexpected return type: expected RootMetadata, got %T", results[0])
+	var result RootMetadata
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return RootMetadata{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2332,9 +1474,9 @@ func (d *McmsDevInspect) GetRootMetadata(ctx context.Context, opts *bind.CallOpt
 	if len(results) == 0 {
 		return RootMetadata{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(RootMetadata)
-	if !ok {
-		return RootMetadata{}, fmt.Errorf("unexpected return type: expected RootMetadata, got %T", results[0])
+	var result RootMetadata
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return RootMetadata{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2354,9 +1496,9 @@ func (d *McmsDevInspect) GetOpCount(ctx context.Context, opts *bind.CallOpts, st
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2372,7 +1514,25 @@ func (d *McmsDevInspect) GetRoot(ctx context.Context, opts *bind.CallOpts, state
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 []byte
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 uint64
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 // GetConfig executes the get_config Move function using DevInspect to get return values.
@@ -2390,9 +1550,9 @@ func (d *McmsDevInspect) GetConfig(ctx context.Context, opts *bind.CallOpts, sta
 	if len(results) == 0 {
 		return Config{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(Config)
-	if !ok {
-		return Config{}, fmt.Errorf("unexpected return type: expected Config, got %T", results[0])
+	var result Config
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return Config{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2412,9 +1572,9 @@ func (d *McmsDevInspect) Signers(ctx context.Context, opts *bind.CallOpts, state
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2434,9 +1594,9 @@ func (d *McmsDevInspect) NumGroups(ctx context.Context, opts *bind.CallOpts) (ui
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2456,9 +1616,9 @@ func (d *McmsDevInspect) MaxNumSigners(ctx context.Context, opts *bind.CallOpts)
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2478,9 +1638,9 @@ func (d *McmsDevInspect) BypasserRole(ctx context.Context, opts *bind.CallOpts) 
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(byte)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected byte, got %T", results[0])
+	var result byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2500,9 +1660,9 @@ func (d *McmsDevInspect) CancellerRole(ctx context.Context, opts *bind.CallOpts)
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(byte)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected byte, got %T", results[0])
+	var result byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2522,9 +1682,9 @@ func (d *McmsDevInspect) ProposerRole(ctx context.Context, opts *bind.CallOpts) 
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(byte)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected byte, got %T", results[0])
+	var result byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2544,9 +1704,9 @@ func (d *McmsDevInspect) TimelockRole(ctx context.Context, opts *bind.CallOpts) 
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(byte)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected byte, got %T", results[0])
+	var result byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2566,9 +1726,9 @@ func (d *McmsDevInspect) IsValidRole(ctx context.Context, opts *bind.CallOpts, r
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2588,9 +1748,9 @@ func (d *McmsDevInspect) ZeroHash(ctx context.Context, opts *bind.CallOpts) ([]b
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2610,9 +1770,9 @@ func (d *McmsDevInspect) Role(ctx context.Context, opts *bind.CallOpts, rootMeta
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(byte)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected byte, got %T", results[0])
+	var result byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2632,9 +1792,9 @@ func (d *McmsDevInspect) ChainId(ctx context.Context, opts *bind.CallOpts, rootM
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*big.Int)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *big.Int, got %T", results[0])
+	var result *big.Int
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2654,9 +1814,9 @@ func (d *McmsDevInspect) RootMetadataMultisig(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2676,9 +1836,9 @@ func (d *McmsDevInspect) PreOpCount(ctx context.Context, opts *bind.CallOpts, ro
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2698,9 +1858,9 @@ func (d *McmsDevInspect) PostOpCount(ctx context.Context, opts *bind.CallOpts, r
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2720,9 +1880,9 @@ func (d *McmsDevInspect) OverridePreviousRoot(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2742,9 +1902,9 @@ func (d *McmsDevInspect) ConfigSigners(ctx context.Context, opts *bind.CallOpts,
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]Signer)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []Signer, got %T", results[0])
+	var result []Signer
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2764,9 +1924,9 @@ func (d *McmsDevInspect) ConfigGroupQuorums(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2786,9 +1946,9 @@ func (d *McmsDevInspect) ConfigGroupParents(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2808,9 +1968,9 @@ func (d *McmsDevInspect) TimelockExecuteBatch(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]bind.Object)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []bind.Object, got %T", results[0])
+	var result []bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2830,9 +1990,9 @@ func (d *McmsDevInspect) TimelockGetBlockedFunction(ctx context.Context, opts *b
 	if len(results) == 0 {
 		return Function{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(Function)
-	if !ok {
-		return Function{}, fmt.Errorf("unexpected return type: expected Function, got %T", results[0])
+	var result Function
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return Function{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2852,9 +2012,9 @@ func (d *McmsDevInspect) TimelockIsOperation(ctx context.Context, opts *bind.Cal
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2874,9 +2034,9 @@ func (d *McmsDevInspect) TimelockIsOperationPending(ctx context.Context, opts *b
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2896,9 +2056,9 @@ func (d *McmsDevInspect) TimelockIsOperationReady(ctx context.Context, opts *bin
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2918,9 +2078,9 @@ func (d *McmsDevInspect) TimelockIsOperationDone(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2940,9 +2100,9 @@ func (d *McmsDevInspect) TimelockGetTimestamp(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2962,9 +2122,9 @@ func (d *McmsDevInspect) TimelockMinDelay(ctx context.Context, opts *bind.CallOp
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2984,9 +2144,9 @@ func (d *McmsDevInspect) TimelockGetBlockedFunctions(ctx context.Context, opts *
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]Function)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []Function, got %T", results[0])
+	var result []Function
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -3006,9 +2166,9 @@ func (d *McmsDevInspect) TimelockGetBlockedFunctionsCount(ctx context.Context, o
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -3028,9 +2188,9 @@ func (d *McmsDevInspect) CreateCalls(ctx context.Context, opts *bind.CallOpts, t
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]Call)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []Call, got %T", results[0])
+	var result []Call
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -3050,9 +2210,9 @@ func (d *McmsDevInspect) HashOperationBatch(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -3069,7 +2229,30 @@ func (d *McmsDevInspect) SignerView(ctx context.Context, opts *bind.CallOpts, si
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 3 {
+		return nil, fmt.Errorf("expected 3 return values, got %d", len(results))
+	}
+	decoded := make([]any, 3)
+	var ret0 []byte
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 byte
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 byte
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	return decoded, nil
 }
 
 // FunctionName executes the function_name Move function using DevInspect to get return values.
@@ -3087,9 +2270,9 @@ func (d *McmsDevInspect) FunctionName(ctx context.Context, opts *bind.CallOpts, 
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -3109,9 +2292,9 @@ func (d *McmsDevInspect) ModuleName(ctx context.Context, opts *bind.CallOpts, fu
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -3131,9 +2314,9 @@ func (d *McmsDevInspect) Target(ctx context.Context, opts *bind.CallOpts, functi
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -3153,9 +2336,9 @@ func (d *McmsDevInspect) Data(ctx context.Context, opts *bind.CallOpts, call Cal
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

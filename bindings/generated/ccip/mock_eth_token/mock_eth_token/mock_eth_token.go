@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -52,8 +51,8 @@ type MockEthTokenDevInspect struct {
 var _ IMockEthToken = (*MockEthTokenContract)(nil)
 var _ IMockEthTokenDevInspect = (*MockEthTokenDevInspect)(nil)
 
-func NewMockEthToken(packageID string, client sui.ISuiAPI) (IMockEthToken, error) {
-	contract, err := bind.NewBoundContract(packageID, "mock_eth_token", "mock_eth_token", client)
+func NewMockEthToken(packageID string, chainClient client.BindingsClient) (IMockEthToken, error) {
+	contract, err := bind.NewBoundContract(packageID, "mock_eth_token", "mock_eth_token", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -79,26 +78,6 @@ func (c *MockEthTokenContract) DevInspect() IMockEthTokenDevInspect {
 }
 
 type MOCK_ETH_TOKEN struct {
-}
-
-func init() {
-	bind.RegisterStructDecoder("mock_eth_token::mock_eth_token::MOCK_ETH_TOKEN", func(data []byte) (interface{}, error) {
-		var result MOCK_ETH_TOKEN
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MOCK_ETH_TOKEN
-	bind.RegisterStructDecoder("vector<mock_eth_token::mock_eth_token::MOCK_ETH_TOKEN>", func(data []byte) (interface{}, error) {
-		var results []MOCK_ETH_TOKEN
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // MintAndTransfer executes the mint_and_transfer Move function.

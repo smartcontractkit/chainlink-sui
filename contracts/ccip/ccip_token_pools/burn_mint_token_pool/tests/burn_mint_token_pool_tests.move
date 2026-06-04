@@ -46,6 +46,7 @@ fun setup_ccip_environment(
     // Initialize required CCIP modules
     upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
+    token_admin_registry::initialize_local_decimals(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
 
     (ccip_owner_cap, ccip_ref)

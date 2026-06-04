@@ -22,6 +22,11 @@ public struct TokenAdminRegistryState has key, store {
     token_pool_package_id_to_coin_metadata: LinkedTable<address, address>,
 }
 
+public struct LocalDecimalsState has key, store {
+    id: UID,
+    decimals: LinkedTable<address, u8>,
+}
+
 public struct TokenConfig has copy, drop, store {
     token_pool_package_id: address,
     token_pool_module: String,
@@ -80,6 +85,10 @@ const EInvalidFunction: u64 = 8;
 const EInvalidOwnerCap: u64 = 9;
 const ETokenPoolPackageIdAlreadyRegistered: u64 = 10;
 const ETokenPoolPackageIdNotRegistered: u64 = 11;
+const EUseV2: u64 = 12;
+const ELocalDecimalsNotRegistered: u64 = 13;
+const ELocalDecimalsAlreadyInitialized: u64 = 14;
+const ELocalDecimalsNotInitialized: u64 = 15;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.1")
@@ -95,6 +104,61 @@ public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut T
     };
 
     state_object::add(ref, owner_cap, state, ctx);
+}
+
+public fun initialize_local_decimals(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    ctx: &mut TxContext,
+) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    assert!(!state_object::contains<LocalDecimalsState>(ref), ELocalDecimalsAlreadyInitialized);
+    let state = LocalDecimalsState {
+        id: object::new(ctx),
+        decimals: linked_table::new(ctx),
+    };
+    state_object::add(ref, owner_cap, state, ctx);
+}
+
+public fun backfill_local_decimals(
+    owner_cap: &OwnerCap,
+    ref: &mut CCIPObjectRef,
+    coin_metadata_address: address,
+    local_decimals: u8,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"backfill_local_decimals"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    insert_local_decimals(ref, coin_metadata_address, local_decimals);
+}
+
+public(package) fun get_local_decimals_for_token(
+    ref: &CCIPObjectRef,
+    coin_metadata_address: address,
+): u8 {
+    assert!(state_object::contains<LocalDecimalsState>(ref), ELocalDecimalsNotInitialized);
+    let state = state_object::borrow<LocalDecimalsState>(ref);
+    assert!(state.decimals.contains(coin_metadata_address), ELocalDecimalsNotRegistered);
+    *state.decimals.borrow(coin_metadata_address)
+}
+
+fun insert_local_decimals(ref: &mut CCIPObjectRef, coin_metadata_address: address, decimals: u8) {
+    assert!(state_object::contains<LocalDecimalsState>(ref), ELocalDecimalsNotInitialized);
+    let state = state_object::borrow_mut<LocalDecimalsState>(ref);
+    if (!state.decimals.contains(coin_metadata_address)) {
+        state.decimals.push_back(coin_metadata_address, decimals);
+    };
+}
+
+fun remove_local_decimals(ref: &mut CCIPObjectRef, coin_metadata_address: address) {
+    let state = state_object::borrow_mut<LocalDecimalsState>(ref);
+    if (state.decimals.contains(coin_metadata_address)) {
+        state.decimals.remove(coin_metadata_address);
+    };
 }
 
 public fun get_pools(
@@ -348,6 +412,7 @@ public fun register_pool<T, TypeProof: drop>(
     let token_pool_module = proof_tn.module_string().into_bytes().to_string();
     let coin_metadata_address = object::id_address(coin_metadata);
     let token_type = type_name::with_defining_ids<T>().into_string();
+    let local_decimals = coin_metadata.get_decimals();
 
     register_pool_internal(
         ref,
@@ -360,10 +425,28 @@ public fun register_pool<T, TypeProof: drop>(
         lock_or_burn_params,
         release_or_mint_params,
     );
+
+    insert_local_decimals(ref, coin_metadata_address, local_decimals);
 }
 
 /// Only owner of CCIP can call this function to register a token pool.
 public fun register_pool_as_owner(
+    _owner_cap: &OwnerCap,
+    _ref: &mut CCIPObjectRef,
+    _coin_metadata_address: address,
+    _package_address: address,
+    _token_pool_module: String,
+    _token_type: ascii::String,
+    _initial_administrator: address,
+    _token_pool_type_proof: ascii::String,
+    _lock_or_burn_params: vector<address>,
+    _release_or_mint_params: vector<address>,
+    _ctx: &mut TxContext,
+) {
+    abort EUseV2
+}
+
+public fun register_pool_as_owner_v2(
     owner_cap: &OwnerCap,
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
@@ -374,6 +457,7 @@ public fun register_pool_as_owner(
     token_pool_type_proof: ascii::String,
     lock_or_burn_params: vector<address>,
     release_or_mint_params: vector<address>,
+    local_decimals: u8,
     _ctx: &mut TxContext,
 ) {
     verify_function_allowed(
@@ -395,6 +479,8 @@ public fun register_pool_as_owner(
         lock_or_burn_params,
         release_or_mint_params,
     );
+
+    insert_local_decimals(ref, coin_metadata_address, local_decimals);
 }
 
 fun register_pool_internal(
@@ -459,14 +545,14 @@ public fun unregister_pool(
         string::utf8(b"unregister_pool"),
         VERSION,
     );
-    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
 
     let token_config = state.token_configs.borrow(coin_metadata_address);
     assert!(token_config.administrator == ctx.sender(), ENotAdministrator);
 
-    remove_pool_config(state, coin_metadata_address);
+    remove_pool_config(ref, coin_metadata_address);
 }
 
 fun unregister_pool_via_mcms(
@@ -479,17 +565,18 @@ fun unregister_pool_via_mcms(
         string::utf8(b"unregister_pool"),
         VERSION,
     );
-    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
 
-    remove_pool_config(state, coin_metadata_address);
+    remove_pool_config(ref, coin_metadata_address);
 }
 
 fun remove_pool_config(
-    state: &mut TokenAdminRegistryState,
+    ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
 ) {
+    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
     let token_config = state.token_configs.remove(coin_metadata_address);
     let previous_pool_address = token_config.token_pool_package_id;
 
@@ -503,6 +590,8 @@ fun remove_pool_config(
         coin_metadata_address,
         previous_pool_address,
     });
+
+    remove_local_decimals(ref, coin_metadata_address);
 }
 
 public fun transfer_admin_role(
@@ -652,13 +741,14 @@ public fun mcms_register_pool(
         &mut stream,
         |stream| bcs_stream::deserialize_address(stream),
     );
+    let local_decimals = bcs_stream::deserialize_u8(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
     // Convert String to ascii::String
     let token_type = ascii::string(token_type_string.into_bytes());
     let token_pool_type_proof = ascii::string(token_pool_type_proof_string.into_bytes());
 
-    register_pool_as_owner(
+    register_pool_as_owner_v2(
         owner_cap,
         ref,
         coin_metadata_address,
@@ -669,6 +759,7 @@ public fun mcms_register_pool(
         token_pool_type_proof,
         lock_or_burn_params,
         release_or_mint_params,
+        local_decimals,
         ctx,
     );
 }
@@ -852,4 +943,9 @@ public fun test_mcms_register_entrypoint(
         vector[b"fee_quoter", b"rmn_remote", b"state_object", b"token_admin_registry"], // Allowed CCIP modules
         ctx,
     );
+}
+
+#[test_only]
+public fun test_get_local_decimals(ref: &CCIPObjectRef, coin_metadata_address: address): u8 {
+    get_local_decimals_for_token(ref, coin_metadata_address)
 }

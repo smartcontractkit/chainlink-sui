@@ -18,3 +18,5 @@ chainlink-sui
 
 /scripts/artifacts.**.json
 /contracts/**/Move.toml.bak
+
+/tmp

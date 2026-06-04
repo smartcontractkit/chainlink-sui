@@ -4,9 +4,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
 func TestDecodeParam_PoisonABI_TypeParameter(t *testing.T) {
@@ -37,9 +38,10 @@ func TestDecodeParam_PoisonABI_TypeParameter(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := decodeParam(lggr, tc.param, "Reference")
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI),
 				"expected ErrUnsupportedReceiverABI, got: %v", err)
+			assert.Contains(t, err.Error(), "TypeParameter")
 			assert.Equal(t, SuiArgumentMetadata{}, result)
 		})
 	}
@@ -69,11 +71,43 @@ func TestDecodeParam_UnsupportedABI_DefaultBranch(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := decodeParam(lggr, tc.param, "Reference")
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI),
 				"expected ErrUnsupportedReceiverABI, got: %v", err)
 		})
 	}
+}
+
+func TestDecodeParam_MultiKeyWrapperMap_RejectsDeterministically(t *testing.T) {
+	lggr := logger.Test(t)
+
+	poison := map[string]any{
+		"Vector":        map[string]any{"TypeParameter": float64(0)},
+		"TypeParameter": float64(0),
+	}
+
+	for i := 0; i < 50; i++ {
+		result, err := decodeParam(lggr, poison, "Reference")
+		require.Error(t, err, "iteration %d", i)
+		assert.Contains(t, err.Error(), "exactly one ABI wrapper key")
+		assert.Equal(t, SuiArgumentMetadata{}, result)
+	}
+}
+
+func TestDecodeParam_MultiKeyWrapperMap_NestedRejects(t *testing.T) {
+	lggr := logger.Test(t)
+
+	param := map[string]any{
+		"Vector": map[string]any{
+			"Struct":        map[string]any{"address": "0x1", "module": "m", "name": "S", "typeArguments": []any{}},
+			"TypeParameter": float64(0),
+		},
+	}
+
+	result, err := decodeParam(lggr, param, "Reference")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exactly one ABI wrapper key")
+	assert.Equal(t, SuiArgumentMetadata{}, result)
 }
 
 func TestDecodeParam_MalformedInput_NotUnsupportedABI(t *testing.T) {
@@ -111,27 +145,13 @@ func TestDecodeParam_MalformedInput_NotUnsupportedABI(t *testing.T) {
 			name:  "empty map",
 			param: map[string]any{},
 		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.NotPanics(t, func() {
-				_, err := decodeParam(lggr, tc.param, "Reference")
-				assert.Error(t, err)
-				assert.False(t, errors.Is(err, ErrUnsupportedReceiverABI),
-					"should NOT be ErrUnsupportedReceiverABI for malformed input: %v", err)
-			})
-		})
-	}
-}
-
-func TestDecodeParam_MalformedInput_NoPanic(t *testing.T) {
-	lggr := logger.Test(t)
-
-	tests := []struct {
-		name  string
-		param any
-	}{
+		{
+			name: "multiple top-level wrapper keys",
+			param: map[string]any{
+				"Vector":        map[string]any{"U8": nil},
+				"TypeParameter": float64(0),
+			},
+		},
 		{
 			name:  "Struct with non-string address",
 			param: map[string]any{"Struct": map[string]any{"address": 123, "module": "m", "name": "S", "typeArguments": []any{}}},
@@ -150,7 +170,9 @@ func TestDecodeParam_MalformedInput_NoPanic(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.NotPanics(t, func() {
 				_, err := decodeParam(lggr, tc.param, "Reference")
-				assert.Error(t, err, "expected error for input: %v", tc.param)
+				require.Error(t, err, "expected error for input: %v", tc.param)
+				assert.False(t, errors.Is(err, ErrUnsupportedReceiverABI),
+					"should NOT be ErrUnsupportedReceiverABI for malformed input: %v", err)
 			})
 		})
 	}
@@ -196,6 +218,17 @@ func TestDecodeParam_ValidABI(t *testing.T) {
 				Reference:     "Vector",
 				TypeArguments: []TypeParameter{},
 				Type:          "u8",
+			},
+		},
+		{
+			name:      "nested Vector of U8",
+			param:     map[string]any{"Vector": map[string]any{"Vector": "U8"}},
+			reference: "Reference",
+			expected: SuiArgumentMetadata{
+				Name:          "U8",
+				Reference:     "Vector",
+				TypeArguments: []TypeParameter{},
+				Type:          "vector<u8>",
 			},
 		},
 		{
@@ -252,6 +285,42 @@ func TestDecodeParam_ValidABI(t *testing.T) {
 				Type:          "object_id",
 			},
 		},
+		{
+			name: "0x1::string::String struct",
+			param: map[string]any{"Struct": map[string]any{
+				"address":       "0x1",
+				"module":        "string",
+				"name":          "String",
+				"typeArguments": []any{},
+			}},
+			reference: "Reference",
+			expected: SuiArgumentMetadata{
+				Address:       "0x1",
+				Module:        "string",
+				Name:          "String",
+				Reference:     "Reference",
+				TypeArguments: []TypeParameter{},
+				Type:          moveStringType,
+			},
+		},
+		{
+			name: "Vector of 0x1::string::String",
+			param: map[string]any{"Vector": map[string]any{"Struct": map[string]any{
+				"address":       "0x1",
+				"module":        "string",
+				"name":          "String",
+				"typeArguments": []any{},
+			}}},
+			reference: "Reference",
+			expected: SuiArgumentMetadata{
+				Address:       "0x1",
+				Module:        "string",
+				Name:          "String",
+				Reference:     "Vector",
+				TypeArguments: []TypeParameter{},
+				Type:          moveStringType,
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -275,11 +344,176 @@ func TestDecodeParameters_PoisonABI_ReturnsError(t *testing.T) {
 
 	assert.NotPanics(t, func() {
 		result, err := DecodeParameters(lggr, function, "parameters")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI),
 			"expected ErrUnsupportedReceiverABI to propagate through DecodeParameters, got: %v", err)
 	})
+}
+
+func TestDecodeParameters_StringParam(t *testing.T) {
+	lggr := logger.Test(t)
+
+	function := map[string]any{
+		"parameters": []any{
+			map[string]any{"Struct": map[string]any{
+				"address": "0x1", "module": "string", "name": "String", "typeArguments": []any{},
+			}},
+		},
+	}
+
+	result, err := DecodeParameters(lggr, function, "parameters")
+	require.NoError(t, err)
+	assert.Equal(t, []string{moveStringType}, result)
+}
+
+func TestDecodeParameters_AsciiStringParam(t *testing.T) {
+	lggr := logger.Test(t)
+
+	function := map[string]any{
+		"parameters": []any{
+			map[string]any{"Struct": map[string]any{
+				"address": "0x1", "module": "ascii", "name": "String", "typeArguments": []any{},
+			}},
+		},
+	}
+
+	result, err := DecodeParameters(lggr, function, "parameters")
+	require.NoError(t, err)
+	assert.Equal(t, []string{moveASCIIStringType}, result)
+}
+
+func TestDecodeParameters_VectorAsciiString(t *testing.T) {
+	lggr := logger.Test(t)
+
+	function := map[string]any{
+		"parameters": []any{
+			map[string]any{"Vector": map[string]any{"Struct": map[string]any{
+				"address": "0x1", "module": "ascii", "name": "String", "typeArguments": []any{},
+			}}},
+		},
+	}
+
+	result, err := DecodeParameters(lggr, function, "parameters")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"vector<" + moveASCIIStringType + ">"}, result)
+}
+
+func TestDecodeParameters_VectorString(t *testing.T) {
+	lggr := logger.Test(t)
+
+	function := map[string]any{
+		"parameters": []any{
+			map[string]any{"Vector": map[string]any{"Struct": map[string]any{
+				"address": "0x1", "module": "string", "name": "String", "typeArguments": []any{},
+			}}},
+		},
+	}
+
+	result, err := DecodeParameters(lggr, function, "parameters")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"vector<" + moveStringType + ">"}, result)
+}
+
+func TestParseParamType_String(t *testing.T) {
+	lggr := logger.Test(t)
+
+	inner := map[string]any{
+		"address": "0x1", "module": "string", "name": "String", "typeArguments": []any{},
+	}
+	wrapper := map[string]any{"Struct": inner}
+
+	assert.Equal(t, moveStringType, ParseParamType(lggr, inner))
+	assert.Equal(t, moveStringType, ParseParamType(lggr, wrapper))
+	assert.Equal(t, "vector<"+moveStringType+">", ParseParamType(lggr, map[string]any{"Vector": wrapper}))
+}
+
+func suiStringStructABI() map[string]any {
+	return map[string]any{
+		"address": "0x1", "module": "string", "name": "String", "typeArguments": []any{},
+	}
+}
+
+func suiObjectStructABI(address, module, name string) map[string]any {
+	return map[string]any{
+		"address": address, "module": module, "name": name, "typeArguments": []any{},
+	}
+}
+
+// TestDecodeParameters_ComplexSignature exercises a mixed parameter list resembling a rich
+// Move entry function: object ref, address, vectors, std::string, and primitives.
+func TestDecodeParameters_ComplexSignature(t *testing.T) {
+	lggr := logger.Test(t)
+
+	function := map[string]any{
+		"parameters": []any{
+			// &CCIPObjectRef (object reference)
+			map[string]any{"Reference": map[string]any{"Struct": suiObjectStructABI(
+				"0xccip", "state_object", "CCIPObjectRef",
+			)}},
+			// address primitive (Move Address)
+			"Address",
+			// vector<u8>
+			map[string]any{"Vector": "U8"},
+			// vector<SomeStruct> (vector of object-like structs)
+			map[string]any{"Vector": map[string]any{"Struct": suiObjectStructABI(
+				"0xpool", "burn_mint", "BurnMintTokenPoolState",
+			)}},
+			// 0x1::string::String by value
+			map[string]any{"Struct": suiStringStructABI()},
+			// vector<0x1::string::String>
+			map[string]any{"Vector": map[string]any{"Struct": suiStringStructABI()}},
+			// bool
+			"Bool",
+		},
+	}
+
+	result, err := DecodeParameters(lggr, function, "parameters")
+	require.NoError(t, err)
+
+	// Address uses default Reference label and object_id typing → &object today (not bindings' "address").
+	expected := []string{
+		"&object",
+		"&object",
+		"vector<u8>",
+		"vector<object_id>",
+		moveStringType,
+		"vector<" + moveStringType + ">",
+		"bool",
+	}
+	assert.Equal(t, expected, result)
+
+	decoded := make([]SuiArgumentMetadata, len(function["parameters"].([]any)))
+	for i, parameter := range function["parameters"].([]any) {
+		meta, decodeErr := decodeParam(lggr, parameter, "Reference")
+		require.NoError(t, decodeErr)
+		decoded[i] = meta
+	}
+
+	assert.Equal(t, "object_id", decoded[0].Type)
+	assert.Equal(t, "CCIPObjectRef", decoded[0].Name)
+	assert.Equal(t, "object_id", decoded[1].Type)
+	assert.Equal(t, "Address", decoded[1].Name)
+	assert.Equal(t, "u8", decoded[2].Type)
+	assert.Equal(t, "object_id", decoded[3].Type)
+	assert.Equal(t, "BurnMintTokenPoolState", decoded[3].Name)
+	assert.Equal(t, moveStringType, decoded[4].Type)
+	assert.Equal(t, moveStringType, decoded[5].Type)
+	assert.Equal(t, "bool", decoded[6].Type)
+}
+
+func TestDecodeParameters_NestedVectorU8(t *testing.T) {
+	lggr := logger.Test(t)
+
+	function := map[string]any{
+		"parameters": []any{
+			map[string]any{"Vector": map[string]any{"Vector": "U8"}},
+		},
+	}
+
+	result, err := DecodeParameters(lggr, function, "parameters")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"vector<vector<u8>>"}, result)
 }
 
 func TestDecodeParameters_ValidDummyReceiverSignature(t *testing.T) {
@@ -328,7 +562,7 @@ func TestDecodeParameters_MissingKey(t *testing.T) {
 	function := map[string]any{"return": []any{}}
 
 	result, err := DecodeParameters(lggr, function, "parameters")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, result)
 }
 
@@ -338,6 +572,6 @@ func TestDecodeParameters_NilValue(t *testing.T) {
 	function := map[string]any{"parameters": nil}
 
 	result, err := DecodeParameters(lggr, function, "parameters")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, result)
 }

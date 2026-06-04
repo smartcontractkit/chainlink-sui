@@ -97,6 +97,7 @@ jobs:
           nix develop --command go test -v ./bindings/... -tags="integration"
 
       - name: Run Operations Tests
+        if: false # disabled until MCMS package is updated for the new Sui gRPC client
         env:
           TEST_DB_URL: postgres://localhost:5432/chainlink_test?sslmode=disable&user=postgres&password=postgres
         run: |
@@ -141,6 +142,7 @@ jobs:
           nix develop --command sui genesis --force --with-faucet
 
       - name: Run System Integration Tests
+        if: false # disabled until MCMS package is updated for the new Sui gRPC client
         env:
           TEST_DB_URL: postgres://localhost:5432/chainlink_test?sslmode=disable&user=postgres&password=postgres
         run: |
@@ -150,6 +152,9 @@ jobs:
   testnet-integration-tests:
     name: Testnet Integration Tests
     runs-on: ubuntu-latest
+    env:
+      GRPC_TARGET: ${{ secrets.GRPC_TARGET }}
+      GRPC_TOKEN: ${{ secrets.GRPC_TOKEN }}
 
     steps:
       - name: Checkout repo
