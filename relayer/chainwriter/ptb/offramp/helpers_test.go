@@ -1,7 +1,6 @@
 package offramp
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,7 +38,7 @@ func TestDecodeParam_PoisonABI_TypeParameter(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := decodeParam(lggr, tc.param, "Reference")
 			require.Error(t, err)
-			assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI),
+			assert.ErrorIs(t, err, ErrUnsupportedReceiverABI,
 				"expected ErrUnsupportedReceiverABI, got: %v", err)
 			assert.Contains(t, err.Error(), "TypeParameter")
 			assert.Equal(t, SuiArgumentMetadata{}, result)
@@ -72,7 +71,7 @@ func TestDecodeParam_UnsupportedABI_DefaultBranch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := decodeParam(lggr, tc.param, "Reference")
 			require.Error(t, err)
-			assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI),
+			assert.ErrorIs(t, err, ErrUnsupportedReceiverABI,
 				"expected ErrUnsupportedReceiverABI, got: %v", err)
 		})
 	}
@@ -171,7 +170,7 @@ func TestDecodeParam_MalformedInput_NotUnsupportedABI(t *testing.T) {
 			assert.NotPanics(t, func() {
 				_, err := decodeParam(lggr, tc.param, "Reference")
 				require.Error(t, err, "expected error for input: %v", tc.param)
-				assert.False(t, errors.Is(err, ErrUnsupportedReceiverABI),
+				assert.NotErrorIs(t, err, ErrUnsupportedReceiverABI,
 					"should NOT be ErrUnsupportedReceiverABI for malformed input: %v", err)
 			})
 		})
@@ -346,7 +345,7 @@ func TestDecodeParameters_PoisonABI_ReturnsError(t *testing.T) {
 		result, err := DecodeParameters(lggr, function, "parameters")
 		require.Error(t, err)
 		assert.Nil(t, result)
-		assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI),
+		assert.ErrorIs(t, err, ErrUnsupportedReceiverABI,
 			"expected ErrUnsupportedReceiverABI to propagate through DecodeParameters, got: %v", err)
 	})
 }

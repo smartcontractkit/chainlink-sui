@@ -1,11 +1,13 @@
+//nolint:staticcheck // ccipocr3.Message is a deprecated alias; matches needsAppDelivery until ccipocr3common migration.
 package offramp
 
 import (
 	"math/big"
 	"testing"
 
-	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 )
 
 func TestNeedsAppDelivery(t *testing.T) {
