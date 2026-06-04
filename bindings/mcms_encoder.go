@@ -377,6 +377,8 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 				return nil, err
 			}
 			return overrideCall(entrypointCall, module, function), nil
+		default:
+			return nil, fmt.Errorf("unsupported rmn_remote MCMS function: %q", function)
 		}
 
 	// MANAGED TOKEN
