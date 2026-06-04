@@ -99,19 +99,19 @@ func BuildOffRampExecutePTB(
 	}
 
 	// Get the latest package ID from the offramp module
-	latestOfframpPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.OffRampPackageId, "offramp")
+	latestOfframpPackageID, err := ptbClient.GetLatestPackageId(ctx, addressMappings.OffRampPackageId, "offramp")
 	if err != nil {
 		return err
 	}
 
-	latestCcipPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.CcipPackageId, "state_object")
+	latestCcipPackageID, err := ptbClient.GetLatestPackageId(ctx, addressMappings.CcipPackageId, "state_object")
 	if err != nil {
 		return err
 	}
 
 	// Update both the offramp and ccip package IDs to the latest versions
-	addressMappings.OffRampPackageId = latestOfframpPackageId
-	addressMappings.CcipPackageId = latestCcipPackageId
+	addressMappings.OffRampPackageId = latestOfframpPackageID
+	addressMappings.CcipPackageId = latestCcipPackageID
 
 	// Set the offramp package interface from bindings
 	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, ptbClient)
@@ -208,7 +208,7 @@ func BuildOffRampExecutePTBV2(
 	}
 
 	coinMetadataAddresses := make([]string, 0)
-	messages := make([]ccipocr3.Message, 0)
+	messages := make([]ccipocr3.Message, 0) //nolint:staticcheck // ccipocr3.Message deprecated; matches ExecuteReport until ccipocr3common migration
 
 	for _, report := range offrampArgs.Info.AbstractReports {
 		for _, message := range report.Messages {
@@ -227,18 +227,18 @@ func BuildOffRampExecutePTBV2(
 		WaitForExecution: true,
 	}
 
-	latestOfframpPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.OffRampPackageId, "offramp")
+	latestOfframpPackageID, err := ptbClient.GetLatestPackageId(ctx, addressMappings.OffRampPackageId, "offramp")
 	if err != nil {
 		return err
 	}
 
-	latestCcipPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.CcipPackageId, "state_object")
+	latestCcipPackageID, err := ptbClient.GetLatestPackageId(ctx, addressMappings.CcipPackageId, "state_object")
 	if err != nil {
 		return err
 	}
 
-	addressMappings.OffRampPackageId = latestOfframpPackageId
-	addressMappings.CcipPackageId = latestCcipPackageId
+	addressMappings.OffRampPackageId = latestOfframpPackageID
+	addressMappings.CcipPackageId = latestCcipPackageID
 
 	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, ptbClient)
 	if err != nil {
@@ -287,7 +287,7 @@ func BuildOffRampExecutePTBV2(
 		return fmt.Errorf("failed to deserialize V2 execution report: %w", err)
 	}
 
-	receiverObjectIdStrings := codec.FormatReceiverObjectIDStrings(executionReport.Message.ReceiverObjectIds)
+	receiverObjectIDStrings := codec.FormatReceiverObjectIDStrings(executionReport.Message.ReceiverObjectIDs)
 
 	_, err = ProcessReceiversV2(
 		ctx,
@@ -299,7 +299,7 @@ func BuildOffRampExecutePTBV2(
 		callOpts,
 		initExecuteResult,
 		offrampArgs.ExtraData.ExtraArgsDecoded,
-		receiverObjectIdStrings,
+		receiverObjectIDStrings,
 	)
 	if err != nil {
 		return err
@@ -497,25 +497,25 @@ func ProcessReceivers(
 			continue
 		}
 
-		receiverPackageId := "0x" + hex.EncodeToString(message.Receiver)
+		receiverPackageID := "0x" + hex.EncodeToString(message.Receiver)
 
-		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
+		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
 		}
 		if !isRegistered {
 			lggr.Warnw("receiver not registered, skipping receiver call (on-chain will not populate message)",
-				"receiver", receiverPackageId)
+				"receiver", receiverPackageID)
 			continue
 		}
 
-		receiverConfig, err := receiverRegistryDevInspect.GetReceiverConfig(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
+		receiverConfig, err := receiverRegistryDevInspect.GetReceiverConfig(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageID)
 		if err != nil {
 			// RPC/network error — propagate so the caller can retry later.
 			return nil, fmt.Errorf("failed to get receiver config in offramp execution: %w", err)
 		}
 
-		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverConfig.ModuleName)
+		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageID, receiverConfig.ModuleName)
 		if err != nil {
 			// RPC/network error — propagate so the caller can retry later.
 			return nil, fmt.Errorf("failed to get normalized module for receiver: %w", err)
@@ -527,7 +527,7 @@ func ProcessReceivers(
 			ptbClient,
 			ptb,
 			callOpts,
-			receiverPackageId,
+			receiverPackageID,
 			receiverConfig.ModuleName,
 			"ccip_receive",
 			addressMappings,
@@ -536,10 +536,10 @@ func ProcessReceivers(
 			receiverParams,
 			extraArgs,
 		)
-		skip, retErr := classifyReceiverBuildError(receiverPackageId, err)
+		skip, retErr := classifyReceiverBuildError(receiverPackageID, err)
 		if skip {
 			lggr.Errorw("skipping receiver command due to unsupported ABI; PTB will fail on-chain",
-				"receiver", receiverPackageId,
+				"receiver", receiverPackageID,
 				"error", err)
 			continue
 		}
@@ -568,10 +568,10 @@ func needsAppDelivery(message ccipocr3.Message, extraArgs map[string]any) bool {
 	return false
 }
 
-// extractReceiverObjectIdStrings parses receiver_object_ids from the extraArgs map
+// extractReceiverObjectIDStrings parses receiver_object_ids from the extraArgs map
 // into hex-prefixed address strings. Returns an empty slice if the key is missing or
 // contains no valid entries.
-func extractReceiverObjectIdStrings(extraArgs map[string]any) []string {
+func extractReceiverObjectIDStrings(extraArgs map[string]any) []string {
 	raw, ok := extraArgs["receiverObjectIds"]
 	if !ok {
 		return []string{}
@@ -599,14 +599,14 @@ func extractReceiverObjectIdStrings(extraArgs map[string]any) []string {
 // classifyReceiverBuildError distinguishes permanent unsupported-ABI failures from
 // transient build errors. Unsupported ABI errors are skipped so the PTB can be
 // submitted and fail on-chain with ECCIPReceiveFailed.
-func classifyReceiverBuildError(receiverPackageId string, err error) (skip bool, retErr error) {
+func classifyReceiverBuildError(receiverPackageID string, err error) (skip bool, retErr error) {
 	if err == nil {
 		return false, nil
 	}
 	if errors.Is(err, ErrUnsupportedReceiverABI) {
 		return true, nil
 	}
-	return false, fmt.Errorf("failed to build receiver command for %s: %w", receiverPackageId, err)
+	return false, fmt.Errorf("failed to build receiver command for %s: %w", receiverPackageID, err)
 }
 
 // ccipReceiveFixedParamCount is the number of protocol-fixed ccip_receive arguments
@@ -624,7 +624,7 @@ func appendCcipReceiveCommand(
 	messageID [32]byte,
 	normalizedModule *models.GetNormalizedMoveModuleResponse,
 	extractedAny2SuiMessageResult *transaction.Argument,
-	receiverObjectIdStrings []string,
+	receiverObjectIDStrings []string,
 ) (*transaction.Argument, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
@@ -653,19 +653,19 @@ func appendCcipReceiveCommand(
 			ccipReceiveFixedParamCount,
 		)
 	}
-	if len(receiverObjectIdStrings) != expectedTailCount {
+	if len(receiverObjectIDStrings) != expectedTailCount {
 		return nil, fmt.Errorf(
 			"%w: receiver_object_ids count %d does not match ccip_receive tail parameter count %d",
 			ErrUnsupportedReceiverABI,
-			len(receiverObjectIdStrings),
+			len(receiverObjectIDStrings),
 			expectedTailCount,
 		)
 	}
 
 	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
 
-	for _, objectId := range receiverObjectIdStrings {
-		paramValues = append(paramValues, bind.Object{Id: objectId})
+	for _, objectID := range receiverObjectIDStrings {
+		paramValues = append(paramValues, bind.Object{Id: objectID})
 	}
 
 	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(
@@ -757,7 +757,7 @@ func AppendPTBCommandForReceiver(
 		messageID,
 		normalizedModule,
 		extractedAny2SuiMessageResult,
-		extractReceiverObjectIdStrings(extraArgs),
+		extractReceiverObjectIDStrings(extraArgs),
 	)
 }
 
@@ -769,12 +769,12 @@ func ProcessReceiversV2(
 	lggr logger.Logger,
 	ptbClient client.SuiPTBClient,
 	ptb *transaction.Transaction,
-	messages []ccipocr3.Message,
+	messages []ccipocr3.Message, //nolint:staticcheck // ccipocr3.Message deprecated; matches ExecuteReport until ccipocr3common migration
 	addressMappings *OffRampAddressMappings,
 	callOpts *bind.CallOpts,
 	receiverParams *transaction.Argument,
 	extraArgs map[string]any,
-	receiverObjectIdStrings []string,
+	receiverObjectIDStrings []string,
 ) ([]transaction.Argument, error) {
 	receiverRegistryPkg, err := receiver_registry.NewReceiverRegistry(addressMappings.CcipPackageId, ptbClient)
 	if err != nil {
@@ -800,24 +800,24 @@ func ProcessReceiversV2(
 			continue
 		}
 
-		receiverPackageId := "0x" + hex.EncodeToString(message.Receiver)
+		receiverPackageID := "0x" + hex.EncodeToString(message.Receiver)
 
-		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
+		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
 		}
 		if !isRegistered {
 			lggr.Warnw("receiver not registered, skipping receiver call (on-chain will not populate message)",
-				"receiver", receiverPackageId)
+				"receiver", receiverPackageID)
 			continue
 		}
 
-		receiverConfig, err := receiverRegistryDevInspect.GetReceiverConfig(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
+		receiverConfig, err := receiverRegistryDevInspect.GetReceiverConfig(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get receiver config in offramp execution: %w", err)
 		}
 
-		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverConfig.ModuleName)
+		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageID, receiverConfig.ModuleName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get normalized module for receiver: %w", err)
 		}
@@ -828,19 +828,19 @@ func ProcessReceiversV2(
 			ptbClient,
 			ptb,
 			callOpts,
-			receiverPackageId,
+			receiverPackageID,
 			receiverConfig.ModuleName,
 			"ccip_receive",
 			addressMappings,
 			message.Header.MessageID,
 			&receiverNormalizedModule,
 			receiverParams,
-			receiverObjectIdStrings,
+			receiverObjectIDStrings,
 		)
-		skip, retErr := classifyReceiverBuildError(receiverPackageId, err)
+		skip, retErr := classifyReceiverBuildError(receiverPackageID, err)
 		if skip {
 			lggr.Errorw("skipping receiver command due to unsupported ABI; PTB will fail on-chain",
-				"receiver", receiverPackageId,
+				"receiver", receiverPackageID,
 				"error", err)
 			continue
 		}
@@ -861,16 +861,16 @@ func AppendPTBCommandForReceiverV2(
 	chainClient client.BindingsClient,
 	ptb *transaction.Transaction,
 	callOpts *bind.CallOpts,
-	packageId string,
-	moduleId string,
+	packageID string,
+	moduleID string,
 	functionName string,
 	addressMappings *OffRampAddressMappings,
 	messageID [32]byte,
 	normalizedModule *models.GetNormalizedMoveModuleResponse,
 	receiverParams *transaction.Argument,
-	receiverObjectIdStrings []string,
+	receiverObjectIDStrings []string,
 ) (*transaction.Argument, error) {
-	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, chainClient)
+	boundReceiverContract, err := bind.NewBoundContract(packageID, packageID, moduleID, chainClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create receiver bound contract when appending PTB command: %w", err)
 	}
@@ -894,11 +894,11 @@ func AppendPTBCommandForReceiverV2(
 	}
 	paramValues := []any{
 		receiverParams,
-		receiverObjectIdStrings,
+		receiverObjectIDStrings,
 	}
 
 	lggr.Debugw("calling extract_any2sui_message_v2",
-		"receiverObjectIds", receiverObjectIdStrings)
+		"receiverObjectIds", receiverObjectIDStrings)
 
 	encodedAny2SuiExtractCall, err := offrampStateHelperContract.EncodeCallArgsWithGenerics(
 		"extract_any2sui_message_v2",
@@ -928,6 +928,6 @@ func AppendPTBCommandForReceiverV2(
 		messageID,
 		normalizedModule,
 		extractedAny2SuiMessageResult,
-		receiverObjectIdStrings,
+		receiverObjectIDStrings,
 	)
 }

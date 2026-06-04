@@ -156,7 +156,7 @@ type Any2SuiRampMessageV2 struct {
 	Receiver          models.SuiAddress
 	GasLimit          *big.Int
 	TokenReceiver     models.SuiAddressBytes
-	ReceiverObjectIds []models.SuiAddressBytes
+	ReceiverObjectIDs []models.SuiAddressBytes
 	TokenAmounts      []Any2SuiTokenTransfer
 }
 

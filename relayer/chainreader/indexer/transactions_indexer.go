@@ -94,8 +94,8 @@ func NewTransactionsIndexer(
 		executionEventKey:       "ExecutionStateChanged",
 		configEventModuleKey:    "ocr3_base",
 		configEventKey:          "ConfigSet",
-		executeFunction:       executeFunctionV1,
-		offrampPackageIDReady: make(chan struct{}),
+		executeFunction:         executeFunctionV1,
+		offrampPackageIDReady:   make(chan struct{}),
 	}
 }
 

@@ -240,14 +240,14 @@ func TestExtractReceiverObjectIdStrings(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := extractReceiverObjectIdStrings(tc.extraArgs)
+			result := extractReceiverObjectIDStrings(tc.extraArgs)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
 }
 
 func TestClassifyReceiverBuildError(t *testing.T) {
-	receiverPackageId := "0x00000000000000000000000000000000000000000000000000000000000000ab"
+	receiverPackageID := "0x00000000000000000000000000000000000000000000000000000000000000ab"
 
 	tests := []struct {
 		name          string
@@ -276,16 +276,16 @@ func TestClassifyReceiverBuildError(t *testing.T) {
 		},
 		{
 			name:          "transient PTB build error propagates for ProcessReceiversV2",
-			err:           fmt.Errorf("failed to build PTB (receiver call) using bindings: network timeout"),
+			err:           errors.New("failed to build PTB (receiver call) using bindings: network timeout"),
 			expectSkip:    false,
 			expectErr:     true,
-			expectErrText: "failed to build receiver command for " + receiverPackageId,
+			expectErrText: "failed to build receiver command for " + receiverPackageID,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			skip, retErr := classifyReceiverBuildError(receiverPackageId, tc.err)
+			skip, retErr := classifyReceiverBuildError(receiverPackageID, tc.err)
 			assert.Equal(t, tc.expectSkip, skip)
 			if tc.expectErr {
 				require.Error(t, retErr)
@@ -342,7 +342,7 @@ func TestAppendCcipReceiveCommand_ReceiverObjectIdCountMismatch(t *testing.T) {
 		[]string{"0x00000000000000000000000000000000000000000000000000000000000000aa"},
 	)
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI))
+	assert.ErrorIs(t, err, ErrUnsupportedReceiverABI)
 	assert.Contains(t, err.Error(), "receiver_object_ids count 1 does not match ccip_receive tail parameter count 2")
 }
 
@@ -370,7 +370,7 @@ func TestAppendCcipReceiveCommand_MissingCcipReceive(t *testing.T) {
 		nil,
 	)
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI))
+	assert.ErrorIs(t, err, ErrUnsupportedReceiverABI)
 }
 
 func TestAppendCcipReceiveCommand_PoisonABI(t *testing.T) {
@@ -404,7 +404,7 @@ func TestAppendCcipReceiveCommand_PoisonABI(t *testing.T) {
 		[32]byte{}, &normalizedModule, &extractedArg, nil,
 	)
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI))
+	assert.ErrorIs(t, err, ErrUnsupportedReceiverABI)
 	assert.Contains(t, err.Error(), "failed to decode receiver parameters")
 }
 
@@ -436,7 +436,7 @@ func TestAppendPTBCommandForReceiver_PoisonABI(t *testing.T) {
 		[32]byte{}, &normalizedModule, &receiverParams, map[string]any{},
 	)
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, ErrUnsupportedReceiverABI))
+	assert.ErrorIs(t, err, ErrUnsupportedReceiverABI)
 	assert.Contains(t, err.Error(), "failed to decode receiver parameters")
 }
 
@@ -487,5 +487,5 @@ func TestProcessReceiversV2_GatingParityWithV1(t *testing.T) {
 	extraArgs := map[string]any{"gasLimit": big.NewInt(0)}
 
 	assert.False(t, needsAppDelivery(tokenOnlyMsg, extraArgs))
-	assert.Empty(t, extractReceiverObjectIdStrings(extraArgs))
+	assert.Empty(t, extractReceiverObjectIDStrings(extraArgs))
 }

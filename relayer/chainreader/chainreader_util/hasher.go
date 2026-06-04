@@ -309,9 +309,9 @@ func (h *MessageHasherV2) hashRampMessageV2(
 		return [32]byte{}, fmt.Errorf("failed to decode receiver address: %w", err)
 	}
 
-	receiverObjectIds := make([][32]byte, len(msg.ReceiverObjectIds))
-	for i, id := range msg.ReceiverObjectIds {
-		receiverObjectIds[i] = [32]byte(id)
+	receiverObjectIDs := make([][32]byte, len(msg.ReceiverObjectIDs))
+	for i, id := range msg.ReceiverObjectIDs {
+		receiverObjectIDs[i] = [32]byte(id)
 	}
 
 	return computeMessageDataHashV2(
@@ -325,7 +325,7 @@ func (h *MessageHasherV2) hashRampMessageV2(
 		msg.Sender,
 		msg.Data,
 		rampTokenAmounts,
-		receiverObjectIds,
+		receiverObjectIDs,
 	)
 }
 
@@ -372,7 +372,7 @@ func computeMessageDataHashV2(
 	sender []byte,
 	data []byte,
 	tokenAmounts []any2SuiTokenTransfer,
-	receiverObjectIds [][32]byte,
+	receiverObjectIDs [][32]byte,
 ) ([32]byte, error) {
 	uint64Type, err := abi.NewType("uint64", "", nil)
 	if err != nil {
@@ -417,25 +417,25 @@ func computeMessageDataHashV2(
 		tokenHashData = append(tokenHashData, token.DestTokenAddress[:]...)
 		tokenHashData = append(tokenHashData, encodeUint32(token.DestGasAmount)...)
 		tokenHashData = append(tokenHashData, encodeBytes(token.ExtraData)...)
-		encodedAmount, err := encodeUint256(token.Amount)
-		if err != nil {
-			return [32]byte{}, fmt.Errorf("failed to encode token amount: %w", err)
+		encodedAmount, encodeErr := encodeUint256(token.Amount)
+		if encodeErr != nil {
+			return [32]byte{}, fmt.Errorf("failed to encode token amount: %w", encodeErr)
 		}
 		tokenHashData = append(tokenHashData, encodedAmount...)
 	}
 	tokenAmountsHash := crypto.Keccak256Hash(tokenHashData)
 
-	// V2: compute objectIdsHash = keccak256(encode_u256(len) || encode_address(id[0]) || ...)
-	var objectIdsHashData []byte
-	encodedObjLen, err := encodeUint256(big.NewInt(int64(len(receiverObjectIds))))
+	// V2: compute objectIDsHash = keccak256(encode_u256(len) || encode_address(id[0]) || ...)
+	var objectIDsHashData []byte
+	encodedObjLen, err := encodeUint256(big.NewInt(int64(len(receiverObjectIDs))))
 	if err != nil {
 		return [32]byte{}, fmt.Errorf("failed to encode object ids length: %w", err)
 	}
-	objectIdsHashData = append(objectIdsHashData, encodedObjLen...)
-	for _, id := range receiverObjectIds {
-		objectIdsHashData = append(objectIdsHashData, id[:]...)
+	objectIDsHashData = append(objectIDsHashData, encodedObjLen...)
+	for _, id := range receiverObjectIDs {
+		objectIDsHashData = append(objectIDsHashData, id[:]...)
 	}
-	objectIdsHash := crypto.Keccak256Hash(objectIdsHashData)
+	objectIDsHash := crypto.Keccak256Hash(objectIDsHashData)
 
 	finalArgs := abi.Arguments{
 		{Type: bytes32Type}, // LEAF_DOMAIN_SEPARATOR
@@ -444,7 +444,7 @@ func computeMessageDataHashV2(
 		{Type: bytes32Type}, // senderHash
 		{Type: bytes32Type}, // dataHash
 		{Type: bytes32Type}, // tokenAmountsHash
-		{Type: bytes32Type}, // objectIdsHash (V2 addition)
+		{Type: bytes32Type}, // objectIDsHash (V2 addition)
 	}
 
 	finalEncoded, err := finalArgs.Pack(
@@ -454,7 +454,7 @@ func computeMessageDataHashV2(
 		senderHash,
 		dataHash,
 		tokenAmountsHash,
-		objectIdsHash,
+		objectIDsHash,
 	)
 	if err != nil {
 		return [32]byte{}, err

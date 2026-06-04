@@ -33,7 +33,7 @@ func TestDeserializeExecutionReportV2_RoundtripWithTestutilsSerializer(t *testin
 			Receiver:          receiverPackage,
 			GasLimit:          big.NewInt(200000),
 			TokenReceiver:     tokenReceiver,
-			ReceiverObjectIds: [][]byte{objectID},
+			ReceiverObjectIDs: [][]byte{objectID},
 			TokenAmounts: []testutils.Any2SuiTokenTransfer{{
 				SourcePoolAddress: []byte("source-pool"),
 				DestTokenAddress:  leftPad32(t, "1234"),
@@ -59,8 +59,8 @@ func TestDeserializeExecutionReportV2_RoundtripWithTestutilsSerializer(t *testin
 	assert.Equal(t, models.SuiAddress("0000000000000000000000000000000000000000000000000000000000001234"), decoded.Message.Receiver)
 	assert.Equal(t, 0, report.Message.GasLimit.Cmp(decoded.Message.GasLimit))
 	assert.Equal(t, models.SuiAddressBytes(tokenReceiver), decoded.Message.TokenReceiver)
-	require.Len(t, decoded.Message.ReceiverObjectIds, 1)
-	assert.Equal(t, models.SuiAddressBytes(objectID), decoded.Message.ReceiverObjectIds[0])
+	require.Len(t, decoded.Message.ReceiverObjectIDs, 1)
+	assert.Equal(t, models.SuiAddressBytes(objectID), decoded.Message.ReceiverObjectIDs[0])
 	require.Len(t, decoded.Message.TokenAmounts, 1)
 	assert.Equal(t, uint32(10000), decoded.Message.TokenAmounts[0].DestGasAmount)
 	assert.Equal(t, report.OffchainTokenData, decoded.OffchainTokenData)
@@ -78,7 +78,7 @@ func TestFormatReceiverObjectIDStrings(t *testing.T) {
 	)
 }
 
-func TestDeserializeExecutionReportV2_EmptyReceiverObjectIds(t *testing.T) {
+func TestDeserializeExecutionReportV2_EmptyReceiverObjectIDs(t *testing.T) {
 	tokenReceiver := leftPad32(t, "5678")
 	receiverPackage := []byte("0000000000000000000000000000000000000000000000000000000000001234")
 
@@ -97,7 +97,7 @@ func TestDeserializeExecutionReportV2_EmptyReceiverObjectIds(t *testing.T) {
 			Receiver:          receiverPackage,
 			GasLimit:          big.NewInt(0),
 			TokenReceiver:     tokenReceiver,
-			ReceiverObjectIds: [][]byte{},
+			ReceiverObjectIDs: [][]byte{},
 			TokenAmounts:      []testutils.Any2SuiTokenTransfer{},
 		},
 		OffchainTokenData: [][]byte{},
@@ -109,10 +109,10 @@ func TestDeserializeExecutionReportV2_EmptyReceiverObjectIds(t *testing.T) {
 
 	decoded, err := codec.DeserializeExecutionReportV2(encoded)
 	require.NoError(t, err)
-	assert.Empty(t, decoded.Message.ReceiverObjectIds)
+	assert.Empty(t, decoded.Message.ReceiverObjectIDs)
 }
 
-func TestSerializeExecutionReportV2_RejectsInvalidReceiverObjectIds(t *testing.T) {
+func TestSerializeExecutionReportV2_RejectsInvalidReceiverObjectIDs(t *testing.T) {
 	tokenReceiver := leftPad32(t, "5678")
 	receiverPackage := leftPad32(t, "1234")
 	oversizedObjectID := make([]byte, 33)
@@ -132,7 +132,7 @@ func TestSerializeExecutionReportV2_RejectsInvalidReceiverObjectIds(t *testing.T
 			Receiver:          receiverPackage,
 			GasLimit:          big.NewInt(0),
 			TokenReceiver:     tokenReceiver,
-			ReceiverObjectIds: [][]byte{oversizedObjectID},
+			ReceiverObjectIDs: [][]byte{oversizedObjectID},
 			TokenAmounts:      []testutils.Any2SuiTokenTransfer{},
 		},
 	}
@@ -181,7 +181,7 @@ func TestDeserializeExecutionReportV2_LongerThanV1ForSameMessage(t *testing.T) {
 			Receiver:          receiverPackage,
 			GasLimit:          big.NewInt(500000),
 			TokenReceiver:     tokenReceiver,
-			ReceiverObjectIds: [][]byte{objectID},
+			ReceiverObjectIDs: [][]byte{objectID},
 			TokenAmounts:      tokenAmounts,
 		},
 		OffchainTokenData: [][]byte{{0x01}},

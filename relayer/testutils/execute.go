@@ -401,7 +401,7 @@ type Any2SuiRampMessageV2 struct {
 	Receiver          []byte                 `json:"receiver"`
 	GasLimit          *big.Int               `json:"gas_limit"`
 	TokenReceiver     []byte                 `json:"token_receiver"`
-	ReceiverObjectIds [][]byte               `json:"receiver_object_ids"`
+	ReceiverObjectIDs [][]byte               `json:"receiver_object_ids"`
 	TokenAmounts      []Any2SuiTokenTransfer `json:"token_amounts"`
 }
 
@@ -498,7 +498,7 @@ func serializeAny2SuiRampMessageV2(s *bcs.Serializer, message Any2SuiRampMessage
 	}
 
 	// V2: serialize receiver_object_ids as vector<address> (each 32 bytes)
-	bcs.SerializeSequenceWithFunction(message.ReceiverObjectIds, s, func(s *bcs.Serializer, item []byte) {
+	bcs.SerializeSequenceWithFunction(message.ReceiverObjectIDs, s, func(s *bcs.Serializer, item []byte) {
 		if len(item) != DefaultByteSize {
 			s.SetError(fmt.Errorf("receiver_object_id must be exactly %d bytes, got %d", DefaultByteSize, len(item)))
 			return
@@ -506,7 +506,7 @@ func serializeAny2SuiRampMessageV2(s *bcs.Serializer, message Any2SuiRampMessage
 		s.FixedBytes(item)
 	})
 	if s.Error() != nil {
-		return fmt.Errorf("failed to serialize ReceiverObjectIds: %w", s.Error())
+		return fmt.Errorf("failed to serialize ReceiverObjectIDs: %w", s.Error())
 	}
 
 	// Serialize TokenAmounts

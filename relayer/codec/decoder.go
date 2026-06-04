@@ -467,7 +467,7 @@ func DeserializeExecutionReportV2(data []byte) (*ExecutionReportV2, error) {
 		return nil, err
 	}
 
-	receiverObjectIds, err := deserializeReceiverObjectIds(deserializer)
+	receiverObjectIDs, err := deserializeReceiverObjectIDs(deserializer)
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +493,7 @@ func DeserializeExecutionReportV2(data []byte) (*ExecutionReportV2, error) {
 		Receiver:          fields.Receiver,
 		GasLimit:          fields.GasLimit,
 		TokenReceiver:     fields.TokenReceiver,
-		ReceiverObjectIds: receiverObjectIds,
+		ReceiverObjectIDs: receiverObjectIDs,
 		TokenAmounts:      tokenAmounts,
 	}
 
@@ -578,23 +578,23 @@ func finalizeExecutionReportDecode(deserializer *aptosBCS.Deserializer, context 
 	return nil
 }
 
-func deserializeReceiverObjectIds(deserializer *aptosBCS.Deserializer) ([]models.SuiAddressBytes, error) {
-	receiverObjectIdsLen := deserializer.Uleb128()
+func deserializeReceiverObjectIDs(deserializer *aptosBCS.Deserializer) ([]models.SuiAddressBytes, error) {
+	receiverObjectIDsLen := deserializer.Uleb128()
 	if deserializer.Error() != nil {
 		return nil, fmt.Errorf("failed to deserialize receiver_object_ids length: %w", deserializer.Error())
 	}
 
-	receiverObjectIds := make([]models.SuiAddressBytes, receiverObjectIdsLen)
-	for i := range receiverObjectIdsLen {
+	receiverObjectIDs := make([]models.SuiAddressBytes, receiverObjectIDsLen)
+	for i := range receiverObjectIDsLen {
 		var objectID [32]byte
 		deserializer.ReadFixedBytesInto(objectID[:])
 		if deserializer.Error() != nil {
 			return nil, fmt.Errorf("failed to deserialize receiver_object_ids[%d]: %w", i, deserializer.Error())
 		}
-		receiverObjectIds[i] = models.SuiAddressBytes(objectID)
+		receiverObjectIDs[i] = models.SuiAddressBytes(objectID)
 	}
 
-	return receiverObjectIds, nil
+	return receiverObjectIDs, nil
 }
 
 func deserializeAny2SuiTokenTransfers(deserializer *aptosBCS.Deserializer) ([]Any2SuiTokenTransfer, error) {

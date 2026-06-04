@@ -510,8 +510,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err != nil {
-				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
+			if manageErr := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); manageErr != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", manageErr)
 			}
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
@@ -524,8 +524,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			if orig := namedAddresses["original_ccip_pkg"]; !isZeroAddress(orig) {
 				ccipOrigID = orig
 			}
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipOrigID, ccipAddr, pubfilePath); err != nil {
-				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
+			if manageErr := managePackage(ccipDir, 1, rpcURL, env, ccipOrigID, ccipAddr, pubfilePath); manageErr != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", manageErr)
 			}
 		} else {
 			fmt.Println("Skipping manage-package for CCIP (no published address found)")

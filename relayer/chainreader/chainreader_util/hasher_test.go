@@ -258,19 +258,19 @@ func TestMessageHasherV2_DifferentObjectIds_DifferentHash(t *testing.T) {
 	metadataHash, err := computeMetadataHash(uint64(123456789), uint64(987654321), []byte("source-onramp-address"))
 	require.NoError(t, err)
 
-	objectIdA := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000001111")
-	objectIdB := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000002222")
+	objectIDA := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000001111")
+	objectIDB := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000002222")
 
 	t.Run("hash with object IDs [A] differs from hash with object IDs [B]", func(t *testing.T) {
 		hashA, err := computeMessageDataHashV2(
 			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
-			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIdA},
+			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIDA},
 		)
 		require.NoError(t, err)
 
 		hashB, err := computeMessageDataHashV2(
 			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
-			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIdB},
+			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIDB},
 		)
 		require.NoError(t, err)
 
@@ -286,7 +286,7 @@ func TestMessageHasherV2_DifferentObjectIds_DifferentHash(t *testing.T) {
 
 		hashWithA, err := computeMessageDataHashV2(
 			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
-			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIdA},
+			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIDA},
 		)
 		require.NoError(t, err)
 
@@ -296,13 +296,13 @@ func TestMessageHasherV2_DifferentObjectIds_DifferentHash(t *testing.T) {
 	t.Run("hash with [A,B] differs from [B,A] (order matters)", func(t *testing.T) {
 		hashAB, err := computeMessageDataHashV2(
 			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
-			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIdA, objectIdB},
+			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIDA, objectIDB},
 		)
 		require.NoError(t, err)
 
 		hashBA, err := computeMessageDataHashV2(
 			metadataHash, messageID, receiver, sequenceNumber, gasLimit, tokenReceiver, nonce,
-			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIdB, objectIdA},
+			sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectIDB, objectIDA},
 		)
 		require.NoError(t, err)
 
@@ -339,17 +339,17 @@ func TestMessageHasherV2_Deterministic(t *testing.T) {
 	metadataHash, err := computeMetadataHash(uint64(1000), uint64(2000), []byte("onramp"))
 	require.NoError(t, err)
 
-	objectId := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000aabbcc")
+	objectID := hexTo32Bytes(t, "0000000000000000000000000000000000000000000000000000000000aabbcc")
 
 	hash1, err := computeMessageDataHashV2(
 		metadataHash, messageID, receiver, uint64(1), gasLimit, tokenReceiver, uint64(0),
-		sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectId},
+		sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectID},
 	)
 	require.NoError(t, err)
 
 	hash2, err := computeMessageDataHashV2(
 		metadataHash, messageID, receiver, uint64(1), gasLimit, tokenReceiver, uint64(0),
-		sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectId},
+		sender, data, []any2SuiTokenTransfer{}, [][32]byte{objectID},
 	)
 	require.NoError(t, err)
 
@@ -387,7 +387,7 @@ func TestHashExecutionReportV2_MatchesMoveParity(t *testing.T) {
 			),
 			GasLimit:          big.NewInt(200000),
 			TokenReceiver:     models.SuiAddressBytes(tokenReceiver),
-			ReceiverObjectIds: []models.SuiAddressBytes{models.SuiAddressBytes(objectID)},
+			ReceiverObjectIDs: []models.SuiAddressBytes{models.SuiAddressBytes(objectID)},
 			TokenAmounts:      []codec.Any2SuiTokenTransfer{},
 		},
 	}
@@ -418,7 +418,7 @@ func TestHashExecutionReportV2_AfterDeserializeRoundtrip(t *testing.T) {
 			),
 			GasLimit:          big.NewInt(200000),
 			TokenReceiver:     tokenReceiver[:],
-			ReceiverObjectIds: [][]byte{objectID[:]},
+			ReceiverObjectIDs: [][]byte{objectID[:]},
 			TokenAmounts:      []testutils.Any2SuiTokenTransfer{},
 		},
 	}
