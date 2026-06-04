@@ -351,7 +351,7 @@ func TestDecodeParameters_AsciiStringParam(t *testing.T) {
 
 	result, err := DecodeParameters(lggr, function, "parameters")
 	require.NoError(t, err)
-	assert.Equal(t, []string{moveAsciiStringType}, result)
+	assert.Equal(t, []string{moveASCIIStringType}, result)
 }
 
 func TestDecodeParameters_VectorAsciiString(t *testing.T) {
@@ -367,7 +367,7 @@ func TestDecodeParameters_VectorAsciiString(t *testing.T) {
 
 	result, err := DecodeParameters(lggr, function, "parameters")
 	require.NoError(t, err)
-	assert.Equal(t, []string{"vector<" + moveAsciiStringType + ">"}, result)
+	assert.Equal(t, []string{"vector<" + moveASCIIStringType + ">"}, result)
 }
 
 func TestDecodeParameters_VectorString(t *testing.T) {
