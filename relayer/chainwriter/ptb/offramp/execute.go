@@ -639,7 +639,12 @@ func appendCcipReceiveCommand(
 		return nil, fmt.Errorf("%w: function %q not found in module", ErrUnsupportedReceiverABI, functionName)
 	}
 
-	paramTypes, err := DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
+	funcMap, err := exposedFunctionSignature(functionName, functionSignature)
+	if err != nil {
+		return nil, err
+	}
+
+	paramTypes, err := DecodeParameters(lggr, funcMap, "parameters")
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode receiver parameters: %w", err)
 	}

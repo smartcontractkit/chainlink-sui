@@ -693,6 +693,39 @@ func TestAppendCcipReceiveCommand_MissingCcipReceive(t *testing.T) {
 	require.ErrorIs(t, err, ErrUnsupportedReceiverABI)
 }
 
+func TestAppendCcipReceiveCommand_InvalidFunctionSignatureShape(t *testing.T) {
+	ctx := context.Background()
+	lggr := logger.Test(t)
+	ptb := transaction.NewTransaction()
+	extractedArg := ptb.MoveCall("0x2", "extract", "extract", nil, nil)
+	callOpts := &bind.CallOpts{Signer: signer.NewDevInspectSigner("0x1")}
+
+	boundReceiverContract, err := bind.NewBoundContract(
+		"0x0000000000000000000000000000000000000000000000000000000000000001",
+		"0x0000000000000000000000000000000000000000000000000000000000000001",
+		"receiver",
+		nil,
+	)
+	require.NoError(t, err)
+
+	normalizedModule := models.GetNormalizedMoveModuleResponse{
+		ExposedFunctions: map[string]any{
+			"ccip_receive": "not-a-map",
+		},
+	}
+
+	assert.NotPanics(t, func() {
+		_, err = appendCcipReceiveCommand(
+			ctx, lggr, ptb, callOpts, boundReceiverContract, "ccip_receive",
+			&OffRampAddressMappings{CcipObjectRef: "0x3"},
+			[32]byte{}, &normalizedModule, &extractedArg, nil,
+		)
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrUnsupportedReceiverABI)
+	assert.Contains(t, err.Error(), "invalid signature shape")
+}
+
 func TestAppendCcipReceiveCommand_PoisonABI(t *testing.T) {
 	ctx := context.Background()
 	lggr := logger.Test(t)
