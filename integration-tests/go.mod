@@ -9,7 +9,7 @@ require (
 	github.com/smartcontractkit/chain-selectors v1.0.100
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260311190822-5cbfc939dd16
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260506120607-7f10be016c89
-	github.com/smartcontractkit/chainlink-deployments-framework v0.98.0
+	github.com/smartcontractkit/chainlink-deployments-framework v0.109.1-0.20260604174622-e26b8cddfa0a
 	github.com/smartcontractkit/chainlink-sui v0.0.0
 	github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-20250903045200-c3d973201e55
 	github.com/smartcontractkit/mcms v0.45.2-0.20260604181544-da0bd7da623d
@@ -22,8 +22,6 @@ replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlin
 replace github.com/smartcontractkit/chainlink-sui => ../
 
 replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
-
-replace github.com/smartcontractkit/chainlink-deployments-framework => ../../chainlink-deployments-framework
 
 require (
 	filippo.io/edwards25519 v1.1.1 // indirect
