@@ -42,7 +42,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		ccipops.AcceptOwnershipStateObjectOp.AsUntyped(),
 	)
 
-	mockClient := mocksui.NewBindingsClient(t)
+	mockClient := mocksui.NewSuiPTBClient(t)
 	mockClient.On("SimulatePTB", mock.Anything, mock.Anything).Return([]any{uint64(1)}, nil)
 	// Create mock dependencies
 	deps := sui_ops.OpTxDeps{
