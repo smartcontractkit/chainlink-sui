@@ -64,7 +64,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	}
 
 	t.Run("CCIP SUI messaging", func(t *testing.T) {
-		t.Skip("Skipping CCIP SUI messaging test in favor of E2E tests. Re-enable and run in CI for details on errors.")
+		// t.Skip("Skipping CCIP SUI messaging test in favor of E2E tests. Re-enable and run in CI for details on errors.")
 		envSettings := environment.SetupTestEnvironment(t, localChainSelector, destChainSelector, gasBudget)
 		linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
 		ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
@@ -166,7 +166,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		}, 5*time.Second, 1*time.Second, "Transaction final state not reached")
 
 		// QueryEvents is not yet implemented on the gRPC client; skip event assertion until migrated.
-		t.Skip("QueryEvents pending gRPC migration on PTB client")
+		// t.Skip("QueryEvents pending gRPC migration on PTB client")
 	})
 
 	t.Run("CCIP SUI messaging with Lock Release Token Pool", func(t *testing.T) {
