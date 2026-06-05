@@ -87,7 +87,11 @@ func waitForConnection(url string, timeout time.Duration, backoffDelay time.Dura
 
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("tcp", parsedURL.Host, time.Second)
+		d := net.Dialer{
+			Timeout: 5 * time.Second,
+		}
+
+		conn, err := d.Dial("tcp", parsedURL.Host)
 		if err == nil {
 			conn.Close()
 			return nil
