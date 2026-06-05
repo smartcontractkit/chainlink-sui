@@ -81,12 +81,13 @@ const SUI_MESSAGING_ACCOUNTS_OVERHEAD: u64 = 1;
 /// The size of each SUI account address in bytes.
 const SUI_ACCOUNT_BYTE_SIZE: u64 = 32;
 
-/// The expected static payload size of a token transfer on SUI.
+/// The expected static payload size of a token transfer when BCS encoded on SUI.
+/// TokenPool extra_data contents are dynamic and billed via dest_bytes_overhead.
 const SUI_TOKEN_TRANSFER_DATA_OVERHEAD: u64 =
-    (4 + 32) // source_pool
+    (1 + 32) // source_pool_address: ULEB128 length + 32 bytes
     + 32 // dest_token_address
     + 4 // dest_gas_amount
-    + 4 // extra_data length
+    + 1 // extra_data: ULEB128 length for empty vector
     + 32; // amount
 
 const MAX_U64: u256 = 18446744073709551615;
