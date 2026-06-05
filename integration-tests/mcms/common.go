@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/smartcontractkit/mcms"
@@ -53,6 +52,7 @@ import (
 	opregistry "github.com/smartcontractkit/chainlink-sui/deployment/ops/registry"
 
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
+	cslclient "github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 type RoleConfig struct {
@@ -90,7 +90,7 @@ func CreateConfig(role suisdk.TimelockRole, count int, quorum uint8) *RoleConfig
 type MCMSTestSuite struct {
 	suite.Suite
 
-	client sui.ISuiAPI
+	client cslclient.SuiPTBClient
 	signer bindutils.SuiSigner
 
 	chainSelector types.ChainSelector
@@ -762,7 +762,6 @@ func validateVersionIncrement(t *testing.T, oldVer, newVer any) error {
 
 	return nil
 }
-
 // parseVersion parses a version value from interface{} to float64
 func parseVersion(t *testing.T, version any, versionType string) (float64, bool) {
 	t.Helper()
@@ -784,3 +783,4 @@ func parseVersion(t *testing.T, version any, versionType string) (float64, bool)
 		return 0, false
 	}
 }
+
