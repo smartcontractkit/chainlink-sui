@@ -530,7 +530,7 @@ func AppendPTBCommandForReceiver(
 
 	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
 
-	extraArgsValues := extractReceiverObjectIds(lggr, extraArgs)
+	extraArgsValues := extractReceiverObjectIDs(lggr, extraArgs)
 	for _, value := range extraArgsValues {
 		objectId := hex.EncodeToString(value)
 		paramValues = append(paramValues, bind.Object{Id: "0x" + objectId})
@@ -556,9 +556,9 @@ func AppendPTBCommandForReceiver(
 	return receiverCommandResult, nil
 }
 
-// extractReceiverObjectIds extracts receiver object IDs from extraArgs,
+// extractReceiverObjectIDs extracts receiver object IDs from extraArgs,
 // handling missing keys, nil values, and both [][]byte and []any representations.
-func extractReceiverObjectIds(lggr logger.Logger, extraArgs map[string]any) [][]byte {
+func extractReceiverObjectIDs(lggr logger.Logger, extraArgs map[string]any) [][]byte {
 	raw, ok := extraArgs["receiverObjectIds"]
 	if !ok || raw == nil {
 		lggr.Warnw("receiverObjectIds not present in extraArgs, defaulting to empty")

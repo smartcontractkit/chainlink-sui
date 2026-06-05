@@ -1,4 +1,4 @@
-//nolint:staticcheck // ccipocr3.Message is a deprecated alias; matches needsAppDelivery until ccipocr3common migration.
+//nolint:staticcheck,revive // ccipocr3.Message is a deprecated alias; method names match SuiPTBClient interface.
 package offramp
 
 import (
@@ -107,12 +107,12 @@ func (s *stubPTBClient) GetLatestPackageId(_ context.Context, id, _ string) (str
 func (s *stubPTBClient) GetCoinMetadata(context.Context, string) (models.CoinMetadataResponse, error) {
 	return models.CoinMetadataResponse{}, nil
 }
-func (s *stubPTBClient) GetCache() *cache.Cache                                  { return nil }
-func (s *stubPTBClient) GetCachedValue(string) (any, bool)                       { return nil, false }
-func (s *stubPTBClient) SetCachedValue(string, any)                              {}
-func (s *stubPTBClient) GetCachedValues([]string) (map[string]any, bool)         { return nil, false }
-func (s *stubPTBClient) SetCachedValues(map[string]any)                          {}
-func (s *stubPTBClient) HashTxBytes(b []byte) []byte                             { return nil }
+func (s *stubPTBClient) GetCache() *cache.Cache                                   { return nil }
+func (s *stubPTBClient) GetCachedValue(string) (any, bool)                        { return nil, false }
+func (s *stubPTBClient) SetCachedValue(string, any)                               {}
+func (s *stubPTBClient) GetCachedValues([]string) (map[string]any, bool)          { return nil, false }
+func (s *stubPTBClient) SetCachedValues(map[string]any)                           {}
+func (s *stubPTBClient) HashTxBytes(b []byte) []byte                              { return nil }
 func (s *stubPTBClient) GetCCIPPackageID(context.Context, string) (string, error) { return "", nil }
 func (s *stubPTBClient) GetValuesFromPackageOwnedObjectField(context.Context, string, string, string, []string) (map[string]string, error) {
 	return nil, nil
@@ -125,9 +125,9 @@ func TestDecodeOffRampExecCallArgs(t *testing.T) {
 	t.Run("valid input", func(t *testing.T) {
 		args := map[string]any{
 			"ReportContext": [2][32]byte{},
-			"Report":       []byte{0x01, 0x02},
-			"Info":         ccipocr3.ExecuteReportInfo{},
-			"ExtraData":    ExtraDataDecoded{},
+			"Report":        []byte{0x01, 0x02},
+			"Info":          ccipocr3.ExecuteReportInfo{},
+			"ExtraData":     ExtraDataDecoded{},
 		}
 		result, err := DecodeOffRampExecCallArgs(args)
 		require.NoError(t, err)
@@ -281,7 +281,7 @@ func TestNeedsAppDelivery(t *testing.T) {
 	}
 }
 
-func TestExtractReceiverObjectIds(t *testing.T) {
+func TestExtractReceiverObjectIDs(t *testing.T) {
 	lggr := logger.Test(t)
 
 	tests := []struct {
@@ -338,7 +338,7 @@ func TestExtractReceiverObjectIds(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := extractReceiverObjectIds(lggr, tc.args)
+			result := extractReceiverObjectIDs(lggr, tc.args)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
