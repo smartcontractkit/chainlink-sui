@@ -12,7 +12,7 @@ require (
 	github.com/smartcontractkit/chainlink-deployments-framework v0.98.0
 	github.com/smartcontractkit/chainlink-sui v0.0.0
 	github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-20250903045200-c3d973201e55
-	github.com/smartcontractkit/mcms v0.45.0
+	github.com/smartcontractkit/mcms v0.45.2-0.20260604181544-da0bd7da623d
 	github.com/stretchr/testify v1.11.1
 )
 
@@ -24,8 +24,6 @@ replace github.com/smartcontractkit/chainlink-sui => ../
 replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
 
 replace github.com/smartcontractkit/chainlink-deployments-framework => ../../chainlink-deployments-framework
-
-replace github.com/smartcontractkit/mcms => ../../mcms
 
 require (
 	filippo.io/edwards25519 v1.1.1 // indirect
