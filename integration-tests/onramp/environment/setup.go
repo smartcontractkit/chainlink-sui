@@ -71,7 +71,7 @@ func BasicSetUp(t *testing.T, lggr logger.Logger, gasLimit int64) (string, []byt
 	t.Helper()
 
 	keystoreInstance, accountAddress, publicKeyBytes := testutils.SetupTestSigner(t, context.Background(), lggr, gasLimit)
-	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalURL, keystoreInstance, lggr, gasLimit)
+	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalGrpcURL, keystoreInstance, lggr, gasLimit)
 
 	signer := keystoreInstance.GetSuiSigner(context.Background(), fmt.Sprintf("%064x", publicKeyBytes))
 	privateKeySigner := rel.NewPrivateKeySigner(signer.PriKey)

@@ -762,7 +762,6 @@ func validateVersionIncrement(t *testing.T, oldVer, newVer any) error {
 
 	return nil
 }
-
 // parseVersion parses a version value from interface{} to float64
 func parseVersion(t *testing.T, version any, versionType string) (float64, bool) {
 	t.Helper()
@@ -784,3 +783,4 @@ func parseVersion(t *testing.T, version any, versionType string) (float64, bool)
 		return 0, false
 	}
 }
+
