@@ -71,6 +71,24 @@ const SVM_TOKEN_TRANSFER_DATA_OVERHEAD: u64 =
     + 32 // per-chain token billing config, not always included in the token lookup table
     + 32; // OffRamp pool signer PDA, not included in the token lookup table;
 
+/// The maximum number of receiver object IDs that can be passed in SuiExtraArgsV1.
+const SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS: u64 = 64;
+
+/// Number of overhead accounts needed for message execution on SUI.
+/// This is the message.receiver.
+const SUI_MESSAGING_ACCOUNTS_OVERHEAD: u64 = 1;
+
+/// The size of each SUI account address in bytes.
+const SUI_ACCOUNT_BYTE_SIZE: u64 = 32;
+
+/// The expected static payload size of a token transfer on SUI.
+const SUI_TOKEN_TRANSFER_DATA_OVERHEAD: u64 =
+    (4 + 32) // source_pool
+    + 32 // dest_token_address
+    + 4 // dest_gas_amount
+    + 4 // extra_data length
+    + 32; // amount
+
 const MAX_U64: u256 = 18446744073709551615;
 const MAX_U160: u256 = 1461501637330902918203684832716283019655932542975;
 const VAL_1E5: u256 = 100_000;
@@ -241,6 +259,8 @@ const EInvalidSvmAccountLength: u64 = 35;
 const ETokenAmountMismatch: u64 = 36;
 const EInvalidOwnerCap: u64 = 37;
 const EInvalidFunction: u64 = 38;
+const ETooManySuiExtraArgsReceiverObjectIds: u64 = 39;
+const EInvalidSuiReceiverObjectIdLength: u64 = 40;
 
 public fun type_and_version(): String {
     string::utf8(b"FeeQuoter 1.6.2")
@@ -709,7 +729,18 @@ public fun get_validated_fee(
     ) {
         resolve_generic_gas_limit(dest_chain_config, extra_args)
     } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
-        resolve_sui_gas_limit(dest_chain_config, extra_args)
+        let (gas, overhead) = resolve_sui_gas_limit(
+            dest_chain_config,
+            state,
+            dest_chain_selector,
+            extra_args,
+            receiver,
+            data_len,
+            tokens_len,
+            local_token_addresses,
+        );
+        svm_payload_overhead = overhead;
+        gas
     } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
         let (gas, overhead) = resolve_svm_gas_limit(
             dest_chain_config,
@@ -867,19 +898,90 @@ fun resolve_generic_gas_limit(dest_chain_config: &DestChainConfig, extra_args: v
     gas_limit
 }
 
-fun resolve_sui_gas_limit(dest_chain_config: &DestChainConfig, extra_args: vector<u8>): u256 {
+/// Returns `(gas_limit, sui_payload_overhead_bytes)`.
+/// `sui_payload_overhead_bytes` is the SUI-specific payload size counted in maxDataBytes validation
+/// but not already included in `data_len` or per-token `dest_bytes_overhead` billing.
+fun resolve_sui_gas_limit(
+    dest_chain_config: &DestChainConfig,
+    state: &FeeQuoterState,
+    dest_chain_selector: u64,
+    extra_args: vector<u8>,
+    receiver: vector<u8>,
+    data_len: u64,
+    tokens_len: u64,
+    local_token_addresses: vector<address>,
+): (u256, u64) {
     let (
         gas_limit,
         allow_out_of_order_execution,
-        _token_receiver,
-        _receiver_object_ids,
+        token_receiver,
+        receiver_object_ids,
     ) = decode_sui_extra_args(extra_args);
     assert!(gas_limit <= (dest_chain_config.max_per_msg_gas_limit as u64), EMessageGasLimitTooHigh);
     assert!(
         !dest_chain_config.enforce_out_of_order || allow_out_of_order_execution,
         EExtraArgOutOfOrderExecutionMustBeTrue,
     );
-    gas_limit as u256
+
+    let receiver_object_ids_length = receiver_object_ids.length();
+    assert!(
+        receiver_object_ids_length <= SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS,
+        ETooManySuiExtraArgsReceiverObjectIds,
+    );
+
+    let mut i = 0;
+    while (i < receiver_object_ids_length) {
+        assert!(receiver_object_ids[i].length() == 32, EInvalidSuiReceiverObjectIdLength);
+        i = i + 1;
+    };
+
+    let mut sui_payload_overhead = tokens_len * SUI_TOKEN_TRANSFER_DATA_OVERHEAD;
+
+    let receiver_uint = eth_abi::decode_u256_value(receiver);
+    if (receiver_uint == 0) {
+        assert!(receiver_object_ids_length == 0, ETooManySuiExtraArgsReceiverObjectIds);
+    } else {
+        sui_payload_overhead =
+            sui_payload_overhead + (
+            receiver_object_ids_length + SUI_MESSAGING_ACCOUNTS_OVERHEAD
+        ) * SUI_ACCOUNT_BYTE_SIZE;
+    };
+
+    if (tokens_len > 0) {
+        assert!(
+            token_receiver.length() == 32
+                    && eth_abi::decode_u256_value(token_receiver) != 0,
+            EInvalidTokenReceiver,
+        );
+    };
+
+    let mut sui_expanded_data_length = data_len + sui_payload_overhead;
+
+    let mut i = 0;
+    while (i < tokens_len) {
+        let local_token_address = local_token_addresses[i];
+        let destBytesOverhead = get_token_transfer_fee_config_internal(
+            state,
+            dest_chain_selector,
+            local_token_address,
+        ).dest_bytes_overhead;
+
+        if (destBytesOverhead > 0) {
+            sui_expanded_data_length = sui_expanded_data_length + (destBytesOverhead as u64);
+        } else {
+            sui_expanded_data_length =
+                sui_expanded_data_length + (CCIP_LOCK_OR_BURN_V1_RET_BYTES as u64);
+        };
+
+        i = i + 1;
+    };
+
+    assert!(
+        sui_expanded_data_length <= (dest_chain_config.max_data_bytes as u64),
+        EMessageTooLarge,
+    );
+
+    (gas_limit as u256, sui_payload_overhead)
 }
 
 fun check_svm_writable_bitmap(account_is_writable_bitmap: u64, accounts_length: u64) {
