@@ -137,7 +137,6 @@ func FindCoinObjectIdFromTx(tx models.SuiTransactionBlockResponse, coinType stri
 	expectedType := fmt.Sprintf("0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<%s>", coinType)
 
 	for _, change := range tx.ObjectChanges {
-		fmt.Println("change", change)
 		if change.Type == "created" && change.ObjectType == expectedType {
 			return change.ObjectId, nil
 		}
