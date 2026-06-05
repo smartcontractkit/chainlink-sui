@@ -931,3 +931,32 @@ func AppendPTBCommandForReceiverV2(
 		receiverObjectIDStrings,
 	)
 }
+
+// extractReceiverObjectIDs extracts receiver object IDs from extraArgs,
+// handling missing keys, nil values, and both [][]byte and []any representations.
+func extractReceiverObjectIDs(lggr logger.Logger, extraArgs map[string]any) [][]byte {
+	raw, ok := extraArgs["receiverObjectIds"]
+	if !ok || raw == nil {
+		lggr.Warnw("receiverObjectIds not present in extraArgs, defaulting to empty")
+		return nil
+	}
+
+	switch vals := raw.(type) {
+	case [][]byte:
+		return vals
+	case []any:
+		var out [][]byte
+		for _, v := range vals {
+			b, ok := v.([]byte)
+			if !ok {
+				lggr.Errorw("unexpected element type in receiverObjectIds", "type", fmt.Sprintf("%T", v))
+				continue
+			}
+			out = append(out, b)
+		}
+		return out
+	default:
+		lggr.Errorw("unexpected receiverObjectIds type", "type", fmt.Sprintf("%T", raw))
+		return nil
+	}
+}

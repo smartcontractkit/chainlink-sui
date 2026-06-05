@@ -569,11 +569,11 @@ func deserializeRampMessageHeader(deserializer *aptosBCS.Deserializer, sourceCha
 }
 
 func finalizeExecutionReportDecode(deserializer *aptosBCS.Deserializer, context string) error {
-	if deserializer.Remaining() > 0 {
-		return fmt.Errorf("unexpected remaining bytes after decoding %s: %d", context, deserializer.Remaining())
-	}
 	if err := deserializer.Error(); err != nil {
 		return fmt.Errorf("failed to deserialize %s: %w", context, err)
+	}
+	if deserializer.Remaining() > 0 {
+		return fmt.Errorf("unexpected remaining bytes after decoding %s: %d", context, deserializer.Remaining())
 	}
 	return nil
 }

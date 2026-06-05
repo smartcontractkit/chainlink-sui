@@ -291,6 +291,9 @@ func serializeAny2SuiRampMessage(s *bcs.Serializer, message Any2SuiRampMessage) 
 	}
 
 	// Serialize TokenReceiver as address (32 bytes)
+	if len(message.TokenReceiver) != DefaultByteSize {
+		return fmt.Errorf("token_receiver must be exactly %d bytes, got %d", DefaultByteSize, len(message.TokenReceiver))
+	}
 	s.FixedBytes(message.TokenReceiver)
 	if s.Error() != nil {
 		return fmt.Errorf("failed to serialize TokenReceiver: %w", s.Error())
@@ -492,6 +495,9 @@ func serializeAny2SuiRampMessageV2(s *bcs.Serializer, message Any2SuiRampMessage
 		return fmt.Errorf("failed to serialize GasLimit: %w", s.Error())
 	}
 
+	if len(message.TokenReceiver) != DefaultByteSize {
+		return fmt.Errorf("token_receiver must be exactly %d bytes, got %d", DefaultByteSize, len(message.TokenReceiver))
+	}
 	s.FixedBytes(message.TokenReceiver)
 	if s.Error() != nil {
 		return fmt.Errorf("failed to serialize TokenReceiver: %w", s.Error())

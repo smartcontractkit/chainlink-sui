@@ -8,17 +8,39 @@ import (
 	"testing"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/bindings/packages/ccip"
+	"github.com/smartcontractkit/chainlink-sui/bindings/packages/mcms"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
+
+const testMcmsOwner = "0x2"
+
+func compileAddrsDummyReceiver(mcmsPackageID, ccipPackageID, signer string) map[string]string {
+	return map[string]string{
+		"ccip":                ccipPackageID,
+		"ccip_dummy_receiver": "0x0",
+		"mcms":                mcmsPackageID,
+		"mcms_owner":          testMcmsOwner,
+		"signer":              signer,
+	}
+}
+
+func compileAddrsBrokenReceiver(mcmsPackageID, ccipPackageID, signer string) map[string]string {
+	return map[string]string{
+		"ccip":       ccipPackageID,
+		"mcms":       mcmsPackageID,
+		"mcms_owner": testMcmsOwner,
+		"signer":     signer,
+	}
+}
 
 // TestBrokenReceiverABI_NoPanic verifies that the relayer's DecodeParameters handles
 // a registered receiver with generic type parameters (TypeParameter in normalized ABI)
@@ -46,8 +68,7 @@ func TestBrokenReceiverABI_NoPanic(t *testing.T) {
 	}, 10*time.Second, time.Second)
 
 	// Setup client
-	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
-	suiClient := ptbClient.GetClient()
+	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalGrpcURL, keystoreInstance, lggr, gasBudget)
 
 	signer := keystoreInstance.GetSuiSigner(context.Background(), fmt.Sprintf("%064x", publicKeyBytes))
 	privateKeySigner := rel.NewPrivateKeySigner(signer.PriKey)
@@ -59,34 +80,24 @@ func TestBrokenReceiverABI_NoPanic(t *testing.T) {
 		GasBudget:        &gasBudgetU64,
 	}
 
-	// Publish MCMS (dependency of ccip)
-	mcmsArtifact, err := bind.CompilePackage(contracts.MCMS, nil, false, "")
-	require.NoError(t, err, "failed to compile MCMS")
-
-	mcmsPackageId, _, err := bind.PublishPackage(context.Background(), opts, suiClient, bind.PublishRequest{
-		CompiledModules: mcmsArtifact.Modules,
-		Dependencies:    mcmsArtifact.Dependencies,
-	})
+	mcmsPackage, _, err := mcms.PublishMCMS(context.Background(), opts, ptbClient, testutils.LocalURL)
 	require.NoError(t, err, "failed to publish MCMS")
+	mcmsPackageId := mcmsPackage.Address()
 
-	// Publish CCIP (dependency of broken receiver)
-	ccipArtifact, err := bind.CompilePackage(contracts.CCIP, map[string]string{"mcms": mcmsPackageId}, false, "")
-	require.NoError(t, err, "failed to compile CCIP")
-
-	ccipPackageId, _, err := bind.PublishPackage(context.Background(), opts, suiClient, bind.PublishRequest{
-		CompiledModules: ccipArtifact.Modules,
-		Dependencies:    ccipArtifact.Dependencies,
-	})
+	ccipPackage, _, err := ccip.PublishCCIP(context.Background(), opts, ptbClient, mcmsPackageId, testMcmsOwner, testutils.LocalURL)
 	require.NoError(t, err, "failed to publish CCIP")
+	ccipPackageId := ccipPackage.Address()
 
 	// Publish the broken receiver
-	brokenReceiverArtifact, err := bind.CompilePackage(contracts.CCIPBrokenReceiver, map[string]string{
-		"mcms": mcmsPackageId,
-		"ccip": ccipPackageId,
-	}, false, "")
+	brokenReceiverArtifact, err := bind.CompilePackage(
+		contracts.CCIPBrokenReceiver,
+		compileAddrsBrokenReceiver(mcmsPackageId, ccipPackageId, accountAddress),
+		false,
+		testutils.LocalURL,
+	)
 	require.NoError(t, err, "failed to compile broken receiver")
 
-	brokenReceiverPackageId, _, err := bind.PublishPackage(context.Background(), opts, suiClient, bind.PublishRequest{
+	brokenReceiverPackageId, _, err := bind.PublishPackage(context.Background(), opts, ptbClient, bind.PublishRequest{
 		CompiledModules: brokenReceiverArtifact.Modules,
 		Dependencies:    brokenReceiverArtifact.Dependencies,
 	})
@@ -94,10 +105,7 @@ func TestBrokenReceiverABI_NoPanic(t *testing.T) {
 	lggr.Infow("Published broken receiver", "packageId", brokenReceiverPackageId)
 
 	// Fetch the normalized module — this is the data the relayer would get from chain
-	normalizedModule, err := suiClient.SuiGetNormalizedMoveModule(context.Background(), models.GetNormalizedMoveModuleRequest{
-		Package:    brokenReceiverPackageId,
-		ModuleName: "broken_receiver",
-	})
+	normalizedModule, err := ptbClient.GetNormalizedModule(context.Background(), brokenReceiverPackageId, "broken_receiver")
 	require.NoError(t, err, "failed to get normalized module")
 
 	functionSig, ok := normalizedModule.ExposedFunctions["ccip_receive"]
@@ -148,8 +156,7 @@ func TestValidReceiverABI_DecodesSuccessfully(t *testing.T) {
 		return testutils.FundWithFaucet(lggr, testutils.SuiLocalnet, accountAddress) == nil
 	}, 10*time.Second, time.Second)
 
-	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
-	suiClient := ptbClient.GetClient()
+	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalGrpcURL, keystoreInstance, lggr, gasBudget)
 
 	signer := keystoreInstance.GetSuiSigner(context.Background(), fmt.Sprintf("%064x", publicKeyBytes))
 	privateKeySigner := rel.NewPrivateKeySigner(signer.PriKey)
@@ -161,34 +168,24 @@ func TestValidReceiverABI_DecodesSuccessfully(t *testing.T) {
 		GasBudget:        &gasBudgetU64,
 	}
 
-	// Publish MCMS
-	mcmsArtifact, err := bind.CompilePackage(contracts.MCMS, nil, false, "")
-	require.NoError(t, err)
+	mcmsPackage, _, err := mcms.PublishMCMS(context.Background(), opts, ptbClient, testutils.LocalURL)
+	require.NoError(t, err, "failed to publish MCMS")
+	mcmsPackageId := mcmsPackage.Address()
 
-	mcmsPackageId, _, err := bind.PublishPackage(context.Background(), opts, suiClient, bind.PublishRequest{
-		CompiledModules: mcmsArtifact.Modules,
-		Dependencies:    mcmsArtifact.Dependencies,
-	})
-	require.NoError(t, err)
-
-	// Publish CCIP
-	ccipArtifact, err := bind.CompilePackage(contracts.CCIP, map[string]string{"mcms": mcmsPackageId}, false, "")
-	require.NoError(t, err)
-
-	ccipPackageId, _, err := bind.PublishPackage(context.Background(), opts, suiClient, bind.PublishRequest{
-		CompiledModules: ccipArtifact.Modules,
-		Dependencies:    ccipArtifact.Dependencies,
-	})
-	require.NoError(t, err)
+	ccipPackage, _, err := ccip.PublishCCIP(context.Background(), opts, ptbClient, mcmsPackageId, testMcmsOwner, testutils.LocalURL)
+	require.NoError(t, err, "failed to publish CCIP")
+	ccipPackageId := ccipPackage.Address()
 
 	// Publish the dummy receiver (valid, concrete ccip_receive signature)
-	dummyReceiverArtifact, err := bind.CompilePackage(contracts.CCIPDummyReceiver, map[string]string{
-		"mcms": mcmsPackageId,
-		"ccip": ccipPackageId,
-	}, false, "")
+	dummyReceiverArtifact, err := bind.CompilePackage(
+		contracts.CCIPDummyReceiver,
+		compileAddrsDummyReceiver(mcmsPackageId, ccipPackageId, accountAddress),
+		false,
+		testutils.LocalURL,
+	)
 	require.NoError(t, err, "failed to compile dummy receiver")
 
-	dummyReceiverPackageId, _, err := bind.PublishPackage(context.Background(), opts, suiClient, bind.PublishRequest{
+	dummyReceiverPackageId, _, err := bind.PublishPackage(context.Background(), opts, ptbClient, bind.PublishRequest{
 		CompiledModules: dummyReceiverArtifact.Modules,
 		Dependencies:    dummyReceiverArtifact.Dependencies,
 	})
@@ -196,10 +193,7 @@ func TestValidReceiverABI_DecodesSuccessfully(t *testing.T) {
 	lggr.Infow("Published dummy receiver", "packageId", dummyReceiverPackageId)
 
 	// Fetch the normalized module
-	normalizedModule, err := suiClient.SuiGetNormalizedMoveModule(context.Background(), models.GetNormalizedMoveModuleRequest{
-		Package:    dummyReceiverPackageId,
-		ModuleName: "dummy_receiver",
-	})
+	normalizedModule, err := ptbClient.GetNormalizedModule(context.Background(), dummyReceiverPackageId, "dummy_receiver")
 	require.NoError(t, err)
 
 	functionSig, ok := normalizedModule.ExposedFunctions["ccip_receive"]

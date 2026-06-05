@@ -95,6 +95,28 @@ func TestCustomReportDeserializer(t *testing.T) {
 	})
 }
 
+func TestSerializeExecutionReport_RejectsInvalidTokenReceiver(t *testing.T) {
+	messageID := make([]byte, 32)
+	receiver := make([]byte, 32)
+
+	report := testutils.ExecutionReport{
+		SourceChainSelector: 1000,
+		Message: testutils.NewAny2SuiRampMessage(
+			testutils.NewRampMessageHeader(messageID, 1000, 2000, 1, 0),
+			[]byte("sender"),
+			[]byte("payload"),
+			receiver,
+			big.NewInt(0),
+			[]byte{0x01},
+			nil,
+		),
+	}
+
+	_, err := testutils.SerializeExecutionReport(report)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "token_receiver must be exactly 32 bytes")
+}
+
 func TestCustomReportDeserializer_LegacyHexWithoutTokenReceiverRejected(t *testing.T) {
 	legacyReportHex := "d91ad9c94fba41de8869e580deb6dbc08e84fb41431d41d04f8849ed00be4a070dca7c34e2f78ecdd91ad9c94fba41de15a9c133ee53500a0300000000000000000000000000000014e30b40bfb1baeed9e4c62f145be85eb3d19ae932184920616d206120746573742063636970206d6573736167654010af5717948371a0b649a59530f8e80e0e1247e015f05f1f3e09c715288dd040420f00000000000000000000000000000000000000000000000000000000000114bd10ffa3815c010d5cf7d38815a0eaabc959eb84a1b6cf2e878987deb2624f9a122297abf6332d45b48c4df6fc3ea705f810980fa08601002000000000000000000000000000000000000000000000000000000000000000120000c16ff2862300000000000000000000000000000000000000000000000000010000"
 	data, err := hex.DecodeString(legacyReportHex)
