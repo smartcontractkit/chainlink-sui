@@ -13,35 +13,22 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/bindings/packages/ccip"
+	"github.com/smartcontractkit/chainlink-sui/bindings/packages/mcms"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
-func compileAddrsMCMS(signer string) map[string]string {
-	return map[string]string{
-		"mcms":       "0x0",
-		"mcms_owner": "0x2",
-		"signer":     signer,
-	}
-}
-
-func compileAddrsCCIP(mcmsPackageID, signer string) map[string]string {
-	return map[string]string{
-		"mcms":       mcmsPackageID,
-		"mcms_owner": "0x2",
-		"ccip":       "0x0",
-		"signer":     signer,
-	}
-}
+const testMcmsOwner = "0x2"
 
 func compileAddrsDummyReceiver(mcmsPackageID, ccipPackageID, signer string) map[string]string {
 	return map[string]string{
 		"ccip":                ccipPackageID,
 		"ccip_dummy_receiver": "0x0",
 		"mcms":                mcmsPackageID,
-		"mcms_owner":          "0x2",
+		"mcms_owner":          testMcmsOwner,
 		"signer":              signer,
 	}
 }
@@ -50,7 +37,7 @@ func compileAddrsBrokenReceiver(mcmsPackageID, ccipPackageID, signer string) map
 	return map[string]string{
 		"ccip":       ccipPackageID,
 		"mcms":       mcmsPackageID,
-		"mcms_owner": "0x2",
+		"mcms_owner": testMcmsOwner,
 		"signer":     signer,
 	}
 }
@@ -93,25 +80,13 @@ func TestBrokenReceiverABI_NoPanic(t *testing.T) {
 		GasBudget:        &gasBudgetU64,
 	}
 
-	// Publish MCMS (dependency of ccip)
-	mcmsArtifact, err := bind.CompilePackage(contracts.MCMS, compileAddrsMCMS(accountAddress), false, testutils.LocalURL)
-	require.NoError(t, err, "failed to compile MCMS")
-
-	mcmsPackageId, _, err := bind.PublishPackage(context.Background(), opts, ptbClient, bind.PublishRequest{
-		CompiledModules: mcmsArtifact.Modules,
-		Dependencies:    mcmsArtifact.Dependencies,
-	})
+	mcmsPackage, _, err := mcms.PublishMCMS(context.Background(), opts, ptbClient, testutils.LocalURL)
 	require.NoError(t, err, "failed to publish MCMS")
+	mcmsPackageId := mcmsPackage.Address()
 
-	// Publish CCIP (dependency of broken receiver)
-	ccipArtifact, err := bind.CompilePackage(contracts.CCIP, compileAddrsCCIP(mcmsPackageId, accountAddress), false, testutils.LocalURL)
-	require.NoError(t, err, "failed to compile CCIP")
-
-	ccipPackageId, _, err := bind.PublishPackage(context.Background(), opts, ptbClient, bind.PublishRequest{
-		CompiledModules: ccipArtifact.Modules,
-		Dependencies:    ccipArtifact.Dependencies,
-	})
+	ccipPackage, _, err := ccip.PublishCCIP(context.Background(), opts, ptbClient, mcmsPackageId, testMcmsOwner, testutils.LocalURL)
 	require.NoError(t, err, "failed to publish CCIP")
+	ccipPackageId := ccipPackage.Address()
 
 	// Publish the broken receiver
 	brokenReceiverArtifact, err := bind.CompilePackage(
@@ -193,25 +168,13 @@ func TestValidReceiverABI_DecodesSuccessfully(t *testing.T) {
 		GasBudget:        &gasBudgetU64,
 	}
 
-	// Publish MCMS
-	mcmsArtifact, err := bind.CompilePackage(contracts.MCMS, compileAddrsMCMS(accountAddress), false, testutils.LocalURL)
-	require.NoError(t, err)
+	mcmsPackage, _, err := mcms.PublishMCMS(context.Background(), opts, ptbClient, testutils.LocalURL)
+	require.NoError(t, err, "failed to publish MCMS")
+	mcmsPackageId := mcmsPackage.Address()
 
-	mcmsPackageId, _, err := bind.PublishPackage(context.Background(), opts, ptbClient, bind.PublishRequest{
-		CompiledModules: mcmsArtifact.Modules,
-		Dependencies:    mcmsArtifact.Dependencies,
-	})
-	require.NoError(t, err)
-
-	// Publish CCIP
-	ccipArtifact, err := bind.CompilePackage(contracts.CCIP, compileAddrsCCIP(mcmsPackageId, accountAddress), false, testutils.LocalURL)
-	require.NoError(t, err)
-
-	ccipPackageId, _, err := bind.PublishPackage(context.Background(), opts, ptbClient, bind.PublishRequest{
-		CompiledModules: ccipArtifact.Modules,
-		Dependencies:    ccipArtifact.Dependencies,
-	})
-	require.NoError(t, err)
+	ccipPackage, _, err := ccip.PublishCCIP(context.Background(), opts, ptbClient, mcmsPackageId, testMcmsOwner, testutils.LocalURL)
+	require.NoError(t, err, "failed to publish CCIP")
+	ccipPackageId := ccipPackage.Address()
 
 	// Publish the dummy receiver (valid, concrete ccip_receive signature)
 	dummyReceiverArtifact, err := bind.CompilePackage(
