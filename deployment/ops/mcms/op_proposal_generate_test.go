@@ -1,9 +1,12 @@
 package mcmsops
 
 import (
+	"context"
+	"math/big"
 	"testing"
 	"time"
 
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	cselectors "github.com/smartcontractkit/chain-selectors"
 	mocksui "github.com/smartcontractkit/mcms/sdk/sui/mocks/sui"
 	"github.com/smartcontractkit/mcms/types"
@@ -19,6 +22,47 @@ import (
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
+
+func mockSharedSuiObject(objectID string) *suirpcv2.Object {
+	digest := "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT"
+	version := uint64(1)
+	sharedVersion := uint64(1)
+	ownerKind := suirpcv2.Owner_SHARED
+
+	return &suirpcv2.Object{
+		ObjectId: &objectID,
+		Version:  &version,
+		Digest:   &digest,
+		Owner: &suirpcv2.Owner{
+			Kind:    &ownerKind,
+			Version: &sharedVersion,
+		},
+	}
+}
+
+func setupProposalGenerateMockClient(t *testing.T) *mocksui.SuiPTBClient {
+	t.Helper()
+
+	mockClient := mocksui.NewSuiPTBClient(t)
+	mockClient.On("ReadObjectId", mock.Anything, mock.Anything).
+		Return(
+			func(_ context.Context, objectID string) *suirpcv2.Object {
+				return mockSharedSuiObject(objectID)
+			},
+			func(_ context.Context, _ string) error {
+				return nil
+			},
+		).
+		Maybe()
+	mockClient.On("GetReferenceGasPrice", mock.Anything).
+		Return(big.NewInt(1000), nil).
+		Maybe()
+	mockClient.On("SimulatePTB", mock.Anything, mock.Anything).
+		Return([]any{uint64(1)}, nil).
+		Maybe()
+
+	return mockClient
+}
 
 func newTestBundle(t *testing.T, registry *cld_ops.OperationRegistry) cld_ops.Bundle {
 	t.Helper()
@@ -42,8 +86,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		ccipops.AcceptOwnershipStateObjectOp.AsUntyped(),
 	)
 
-	mockClient := mocksui.NewSuiPTBClient(t)
-	mockClient.On("SimulatePTB", mock.Anything, mock.Anything).Return([]any{uint64(1)}, nil)
+	mockClient := setupProposalGenerateMockClient(t)
 	// Create mock dependencies
 	deps := sui_ops.OpTxDeps{
 		Client: mockClient,
