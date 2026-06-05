@@ -937,6 +937,7 @@ fun resolve_sui_gas_limit(
 
     let mut sui_payload_overhead = tokens_len * SUI_TOKEN_TRANSFER_DATA_OVERHEAD;
 
+    assert!(receiver.length() == 32, EInvalid32BytesAddress);
     let receiver_uint = eth_abi::decode_u256_value(receiver);
     if (receiver_uint == 0) {
         assert!(receiver_object_ids_length == 0, ETooManySuiExtraArgsReceiverObjectIds);
