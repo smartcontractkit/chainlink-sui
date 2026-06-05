@@ -49,3 +49,27 @@ func (g *GaugeAccBalance) GetAttributes(account string, chainInfo config.ChainIn
 		attribute.String("network_name_full", utils.ValOrUnknown(chainInfo.NetworkNameFull)),
 	)
 }
+
+// Define a metrics for RPC response speeds
+type GaugeRPCTxDuration struct {
+	// rpc_tx_duration
+	gauge metric.Int64Gauge
+}
+
+func NewGaugeRPCTxDuration(unitStr string) (*GaugeRPCTxDuration, error) {
+	name := "rpc_tx_duration"
+	description := "Duration of RPC transaction in milliseconds"
+	gauge, err := beholder.GetMeter().Int64Gauge(name, metric.WithUnit(unitStr), metric.WithDescription(description))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new gauge %s: %+w", name, err)
+	}
+
+	return &GaugeRPCTxDuration{gauge}, nil
+}
+
+func (g *GaugeRPCTxDuration) Record(ctx context.Context, duration int64, method string, responseCode string) {
+	g.gauge.Record(ctx, duration, metric.WithAttributes(
+		attribute.String("method", method),
+		attribute.String("responseCode", responseCode),
+	))
+}

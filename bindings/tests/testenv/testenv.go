@@ -55,7 +55,7 @@ var (
 	refMu    sync.Mutex
 )
 
-func SetupEnvironment(t *testing.T) (utils.SuiSigner, client.BindingsClient) {
+func SetupEnvironment(t *testing.T) (utils.SuiSigner, client.SuiPTBClient) {
 	t.Helper()
 
 	log := logger.Test(t)
@@ -147,7 +147,7 @@ func Cleanup() {
 
 // CreateTestAccount creates a new test account with funding from the faucet.
 // This requires the test environment to be set up first (via Setup() or SetupEnvironment()).
-func CreateTestAccount(t *testing.T) (utils.SuiSigner, client.BindingsClient) {
+func CreateTestAccount(t *testing.T) (utils.SuiSigner, client.SuiPTBClient) {
 	t.Helper()
 
 	refMu.Lock()
@@ -256,7 +256,7 @@ func (te *TestEnvironment) cleanup() {
 	te.cleanupLocked()
 }
 
-func createPTBClient(log logger.Logger) (client.BindingsClient, error) {
+func createPTBClient(log logger.Logger) (client.SuiPTBClient, error) {
 	ptbClient, err := client.NewPTBClient(log, client.PTBClientConfig{
 		GrpcTarget:            fmt.Sprintf("%s:%d", loopbackHost, instance.rpcPort),
 		GrpcToken:             "test",

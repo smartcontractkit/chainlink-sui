@@ -89,17 +89,11 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 // on-chain registry validation against the original package's proof type.
 func (s *CCIPMCMSTestSuite) RunLatestUpgradedCCIPProposal() {
 	// 1. Record the current package_ids lists before the proposal.
-	ccipStateObjectBefore, err := s.client.SuiGetObject(s.T().Context(), models.SuiGetObjectRequest{
-		ObjectId: s.ccipObjects.CCIPObjectRefObjectId,
-		Options:  models.SuiObjectDataOptions{ShowContent: true},
-	})
+	ccipStateObjectBefore, err := bind.ReadObject(s.T().Context(), s.ccipObjects.CCIPObjectRefObjectId, s.client)
 	s.Require().NoError(err)
 	ccipPkgIdsBefore := ccipStateObjectBefore.Data.Content.Fields["package_ids"].([]any)
 
-	offrampStateObjectBefore, err := s.client.SuiGetObject(s.T().Context(), models.SuiGetObjectRequest{
-		ObjectId: s.ccipOfframpObjects.StateObjectId,
-		Options:  models.SuiObjectDataOptions{ShowContent: true},
-	})
+	offrampStateObjectBefore, err := bind.ReadObject(s.T().Context(), s.ccipOfframpObjects.StateObjectId, s.client)
 	s.Require().NoError(err)
 	offrampPkgIdsBefore := offrampStateObjectBefore.Data.Content.Fields["package_ids"].([]any)
 
@@ -157,10 +151,7 @@ func (s *CCIPMCMSTestSuite) RunLatestUpgradedCCIPProposal() {
 	s.ExecuteProposalE2e(&report.Output, s.bypasserConfig, 0)
 
 	// 4a. Verify CCIP package_ids did NOT grow: the upgraded add_package_id is a no-op.
-	ccipStateObjectAfter, err := s.client.SuiGetObject(s.T().Context(), models.SuiGetObjectRequest{
-		ObjectId: s.ccipObjects.CCIPObjectRefObjectId,
-		Options:  models.SuiObjectDataOptions{ShowContent: true},
-	})
+	ccipStateObjectAfter, err := bind.ReadObject(s.T().Context(), s.ccipObjects.CCIPObjectRefObjectId, s.client)
 	s.Require().NoError(err)
 	ccipPkgIdsAfter := ccipStateObjectAfter.Data.Content.Fields["package_ids"].([]any)
 
@@ -170,10 +161,7 @@ func (s *CCIPMCMSTestSuite) RunLatestUpgradedCCIPProposal() {
 		"latestCcipPackageId should not be in CCIP package_ids since upgraded add_package_id is a no-op")
 
 	// 4b. Verify Offramp package_ids did NOT grow: the upgraded add_package_id is also a no-op.
-	offrampStateObjectAfter, err := s.client.SuiGetObject(s.T().Context(), models.SuiGetObjectRequest{
-		ObjectId: s.ccipOfframpObjects.StateObjectId,
-		Options:  models.SuiObjectDataOptions{ShowContent: true},
-	})
+	offrampStateObjectAfter, err := bind.ReadObject(s.T().Context(), s.ccipOfframpObjects.StateObjectId, s.client)
 	s.Require().NoError(err)
 	offrampPkgIdsAfter := offrampStateObjectAfter.Data.Content.Fields["package_ids"].([]any)
 
@@ -341,10 +329,7 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 	require.Equal(s.T(), expectedPremiumMultiplier, actualPremiumMultiplier)
 
 	// Add check to verify latest ccip package was added to state object fetching the object directly
-	ccipStateObject, err := s.client.SuiGetObject(s.T().Context(), models.SuiGetObjectRequest{
-		ObjectId: s.ccipObjects.CCIPObjectRefObjectId,
-		Options:  models.SuiObjectDataOptions{ShowContent: true},
-	})
+	ccipStateObject, err := bind.ReadObject(s.T().Context(), s.ccipObjects.CCIPObjectRefObjectId, s.client)
 	require.NoError(s.T(), err)
 	require.Contains(s.T(), ccipStateObject.Data.Content.Fields["package_ids"].([]any), s.latestCcipPackageId)
 }
