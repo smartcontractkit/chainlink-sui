@@ -6,8 +6,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	cselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -16,18 +14,20 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	"github.com/smartcontractkit/chainlink-sui/deployment/changesets"
 	opregistry "github.com/smartcontractkit/chainlink-sui/deployment/ops/registry"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 type DeployTestSuite struct {
 	suite.Suite
 	lggr   logger.Logger
 	signer bindutils.SuiSigner
-	client sui.ISuiAPI
+	client client.SuiPTBClient
 	env    cldf.Environment
 
 	// Cached deployment addresses
@@ -89,15 +89,9 @@ func (s *DeployTestSuite) findUnusedManagedTokenMinterCapID() (string, error) {
 		if typeAndVersion.Type == deployment.SuiManagedTokenMinterCapID {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				// Check if this object still exists on-chain (not consumed/deleted by faucet)
-				resp, err := s.client.SuiGetObject(ctx, models.SuiGetObjectRequest{
-					ObjectId: addr,
-					Options: models.SuiObjectDataOptions{
-						ShowOwner: true,
-						ShowType:  true,
-					},
-				})
-				// If the object exists (no error and no error in response), it's the unused one
-				if err == nil && resp.Error == nil && resp.Data != nil {
+				resp, err := bind.ReadObject(ctx, addr, s.client)
+				// If the object exists (no error and has data), it's the unused one
+				if err == nil && resp != nil && resp.Data != nil {
 					unusedMintCapID = addr
 					s.T().Logf("Found unused managed token minter cap ID: %s", addr)
 					break

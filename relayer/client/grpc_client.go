@@ -158,8 +158,6 @@ func NewPTBClient(log logger.Logger, cfg PTBClientConfig) (*PTBClient, error) {
 }
 
 func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
-	start := time.Now()
-
 	weight := int64(1)
 	if weightValue, ok := RateLimitWeights[methodName]; ok {
 		weight = weightValue
@@ -182,7 +180,6 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 	// ensure cleanup on exit
 	defer func() {
 		c.rateLimiter.Release(weight)
-		c.log.Debugw("WithRateLimit released", "methodName", methodName, "duration", time.Since(start))
 	}()
 
 	// run the user function with the timeout context
@@ -565,8 +562,6 @@ func (c *PTBClient) simulatePTBInternal(ctx context.Context, txExecService suirp
 		return nil, fmt.Errorf("failed to simulate transaction: %w", err)
 	}
 
-	c.log.Debugw("SimulatePTB RPC response", "RPC response", response)
-
 	if response.Transaction != nil && response.Transaction.Effects != nil && response.Transaction.Effects.Status != nil {
 		if !response.Transaction.Effects.Status.GetSuccess() {
 			errMsg := response.Transaction.Effects.Status.GetError()
@@ -839,9 +834,9 @@ var transactionEventsReadMaskPaths = []string{
 }
 
 // TODO: this should be the responsibility of the indexer, not the client
-// hydrateTransactionEventsIfNeeded fetches full event payloads when a checkpoint
+// HydrateTransactionEvents fetches full event payloads when a checkpoint
 // transaction reports an events_digest but omits inline TransactionEvents.
-func (c *PTBClient) hydrateTransactionEventsIfNeeded(ctx context.Context, tx *suirpcv2.ExecutedTransaction) {
+func (c *PTBClient) HydrateTransactionEvents(ctx context.Context, tx *suirpcv2.ExecutedTransaction) {
 	if tx == nil {
 		return
 	}
@@ -909,7 +904,7 @@ func (c *PTBClient) GetCheckpointData(ctx context.Context, checkpointSequenceNum
 
 		transactions := response.GetCheckpoint().GetTransactions()
 		for _, tx := range transactions {
-			c.hydrateTransactionEventsIfNeeded(ctx, tx)
+			c.HydrateTransactionEvents(ctx, tx)
 		}
 
 		result = &CheckpointData{

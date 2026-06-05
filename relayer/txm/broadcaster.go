@@ -132,7 +132,7 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 
 			continue
 		}
-		txm.lggr.Infow("Transaction broadcasted", "response", resp, "txID", tx.TransactionID)
+		txm.lggr.Infow("Transaction broadcasted", "txID", tx.TransactionID)
 
 		err = txm.transactionRepository.UpdateTransactionDigest(tx.TransactionID, resp.GetTransaction().GetDigest())
 		if err != nil {
