@@ -168,3 +168,27 @@ public fun has_upgrade_cap(state: &DeployerState, package_address: address): boo
 public fun test_init(ctx: &mut TxContext) {
     init(MCMS_DEPLOYER {}, ctx);
 }
+
+#[test_only]
+/// Register an upgrade cap without requiring MCMS registry check.
+/// Needed because in tests @self resolves to 0x0, which Sui >= 1.73
+/// rejects in `authorize_upgrade` (uses 0x0 as a sentinel for in-progress upgrades).
+public fun test_register_upgrade_cap(
+    state: &mut DeployerState,
+    upgrade_cap: UpgradeCap,
+    ctx: &mut TxContext,
+) {
+    let package_address = upgrade_cap.package().to_address();
+    let version = upgrade_cap.version();
+    let policy = upgrade_cap.policy();
+
+    state.cap_to_package.add(object::id(&upgrade_cap), package_address);
+    state.upgrade_caps.add(package_address, upgrade_cap);
+
+    event::emit(UpgradeCapRegistered {
+        prev_owner: ctx.sender(),
+        package_address,
+        version,
+        policy,
+    });
+}
