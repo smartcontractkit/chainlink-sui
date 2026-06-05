@@ -70,6 +70,10 @@ type EnvironmentSettings struct {
 func BasicSetUp(t *testing.T, lggr logger.Logger, gasLimit int64) (string, []byte, rel.SuiSigner, *testutils.TestKeystore, client.SuiPTBClient, sui_ops.OpTxDeps, cld_ops.Bundle) {
 	t.Helper()
 
+	// HTTP RPC URL is required for sui CLI contract compilation/publish; gRPC target is used for the relayer client below.
+	os.Setenv("SUI_RPC_URL", testutils.LocalURL)
+	os.Setenv("SUI_CONFIG_DIR", filepath.Join(os.Getenv("HOME"), ".sui", "sui_config"))
+
 	keystoreInstance, accountAddress, publicKeyBytes := testutils.SetupTestSigner(t, context.Background(), lggr, gasLimit)
 	ptbClient, _, _ := testutils.SetupClients(t, testutils.LocalGrpcURL, keystoreInstance, lggr, gasLimit)
 
@@ -277,9 +281,6 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 
 	lggr := logger.Test(t)
 	lggr.Debugw("Starting Sui node")
-
-	os.Setenv("SUI_RPC_URL", testutils.LocalURL)
-	os.Setenv("SUI_CONFIG_DIR", filepath.Join(os.Getenv("HOME"), ".sui", "sui_config"))
 
 	accountAddress, _, signer, keystoreInstance, client, deps, bundle := BasicSetUp(t, lggr, gasLimit)
 	signerAddr, err := signer.GetAddress()

@@ -69,7 +69,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
 		ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
 
-		_, txManager, _ := testutils.SetupClients(t, testutils.LocalURL, keystoreInstance, lggr, gasBudget)
+		_, txManager, _ := testutils.SetupClients(t, testutils.LocalGrpcURL, keystoreInstance, lggr, gasBudget)
 		tokenPoolDetails := testutils.TokenToolDetails{
 			TokenPoolPackageId: envSettings.LockReleaseTokenPoolReport.Output.LockReleaseTPPackageID,
 			TokenPoolType:      testutils.TokenPoolTypeLockRelease,
@@ -174,7 +174,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
 		ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
 
-		_, txManager, _ := testutils.SetupClients(t, testutils.LocalURL, keystoreInstance, lggr, gasBudget)
+		_, txManager, _ := testutils.SetupClients(t, testutils.LocalGrpcURL, keystoreInstance, lggr, gasBudget)
 
 		tokenAmount := uint64(500000) // 500K tokens for transfer
 		feeAmount := uint64(100000)   // 100K tokens for fee payment
@@ -257,7 +257,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
 		ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
 
-		_, txManager, _ := testutils.SetupClients(t, testutils.LocalURL, keystoreInstance, lggr, gasBudget)
+		_, txManager, _ := testutils.SetupClients(t, testutils.LocalGrpcURL, keystoreInstance, lggr, gasBudget)
 
 		tokenAmount := uint64(500000) // 500K tokens for transfer
 		feeAmount := uint64(100000)   // 100K tokens for fee payment
@@ -380,7 +380,7 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 
 	lggr.Infow("Using account", "address", accountAddress)
 
-	_, txManager, _ := testutils.SetupClients(t, testutils.LocalURL, keystoreInstance, lggr, gasBudget)
+	_, txManager, _ := testutils.SetupClients(t, testutils.LocalGrpcURL, keystoreInstance, lggr, gasBudget)
 
 	ethManagedTokenPoolDetails := testutils.TokenToolDetails{
 		TokenPoolPackageId: envSettings.ManagedTokenPoolReport.Output.ManagedTPPackageId,
