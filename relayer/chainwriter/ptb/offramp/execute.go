@@ -525,38 +525,12 @@ func AppendPTBCommandForReceiver(
 	}
 	paramTypes, err = DecodeParameters(lggr, funcMap, "parameters")
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode receiver parameters: %w", err)
+		return nil, fmt.Errorf("%w: failed to decode receiver parameters: %w", ErrUnsupportedReceiverABI, err)
 	}
 
 	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
 
-	// Append extra args to the paramValues for the receiver call.
-	// Missing receiverObjectIds is non-fatal: treat as empty and let the on-chain call
-	// determine success or failure based on the receiver's actual parameter requirements.
-	receiverObjectIds, ok := extraArgs["receiverObjectIds"]
-	if !ok {
-		lggr.Warnw("receiverObjectIds not present in extraArgs, defaulting to empty", "function", functionName)
-		receiverObjectIds = [][]byte{}
-	}
-
-	// note: we cannot expect receiverObjectIds to be [][]byte, so check for []any type
-	var extraArgsValues [][]byte
-	switch vals := receiverObjectIds.(type) {
-	case [][]byte:
-		extraArgsValues = vals
-	case []any:
-		for _, v := range vals {
-			b, ok := v.([]byte)
-			if !ok {
-				lggr.Error("unexpected element type in receiverObjectIds", "type", fmt.Sprintf("%T", v))
-				continue
-			}
-			extraArgsValues = append(extraArgsValues, b)
-		}
-	default:
-		lggr.Error("unexpected receiverObjectIds type", "type", fmt.Sprintf("%T", receiverObjectIds))
-	}
-
+	extraArgsValues := extractReceiverObjectIds(lggr, extraArgs)
 	for _, value := range extraArgsValues {
 		objectId := hex.EncodeToString(value)
 		paramValues = append(paramValues, bind.Object{Id: "0x" + objectId})
@@ -580,4 +554,33 @@ func AppendPTBCommandForReceiver(
 	}
 
 	return receiverCommandResult, nil
+}
+
+// extractReceiverObjectIds extracts receiver object IDs from extraArgs,
+// handling missing keys, nil values, and both [][]byte and []any representations.
+func extractReceiverObjectIds(lggr logger.Logger, extraArgs map[string]any) [][]byte {
+	raw, ok := extraArgs["receiverObjectIds"]
+	if !ok || raw == nil {
+		lggr.Warnw("receiverObjectIds not present in extraArgs, defaulting to empty")
+		return nil
+	}
+
+	switch vals := raw.(type) {
+	case [][]byte:
+		return vals
+	case []any:
+		var out [][]byte
+		for _, v := range vals {
+			b, ok := v.([]byte)
+			if !ok {
+				lggr.Errorw("unexpected element type in receiverObjectIds", "type", fmt.Sprintf("%T", v))
+				continue
+			}
+			out = append(out, b)
+		}
+		return out
+	default:
+		lggr.Errorw("unexpected receiverObjectIds type", "type", fmt.Sprintf("%T", raw))
+		return nil
+	}
 }
