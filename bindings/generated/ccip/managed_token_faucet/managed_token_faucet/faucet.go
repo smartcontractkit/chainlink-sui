@@ -9,7 +9,6 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -89,26 +88,6 @@ func (c *FaucetContract) DevInspect() IFaucetDevInspect {
 type FaucetState struct {
 	Id      string      `move:"sui::object::UID"`
 	MintCap bind.Object `move:"MintCap<T>"`
-}
-
-func init() {
-	bind.RegisterStructDecoder("managed_token_faucet::faucet::FaucetState", func(data []byte) (interface{}, error) {
-		var result FaucetState
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for FaucetState
-	bind.RegisterStructDecoder("vector<managed_token_faucet::faucet::FaucetState>", func(data []byte) (interface{}, error) {
-		var results []FaucetState
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.

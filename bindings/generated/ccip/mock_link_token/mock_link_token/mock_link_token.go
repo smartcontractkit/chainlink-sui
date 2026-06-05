@@ -9,7 +9,6 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -79,26 +78,6 @@ func (c *MockLinkTokenContract) DevInspect() IMockLinkTokenDevInspect {
 }
 
 type MOCK_LINK_TOKEN struct {
-}
-
-func init() {
-	bind.RegisterStructDecoder("mock_link_token::mock_link_token::MOCK_LINK_TOKEN", func(data []byte) (interface{}, error) {
-		var result MOCK_LINK_TOKEN
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MOCK_LINK_TOKEN
-	bind.RegisterStructDecoder("vector<mock_link_token::mock_link_token::MOCK_LINK_TOKEN>", func(data []byte) (interface{}, error) {
-		var results []MOCK_LINK_TOKEN
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // MintAndTransfer executes the mint_and_transfer Move function.

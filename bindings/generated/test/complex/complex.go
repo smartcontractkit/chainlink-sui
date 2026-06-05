@@ -9,7 +9,6 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -124,119 +123,6 @@ type DroppableObject struct {
 	SomeNumber    uint64   `move:"u64"`
 	SomeAddress   string   `move:"address"`
 	SomeAddresses []string `move:"vector<address>"`
-}
-
-type bcsSampleObject struct {
-	Id            string
-	SomeId        []byte
-	SomeNumber    uint64
-	SomeAddress   [32]byte
-	SomeAddresses [][32]byte
-}
-
-func convertSampleObjectFromBCS(bcs bcsSampleObject) (SampleObject, error) {
-
-	return SampleObject{
-		Id:          bcs.Id,
-		SomeId:      bcs.SomeId,
-		SomeNumber:  bcs.SomeNumber,
-		SomeAddress: fmt.Sprintf("0x%x", bcs.SomeAddress),
-		SomeAddresses: func() []string {
-			addrs := make([]string, len(bcs.SomeAddresses))
-			for i, addr := range bcs.SomeAddresses {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-	}, nil
-}
-
-type bcsDroppableObject struct {
-	SomeId        []byte
-	SomeNumber    uint64
-	SomeAddress   [32]byte
-	SomeAddresses [][32]byte
-}
-
-func convertDroppableObjectFromBCS(bcs bcsDroppableObject) (DroppableObject, error) {
-
-	return DroppableObject{
-		SomeId:      bcs.SomeId,
-		SomeNumber:  bcs.SomeNumber,
-		SomeAddress: fmt.Sprintf("0x%x", bcs.SomeAddress),
-		SomeAddresses: func() []string {
-			addrs := make([]string, len(bcs.SomeAddresses))
-			for i, addr := range bcs.SomeAddresses {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("test::complex::SampleObject", func(data []byte) (interface{}, error) {
-		var temp bcsSampleObject
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertSampleObjectFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for SampleObject
-	bind.RegisterStructDecoder("vector<test::complex::SampleObject>", func(data []byte) (interface{}, error) {
-		var temps []bcsSampleObject
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]SampleObject, len(temps))
-		for i, temp := range temps {
-			result, err := convertSampleObjectFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::complex::DroppableObject", func(data []byte) (interface{}, error) {
-		var temp bcsDroppableObject
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertDroppableObjectFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DroppableObject
-	bind.RegisterStructDecoder("vector<test::complex::DroppableObject>", func(data []byte) (interface{}, error) {
-		var temps []bcsDroppableObject
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]DroppableObject, len(temps))
-		for i, temp := range temps {
-			result, err := convertDroppableObjectFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
 }
 
 // NewObjectWithTransfer executes the new_object_with_transfer Move function.

@@ -9,7 +9,6 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -204,128 +203,6 @@ type Uncursed struct {
 
 type CurserCap struct {
 	Id string `move:"sui::object::UID"`
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip::rmn_remote::RMNRemoteState", func(data []byte) (interface{}, error) {
-		var result RMNRemoteState
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for RMNRemoteState
-	bind.RegisterStructDecoder("vector<ccip::rmn_remote::RMNRemoteState>", func(data []byte) (interface{}, error) {
-		var results []RMNRemoteState
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::rmn_remote::Config", func(data []byte) (interface{}, error) {
-		var result Config
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Config
-	bind.RegisterStructDecoder("vector<ccip::rmn_remote::Config>", func(data []byte) (interface{}, error) {
-		var results []Config
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::rmn_remote::Signer", func(data []byte) (interface{}, error) {
-		var result Signer
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Signer
-	bind.RegisterStructDecoder("vector<ccip::rmn_remote::Signer>", func(data []byte) (interface{}, error) {
-		var results []Signer
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::rmn_remote::ConfigSet", func(data []byte) (interface{}, error) {
-		var result ConfigSet
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ConfigSet
-	bind.RegisterStructDecoder("vector<ccip::rmn_remote::ConfigSet>", func(data []byte) (interface{}, error) {
-		var results []ConfigSet
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::rmn_remote::Cursed", func(data []byte) (interface{}, error) {
-		var result Cursed
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Cursed
-	bind.RegisterStructDecoder("vector<ccip::rmn_remote::Cursed>", func(data []byte) (interface{}, error) {
-		var results []Cursed
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::rmn_remote::Uncursed", func(data []byte) (interface{}, error) {
-		var result Uncursed
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Uncursed
-	bind.RegisterStructDecoder("vector<ccip::rmn_remote::Uncursed>", func(data []byte) (interface{}, error) {
-		var results []Uncursed
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::rmn_remote::CurserCap", func(data []byte) (interface{}, error) {
-		var result CurserCap
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CurserCap
-	bind.RegisterStructDecoder("vector<ccip::rmn_remote::CurserCap>", func(data []byte) (interface{}, error) {
-		var results []CurserCap
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.

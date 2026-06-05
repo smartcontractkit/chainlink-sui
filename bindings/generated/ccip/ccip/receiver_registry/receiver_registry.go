@@ -9,7 +9,6 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -119,131 +118,6 @@ type ReceiverRegistered struct {
 
 type ReceiverUnregistered struct {
 	ReceiverPackageId string `move:"address"`
-}
-
-type bcsReceiverRegistered struct {
-	ReceiverPackageId  [32]byte
-	ReceiverModuleName string
-	ProofTypename      string
-}
-
-func convertReceiverRegisteredFromBCS(bcs bcsReceiverRegistered) (ReceiverRegistered, error) {
-
-	return ReceiverRegistered{
-		ReceiverPackageId:  fmt.Sprintf("0x%x", bcs.ReceiverPackageId),
-		ReceiverModuleName: bcs.ReceiverModuleName,
-		ProofTypename:      bcs.ProofTypename,
-	}, nil
-}
-
-type bcsReceiverUnregistered struct {
-	ReceiverPackageId [32]byte
-}
-
-func convertReceiverUnregisteredFromBCS(bcs bcsReceiverUnregistered) (ReceiverUnregistered, error) {
-
-	return ReceiverUnregistered{
-		ReceiverPackageId: fmt.Sprintf("0x%x", bcs.ReceiverPackageId),
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverConfig", func(data []byte) (interface{}, error) {
-		var result ReceiverConfig
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ReceiverConfig
-	bind.RegisterStructDecoder("vector<ccip::receiver_registry::ReceiverConfig>", func(data []byte) (interface{}, error) {
-		var results []ReceiverConfig
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverRegistry", func(data []byte) (interface{}, error) {
-		var result ReceiverRegistry
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ReceiverRegistry
-	bind.RegisterStructDecoder("vector<ccip::receiver_registry::ReceiverRegistry>", func(data []byte) (interface{}, error) {
-		var results []ReceiverRegistry
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverRegistered", func(data []byte) (interface{}, error) {
-		var temp bcsReceiverRegistered
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertReceiverRegisteredFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ReceiverRegistered
-	bind.RegisterStructDecoder("vector<ccip::receiver_registry::ReceiverRegistered>", func(data []byte) (interface{}, error) {
-		var temps []bcsReceiverRegistered
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]ReceiverRegistered, len(temps))
-		for i, temp := range temps {
-			result, err := convertReceiverRegisteredFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverUnregistered", func(data []byte) (interface{}, error) {
-		var temp bcsReceiverUnregistered
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertReceiverUnregisteredFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ReceiverUnregistered
-	bind.RegisterStructDecoder("vector<ccip::receiver_registry::ReceiverUnregistered>", func(data []byte) (interface{}, error) {
-		var temps []bcsReceiverUnregistered
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]ReceiverUnregistered, len(temps))
-		for i, temp := range temps {
-			result, err := convertReceiverUnregisteredFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
