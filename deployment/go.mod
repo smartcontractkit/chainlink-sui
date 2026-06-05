@@ -7,10 +7,6 @@ replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlin
 
 replace github.com/smartcontractkit/chainlink-sui => ../
 
-replace github.com/smartcontractkit/chainlink-deployments-framework => ../../chainlink-deployments-framework
-
-replace github.com/smartcontractkit/mcms => ../../mcms
-
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/block-vision/sui-go-sdk v1.2.1
@@ -19,9 +15,9 @@ require (
 	github.com/smartcontractkit/chain-selectors v1.0.100
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260311190822-5cbfc939dd16
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260506120607-7f10be016c89
-	github.com/smartcontractkit/chainlink-deployments-framework v0.98.0
+	github.com/smartcontractkit/chainlink-deployments-framework v0.109.1-0.20260604174622-e26b8cddfa0a
 	github.com/smartcontractkit/chainlink-sui v0.0.0
-	github.com/smartcontractkit/mcms v0.45.0
+	github.com/smartcontractkit/mcms v0.45.2-0.20260604181544-da0bd7da623d
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/sync v0.20.0
 )
