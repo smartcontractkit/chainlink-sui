@@ -1,6 +1,6 @@
 module github.com/smartcontractkit/chainlink-sui
 
-go 1.25.7
+go 1.26.2
 
 require (
 	github.com/aptos-labs/aptos-go-sdk v1.12.1
