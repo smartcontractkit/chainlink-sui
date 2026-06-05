@@ -38,6 +38,18 @@ func mapExecuteResponseToModels(resp *suirpcv2.ExecuteTransactionResponse) (*mod
 		result.ObjectChanges = mapChangedObjectsToModels(tx.Effects.GetChangedObjects())
 	}
 
+	if tx.GetEvents() != nil {
+		events := tx.GetEvents().GetEvents()
+		for _, event := range events {
+			result.Events = append(result.Events, models.SuiEventResponse{
+				PackageId:         event.GetPackageId(),
+				TransactionModule: event.GetModule(),
+				Type:              event.GetEventType(),
+				ParsedJson:        event.GetJson().AsInterface().(map[string]any),
+			})
+		}
+	}
+
 	return result, nil
 }
 
@@ -181,6 +193,12 @@ func transactionChangedObjectsReadMaskPaths() []string {
 		"effects.changed_objects.output_version",
 		"effects.changed_objects.output_digest",
 		"effects.changed_objects.input_version",
+		"events",
+		"events.events",
+		"events.events.package_id",
+		"events.events.module",
+		"events.events.event_type",
+		"events.events.json",
 	}
 }
 
