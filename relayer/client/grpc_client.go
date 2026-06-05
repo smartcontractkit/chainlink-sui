@@ -562,8 +562,6 @@ func (c *PTBClient) simulatePTBInternal(ctx context.Context, txExecService suirp
 		return nil, fmt.Errorf("failed to simulate transaction: %w", err)
 	}
 
-	c.log.Debugw("SimulatePTB RPC response", "RPC response", response)
-
 	if response.Transaction != nil && response.Transaction.Effects != nil && response.Transaction.Effects.Status != nil {
 		if !response.Transaction.Effects.Status.GetSuccess() {
 			errMsg := response.Transaction.Effects.Status.GetError()

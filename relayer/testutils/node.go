@@ -90,7 +90,7 @@ func waitForConnection(url string, timeout time.Duration, backoffDelay time.Dura
 	}
 
 	// Add default port if missing
-	if !strings.Contains(host, ":") {
+	if parsedURL.Port() == "" {
 		if parsedURL.Scheme == "https" {
 			host += ":443"
 		} else {
