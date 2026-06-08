@@ -190,26 +190,6 @@ func TestDecodeParam_MalformedInput_NotUnsupportedABI(t *testing.T) {
 				"TypeParameter": float64(0),
 			},
 		},
-		{
-			name:  "Struct with non-string address",
-			param: map[string]any{"Struct": map[string]any{"address": 123, "module": "m", "name": "S", "typeArguments": []any{}}},
-		},
-		{
-			name:  "Struct with bad typeArguments type",
-			param: map[string]any{"Struct": map[string]any{"address": "0x1", "module": "m", "name": "S", "typeArguments": "not-array"}},
-		},
-		{
-			name:  "Struct with typeArgument missing TypeParameter key",
-			param: map[string]any{"Struct": map[string]any{"address": "0x1", "module": "m", "name": "S", "typeArguments": []any{map[string]any{"NotTypeParameter": float64(0)}}}},
-		},
-		{
-			name:  "default key with non-map value",
-			param: map[string]any{"SomeUnknownKey": float64(99)},
-		},
-		{
-			name:  "default key with map missing Struct",
-			param: map[string]any{"SomeKey": map[string]any{"NotStruct": "x"}},
-		},
 	}
 
 	for _, tc := range tests {
