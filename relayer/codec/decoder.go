@@ -462,6 +462,12 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 
 	// 7. Read token_amounts vector
 	tokenAmountsLen := deserializer.Uleb128()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
+	}
+	if int(tokenAmountsLen) > deserializer.Remaining() {
+		return nil, fmt.Errorf("failed to deserialize execution report: token_amounts length %d exceeds remaining %d bytes", tokenAmountsLen, deserializer.Remaining())
+	}
 	tokenAmounts := make([]Any2SuiTokenTransfer, tokenAmountsLen)
 
 	for i := range tokenAmountsLen {
@@ -494,6 +500,12 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 
 	// 8. Read offchain_token_data (vector<vector<u8>>)
 	offchainDataLen := deserializer.Uleb128()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
+	}
+	if int(offchainDataLen) > deserializer.Remaining() {
+		return nil, fmt.Errorf("failed to deserialize execution report: offchain_token_data length %d exceeds remaining %d bytes", offchainDataLen, deserializer.Remaining())
+	}
 	offchainData := make([][]byte, offchainDataLen)
 
 	for i := range offchainDataLen {
@@ -502,6 +514,12 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 
 	// 9. Read proofs (vector<vector<u8>>)
 	proofsLen := deserializer.Uleb128()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
+	}
+	if int(proofsLen) > deserializer.Remaining() {
+		return nil, fmt.Errorf("failed to deserialize execution report: proofs length %d exceeds remaining %d bytes", proofsLen, deserializer.Remaining())
+	}
 	proofs := make([][]byte, proofsLen)
 
 	for i := range proofsLen {
