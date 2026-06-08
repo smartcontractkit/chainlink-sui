@@ -32,6 +32,13 @@ const (
 
 	// Response parsing constants
 	maxByteValue = 255
+
+	// proofWireBytes is the fixed on-wire size of each merkle proof element.
+	proofWireBytes = 32
+
+	// tokenTransferMinWireBytes is the minimum BCS size of Any2SuiTokenTransfer:
+	// uleb128(0) source pool + 32 dest token + 4 dest gas + uleb128(0) extra data + 32 amount.
+	tokenTransferMinWireBytes = 70
 )
 
 // DecodeSuiJsonValue decodes Sui JSON response data into the provided target.
@@ -465,8 +472,9 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 	if err := deserializer.Error(); err != nil {
 		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
 	}
-	if int(tokenAmountsLen) > deserializer.Remaining() {
-		return nil, fmt.Errorf("failed to deserialize execution report: token_amounts length %d exceeds remaining %d bytes", tokenAmountsLen, deserializer.Remaining())
+	remaining := deserializer.Remaining()
+	if remaining < 0 || uint64(tokenAmountsLen)*tokenTransferMinWireBytes > uint64(remaining) {
+		return nil, fmt.Errorf("failed to deserialize execution report: token_amounts length %d exceeds remaining %d bytes", tokenAmountsLen, remaining)
 	}
 	tokenAmounts := make([]Any2SuiTokenTransfer, tokenAmountsLen)
 
@@ -517,13 +525,14 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 	if err := deserializer.Error(); err != nil {
 		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
 	}
-	if int(proofsLen) > deserializer.Remaining() {
-		return nil, fmt.Errorf("failed to deserialize execution report: proofs length %d exceeds remaining %d bytes", proofsLen, deserializer.Remaining())
+	remaining = deserializer.Remaining()
+	if remaining < 0 || uint64(proofsLen)*proofWireBytes > uint64(remaining) {
+		return nil, fmt.Errorf("failed to deserialize execution report: proofs length %d exceeds remaining %d bytes", proofsLen, remaining)
 	}
 	proofs := make([][]byte, proofsLen)
 
 	for i := range proofsLen {
-		proofs[i] = deserializer.ReadFixedBytes(32)
+		proofs[i] = deserializer.ReadFixedBytes(proofWireBytes)
 	}
 
 	if err := deserializer.Error(); err != nil {

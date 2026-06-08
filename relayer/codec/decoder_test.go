@@ -2752,6 +2752,114 @@ func TestDeserializeExecutionReport_RejectsOversizedVectorLength(t *testing.T) {
 	require.Contains(t, err.Error(), "exceeds remaining")
 }
 
+func TestDeserializeExecutionReport_RejectsTokenAmountsLengthExceedingWireBudget(t *testing.T) {
+	t.Parallel()
+
+	var buf []byte
+
+	u64 := func(v uint64) {
+		b := make([]byte, 8)
+		b[0] = byte(v)
+		b[1] = byte(v >> 8)
+		b[2] = byte(v >> 16)
+		b[3] = byte(v >> 24)
+		b[4] = byte(v >> 32)
+		b[5] = byte(v >> 40)
+		b[6] = byte(v >> 48)
+		b[7] = byte(v >> 56)
+		buf = append(buf, b...)
+	}
+	fixed32 := func() { buf = append(buf, make([]byte, 32)...) }
+	uleb := func(v uint32) {
+		for {
+			b := byte(v & 0x7f)
+			v >>= 7
+			if v != 0 {
+				b |= 0x80
+			}
+			buf = append(buf, b)
+			if v == 0 {
+				break
+			}
+		}
+	}
+
+	u64(1)    // sourceChainSelector
+	fixed32() // messageID
+	u64(1)    // headerSourceChain
+	u64(2)    // destChainSelector
+	u64(3)    // sequenceNumber
+	u64(4)    // nonce
+	uleb(0)   // sender
+	uleb(0)   // data
+	fixed32() // receiver
+	fixed32() // gasLimit
+	fixed32() // tokenReceiver
+	uleb(100) // token_amounts length: 100 elements need 7000 bytes
+	buf = append(buf, make([]byte, 100)...) // only 100 bytes remain on the wire
+
+	report, err := DeserializeExecutionReport(buf)
+	require.Nil(t, report)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "token_amounts length")
+	require.Contains(t, err.Error(), "exceeds remaining")
+}
+
+func TestDeserializeExecutionReport_RejectsProofsLengthExceedingWireBudget(t *testing.T) {
+	t.Parallel()
+
+	var buf []byte
+
+	u64 := func(v uint64) {
+		b := make([]byte, 8)
+		b[0] = byte(v)
+		b[1] = byte(v >> 8)
+		b[2] = byte(v >> 16)
+		b[3] = byte(v >> 24)
+		b[4] = byte(v >> 32)
+		b[5] = byte(v >> 40)
+		b[6] = byte(v >> 48)
+		b[7] = byte(v >> 56)
+		buf = append(buf, b...)
+	}
+	fixed32 := func() { buf = append(buf, make([]byte, 32)...) }
+	uleb := func(v uint32) {
+		for {
+			b := byte(v & 0x7f)
+			v >>= 7
+			if v != 0 {
+				b |= 0x80
+			}
+			buf = append(buf, b)
+			if v == 0 {
+				break
+			}
+		}
+	}
+
+	u64(1)    // sourceChainSelector
+	fixed32() // messageID
+	u64(1)    // headerSourceChain
+	u64(2)    // destChainSelector
+	u64(3)    // sequenceNumber
+	u64(4)    // nonce
+	uleb(0)   // sender
+	uleb(0)   // data
+	fixed32() // receiver
+	fixed32() // gasLimit
+	fixed32() // tokenReceiver
+	uleb(0)   // token_amounts
+	uleb(0)   // offchain_token_data
+	uleb(10)  // proofs length: 10 elements need 320 bytes
+	buf = append(buf, make([]byte, 100)...) // only 100 bytes remain on the wire
+
+	report, err := DeserializeExecutionReport(buf)
+	require.Nil(t, report)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "proofs length")
+	require.Contains(t, err.Error(), "exceeds remaining")
+}
+
 func TestDeserializeExecutionReportFromPure(t *testing.T) {
 	t.Parallel()
 
