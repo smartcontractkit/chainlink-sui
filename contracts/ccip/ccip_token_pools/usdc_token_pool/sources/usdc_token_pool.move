@@ -53,9 +53,6 @@ fun init(otw: USDC_TOKEN_POOL, ctx: &mut TxContext) {
     transfer::public_transfer(owner_cap, ctx.sender());
 }
 
-// We restrict to the first version. New pool may be required for subsequent versions.
-const SUPPORTED_USDC_VERSION_U64: u64 = 0;
-
 /// A domain is a USDC representation of a destination chain.
 /// @dev Zero is a valid domain identifier.
 /// @dev The address to mint on the destination chain is the corresponding USDC pool.
@@ -96,15 +93,14 @@ const EInvalidArguments: u64 = 2;
 const EInvalidOwnerCap: u64 = 3;
 const EZeroChainSelector: u64 = 4;
 const EEmptyAllowedCaller: u64 = 5;
-const EInvalidMessageVersion: u64 = 6;
-const EDomainMismatch: u64 = 7;
-const ENonceMismatch: u64 = 8;
-const EDomainNotFound: u64 = 9;
-const EDomainDisabled: u64 = 10;
-const ETokenAmountOverflow: u64 = 11;
-const EInvalidMintRecipient: u64 = 12;
-const EInvalidFunction: u64 = 13;
-const EPoolStillRegistered: u64 = 14;
+const EDomainMismatch: u64 = 6;
+const ENonceMismatch: u64 = 7;
+const EDomainNotFound: u64 = 8;
+const EDomainDisabled: u64 = 9;
+const ETokenAmountOverflow: u64 = 10;
+const EInvalidMintRecipient: u64 = 11;
+const EInvalidFunction: u64 = 12;
+const EPoolStillRegistered: u64 = 13;
 
 // ================================================================
 // |                             Init                             |
@@ -482,9 +478,6 @@ fun decode_source_pool_data(source_pool_data: vector<u8>): (u32, u64) {
 }
 
 fun validate_receipt(receipt: &Receipt, expected_source_domain: u32, expected_nonce: u64) {
-    let version = receive_message::current_version(receipt);
-    assert!(version == SUPPORTED_USDC_VERSION_U64, EInvalidMessageVersion);
-
     let source_domain = receive_message::source_domain(receipt);
     let nonce = receive_message::nonce(receipt);
 
