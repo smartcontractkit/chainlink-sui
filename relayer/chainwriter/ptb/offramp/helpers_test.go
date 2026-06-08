@@ -9,6 +9,34 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
+func TestExposedFunctionSignature_InvalidShape(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  any
+	}{
+		{name: "string", raw: "not-a-map"},
+		{name: "nil", raw: nil},
+		{name: "float64", raw: float64(1)},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NotPanics(t, func() {
+				m, err := exposedFunctionSignature("ccip_receive", tc.raw)
+				require.Error(t, err)
+				assert.Nil(t, m)
+				assert.ErrorIs(t, err, ErrUnsupportedReceiverABI)
+			})
+		})
+	}
+}
+
+func TestExposedFunctionSignature_ValidMap(t *testing.T) {
+	m, err := exposedFunctionSignature("ccip_receive", map[string]any{"parameters": []any{}})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"parameters": []any{}}, m)
+}
+
 func TestDecodeParam_PoisonABI_TypeParameter(t *testing.T) {
 	lggr := logger.Test(t)
 
@@ -37,9 +65,41 @@ func TestDecodeParam_PoisonABI_TypeParameter(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := decodeParam(lggr, tc.param, "Reference")
-			require.Error(t, err)
+			require.ErrorIs(t, err, ErrUnsupportedReceiverABI,
+				"expected ErrUnsupportedReceiverABI, got: %v", err)
 			assert.Contains(t, err.Error(), "TypeParameter")
 			assert.Equal(t, SuiArgumentMetadata{}, result)
+		})
+	}
+}
+
+func TestDecodeParam_UnsupportedABI_DefaultBranch(t *testing.T) {
+	lggr := logger.Test(t)
+
+	tests := []struct {
+		name  string
+		param any
+	}{
+		{
+			name:  "unknown key with non-map value",
+			param: map[string]any{"SomeUnknownKey": float64(99)},
+		},
+		{
+			name:  "unknown key with map missing Struct",
+			param: map[string]any{"SomeKey": map[string]any{"NotStruct": "x"}},
+		},
+		{
+			name:  "unknown key with non-map Struct value",
+			param: map[string]any{"SomeKey": map[string]any{"Struct": "not-a-map"}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := decodeParam(lggr, tc.param, "Reference")
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ErrUnsupportedReceiverABI,
+				"expected ErrUnsupportedReceiverABI, got: %v", err)
 		})
 	}
 }
@@ -76,7 +136,7 @@ func TestDecodeParam_MultiKeyWrapperMap_NestedRejects(t *testing.T) {
 	assert.Equal(t, SuiArgumentMetadata{}, result)
 }
 
-func TestDecodeParam_MalformedInput_NoPanic(t *testing.T) {
+func TestDecodeParam_MalformedInput_NotUnsupportedABI(t *testing.T) {
 	lggr := logger.Test(t)
 
 	tests := []struct {
@@ -131,6 +191,18 @@ func TestDecodeParam_MalformedInput_NoPanic(t *testing.T) {
 			},
 		},
 		{
+			name:  "Struct with non-string address",
+			param: map[string]any{"Struct": map[string]any{"address": 123, "module": "m", "name": "S", "typeArguments": []any{}}},
+		},
+		{
+			name:  "Struct with bad typeArguments type",
+			param: map[string]any{"Struct": map[string]any{"address": "0x1", "module": "m", "name": "S", "typeArguments": "not-array"}},
+		},
+		{
+			name:  "Struct with typeArgument missing TypeParameter key",
+			param: map[string]any{"Struct": map[string]any{"address": "0x1", "module": "m", "name": "S", "typeArguments": []any{map[string]any{"NotTypeParameter": float64(0)}}}},
+		},
+		{
 			name:  "default key with non-map value",
 			param: map[string]any{"SomeUnknownKey": float64(99)},
 		},
@@ -145,6 +217,8 @@ func TestDecodeParam_MalformedInput_NoPanic(t *testing.T) {
 			assert.NotPanics(t, func() {
 				_, err := decodeParam(lggr, tc.param, "Reference")
 				require.Error(t, err, "expected error for input: %v", tc.param)
+				assert.NotErrorIs(t, err, ErrUnsupportedReceiverABI,
+					"should NOT be ErrUnsupportedReceiverABI for malformed input: %v", err)
 			})
 		})
 	}
@@ -318,7 +392,8 @@ func TestDecodeParameters_PoisonABI_ReturnsError(t *testing.T) {
 		result, err := DecodeParameters(lggr, function, "parameters")
 		require.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "TypeParameter")
+		assert.ErrorIs(t, err, ErrUnsupportedReceiverABI,
+			"expected ErrUnsupportedReceiverABI to propagate through DecodeParameters, got: %v", err)
 	})
 }
 

@@ -12,6 +12,11 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
+// ErrUnsupportedReceiverABI indicates a receiver's on-chain ABI contains shapes
+// that the relayer cannot build a PTB command for (e.g. generic TypeParameter).
+// This is a permanent failure: retrying with the same receiver will always fail.
+var ErrUnsupportedReceiverABI = errors.New("unsupported receiver ABI")
+
 func AnyPointer[T any](v T) *T {
 	return &v
 }
@@ -186,19 +191,19 @@ func decodeParam(lggr logger.Logger, param any, reference string) (SuiArgumentMe
 	case "Reference", "MutableReference":
 		return decodeParam(lggr, v, k)
 	case "TypeParameter":
-		return SuiArgumentMetadata{}, errors.New("unsupported ABI shape: TypeParameter (generic parameters are not supported)")
+		return SuiArgumentMetadata{}, fmt.Errorf("%w: TypeParameter (generic parameters are not supported)", ErrUnsupportedReceiverABI)
 	default:
 		vMap, ok := v.(map[string]any)
 		if !ok {
-			return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q has non-map value of type %T", k, v)
+			return SuiArgumentMetadata{}, fmt.Errorf("%w: key %q has non-map value of type %T", ErrUnsupportedReceiverABI, k, v)
 		}
 		innerRaw, exists := vMap["Struct"]
 		if !exists {
-			return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q missing inner Struct", k)
+			return SuiArgumentMetadata{}, fmt.Errorf("%w: key %q missing inner Struct", ErrUnsupportedReceiverABI, k)
 		}
 		inner, ok := innerRaw.(map[string]any)
 		if !ok {
-			return SuiArgumentMetadata{}, fmt.Errorf("unsupported ABI shape: key %q Struct value is %T, not map", k, innerRaw)
+			return SuiArgumentMetadata{}, fmt.Errorf("%w: key %q Struct value is %T, not map", ErrUnsupportedReceiverABI, k, innerRaw)
 		}
 		typeArguments, err := decodeTypeArguments(inner)
 		if err != nil {
@@ -388,6 +393,14 @@ func ParseParamType(lggr logger.Logger, param interface{}) string {
 
 	// Fallback
 	return "unknown"
+}
+
+func exposedFunctionSignature(functionName string, raw any) (map[string]any, error) {
+	m, ok := raw.(map[string]any)
+	if !ok || m == nil {
+		return nil, fmt.Errorf("%w: function %q has invalid signature shape (%T)", ErrUnsupportedReceiverABI, functionName, raw)
+	}
+	return m, nil
 }
 
 func DecodeParameters(lggr logger.Logger, function map[string]any, key string) ([]string, error) {

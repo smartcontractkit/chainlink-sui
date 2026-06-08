@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -299,8 +300,11 @@ func AppendPTBCommandForTokenPool(
 		return nil, fmt.Errorf("missing function signature for token pool function not found in module (%s)", OfframpTokenPoolFunctionName)
 	}
 
-	// Figure out the parameter types from the normalized module of the token pool
-	paramTypes, err := DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
+	funcMap, ok := functionSignature.(map[string]any)
+	if !ok || funcMap == nil {
+		return nil, fmt.Errorf("invalid function signature shape for %q (%T)", OfframpTokenPoolFunctionName, functionSignature)
+	}
+	paramTypes, err := DecodeParameters(lggr, funcMap, "parameters")
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
 	}
@@ -379,11 +383,13 @@ func ProcessReceivers(
 
 		receiverConfig, err := receiverRegistryDevInspect.GetReceiverConfig(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
 		if err != nil {
+			// RPC/network error — propagate so the caller can retry later.
 			return nil, fmt.Errorf("failed to get receiver config in offramp execution: %w", err)
 		}
 
 		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverConfig.ModuleName)
 		if err != nil {
+			// RPC/network error — propagate so the caller can retry later.
 			return nil, fmt.Errorf("failed to get normalized module for receiver: %w", err)
 		}
 
@@ -403,6 +409,20 @@ func ProcessReceivers(
 			extraArgs,
 		)
 		if err != nil {
+			if errors.Is(err, ErrUnsupportedReceiverABI) {
+				// Permanent failure: the receiver's on-chain ABI uses shapes the relayer
+				// cannot handle (e.g. TypeParameter/generics, missing ccip_receive).
+				// Skip the receiver leg so the PTB is submitted without it.
+				// On-chain, populate_message will have set ReceiverParams.message to Some,
+				// so finish_execute → deconstruct_receiver_params will abort with
+				// ECCIPReceiveFailed. The message remains UNTOUCHED (atomic rollback)
+				// and available for manually_init_execute once the receiver is fixed
+				// or unregistered.
+				lggr.Errorw("skipping receiver command due to unsupported ABI; PTB will fail on-chain",
+					"receiver", receiverPackageId,
+					"error", err)
+				continue
+			}
 			return nil, fmt.Errorf("failed to build receiver command for %s: %w", receiverPackageId, err)
 		}
 		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
@@ -496,41 +516,21 @@ func AppendPTBCommandForReceiver(
 	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
 	functionSignature, ok := normalizedModule.ExposedFunctions[functionName]
 	if !ok {
-		return nil, fmt.Errorf("missing function signature for receiver function not found in module (%s)", functionName)
+		return nil, fmt.Errorf("%w: function %q not found in module", ErrUnsupportedReceiverABI, functionName)
 	}
 
-	// Figure out the parameter types from the normalized module of the token pool
-	paramTypes, err = DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
+	funcMap, err := exposedFunctionSignature(functionName, functionSignature)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
+		return nil, err
+	}
+	paramTypes, err = DecodeParameters(lggr, funcMap, "parameters")
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to decode receiver parameters: %w", ErrUnsupportedReceiverABI, err)
 	}
 
 	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
 
-	// Append extra args to the paramValues for the receiver call.
-	receiverObjectIds, ok := extraArgs["receiverObjectIds"]
-	if !ok {
-		return nil, fmt.Errorf("missing extra args for receiver function not found in module (%s)", functionName)
-	}
-
-	// note: we cannot expect receiverObjectIds to be [][]byte, so check for []any type
-	var extraArgsValues [][]byte
-	switch vals := receiverObjectIds.(type) {
-	case [][]byte:
-		extraArgsValues = vals
-	case []any:
-		for _, v := range vals {
-			b, ok := v.([]byte)
-			if !ok {
-				lggr.Error("unexpected element type in receiverObjectIds", "type", fmt.Sprintf("%T", v))
-				continue
-			}
-			extraArgsValues = append(extraArgsValues, b)
-		}
-	default:
-		lggr.Error("unexpected receiverObjectIds type", "type", fmt.Sprintf("%T", receiverObjectIds))
-	}
-
+	extraArgsValues := extractReceiverObjectIDs(lggr, extraArgs)
 	for _, value := range extraArgsValues {
 		objectId := hex.EncodeToString(value)
 		paramValues = append(paramValues, bind.Object{Id: "0x" + objectId})
@@ -554,4 +554,33 @@ func AppendPTBCommandForReceiver(
 	}
 
 	return receiverCommandResult, nil
+}
+
+// extractReceiverObjectIDs extracts receiver object IDs from extraArgs,
+// handling missing keys, nil values, and both [][]byte and []any representations.
+func extractReceiverObjectIDs(lggr logger.Logger, extraArgs map[string]any) [][]byte {
+	raw, ok := extraArgs["receiverObjectIds"]
+	if !ok || raw == nil {
+		lggr.Warnw("receiverObjectIds not present in extraArgs, defaulting to empty")
+		return nil
+	}
+
+	switch vals := raw.(type) {
+	case [][]byte:
+		return vals
+	case []any:
+		var out [][]byte
+		for _, v := range vals {
+			b, ok := v.([]byte)
+			if !ok {
+				lggr.Errorw("unexpected element type in receiverObjectIds", "type", fmt.Sprintf("%T", v))
+				continue
+			}
+			out = append(out, b)
+		}
+		return out
+	default:
+		lggr.Errorw("unexpected receiverObjectIds type", "type", fmt.Sprintf("%T", raw))
+		return nil
+	}
 }
