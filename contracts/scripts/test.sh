@@ -19,10 +19,11 @@ PACKAGES=(
 )
 
 # Sui ≥1.66 uses on-chain-like gas metering in unit tests with a ~1M default budget.
-# Some tests (e.g. MCMS multi-step flows) exceed that and fail as "Test timed out".
-SUI_TEST_GAS_LIMIT="${SUI_TEST_GAS_LIMIT:-500000000}"
+# Some tests (e.g. MCMS multi-step flows, BCS deserialization of large extra_args) exceed that.
+SUI_TEST_GAS_LIMIT="${SUI_TEST_GAS_LIMIT:-2000000000}"
+SUI_BUILD_ENV="${SUI_BUILD_ENV:-testnet}"
 
 # run tests
 for pkg in "${PACKAGES[@]}"; do
-  sui move test --path "$pkg" --gas-limit "$SUI_TEST_GAS_LIMIT"
+  sui move test --path "$pkg" --build-env "$SUI_BUILD_ENV" --gas-limit "$SUI_TEST_GAS_LIMIT"
 done
