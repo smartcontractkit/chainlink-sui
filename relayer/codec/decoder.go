@@ -577,7 +577,7 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 	// 9. Read proofs (vector<vector<u8>>)
 	proofsLen := deserializer.Uleb128()
 	if err := deserializer.Error(); err != nil {
-		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
+		return nil, fmt.Errorf("failed to deserialize proofs length: %w", err)
 	}
 	remaining = deserializer.Remaining()
 	if remaining < 0 || uint64(proofsLen)*proofWireBytes > uint64(remaining) {
