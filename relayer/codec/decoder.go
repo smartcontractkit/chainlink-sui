@@ -560,7 +560,7 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 	// 8. Read offchain_token_data (vector<vector<u8>>)
 	offchainDataLen := deserializer.Uleb128()
 	if err := deserializer.Error(); err != nil {
-		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
+		return nil, fmt.Errorf("failed to deserialize offchain_token_data length: %w", err)
 	}
 	if int(offchainDataLen) > deserializer.Remaining() {
 		return nil, fmt.Errorf("failed to deserialize execution report: offchain_token_data length %d exceeds remaining %d bytes", offchainDataLen, deserializer.Remaining())
