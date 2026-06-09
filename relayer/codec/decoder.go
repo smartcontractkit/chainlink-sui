@@ -33,6 +33,13 @@ const (
 
 	// Response parsing constants
 	maxByteValue = 255
+
+	// proofWireBytes is the fixed on-wire size of each merkle proof element.
+	proofWireBytes = 32
+
+	// tokenTransferMinWireBytes is the minimum BCS size of Any2SuiTokenTransfer:
+	// uleb128(0) source pool + 32 dest token + 4 dest gas + uleb128(0) extra data + 32 amount.
+	tokenTransferMinWireBytes = 70
 )
 
 // DecodeSuiJsonValue decodes Sui JSON response data into the provided target.
@@ -516,6 +523,9 @@ type executionReportMessageFields struct {
 
 func deserializeExecutionReportMessageFields(deserializer *aptosBCS.Deserializer) (uint64, executionReportMessageFields, error) {
 	sourceChainSelector := deserializer.U64()
+	if err := deserializer.Error(); err != nil {
+		return 0, executionReportMessageFields{}, fmt.Errorf("failed to deserialize sourceChainSelector: %w", err)
+	}
 
 	header, err := deserializeRampMessageHeader(deserializer, sourceChainSelector)
 	if err != nil {
@@ -523,14 +533,29 @@ func deserializeExecutionReportMessageFields(deserializer *aptosBCS.Deserializer
 	}
 
 	sender := deserializer.ReadBytes()
+	if err := deserializer.Error(); err != nil {
+		return 0, executionReportMessageFields{}, fmt.Errorf("failed to deserialize sender: %w", err)
+	}
+
 	msgData := deserializer.ReadBytes()
+	if err := deserializer.Error(); err != nil {
+		return 0, executionReportMessageFields{}, fmt.Errorf("failed to deserialize data: %w", err)
+	}
+
 	receiver := deserializer.ReadFixedBytes(32)
+	if err := deserializer.Error(); err != nil {
+		return 0, executionReportMessageFields{}, fmt.Errorf("failed to deserialize receiver: %w", err)
+	}
+
 	gasLimit := deserializer.U256()
+	if err := deserializer.Error(); err != nil {
+		return 0, executionReportMessageFields{}, fmt.Errorf("failed to deserialize gas_limit: %w", err)
+	}
 
 	tokenReceiver := [32]byte{}
 	deserializer.ReadFixedBytesInto(tokenReceiver[:])
 	if err := deserializer.Error(); err != nil {
-		return 0, executionReportMessageFields{}, fmt.Errorf("failed to deserialize ramp message fields: %w", err)
+		return 0, executionReportMessageFields{}, fmt.Errorf("failed to deserialize tokenReceiver: %w", err)
 	}
 
 	return sourceChainSelector, executionReportMessageFields{
@@ -546,13 +571,28 @@ func deserializeExecutionReportMessageFields(deserializer *aptosBCS.Deserializer
 func deserializeRampMessageHeader(deserializer *aptosBCS.Deserializer, sourceChainSelector uint64) (RampMessageHeader, error) {
 	messageID := make([]byte, 32)
 	deserializer.ReadFixedBytesInto(messageID)
+	if err := deserializer.Error(); err != nil {
+		return RampMessageHeader{}, fmt.Errorf("failed to deserialize messageID: %w", err)
+	}
 
 	headerSourceChain := deserializer.U64()
+	if err := deserializer.Error(); err != nil {
+		return RampMessageHeader{}, fmt.Errorf("failed to deserialize headerSourceChain: %w", err)
+	}
+
 	destChainSelector := deserializer.U64()
+	if err := deserializer.Error(); err != nil {
+		return RampMessageHeader{}, fmt.Errorf("failed to deserialize destChainSelector: %w", err)
+	}
+
 	sequenceNumber := deserializer.U64()
+	if err := deserializer.Error(); err != nil {
+		return RampMessageHeader{}, fmt.Errorf("failed to deserialize sequenceNumber: %w", err)
+	}
+
 	nonce := deserializer.U64()
 	if err := deserializer.Error(); err != nil {
-		return RampMessageHeader{}, fmt.Errorf("failed to deserialize message header: %w", err)
+		return RampMessageHeader{}, fmt.Errorf("failed to deserialize nonce: %w", err)
 	}
 
 	if sourceChainSelector != headerSourceChain {
@@ -580,16 +620,16 @@ func finalizeExecutionReportDecode(deserializer *aptosBCS.Deserializer, context 
 
 func deserializeReceiverObjectIDs(deserializer *aptosBCS.Deserializer) ([]models.SuiAddressBytes, error) {
 	receiverObjectIDsLen := deserializer.Uleb128()
-	if deserializer.Error() != nil {
-		return nil, fmt.Errorf("failed to deserialize receiver_object_ids length: %w", deserializer.Error())
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize receiver_object_ids length: %w", err)
 	}
 
 	receiverObjectIDs := make([]models.SuiAddressBytes, receiverObjectIDsLen)
 	for i := range receiverObjectIDsLen {
 		var objectID [32]byte
 		deserializer.ReadFixedBytesInto(objectID[:])
-		if deserializer.Error() != nil {
-			return nil, fmt.Errorf("failed to deserialize receiver_object_ids[%d]: %w", i, deserializer.Error())
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize receiver_object_ids[%d]: %w", i, err)
 		}
 		receiverObjectIDs[i] = models.SuiAddressBytes(objectID)
 	}
@@ -599,22 +639,40 @@ func deserializeReceiverObjectIDs(deserializer *aptosBCS.Deserializer) ([]models
 
 func deserializeAny2SuiTokenTransfers(deserializer *aptosBCS.Deserializer) ([]Any2SuiTokenTransfer, error) {
 	tokenAmountsLen := deserializer.Uleb128()
-	if deserializer.Error() != nil {
-		return nil, fmt.Errorf("failed to deserialize token_amounts length: %w", deserializer.Error())
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize token_amounts length: %w", err)
+	}
+
+	remaining := deserializer.Remaining()
+	if remaining < 0 || uint64(tokenAmountsLen)*tokenTransferMinWireBytes > uint64(remaining) {
+		return nil, fmt.Errorf("failed to deserialize execution report: token_amounts length %d exceeds remaining %d bytes", tokenAmountsLen, remaining)
 	}
 
 	tokenAmounts := make([]Any2SuiTokenTransfer, tokenAmountsLen)
 	for i := range tokenAmountsLen {
 		sourcePoolAddr := deserializer.ReadBytes()
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize token_amounts[%d].sourcePoolAddr: %w", i, err)
+		}
 
 		destToken := deserializer.ReadFixedBytes(32)
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize token_amounts[%d].destToken: %w", i, err)
+		}
 
 		destGas := deserializer.U32()
-		extraData := deserializer.ReadBytes()
-		amount := deserializer.U256()
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize token_amounts[%d].destGas: %w", i, err)
+		}
 
-		if deserializer.Error() != nil {
-			return nil, fmt.Errorf("failed to deserialize token_amounts[%d]: %w", i, deserializer.Error())
+		extraData := deserializer.ReadBytes()
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize token_amounts[%d].extraData: %w", i, err)
+		}
+
+		amount := deserializer.U256()
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize token_amounts[%d].amount: %w", i, err)
 		}
 
 		tokenAmounts[i] = Any2SuiTokenTransfer{
@@ -631,28 +689,36 @@ func deserializeAny2SuiTokenTransfers(deserializer *aptosBCS.Deserializer) ([]An
 
 func deserializeOffchainTokenDataAndProofs(deserializer *aptosBCS.Deserializer) ([][]byte, [][]byte, error) {
 	offchainDataLen := deserializer.Uleb128()
-	if deserializer.Error() != nil {
-		return nil, nil, fmt.Errorf("failed to deserialize offchain_token_data length: %w", deserializer.Error())
+	if err := deserializer.Error(); err != nil {
+		return nil, nil, fmt.Errorf("failed to deserialize offchain_token_data length: %w", err)
+	}
+	if int(offchainDataLen) > deserializer.Remaining() {
+		return nil, nil, fmt.Errorf("failed to deserialize execution report: offchain_token_data length %d exceeds remaining %d bytes", offchainDataLen, deserializer.Remaining())
 	}
 
 	offchainData := make([][]byte, offchainDataLen)
 	for i := range offchainDataLen {
 		offchainData[i] = deserializer.ReadBytes()
-		if deserializer.Error() != nil {
-			return nil, nil, fmt.Errorf("failed to deserialize offchain_token_data[%d]: %w", i, deserializer.Error())
+		if err := deserializer.Error(); err != nil {
+			return nil, nil, fmt.Errorf("failed to deserialize offchain_token_data[%d]: %w", i, err)
 		}
 	}
 
 	proofsLen := deserializer.Uleb128()
-	if deserializer.Error() != nil {
-		return nil, nil, fmt.Errorf("failed to deserialize proofs length: %w", deserializer.Error())
+	if err := deserializer.Error(); err != nil {
+		return nil, nil, fmt.Errorf("failed to deserialize proofs length: %w", err)
+	}
+
+	remaining := deserializer.Remaining()
+	if remaining < 0 || uint64(proofsLen)*proofWireBytes > uint64(remaining) {
+		return nil, nil, fmt.Errorf("failed to deserialize execution report: proofs length %d exceeds remaining %d bytes", proofsLen, remaining)
 	}
 
 	proofs := make([][]byte, proofsLen)
 	for i := range proofsLen {
-		proofs[i] = deserializer.ReadFixedBytes(32)
-		if deserializer.Error() != nil {
-			return nil, nil, fmt.Errorf("failed to deserialize proofs[%d]: %w", i, deserializer.Error())
+		proofs[i] = deserializer.ReadFixedBytes(proofWireBytes)
+		if err := deserializer.Error(); err != nil {
+			return nil, nil, fmt.Errorf("failed to deserialize proofs[%d]: %w", i, err)
 		}
 	}
 
