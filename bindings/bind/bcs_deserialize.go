@@ -42,11 +42,6 @@ func DeserializeBCS(data []byte, moveTypes []string) ([]any, error) {
 }
 
 func bcsDeserializeType(deserializer *mystenbcs.Decoder, moveType string) (any, reflect.Type, error) {
-	// custom move structs are decoded by their IDs
-	if _, ok := bcsStructDecoders[moveType]; ok {
-		return bcsDeserializeAddress(deserializer)
-	}
-
 	switch {
 	case moveType == "bool":
 		var res bool
@@ -81,7 +76,8 @@ func bcsDeserializeType(deserializer *mystenbcs.Decoder, moveType string) (any, 
 	case moveType == "u256":
 		return bcsDeserializeBigInt(deserializer, moveType, 32)
 	default:
-		return nil, nil, fmt.Errorf("unsupported type for BCS deserialization: %s", moveType)
+		// custom move structs are decoded by their IDs
+		return bcsDeserializeAddress(deserializer)
 	}
 }
 
