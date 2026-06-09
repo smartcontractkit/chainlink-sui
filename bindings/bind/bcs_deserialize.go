@@ -42,8 +42,9 @@ func DeserializeBCS(data []byte, moveTypes []string) ([]any, error) {
 }
 
 func bcsDeserializeType(deserializer *mystenbcs.Decoder, moveType string) (any, reflect.Type, error) {
+	// custom move structs are decoded by their IDs
 	if _, ok := bcsStructDecoders[moveType]; ok {
-		return nil, nil, fmt.Errorf("struct decoder path not supported in DeserializeBCS for type %s", moveType)
+		return bcsDeserializeAddress(deserializer)
 	}
 
 	switch {
