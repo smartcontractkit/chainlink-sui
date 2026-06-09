@@ -349,7 +349,7 @@ public fun deconstruct_receiver_params(_: &DestTransferCap, receiver_params: Rec
 // |                        V2 Types and Functions                |
 // ================================================================
 
-const EReceiverObjectMismatch: u64 = 11;
+const EReceiverObjectMismatch: u64 = 15;
 
 public struct ReceiverParamsV2 {
     token_transfer: Option<DestTokenTransfer>,

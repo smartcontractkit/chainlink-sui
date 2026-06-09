@@ -17,8 +17,11 @@ use sui::transfer::Receiving;
 use sui::tx_context::TxContext;
 
 const EMessageIdMismatch: u64 = 0;
+const EInvalidReceiverObjectIdsCount: u64 = 1;
 // `ccip_receive` tail is `[&Clock, &mut CCIPReceiverState]`; sender commits both IDs in order.
+const CLOCK_RECEIVER_OBJECT_INDEX: u64 = 0;
 const STATE_RECEIVER_OBJECT_INDEX: u64 = 1;
+const EXPECTED_RECEIVER_OBJECT_COUNT: u64 = 2;
 
 public struct DUMMY_RECEIVER has drop {}
 
@@ -153,17 +156,28 @@ public fun receive_coin_no_owner_cap<T>(
     transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving)
 }
 
+/// Reference V2 CCIP receiver entrypoint (non-production example).
+///
+/// Protocol-fixed prefix (relayer-supplied): `expected_message_id`, `ref`, `message`.
+/// Tail object arguments must match `message.receiver_object_ids` in ABI order after the
+/// first three parameters (excluding `TxContext`). This receiver expects exactly
+/// `[clock_id, state_id]`. Call `assert_receiver_object` on every security-relevant tail
+/// object before consuming the message or mutating state so manual executors cannot pass
+/// substitute objects when the committed ID list is too short.
 public fun ccip_receive(
     expected_message_id: vector<u8>,
     ref: &CCIPObjectRef,
     message: client::Any2SuiMessageV2,
-    _: &Clock,
+    clock: &Clock,
     state: &mut CCIPReceiverState,
 ) {
     let object_ids = client::get_receiver_object_ids(&message);
-    if (object_ids.length() > STATE_RECEIVER_OBJECT_INDEX) {
-        client::assert_receiver_object(&message, STATE_RECEIVER_OBJECT_INDEX, state);
-    };
+    assert!(
+        object_ids.length() == EXPECTED_RECEIVER_OBJECT_COUNT,
+        EInvalidReceiverObjectIdsCount,
+    );
+    client::assert_receiver_object(&message, CLOCK_RECEIVER_OBJECT_INDEX, clock);
+    client::assert_receiver_object(&message, STATE_RECEIVER_OBJECT_INDEX, state);
 
     let (
         message_id,
@@ -230,4 +244,23 @@ public fun test_setup(ctx: &mut TxContext) {
 
     transfer::share_object(state);
     transfer::transfer(owner_cap, ctx.sender());
+}
+
+#[test_only]
+public fun test_decoy_state_address(ctx: &mut TxContext): address {
+    let decoy = CCIPReceiverState {
+        id: object::new(ctx),
+        counter: 0,
+        message_id: vector[],
+        source_chain_selector: 0,
+        sender: vector[],
+        data: vector[],
+        message_receiver: @0x0,
+        token_receiver: @0x0,
+        dest_token_transfer_length: 0,
+        dest_token_amounts: vector[],
+    };
+    let addr = object::id_address(&decoy);
+    transfer::share_object(decoy);
+    addr
 }

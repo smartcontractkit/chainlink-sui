@@ -74,3 +74,137 @@ public fun test_ccip_receive_v2_happy_path() {
     clock.destroy_for_testing();
     ts::end(sc);
 }
+
+#[test]
+#[expected_failure(abort_code = dummy_receiver::EInvalidReceiverObjectIdsCount)]
+public fun test_ccip_receive_insufficient_receiver_object_ids_aborts() {
+    let mut sc = ts::begin(OWNER);
+    state_object::test_init(sc.ctx());
+    sc.next_tx(OWNER);
+
+    let mut ref = ts::take_shared<CCIPObjectRef>(&sc);
+    let ccip_owner_cap = ts::take_from_sender<OwnerCap>(&sc);
+    upgrade_registry::initialize(&mut ref, &ccip_owner_cap, sc.ctx());
+    receiver_registry::initialize(&mut ref, &ccip_owner_cap, sc.ctx());
+
+    sc.next_tx(OWNER);
+    dummy_receiver::test_setup(sc.ctx());
+
+    sc.next_tx(OWNER);
+    let mut state = ts::take_shared<CCIPReceiverState>(&sc);
+    let owner_cap = ts::take_from_sender<DummyOwnerCap>(&sc);
+    dummy_receiver::register_receiver(&owner_cap, &mut ref);
+
+    let clock = clock::create_for_testing(sc.ctx());
+    let message_id = b"message_id_32_bytes_padding_ok!!";
+    let clock_addr = object::id_address(&clock);
+    let message = client::new_any2sui_message_v2_for_test(
+        message_id,
+        SOURCE_CHAIN,
+        b"sender",
+        b"payload",
+        receiver_package_id(),
+        @0x0,
+        vector[clock_addr],
+        vector[],
+    );
+
+    dummy_receiver::ccip_receive(message_id, &ref, message, &clock, &mut state);
+
+    ts::return_shared(state);
+    ts::return_to_sender(&sc, owner_cap);
+    ts::return_to_sender(&sc, ccip_owner_cap);
+    ts::return_shared(ref);
+    clock.destroy_for_testing();
+    ts::end(sc);
+}
+
+#[test]
+#[expected_failure(abort_code = client::EMessageReceiverMismatch)]
+public fun test_ccip_receive_wrong_state_object_aborts() {
+    let mut sc = ts::begin(OWNER);
+    state_object::test_init(sc.ctx());
+    sc.next_tx(OWNER);
+
+    let mut ref = ts::take_shared<CCIPObjectRef>(&sc);
+    let ccip_owner_cap = ts::take_from_sender<OwnerCap>(&sc);
+    upgrade_registry::initialize(&mut ref, &ccip_owner_cap, sc.ctx());
+    receiver_registry::initialize(&mut ref, &ccip_owner_cap, sc.ctx());
+
+    sc.next_tx(OWNER);
+    dummy_receiver::test_setup(sc.ctx());
+
+    sc.next_tx(OWNER);
+    let mut state = ts::take_shared<CCIPReceiverState>(&sc);
+    let owner_cap = ts::take_from_sender<DummyOwnerCap>(&sc);
+    dummy_receiver::register_receiver(&owner_cap, &mut ref);
+
+    let clock = clock::create_for_testing(sc.ctx());
+    let message_id = b"message_id_32_bytes_padding_ok!!";
+    let clock_addr = object::id_address(&clock);
+    let decoy_addr = dummy_receiver::test_decoy_state_address(sc.ctx());
+    let message = client::new_any2sui_message_v2_for_test(
+        message_id,
+        SOURCE_CHAIN,
+        b"sender",
+        b"payload",
+        receiver_package_id(),
+        @0x0,
+        vector[clock_addr, decoy_addr],
+        vector[],
+    );
+
+    dummy_receiver::ccip_receive(message_id, &ref, message, &clock, &mut state);
+
+    ts::return_shared(state);
+    ts::return_to_sender(&sc, owner_cap);
+    ts::return_to_sender(&sc, ccip_owner_cap);
+    ts::return_shared(ref);
+    clock.destroy_for_testing();
+    ts::end(sc);
+}
+
+#[test]
+#[expected_failure(abort_code = dummy_receiver::EMessageIdMismatch)]
+public fun test_ccip_receive_message_id_mismatch_aborts() {
+    let mut sc = ts::begin(OWNER);
+    state_object::test_init(sc.ctx());
+    sc.next_tx(OWNER);
+
+    let mut ref = ts::take_shared<CCIPObjectRef>(&sc);
+    let ccip_owner_cap = ts::take_from_sender<OwnerCap>(&sc);
+    upgrade_registry::initialize(&mut ref, &ccip_owner_cap, sc.ctx());
+    receiver_registry::initialize(&mut ref, &ccip_owner_cap, sc.ctx());
+
+    sc.next_tx(OWNER);
+    dummy_receiver::test_setup(sc.ctx());
+
+    sc.next_tx(OWNER);
+    let mut state = ts::take_shared<CCIPReceiverState>(&sc);
+    let owner_cap = ts::take_from_sender<DummyOwnerCap>(&sc);
+    dummy_receiver::register_receiver(&owner_cap, &mut ref);
+
+    let clock = clock::create_for_testing(sc.ctx());
+    let message_id = b"message_id_32_bytes_padding_ok!!";
+    let clock_addr = object::id_address(&clock);
+    let state_addr = object::id_address(&state);
+    let message = client::new_any2sui_message_v2_for_test(
+        message_id,
+        SOURCE_CHAIN,
+        b"sender",
+        b"payload",
+        receiver_package_id(),
+        @0x0,
+        vector[clock_addr, state_addr],
+        vector[],
+    );
+
+    dummy_receiver::ccip_receive(b"wrong_message_id_32_bytes_padded!", &ref, message, &clock, &mut state);
+
+    ts::return_shared(state);
+    ts::return_to_sender(&sc, owner_cap);
+    ts::return_to_sender(&sc, ccip_owner_cap);
+    ts::return_shared(ref);
+    clock.destroy_for_testing();
+    ts::end(sc);
+}
