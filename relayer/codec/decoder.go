@@ -506,7 +506,7 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 	// 7. Read token_amounts vector
 	tokenAmountsLen := deserializer.Uleb128()
 	if err := deserializer.Error(); err != nil {
-		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
+		return nil, fmt.Errorf("failed to deserialize token_amounts length: %w", err)
 	}
 	remaining := deserializer.Remaining()
 	if remaining < 0 || uint64(tokenAmountsLen)*tokenTransferMinWireBytes > uint64(remaining) {
