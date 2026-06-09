@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"reflect"
 	"strings"
@@ -28,7 +29,7 @@ func DeserializeBCS(data []byte, moveTypes []string) ([]any, error) {
 	deserializer := mystenbcs.NewDecoder(reader)
 	ret := make([]any, 0, len(moveTypes))
 	for _, moveType := range moveTypes {
-		decoded, _, err := bcsDeserializeType(deserializer, moveType)
+		decoded, _, err := bcsDeserializeType(reader, deserializer, moveType)
 		if err != nil {
 			return ret, err
 		}
@@ -41,7 +42,7 @@ func DeserializeBCS(data []byte, moveTypes []string) ([]any, error) {
 	return ret, nil
 }
 
-func bcsDeserializeType(deserializer *mystenbcs.Decoder, moveType string) (any, reflect.Type, error) {
+func bcsDeserializeType(reader io.Reader, deserializer *mystenbcs.Decoder, moveType string) (any, reflect.Type, error) {
 	switch {
 	case moveType == "bool":
 		var res bool
@@ -68,7 +69,7 @@ func bcsDeserializeType(deserializer *mystenbcs.Decoder, moveType string) (any, 
 		typ, err := bcsDecode(deserializer, &res)
 		return res, typ, err
 	case strings.HasPrefix(moveType, "vector<") && strings.HasSuffix(moveType, ">"):
-		return bcsDeserializeSlice(deserializer, moveType)
+		return bcsDeserializeSlice(reader, deserializer, moveType)
 	case moveType == "address":
 		return bcsDeserializeAddress(deserializer)
 	case moveType == "u128":
@@ -88,17 +89,28 @@ func bcsDecode(deserializer *mystenbcs.Decoder, target any) (reflect.Type, error
 	return reflect.TypeOf(target).Elem(), nil
 }
 
-func bcsDeserializeSlice(deserializer *mystenbcs.Decoder, moveType string) (any, reflect.Type, error) {
+func bcsDeserializeSlice(reader io.Reader, deserializer *mystenbcs.Decoder, moveType string) (any, reflect.Type, error) {
 	innerType := moveType[len("vector<") : len(moveType)-1]
-	var length uint64
-	if _, err := deserializer.Decode(&length); err != nil {
+
+	// vector<u8> uses ULEB128 length + raw bytes; mystenbcs handles this natively.
+	if innerType == "u8" {
+		var res []byte
+		typ, err := bcsDecode(deserializer, &res)
+		return res, typ, err
+	}
+
+	length, _, err := mystenbcs.ULEB128Decode[uint64](reader)
+	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode vector length: %w", err)
+	}
+	if length > uint64(^uint(0)>>1) {
+		return nil, nil, fmt.Errorf("vector length %d out of range", length)
 	}
 
 	elements := make([]any, length)
 	var elemType reflect.Type
 	for i := uint64(0); i < length; i++ {
-		dec, refT, err := bcsDeserializeType(deserializer, innerType)
+		dec, refT, err := bcsDeserializeType(reader, deserializer, innerType)
 		if err != nil {
 			return nil, nil, err
 		}
