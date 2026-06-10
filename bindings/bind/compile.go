@@ -299,6 +299,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		filepath.Join(dstRoot, "ccip", "ccip_offramp"),
 		filepath.Join(dstRoot, "ccip", "ccip_burn_mint_token"),
 		filepath.Join(dstRoot, "ccip", "ccip_dummy_receiver"),
+		filepath.Join(dstRoot, "ccip", "ccip_broken_receiver"),
 		filepath.Join(dstRoot, "ccip", "managed_token"),
 		filepath.Join(dstRoot, "ccip", "managed_token_faucet"),
 		filepath.Join(dstRoot, "ccip", "mock_eth_token"),
@@ -479,7 +480,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		}
 	}
 
-	if packageName == contracts.CCIPDummyReceiver {
+	if packageName == contracts.CCIPDummyReceiver || packageName == contracts.CCIPBrokenReceiver {
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")

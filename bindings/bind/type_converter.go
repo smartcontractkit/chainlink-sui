@@ -280,7 +280,7 @@ func convertPureValueToCallArg(typeName string, value any) (*transaction.CallArg
 	case "vector<u8>":
 		valueToEncode, err = convertToByteArray(value)
 
-	case "0x1::string::String":
+	case "0x1::string::String", "ascii::String":
 		str, ok := value.(string)
 		if !ok {
 			return nil, fmt.Errorf("expected string, got %T", value)
@@ -554,7 +554,7 @@ func convertVectorToBCS(innerType string, value any) (any, error) {
 
 		return result, nil
 
-	case "0x1::string::String":
+	case "0x1::string::String", "ascii::String":
 		result := make([]string, rv.Len())
 		for i := range rv.Len() {
 			elem := rv.Index(i).Interface()
