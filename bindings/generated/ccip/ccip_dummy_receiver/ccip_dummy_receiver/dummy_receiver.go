@@ -18,7 +18,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"ccip_receive","parameters":[{"name":"expected_message_id","type":"vector<u8>"},{"name":"ref","type":"CCIPObjectRef"},{"name":"message","type":"client::Any2SuiMessage"},{"name":"_","type":"Clock"},{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_counter","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_dest_token_amounts","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_amount","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_token","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_receiver","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"register_receiver","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"ccip_receive","parameters":[{"name":"expected_message_id","type":"vector<u8>"},{"name":"ref","type":"CCIPObjectRef"},{"name":"message","type":"client::Any2SuiMessage"},{"name":"clock","type":"Clock"},{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_counter","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_dest_token_amounts","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_amount","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_token","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_receiver","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"register_receiver","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"type_and_version","parameters":null}]`
 
 type IDummyReceiver interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -32,7 +32,7 @@ type IDummyReceiver interface {
 	ReceiveCoin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ReceiveAndSendCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object, recipient string) (*models.SuiTransactionBlockResponse, error)
 	ReceiveCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object) (*models.SuiTransactionBlockResponse, error)
-	CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IDummyReceiverDevInspect
 	Encoder() DummyReceiverEncoder
 	Bound() bind.IBoundContract
@@ -72,7 +72,7 @@ type DummyReceiverEncoder interface {
 	ReceiveAndSendCoinNoOwnerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ReceiveCoinNoOwnerCap(typeArgs []string, state bind.Object, coinReceiving bind.Object) (*bind.EncodedCall, error)
 	ReceiveCoinNoOwnerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	CcipReceive(expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*bind.EncodedCall, error)
+	CcipReceive(expectedMessageId []byte, ref bind.Object, message bind.Object, clock bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	CcipReceiveWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
@@ -267,8 +267,8 @@ func (c *DummyReceiverContract) ReceiveCoinNoOwnerCap(ctx context.Context, opts 
 }
 
 // CcipReceive executes the ccip_receive Move function.
-func (c *DummyReceiverContract) CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.dummyReceiverEncoder.CcipReceive(expectedMessageId, ref, message, param, state)
+func (c *DummyReceiverContract) CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.CcipReceive(expectedMessageId, ref, message, clock, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -804,7 +804,7 @@ func (c dummyReceiverEncoder) ReceiveCoinNoOwnerCapWithArgs(typeArgs []string, a
 }
 
 // CcipReceive encodes a call to the ccip_receive Move function.
-func (c dummyReceiverEncoder) CcipReceive(expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*bind.EncodedCall, error) {
+func (c dummyReceiverEncoder) CcipReceive(expectedMessageId []byte, ref bind.Object, message bind.Object, clock bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("ccip_receive", typeArgsList, typeParamsList, []string{
@@ -817,7 +817,7 @@ func (c dummyReceiverEncoder) CcipReceive(expectedMessageId []byte, ref bind.Obj
 		expectedMessageId,
 		ref,
 		message,
-		param,
+		clock,
 		state,
 	}, nil)
 }
