@@ -1,4 +1,8 @@
-// THIS CONTRACT IS ONLY FOR TESTING PURPOSES. IT IS NOT INTENDED FOR PRODUCTION USE.
+/// Reference receiver for tests and documentation. Not for production.
+///
+/// Implements the singleton tail-argument pattern for V1 destination execution.
+/// Tail slots: shared `Clock` at `@0x6` and the single `CCIPReceiverState`
+/// from `init`. See `contracts/ccip/docs/receiver-integration-guide.md`.
 module ccip_dummy_receiver::dummy_receiver;
 
 use ccip::client;
@@ -16,8 +20,11 @@ use sui::transfer::Receiving;
 
 const EMessageIdMismatch: u64 = 0;
 
+/// One-time witness for package publish. Consumed in `init`.
 public struct DUMMY_RECEIVER has drop {}
 
+/// Admin capability for registration and coin receive helpers.
+/// Stored by the deployer; not passed to `ccip_receive`.
 public struct OwnerCap has key, store {
     id: UID,
     receiver_address: address,
@@ -32,6 +39,8 @@ public struct ReceivedMessage has copy, drop {
     dest_token_amounts: vector<TokenAmount>,
 }
 
+/// Singleton delivery state. Created once in `init`; `has key` only so this
+/// module retains transfer and share control.
 public struct CCIPReceiverState has key {
     id: UID,
     counter: u64,
@@ -45,6 +54,7 @@ public struct CCIPReceiverState has key {
     dest_token_amounts: vector<TokenAmount>,
 }
 
+/// Type proof for `receiver_registry` and `consume_any2sui_message`.
 public struct DummyReceiverProof has drop {}
 
 public struct PublisherKey has copy, drop, store {}
@@ -58,6 +68,7 @@ public fun type_and_version(): String {
     string::utf8(b"DummyReceiver 1.6.0")
 }
 
+/// Sole constructor for `CCIPReceiverState`.
 fun init(otw: DUMMY_RECEIVER, ctx: &mut TxContext) {
     let state = CCIPReceiverState {
         id: object::new(ctx),
@@ -110,9 +121,7 @@ public fun get_token_amount_amount(token_amount: &TokenAmount): u256 {
     token_amount.amount
 }
 
-// if coin objects are sent to an object (in this case, the receiver state object), this function must be implemented
-// in order to "receive" those coin objects. otherwise, the coin objects will be locked in the object until the package
-// is upgraded with such a function to receive coin objects from this object.
+/// Accepts coins sent to the shared state object via transfer-to-object.
 public fun receive_and_send_coin<T>(
     state: &mut CCIPReceiverState,
     _: &OwnerCap,
@@ -149,13 +158,17 @@ public fun receive_coin_no_owner_cap<T>(
     transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving)
 }
 
+/// CCIP entrypoint. Both tail types are singletons so manual executors cannot
+/// substitute an alternate object of the same type.
 public fun ccip_receive(
     expected_message_id: vector<u8>,
     ref: &CCIPObjectRef,
     message: client::Any2SuiMessage,
-    _: &Clock, // this is a precompile, but remain the same across all messages
-    state: &mut CCIPReceiverState, // this is a singleton, but remain the same across all messages
+    clock: &Clock,
+    state: &mut CCIPReceiverState,
 ) {
+    clock; // read-only tail slot example; use `clock.timestamp_ms()` when needed
+
     let (
         message_id,
         source_chain_selector,
