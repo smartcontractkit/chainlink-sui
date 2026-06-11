@@ -7,5 +7,9 @@ var AllOperationsRMN = []any{
 	*McmsMintAndRegisterCurserCapOp,
 	*McmsCreateCurserCapAndTransferOp,
 	*McmsRegisterCurserCapOp,
+	*McmsInitializeAllowedCurserCapsOp,
+	*McmsRegisterCurserCapIdsOp,
+	*McmsSetCurserCapAllowlistEnabledOp,
+	*McmsDeregisterCurserCapIdsOp,
 	*CurseWithCurserCapOp,
 }

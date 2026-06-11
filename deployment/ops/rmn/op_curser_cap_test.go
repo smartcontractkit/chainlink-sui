@@ -46,6 +46,29 @@ func TestSerializeMcmsObjectAddrs(t *testing.T) {
 	require.Len(t, data, 96)
 }
 
+func TestSerializeMcmsObjectAddrsWithAddressVector(t *testing.T) {
+	t.Parallel()
+
+	data, err := SerializeMcmsObjectAddrsWithAddressVector(
+		[]string{testStateObjectID, testOwnerCapID},
+		[]string{testCurserCapID},
+	)
+	require.NoError(t, err)
+	require.Len(t, data, 64+1+32) // two pinned addrs + uleb128(1) + one address
+}
+
+func TestSerializeMcmsObjectAddrsWithBool(t *testing.T) {
+	t.Parallel()
+
+	data, err := SerializeMcmsObjectAddrsWithBool(
+		[]string{testStateObjectID, testOwnerCapID},
+		true,
+	)
+	require.NoError(t, err)
+	require.Len(t, data, 65) // two pinned addrs + bool
+	require.Equal(t, byte(1), data[len(data)-1])
+}
+
 func TestSerializeMcmsObjectAddrs_PadsShortIDs(t *testing.T) {
 	t.Parallel()
 
@@ -440,6 +463,123 @@ func TestCreateCurserCapOp_ProposalDataMatchesManualBCS(t *testing.T) {
 	require.Equal(t, expected, report.Output.Call.Data)
 }
 
+func TestMcmsInitializeAllowedCurserCapsOp_EncodesProposalLeaf(t *testing.T) {
+	t.Parallel()
+
+	report, err := cld_ops.ExecuteOperation(
+		testBundle(t),
+		McmsInitializeAllowedCurserCapsOp,
+		sui_ops.OpTxDeps{},
+		McmsInitializeAllowedCurserCapsInput{
+			CCIPPackageId:        testCCIPPackageID,
+			StateObjectId:        testStateObjectID,
+			SlowOwnerCapObjectId: testOwnerCapID,
+			InitialCurserCapIds:  []string{testCurserCapID},
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "initialize_allowed_curser_caps", report.Output.Call.Function)
+
+	expected, err := SerializeMcmsObjectAddrsWithAddressVector(
+		[]string{testStateObjectID, testOwnerCapID},
+		[]string{testCurserCapID},
+	)
+	require.NoError(t, err)
+	require.Equal(t, expected, report.Output.Call.Data)
+}
+
+func TestMcmsRegisterCurserCapIdsOp_EncodesProposalLeaf(t *testing.T) {
+	t.Parallel()
+
+	report, err := cld_ops.ExecuteOperation(
+		testBundle(t),
+		McmsRegisterCurserCapIdsOp,
+		sui_ops.OpTxDeps{},
+		McmsRegisterCurserCapIdsInput{
+			CCIPPackageId:        testCCIPPackageID,
+			StateObjectId:        testStateObjectID,
+			SlowOwnerCapObjectId: testOwnerCapID,
+			CurserCapObjectIds:   []string{testCurserCapID},
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "register_curser_cap_ids", report.Output.Call.Function)
+
+	expected, err := SerializeMcmsObjectAddrsWithAddressVector(
+		[]string{testStateObjectID, testOwnerCapID},
+		[]string{testCurserCapID},
+	)
+	require.NoError(t, err)
+	require.Equal(t, expected, report.Output.Call.Data)
+}
+
+func TestMcmsRegisterCurserCapIdsOp_RequiresCurserCapObjectIds(t *testing.T) {
+	t.Parallel()
+
+	_, err := cld_ops.ExecuteOperation(
+		testBundle(t),
+		McmsRegisterCurserCapIdsOp,
+		sui_ops.OpTxDeps{},
+		McmsRegisterCurserCapIdsInput{
+			CCIPPackageId:        testCCIPPackageID,
+			StateObjectId:        testStateObjectID,
+			SlowOwnerCapObjectId: testOwnerCapID,
+		},
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "at least one curser cap object id")
+}
+
+func TestMcmsSetCurserCapAllowlistEnabledOp_EncodesProposalLeaf(t *testing.T) {
+	t.Parallel()
+
+	report, err := cld_ops.ExecuteOperation(
+		testBundle(t),
+		McmsSetCurserCapAllowlistEnabledOp,
+		sui_ops.OpTxDeps{},
+		McmsSetCurserCapAllowlistEnabledInput{
+			CCIPPackageId:        testCCIPPackageID,
+			StateObjectId:        testStateObjectID,
+			SlowOwnerCapObjectId: testOwnerCapID,
+			Enabled:              true,
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "set_curser_cap_allowlist_enabled", report.Output.Call.Function)
+
+	expected, err := SerializeMcmsObjectAddrsWithBool(
+		[]string{testStateObjectID, testOwnerCapID},
+		true,
+	)
+	require.NoError(t, err)
+	require.Equal(t, expected, report.Output.Call.Data)
+}
+
+func TestMcmsDeregisterCurserCapIdsOp_EncodesProposalLeaf(t *testing.T) {
+	t.Parallel()
+
+	report, err := cld_ops.ExecuteOperation(
+		testBundle(t),
+		McmsDeregisterCurserCapIdsOp,
+		sui_ops.OpTxDeps{},
+		McmsDeregisterCurserCapIdsInput{
+			CCIPPackageId:        testCCIPPackageID,
+			StateObjectId:        testStateObjectID,
+			SlowOwnerCapObjectId: testOwnerCapID,
+			CurserCapObjectIds:   []string{testCurserCapID},
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "deregister_curser_cap_ids", report.Output.Call.Function)
+
+	expected, err := SerializeMcmsObjectAddrsWithAddressVector(
+		[]string{testStateObjectID, testOwnerCapID},
+		[]string{testCurserCapID},
+	)
+	require.NoError(t, err)
+	require.Equal(t, expected, report.Output.Call.Data)
+}
+
 func TestCurserCapOpDefinitions(t *testing.T) {
 	t.Parallel()
 
@@ -447,5 +587,9 @@ func TestCurserCapOpDefinitions(t *testing.T) {
 	require.Equal(t, "sui-ccip-rmn_remote-mcms_mint_and_register_curser_cap", McmsMintAndRegisterCurserCapOp.Def().ID)
 	require.Equal(t, "sui-ccip-rmn_remote-mcms_create_curser_cap_and_transfer", McmsCreateCurserCapAndTransferOp.Def().ID)
 	require.Equal(t, "sui-ccip-rmn_remote-mcms_register_curser_cap", McmsRegisterCurserCapOp.Def().ID)
+	require.Equal(t, "sui-ccip-rmn_remote-mcms_initialize_allowed_curser_caps", McmsInitializeAllowedCurserCapsOp.Def().ID)
+	require.Equal(t, "sui-ccip-rmn_remote-mcms_register_curser_cap_ids", McmsRegisterCurserCapIdsOp.Def().ID)
+	require.Equal(t, "sui-ccip-rmn_remote-mcms_set_curser_cap_allowlist_enabled", McmsSetCurserCapAllowlistEnabledOp.Def().ID)
+	require.Equal(t, "sui-ccip-rmn_remote-mcms_deregister_curser_cap_ids", McmsDeregisterCurserCapIdsOp.Def().ID)
 	require.Equal(t, "sui-ccip-rmn_remote-curse_with_curser_cap", CurseWithCurserCapOp.Def().ID)
 }

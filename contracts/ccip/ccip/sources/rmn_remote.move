@@ -61,6 +61,27 @@ public struct CurserCap has key, store {
     id: UID,
 }
 
+/// Tracks which `CurserCap` object IDs may invoke curse-only entrypoints.
+/// Stored as a DOF on `CCIPObjectRef`. When absent or disabled, any possessed
+/// `CurserCap` may curse. When enabled, only listed object IDs may curse.
+public struct AllowedCurserCaps has key, store {
+    id: UID,
+    enabled: bool,
+    allowed_cap_ids: VecMap<address, bool>,
+}
+
+public struct CurserCapRegistered has copy, drop {
+    cap_id: address,
+}
+
+public struct CurserCapDeregistered has copy, drop {
+    cap_id: address,
+}
+
+public struct CurserCapAllowlistEnabledSet has copy, drop {
+    enabled: bool,
+}
+
 const EAlreadyInitialized: u64 = 1;
 const EAlreadyCursed: u64 = 2;
 const EDuplicateSigner: u64 = 3;
@@ -74,6 +95,11 @@ const EInvalidSubjectLength: u64 = 10;
 const EInvalidPublicKeyLength: u64 = 11;
 const EInvalidFunction: u64 = 12;
 const EInvalidOwnerCap: u64 = 13;
+const EAllowedCurserCapsAlreadyInitialized: u64 = 14;
+const EAllowedCurserCapsNotInitialized: u64 = 15;
+const ECurserCapAlreadyAllowed: u64 = 16;
+const ECurserCapNotAllowed: u64 = 17;
+const ECurserCapNotRegistered: u64 = 18;
 
 const VERSION: u8 = 1;
 
@@ -255,7 +281,7 @@ fun insert_cursed_subjects(state: &mut RMNRemoteState, subjects: vector<vector<u
 /// a secondary MCMS instance whose Registry holds a `CurserCap` for `@ccip`.
 public fun curse_with_curser_cap(
     ref: &mut CCIPObjectRef,
-    _curser_cap: &CurserCap,
+    curser_cap: &CurserCap,
     subject: vector<u8>,
 ) {
     verify_function_allowed(
@@ -264,6 +290,7 @@ public fun curse_with_curser_cap(
         string::utf8(b"curse_with_curser_cap"),
         VERSION,
     );
+    assert_curser_cap_allowed(ref, curser_cap);
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
     insert_cursed_subjects(state, vector[subject]);
 }
@@ -271,7 +298,7 @@ public fun curse_with_curser_cap(
 /// Curse multiple subjects via possession of a `CurserCap`.
 public fun curse_multiple_with_curser_cap(
     ref: &mut CCIPObjectRef,
-    _curser_cap: &CurserCap,
+    curser_cap: &CurserCap,
     subjects: vector<vector<u8>>,
 ) {
     verify_function_allowed(
@@ -280,6 +307,7 @@ public fun curse_multiple_with_curser_cap(
         string::utf8(b"curse_multiple_with_curser_cap"),
         VERSION,
     );
+    assert_curser_cap_allowed(ref, curser_cap);
 
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
     insert_cursed_subjects(state, subjects);
@@ -314,6 +342,201 @@ public fun create_curser_cap_and_transfer(
 ) {
     let cap = create_curser_cap(ref, owner_cap, ctx);
     transfer::public_transfer(cap, recipient);
+}
+
+// ================================================================
+// |              CurserCap Allowlist (revocation)                |
+// ================================================================
+
+/// Initialize the CurserCap allowlist on `CCIPObjectRef`. Owner-only.
+/// When `initial_cap_ids` is non-empty the allowlist is enabled immediately.
+public fun initialize_allowed_curser_caps(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    initial_cap_ids: vector<address>,
+    ctx: &mut TxContext,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"initialize_allowed_curser_caps"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    assert!(!state_object::contains<AllowedCurserCaps>(ref), EAllowedCurserCapsAlreadyInitialized);
+
+    let mut allowed_cap_ids = vec_map::empty<address, bool>();
+    initial_cap_ids.do_ref!(|cap_id| {
+        allowed_cap_ids.insert(*cap_id, true);
+    });
+
+    let state = AllowedCurserCaps {
+        id: object::new(ctx),
+        enabled: !initial_cap_ids.is_empty(),
+        allowed_cap_ids,
+    };
+    state_object::add(ref, owner_cap, state, ctx);
+
+    initial_cap_ids.do_ref!(|cap_id| {
+        event::emit(CurserCapRegistered { cap_id: *cap_id });
+    });
+}
+
+/// Register one or more `CurserCap` object IDs on the allowlist. Owner-only.
+public fun register_curser_cap_ids(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    cap_ids: vector<address>,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"register_curser_cap_ids"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    assert!(state_object::contains<AllowedCurserCaps>(ref), EAllowedCurserCapsNotInitialized);
+    register_curser_cap_ids_internal(ref, cap_ids);
+}
+
+/// Remove one or more `CurserCap` object IDs from the allowlist, revoking their
+/// curse authority without disturbing fast MCMS Registry membership.
+public fun deregister_curser_cap_ids(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    cap_ids: vector<address>,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"deregister_curser_cap_ids"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    assert!(state_object::contains<AllowedCurserCaps>(ref), EAllowedCurserCapsNotInitialized);
+
+    let allowlist = state_object::borrow_mut<AllowedCurserCaps>(ref);
+    cap_ids.do_ref!(|cap_id| {
+        let cap_id = *cap_id;
+        assert!(allowlist.allowed_cap_ids.contains(&cap_id), ECurserCapNotRegistered);
+        allowlist.allowed_cap_ids.remove(&cap_id);
+        event::emit(CurserCapDeregistered { cap_id });
+    });
+}
+
+/// Enable or disable CurserCap allowlist enforcement. Owner-only.
+public fun set_curser_cap_allowlist_enabled(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    enabled: bool,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"set_curser_cap_allowlist_enabled"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    assert!(state_object::contains<AllowedCurserCaps>(ref), EAllowedCurserCapsNotInitialized);
+
+    let allowlist = state_object::borrow_mut<AllowedCurserCaps>(ref);
+    allowlist.enabled = enabled;
+    event::emit(CurserCapAllowlistEnabledSet { enabled });
+}
+
+/// Returns true when the cap may curse: always true before allowlist init or
+/// when enforcement is disabled; otherwise membership in `allowed_cap_ids`.
+public fun is_curser_cap_allowed(ref: &CCIPObjectRef, cap_id: address): bool {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"is_curser_cap_allowed"),
+        VERSION,
+    );
+    if (!state_object::contains<AllowedCurserCaps>(ref)) {
+        return true
+    };
+    let allowlist = state_object::borrow<AllowedCurserCaps>(ref);
+    if (!allowlist.enabled) {
+        return true
+    };
+    allowlist.allowed_cap_ids.contains(&cap_id)
+}
+
+public fun get_allowed_curser_cap_ids(ref: &CCIPObjectRef): vector<address> {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"get_allowed_curser_cap_ids"),
+        VERSION,
+    );
+    if (!state_object::contains<AllowedCurserCaps>(ref)) {
+        return vector[]
+    };
+    state_object::borrow<AllowedCurserCaps>(ref).allowed_cap_ids.keys()
+}
+
+public fun is_curser_cap_allowlist_enabled(ref: &CCIPObjectRef): bool {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"is_curser_cap_allowlist_enabled"),
+        VERSION,
+    );
+    if (!state_object::contains<AllowedCurserCaps>(ref)) {
+        return false
+    };
+    state_object::borrow<AllowedCurserCaps>(ref).enabled
+}
+
+fun assert_curser_cap_allowed(ref: &CCIPObjectRef, curser_cap: &CurserCap) {
+    if (!state_object::contains<AllowedCurserCaps>(ref)) {
+        return
+    };
+    let allowlist = state_object::borrow<AllowedCurserCaps>(ref);
+    if (!allowlist.enabled) {
+        return
+    };
+    assert!(
+        allowlist.allowed_cap_ids.contains(&object::id_address(curser_cap)),
+        ECurserCapNotAllowed,
+    );
+}
+
+fun register_curser_cap_ids_internal(ref: &mut CCIPObjectRef, cap_ids: vector<address>) {
+    let allowlist = state_object::borrow_mut<AllowedCurserCaps>(ref);
+    cap_ids.do_ref!(|cap_id| {
+        let cap_id = *cap_id;
+        assert!(!allowlist.allowed_cap_ids.contains(&cap_id), ECurserCapAlreadyAllowed);
+        allowlist.allowed_cap_ids.insert(cap_id, true);
+        event::emit(CurserCapRegistered { cap_id });
+    });
+}
+
+fun ensure_curser_cap_allowlisted(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    cap_id: address,
+    ctx: &mut TxContext,
+) {
+    if (!state_object::contains<AllowedCurserCaps>(ref)) {
+        let mut allowed_cap_ids = vec_map::empty<address, bool>();
+        allowed_cap_ids.insert(cap_id, true);
+        let state = AllowedCurserCaps {
+            id: object::new(ctx),
+            enabled: true,
+            allowed_cap_ids,
+        };
+        state_object::add(ref, owner_cap, state, ctx);
+        event::emit(CurserCapRegistered { cap_id });
+        return
+    };
+
+    let allowlist = state_object::borrow_mut<AllowedCurserCaps>(ref);
+    if (!allowlist.allowed_cap_ids.contains(&cap_id)) {
+        allowlist.allowed_cap_ids.insert(cap_id, true);
+        event::emit(CurserCapRegistered { cap_id });
+    };
 }
 
 public fun uncurse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<u8>) {
@@ -762,6 +985,8 @@ public fun mcms_register_curser_cap(
         state_object::mcms_callback(),
     );
 
+    let cap_id = object::id_address(&curser_cap);
+
     fast_mcms_registry::register_entrypoint(
         fast_registry,
         publisher_wrapper,
@@ -770,6 +995,8 @@ public fun mcms_register_curser_cap(
         vector[b"rmn_remote"],
         ctx,
     );
+
+    ensure_curser_cap_allowlisted(ref, owner_cap, cap_id, ctx);
 }
 
 /// Slow-MCMS wrapper that mints a `CurserCap` and atomically registers it in
@@ -817,6 +1044,7 @@ public fun mcms_mint_and_register_curser_cap(
 
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
     let curser_cap = CurserCap { id: object::new(ctx) };
+    let cap_id = object::id_address(&curser_cap);
 
     fast_mcms_registry::register_entrypoint(
         fast_registry,
@@ -826,6 +1054,126 @@ public fun mcms_mint_and_register_curser_cap(
         vector[b"rmn_remote"],
         ctx,
     );
+
+    ensure_curser_cap_allowlisted(ref, owner_cap, cap_id, ctx);
+}
+
+// ================================================================
+// |         Slow-MCMS Allowlist Admin Entrypoints                |
+// ================================================================
+
+public fun mcms_initialize_allowed_curser_caps(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"initialize_allowed_curser_caps"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let initial_cap_ids = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_address(stream) },
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    initialize_allowed_curser_caps(ref, owner_cap, initial_cap_ids, ctx);
+}
+
+public fun mcms_register_curser_cap_ids(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"register_curser_cap_ids"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let cap_ids = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_address(stream) },
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    register_curser_cap_ids(ref, owner_cap, cap_ids);
+}
+
+public fun mcms_deregister_curser_cap_ids(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"deregister_curser_cap_ids"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let cap_ids = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_address(stream) },
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    deregister_curser_cap_ids(ref, owner_cap, cap_ids);
+}
+
+public fun mcms_set_curser_cap_allowlist_enabled(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"set_curser_cap_allowlist_enabled"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let enabled = bcs_stream::deserialize_bool(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_curser_cap_allowlist_enabled(ref, owner_cap, enabled);
 }
 
 #[test_only]

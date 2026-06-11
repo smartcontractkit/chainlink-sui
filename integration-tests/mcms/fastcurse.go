@@ -14,10 +14,13 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
+	"github.com/smartcontractkit/mcms/sdk"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/smartcontractkit/mcms/types"
 
+	mcmsencoder "github.com/smartcontractkit/chainlink-sui/bindings"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	"github.com/smartcontractkit/chainlink-sui/deployment/adapters"
@@ -46,11 +49,20 @@ func (s *CCIPCurseMCMSTestSuite) TestCurseMCMSTest() {
 	s.T().Run("MCMS proposal curse/uncurse (slow OwnerCap)", func(_ *testing.T) {
 		s.testMCMSCurseProposal()
 	})
+	s.T().Run("Explicit initialize allowlist via slow MCMS", func(_ *testing.T) {
+		s.testExplicitInitializeAllowlistViaSlowMCMS()
+	})
 	s.T().Run("Fast MCMS bootstrap and curse via CurserCap", func(_ *testing.T) {
 		s.testFastMCMSCurseViaCurserCap()
 	})
+	s.T().Run("CurserCap allowlist state after bootstrap", func(_ *testing.T) {
+		s.testCurserCapAllowlistAfterBootstrap()
+	})
 	s.T().Run("Slow MCMS uncurse after fast CurserCap curse", func(_ *testing.T) {
 		s.testSlowMCMSUncurseAfterFastCurse()
+	})
+	s.T().Run("Deregister CurserCap blocks fast curse", func(_ *testing.T) {
+		s.testDeregisterCurserCapBlocksFastCurse()
 	})
 }
 
@@ -142,6 +154,68 @@ func (s *CCIPCurseMCMSTestSuite) assertIsCursed(a *adapters.CurseAdapter, env cl
 	cursed, err := a.IsSubjectCursedOnChain(env, uint64(s.chainSelector), subject)
 	s.Require().NoError(err, "IsSubjectCursedOnChain")
 	s.Require().Equal(expected, cursed, "unexpected curse state for subject %x", subject)
+}
+
+func (s *CCIPCurseMCMSTestSuite) ccipObjectRef() bind.Object {
+	return bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}
+}
+
+func (s *CCIPCurseMCMSTestSuite) rmnRemoteContract() module_rmn_remote.IRmnRemote {
+	contract, err := module_rmn_remote.NewRmnRemote(s.ccipPackageId, s.client)
+	s.Require().NoError(err)
+	return contract
+}
+
+func (s *CCIPCurseMCMSTestSuite) assertAllowlistState(enabled bool, capID string, capAllowed bool) {
+	s.T().Helper()
+
+	contract := s.rmnRemoteContract()
+	ctx := s.T().Context()
+	opts := s.deps.GetCallOpts()
+	ref := s.ccipObjectRef()
+
+	gotEnabled, err := contract.DevInspect().IsCurserCapAllowlistEnabled(ctx, opts, ref)
+	s.Require().NoError(err)
+	s.Require().Equal(enabled, gotEnabled)
+
+	ids, err := contract.DevInspect().GetAllowedCurserCapIds(ctx, opts, ref)
+	s.Require().NoError(err)
+	if capID == "" {
+		s.Require().Empty(ids)
+		return
+	}
+
+	if capAllowed {
+		s.Require().Contains(ids, capID)
+	} else {
+		s.Require().NotContains(ids, capID)
+	}
+
+	allowed, err := contract.DevInspect().IsCurserCapAllowed(ctx, opts, ref, capID)
+	s.Require().NoError(err)
+	s.Require().Equal(capAllowed, allowed)
+}
+
+func (s *CCIPCurseMCMSTestSuite) executeSlowMCMSFromGenericReport(genericReport cld_ops.Report[any, any]) {
+	bundle := s.NewOpBundleWithRegistry()
+	deps := s.deps
+	deps.Signer = nil
+
+	mcmsConfig := mcmsops.ProposalGenerateInput{
+		ChainSelector:      uint64(s.chainSelector),
+		Defs:               []cld_ops.Definition{genericReport.Def},
+		Inputs:             []any{genericReport.Input},
+		MmcsPackageID:      s.mcmsPackageID,
+		McmsStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
+		TimelockConfig:     utils.TimelockConfig{MCMSAction: types.TimelockActionBypass},
+	}
+	seqResult, err := cld_ops.ExecuteSequence(bundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, mcmsConfig)
+	s.Require().NoError(err, "generating slow MCMS proposal")
+	s.ExecuteProposalE2e(&seqResult.Output, s.bypasserConfig, 0)
 }
 
 func (s *CCIPCurseMCMSTestSuite) testDirectCurseUncurse() {
@@ -463,6 +537,110 @@ func (s *CCIPCurseMCMSTestSuite) testSlowMCMSUncurseAfterFastCurse() {
 	s.assertIsCursed(slowAdapter, env, subject, false)
 }
 
+func (s *CCIPCurseMCMSTestSuite) testExplicitInitializeAllowlistViaSlowMCMS() {
+	s.ensureCCIPOwnedBySlowMCMS()
+	s.assertAllowlistState(false, "", false)
+
+	bundle := s.NewOpBundleWithRegistry()
+	deps := s.deps
+	deps.Signer = nil
+
+	report, err := cld_ops.ExecuteOperation(bundle, rmn_ops.McmsInitializeAllowedCurserCapsOp, deps, rmn_ops.McmsInitializeAllowedCurserCapsInput{
+		CCIPPackageId:        s.ccipPackageId,
+		StateObjectId:        s.ccipObjects.CCIPObjectRefObjectId,
+		SlowOwnerCapObjectId: s.ccipObjects.OwnerCapObjectId,
+		InitialCurserCapIds:  nil,
+	})
+	s.Require().NoError(err, "encoding initialize_allowed_curser_caps leaf")
+	s.executeSlowMCMSFromGenericReport(report.ToGenericReport())
+
+	s.assertAllowlistState(false, "", false)
+}
+
+func (s *CCIPCurseMCMSTestSuite) testCurserCapAllowlistAfterBootstrap() {
+	s.bootstrapCurserCap()
+
+	contract := s.rmnRemoteContract()
+	ctx := s.T().Context()
+	opts := s.deps.GetCallOpts()
+	ref := s.ccipObjectRef()
+
+	allowed, err := contract.DevInspect().IsCurserCapAllowed(ctx, opts, ref, s.curserCapObjectID)
+	s.Require().NoError(err)
+	s.Require().True(allowed, "bootstrapped cap must be permitted to curse")
+
+	ids, err := contract.DevInspect().GetAllowedCurserCapIds(ctx, opts, ref)
+	s.Require().NoError(err)
+	s.Require().Contains(ids, s.curserCapObjectID)
+}
+
+func (s *CCIPCurseMCMSTestSuite) enableCurserCapAllowlistViaSlowMCMS(enabled bool) {
+	bundle := s.NewOpBundleWithRegistry()
+	deps := s.deps
+	deps.Signer = nil
+
+	report, err := cld_ops.ExecuteOperation(bundle, rmn_ops.McmsSetCurserCapAllowlistEnabledOp, deps, rmn_ops.McmsSetCurserCapAllowlistEnabledInput{
+		CCIPPackageId:        s.ccipPackageId,
+		StateObjectId:        s.ccipObjects.CCIPObjectRefObjectId,
+		SlowOwnerCapObjectId: s.ccipObjects.OwnerCapObjectId,
+		Enabled:              enabled,
+	})
+	s.Require().NoError(err, "encoding set_curser_cap_allowlist_enabled leaf")
+	s.executeSlowMCMSFromGenericReport(report.ToGenericReport())
+}
+
+func (s *CCIPCurseMCMSTestSuite) testDeregisterCurserCapBlocksFastCurse() {
+	s.bootstrapCurserCap()
+	s.enableCurserCapAllowlistViaSlowMCMS(true)
+	s.assertAllowlistState(true, s.curserCapObjectID, true)
+
+	bundle := s.NewOpBundleWithRegistry()
+	deps := s.deps
+	deps.Signer = nil
+
+	deregisterReport, err := cld_ops.ExecuteOperation(bundle, rmn_ops.McmsDeregisterCurserCapIdsOp, deps, rmn_ops.McmsDeregisterCurserCapIdsInput{
+		CCIPPackageId:        s.ccipPackageId,
+		StateObjectId:        s.ccipObjects.CCIPObjectRefObjectId,
+		SlowOwnerCapObjectId: s.ccipObjects.OwnerCapObjectId,
+		CurserCapObjectIds:   []string{s.curserCapObjectID},
+	})
+	s.Require().NoError(err, "encoding deregister_curser_cap_ids leaf")
+	s.executeSlowMCMSFromGenericReport(deregisterReport.ToGenericReport())
+	s.assertAllowlistState(true, s.curserCapObjectID, false)
+
+	a := s.newAdapter()
+	env := s.buildEnv()
+	chains := s.buildSuiChains(false)
+	subject := a.SelectorToSubject(cselectors.ETHEREUM_MAINNET.Selector)
+	curseInput := fastcurse.CurseInput{
+		ChainSelector: uint64(s.chainSelector),
+		Subjects:      []fastcurse.Subject{subject},
+	}
+
+	s.assertIsCursed(a, env, subject, false)
+
+	curseReport, err := cld_ops.ExecuteSequence(s.NewOpBundle(), a.Curse(), chains, curseInput)
+	s.Require().NoError(err, "building fast curse MCMS batch operations after deregistration")
+
+	proposal, err := utils.GenerateProposal(s.T().Context(), utils.GenerateProposalInput{
+		ChainSelector:      uint64(s.chainSelector),
+		Client:             s.client,
+		MCMSPackageID:      s.fastMcmsPackageID,
+		MCMSStateObjID:     s.fastMcmsObj,
+		TimelockObjID:      s.fastTimelockObj,
+		AccountObjID:       s.fastAccountObj,
+		RegistryObjID:      s.fastRegistryObj,
+		DeployerStateObjID: s.fastDeployerStateObj,
+		Description:        "Integration test: fast MCMS curse should fail after allowlist deregistration",
+		BatchOp:            curseReport.Output.BatchOps[0],
+		TimelockConfig:     utils.TimelockConfig{MCMSAction: types.TimelockActionBypass},
+	})
+	s.Require().NoError(err)
+
+	s.executeFastProposalE2eExpectFailure(proposal, s.fastBypasserConfig)
+	s.assertIsCursed(a, env, subject, false)
+}
+
 type mcmsEndpointSnapshot struct {
 	packageID        string
 	mcmsObj          string
@@ -503,4 +681,51 @@ func (s *CCIPCurseMCMSTestSuite) executeFastProposalE2e(timelockProposal *mcms.T
 	defer s.restoreSlowMCMSEndpoints(saved)
 
 	s.ExecuteProposalE2e(timelockProposal, roleConfig, proposalDelay)
+}
+
+func (s *CCIPCurseMCMSTestSuite) executeFastProposalE2eExpectFailure(timelockProposal *mcms.TimelockProposal, roleConfig *RoleConfig) {
+	saved := s.snapshotSlowMCMSEndpoints()
+	s.mcmsPackageID = s.fastMcmsPackageID
+	s.mcmsObj = s.fastMcmsObj
+	s.timelockObj = s.fastTimelockObj
+	s.registryObj = s.fastRegistryObj
+	s.deployerStateObj = s.fastDeployerStateObj
+	s.accountObj = s.fastAccountObj
+	defer s.restoreSlowMCMSEndpoints(saved)
+
+	proposal := s.ConvertProposal(timelockProposal)
+	s.SignProposal(proposal, roleConfig)
+	s.SetRoot(proposal, roleConfig)
+
+	encoders, err := proposal.GetEncoders()
+	s.Require().NoError(err)
+	suiEncoder := encoders[s.chainSelector].(*suisdk.Encoder)
+	executor, err := suisdk.NewExecutor(
+		s.client,
+		s.signer,
+		suiEncoder,
+		mcmsencoder.NewCCIPEntrypointArgEncoder(s.registryObj, s.deployerStateObj),
+		s.mcmsPackageID,
+		roleConfig.Role,
+		s.mcmsObj,
+		s.accountObj,
+		s.registryObj,
+		s.timelockObj,
+	)
+	s.Require().NoError(err, "creating executor for fast MCMS contract")
+
+	executors := map[types.ChainSelector]sdk.Executor{
+		s.chainSelector: executor,
+	}
+	executable, err := mcms.NewExecutable(proposal, executors)
+	s.Require().NoError(err, "creating fast MCMS executable")
+
+	var execErr error
+	for i := range proposal.Operations {
+		_, execErr = executable.Execute(s.T().Context(), i)
+		if execErr != nil {
+			break
+		}
+	}
+	s.Require().Error(execErr, "expected fast MCMS curse proposal to fail after allowlist deregistration")
 }

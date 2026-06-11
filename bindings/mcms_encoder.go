@@ -377,6 +377,18 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 				return nil, err
 			}
 			return overrideCall(entrypointCall, module, function), nil
+		case "initialize_allowed_curser_caps", "register_curser_cap_ids", "deregister_curser_cap_ids":
+			entrypointCall, err := rmnRemote.Encoder().McmsUncurseMultipleWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "set_curser_cap_allowlist_enabled":
+			entrypointCall, err := rmnRemote.Encoder().McmsUncurseMultipleWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
 		default:
 			return nil, fmt.Errorf("unsupported rmn_remote MCMS function: %q", function)
 		}

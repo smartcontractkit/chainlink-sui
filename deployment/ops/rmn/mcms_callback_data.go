@@ -31,6 +31,44 @@ func SerializeSubjects(subjects [][]byte) ([]byte, error) {
 	return s.ToBytes(), nil
 }
 
+// SerializeMcmsObjectAddrsWithAddressVector BCS-encodes pinned object addresses followed by
+// vector<address> for MCMS callbacks such as deregister_curser_cap_ids.
+func SerializeMcmsObjectAddrsWithAddressVector(pinnedIDs []string, addresses []string) ([]byte, error) {
+	data, err := SerializeMcmsObjectAddrs(pinnedIDs...)
+	if err != nil {
+		return nil, err
+	}
+	vectorData, err := serializeAddressVector(addresses)
+	if err != nil {
+		return nil, err
+	}
+	return append(data, vectorData...), nil
+}
+
+// SerializeMcmsObjectAddrsWithBool BCS-encodes pinned object addresses followed by a bool.
+func SerializeMcmsObjectAddrsWithBool(pinnedIDs []string, enabled bool) ([]byte, error) {
+	data, err := SerializeMcmsObjectAddrs(pinnedIDs...)
+	if err != nil {
+		return nil, err
+	}
+	s := &bcs.Serializer{}
+	s.Bool(enabled)
+	return append(data, s.ToBytes()...), nil
+}
+
+func serializeAddressVector(addresses []string) ([]byte, error) {
+	s := &bcs.Serializer{}
+	s.Uleb128(uint32(len(addresses)))
+	for _, addr := range addresses {
+		bytes, err := objectIDTo32Bytes(addr)
+		if err != nil {
+			return nil, err
+		}
+		s.FixedBytes(bytes[:])
+	}
+	return s.ToBytes(), nil
+}
+
 func objectIDTo32Bytes(id string) ([32]byte, error) {
 	var out [32]byte
 	if len(id) < 2 || id[:2] != "0x" {
