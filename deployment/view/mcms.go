@@ -63,7 +63,7 @@ func IsMCMSConfigured(
 	configTransformer := suimcms.NewConfigTransformer()
 	tBypasserCfg, err := configTransformer.ToConfig(bypasserCfg)
 	if err != nil {
-		return false, nil
+		return false, fmt.Errorf("failed to transform bypasser config: %w", err)
 	}
 
 	return tBypasserCfg.Quorum > 0, nil

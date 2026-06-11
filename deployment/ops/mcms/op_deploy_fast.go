@@ -34,8 +34,23 @@ var deployFastHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_
 	acc, err5 := bind.FindObjectIdFromPublishTx(*tx, "mcms_account", "AccountState")
 	ownCap, err6 := bind.FindObjectIdFromPublishTx(*tx, "mcms_account", "OwnerCap")
 
-	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil {
-		return sui_ops.OpTxResult[DeployFastMCMSObjects]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err)
+	if err1 != nil {
+		return sui_ops.OpTxResult[DeployFastMCMSObjects]{}, fmt.Errorf("failed to find MultisigState object ID in publish tx: %w", err1)
+	}
+	if err2 != nil {
+		return sui_ops.OpTxResult[DeployFastMCMSObjects]{}, fmt.Errorf("failed to find Timelock object ID in publish tx: %w", err2)
+	}
+	if err3 != nil {
+		return sui_ops.OpTxResult[DeployFastMCMSObjects]{}, fmt.Errorf("failed to find DeployerState object ID in publish tx: %w", err3)
+	}
+	if err4 != nil {
+		return sui_ops.OpTxResult[DeployFastMCMSObjects]{}, fmt.Errorf("failed to find Registry object ID in publish tx: %w", err4)
+	}
+	if err5 != nil {
+		return sui_ops.OpTxResult[DeployFastMCMSObjects]{}, fmt.Errorf("failed to find AccountState object ID in publish tx: %w", err5)
+	}
+	if err6 != nil {
+		return sui_ops.OpTxResult[DeployFastMCMSObjects]{}, fmt.Errorf("failed to find OwnerCap object ID in publish tx: %w", err6)
 	}
 
 	return sui_ops.OpTxResult[DeployFastMCMSObjects]{

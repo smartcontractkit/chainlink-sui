@@ -237,6 +237,22 @@ func (s *CCIPCurseMCMSTestSuite) ensureCCIPOwnedBySlowMCMS() {
 func (s *CCIPCurseMCMSTestSuite) bootstrapCurserCap() {
 	s.ensureCCIPOwnedBySlowMCMS()
 
+	if s.curserCapObjectID == "" {
+		capID, err := utils.FindCurserCapInFastRegistry(
+			s.T().Context(),
+			s.client,
+			s.fastRegistryObj,
+			s.ccipPackageId,
+		)
+		if err == nil {
+			s.curserCapObjectID = capID
+		}
+	}
+	if s.curserCapObjectID != "" {
+		s.T().Logf("Reusing CurserCap %s in fast MCMS Registry", s.curserCapObjectID)
+		return
+	}
+
 	bundle := s.NewOpBundleWithRegistry()
 	deps := s.deps
 	deps.Signer = nil
