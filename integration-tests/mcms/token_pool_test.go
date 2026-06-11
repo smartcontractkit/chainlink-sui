@@ -121,9 +121,10 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 		TokenPoolTypes:   []deployment.TokenPoolType{deployment.TokenPoolTypeBurnMint, deployment.TokenPoolTypeLockRelease, deployment.TokenPoolTypeManaged},
 		LockReleaseTPInput: lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput{
 			LockReleaseTokenPoolDeployInput: lockreleasetokenpoolops.LockReleaseTokenPoolDeployInput{
-				CCIPPackageId:    s.ccipPackageId,
-				MCMSAddress:      s.mcmsPackageID,
-				MCMSOwnerAddress: s.mcmsPackageID, // mcms is the owner
+				CCIPPackageId:     s.ccipPackageId,
+				MCMSAddress:       s.mcmsPackageID,
+				FastMcmsAddress:   s.fastMcmsPackageID,
+				MCMSOwnerAddress:  s.mcmsPackageID, // mcms is the owner
 			},
 			CoinObjectTypeArg:      secondLinkTokenType,
 			CCIPObjectRefObjectId:  s.ccipObjects.CCIPObjectRefObjectId,
@@ -147,9 +148,10 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 		},
 		BurnMintTpInput: burnminttokenpoolops.DeployAndInitBurnMintTokenPoolInput{
 			BurnMintTokenPoolDeployInput: burnminttokenpoolops.BurnMintTokenPoolDeployInput{
-				CCIPPackageId:    s.ccipPackageId,
-				MCMSAddress:      s.mcmsPackageID,
-				MCMSOwnerAddress: s.mcmsPackageID, // mcms is the owner
+				CCIPPackageId:     s.ccipPackageId,
+				MCMSAddress:       s.mcmsPackageID,
+				FastMcmsAddress:   s.fastMcmsPackageID,
+				MCMSOwnerAddress:  s.mcmsPackageID, // mcms is the owner
 			},
 			CoinObjectTypeArg:      linkTokenType,
 			CCIPObjectRefObjectId:  s.ccipObjects.CCIPObjectRefObjectId,
@@ -176,6 +178,7 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 			CCIPPackageId:         s.ccipPackageId,
 			ManagedTokenPackageId: s.managedTokenPackageId,
 			MCMSAddress:           s.mcmsPackageID,
+			FastMcmsAddress:       s.fastMcmsPackageID,
 			MCMSOwnerAddress:      s.mcmsPackageID, // mcms is the owner
 			// initialize
 			CoinObjectTypeArg:         fmt.Sprintf("%s::link::LINK", s.managedTokenLinkPackageId),

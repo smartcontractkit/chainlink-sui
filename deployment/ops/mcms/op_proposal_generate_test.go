@@ -1,4 +1,4 @@
-package mcmsops
+package mcmsops_test
 
 import (
 	"context"
@@ -20,6 +20,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
@@ -135,7 +136,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			},
 		}
 
-		proposalInput := ProposalGenerateInput{
+		proposalInput := mcmsops.ProposalGenerateInput{
 			Defs:               defs,
 			Inputs:             inputs,
 			ChainSelector:      testChainSelector,
@@ -154,7 +155,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		// Execute the operation
 		bundle := newTestBundle(t, registry)
-		result, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+		result, err := cld_ops.ExecuteSequence(bundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.NoError(t, err, "should generate proposal successfully")
 
 		// Verify the proposal structure
@@ -203,7 +204,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			},
 		}
 
-		proposalInput := ProposalGenerateInput{
+		proposalInput := mcmsops.ProposalGenerateInput{
 			Defs:               defs,
 			Inputs:             inputs,
 			MmcsPackageID:      testCCIPPackageId,
@@ -222,7 +223,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		// Execute the operation
 		bundle := newTestBundle(t, registry)
-		result, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+		result, err := cld_ops.ExecuteSequence(bundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.NoError(t, err, "should generate proposal successfully")
 
 		// Verify the proposal structure
@@ -255,7 +256,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			},
 		}
 
-		proposalInput := ProposalGenerateInput{
+		proposalInput := mcmsops.ProposalGenerateInput{
 			Defs:   defs,
 			Inputs: inputs,
 
@@ -275,7 +276,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		// Execute the operation - should fail
 		bundle := newTestBundle(t, registry)
-		_, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+		_, err := cld_ops.ExecuteSequence(bundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.Error(t, err, "should fail with invalid action")
 		assert.Contains(t, err.Error(), "unsupported action", "error should mention `unsupported action`")
 	})
@@ -299,7 +300,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			// Missing second input
 		}
 
-		proposalInput := ProposalGenerateInput{
+		proposalInput := mcmsops.ProposalGenerateInput{
 			Defs:   defs,
 			Inputs: inputs[:1], // Only one input for two definitions
 
@@ -319,7 +320,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		// Execute the operation - should fail due to index out of bounds
 		bundle := newTestBundle(t, registry)
-		_, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+		_, err := cld_ops.ExecuteSequence(bundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.Error(t, err, "should fail with mismatched definitions and inputs")
 	})
 }

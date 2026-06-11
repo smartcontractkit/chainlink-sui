@@ -21,5 +21,6 @@ func TestSubjectsToBytes_distinctBackingArrays(t *testing.T) {
 
 	// Mutating one slice must not affect the other.
 	got[0][0] = 99
-	require.Equal(t, byte(1), got[1][0])
+	require.Equal(t, byte(2), got[1][0])
+	require.Equal(t, byte(99), got[0][0])
 }

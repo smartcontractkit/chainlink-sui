@@ -56,9 +56,7 @@ func PublishMCMS(ctx context.Context, opts *bind.CallOpts, chainClient client.Bi
 	}
 
 	artifact, err := bind.CompilePackage(contracts.MCMS, map[string]string{
-		"mcms":       "0x0",
-		"mcms_owner": "0x2",
-		"signer":     signerAddr,
+		"signer": signerAddr,
 	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err

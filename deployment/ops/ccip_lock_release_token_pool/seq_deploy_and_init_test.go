@@ -14,7 +14,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccip_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
-	mcms_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_link_token"
 
 	"github.com/stretchr/testify/require"
@@ -47,14 +46,8 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	signerAddress, err := signer.GetAddress()
 	require.NoError(t, err, "failed to get signer address")
 
-	reportMCMs, err := cld_ops.ExecuteOperation(bundle, mcms_ops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
-	require.NoError(t, err, "failed to deploy MCMS Package")
-
-	// Deploy CCIP
-	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageId: reportMCMs.Output.PackageId,
-		McmsOwner:     signerAddress,
-	}
+	inputCCIP, err := ccip_ops.DeployCCIPDependencyPackages(bundle, deps)
+	require.NoError(t, err, "failed to deploy CCIP dependency packages")
 
 	reportCCIP, err := cld_ops.ExecuteOperation(bundle, ccip_ops.DeployCCIPOp, deps, inputCCIP)
 	require.NoError(t, err, "failed to deploy CCIP Package")
@@ -93,9 +86,10 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	// Run LR TokenPool deploy + configure sequence
 	LRTokenPoolInput := DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: LockReleaseTokenPoolDeployInput{
-			CCIPPackageId:    reportCCIP.Output.PackageId,
-			MCMSAddress:      reportMCMs.Output.PackageId,
-			MCMSOwnerAddress: signerAddress,
+			CCIPPackageId:     reportCCIP.Output.PackageId,
+			MCMSAddress:       inputCCIP.McmsPackageId,
+			FastMcmsAddress:   inputCCIP.FastMcmsPackageId,
+			MCMSOwnerAddress:  signerAddress,
 		},
 
 		// initialize

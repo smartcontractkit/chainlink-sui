@@ -32,6 +32,43 @@ type TimelockBlockedFunction struct {
 	FunctionName string `json:"functionName"`
 }
 
+// IsMCMSConfigured reports whether the bypasser role has a valid quorum set.
+// Fresh package publishes create MCMS objects but leave roles unconfigured (quorum 0).
+func IsMCMSConfigured(
+	ctx context.Context,
+	chain sui.Chain,
+	mcmsPackageID string,
+	mcmsStateObjectID string,
+) (bool, error) {
+	if mcmsPackageID == "" || mcmsStateObjectID == "" {
+		return false, nil
+	}
+
+	mcmsContract, err := module_mcms.NewMcms(mcmsPackageID, chain.Client)
+	if err != nil {
+		return false, fmt.Errorf("failed to create mcms contract binding: %w", err)
+	}
+
+	callOpts := &bind.CallOpts{Signer: chain.Signer}
+	bypasserRole, err := mcmsContract.DevInspect().BypasserRole(ctx, callOpts)
+	if err != nil {
+		return false, fmt.Errorf("failed to get bypasser role: %w", err)
+	}
+
+	bypasserCfg, err := mcmsContract.DevInspect().GetConfig(ctx, callOpts, bind.Object{Id: mcmsStateObjectID}, bypasserRole)
+	if err != nil {
+		return false, fmt.Errorf("failed to get bypasser config: %w", err)
+	}
+
+	configTransformer := suimcms.NewConfigTransformer()
+	tBypasserCfg, err := configTransformer.ToConfig(bypasserCfg)
+	if err != nil {
+		return false, nil
+	}
+
+	return tBypasserCfg.Quorum > 0, nil
+}
+
 // GenerateMCMSWithTimelockView generates an MCMS with timelock view by querying the on-chain state
 func GenerateMCMSWithTimelockView(
 	ctx context.Context,

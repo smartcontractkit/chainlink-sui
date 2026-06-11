@@ -183,9 +183,22 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		})
 	}
 
-	// FastCurse MCMS
+	// FastCurse MCMS — package may be published without role configuration (e.g. during
+	// DeploySuiChain before a dedicated ConfigureMCMS changeset runs).
 	if s.FastCurseMCMSStateObjectID != "" {
 		g.Go(func() error {
+			configured, err := view.IsMCMSConfigured(ctxG1, suiChain, s.FastCurseMCMSPackageID, s.FastCurseMCMSStateObjectID)
+			if err != nil {
+				return fmt.Errorf("failed to check fastcurse mcms configuration for %s: %w", s.FastCurseMCMSStateObjectID, err)
+			}
+			if !configured {
+				lggr.Infow("skipping FastCurse MCMS view: roles not configured yet",
+					"fastCurseMCMSStateObjectID", s.FastCurseMCMSStateObjectID,
+					"chain", chainName,
+				)
+				return nil
+			}
+
 			mcmsView, err := view.GenerateMCMSWithTimelockView(ctxG1, suiChain, s.FastCurseMCMSPackageID, s.FastCurseMCMSStateObjectID, s.FastCurseMCMSTimelockObjectID, s.FastCurseMCMSAccountStateObjectID)
 			if err != nil {
 				return fmt.Errorf("failed to generate fastcurse mcms view for mcms %s: %w", s.FastCurseMCMSStateObjectID, err)

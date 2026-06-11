@@ -16,6 +16,7 @@ import (
 type BurnMintTokenPoolDeployInput struct {
 	CCIPPackageId    string
 	MCMSAddress      string
+	FastMcmsAddress  string
 	MCMSOwnerAddress string
 }
 
@@ -33,6 +34,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMint
 		deps.Client,
 		input.CCIPPackageId,
 		input.MCMSAddress,
+		input.FastMcmsAddress,
 		input.MCMSOwnerAddress,
 		deps.SuiRPC,
 	)

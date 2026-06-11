@@ -3,6 +3,7 @@
 package mcms
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -13,8 +14,11 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
+	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/smartcontractkit/mcms/types"
 
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	"github.com/smartcontractkit/chainlink-sui/deployment/adapters"
 	"github.com/smartcontractkit/chainlink-sui/deployment/changesets"
@@ -26,15 +30,8 @@ import (
 type CCIPCurseMCMSTestSuite struct {
 	MCMSTestSuite
 
-	fastMcmsPackageID    string
-	fastMcmsObj          string
-	fastTimelockObj      string
-	fastRegistryObj      string
-	fastDeployerStateObj string
-	fastAccountObj       string
-	fastBypasserConfig   *RoleConfig
-
-	curserCapObjectID string
+	fastBypasserConfig *RoleConfig
+	curserCapObjectID  string
 }
 
 func (s *CCIPCurseMCMSTestSuite) SetupSuite() {
@@ -58,38 +55,56 @@ func (s *CCIPCurseMCMSTestSuite) TestCurseMCMSTest() {
 }
 
 func (s *CCIPCurseMCMSTestSuite) deployFastMCMS() {
-	deployInput := mcmsops.DeployMCMSSeqInput{
-		ChainSelector: cselectors.SUI_TESTNET.Selector,
-		Bypasser:      s.bypasserConfig.Config,
-		Proposer:      s.proposerConfig.Config,
-	}
-
+	// Fast MCMS package + objects were published in MCMSTestSuite.SetupSuite (before CCIP).
+	// Configure that same instance so CurserCap bootstrap uses the fast_mcms types CCIP was compiled against.
 	bundle := s.NewOpBundleWithRegistry()
-	report, err := cld_ops.ExecuteSequence(bundle, mcmsops.DeployMCMSSequence, s.deps, deployInput)
-	s.Require().NoError(err, "deploying fast MCMS contract")
 
-	s.fastMcmsPackageID = report.Output.PackageId
-	s.fastMcmsObj = report.Output.Objects.McmsMultisigStateObjectId
-	s.fastTimelockObj = report.Output.Objects.TimelockObjectId
-	s.fastRegistryObj = report.Output.Objects.McmsRegistryObjectId
-	s.fastDeployerStateObj = report.Output.Objects.McmsDeployerStateObjectId
-	s.fastAccountObj = report.Output.Objects.McmsAccountStateObjectId
+	_, err := cld_ops.ExecuteSequence(bundle, mcmsops.ConfigureMCMSSequence, s.deps, mcmsops.ConfigureMCMSSeqInput{
+		ChainSelector:               uint64(s.chainSelector),
+		PackageId:                   s.fastMcmsPackageID,
+		McmsAccountOwnerCapObjectId: s.fastOwnerCapObj,
+		McmsAccountStateObjectId:    s.fastAccountObj,
+		McmsMultisigStateObjectId:   s.fastMcmsObj,
+		Bypasser:                    s.bypasserConfig.Config,
+		Proposer:                    s.proposerConfig.Config,
+	})
+	s.Require().NoError(err, "configuring fast MCMS contract")
+
 	s.fastBypasserConfig = s.bypasserConfig
-
 	s.Require().NotEqual(s.mcmsObj, s.fastMcmsObj, "fast and slow MCMS must be distinct instances")
 
-	acceptProposal := report.Output.AcceptOwnershipProposal
-	s.executeFastProposalE2e(&acceptProposal, s.proposerConfig, 0)
+	_, err = cld_ops.ExecuteOperation(bundle, mcmsops.MCMSTransferOwnershipOp, s.deps, mcmsops.MCMSTransferOwnershipInput{
+		McmsPackageID:   s.fastMcmsPackageID,
+		OwnerCap:        s.fastOwnerCapObj,
+		AccountObjectID: s.fastAccountObj,
+	})
+	s.Require().NoError(err, "initiating fast MCMS ownership transfer to self")
+
+	acceptReport, err := cld_ops.ExecuteSequence(bundle, mcmsops.AcceptMCMSOwnershipSequence, s.deps, mcmsops.AcceptMCMSOwnershipSeqInput{
+		ChainSelector:             uint64(s.chainSelector),
+		PackageId:                 s.fastMcmsPackageID,
+		McmsMultisigStateObjectId: s.fastMcmsObj,
+		TimelockObjectId:          s.fastTimelockObj,
+		McmsAccountStateObjectId:  s.fastAccountObj,
+		McmsRegistryObjectId:      s.fastRegistryObj,
+		McmsDeployerStateObjectId: s.fastDeployerStateObj,
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction: types.TimelockActionSchedule,
+		},
+	})
+	s.Require().NoError(err, "generating fast MCMS accept-ownership proposal")
+
+	s.executeFastProposalE2e(&acceptReport.Output, s.proposerConfig, 0)
 
 	_, err = cld_ops.ExecuteOperation(bundle, mcmsops.MCMSExecuteTransferOwnershipOp, s.deps, mcmsops.MCMSExecuteTransferOwnershipInput{
 		McmsPackageID:         s.fastMcmsPackageID,
-		OwnerCap:              report.Output.Objects.McmsAccountOwnerCapObjectId,
+		OwnerCap:              s.fastOwnerCapObj,
 		AccountObjectID:       s.fastAccountObj,
 		RegistryObjectID:      s.fastRegistryObj,
 		DeployerStateObjectID: s.fastDeployerStateObj,
 	})
 	s.Require().NoError(err, "fast MCMS ownership transfer to self")
-	s.T().Logf("✅ Deployed fast MCMS registry %s", s.fastRegistryObj)
+	s.T().Logf("✅ Configured fast MCMS registry %s", s.fastRegistryObj)
 }
 
 func (s *CCIPCurseMCMSTestSuite) newAdapter() *adapters.CurseAdapter {
@@ -209,7 +224,19 @@ func (s *CCIPCurseMCMSTestSuite) testMCMSCurseProposal() {
 	s.assertIsCursed(a, env, subject, false)
 }
 
+func (s *CCIPCurseMCMSTestSuite) ensureCCIPOwnedBySlowMCMS() {
+	ccipContract, err := module_state_object.NewStateObject(s.ccipPackageId, s.client)
+	s.Require().NoError(err)
+	owner, err := ccipContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId})
+	s.Require().NoError(err)
+	if owner != s.mcmsPackageID {
+		s.RunOwnershipCCIPTransfer()
+	}
+}
+
 func (s *CCIPCurseMCMSTestSuite) bootstrapCurserCap() {
+	s.ensureCCIPOwnedBySlowMCMS()
+
 	bundle := s.NewOpBundleWithRegistry()
 	deps := s.deps
 	deps.Signer = nil
@@ -243,7 +270,13 @@ func (s *CCIPCurseMCMSTestSuite) bootstrapCurserCap() {
 	execTxDigest, err := changesets.LastSuccessfulReportTxDigest(results)
 	s.Require().NoError(err)
 
-	curserCapID, err := utils.FindCurserCapObjectIDFromTx(s.T().Context(), s.client, execTxDigest)
+	curserCapID, err := utils.ResolveCurserCapObjectID(
+		s.T().Context(),
+		s.client,
+		execTxDigest,
+		s.fastRegistryObj,
+		s.ccipPackageId,
+	)
 	s.Require().NoError(err, "finding CurserCap from executed bootstrap proposal")
 	s.curserCapObjectID = curserCapID
 	s.Require().NotEmpty(s.curserCapObjectID)
@@ -295,7 +328,13 @@ func (s *CCIPCurseMCMSTestSuite) testFastMCMSCurseViaCurserCap() {
 
 	curseReport, err := cld_ops.ExecuteSequence(bundle, a.Curse(), chains, curseInput)
 	s.Require().NoError(err, "building fast curse MCMS batch operations")
-	s.Require().Equal("curse_multiple_with_curser_cap", curseReport.Output.BatchOps[0].Transactions[0].To)
+
+	tx := curseReport.Output.BatchOps[0].Transactions[0]
+	s.Require().Equal(s.ccipPackageId, tx.To)
+	var txFields suisdk.AdditionalFields
+	s.Require().NoError(json.Unmarshal(tx.AdditionalFields, &txFields))
+	s.Require().Equal("rmn_remote", txFields.ModuleName)
+	s.Require().Equal("curse_multiple_with_curser_cap", txFields.Function)
 
 	proposal, err := utils.GenerateProposal(s.T().Context(), utils.GenerateProposalInput{
 		ChainSelector:      uint64(s.chainSelector),

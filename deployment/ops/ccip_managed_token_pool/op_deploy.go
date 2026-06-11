@@ -17,6 +17,7 @@ type ManagedTokenPoolDeployInput struct {
 	CCIPPackageId         string
 	ManagedTokenPackageId string
 	MCMSAddress           string
+	FastMcmsAddress       string
 	MCMSOwnerAddress      string
 }
 
@@ -35,6 +36,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedT
 		input.CCIPPackageId,
 		input.ManagedTokenPackageId,
 		input.MCMSAddress,
+		input.FastMcmsAddress,
 		input.MCMSOwnerAddress,
 		deps.SuiRPC,
 	)
