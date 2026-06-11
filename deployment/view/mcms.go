@@ -60,13 +60,12 @@ func IsMCMSConfigured(
 		return false, fmt.Errorf("failed to get bypasser config: %w", err)
 	}
 
-	configTransformer := suimcms.NewConfigTransformer()
-	tBypasserCfg, err := configTransformer.ToConfig(bypasserCfg)
-	if err != nil {
-		return false, fmt.Errorf("failed to transform bypasser config: %w", err)
+	// Fresh publishes initialize group_quorums to all zeros; group 0 quorum > 0 means configured.
+	if len(bypasserCfg.GroupQuorums) == 0 || bypasserCfg.GroupQuorums[0] == 0 {
+		return false, nil
 	}
 
-	return tBypasserCfg.Quorum > 0, nil
+	return true, nil
 }
 
 // GenerateMCMSWithTimelockView generates an MCMS with timelock view by querying the on-chain state
