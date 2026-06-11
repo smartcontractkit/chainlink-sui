@@ -986,6 +986,7 @@ func (s *TokenPoolTestSuite) RunUpgradeManagedTokenPoolProposal(newVersion strin
 		NamedAddresses: map[string]string{
 			"signer":                          signerAddress,
 			"mcms":                            s.mcmsPackageID,
+			"fast_mcms":                       s.fastMcmsPackageID,
 			"ccip":                            s.ccipPackageId,
 			"managed_token":                   s.managedTokenPackageId,
 			"original_managed_token_pool_pkg": s.managedTokenPoolPackageId,
@@ -1061,6 +1062,7 @@ func (s *TokenPoolTestSuite) RunUpgradeLnrProposal(newVersion string) {
 		NamedAddresses: map[string]string{
 			"signer":                               signerAddress,
 			"mcms":                                 s.mcmsPackageID,
+			"fast_mcms":                            s.fastMcmsPackageID,
 			"ccip":                                 s.ccipPackageId,
 			"original_lock_release_token_pool_pkg": s.lnrPackageId,
 		},
@@ -1135,6 +1137,7 @@ func (s *TokenPoolTestSuite) RunUpgradeBnmProposal(newVersion string) {
 		NamedAddresses: map[string]string{
 			"signer":                            signerAddress,
 			"mcms":                              s.mcmsPackageID,
+			"fast_mcms":                         s.fastMcmsPackageID,
 			"ccip":                              s.ccipPackageId,
 			"original_burn_mint_token_pool_pkg": s.bnmPackageId,
 		},

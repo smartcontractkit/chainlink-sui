@@ -20,6 +20,7 @@ require (
 	github.com/smartcontractkit/chainlink-sui v0.0.0
 	github.com/smartcontractkit/mcms v0.45.2-0.20260604181544-da0bd7da623d
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/crypto v0.51.0
 	golang.org/x/sync v0.20.0
 )
 
@@ -187,7 +188,6 @@ require (
 	go.uber.org/ratelimit v0.3.1 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	golang.org/x/crypto v0.51.0 // indirect
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
