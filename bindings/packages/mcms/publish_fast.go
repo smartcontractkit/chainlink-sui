@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 func PublishFastMCMS(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, suiRPC string) (MCMS, *models.SuiTransactionBlockResponse, error) {

@@ -53,7 +53,7 @@ func FindCurserCapObjectIDFromTx(ctx context.Context, suiClient client.SuiPTBCli
 	}
 
 	// Fallback for legacy object-type layouts in unit tests.
-	curserCapID, err := bind.FindObjectIdFromChangedObjects(changed, "rmn_remote", "CurserCap")
+	curserCapID, err := bind.FindObjectIDFromChangedObjects(changed, "rmn_remote", "CurserCap")
 	if err != nil {
 		return "", fmt.Errorf("find CurserCap in transaction %s: %w", txDigest, err)
 	}

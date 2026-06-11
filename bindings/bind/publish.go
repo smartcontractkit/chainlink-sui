@@ -96,7 +96,7 @@ func FindPackageIdFromPublishTx(tx models.SuiTransactionBlockResponse) (string, 
 	return "", errors.New("package ID not found in transaction")
 }
 
-func FindObjectIdFromChangedObjects(changed []*suirpcv2.ChangedObject, module, object string) (string, error) {
+func FindObjectIDFromChangedObjects(changed []*suirpcv2.ChangedObject, module, object string) (string, error) {
 	tx := models.SuiTransactionBlockResponse{
 		ObjectChanges: mapChangedObjectsToModels(changed),
 	}

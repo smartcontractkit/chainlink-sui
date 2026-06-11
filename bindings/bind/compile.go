@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -426,8 +427,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
 
-		if err := manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env, namedAddresses); err != nil {
-			return PackageArtifact{}, err
+		if manageErr := manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env, namedAddresses); manageErr != nil {
+			return PackageArtifact{}, manageErr
 		}
 
 		// For MCMS-managed upgrades, manage the original package as a dependency
@@ -482,8 +483,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
 
-		if err := manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env, namedAddresses); err != nil {
-			return PackageArtifact{}, err
+		if manageErr := manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env, namedAddresses); manageErr != nil {
+			return PackageArtifact{}, manageErr
 		}
 	}
 
@@ -512,10 +513,10 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 
 	if packageName == contracts.CCIP {
 		if isZeroAddress(namedAddresses["mcms"]) {
-			return PackageArtifact{}, fmt.Errorf("CCIP compile requires mcms package address")
+			return PackageArtifact{}, errors.New("CCIP compile requires mcms package address")
 		}
 		if isZeroAddress(namedAddresses["fast_mcms"]) {
-			return PackageArtifact{}, fmt.Errorf("CCIP compile requires fast_mcms package address")
+			return PackageArtifact{}, errors.New("CCIP compile requires fast_mcms package address")
 		}
 
 		mcmsAddr := namedAddresses["mcms"]
@@ -531,8 +532,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		fastMcmsAddr := namedAddresses["fast_mcms"]
 		if !isZeroAddress(fastMcmsAddr) {
 			fastMcmsDir := filepath.Join(dstRoot, "mcms", "fast_mcms")
-			if err := managePackage(fastMcmsDir, 1, rpcURL, env, fastMcmsAddr, fastMcmsAddr, pubfilePath); err != nil {
-				return PackageArtifact{}, fmt.Errorf("failed to manage fast_mcms dependency: %w", err)
+			if manageErr := managePackage(fastMcmsDir, 1, rpcURL, env, fastMcmsAddr, fastMcmsAddr, pubfilePath); manageErr != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage fast_mcms dependency: %w", manageErr)
 			}
 		} else {
 			fmt.Println("Skipping manage-package for fast_mcms (no published address found)")
@@ -563,8 +564,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
 
-		if err := manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env, namedAddresses); err != nil {
-			return PackageArtifact{}, err
+		if manageErr := manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env, namedAddresses); manageErr != nil {
+			return PackageArtifact{}, manageErr
 		}
 
 		// For MCMS-managed upgrades, manage the original package as a dependency
@@ -591,8 +592,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
 
-		if err := manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env, namedAddresses); err != nil {
-			return PackageArtifact{}, err
+		if manageErr := manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env, namedAddresses); manageErr != nil {
+			return PackageArtifact{}, manageErr
 		}
 
 		// For MCMS-managed upgrades, manage the original package as a dependency
@@ -631,7 +632,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		os.Remove(filepath.Join(packageRoot, "Published.toml"))
 	}
 
-	if isUpgrade {
+	switch {
+	case isUpgrade:
 		cmd = exec.Command("sui", "client", "publish",
 			"--serialize-unsigned-transaction",
 			"--skip-dependency-verification", // TODO: This is a temporary workaround for the test environment.
@@ -639,7 +641,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			"--json",
 			"--silence-warnings",
 		)
-	} else if hasDependencies {
+	case hasDependencies:
 		// Package has dependencies - use 'publish' which builds for the active CLI
 		// environment (set via setupSuiEnv) and resolves deps from Published.toml.
 		// Do not pass --build-env here; sui client publish rejects it.
@@ -649,7 +651,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			"--json",
 			"--silence-warnings",
 		)
-	} else {
+	default:
 		// Package has no dependencies - use test-publish which is simpler
 		// --with-unpublished-dependencies is safe since there's no collision risk
 		cmd = exec.Command("sui", "client", "test-publish",
@@ -1000,7 +1002,7 @@ func manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env string, namedAddress
 		return nil
 	}
 	if isZeroAddress(namedAddresses["fast_mcms"]) {
-		return fmt.Errorf("fast_mcms package address required when compiling against published CCIP")
+		return errors.New("fast_mcms package address required when compiling against published CCIP")
 	}
 
 	fastMcmsAddr := namedAddresses["fast_mcms"]
