@@ -369,6 +369,35 @@ func (s *CCIPCurseMCMSTestSuite) testFastMCMSCurseViaCurserCap() {
 
 	s.executeFastProposalE2e(proposal, s.fastBypasserConfig, 0)
 	s.assertIsCursed(a, env, subject, true)
+
+	slowAdapter := &adapters.CurseAdapter{
+		CCIPAddress:          s.ccipPackageId,
+		CCIPObjectRef:        s.ccipObjects.CCIPObjectRefObjectId,
+		CCIPOwnerCapObjectID: s.ccipObjects.OwnerCapObjectId,
+		RouterAddress:        s.ccipRouterPackageId,
+		RouterStateObjectID:  s.ccipRouterObjects.RouterStateObjectId,
+	}
+
+	uncurseReport, err := cld_ops.ExecuteSequence(bundle, slowAdapter.Uncurse(), chains, curseInput)
+	s.Require().NoError(err, "building slow MCMS uncurse batch operations for cleanup")
+
+	uncurseProposal, err := utils.GenerateProposal(s.T().Context(), utils.GenerateProposalInput{
+		ChainSelector:      uint64(s.chainSelector),
+		Client:             s.client,
+		MCMSPackageID:      s.mcmsPackageID,
+		MCMSStateObjID:     s.mcmsObj,
+		TimelockObjID:      s.timelockObj,
+		AccountObjID:       s.accountObj,
+		RegistryObjID:      s.registryObj,
+		DeployerStateObjID: s.deployerStateObj,
+		Description:        "Integration test: slow MCMS uncurse cleanup after fast CurserCap curse",
+		BatchOp:            uncurseReport.Output.BatchOps[0],
+		TimelockConfig:     utils.TimelockConfig{MCMSAction: types.TimelockActionBypass},
+	})
+	s.Require().NoError(err)
+
+	s.ExecuteProposalE2e(uncurseProposal, s.bypasserConfig, 0)
+	s.assertIsCursed(slowAdapter, env, subject, false)
 }
 
 func (s *CCIPCurseMCMSTestSuite) testSlowMCMSUncurseAfterFastCurse() {
