@@ -377,18 +377,14 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 				return nil, err
 			}
 			return overrideCall(entrypointCall, module, function), nil
-		case "initialize_allowed_curser_caps", "register_curser_cap_ids", "deregister_curser_cap_ids":
-			entrypointCall, err := rmnRemote.Encoder().McmsUncurseMultipleWithArgs(ccipRef, registryObj, executingCallbackParams)
-			if err != nil {
-				return nil, err
-			}
-			return overrideCall(entrypointCall, module, function), nil
+		case "initialize_allowed_curser_caps":
+			return rmnRemote.Encoder().McmsInitializeAllowedCurserCapsWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "register_curser_cap_ids":
+			return rmnRemote.Encoder().McmsRegisterCurserCapIdsWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "deregister_curser_cap_ids":
+			return rmnRemote.Encoder().McmsDeregisterCurserCapIdsWithArgs(ccipRef, registryObj, executingCallbackParams)
 		case "set_curser_cap_allowlist_enabled":
-			entrypointCall, err := rmnRemote.Encoder().McmsUncurseMultipleWithArgs(ccipRef, registryObj, executingCallbackParams)
-			if err != nil {
-				return nil, err
-			}
-			return overrideCall(entrypointCall, module, function), nil
+			return rmnRemote.Encoder().McmsSetCurserCapAllowlistEnabledWithArgs(ccipRef, registryObj, executingCallbackParams)
 		default:
 			return nil, fmt.Errorf("unsupported rmn_remote MCMS function: %q", function)
 		}
