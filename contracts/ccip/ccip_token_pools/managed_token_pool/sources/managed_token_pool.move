@@ -407,6 +407,7 @@ public fun release_or_mint<T>(
     offramp_sh::complete_token_transfer(
         ref,
         receiver_params,
+        local_amount,
         TypeProof {},
     );
 }

@@ -116,6 +116,7 @@ public fun test_token_message_18_to_9_receiver_amount_equals_local() {
     offramp_state_helper::complete_token_transfer(
         &ref,
         &mut receiver_params,
+        (EXPECTED_LOCAL_AMOUNT_9_DEC as u64),
         TestTypeProof {},
     );
 
@@ -171,6 +172,7 @@ public fun test_token_only_path_unchanged() {
     offramp_state_helper::complete_token_transfer(
         &ref,
         &mut receiver_params,
+        (SOURCE_AMOUNT_18_DEC as u64),
         TestTypeProof {},
     );
 
@@ -265,6 +267,7 @@ public fun test_same_decimals_no_conversion() {
     offramp_state_helper::complete_token_transfer(
         &ref,
         &mut receiver_params,
+        (source_amount as u64),
         TestTypeProof {},
     );
 
