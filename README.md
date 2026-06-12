@@ -19,6 +19,7 @@
 
 **Nix**
 
+
 Install Nix using the Determinate Systems [installer](https://github.com/DeterminateSystems/nix-installer) to get Nix with Flakes installed.
 
 ```bash
@@ -113,4 +114,4 @@ Then run the following command to serve the documentation locally.
 
 ```bash
 task docs:serve
-```
+```. 
