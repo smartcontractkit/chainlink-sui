@@ -1,7 +1,6 @@
 module ccip::offramp_state_helper;
 
 use ccip::client::{Self, Any2SuiMessage, Any2SuiTokenAmount};
-use ccip::eth_abi;
 use ccip::ownable::OwnerCap;
 use ccip::receiver_registry;
 use ccip::state_object::{Self, CCIPObjectRef};
@@ -21,13 +20,6 @@ const ETokenTransferAlreadyCompleted: u64 = 8;
 const EMessageAlreadyExists: u64 = 9;
 const EInvalidOwnerCap: u64 = 10;
 const ETokenTransferNotCompleted: u64 = 11;
-const EInvalidRemoteChainDecimals: u64 = 12;
-const EDecimalOverflow: u64 = 13;
-const EInvalidEncodedAmount: u64 = 14;
-
-const MAX_U256: u256 =
-    115792089237316195423570985008687907853269984665640564039457584007913129639935;
-const MAX_U64: u256 = 18446744073709551615;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
@@ -175,61 +167,24 @@ public fun get_token_param_data(
     )
 }
 
-fun parse_remote_decimals(source_pool_data: vector<u8>, local_decimals: u8): u8 {
-    let data_len = source_pool_data.length();
-    if (data_len == 0) {
-        return local_decimals
-    };
-    assert!(data_len == 32, EInvalidRemoteChainDecimals);
-    let remote_decimals = eth_abi::decode_u256_value(source_pool_data);
-    assert!(remote_decimals <= 255, EInvalidRemoteChainDecimals);
-    remote_decimals as u8
-}
-
-fun calculate_local_amount(
-    remote_amount: u256,
-    remote_decimals: u8,
-    local_decimals: u8,
-): u64 {
-    let local_amount = if (remote_decimals == local_decimals) {
-        remote_amount
-    } else if (remote_decimals > local_decimals) {
-        let decimals_diff = remote_decimals - local_decimals;
-        let mut current_amount = remote_amount;
-        let mut i: u8 = 0;
-        while (i < decimals_diff) {
-            current_amount = current_amount / 10;
-            i = i + 1;
-        };
-        current_amount
-    } else {
-        let decimals_diff = local_decimals - remote_decimals;
-        assert!(decimals_diff <= 77, EDecimalOverflow);
-        let mut multiplier: u256 = 1;
-        let mut i: u8 = 0;
-        while (i < decimals_diff) {
-            multiplier = multiplier * 10;
-            i = i + 1;
-        };
-        assert!(remote_amount <= (MAX_U256 / multiplier), EDecimalOverflow);
-        remote_amount * multiplier
-    };
-    assert!(local_amount <= MAX_U64, EInvalidEncodedAmount);
-    local_amount as u64
-}
-
 /// only the token pool with a proper type proof can call this function to
 /// add a receipt to the receiver params.
+///
+/// `local_amount` is the amount of tokens the pool actually minted/released on Sui. It is
+/// the single source of truth for the destination amount and, when the message carries token
+/// transfers, the value surfaced to the receiver. The pool computes it once (and uses the same
+/// value to mint/release) then passes it in; we must NOT re-derive it here from
+/// `source_pool_data`, whose encoding is pool-specific — e.g. the USDC/CCTP pool packs
+/// (nonce, domain) into 64 bytes, not the remote decimals (see F-01).
 public fun complete_token_transfer<TypeProof: drop>(
     ref: &CCIPObjectRef,
     receiver_params: &mut ReceiverParams,
+    local_amount: u64,
     _: TypeProof,
 ) {
     let dest_token_transfer = receiver_params.token_transfer.borrow();
     let token_receiver = dest_token_transfer.token_receiver;
     let dest_token_address = dest_token_transfer.dest_token_address;
-    let source_amount = dest_token_transfer.source_amount;
-    let source_pool_data = dest_token_transfer.source_pool_data;
     let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
         ref,
         dest_token_address,
@@ -240,9 +195,6 @@ public fun complete_token_transfer<TypeProof: drop>(
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 
     if (receiver_params.message.is_some()) {
-        let local_decimals = registry::get_local_decimals_for_token(ref, dest_token_address);
-        let remote_decimals = parse_remote_decimals(source_pool_data, local_decimals);
-        let local_amount = calculate_local_amount(source_amount, remote_decimals, local_decimals);
         client::set_dest_token_amount(
             receiver_params.message.borrow_mut(),
             0,
@@ -350,20 +302,6 @@ public fun deconstruct_receiver_params(_: &DestTransferCap, receiver_params: Rec
 #[test_only]
 public fun test_init(ctx: &mut TxContext) {
     init(OFFRAMP_STATE_HELPER {}, ctx);
-}
-
-#[test_only]
-public fun test_calculate_local_amount(
-    remote_amount: u256,
-    remote_decimals: u8,
-    local_decimals: u8,
-): u64 {
-    calculate_local_amount(remote_amount, remote_decimals, local_decimals)
-}
-
-#[test_only]
-public fun test_parse_remote_decimals(source_pool_data: vector<u8>, local_decimals: u8): u8 {
-    parse_remote_decimals(source_pool_data, local_decimals)
 }
 
 #[test_only]

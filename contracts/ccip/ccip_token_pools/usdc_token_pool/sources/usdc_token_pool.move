@@ -449,6 +449,7 @@ public fun release_or_mint<T: drop>(
     offramp_sh::complete_token_transfer(
         ref,
         receiver_params,
+        amount,
         TypeProof {},
     );
 }

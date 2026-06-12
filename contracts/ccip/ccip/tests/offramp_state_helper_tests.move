@@ -234,10 +234,11 @@ public fun test_complete_token_transfer() {
     // Create a test coin to transfer
     let test_coin = coin::mint_for_testing<TestToken>(500, scenario.ctx());
 
-    // Complete the token transfer
+    // Complete the token transfer (no message: local_amount is unused on this path)
     offramp_state_helper::complete_token_transfer(
         &ref,
         &mut receiver_params,
+        1000,
         TestTypeProof {},
     );
 
@@ -426,6 +427,7 @@ public fun test_complete_token_transfer_twice_should_fail() {
     offramp_state_helper::complete_token_transfer(
         &ref,
         &mut receiver_params,
+        1000,
         TestTypeProof {},
     );
 
@@ -433,6 +435,7 @@ public fun test_complete_token_transfer_twice_should_fail() {
     offramp_state_helper::complete_token_transfer(
         &ref,
         &mut receiver_params,
+        1000,
         TestTypeProof {},
     );
 
@@ -548,15 +551,17 @@ public fun test_extract_token_message_after_complete_succeeds() {
     );
     populate_token_message_receiver_params(&dest_cap, &mut receiver_params);
 
+    // The pool passes in the local amount it minted/released (here 1e9). That value is
+    // surfaced to the receiver verbatim — no re-derivation from source_pool_data (F-01).
     offramp_state_helper::complete_token_transfer(
         &ref,
         &mut receiver_params,
+        1_000_000_000,
         TestTypeProof {},
     );
 
     let message = offramp_state_helper::extract_any2sui_message(&mut receiver_params);
     let (_, _, _, _, _, _, dest_token_amounts) = client::consume_any2sui_message(message, @0x5432);
-    // After fix: amount is recomputed from 18-dec to 9-dec
     assert!(client::get_amount(&dest_token_amounts[0]) == 1_000_000_000);
 
     offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
