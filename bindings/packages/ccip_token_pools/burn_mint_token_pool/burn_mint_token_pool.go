@@ -50,6 +50,7 @@ func PublishCCIPBurnMintTokenPool(
 	chainClient client.BindingsClient,
 	ccipAddress,
 	mcmsAddress,
+	fastMcmsAddress,
 	mcmsOwnerAddress, suiRPC string) (BurnMintTokenPool, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
@@ -60,6 +61,7 @@ func PublishCCIPBurnMintTokenPool(
 		"ccip":                 ccipAddress,
 		"burn_mint_token_pool": "0x0",
 		"mcms":                 mcmsAddress,
+		"fast_mcms":            fastMcmsAddress,
 		"mcms_owner":           mcmsOwnerAddress,
 		"signer":               signerAddr,
 	}, false, suiRPC)

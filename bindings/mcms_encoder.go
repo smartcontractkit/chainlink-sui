@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
+	module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
@@ -312,6 +313,80 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return encodeExecuteOwnershipTransferWithTypeArgs()
 		case "set_chain_rate_limiter_configs", "set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
+		}
+
+	// RMN REMOTE
+	case "rmn_remote":
+		rmnRemote, err := module_rmn_remote.NewRmnRemote(target, nil)
+		if err != nil {
+			return nil, err
+		}
+		ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+		switch function {
+		case "curse", "curse_multiple":
+			entrypointCall, err := rmnRemote.Encoder().McmsCurseMultipleWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "uncurse", "uncurse_multiple":
+			entrypointCall, err := rmnRemote.Encoder().McmsUncurseMultipleWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "curse_with_curser_cap", "curse_multiple_with_curser_cap":
+			entrypointCall, err := rmnRemote.Encoder().McmsCurseMultipleWithCurserCapWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "create_curser_cap":
+			entrypointCall, err := rmnRemote.Encoder().McmsCreateCurserCapWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "create_curser_cap_and_transfer":
+			entrypointCall, err := rmnRemote.Encoder().McmsCreateCurserCapAndTransferWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "register_curser_cap":
+			deserializer := bcs.NewDeserializer(data)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			fastRegBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			curserCapBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			fastReg := bind.Object{Id: toHexString(fastRegBytes)}
+			curserCap := bind.Object{Id: toHexString(curserCapBytes)}
+			entrypointCall, err := rmnRemote.Encoder().McmsRegisterCurserCapWithArgs(ccipRef, registryObj, fastReg, executingCallbackParams, curserCap)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "mint_and_register_curser_cap":
+			deserializer := bcs.NewDeserializer(data)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			fastRegBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			fastReg := bind.Object{Id: toHexString(fastRegBytes)}
+			entrypointCall, err := rmnRemote.Encoder().McmsMintAndRegisterCurserCapWithArgs(ccipRef, registryObj, fastReg, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "initialize_allowed_curser_caps":
+			return rmnRemote.Encoder().McmsInitializeAllowedCurserCapsWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "register_curser_cap_ids":
+			return rmnRemote.Encoder().McmsRegisterCurserCapIdsWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "deregister_curser_cap_ids":
+			return rmnRemote.Encoder().McmsDeregisterCurserCapIdsWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "set_curser_cap_allowlist_enabled":
+			return rmnRemote.Encoder().McmsSetCurserCapAllowlistEnabledWithArgs(ccipRef, registryObj, executingCallbackParams)
+		default:
+			return nil, fmt.Errorf("unsupported rmn_remote MCMS function: %q", function)
 		}
 
 	// MANAGED TOKEN

@@ -51,6 +51,7 @@ func PublishCCIPLockReleaseTokenPool(
 	chainClient client.BindingsClient,
 	ccipAddress string,
 	mcmsAddress,
+	fastMcmsAddress,
 	mcmsOwnerAddress, suiRPC string) (LockReleaseTokenPool, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
@@ -61,6 +62,7 @@ func PublishCCIPLockReleaseTokenPool(
 		"ccip":                    ccipAddress,
 		"lock_release_token_pool": "0x0",
 		"mcms":                    mcmsAddress,
+		"fast_mcms":               fastMcmsAddress,
 		"mcms_owner":              mcmsOwnerAddress,
 		"signer":                  signerAddr,
 	}, false, suiRPC)

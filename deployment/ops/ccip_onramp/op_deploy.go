@@ -25,6 +25,7 @@ type DeployCCIPOnRampObjects struct {
 type DeployCCIPOnRampInput struct {
 	CCIPPackageId      string
 	MCMSPackageId      string
+	FastMcmsPackageId  string
 	MCMSOwnerPackageId string
 }
 
@@ -37,6 +38,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		deps.Client,
 		input.CCIPPackageId,
 		input.MCMSPackageId,
+		input.FastMcmsPackageId,
 		input.MCMSOwnerPackageId,
 		deps.SuiRPC,
 	)

@@ -22,6 +22,7 @@ type USDCTokenPoolDeployInput struct {
 	MessageTransmitterStateObjectId   string
 	TreasuryObjectId                  string
 	MCMSAddress                       string
+	FastMcmsAddress                   string
 	MCMSOwnerAddress                  string
 }
 
@@ -44,6 +45,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDCToke
 		input.MessageTransmitterStateObjectId,
 		input.TreasuryObjectId,
 		input.MCMSAddress,
+		input.FastMcmsAddress,
 		input.MCMSOwnerAddress,
 		deps.SuiRPC,
 	)

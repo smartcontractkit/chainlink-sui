@@ -1,0 +1,6 @@
+[package]
+name = "mcms"
+edition = "2024"
+
+[environments]
+devnet = "a9149565"

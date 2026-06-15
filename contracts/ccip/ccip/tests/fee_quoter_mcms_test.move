@@ -115,7 +115,7 @@ public fun test_mcms_apply_fee_token_updates() {
     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
 
     // Prepare data for mcms_apply_fee_token_updates
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
     data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
     data.append(bcs::to_bytes(&vector<address>[])); // fee_tokens_to_remove
@@ -156,7 +156,7 @@ public fun test_mcms_apply_dest_chain_config_updates() {
     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
 
     // Prepare data for mcms_apply_dest_chain_config_updates
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
     data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
     data.append(bcs::to_bytes(&DEST_CHAIN_SELECTOR_1)); // dest_chain_selector
@@ -253,7 +253,7 @@ public fun test_mcms_apply_token_transfer_fee_config_updates() {
     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
 
     // Prepare data for mcms_apply_token_transfer_fee_config_updates
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
     data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
     data.append(bcs::to_bytes(&DEST_CHAIN_SELECTOR_1)); // dest_chain_selector
@@ -338,7 +338,7 @@ public fun test_mcms_apply_premium_multiplier_wei_per_eth_updates() {
     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
 
     // Prepare data for mcms_apply_premium_multiplier_wei_per_eth_updates
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
     data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
     data.append(bcs::to_bytes(&vector[TOKEN_1, TOKEN_2])); // tokens
@@ -384,7 +384,7 @@ public fun test_mcms_update_prices_with_owner_cap() {
     env.clock.set_for_testing(current_timestamp);
 
     // Prepare data for mcms_update_prices_with_owner_cap
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
     data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
     data.append(bcs::to_bytes(&object::id_address(&env.clock)));

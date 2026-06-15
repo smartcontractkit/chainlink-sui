@@ -51,6 +51,7 @@ func PublishCCIPManagedTokenPool(
 	ccipAddress,
 	managedTokenAddress,
 	mcmsAddress,
+	fastMcmsAddress,
 	mcmsOwnerAddress, suiRPC string) (ManagedTokenPool, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
@@ -62,6 +63,7 @@ func PublishCCIPManagedTokenPool(
 		"managed_token_pool": "0x0",
 		"managed_token":      managedTokenAddress,
 		"mcms":               mcmsAddress,
+		"fast_mcms":          fastMcmsAddress,
 		"mcms_owner":         mcmsOwnerAddress,
 		"signer":             signerAddr,
 	}, false, suiRPC)

@@ -4,6 +4,7 @@ edition = "2024"
 
 [dependencies]
 mcms = { local = "../../mcms/mcms" }
+fast_mcms = { local = "../../mcms/fast_mcms", rename-from = "mcms" }
 
 [environments]
 devnet = "a9149565"

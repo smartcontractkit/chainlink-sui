@@ -18,9 +18,10 @@ type DeployDummyReceiverObjects struct {
 }
 
 type DeployDummyReceiverInput struct {
-	CCIPPackageId string
-	McmsPackageId string
-	McmsOwner     string
+	CCIPPackageId     string
+	McmsPackageId     string
+	FastMcmsPackageId string
+	McmsOwner         string
 }
 
 var deployDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployDummyReceiverInput) (output sui_ops.OpTxResult[DeployDummyReceiverObjects], err error) {
@@ -37,9 +38,9 @@ var deployDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		"ccip":                input.CCIPPackageId,
 		"ccip_dummy_receiver": "0x0",
 		"mcms":                input.McmsPackageId,
+		"fast_mcms":           input.FastMcmsPackageId,
 		"mcms_owner":          input.McmsOwner,
-
-		"signer": signerAddr,
+		"signer":              signerAddr,
 	}, false, deps.SuiRPC)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployDummyReceiverObjects]{}, fmt.Errorf("failed to compile dummy receiver package: %w", err)

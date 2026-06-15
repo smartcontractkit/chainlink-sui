@@ -1,15 +1,19 @@
 module ccip::rmn_remote;
 
 use ccip::eth_abi;
-use ccip::ownable::OwnerCap;
+use ccip::ownable::{Self, OwnerCap};
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::upgrade_registry::verify_function_allowed;
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+use fast_mcms::mcms_registry as fast_mcms_registry;
+use fast_mcms::mcms_registry::Registry as FastRegistry;
+use fast_mcms::mcms_registry::ExecutingCallbackParams as FastExecutingCallbackParams;
 use std::bcs;
 use std::string::{Self, String};
 use sui::event;
 use sui::hash;
+use sui::transfer;
 use sui::vec_map::{Self, VecMap};
 
 const GLOBAL_CURSE_SUBJECT: vector<u8> = x"01000000000000000000000000000001";
@@ -48,6 +52,36 @@ public struct Uncursed has copy, drop {
     subjects: vector<vector<u8>>,
 }
 
+/// Capability granting curse-only authority. Minted by the CCIP owner via
+/// `create_curser_cap` and intended to be registered as the package cap in a
+/// secondary MCMS instance whose only allowed module on `@ccip` is `rmn_remote`.
+/// Possession of `&CurserCap` is the authority for `curse_with_curser_cap` and
+/// `curse_multiple_with_curser_cap`; uncurse is not reachable through this cap.
+public struct CurserCap has key, store {
+    id: UID,
+}
+
+/// Tracks which `CurserCap` object IDs may invoke curse-only entrypoints.
+/// Stored as a DOF on `CCIPObjectRef`. When absent or disabled, any possessed
+/// `CurserCap` may curse. When enabled, only listed object IDs may curse.
+public struct AllowedCurserCaps has key, store {
+    id: UID,
+    enabled: bool,
+    allowed_cap_ids: VecMap<address, bool>,
+}
+
+public struct CurserCapRegistered has copy, drop {
+    cap_id: address,
+}
+
+public struct CurserCapDeregistered has copy, drop {
+    cap_id: address,
+}
+
+public struct CurserCapAllowlistEnabledSet has copy, drop {
+    enabled: bool,
+}
+
 const EAlreadyInitialized: u64 = 1;
 const EAlreadyCursed: u64 = 2;
 const EDuplicateSigner: u64 = 3;
@@ -61,6 +95,11 @@ const EInvalidSubjectLength: u64 = 10;
 const EInvalidPublicKeyLength: u64 = 11;
 const EInvalidFunction: u64 = 12;
 const EInvalidOwnerCap: u64 = 13;
+const EAllowedCurserCapsAlreadyInitialized: u64 = 14;
+const EAllowedCurserCapsNotInitialized: u64 = 15;
+const ECurserCapAlreadyAllowed: u64 = 16;
+const ECurserCapNotAllowed: u64 = 17;
+const ECurserCapNotRegistered: u64 = 18;
 
 const VERSION: u8 = 1;
 
@@ -222,7 +261,13 @@ public fun curse_multiple(
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
+    insert_cursed_subjects(state, subjects);
+}
 
+/// Shared state mutation for every curse path. Keeps OwnerCap-based and
+/// CurserCap-based callers on identical semantics so the two auth paths cannot
+/// drift apart on validation, insertion, or event emission.
+fun insert_cursed_subjects(state: &mut RMNRemoteState, subjects: vector<vector<u8>>) {
     subjects.do_ref!(|subject| {
         let subject: vector<u8> = *subject;
         assert!(subject.length() == 16, EInvalidSubjectLength);
@@ -230,6 +275,268 @@ public fun curse_multiple(
         state.cursed_subjects.insert(subject, true);
     });
     event::emit(Cursed { subjects });
+}
+
+/// Curse a single subject via possession of a `CurserCap`. Intended for use by
+/// a secondary MCMS instance whose Registry holds a `CurserCap` for `@ccip`.
+public fun curse_with_curser_cap(
+    ref: &mut CCIPObjectRef,
+    curser_cap: &CurserCap,
+    subject: vector<u8>,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"curse_with_curser_cap"),
+        VERSION,
+    );
+    assert_curser_cap_allowed(ref, curser_cap);
+    let state = state_object::borrow_mut<RMNRemoteState>(ref);
+    insert_cursed_subjects(state, vector[subject]);
+}
+
+/// Curse multiple subjects via possession of a `CurserCap`.
+public fun curse_multiple_with_curser_cap(
+    ref: &mut CCIPObjectRef,
+    curser_cap: &CurserCap,
+    subjects: vector<vector<u8>>,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"curse_multiple_with_curser_cap"),
+        VERSION,
+    );
+    assert_curser_cap_allowed(ref, curser_cap);
+
+    let state = state_object::borrow_mut<RMNRemoteState>(ref);
+    insert_cursed_subjects(state, subjects);
+}
+
+/// Mint a new `CurserCap`. Owner-only. The fresh cap can be registered as the
+/// package cap on a secondary MCMS Registry to enable curse-only governance
+/// without granting that instance any other CCIP authority.
+public fun create_curser_cap(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    ctx: &mut TxContext,
+): CurserCap {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"create_curser_cap"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
+    CurserCap { id: object::new(ctx) }
+}
+
+/// Mint a `CurserCap` and send it to `recipient`. Used when the cap must be held
+/// off-registry between MCMS executions before `register_curser_cap`.
+public fun create_curser_cap_and_transfer(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    recipient: address,
+    ctx: &mut TxContext,
+) {
+    let cap = create_curser_cap(ref, owner_cap, ctx);
+    transfer::public_transfer(cap, recipient);
+}
+
+// ================================================================
+// |              CurserCap Allowlist (revocation)                |
+// ================================================================
+
+/// Initialize the CurserCap allowlist on `CCIPObjectRef`. Owner-only.
+/// When `initial_cap_ids` is non-empty the allowlist is enabled immediately.
+public fun initialize_allowed_curser_caps(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    initial_cap_ids: vector<address>,
+    ctx: &mut TxContext,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"initialize_allowed_curser_caps"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    assert!(!state_object::contains<AllowedCurserCaps>(ref), EAllowedCurserCapsAlreadyInitialized);
+
+    let mut allowed_cap_ids = vec_map::empty<address, bool>();
+    initial_cap_ids.do_ref!(|cap_id| {
+        allowed_cap_ids.insert(*cap_id, true);
+    });
+
+    let state = AllowedCurserCaps {
+        id: object::new(ctx),
+        enabled: !initial_cap_ids.is_empty(),
+        allowed_cap_ids,
+    };
+    state_object::add(ref, owner_cap, state, ctx);
+
+    initial_cap_ids.do_ref!(|cap_id| {
+        event::emit(CurserCapRegistered { cap_id: *cap_id });
+    });
+}
+
+/// Register one or more `CurserCap` object IDs on the allowlist. Owner-only.
+public fun register_curser_cap_ids(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    cap_ids: vector<address>,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"register_curser_cap_ids"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    assert!(state_object::contains<AllowedCurserCaps>(ref), EAllowedCurserCapsNotInitialized);
+    register_curser_cap_ids_internal(ref, cap_ids);
+}
+
+/// Remove one or more `CurserCap` object IDs from the allowlist, revoking their
+/// curse authority without disturbing fast MCMS Registry membership.
+public fun deregister_curser_cap_ids(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    cap_ids: vector<address>,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"deregister_curser_cap_ids"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    assert!(state_object::contains<AllowedCurserCaps>(ref), EAllowedCurserCapsNotInitialized);
+
+    let allowlist = state_object::borrow_mut<AllowedCurserCaps>(ref);
+    cap_ids.do_ref!(|cap_id| {
+        let cap_id = *cap_id;
+        assert!(allowlist.allowed_cap_ids.contains(&cap_id), ECurserCapNotRegistered);
+        allowlist.allowed_cap_ids.remove(&cap_id);
+        event::emit(CurserCapDeregistered { cap_id });
+    });
+}
+
+/// Enable or disable CurserCap allowlist enforcement. Owner-only.
+public fun set_curser_cap_allowlist_enabled(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    enabled: bool,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"set_curser_cap_allowlist_enabled"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    assert!(state_object::contains<AllowedCurserCaps>(ref), EAllowedCurserCapsNotInitialized);
+
+    let allowlist = state_object::borrow_mut<AllowedCurserCaps>(ref);
+    allowlist.enabled = enabled;
+    event::emit(CurserCapAllowlistEnabledSet { enabled });
+}
+
+/// Returns true when the cap may curse: always true before allowlist init or
+/// when enforcement is disabled; otherwise membership in `allowed_cap_ids`.
+public fun is_curser_cap_allowed(ref: &CCIPObjectRef, cap_id: address): bool {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"is_curser_cap_allowed"),
+        VERSION,
+    );
+    if (!state_object::contains<AllowedCurserCaps>(ref)) {
+        return true
+    };
+    let allowlist = state_object::borrow<AllowedCurserCaps>(ref);
+    if (!allowlist.enabled) {
+        return true
+    };
+    allowlist.allowed_cap_ids.contains(&cap_id)
+}
+
+public fun get_allowed_curser_cap_ids(ref: &CCIPObjectRef): vector<address> {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"get_allowed_curser_cap_ids"),
+        VERSION,
+    );
+    if (!state_object::contains<AllowedCurserCaps>(ref)) {
+        return vector[]
+    };
+    state_object::borrow<AllowedCurserCaps>(ref).allowed_cap_ids.keys()
+}
+
+public fun is_curser_cap_allowlist_enabled(ref: &CCIPObjectRef): bool {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"is_curser_cap_allowlist_enabled"),
+        VERSION,
+    );
+    if (!state_object::contains<AllowedCurserCaps>(ref)) {
+        return false
+    };
+    state_object::borrow<AllowedCurserCaps>(ref).enabled
+}
+
+fun assert_curser_cap_allowed(ref: &CCIPObjectRef, curser_cap: &CurserCap) {
+    if (!state_object::contains<AllowedCurserCaps>(ref)) {
+        return
+    };
+    let allowlist = state_object::borrow<AllowedCurserCaps>(ref);
+    if (!allowlist.enabled) {
+        return
+    };
+    assert!(
+        allowlist.allowed_cap_ids.contains(&object::id_address(curser_cap)),
+        ECurserCapNotAllowed,
+    );
+}
+
+fun register_curser_cap_ids_internal(ref: &mut CCIPObjectRef, cap_ids: vector<address>) {
+    let allowlist = state_object::borrow_mut<AllowedCurserCaps>(ref);
+    cap_ids.do_ref!(|cap_id| {
+        let cap_id = *cap_id;
+        assert!(!allowlist.allowed_cap_ids.contains(&cap_id), ECurserCapAlreadyAllowed);
+        allowlist.allowed_cap_ids.insert(cap_id, true);
+        event::emit(CurserCapRegistered { cap_id });
+    });
+}
+
+fun ensure_curser_cap_allowlisted(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    cap_id: address,
+    ctx: &mut TxContext,
+) {
+    if (!state_object::contains<AllowedCurserCaps>(ref)) {
+        let mut allowed_cap_ids = vec_map::empty<address, bool>();
+        allowed_cap_ids.insert(cap_id, true);
+        let state = AllowedCurserCaps {
+            id: object::new(ctx),
+            enabled: true,
+            allowed_cap_ids,
+        };
+        state_object::add(ref, owner_cap, state, ctx);
+        event::emit(CurserCapRegistered { cap_id });
+        return
+    };
+
+    let allowlist = state_object::borrow_mut<AllowedCurserCaps>(ref);
+    if (!allowlist.allowed_cap_ids.contains(&cap_id)) {
+        allowlist.allowed_cap_ids.insert(cap_id, true);
+        event::emit(CurserCapRegistered { cap_id });
+    };
 }
 
 public fun uncurse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<u8>) {
@@ -475,6 +782,398 @@ public fun mcms_uncurse_multiple(
     bcs_stream::assert_is_consumed(&stream);
 
     uncurse_multiple(ref, owner_cap, subjects);
+}
+
+// ================================================================
+// |               Fast Curse MCMS Entrypoints                    |
+// ================================================================
+//
+// These callbacks are intended to be invoked from a SECONDARY MCMS instance
+// whose `Registry` holds a `CurserCap` (not `OwnerCap`) for `@ccip` with
+// `allowed_modules = [b"rmn_remote"]`. They use `state_object::McmsCallback`
+// as the proof type because the CCIP `Publisher` was claimed by the
+// `STATE_OBJECT` OTW; `sui::package::Publisher::from_module<T>` requires the
+// proof type's defining module to match the Publisher's `module_name` field.
+// The two MCMS instances are separate shared `Registry` objects, so reusing
+// the proof type does not create a collision: the slow instance holds
+// `(state_object::McmsCallback, OwnerCap)` for `@ccip` and the fast instance
+// holds `(state_object::McmsCallback, CurserCap)` for `@ccip`.
+
+/// Fast-path callback. Releases the `CurserCap` from the fast Registry and
+/// curses a single subject. The Registry's `allowed_modules` allowlist plus
+/// the absence of any `uncurse`-bearing callback in this entrypoint family
+/// constrains the fast MCMS to curse operations only.
+public fun mcms_curse_with_curser_cap(
+    ref: &mut CCIPObjectRef,
+    registry: &mut FastRegistry,
+    params: FastExecutingCallbackParams,
+) {
+    let (curser_cap, function, data) = fast_mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        CurserCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"curse_with_curser_cap"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(curser_cap)],
+        &mut stream,
+    );
+
+    let subject = bcs_stream::deserialize_vector_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    curse_with_curser_cap(ref, curser_cap, subject);
+}
+
+public fun mcms_curse_multiple_with_curser_cap(
+    ref: &mut CCIPObjectRef,
+    registry: &mut FastRegistry,
+    params: FastExecutingCallbackParams,
+) {
+    let (curser_cap, function, data) = fast_mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        CurserCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"curse_multiple_with_curser_cap"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(curser_cap)],
+        &mut stream,
+    );
+
+    let subjects = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_vector_u8(stream) },
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    curse_multiple_with_curser_cap(ref, curser_cap, subjects);
+}
+
+// ================================================================
+// |          Slow-MCMS Bootstrap Wrappers for Fast Curse          |
+// ================================================================
+//
+// These callbacks are invoked by the slow MCMS (which holds CCIP `OwnerCap`)
+// to mint a `CurserCap` and register it in the fast MCMS Registry. The slow
+// proposal can mint then register in separate executions (`mcms_create_curser_cap_and_transfer`
+// → `mcms_register_curser_cap`), batch mint+register in one PTB (`mcms_create_curser_cap`
+// → `mcms_register_curser_cap`), or use the single combined op
+// (`mcms_mint_and_register_curser_cap`).
+//
+// TODO: consolidate the two-op flow into the single combined flow once the
+// PTB-chain ergonomics and external proposal tooling are agreed; the combined
+// path is strictly safer because no transient `CurserCap` exists between txs.
+
+/// Slow-MCMS wrapper that mints a `CurserCap`. Returns the cap by value so a
+/// PTB can chain it into `mcms_register_curser_cap` in the same batch.
+public fun mcms_create_curser_cap(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+): CurserCap {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"create_curser_cap"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    create_curser_cap(ref, owner_cap, ctx)
+}
+
+/// Slow-MCMS wrapper that mints a `CurserCap` and transfers it to a pinned recipient.
+/// Void return so a standalone MCMS leaf does not leave an unconsumed `CurserCap`.
+public fun mcms_create_curser_cap_and_transfer(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"create_curser_cap_and_transfer"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let recipient = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"create_curser_cap_and_transfer"),
+        VERSION,
+    );
+
+    create_curser_cap_and_transfer(ref, owner_cap, recipient, ctx);
+}
+
+/// Slow-MCMS wrapper that registers a `CurserCap` as the package cap on a
+/// fast MCMS Registry with `allowed_modules = [b"rmn_remote"]`. Built from
+/// the OwnerCap's stored `Publisher` so the proof type binding is rooted in
+/// the same module that claimed the CCIP Publisher (`state_object`).
+public fun mcms_register_curser_cap(
+    ref: &mut CCIPObjectRef,
+    slow_registry: &mut Registry,
+    fast_registry: &mut FastRegistry,
+    params: ExecutingCallbackParams,
+    curser_cap: CurserCap,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        slow_registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"register_curser_cap"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[
+            object::id_address(ref),
+            object::id_address(owner_cap),
+            object::id_address(fast_registry),
+            object::id_address(&curser_cap),
+        ],
+        &mut stream,
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"register_curser_cap"),
+        VERSION,
+    );
+
+    let publisher_wrapper = fast_mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(owner_cap),
+        state_object::mcms_callback(),
+    );
+
+    let cap_id = object::id_address(&curser_cap);
+
+    fast_mcms_registry::register_entrypoint(
+        fast_registry,
+        publisher_wrapper,
+        state_object::mcms_callback(),
+        curser_cap,
+        vector[b"rmn_remote"],
+        ctx,
+    );
+
+    ensure_curser_cap_allowlisted(ref, owner_cap, cap_id, ctx);
+}
+
+/// Slow-MCMS wrapper that mints a `CurserCap` and atomically registers it in
+/// the fast MCMS Registry. Preferred over the two-op variant: no PTB caller
+/// can substitute a different `CurserCap` between mint and register.
+public fun mcms_mint_and_register_curser_cap(
+    ref: &mut CCIPObjectRef,
+    slow_registry: &mut Registry,
+    fast_registry: &mut FastRegistry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        slow_registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"mint_and_register_curser_cap"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[
+            object::id_address(ref),
+            object::id_address(owner_cap),
+            object::id_address(fast_registry),
+        ],
+        &mut stream,
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"mint_and_register_curser_cap"),
+        VERSION,
+    );
+
+    let publisher_wrapper = fast_mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(owner_cap),
+        state_object::mcms_callback(),
+    );
+
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    let curser_cap = CurserCap { id: object::new(ctx) };
+    let cap_id = object::id_address(&curser_cap);
+
+    fast_mcms_registry::register_entrypoint(
+        fast_registry,
+        publisher_wrapper,
+        state_object::mcms_callback(),
+        curser_cap,
+        vector[b"rmn_remote"],
+        ctx,
+    );
+
+    ensure_curser_cap_allowlisted(ref, owner_cap, cap_id, ctx);
+}
+
+// ================================================================
+// |         Slow-MCMS Allowlist Admin Entrypoints                |
+// ================================================================
+
+public fun mcms_initialize_allowed_curser_caps(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"initialize_allowed_curser_caps"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let initial_cap_ids = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_address(stream) },
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    initialize_allowed_curser_caps(ref, owner_cap, initial_cap_ids, ctx);
+}
+
+public fun mcms_register_curser_cap_ids(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"register_curser_cap_ids"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let cap_ids = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_address(stream) },
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    register_curser_cap_ids(ref, owner_cap, cap_ids);
+}
+
+public fun mcms_deregister_curser_cap_ids(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"deregister_curser_cap_ids"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let cap_ids = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_address(stream) },
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    deregister_curser_cap_ids(ref, owner_cap, cap_ids);
+}
+
+public fun mcms_set_curser_cap_allowlist_enabled(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"set_curser_cap_allowlist_enabled"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let enabled = bcs_stream::deserialize_bool(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_curser_cap_allowlist_enabled(ref, owner_cap, enabled);
 }
 
 #[test_only]

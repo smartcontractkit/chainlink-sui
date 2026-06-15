@@ -95,15 +95,24 @@ type MCMSTestSuite struct {
 
 	chainSelector types.ChainSelector
 
-	// MCMS
-	mcmsPackageID    string
-	mcmsOwnerAddress string
+	// MCMS (slow)
+	mcmsPackageID     string
+	mcmsOwnerAddress  string
 	mcmsObj          string
 	timelockObj      string
 	registryObj      string
 	deployerStateObj string
 	accountObj       string
 	ownerCapObj      string
+
+	// Fast MCMS — published in SetupSuite before CCIP so compile-time fast_mcms matches on-chain types.
+	fastMcmsPackageID    string
+	fastMcmsObj          string
+	fastTimelockObj      string
+	fastRegistryObj      string
+	fastDeployerStateObj string
+	fastAccountObj       string
+	fastOwnerCapObj      string
 
 	bypasserConfig *RoleConfig
 	proposerConfig *RoleConfig
@@ -184,6 +193,15 @@ func (s *MCMSTestSuite) SetupSuite() {
 	require.NoError(s.T(), err, "deploying MCMS contract")
 
 	s.mcmsPackageID = mcmsDeploymentReport.Output.PackageId
+	fastMcmsReport, err := cld_ops.ExecuteOperation(bundle, mcmsops.DeployFastMCMSOp, deps, cld_ops.EmptyInput{})
+	require.NoError(s.T(), err, "deploying fast MCMS contract")
+	s.fastMcmsPackageID = fastMcmsReport.Output.PackageId
+	s.fastMcmsObj = fastMcmsReport.Output.Objects.McmsMultisigStateObjectId
+	s.fastTimelockObj = fastMcmsReport.Output.Objects.TimelockObjectId
+	s.fastRegistryObj = fastMcmsReport.Output.Objects.McmsRegistryObjectId
+	s.fastDeployerStateObj = fastMcmsReport.Output.Objects.McmsDeployerStateObjectId
+	s.fastAccountObj = fastMcmsReport.Output.Objects.McmsAccountStateObjectId
+	s.fastOwnerCapObj = fastMcmsReport.Output.Objects.McmsAccountOwnerCapObjectId
 	s.mcmsObj = mcmsDeploymentReport.Output.Objects.McmsMultisigStateObjectId
 	s.timelockObj = mcmsDeploymentReport.Output.Objects.TimelockObjectId
 	s.registryObj = mcmsDeploymentReport.Output.Objects.McmsRegistryObjectId
@@ -232,6 +250,19 @@ func (s *MCMSTestSuite) NewOpBundle() cld_ops.Bundle {
 	)
 }
 
+// NewOpBundleWithRegistry returns a fresh operation bundle so sequences are not
+// deduplicated against prior runs on s.bundle.
+func (s *MCMSTestSuite) NewOpBundleWithRegistry() cld_ops.Bundle {
+	registry := cld_ops.NewOperationRegistry(opregistry.AllOperations...)
+	reporter := cld_ops.NewMemoryReporter()
+	return cld_ops.NewBundle(
+		s.T().Context,
+		logger.Test(s.T()),
+		reporter,
+		cld_ops.WithOperationRegistry(registry),
+	)
+}
+
 func (s *MCMSTestSuite) SetupCCIP() {
 	// Deploy LINK
 	linkReport, err := cld_ops.ExecuteOperation(s.bundle, linkops.DeployLINKOp, s.deps, cld_ops.EmptyInput{})
@@ -265,8 +296,9 @@ func (s *MCMSTestSuite) SetupCCIP() {
 		LocalChainSelector:            1,
 		DestChainSelector:             2,
 		DeployCCIPInput: ccipops.DeployCCIPInput{
-			McmsPackageId: s.mcmsPackageID,
-			McmsOwner:     s.mcmsOwnerAddress,
+			McmsPackageId:     s.mcmsPackageID,
+			FastMcmsPackageId: s.fastMcmsPackageID,
+			McmsOwner:         s.mcmsOwnerAddress,
 		},
 		MaxFeeJuelsPerMsg:            "100000000",
 		TokenPriceStalenessThreshold: 60,
@@ -329,6 +361,7 @@ func (s *MCMSTestSuite) SetupCCIP() {
 	ccipOnRampSeqInput := deployment.DefaultOnRampSeqConfig
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.CCIPPackageId = ccipReport.Output.CCIPPackageId
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSPackageId = s.mcmsPackageID
+	ccipOnRampSeqInput.DeployCCIPOnRampInput.FastMcmsPackageId = s.fastMcmsPackageID
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSOwnerPackageId = s.mcmsOwnerAddress
 	ccipOnRampSeqInput.OnRampInitializeInput.NonceManagerCapId = ccipReport.Output.Objects.NonceManagerCapObjectId
 	ccipOnRampSeqInput.OnRampInitializeInput.SourceTransferCapId = ccipReport.Output.Objects.SourceTransferCapObjectId
@@ -360,6 +393,7 @@ func (s *MCMSTestSuite) SetupCCIP() {
 	ccipOffRampSeqInput.CCIPObjectRefId = ccipReport.Output.Objects.CCIPObjectRefObjectId
 	ccipOffRampSeqInput.DeployCCIPOffRampInput.CCIPPackageId = ccipReport.Output.CCIPPackageId
 	ccipOffRampSeqInput.DeployCCIPOffRampInput.MCMSPackageId = s.mcmsPackageID
+	ccipOffRampSeqInput.DeployCCIPOffRampInput.FastMcmsPackageId = s.fastMcmsPackageID
 
 	ccipOffRampSeqInput.InitializeOffRampInput.DestTransferCapId = ccipReport.Output.Objects.DestTransferCapObjectId
 	ccipOffRampSeqInput.InitializeOffRampInput.FeeQuoterCapId = ccipReport.Output.Objects.FeeQuoterCapObjectId

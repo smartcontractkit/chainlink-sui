@@ -13,6 +13,7 @@ type DeployAndInitManagedTokenPoolInput struct {
 	CCIPPackageId         string
 	ManagedTokenPackageId string // ManagedToken
 	MCMSAddress           string
+	FastMcmsAddress       string
 	MCMSOwnerAddress      string
 	// initialize
 	CoinObjectTypeArg         string // CCIPBnM Token TypeArgs
@@ -58,6 +59,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 			CCIPPackageId:         input.CCIPPackageId,
 			ManagedTokenPackageId: input.ManagedTokenPackageId,
 			MCMSAddress:           input.MCMSAddress,
+			FastMcmsAddress:       input.FastMcmsAddress,
 			MCMSOwnerAddress:      input.MCMSOwnerAddress,
 		})
 		if err != nil {

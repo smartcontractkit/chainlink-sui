@@ -31,6 +31,7 @@ const (
 	CCIPBnM = Package("ccip_burn_mint_token")
 	// MCMS
 	MCMS       = Package("mcms")
+	FastMCMS   = Package("fast_mcms")
 	MCMSUser   = Package("mcms_user")
 	MCMSUserV2 = Package("mcms_user_v2")
 	// Other
@@ -60,6 +61,7 @@ var Contracts map[Package]string = map[Package]string{
 	LINK: filepath.Join("link"),
 	// MCMS
 	MCMS:       filepath.Join("mcms", "mcms"),
+	FastMCMS:   filepath.Join("mcms", "fast_mcms"),
 	MCMSUser:   filepath.Join("mcms", "mcms_test"),
 	MCMSUserV2: filepath.Join("mcms", "mcms_test_v2"),
 	// Other

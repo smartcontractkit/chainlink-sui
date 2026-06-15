@@ -120,7 +120,7 @@ fun transfer_to_mcms(
     onramp::transfer_ownership(ref, state, &owner_cap, mcms_registry::get_multisig_address(), ctx);
 
     // Step 2: mcms_accept_ownership
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(state)));
 
     let params = mcms_registry::test_create_executing_callback_params(
@@ -151,7 +151,7 @@ public fun test_mcms_set_dynamic_config() {
     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
     initialize_onramp(&mut env, &owner_cap, nonce_manager_cap, source_transfer_cap);
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
     data.append(bcs::to_bytes(&object::id_address(&env.state)));
     data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
@@ -201,7 +201,7 @@ public fun test_mcms_apply_dest_chain_config_updates() {
     initialize_onramp(&mut env, &owner_cap, nonce_manager_cap, source_transfer_cap);
 
     // Prepare data: ref_address, state_address, owner_cap_address, dest_chain_selectors, dest_chain_enabled, dest_chain_allowlist_enabled
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
     data.append(bcs::to_bytes(&object::id_address(&env.state)));
     data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
@@ -259,7 +259,7 @@ public fun test_mcms_apply_allowlist_updates() {
     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
     initialize_onramp(&mut env, &owner_cap, nonce_manager_cap, source_transfer_cap);
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
     data.append(bcs::to_bytes(&object::id_address(&env.state)));
     data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
@@ -324,7 +324,7 @@ public fun test_mcms_transfer_ownership_e2e() {
     initialize_onramp(&mut env, &owner_cap, nonce_manager_cap, source_transfer_cap);
 
     let new_owner = @0x999;
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
     data.append(bcs::to_bytes(&object::id_address(&env.state)));
     data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
@@ -362,7 +362,7 @@ public fun test_mcms_transfer_ownership_e2e() {
     env.scenario.next_tx(new_owner);
     onramp::accept_ownership(&env.ref, &mut env.state, env.scenario.ctx());
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
     data.append(bcs::to_bytes(&owner_cap_address));
     data.append(bcs::to_bytes(&object::id_address(&env.state)));

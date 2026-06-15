@@ -14,8 +14,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
-	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,18 +45,14 @@ func TestStateObjectOperations(t *testing.T) {
 	_, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy LINK token")
 
-	// Deploy MCMS
-	mcmsReport, err := cld_ops.ExecuteOperation(bundle, mcmsops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
-	require.NoError(t, err, "failed to deploy MCMS Contract")
+	inputCCIP, err := DeployCCIPDependencyPackages(bundle, deps)
+	require.NoError(t, err, "failed to deploy CCIP dependency packages")
 
 	signerAddress, err := signer.GetAddress()
 	require.NoError(t, err, "failed to get signer address")
 
 	// Deploy CCIP
-	ccipReport, err := cld_ops.ExecuteOperation(bundle, DeployCCIPOp, deps, DeployCCIPInput{
-		McmsPackageId: mcmsReport.Output.PackageId,
-		McmsOwner:     signerAddress,
-	})
+	ccipReport, err := cld_ops.ExecuteOperation(bundle, DeployCCIPOp, deps, inputCCIP)
 	require.NoError(t, err, "failed to deploy CCIP Package")
 
 	t.Run("Test Get Owner", func(t *testing.T) {

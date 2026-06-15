@@ -44,7 +44,7 @@ func NewOnramp(address string, chainClient client.BindingsClient) (Onramp, error
 	}, nil
 }
 
-func PublishOnramp(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, ccipAddress, mcmsAddress, mcmsOwnerAddress, suiRPC string) (Onramp, *models.SuiTransactionBlockResponse, error) {
+func PublishOnramp(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, ccipAddress, mcmsAddress, fastMcmsAddress, mcmsOwnerAddress, suiRPC string) (Onramp, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -54,6 +54,7 @@ func PublishOnramp(ctx context.Context, opts *bind.CallOpts, chainClient client.
 		"ccip":        ccipAddress,
 		"ccip_onramp": "0x0",
 		"mcms":        mcmsAddress,
+		"fast_mcms":   fastMcmsAddress,
 		"mcms_owner":  mcmsOwnerAddress,
 		"signer":      signerAddr,
 	}, false, suiRPC)

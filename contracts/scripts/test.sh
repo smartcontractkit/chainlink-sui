@@ -8,9 +8,9 @@ PACKAGES=(
   ccip/ccip_token_pools/managed_token_pool
   ccip/ccip_token_pools/lock_release_token_pool
   ccip/ccip_token_pools/burn_mint_token_pool
+  mcms/fast_mcms
   mcms/mcms
   mcms/mcms_test
-  mcms/mcms_test_v2
   ccip/ccip_onramp
   ccip/ccip_offramp
   ccip/managed_token
