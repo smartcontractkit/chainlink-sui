@@ -23,20 +23,22 @@ import (
 
 const testMcmsOwner = "0x2"
 
-func compileAddrsDummyReceiver(mcmsPackageID, ccipPackageID, signer string) map[string]string {
+func compileAddrsDummyReceiver(mcmsPackageID, fastMcmsPackageID, ccipPackageID, signer string) map[string]string {
 	return map[string]string{
 		"ccip":                ccipPackageID,
 		"ccip_dummy_receiver": "0x0",
 		"mcms":                mcmsPackageID,
+		"fast_mcms":           fastMcmsPackageID,
 		"mcms_owner":          testMcmsOwner,
 		"signer":              signer,
 	}
 }
 
-func compileAddrsBrokenReceiver(mcmsPackageID, ccipPackageID, signer string) map[string]string {
+func compileAddrsBrokenReceiver(mcmsPackageID, fastMcmsPackageID, ccipPackageID, signer string) map[string]string {
 	return map[string]string{
 		"ccip":       ccipPackageID,
 		"mcms":       mcmsPackageID,
+		"fast_mcms":  fastMcmsPackageID,
 		"mcms_owner": testMcmsOwner,
 		"signer":     signer,
 	}
@@ -84,14 +86,18 @@ func TestBrokenReceiverABI_NoPanic(t *testing.T) {
 	require.NoError(t, err, "failed to publish MCMS")
 	mcmsPackageId := mcmsPackage.Address()
 
-	ccipPackage, _, err := ccip.PublishCCIP(context.Background(), opts, ptbClient, mcmsPackageId, testMcmsOwner, testutils.LocalURL)
+	fastMcmsPackage, _, err := mcms.PublishFastMCMS(context.Background(), opts, ptbClient, testutils.LocalURL)
+	require.NoError(t, err, "failed to publish fast MCMS")
+	fastMcmsPackageId := fastMcmsPackage.Address()
+
+	ccipPackage, _, err := ccip.PublishCCIP(context.Background(), opts, ptbClient, mcmsPackageId, fastMcmsPackageId, testMcmsOwner, testutils.LocalURL)
 	require.NoError(t, err, "failed to publish CCIP")
 	ccipPackageId := ccipPackage.Address()
 
 	// Publish the broken receiver
 	brokenReceiverArtifact, err := bind.CompilePackage(
 		contracts.CCIPBrokenReceiver,
-		compileAddrsBrokenReceiver(mcmsPackageId, ccipPackageId, accountAddress),
+		compileAddrsBrokenReceiver(mcmsPackageId, fastMcmsPackageId, ccipPackageId, accountAddress),
 		false,
 		testutils.LocalURL,
 	)
@@ -172,14 +178,18 @@ func TestValidReceiverABI_DecodesSuccessfully(t *testing.T) {
 	require.NoError(t, err, "failed to publish MCMS")
 	mcmsPackageId := mcmsPackage.Address()
 
-	ccipPackage, _, err := ccip.PublishCCIP(context.Background(), opts, ptbClient, mcmsPackageId, testMcmsOwner, testutils.LocalURL)
+	fastMcmsPackage, _, err := mcms.PublishFastMCMS(context.Background(), opts, ptbClient, testutils.LocalURL)
+	require.NoError(t, err, "failed to publish fast MCMS")
+	fastMcmsPackageId := fastMcmsPackage.Address()
+
+	ccipPackage, _, err := ccip.PublishCCIP(context.Background(), opts, ptbClient, mcmsPackageId, fastMcmsPackageId, testMcmsOwner, testutils.LocalURL)
 	require.NoError(t, err, "failed to publish CCIP")
 	ccipPackageId := ccipPackage.Address()
 
 	// Publish the dummy receiver (valid, concrete ccip_receive signature)
 	dummyReceiverArtifact, err := bind.CompilePackage(
 		contracts.CCIPDummyReceiver,
-		compileAddrsDummyReceiver(mcmsPackageId, ccipPackageId, accountAddress),
+		compileAddrsDummyReceiver(mcmsPackageId, fastMcmsPackageId, ccipPackageId, accountAddress),
 		false,
 		testutils.LocalURL,
 	)

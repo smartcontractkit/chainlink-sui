@@ -101,6 +101,7 @@ type CCIPChainState struct {
 	CCIPAddress            string
 	CCIPObjectRef          string
 	CCIPOwnerCapObjectId   string
+	CurserCapObjectId      string
 	CCIPUpgradeCapObjectId string
 	FeeQuoterCapId         string
 
@@ -147,26 +148,7 @@ type CCIPChainState struct {
 // When isFastCurse is true the fastcurse instance fields are returned;
 // otherwise the normal governance instance fields are returned.
 func (s CCIPChainState) MCMSState(isFastCurse bool) MCMSStateFields {
-	if isFastCurse {
-		return MCMSStateFields{
-			PackageID:               s.FastCurseMCMSPackageID,
-			StateObjectID:           s.FastCurseMCMSStateObjectID,
-			RegistryObjectID:        s.FastCurseMCMSRegistryObjectID,
-			DeployerStateObjectID:   s.FastCurseMCMSDeployerStateObjectID,
-			AccountStateObjectID:    s.FastCurseMCMSAccountStateObjectID,
-			AccountOwnerCapObjectID: s.FastCurseMCMSAccountOwnerCapObjectID,
-			TimelockObjectID:        s.FastCurseMCMSTimelockObjectID,
-		}
-	}
-	return MCMSStateFields{
-		PackageID:               s.MCMSPackageID,
-		StateObjectID:           s.MCMSStateObjectID,
-		RegistryObjectID:        s.MCMSRegistryObjectID,
-		DeployerStateObjectID:   s.MCMSDeployerStateObjectID,
-		AccountStateObjectID:    s.MCMSAccountStateObjectID,
-		AccountOwnerCapObjectID: s.MCMSAccountOwnerCapObjectID,
-		TimelockObjectID:        s.MCMSTimelockObjectID,
-	}
+	return s.MCMSStateByInstance(MCMSInstanceFromFastCurseFlag(isFastCurse))
 }
 
 func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chainName string) (SuiChainView, error) {
@@ -201,9 +183,22 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		})
 	}
 
-	// FastCurse MCMS
+	// FastCurse MCMS — package may be published without role configuration (e.g. during
+	// DeploySuiChain before a dedicated ConfigureMCMS changeset runs).
 	if s.FastCurseMCMSStateObjectID != "" {
 		g.Go(func() error {
+			configured, err := view.IsMCMSConfigured(ctxG1, suiChain, s.FastCurseMCMSPackageID, s.FastCurseMCMSStateObjectID)
+			if err != nil {
+				return fmt.Errorf("failed to check fastcurse mcms configuration for %s: %w", s.FastCurseMCMSStateObjectID, err)
+			}
+			if !configured {
+				lggr.Infow("skipping FastCurse MCMS view: roles not configured yet",
+					"fastCurseMCMSStateObjectID", s.FastCurseMCMSStateObjectID,
+					"chain", chainName,
+				)
+				return nil
+			}
+
 			mcmsView, err := view.GenerateMCMSWithTimelockView(ctxG1, suiChain, s.FastCurseMCMSPackageID, s.FastCurseMCMSStateObjectID, s.FastCurseMCMSTimelockObjectID, s.FastCurseMCMSAccountStateObjectID)
 			if err != nil {
 				return fmt.Errorf("failed to generate fastcurse mcms view for mcms %s: %w", s.FastCurseMCMSStateObjectID, err)
@@ -489,6 +484,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.CCIPObjectRef = addr
 		case SuiCCIPOwnerCapObjectIDType:
 			chainState.CCIPOwnerCapObjectId = addr
+		case SuiCurserCapObjectIDType:
+			chainState.CurserCapObjectId = addr
 		case SuiCCIPUpgradeCapObjectIDType:
 			chainState.CCIPUpgradeCapObjectId = addr
 		case SuiFeeQuoterCapType:

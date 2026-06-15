@@ -17,8 +17,6 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccip_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
-	mcms_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,17 +62,8 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 		reporter,
 	)
 
-	signerAddress, err := signer.GetAddress()
-	require.NoError(t, err, "failed to get signer address")
-
-	reportMCMs, err := cld_ops.ExecuteOperation(bundle, mcms_ops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
-	require.NoError(t, err, "failed to deploy MCMS Package")
-
-	// Deploy CCIP
-	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageId: reportMCMs.Output.PackageId,
-		McmsOwner:     signerAddress,
-	}
+	inputCCIP, err := ccip_ops.DeployCCIPDependencyPackages(bundle, deps)
+	require.NoError(t, err, "failed to deploy CCIP dependency packages")
 
 	reportCCIP, err := cld_ops.ExecuteOperation(bundle, ccip_ops.DeployCCIPOp, deps, inputCCIP)
 	require.NoError(t, err, "failed to deploy CCIP Package")
@@ -109,8 +98,9 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 	seqOffRampInput := DeployAndInitCCIPOffRampSeqInput{
 		CCIPObjectRefId: reportCCIP.Output.Objects.CCIPObjectRefObjectId,
 		DeployCCIPOffRampInput: DeployCCIPOffRampInput{
-			CCIPPackageId: reportCCIP.Output.PackageId,
-			MCMSPackageId: reportMCMs.Output.PackageId,
+			CCIPPackageId:     reportCCIP.Output.PackageId,
+			MCMSPackageId:     inputCCIP.McmsPackageId,
+			FastMcmsPackageId: inputCCIP.FastMcmsPackageId,
 		},
 		InitializeOffRampInput: InitializeOffRampInput{
 			DestTransferCapId:                     reportCCIP.Output.Objects.DestTransferCapObjectId,

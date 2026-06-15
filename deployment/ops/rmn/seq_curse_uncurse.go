@@ -27,6 +27,23 @@ type CurseUncurseSeqInput struct {
 	Subjects             []fastcurse.Subject
 }
 
+// FastCurseSeqInput holds the context required by FastCurseCurseSequence.
+type FastCurseSeqInput struct {
+	CCIPAddress       string
+	CCIPObjectRef     string
+	CurserCapObjectID string
+	ChainSelector     uint64
+	Subjects          []fastcurse.Subject
+}
+
+func subjectsToBytes(subjects []fastcurse.Subject) [][]byte {
+	out := make([][]byte, len(subjects))
+	for i, subject := range subjects {
+		out[i] = append([]byte(nil), subject[:]...)
+	}
+	return out
+}
+
 func executeCurseUncurse(
 	b cldf_ops.Bundle,
 	chains cldf_chain.BlockChains,
@@ -37,12 +54,6 @@ func executeCurseUncurse(
 	chain, ok := chains.SuiChains()[in.ChainSelector]
 	if !ok {
 		return sequences.OnChainOutput{}, fmt.Errorf("Sui chain with selector %d not found in environment", in.ChainSelector)
-	}
-
-	subjectBytes := make([][]byte, len(in.Subjects))
-	for i, subject := range in.Subjects {
-		s := subject
-		subjectBytes[i] = s[:]
 	}
 
 	deps := sui_ops.OpTxDeps{
@@ -59,7 +70,7 @@ func executeCurseUncurse(
 		CCIPPackageId:    in.CCIPAddress,
 		StateObjectId:    in.CCIPObjectRef,
 		OwnerCapObjectId: in.CCIPOwnerCapObjectID,
-		Subjects:         subjectBytes,
+		Subjects:         subjectsToBytes(in.Subjects),
 	}
 
 	report, err := cldf_ops.ExecuteOperation(b, op, deps, opInput)
@@ -102,5 +113,66 @@ var UncurseSequence = cldf_ops.NewSequence(
 	"Uncurse sequence for Sui",
 	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in CurseUncurseSeqInput) (sequences.OnChainOutput, error) {
 		return executeCurseUncurse(b, chains, in, UncurseChainOp, "uncurse")
+	},
+)
+
+func executeFastCurse(
+	b cldf_ops.Bundle,
+	chains cldf_chain.BlockChains,
+	in FastCurseSeqInput,
+) (sequences.OnChainOutput, error) {
+	chain, ok := chains.SuiChains()[in.ChainSelector]
+	if !ok {
+		return sequences.OnChainOutput{}, fmt.Errorf("Sui chain with selector %d not found in environment", in.ChainSelector)
+	}
+	if in.CurserCapObjectID == "" {
+		return sequences.OnChainOutput{}, fmt.Errorf("curser cap object id is required for fast curse sequence")
+	}
+
+	deps := sui_ops.OpTxDeps{
+		Client: chain.Client,
+		Signer: chain.Signer,
+		GetCallOpts: func() *bind.CallOpts {
+			gasBudget := uint64(400_000_000)
+			return &bind.CallOpts{WaitForExecution: true, GasBudget: &gasBudget}
+		},
+		SuiRPC: chain.URL,
+	}
+
+	report, err := cldf_ops.ExecuteOperation(b, CurseWithCurserCapOp, deps, CurseWithCurserCapInput{
+		CCIPPackageId:     in.CCIPAddress,
+		StateObjectId:     in.CCIPObjectRef,
+		CurserCapObjectId: in.CurserCapObjectID,
+		Subjects:          subjectsToBytes(in.Subjects),
+	})
+	if err != nil {
+		return sequences.OnChainOutput{}, fmt.Errorf("failed to execute fast curse on Sui chain %d: %w", in.ChainSelector, err)
+	}
+
+	call := report.Output.Call
+	tx, err := suisdk.NewTransactionWithStateObj(
+		call.Module, call.Function, call.PackageID,
+		call.Data, call.Module, []string{},
+		call.StateObjID, call.TypeArgs,
+	)
+	if err != nil {
+		return sequences.OnChainOutput{}, fmt.Errorf("failed to create MCMS transaction: %w", err)
+	}
+
+	return sequences.OnChainOutput{
+		BatchOps: []mcmstypes.BatchOperation{{
+			ChainSelector: mcmstypes.ChainSelector(in.ChainSelector),
+			Transactions:  []mcmstypes.Transaction{tx},
+		}},
+	}, nil
+}
+
+// FastCurseCurseSequence curses subjects via CurserCap held in the fast MCMS Registry.
+var FastCurseCurseSequence = cldf_ops.NewSequence(
+	"sui-fast-curse-sequence",
+	semver.MustParse("1.0.0"),
+	"Fast curse sequence for Sui via CurserCap",
+	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in FastCurseSeqInput) (sequences.OnChainOutput, error) {
+		return executeFastCurse(b, chains, in)
 	},
 )

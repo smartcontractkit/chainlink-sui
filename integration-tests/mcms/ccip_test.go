@@ -644,6 +644,7 @@ func (s *CCIPMCMSTestSuite) RunUpgradeOnrampProposal(newVersion string) {
 		NamedAddresses: map[string]string{
 			"signer":                   signerAddress,
 			"mcms":                     s.mcmsPackageID,
+			"fast_mcms":                s.fastMcmsPackageID,
 			"ccip":                     s.ccipPackageId,
 			"original_ccip_onramp_pkg": s.ccipOnrampPackageId,
 		},
@@ -796,6 +797,7 @@ func (s *CCIPMCMSTestSuite) RunUpgradeBreakingOfframpProposal() {
 		NamedAddresses: map[string]string{
 			"signer":                    signerAddress,
 			"mcms":                      s.mcmsPackageID,
+			"fast_mcms":                 s.fastMcmsPackageID,
 			"ccip":                      s.ccipPackageId,
 			"original_ccip_offramp_pkg": s.ccipOfframpPackageId,
 		},
@@ -870,6 +872,7 @@ func (s *CCIPMCMSTestSuite) RunUpgradeBreakingCCIPProposal() {
 		NamedAddresses: map[string]string{
 			"signer":            signerAddress,
 			"mcms":              s.mcmsPackageID,
+			"fast_mcms":         s.fastMcmsPackageID,
 			"link":              s.linkPackageId,
 			"original_ccip_pkg": s.ccipPackageId,
 		},

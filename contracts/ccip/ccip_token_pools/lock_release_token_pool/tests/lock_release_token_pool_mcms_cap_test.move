@@ -171,7 +171,7 @@ fun encode_set_rebalancer_data(
     owner_cap_id: address,
     rebalancer: address,
 ): vector<u8> {
-    let mut data = vector::empty();
+    let mut data = vector[];
     vector::append(&mut data, bcs::to_bytes(&state_id));
     vector::append(&mut data, bcs::to_bytes(&owner_cap_id));
     vector::append(&mut data, bcs::to_bytes(&rebalancer));
@@ -183,7 +183,7 @@ fun encode_provide_liquidity_data(
     rebalancer_cap_id: address,
     coin_id: address,
 ): vector<u8> {
-    let mut data = vector::empty();
+    let mut data = vector[];
     vector::append(&mut data, bcs::to_bytes(&state_id));
     vector::append(&mut data, bcs::to_bytes(&rebalancer_cap_id));
     vector::append(&mut data, bcs::to_bytes(&coin_id));
@@ -196,7 +196,7 @@ fun encode_withdraw_liquidity_data(
     amount: u64,
     to: address,
 ): vector<u8> {
-    let mut data = vector::empty();
+    let mut data = vector[];
     vector::append(&mut data, bcs::to_bytes(&state_id));
     vector::append(&mut data, bcs::to_bytes(&rebalancer_cap_id));
     vector::append(&mut data, bcs::to_bytes(&amount));

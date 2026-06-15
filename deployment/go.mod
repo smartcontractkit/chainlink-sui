@@ -9,6 +9,7 @@ replace github.com/smartcontractkit/chainlink-sui => ../
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
+	github.com/aptos-labs/aptos-go-sdk v1.13.0
 	github.com/block-vision/sui-go-sdk v1.2.1
 	github.com/ethereum/go-ethereum v1.17.3
 	github.com/google/go-cmp v0.7.0
@@ -19,6 +20,7 @@ require (
 	github.com/smartcontractkit/chainlink-sui v0.0.0
 	github.com/smartcontractkit/mcms v0.45.2-0.20260604181544-da0bd7da623d
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/crypto v0.51.0
 	golang.org/x/sync v0.20.0
 )
 
@@ -28,7 +30,6 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
 	github.com/XSAM/otelsql v0.37.0 // indirect
-	github.com/aptos-labs/aptos-go-sdk v1.13.0 // indirect
 	github.com/avast/retry-go/v4 v4.7.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
@@ -187,7 +188,6 @@ require (
 	go.uber.org/ratelimit v0.3.1 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	golang.org/x/crypto v0.51.0 // indirect
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect

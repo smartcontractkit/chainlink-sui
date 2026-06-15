@@ -49,7 +49,7 @@ func NewOfframp(address string, chainClient client.BindingsClient) (Offramp, err
 	}, nil
 }
 
-func PublishOfframp(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, ccipAddress string, mcmsAddress, suiRPC string) (Offramp, *models.SuiTransactionBlockResponse, error) {
+func PublishOfframp(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, ccipAddress string, mcmsAddress, fastMcmsAddress, suiRPC string) (Offramp, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -57,6 +57,7 @@ func PublishOfframp(ctx context.Context, opts *bind.CallOpts, chainClient client
 
 	artifact, err := bind.CompilePackage(contracts.CCIPOfframp, map[string]string{
 		"mcms":                      mcmsAddress,
+		"fast_mcms":                 fastMcmsAddress,
 		"ccip":                      ccipAddress,
 		"ccip_offramp":              "0x0",
 		"mcms_owner":                "0x1",

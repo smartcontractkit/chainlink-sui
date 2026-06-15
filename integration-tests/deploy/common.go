@@ -37,6 +37,7 @@ type DeployTestSuite struct {
 	ccipPackageID          string
 	ccipObjectRef          string
 	mcmsPackageID          string
+	fastMcmsPackageID      string
 	deployerAddr           string
 }
 

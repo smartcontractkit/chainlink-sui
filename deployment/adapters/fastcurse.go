@@ -25,10 +25,15 @@ var (
 )
 
 // CurseAdapter implements fastcurse.CurseAdapter and fastcurse.CurseSubjectAdapter for Sui.
+//
+// Slow curse/uncurse uses CCIP OwnerCap via CurseSequence/UncurseSequence.
+// When CurserCapObjectID is set, Curse() routes through FastCurseCurseSequence so
+// proposals target curse_multiple_with_curser_cap for the fast MCMS Registry cap.
 type CurseAdapter struct {
 	CCIPAddress          string
 	CCIPObjectRef        string
 	CCIPOwnerCapObjectID string
+	CurserCapObjectID    string
 	RouterAddress        string
 	RouterStateObjectID  string
 }
@@ -51,6 +56,7 @@ func (c *CurseAdapter) Initialize(e cldf.Environment, selector uint64) error {
 	c.CCIPAddress = state.CCIPAddress
 	c.CCIPObjectRef = state.CCIPObjectRef
 	c.CCIPOwnerCapObjectID = state.CCIPOwnerCapObjectId
+	c.CurserCapObjectID = state.CurserCapObjectId
 	c.RouterAddress = state.CCIPRouterAddress
 	c.RouterStateObjectID = state.CCIPRouterStateObjectID
 	return nil
@@ -119,7 +125,30 @@ func (c *CurseAdapter) DeriveCurseAdapterVersion(cldf.Environment, uint64) (*sem
 }
 
 // Curse returns a sequence that curses the given subjects on the specified Sui chain.
+// When CurserCapObjectID is populated the fast CurserCap path is used; otherwise OwnerCap.
 func (c *CurseAdapter) Curse() *cldf_ops.Sequence[fastcurse.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
+	if c.CurserCapObjectID != "" {
+		return cldf_ops.NewSequence(
+			rmnops.FastCurseCurseSequence.ID(),
+			semver.MustParse("1.0.0"),
+			rmnops.FastCurseCurseSequence.Description(),
+			func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in fastcurse.CurseInput) (sequences.OnChainOutput, error) {
+				seqInput := rmnops.FastCurseSeqInput{
+					CCIPAddress:       c.CCIPAddress,
+					CCIPObjectRef:     c.CCIPObjectRef,
+					CurserCapObjectID: c.CurserCapObjectID,
+					ChainSelector:     in.ChainSelector,
+					Subjects:          in.Subjects,
+				}
+				seqReport, err := cldf_ops.ExecuteSequence(b, rmnops.FastCurseCurseSequence, chains, seqInput)
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to execute fast curse sequence on Sui chain %d: %w", in.ChainSelector, err)
+				}
+				return seqReport.Output, nil
+			},
+		)
+	}
+
 	return cldf_ops.NewSequence(
 		rmnops.CurseSequence.ID(),
 		semver.MustParse("1.0.0"),
@@ -142,6 +171,7 @@ func (c *CurseAdapter) Curse() *cldf_ops.Sequence[fastcurse.CurseInput, sequence
 }
 
 // Uncurse returns a sequence that lifts the curse on given subjects on the specified Sui chain.
+// Uncurse always uses OwnerCap via slow MCMS; fast MCMS cannot uncurse.
 func (c *CurseAdapter) Uncurse() *cldf_ops.Sequence[fastcurse.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		rmnops.UncurseSequence.ID(),

@@ -101,7 +101,7 @@ func NewCCIP(address string, chainClient client.BindingsClient) (CCIP, error) {
 	}, nil
 }
 
-func PublishCCIP(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, mcmsAddress string, mcmsOwner string, suiRPC string) (CCIP, *models.SuiTransactionBlockResponse, error) {
+func PublishCCIP(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, mcmsAddress string, fastMcmsAddress string, mcmsOwner string, suiRPC string) (CCIP, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -109,6 +109,7 @@ func PublishCCIP(ctx context.Context, opts *bind.CallOpts, chainClient client.Bi
 
 	artifact, err := bind.CompilePackage(contracts.CCIP, map[string]string{
 		"mcms":       mcmsAddress,
+		"fast_mcms":  fastMcmsAddress,
 		"mcms_owner": mcmsOwner,
 		"ccip":       "0x0",
 		"signer":     signerAddr,

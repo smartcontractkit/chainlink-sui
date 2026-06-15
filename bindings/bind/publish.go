@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
@@ -93,6 +94,13 @@ func FindPackageIdFromPublishTx(tx models.SuiTransactionBlockResponse) (string, 
 	}
 
 	return "", errors.New("package ID not found in transaction")
+}
+
+func FindObjectIDFromChangedObjects(changed []*suirpcv2.ChangedObject, module, object string) (string, error) {
+	tx := models.SuiTransactionBlockResponse{
+		ObjectChanges: mapChangedObjectsToModels(changed),
+	}
+	return FindObjectIdFromPublishTx(tx, module, object)
 }
 
 func FindObjectIdFromPublishTx(tx models.SuiTransactionBlockResponse, module, object string) (string, error) {

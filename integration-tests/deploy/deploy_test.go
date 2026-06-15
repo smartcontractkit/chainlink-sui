@@ -159,7 +159,11 @@ func (s *DeployTestSuite) DeployCCIPCore() {
 		case deployment.SuiCCIPObjectRefType:
 			s.ccipObjectRef = addr
 		case deployment.SuiMcmsPackageIDType:
-			s.mcmsPackageID = addr
+			if typeAndVersion.Labels.Contains(deployment.MCMSFastCurseLabel) {
+				s.fastMcmsPackageID = addr
+			} else {
+				s.mcmsPackageID = addr
+			}
 		}
 	}
 }
@@ -196,9 +200,10 @@ func (s *DeployTestSuite) DeployLinkBurnMintTokenPool() {
 		TokenPoolTypes:   []deployment.TokenPoolType{deployment.TokenPoolTypeBurnMint},
 		BurnMintTpInput: burnminttokenpoolops.DeployAndInitBurnMintTokenPoolInput{
 			BurnMintTokenPoolDeployInput: burnminttokenpoolops.BurnMintTokenPoolDeployInput{
-				CCIPPackageId:    s.ccipPackageID,
-				MCMSAddress:      s.mcmsPackageID,
-				MCMSOwnerAddress: s.deployerAddr,
+				CCIPPackageId:     s.ccipPackageID,
+				MCMSAddress:       s.mcmsPackageID,
+				FastMcmsAddress:   s.fastMcmsPackageID,
+				MCMSOwnerAddress:  s.deployerAddr,
 			},
 			CoinObjectTypeArg:      coinTypeArg,
 			CCIPObjectRefObjectId:  s.ccipObjectRef,
@@ -460,6 +465,7 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 			CCIPPackageId:             s.ccipPackageID,
 			ManagedTokenPackageId:     managedTokenPackageID,
 			MCMSAddress:               s.mcmsPackageID,
+			FastMcmsAddress:           s.fastMcmsPackageID,
 			MCMSOwnerAddress:          s.deployerAddr,
 			CoinObjectTypeArg:         coinTypeArg,
 			CCIPObjectRefObjectId:     s.ccipObjectRef,

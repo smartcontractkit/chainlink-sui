@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -286,11 +287,12 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		return PackageArtifact{}, fmt.Errorf("failed to set environment in %s: %w", packageRoot, err)
 	}
 
-	// Also set environment in common dependency packages in the temp workspace
-	// This ensures local dependencies can be resolved during build with --build-env
+	// Also set environment in common dependency packages in the temp workspace.
+	// setupSuiEnv switches the CLI active env to match before publish.
 	commonDependencyDirs := []string{
 		filepath.Join(dstRoot, "test_secondary"),
 		filepath.Join(dstRoot, "mcms", "mcms"),
+		filepath.Join(dstRoot, "mcms", "fast_mcms"),
 		filepath.Join(dstRoot, "mcms", "mcms_test"),
 		filepath.Join(dstRoot, "mcms", "mcms_test_v2"),
 		filepath.Join(dstRoot, "ccip", "ccip"),
@@ -425,18 +427,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
 
-		ccipAddr := namedAddresses["ccip"]
-		if !isZeroAddress(ccipAddr) {
-			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			ccipOrigID := ccipAddr
-			if orig := namedAddresses["original_ccip_pkg"]; !isZeroAddress(orig) {
-				ccipOrigID = orig
-			}
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipOrigID, ccipAddr, pubfilePath); err != nil {
-				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
-			}
-		} else {
-			fmt.Println("Skipping manage-package for CCIP (no published address found)")
+		if manageErr := manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env, namedAddresses); manageErr != nil {
+			return PackageArtifact{}, manageErr
 		}
 
 		// For MCMS-managed upgrades, manage the original package as a dependency
@@ -491,18 +483,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
 
-		ccipAddr := namedAddresses["ccip"]
-		if !isZeroAddress(ccipAddr) {
-			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			ccipOrigID := ccipAddr
-			if orig := namedAddresses["original_ccip_pkg"]; !isZeroAddress(orig) {
-				ccipOrigID = orig
-			}
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipOrigID, ccipAddr, pubfilePath); err != nil {
-				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
-			}
-		} else {
-			fmt.Println("Skipping manage-package for CCIP (no published address found)")
+		if manageErr := manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env, namedAddresses); manageErr != nil {
+			return PackageArtifact{}, manageErr
 		}
 	}
 
@@ -530,6 +512,13 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	}
 
 	if packageName == contracts.CCIP {
+		if isZeroAddress(namedAddresses["mcms"]) {
+			return PackageArtifact{}, errors.New("CCIP compile requires mcms package address")
+		}
+		if isZeroAddress(namedAddresses["fast_mcms"]) {
+			return PackageArtifact{}, errors.New("CCIP compile requires fast_mcms package address")
+		}
+
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
@@ -538,6 +527,16 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			}
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
+		}
+
+		fastMcmsAddr := namedAddresses["fast_mcms"]
+		if !isZeroAddress(fastMcmsAddr) {
+			fastMcmsDir := filepath.Join(dstRoot, "mcms", "fast_mcms")
+			if manageErr := managePackage(fastMcmsDir, 1, rpcURL, env, fastMcmsAddr, fastMcmsAddr, pubfilePath); manageErr != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage fast_mcms dependency: %w", manageErr)
+			}
+		} else {
+			fmt.Println("Skipping manage-package for fast_mcms (no published address found)")
 		}
 
 		// For MCMS-managed upgrades (when not using sui client upgrade command),
@@ -565,18 +564,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
 
-		ccipAddr := namedAddresses["ccip"]
-		if !isZeroAddress(ccipAddr) {
-			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			ccipOrigID := ccipAddr
-			if orig := namedAddresses["original_ccip_pkg"]; !isZeroAddress(orig) {
-				ccipOrigID = orig
-			}
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipOrigID, ccipAddr, pubfilePath); err != nil {
-				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
-			}
-		} else {
-			fmt.Println("Skipping manage-package for CCIP (no published address found)")
+		if manageErr := manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env, namedAddresses); manageErr != nil {
+			return PackageArtifact{}, manageErr
 		}
 
 		// For MCMS-managed upgrades, manage the original package as a dependency
@@ -603,18 +592,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
 		}
 
-		ccipAddr := namedAddresses["ccip"]
-		if !isZeroAddress(ccipAddr) {
-			ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
-			ccipOrigID := ccipAddr
-			if orig := namedAddresses["original_ccip_pkg"]; !isZeroAddress(orig) {
-				ccipOrigID = orig
-			}
-			if err := managePackage(ccipDir, 1, rpcURL, env, ccipOrigID, ccipAddr, pubfilePath); err != nil {
-				return PackageArtifact{}, fmt.Errorf("failed to manage CCIP dependency: %w", err)
-			}
-		} else {
-			fmt.Println("Skipping manage-package for CCIP (no published address found)")
+		if manageErr := manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env, namedAddresses); manageErr != nil {
+			return PackageArtifact{}, manageErr
 		}
 
 		// For MCMS-managed upgrades, manage the original package as a dependency
@@ -647,12 +626,14 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 	pkgMoveTomlContent, _ := os.ReadFile(pkgMoveTomlPath)
 	hasDependencies := strings.Contains(string(pkgMoveTomlContent), "[dependencies]")
 
-	if isUpgrade {
-		// Remove the existing `Published.toml` to avoid the error "Your package is already published."
-		// This shouldn't happen with a `sui client upgrade` command but we must use `publish` here to allow
-		// MCMS to handle the upgrade authorization.
+	// Remove stale root Published.toml for upgrades and fresh publishes. Embedded CCIP
+	// packages ship testnet metadata that breaks local dependency resolution.
+	if isUpgrade || isFreshPackagePublish(packageName, namedAddresses) {
 		os.Remove(filepath.Join(packageRoot, "Published.toml"))
+	}
 
+	switch {
+	case isUpgrade:
 		cmd = exec.Command("sui", "client", "publish",
 			"--serialize-unsigned-transaction",
 			"--skip-dependency-verification", // TODO: This is a temporary workaround for the test environment.
@@ -660,16 +641,17 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			"--json",
 			"--silence-warnings",
 		)
-	} else if hasDependencies {
-		// Package has dependencies - use 'publish' which reads Published.toml
-		// for proper dependency address resolution (avoiding 0x0 collision)
+	case hasDependencies:
+		// Package has dependencies - use 'publish' which builds for the active CLI
+		// environment (set via setupSuiEnv) and resolves deps from Published.toml.
+		// Do not pass --build-env here; sui client publish rejects it.
 		cmd = exec.Command("sui", "client", "publish",
 			"--serialize-unsigned-transaction",
 			"--sender", namedAddresses["signer"],
 			"--json",
 			"--silence-warnings",
 		)
-	} else {
+	default:
 		// Package has no dependencies - use test-publish which is simpler
 		// --with-unpublished-dependencies is safe since there's no collision risk
 		cmd = exec.Command("sui", "client", "test-publish",
@@ -713,6 +695,13 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 			continue
 		}
 		deps = append(deps, addrStr)
+	}
+
+	// The Sui CLI publish response may omit dual-MCMS or transitive CCIP deps.
+	// On-chain publish then fails with PublishUpgradeMissingDependency.
+	if required := requiredPublishDeps(packageName, namedAddresses); len(required) > 0 {
+		deps = orderPublishDependencies(deps, required)
+		deps = enrichPublishDepsPreservingOrder(deps)
 	}
 
 	// For MCMS-managed upgrades, enrich the dep list by querying the on-chain linkage
@@ -807,6 +796,136 @@ func isZeroAddress(addr string) bool {
 	return true
 }
 
+// orderPublishDependencies ensures required package addresses appear in Move.toml
+// order, followed by any remaining deps from the Sui CLI response (e.g. MoveStdlib, Sui).
+func orderPublishDependencies(deps []string, orderedRequired []string) []string {
+	seen := make(map[string]struct{}, len(deps)+len(orderedRequired))
+	result := make([]string, 0, len(deps)+len(orderedRequired))
+
+	for _, req := range orderedRequired {
+		if isZeroAddress(req) {
+			continue
+		}
+		n := normalizeAddress(req)
+		if _, ok := seen[n]; ok {
+			continue
+		}
+		seen[n] = struct{}{}
+		result = append(result, n)
+	}
+
+	for _, d := range deps {
+		n := normalizeAddress(d)
+		if _, ok := seen[n]; ok {
+			continue
+		}
+		seen[n] = struct{}{}
+		result = append(result, n)
+	}
+
+	return result
+}
+
+func isFreshPackagePublish(packageName contracts.Package, namedAddresses map[string]string) bool {
+	key := ownPackageAddressKey(packageName)
+	if key == "" {
+		return false
+	}
+	return isZeroAddress(namedAddresses[key])
+}
+
+func ownPackageAddressKey(packageName contracts.Package) string {
+	switch packageName {
+	case contracts.CCIP, contracts.CCIPOnramp, contracts.CCIPOfframp,
+		contracts.CCIPRouter, contracts.CCIPDummyReceiver, contracts.CCIPBrokenReceiver,
+		contracts.LockReleaseTokenPool, contracts.BurnMintTokenPool,
+		contracts.ManagedTokenPool, contracts.USDCTokenPool,
+		contracts.ManagedToken, contracts.ManagedTokenFaucet, contracts.CCIPBnM,
+		contracts.MCMS, contracts.FastMCMS, contracts.MCMSUser, contracts.MCMSUserV2,
+		contracts.LINK, contracts.MockLinkToken, contracts.MockEthToken,
+		contracts.Test, contracts.TestSecondary:
+		return string(packageName)
+	default:
+		return ""
+	}
+}
+
+func requiredPublishDeps(packageName contracts.Package, namedAddresses map[string]string) []string {
+	switch packageName {
+	case contracts.CCIP:
+		return []string{
+			namedAddresses["mcms"],
+			namedAddresses["fast_mcms"],
+		}
+	case contracts.CCIPOnramp, contracts.CCIPOfframp,
+		contracts.CCIPDummyReceiver, contracts.CCIPBrokenReceiver,
+		contracts.LockReleaseTokenPool, contracts.BurnMintTokenPool,
+		contracts.ManagedTokenPool, contracts.USDCTokenPool:
+		return []string{
+			namedAddresses["mcms"],
+			namedAddresses["fast_mcms"],
+			namedAddresses["ccip"],
+		}
+	default:
+		return nil
+	}
+}
+
+func isSuiFrameworkPackage(addr string) bool {
+	switch normalizeAddress(addr) {
+	case "0x1", "0x2", "0x3", "0xb":
+		return true
+	default:
+		return false
+	}
+}
+
+// enrichPublishDepsPreservingOrder appends transitive linkage deps from on-chain
+// packages before framework deps, without reordering existing entries.
+func enrichPublishDepsPreservingOrder(deps []string) []string {
+	seen := make(map[string]struct{}, len(deps))
+	for _, d := range deps {
+		seen[normalizeAddress(d)] = struct{}{}
+	}
+
+	var extras []string
+	for _, dep := range deps {
+		if isSuiFrameworkPackage(dep) {
+			continue
+		}
+		linkageAddrs, err := fetchPackageLinkageAddresses(dep)
+		if err != nil {
+			log.Printf("warning: could not fetch on-chain linkage for %s: %v\n", dep, err)
+			continue
+		}
+		for _, addr := range linkageAddrs {
+			n := normalizeAddress(addr)
+			if _, ok := seen[n]; ok {
+				continue
+			}
+			seen[n] = struct{}{}
+			extras = append(extras, n)
+		}
+	}
+	if len(extras) == 0 {
+		return deps
+	}
+
+	split := len(deps)
+	for i, d := range deps {
+		if isSuiFrameworkPackage(d) {
+			split = i
+			break
+		}
+	}
+
+	result := make([]string, 0, len(deps)+len(extras))
+	result = append(result, deps[:split]...)
+	result = append(result, extras...)
+	result = append(result, deps[split:]...)
+	return result
+}
+
 // fetchPackageLinkageAddresses queries the on-chain package via the Sui CLI and returns
 // all original_id addresses present in its linkage table.
 func fetchPackageLinkageAddresses(pkgAddr string) ([]string, error) {
@@ -872,6 +991,36 @@ func enrichDepsWithOnChainLinkage(deps []string) ([]string, error) {
 	}
 	sort.Strings(result)
 	return result, nil
+}
+
+// manageCCIPDependency wires Published.toml for ccip and its transitive MCMS deps.
+// CCIP links both mcms and fast_mcms; downstream packages only depend on ccip directly.
+func manageCCIPDependency(dstRoot, pubfilePath, rpcURL, env string, namedAddresses map[string]string) error {
+	ccipAddr := namedAddresses["ccip"]
+	if isZeroAddress(ccipAddr) {
+		fmt.Println("Skipping manage-package for CCIP (no published address found)")
+		return nil
+	}
+	if isZeroAddress(namedAddresses["fast_mcms"]) {
+		return errors.New("fast_mcms package address required when compiling against published CCIP")
+	}
+
+	fastMcmsAddr := namedAddresses["fast_mcms"]
+	fastMcmsDir := filepath.Join(dstRoot, "mcms", "fast_mcms")
+	if err := managePackage(fastMcmsDir, 1, rpcURL, env, fastMcmsAddr, fastMcmsAddr, pubfilePath); err != nil {
+		return fmt.Errorf("failed to manage fast_mcms dependency: %w", err)
+	}
+
+	ccipDir := filepath.Join(dstRoot, "ccip", "ccip")
+	ccipOrigID := ccipAddr
+	if orig := namedAddresses["original_ccip_pkg"]; !isZeroAddress(orig) {
+		ccipOrigID = orig
+	}
+	if err := managePackage(ccipDir, 1, rpcURL, env, ccipOrigID, ccipAddr, pubfilePath); err != nil {
+		return fmt.Errorf("failed to manage CCIP dependency: %w", err)
+	}
+
+	return nil
 }
 
 // managePackage writes Published.toml and updates Move.toml for a package
