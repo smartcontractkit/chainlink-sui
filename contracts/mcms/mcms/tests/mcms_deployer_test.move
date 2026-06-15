@@ -4,8 +4,11 @@ module mcms::mcms_deployer_test;
 use mcms::mcms_account;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry};
+use sui::address;
 use sui::package::{Self, UpgradeCap};
 use sui::test_scenario::{Self as ts, Scenario};
+
+const TEST_UPGRADE_CAP_PACKAGE: address = @0x42;
 
 public struct MCMS_DEPLOYER_TEST has drop {}
 
@@ -18,7 +21,7 @@ fun create_test_scenario(): Scenario {
 }
 
 fun generate_upgrade_cap(ctx: &mut TxContext): UpgradeCap {
-    package::test_publish(mcms_registry::get_multisig_address().to_id(), ctx)
+    package::test_publish(TEST_UPGRADE_CAP_PACKAGE.to_id(), ctx)
 }
 
 fun init_mcms(scenario: &mut Scenario) {
@@ -35,11 +38,11 @@ fun register_test_package_with_upgrade_cap(scenario: &mut Scenario): address {
     let ctx = ts::ctx(scenario);
 
     let upgrade_cap = generate_upgrade_cap(ctx);
-    let package_address = upgrade_cap.package().to_address();
 
     ts::next_tx(scenario, @0xA);
     let ctx = ts::ctx(scenario);
     let publisher = package::test_claim(MCMS_DEPLOYER_TEST {}, ctx);
+    let package_address = address::from_ascii_bytes(&(*publisher.package()).into_bytes());
     let owner_cap = TestOwnerCap { id: object::new(ctx) };
 
     let publisher_wrapper = mcms_registry::create_publisher_wrapper(
@@ -56,10 +59,11 @@ fun register_test_package_with_upgrade_cap(scenario: &mut Scenario): address {
         ctx,
     );
 
-    mcms_deployer::register_upgrade_cap(
+    mcms_deployer::test_register_upgrade_cap_for_package(
         &mut deployer_state,
         &registry,
         upgrade_cap,
+        package_address,
         ctx,
     );
 
@@ -91,6 +95,7 @@ fun test_register_upgrade_cap() {
         ts::next_tx(&mut scenario, @0xA);
         let ctx = ts::ctx(&mut scenario);
         let publisher = package::test_claim(MCMS_DEPLOYER_TEST {}, ctx);
+        let package_address = address::from_ascii_bytes(&(*publisher.package()).into_bytes());
 
         let publisher_wrapper = mcms_registry::create_publisher_wrapper(
             &publisher,
@@ -108,10 +113,11 @@ fun test_register_upgrade_cap() {
         );
 
         // Then register with MCMS deployer
-        mcms_deployer::register_upgrade_cap(
+        mcms_deployer::test_register_upgrade_cap_for_package(
             &mut deployer_state,
             &registry,
             upgrade_cap,
+            package_address,
             ctx,
         );
 
@@ -142,7 +148,7 @@ fun test_release_upgrade_cap_at_succeeds() {
         MCMS_DEPLOYER_TEST {},
     );
 
-    assert!(upgrade_cap.package().to_address() == package_address);
+    assert!(upgrade_cap.package().to_address() == TEST_UPGRADE_CAP_PACKAGE);
     assert!(!mcms_deployer::has_upgrade_cap(&deployer_state, package_address));
 
     transfer::public_transfer(upgrade_cap, @0xA);
@@ -162,17 +168,19 @@ fun test_release_upgrade_cap_at_fails_after_release_cap() {
     let mut deployer_state = ts::take_shared<DeployerState>(&scenario);
     let mut registry = ts::take_shared<Registry>(&scenario);
 
-    let _owner_cap = mcms_registry::release_cap<MCMS_DEPLOYER_TEST, TestOwnerCap>(
+    let owner_cap = mcms_registry::release_cap<MCMS_DEPLOYER_TEST, TestOwnerCap>(
         &mut registry,
         MCMS_DEPLOYER_TEST {},
     );
+    transfer::public_transfer(owner_cap, @0xA);
 
-    mcms_deployer::release_upgrade_cap_at(
+    let upgrade_cap = mcms_deployer::release_upgrade_cap_at(
         &mut deployer_state,
         &registry,
         package_address,
         MCMS_DEPLOYER_TEST {},
     );
+    transfer::public_transfer(upgrade_cap, @0xA);
 
     ts::return_shared(deployer_state);
     ts::return_shared(registry);
@@ -254,11 +262,12 @@ fun test_release_upgrade_cap_fails_after_commit_upgrade() {
     ts::return_to_sender(&scenario, owner_cap);
 
     let registry = ts::take_shared<Registry>(&scenario);
-    mcms_deployer::release_upgrade_cap(
+    let upgrade_cap = mcms_deployer::release_upgrade_cap(
         &mut deployer_state,
         &registry,
         MCMS_DEPLOYER_TEST {},
     );
+    transfer::public_transfer(upgrade_cap, @0xA);
 
     ts::return_shared(deployer_state);
     ts::return_shared(registry);
