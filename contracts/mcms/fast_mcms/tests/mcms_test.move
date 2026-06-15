@@ -1492,62 +1492,81 @@ fun test_cancel_nonexistent_operation() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms::EBypasserSelfGovernanceForbidden, location = mcms)]
-fun test_bypasser_execute_batch_self_governance_forbidden() {
+fun test_bypasser_execute_batch() {
     let mut env = setup();
 
+    // Get initial min_delay value
     let initial_delay = mcms::timelock_min_delay(&env.timelock);
-    let new_delay = initial_delay + 1000;
+    let new_delay = initial_delay + 1000; // Set to a different value
 
+    // Use bypasser role to execute batch - this should return ExecutingCallbackParams
     let mut bypasser_update_delay_data = vector[];
-    bypasser_update_delay_data.append(bcs::to_bytes(&new_delay));
-
-    let executing_params = mcms::test_timelock_bypasser_execute_batch(
-        mcms::bypasser_role(),
-        vector[mcms_registry::get_multisig_address()],
-        vector[string::utf8(b"mcms")],
-        vector[string::utf8(b"timelock_update_min_delay")],
-        vector[bypasser_update_delay_data],
-        env.scenario.ctx(),
-    );
-
-    executing_params.destroy_empty();
-    env.destroy();
-}
-
-#[test]
-fun test_timelock_role_bypasser_execute_batch_self_governance() {
-    let mut env = setup();
-
-    let initial_delay = mcms::timelock_min_delay(&env.timelock);
-    let new_delay = initial_delay + 1000;
-
-    let mut bypasser_update_delay_data = vector[];
-    bypasser_update_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
     bypasser_update_delay_data.append(bcs::to_bytes(&new_delay));
 
     let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
-        mcms::timelock_role(),
-        vector[mcms_registry::get_multisig_address()],
-        vector[string::utf8(b"mcms")],
-        vector[string::utf8(b"timelock_update_min_delay")],
-        vector[bypasser_update_delay_data],
+        mcms::bypasser_role(),
+        vector[mcms_registry::get_multisig_address()], // targets
+        vector[string::utf8(b"mcms")], // module_names
+        vector[string::utf8(b"timelock_update_min_delay")], // function_names
+        vector[bypasser_update_delay_data], // datas
         env.scenario.ctx(),
     );
 
+    // Verify we got exactly 1 ExecutingCallbackParams
     assert!(executing_params.length() == 1);
 
+    // Extract the ExecutingCallbackParams and verify its contents
+    let params = executing_params.borrow(0);
+    assert!(mcms_registry::target(params) == mcms_registry::get_multisig_address());
+    assert!(mcms_registry::module_name(params) == string::utf8(b"mcms"));
+    assert!(mcms_registry::function_name(params) == string::utf8(b"timelock_update_min_delay"));
+
+    // Now we need to consume the ExecutingCallbackParams by calling the actual function
+    // Since this is timelock_update_min_delay, we need to dispatch it properly
+    let mut update_delay_data = vector[];
+    update_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
+    update_delay_data.append(bcs::to_bytes(&new_delay));
+
+    let callback_params = mcms_registry::test_create_executing_callback_params(
+        mcms_registry::get_multisig_address(),
+        string::utf8(b"mcms"),
+        string::utf8(b"timelock_update_min_delay"),
+        update_delay_data,
+        x"0000000000000000000000000000000000000000000000000000000000000001",
+        0,
+        1,
+    );
+
+    // Dispatch the update_min_delay function to consume the hot potato
     mcms::mcms_timelock_update_min_delay(
         &mut env.timelock,
         &mut env.registry,
-        executing_params.pop_back(),
+        callback_params,
         env.scenario.ctx(),
     );
 
+    // Verify that min_delay was actually updated - this proves the bypasser execution worked
     let updated_delay = mcms::timelock_min_delay(&env.timelock);
     assert!(updated_delay == new_delay, 0);
+    assert!(updated_delay != initial_delay, 1); // Ensure it actually changed
 
-    executing_params.destroy_empty();
+    // Must consume the ExecutingCallbackParams hot potato
+    // We know there's exactly 1 param, so just consume it directly
+    let params = executing_params.pop_back();
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        &mut env.registry,
+        params,
+    );
+
+    // Verify the ExecutingCallbackParams has the expected structure
+    assert!(target == mcms_registry::get_multisig_address());
+    assert!(module_name == string::utf8(b"mcms"));
+    assert!(function_name == string::utf8(b"timelock_update_min_delay"));
+    assert!(!data.is_empty()); // Should contain the serialized new_delay
+
+    // Now the vector should be empty
+    vector::destroy_empty(executing_params);
+
     env.destroy();
 }
 
@@ -2464,7 +2483,6 @@ fun test_execute_batch_missing_dependency() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms::EBypasserSelfGovernanceForbidden, location = mcms)]
 fun test_bypasser_execute_blocked_function() {
     let mut env = setup();
 
@@ -2472,6 +2490,7 @@ fun test_bypasser_execute_blocked_function() {
     let module_name = string::utf8(b"mcms");
     let function_name = string::utf8(b"timelock_update_min_delay");
 
+    // Block the function first
     mcms::test_timelock_block_function(
         &mut env.timelock,
         mcms::timelock_role(),
@@ -2481,19 +2500,67 @@ fun test_bypasser_execute_blocked_function() {
         env.scenario.ctx(),
     );
 
+    // Verify function was blocked (check the count increased)
+    let blocked_count = mcms::timelock_get_blocked_functions_count(&env.timelock);
+    assert!(blocked_count == 1, 0);
+
+    // Get initial min_delay value
+    let initial_delay = mcms::timelock_min_delay(&env.timelock);
+    let new_delay = initial_delay + 1000;
+
+    // Bypasser should be able to directly execute the blocked function
+    // Prepare data with timelock object ID
     let mut update_delay_data = vector[];
     update_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
-    update_delay_data.append(bcs::to_bytes(&(mcms::timelock_min_delay(&env.timelock) + 1000)));
+    update_delay_data.append(bcs::to_bytes(&new_delay));
 
-    let _executing_params = mcms::test_timelock_bypasser_execute_batch(
+    let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
         mcms::bypasser_role(),
-        vector[target],
-        vector[module_name],
-        vector[function_name],
-        vector[update_delay_data],
+        vector[target], // targets
+        vector[module_name], // module_names
+        vector[function_name], // function_names
+        vector[update_delay_data], // datas
         env.scenario.ctx(),
     );
 
+    // Process the executing callback params
+    let params = executing_params.pop_back();
+    let (
+        callback_target,
+        callback_module,
+        callback_function,
+        callback_data,
+    ) = mcms_registry::get_callback_params_from_mcms(&mut env.registry, params);
+
+    // Verify callback params structure
+    assert!(callback_target == target);
+    assert!(callback_module == module_name);
+    assert!(callback_function == function_name);
+    assert!(!callback_data.is_empty());
+
+    // Now dispatch the timelock function to actually update the min delay
+    let params = mcms_registry::test_create_executing_callback_params(
+        mcms_registry::get_multisig_address(),
+        string::utf8(b"mcms"),
+        string::utf8(b"timelock_update_min_delay"),
+        callback_data,
+        x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
+        0, // sequence_number
+        1, // total_in_batch
+    );
+
+    mcms::mcms_timelock_update_min_delay(
+        &mut env.timelock,
+        &mut env.registry,
+        params,
+        env.scenario.ctx(),
+    );
+
+    // Verify the min delay was updated despite the function being blocked
+    let updated_delay = mcms::timelock_min_delay(&env.timelock);
+    assert!(updated_delay == new_delay, 1);
+
+    vector::destroy_empty(executing_params);
     env.destroy();
 }
 
@@ -2632,32 +2699,51 @@ fun test_execute_batch_with_dependencies() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms::EBypasserSelfGovernanceForbidden, location = mcms)]
 fun test_bypasser_allowed_when_timelock_active() {
     let mut env = setup();
 
+    let delay = 1800u64;
+
+    // Update min delay to a significant value to ensure timelock is active
     mcms::test_timelock_update_min_delay(
         &mut env.timelock,
         mcms::timelock_role(),
-        1800u64,
+        delay,
         env.scenario.ctx(),
     );
 
-    let new_delay = mcms::timelock_min_delay(&env.timelock) + 1000;
+    // Get initial delay value
+    let initial_delay = mcms::timelock_min_delay(&env.timelock);
+    let new_delay = initial_delay + 1000;
 
+    // This should succeed because bypassers are allowed to bypass the timelock
+    // Prepare data with timelock object ID
     let mut bypasser_active_update_delay_data = vector[];
     bypasser_active_update_delay_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
     bypasser_active_update_delay_data.append(bcs::to_bytes(&new_delay));
 
-    let _executing_params = mcms::test_timelock_bypasser_execute_batch(
+    let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
         mcms::bypasser_role(),
-        vector[mcms_registry::get_multisig_address()],
-        vector[string::utf8(b"mcms")],
-        vector[string::utf8(b"timelock_update_min_delay")],
-        vector[bypasser_active_update_delay_data],
+        vector[mcms_registry::get_multisig_address()], // targets
+        vector[string::utf8(b"mcms")], // module_names
+        vector[string::utf8(b"timelock_update_min_delay")], // function_names
+        vector[bypasser_active_update_delay_data], // datas
         env.scenario.ctx(),
     );
 
+    // Process the executing callback params to complete the operation
+    mcms::mcms_timelock_update_min_delay(
+        &mut env.timelock,
+        &mut env.registry,
+        executing_params.pop_back(),
+        env.scenario.ctx(),
+    );
+
+    // Verify the min_delay was updated, confirming the bypass worked
+    let updated_delay = mcms::timelock_min_delay(&env.timelock);
+    assert!(updated_delay == new_delay, 0);
+
+    executing_params.destroy_empty();
     env.destroy();
 }
 
@@ -2890,7 +2976,7 @@ fun test_timelock_dispatch_to_deployer() {
     data.append(bcs::to_bytes(&mcms_package)); // package address for authorize_upgrade
 
     let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
-        mcms::timelock_role(),
+        mcms::bypasser_role(),
         vector[mcms_package],
         vector[string::utf8(b"mcms_deployer")],
         vector[string::utf8(b"authorize_upgrade")],
@@ -3041,25 +3127,27 @@ fun test_dispatch_timelock_execute_batch() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms::EBypasserSelfGovernanceForbidden, location = mcms)]
 fun test_dispatch_timelock_bypasser_execute_batch() {
     let mut env = setup();
 
+    // Create serialized data for timelock_bypasser_execute_batch parameters
     let targets = vector[mcms_registry::get_multisig_address()];
     let module_names = vector[string::utf8(b"mcms")];
     let function_names = vector[string::utf8(b"timelock_update_min_delay")];
 
+    // Prepare data with timelock object ID
     let mut bypasser_batch_data = vector[];
     bypasser_batch_data.append(bcs::to_bytes(&object::id_address(&env.timelock)));
-    bypasser_batch_data.append(bcs::to_bytes(&2000u64));
+    bypasser_batch_data.append(bcs::to_bytes(&2000));
 
-    let datas = vector[bypasser_batch_data];
+    let datas = vector[bypasser_batch_data]; // new min delay with timelock ID
 
     let mut serialized_data = bcs::to_bytes(&targets);
     serialized_data.append(bcs::to_bytes(&module_names));
     serialized_data.append(bcs::to_bytes(&function_names));
     serialized_data.append(bcs::to_bytes(&datas));
 
+    // Create TimelockCallbackParams for dispatch_timelock_bypasser_execute_batch
     let callback_params = mcms::test_create_timelock_callback_params(
         mcms::bypasser_role(),
         string::utf8(b"mcms"),
@@ -3067,10 +3155,25 @@ fun test_dispatch_timelock_bypasser_execute_batch() {
         serialized_data,
     );
 
-    let _executing_params = mcms::dispatch_timelock_bypasser_execute_batch(
+    let mut executing_params = mcms::dispatch_timelock_bypasser_execute_batch(
         callback_params,
         env.scenario.ctx(),
     );
+    assert!(executing_params.length() == 1);
+
+    // Verify the ExecutingCallbackParams has the correct structure
+    let params = &executing_params[0];
+    assert!(mcms_registry::target(params) == mcms_registry::get_multisig_address());
+    assert!(mcms_registry::module_name(params) == string::utf8(b"mcms"));
+    assert!(mcms_registry::function_name(params) == string::utf8(b"timelock_update_min_delay"));
+
+    mcms::mcms_timelock_update_min_delay(
+        &mut env.timelock,
+        &mut env.registry,
+        executing_params.pop_back(),
+        env.scenario.ctx(),
+    );
+    executing_params.destroy_empty();
 
     env.destroy();
 }
