@@ -130,11 +130,28 @@ public fun commit_upgrade(
     });
 }
 
-/// Release the upgrade cap for a registered package
-/// This must be called before calling `mcms_registry::release_cap` as it relies on registered proof types in registry
+/// Release the upgrade cap for a registered package at the original publish address.
+/// Prefer `release_upgrade_cap_at` when the cap was re-keyed after `commit_upgrade`.
+/// Must be called before `mcms_registry::release_cap` as registry proof checks still apply.
 public fun release_upgrade_cap<T: drop>(
     state: &mut DeployerState,
     registry: &Registry,
+    proof: T,
+): UpgradeCap {
+    let proof_type = type_name::with_original_ids<T>();
+    let proof_account_address = proof_type.address_string();
+    let package_address = address::from_ascii_bytes(&proof_account_address.into_bytes());
+    release_upgrade_cap_at(state, registry, package_address, proof)
+}
+
+/// Release the upgrade cap stored at `package_address` in `DeployerState`.
+/// Must be called before `mcms_registry::release_cap` as registry proof checks still apply.
+/// After a package upgrade, pass the current package address from `commit_upgrade`, not the
+/// original publish address.
+public fun release_upgrade_cap_at<T: drop>(
+    state: &mut DeployerState,
+    registry: &Registry,
+    package_address: address,
     _proof: T,
 ): UpgradeCap {
     let proof_type = type_name::with_original_ids<T>();
@@ -151,7 +168,6 @@ public fun release_upgrade_cap<T: drop>(
     );
     assert!(proof_type == expected_proof_type, EWrongProofType);
 
-    let package_address = address::from_ascii_bytes(&proof_account_address.into_bytes());
     assert!(state.upgrade_caps.contains(package_address), EPackageAddressNotRegistered);
 
     let upgrade_cap = state.upgrade_caps.remove(package_address);
@@ -197,3 +213,25 @@ public fun test_register_upgrade_cap_for_package(
 public fun test_init(ctx: &mut TxContext) {
     init(MCMS_DEPLOYER {}, ctx);
 }
+
+ #[test_only]
+ /// Register an upgrade cap without requiring MCMS registry check.
+ /// Needed because in tests @self resolves to 0x0, which Sui >= 1.73
+ /// rejects in `authorize_upgrade` (uses 0x0 as a sentinel for in-progress upgrades).
+ public fun test_register_upgrade_cap(
+     state: &mut DeployerState,
+     upgrade_cap: UpgradeCap,
+     ctx: &mut TxContext,
+ ) {
+     let package_address = upgrade_cap.package().to_address();
+     let version = upgrade_cap.version();
+     let policy = upgrade_cap.policy();
+     state.cap_to_package.add(object::id(&upgrade_cap), package_address);
+     state.upgrade_caps.add(package_address, upgrade_cap);
+     event::emit(UpgradeCapRegistered {
+         prev_owner: ctx.sender(),
+         package_address,
+         version,
+         policy,
+     });
+ }
