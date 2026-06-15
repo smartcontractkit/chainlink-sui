@@ -4,12 +4,6 @@ go 1.26.2
 
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.4
 
-replace github.com/smartcontractkit/chainlink-sui => ..
-
-replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
-
-require github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-00010101000000-000000000000
-
 require (
 	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect

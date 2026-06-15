@@ -17,11 +17,6 @@ require (
 
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.4
 
-// use local modules
-replace github.com/smartcontractkit/chainlink-sui => ../
-
-replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
-
 require (
 	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect

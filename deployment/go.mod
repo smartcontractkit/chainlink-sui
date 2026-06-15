@@ -5,8 +5,6 @@ go 1.26.2
 // Coming from chainlink-deployments-framework
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.4
 
-replace github.com/smartcontractkit/chainlink-sui => ../
-
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/aptos-labs/aptos-go-sdk v1.13.0
