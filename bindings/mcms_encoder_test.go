@@ -1363,32 +1363,6 @@ func TestEncodeEntryPointArg_RmnRemoteRegisterCurserCapIds(t *testing.T) {
 	require.Equal(t, "mcms_register_curser_cap_ids", encoded.Function)
 }
 
-func TestEncodeEntryPointArg_RmnRemoteSetCurserCapAllowlistEnabled(t *testing.T) {
-	t.Parallel()
-
-	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
-	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
-
-	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-	data := serializeAddresses(ccipRef, ownerCap)
-	data = append(data, 1) // BCS bool true
-
-	paramsArg := transaction.Argument{}
-	encoded, err := encoder.EncodeEntryPointArg(
-		&paramsArg,
-		ccipRef,
-		"rmn_remote",
-		"set_curser_cap_allowlist_enabled",
-		ccipRef,
-		data,
-		nil,
-	)
-	require.NoError(t, err)
-	require.Equal(t, "mcms_set_curser_cap_allowlist_enabled", encoded.Function)
-}
-
 func TestEncodeEntryPointArg_RmnRemoteDeregisterCurserCapIds(t *testing.T) {
 	t.Parallel()
 

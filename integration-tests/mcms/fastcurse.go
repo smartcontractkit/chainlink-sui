@@ -166,17 +166,13 @@ func (s *CCIPCurseMCMSTestSuite) rmnRemoteContract() module_rmn_remote.IRmnRemot
 	return contract
 }
 
-func (s *CCIPCurseMCMSTestSuite) assertAllowlistState(enabled bool, capID string, capAllowed bool) {
+func (s *CCIPCurseMCMSTestSuite) assertAllowlistState(capID string, capAllowed bool) {
 	s.T().Helper()
 
 	contract := s.rmnRemoteContract()
 	ctx := s.T().Context()
 	opts := s.deps.GetCallOpts()
 	ref := s.ccipObjectRef()
-
-	gotEnabled, err := contract.DevInspect().IsCurserCapAllowlistEnabled(ctx, opts, ref)
-	s.Require().NoError(err)
-	s.Require().Equal(enabled, gotEnabled)
 
 	ids, err := contract.DevInspect().GetAllowedCurserCapIds(ctx, opts, ref)
 	s.Require().NoError(err)
@@ -539,7 +535,7 @@ func (s *CCIPCurseMCMSTestSuite) testSlowMCMSUncurseAfterFastCurse() {
 
 func (s *CCIPCurseMCMSTestSuite) testExplicitInitializeAllowlistViaSlowMCMS() {
 	s.ensureCCIPOwnedBySlowMCMS()
-	s.assertAllowlistState(false, "", false)
+	s.assertAllowlistState("", false)
 
 	bundle := s.NewOpBundleWithRegistry()
 	deps := s.deps
@@ -554,7 +550,7 @@ func (s *CCIPCurseMCMSTestSuite) testExplicitInitializeAllowlistViaSlowMCMS() {
 	s.Require().NoError(err, "encoding initialize_allowed_curser_caps leaf")
 	s.executeSlowMCMSFromGenericReport(report.ToGenericReport())
 
-	s.assertAllowlistState(false, "", false)
+	s.assertAllowlistState("", false)
 }
 
 func (s *CCIPCurseMCMSTestSuite) testCurserCapAllowlistAfterBootstrap() {
@@ -574,25 +570,9 @@ func (s *CCIPCurseMCMSTestSuite) testCurserCapAllowlistAfterBootstrap() {
 	s.Require().Contains(ids, s.curserCapObjectID)
 }
 
-func (s *CCIPCurseMCMSTestSuite) enableCurserCapAllowlistViaSlowMCMS(enabled bool) {
-	bundle := s.NewOpBundleWithRegistry()
-	deps := s.deps
-	deps.Signer = nil
-
-	report, err := cld_ops.ExecuteOperation(bundle, rmn_ops.McmsSetCurserCapAllowlistEnabledOp, deps, rmn_ops.McmsSetCurserCapAllowlistEnabledInput{
-		CCIPPackageId:        s.ccipPackageId,
-		StateObjectId:        s.ccipObjects.CCIPObjectRefObjectId,
-		SlowOwnerCapObjectId: s.ccipObjects.OwnerCapObjectId,
-		Enabled:              enabled,
-	})
-	s.Require().NoError(err, "encoding set_curser_cap_allowlist_enabled leaf")
-	s.executeSlowMCMSFromGenericReport(report.ToGenericReport())
-}
-
 func (s *CCIPCurseMCMSTestSuite) testDeregisterCurserCapBlocksFastCurse() {
 	s.bootstrapCurserCap()
-	s.enableCurserCapAllowlistViaSlowMCMS(true)
-	s.assertAllowlistState(true, s.curserCapObjectID, true)
+	s.assertAllowlistState(s.curserCapObjectID, true)
 
 	bundle := s.NewOpBundleWithRegistry()
 	deps := s.deps
@@ -606,7 +586,7 @@ func (s *CCIPCurseMCMSTestSuite) testDeregisterCurserCapBlocksFastCurse() {
 	})
 	s.Require().NoError(err, "encoding deregister_curser_cap_ids leaf")
 	s.executeSlowMCMSFromGenericReport(deregisterReport.ToGenericReport())
-	s.assertAllowlistState(true, s.curserCapObjectID, false)
+	s.assertAllowlistState(s.curserCapObjectID, false)
 
 	a := s.newAdapter()
 	env := s.buildEnv()
