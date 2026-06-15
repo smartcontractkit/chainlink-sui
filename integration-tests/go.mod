@@ -2,10 +2,14 @@ module github.com/smartcontractkit/chainlink-sui/integration-tests
 
 go 1.26.2
 
+replace github.com/smartcontractkit/chainlink-sui => ../
+
+replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
+
 require (
 	github.com/block-vision/sui-go-sdk v1.2.1
 	github.com/ethereum/go-ethereum v1.17.3
-	github.com/smartcontractkit/chain-selectors v1.0.101
+	github.com/smartcontractkit/chain-selectors v1.0.102
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260608180601-efa81bfdfda9
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260506120607-7f10be016c89
 	github.com/smartcontractkit/chainlink-deployments-framework v0.111.0
