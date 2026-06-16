@@ -8,6 +8,10 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
+	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 // Indexer orchestrates the ChainPoller and the two consumer indexers (EventsIndexer and TransactionsIndexer).
@@ -43,10 +47,47 @@ type IndexerApi interface {
 	GetTransactionIndexer() TransactionsIndexerApi
 }
 
-// NewIndexer creates a new Indexer instance that orchestrates the ChainPoller and consumer indexers.
-// The ChainPoller is responsible for fetching checkpoint data and fanning it out to the consumer indexers.
-// The channels are created inside the ChainPoller and exposed via EventsChannel() and TransactionsChannel().
-func NewIndexer(
+// IndexerParams holds the dependencies needed to construct a fully-wired Indexer via NewIndexer.
+type IndexerParams struct {
+	Logger       logger.Logger
+	DB           sqlutil.DataSource
+	Client       client.SuiPTBClient
+	PollerConfig config.ChainPollerConfig
+	// EventSelectors optionally seeds the EventsIndexer. Selectors are normally registered later
+	// when the ChainReader binds contracts, so this is usually left nil/empty.
+	EventSelectors []*client.EventSelector
+	// TransactionConfigs optionally seeds the TransactionsIndexer. Normally left nil/empty and
+	// populated later via the ChainReader.
+	TransactionConfigs map[string]*config.ChainReaderEvent
+}
+
+// NewIndexer constructs a fully-wired Indexer: it creates the TransactionsIndexer, EventsIndexer,
+// and ChainPoller, and connects the poller's SelectorProvider to the EventsIndexer so that event
+// selectors registered at bind time are honored during polling. This is the production entry point;
+// tests that need to inject mocks can use NewIndexerFromComponents instead.
+func NewIndexer(p IndexerParams) *Indexer {
+	eventSelectors := p.EventSelectors
+	if eventSelectors == nil {
+		eventSelectors = []*client.EventSelector{}
+	}
+	txnConfigs := p.TransactionConfigs
+	if txnConfigs == nil {
+		txnConfigs = map[string]*config.ChainReaderEvent{}
+	}
+
+	txnIndexer := NewTransactionsIndexer(p.DB, p.Logger, txnConfigs)
+	eventsIndexer := NewEventIndexer(p.DB, p.Logger, eventSelectors)
+	// The poller pulls the live selector set from the events indexer on each checkpoint, so
+	// selectors added later (e.g. during Bind) are picked up without re-wiring.
+	chainPoller := NewChainPoller(p.Client, p.Logger, p.PollerConfig, eventsIndexer.GetEventSelectors)
+
+	return NewIndexerFromComponents(p.Logger, chainPoller, eventsIndexer, txnIndexer)
+}
+
+// NewIndexerFromComponents creates an Indexer from already-constructed components. Prefer NewIndexer
+// for production wiring; this constructor exists for tests that inject mocks or need direct handles
+// to the poller / consumer indexers.
+func NewIndexerFromComponents(
 	l logger.Logger,
 	chainPoller ChainPollerAPI,
 	eventsIndexer EventsIndexerApi,

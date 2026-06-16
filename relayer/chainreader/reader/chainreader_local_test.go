@@ -5,6 +5,7 @@ package reader
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"os"
 	"strings"
@@ -526,7 +527,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		log,
-		// start without any selectors, they will be added during .Bind() calls on ChainReader
+		// start without any selectors; they are registered during .Bind() on the ChainReader
 		[]*client.EventSelector{},
 	)
 
@@ -541,7 +542,9 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		evIndexer.GetEventSelectors,
 	)
 
-	indexerInstance := indexer.NewIndexer(
+	// Use the component constructor so the test retains direct handles to the poller (to drain
+	// the transactions channel) and the events indexer (to assert selector registration).
+	indexerInstance := indexer.NewIndexerFromComponents(
 		log,
 		chainPoller,
 		evIndexer,
@@ -554,6 +557,27 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding, onRampBinding, routerBinding, feeQuoterBinding})
 	require.NoError(t, err)
+
+	// Binding must register every configured event selector with the events indexer so the
+	// ChainPoller filters them in from the first checkpoint. This validates the full
+	// bind -> selector-registration -> poll -> index -> query path exercised below: none of the
+	// QueryKey subtests register selectors manually anymore; they rely on this registration.
+	registeredSelectors := make(map[string]bool)
+	for _, sel := range evIndexer.GetEventSelectors() {
+		registeredSelectors[fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event)] = true
+	}
+	expectedSelectors := []string{
+		fmt.Sprintf("%s::counter::CounterIncremented", packageId),
+		fmt.Sprintf("%s::counter::CounterDecremented", packageId),
+		fmt.Sprintf("%s::counter::CounterBytes", packageId),
+		fmt.Sprintf("%s::offramp::ExecutionStateChanged", packageId),
+		fmt.Sprintf("%s::onramp::CCIPMessageSent", packageId),
+		fmt.Sprintf("%s::fee_quoter::UsdPerTokenUpdated", packageId),
+	}
+	for _, want := range expectedSelectors {
+		require.True(t, registeredSelectors[want],
+			"expected event selector %q to be registered with the events indexer after Bind", want)
+	}
 
 	go func() {
 		err = chainReader.Start(ctx)
@@ -786,13 +810,8 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Increment the counter to emit an event
 		log.Debugw("Incrementing counter to emit event", "counterObjectId", counterObjectId)
 
-		// Add the event selector so the poller starts filtering for it
-		err := evIndexer.AddEventSelector(ctx, &client.EventSelector{
-			Package: packageId,
-			Module:  "counter",
-			Event:   "CounterIncremented",
-		})
-		require.NoError(t, err)
+		// The counter::CounterIncremented selector was registered during Bind, so the poller is
+		// already filtering for it; no manual AddEventSelector is needed here.
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
@@ -883,12 +902,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Increment the counter to emit an event
 		log.Debugw("Emitting UsdPerTokenUpdated event")
 
-		evIndexer.AddEventSelector(ctx, &client.EventSelector{
-			Package: packageId,
-			Module:  "fee_quoter",
-			Event:   "UsdPerTokenUpdated",
-		})
-		require.NoError(t, err)
+		// The fee_quoter::UsdPerTokenUpdated selector was registered during Bind.
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
@@ -983,12 +997,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Increment the counter to emit an event
 		log.Debugw("Emitting CCIPMessageSent event")
 
-		evIndexer.AddEventSelector(ctx, &client.EventSelector{
-			Package: packageId,
-			Module:  "onramp",
-			Event:   "CCIPMessageSent",
-		})
-		require.NoError(t, err)
+		// The onramp::CCIPMessageSent selector was registered during Bind.
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
@@ -1076,12 +1085,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Increment the counter to emit an event
 		log.Debugw("Emitting CCIPMessageSent event")
 
-		evIndexer.AddEventSelector(ctx, &client.EventSelector{
-			Package: packageId,
-			Module:  "onramp",
-			Event:   "CCIPMessageSent",
-		})
-		require.NoError(t, err)
+		// The onramp::CCIPMessageSent selector was registered during Bind.
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
@@ -1177,12 +1181,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Decrement the counter to emit an event (different from what has been previously emitted)
 		log.Debugw("Decrementing counter to emit event", "counterObjectId", counterObjectId)
 
-		evIndexer.AddEventSelector(ctx, &client.EventSelector{
-			Package: packageId,
-			Module:  "counter",
-			Event:   "CounterDecremented",
-		})
-		require.NoError(t, err)
+		// The counter::CounterDecremented selector was registered during Bind.
 
 		moveCallReq := client.MoveCallRequest{
 			Signer:          accountAddress,

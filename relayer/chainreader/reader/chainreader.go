@@ -163,6 +163,12 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 			return fmt.Errorf("failed to bind package: %w", err)
 		}
 
+		// Register every event selector configured for this contract with the events indexer,
+		// using the binding's package address. This ensures the ChainPoller filters these events
+		// in from the moment the contract is bound, instead of only after the first QueryKey for
+		// each event (which would drop any events emitted in between).
+		s.registerConfiguredEventSelectors(ctx, binding)
+
 		// Pre-load parent object IDs for known pointer types
 		if err := s.preloadParentObjectIDs(ctx, binding); err != nil {
 			s.logger.Warnw("Failed to pre-load parent object IDs", "contract", binding.Name, "error", err)
@@ -207,6 +213,63 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 	}
 
 	return nil
+}
+
+// registerConfiguredEventSelectors registers every event selector configured for the bound
+// contract with the EventsIndexer, using the binding's package address as the authoritative
+// address. The selectors are derived to match exactly what updateEventConfigs / QueryKey build
+// for the event handle, so polled events line up with subsequent queries. AddEventSelector is
+// idempotent, so re-binding or the OffRamp special-case below cannot create duplicates.
+func (s *suiChainReader) registerConfiguredEventSelectors(ctx context.Context, binding pkgtypes.BoundContract) {
+	moduleConfig, ok := s.config.Modules[binding.Name]
+	if !ok || moduleConfig == nil {
+		return
+	}
+
+	evIndexer := s.indexer.GetEventIndexer()
+	if evIndexer == nil {
+		return
+	}
+
+	for eventKey, eventConfig := range moduleConfig.Events {
+		if eventConfig == nil {
+			continue
+		}
+
+		// Resolve the module name the same way updateEventConfigs does: prefer the selector's
+		// module, fall back to the module config name, and finally to the binding name.
+		module := eventConfig.EventSelector.Module
+		if module == "" {
+			module = moduleConfig.Name
+		}
+		if module == "" {
+			module = binding.Name
+		}
+
+		// Resolve the event (struct) name. EventType is authoritative (it is what QueryKey uses
+		// to build the event handle); fall back to the selector's Event and then the config key.
+		event := eventConfig.EventType
+		if event == "" {
+			event = eventConfig.EventSelector.Event
+		}
+		if event == "" {
+			event = eventKey
+		}
+
+		selector := &client.EventSelector{
+			Package: binding.Address,
+			Module:  module,
+			Event:   event,
+		}
+
+		if err := evIndexer.AddEventSelector(ctx, selector); err != nil {
+			s.logger.Errorw("Failed to register configured event selector at bind",
+				"contract", binding.Name,
+				"module", module,
+				"event", event,
+				"error", err)
+		}
+	}
 }
 
 func (s *suiChainReader) Unbind(ctx context.Context, bindings []pkgtypes.BoundContract) error {

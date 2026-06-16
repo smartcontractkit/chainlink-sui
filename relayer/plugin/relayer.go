@@ -126,23 +126,10 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
 
-	// Setup indexers with checkpoint-based architecture
-	// ChainPoller fetches checkpoints and fans out to EventsIndexer and TransactionsIndexer
-
-	// Create consumer indexers first (they get channels from poller)
-	txnIndexer := indexer.NewTransactionsIndexer(
-		db,
-		loggerInstance,
-		// start without any configs, they will be set when ChainReader is initialized
-		map[string]*chainreaderConfig.ChainReaderEvent{},
-	)
-
-	evIndexer := indexer.NewEventIndexer(
-		db,
-		loggerInstance,
-		// start without any selectors, they will be added during .Bind() calls
-		[]*client.EventSelector{},
-	)
+	// Setup indexers with checkpoint-based architecture.
+	// The ChainPoller fetches checkpoints and fans them out to the EventsIndexer and
+	// TransactionsIndexer. NewIndexer constructs and wires all three together; selectors and
+	// transaction configs are registered later when the ChainReader binds contracts.
 
 	// Build ChainPoller config from TOML settings
 	pollingInterval, err := common.DurationFromSeconds(*cfg.ChainPoller.PollingIntervalSecs)
@@ -166,21 +153,14 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		ChannelBufferSize:       channelBufferSize,
 	}
 
-	// Create ChainPoller - it provides channels via EventsChannel() and TransactionsChannel()
-	chainPoller := indexer.NewChainPoller(
-		suiClientIndexers,
-		loggerInstance,
-		pollerConfig,
-		evIndexer.GetEventSelectors, // SelectorProvider callback for dynamic registration
-	)
-
-	// Create main indexer that orchestrates poller + consumers
-	indexerInstance := indexer.NewIndexer(
-		loggerInstance,
-		chainPoller,
-		evIndexer,
-		txnIndexer,
-	)
+	// Create main indexer that constructs and orchestrates the poller + consumer indexers.
+	// A separate client (suiClientIndexers) is used for the poller to avoid rate limiting.
+	indexerInstance := indexer.NewIndexer(indexer.IndexerParams{
+		Logger:       loggerInstance,
+		DB:           db,
+		Client:       suiClientIndexers,
+		PollerConfig: pollerConfig,
+	})
 
 	loggerInstance.Infof("Creating retry manager. NumberRetries: %d", *cfg.TransactionManager.MaxTxRetryAttempts)
 	//nolint:gosec
