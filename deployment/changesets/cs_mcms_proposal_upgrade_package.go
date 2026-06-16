@@ -41,6 +41,23 @@ func (d MCMSProposalUpgradePackage) Apply(e cldf.Environment, config UpgradePack
 		config.RegistryObjID = mcmsState.RegistryObjectID
 	}
 
+	// Backfill dependency named addresses from on-chain state when the caller
+	// omitted them. CCIP links both mcms and fast_mcms, and CompilePackage now
+	// hard-errors if fast_mcms is missing when compiling against published CCIP.
+	chainState := suiState[config.ChainSelector]
+	if config.NamedAddresses == nil {
+		config.NamedAddresses = map[string]string{}
+	}
+	if config.NamedAddresses["mcms"] == "" {
+		config.NamedAddresses["mcms"] = chainState.MCMSPackageID
+	}
+	if config.NamedAddresses["fast_mcms"] == "" {
+		config.NamedAddresses["fast_mcms"] = chainState.FastCurseMCMSPackageID
+	}
+	if config.NamedAddresses["ccip"] == "" {
+		config.NamedAddresses["ccip"] = chainState.CCIPAddress
+	}
+
 	suiChains := e.BlockChains.SuiChains()
 
 	suiChain := suiChains[config.ChainSelector]
