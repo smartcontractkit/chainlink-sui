@@ -347,54 +347,6 @@ func mcmsRegisterCurserCapIdsHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 	}, nil
 }
 
-// McmsSetCurserCapAllowlistEnabledInput builds a slow-MCMS proposal leaf that
-// toggles CurserCap allowlist enforcement.
-type McmsSetCurserCapAllowlistEnabledInput struct {
-	CCIPPackageId        string
-	StateObjectId        string
-	SlowOwnerCapObjectId string
-	Enabled              bool
-}
-
-var McmsSetCurserCapAllowlistEnabledOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "rmn_remote", "mcms_set_curser_cap_allowlist_enabled"),
-	semver.MustParse("0.1.0"),
-	"Enable or disable CurserCap allowlist enforcement via slow MCMS",
-	mcmsSetCurserCapAllowlistEnabledHandler,
-)
-
-func mcmsSetCurserCapAllowlistEnabledHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input McmsSetCurserCapAllowlistEnabledInput) (sui_ops.OpTxResult[NoObjects], error) {
-	if deps.Signer != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("set_curser_cap_allowlist_enabled must run through slow MCMS proposal execution, not direct signer PTB")
-	}
-
-	data, err := SerializeMcmsObjectAddrsWithBool(
-		[]string{input.StateObjectId, input.SlowOwnerCapObjectId},
-		input.Enabled,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to serialize set_curser_cap_allowlist_enabled data: %w", err)
-	}
-
-	call := sui_ops.TransactionCall{
-		PackageID:  input.CCIPPackageId,
-		Module:     "rmn_remote",
-		Function:   "set_curser_cap_allowlist_enabled",
-		Data:       data,
-		StateObjID: input.StateObjectId,
-		TypeArgs:   []string{},
-	}
-
-	b.Logger.Infow("Encoded set_curser_cap_allowlist_enabled MCMS leaf",
-		"enabled", input.Enabled,
-	)
-
-	return sui_ops.OpTxResult[NoObjects]{
-		PackageId: input.CCIPPackageId,
-		Call:      call,
-	}, nil
-}
-
 // McmsDeregisterCurserCapIdsInput builds a slow-MCMS proposal leaf that removes
 // CurserCap object IDs from the on-chain allowlist, revoking curse authority.
 type McmsDeregisterCurserCapIdsInput struct {
