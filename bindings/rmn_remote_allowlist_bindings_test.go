@@ -31,10 +31,6 @@ func TestRmnRemoteAllowlistViewEncoders(t *testing.T) {
 	idsCall, err := contract.Encoder().GetAllowedCurserCapIds(ref)
 	require.NoError(t, err)
 	require.Equal(t, "get_allowed_curser_cap_ids", idsCall.Function)
-
-	enabledCall, err := contract.Encoder().IsCurserCapAllowlistEnabled(ref)
-	require.NoError(t, err)
-	require.Equal(t, "is_curser_cap_allowlist_enabled", enabledCall.Function)
 }
 
 func TestRmnRemoteAllowlistAdminEncoders(t *testing.T) {
@@ -57,8 +53,4 @@ func TestRmnRemoteAllowlistAdminEncoders(t *testing.T) {
 	deregisterCall, err := contract.Encoder().DeregisterCurserCapIds(ref, ownerCap, []string{testAllowlistCurserCapID})
 	require.NoError(t, err)
 	require.Equal(t, "deregister_curser_cap_ids", deregisterCall.Function)
-
-	setEnabledCall, err := contract.Encoder().SetCurserCapAllowlistEnabled(ref, ownerCap, true)
-	require.NoError(t, err)
-	require.Equal(t, "set_curser_cap_allowlist_enabled", setEnabledCall.Function)
 }

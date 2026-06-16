@@ -383,8 +383,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return rmnRemote.Encoder().McmsRegisterCurserCapIdsWithArgs(ccipRef, registryObj, executingCallbackParams)
 		case "deregister_curser_cap_ids":
 			return rmnRemote.Encoder().McmsDeregisterCurserCapIdsWithArgs(ccipRef, registryObj, executingCallbackParams)
-		case "set_curser_cap_allowlist_enabled":
-			return rmnRemote.Encoder().McmsSetCurserCapAllowlistEnabledWithArgs(ccipRef, registryObj, executingCallbackParams)
 		default:
 			return nil, fmt.Errorf("unsupported rmn_remote MCMS function: %q", function)
 		}
