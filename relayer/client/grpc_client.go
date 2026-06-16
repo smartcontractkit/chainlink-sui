@@ -42,39 +42,37 @@ const (
 )
 
 var RateLimitWeights = map[string]int64{
-	"MoveCall":                             1,
-	"SendTransaction":                      1,
-	"ReadFunction":                         1,
-	"SignAndSendTransaction":               1,
-	"QueryEvents":                          1,
-	"QueryTransactions":                    1,
-	"GetCoinsByAddress":                    1,
-	"QueryCoinsByAddress":                  1,
-	"EstimateGas":                          1,
-	"GetTransactionStatus":                 1,
-	"GetBlockById":                         1,
-	"GetNormalizedModule":                  1,
-	"GetSUIBalance":                        1,
-	"GetCoinBalanceByAddress":              1,
-	"GetValuesFromPackageOwnedObjectField": 1,
-	"GetReferenceGasPrice":                 1,
-	"FinishPTBAndSend":                     1,
-	// Keep 0, these methods are often called at the same time as ReadFunction
-	// from ChainReader, high load of GetLatestValue calls could cause a deadlock.
-	"ReadFilterOwnedObjectIds":           0,
-	"ReadOwnedObjects":                   0,
-	"ReadObjectId":                       0,
-	"GetLatestPackageId":                 0,
-	"LoadModulePackageIds":               0,
-	"GetParentObjectID":                  0,
-	"GetCCIPPackageID":                   0,
-	"GetTokenPoolConfigByPackageAddress": 0,
-	"GetLatestEpoch":                     0,
-	"GetTransactionsByCheckpoint":        1,
-	"GetLatestCheckpoint":                1,
-	"GetCheckpointData":                  1,
-	"SimulatePTB":                        1,
-	"GetCoinMetadata":                    1,
+	"MoveCall":                             0,
+	"SendTransaction":                      0,
+	"ReadFunction":                         0,
+	"SignAndSendTransaction":               0,
+	"QueryEvents":                          0,
+	"QueryTransactions":                    0,
+	"GetCoinsByAddress":                    0,
+	"QueryCoinsByAddress":                  0,
+	"EstimateGas":                          0,
+	"GetTransactionStatus":                 0,
+	"GetBlockById":                         0,
+	"GetNormalizedModule":                  0,
+	"GetSUIBalance":                        0,
+	"GetCoinBalanceByAddress":              0,
+	"GetValuesFromPackageOwnedObjectField": 0,
+	"GetReferenceGasPrice":                 0,
+	"FinishPTBAndSend":                     0,
+	"ReadFilterOwnedObjectIds":             0,
+	"ReadOwnedObjects":                     0,
+	"ReadObjectId":                         0,
+	"GetLatestPackageId":                   0,
+	"LoadModulePackageIds":                 0,
+	"GetParentObjectID":                    0,
+	"GetCCIPPackageID":                     0,
+	"GetTokenPoolConfigByPackageAddress":   0,
+	"GetLatestEpoch":                       0,
+	"GetTransactionsByCheckpoint":          0,
+	"GetLatestCheckpoint":                  0,
+	"GetCheckpointData":                    0,
+	"SimulatePTB":                          0,
+	"GetCoinMetadata":                      0,
 }
 
 // BindingsClient is the subset of SuiPTBClient used by the bindings module.
@@ -162,6 +160,8 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 	if weightValue, ok := RateLimitWeights[methodName]; ok {
 		weight = weightValue
 	}
+	// start a timer to track the duration of the function
+	timer := time.Now()
 
 	workCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
@@ -169,11 +169,16 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 	// If rate limiter is disabled or weight is 0, skip semaphore entirely.
 	// This will skip adding to the semaphore queue and prevent unnecessary queuing.
 	if c.rateLimiter == nil || weight == 0 {
-		return f(workCtx)
+		err := f(workCtx)
+		duration := time.Since(timer)
+		c.log.Debugw("WithRateLimit completed", "methodName", methodName, "duration", duration)
+		return err
 	}
 
 	// acquire with the timeout context so it can't hang forever
-	if err := c.rateLimiter.Acquire(ctx, weight); err != nil {
+	if err := c.rateLimiter.Acquire(workCtx, weight); err != nil {
+		duration := time.Since(timer)
+		c.log.Debugw("WithRateLimit failed to acquire rate limit", "methodName", methodName, "duration", duration)
 		return fmt.Errorf("failed to acquire rate limit for %s: %w", methodName, err)
 	}
 
@@ -184,7 +189,10 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 
 	// run the user function with the timeout context
 	// if the function respects the context, it will return and lock will be released in defer
-	return f(workCtx)
+	err := f(workCtx)
+	duration := time.Since(timer)
+	c.log.Debugw("WithRateLimit completed", "methodName", methodName, "duration", duration)
+	return err
 }
 
 // MoveCall is a method that's used primarily in tests for adhoc contract calls.
@@ -1260,10 +1268,23 @@ func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId 
 }
 
 func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error) {
+	// attempt reading the value from cache first
+	cacheKey := "latest_pkg_id_fetch:" + packageId + ":" + module
+	if cachedID, found := c.cache.Get(cacheKey); found {
+		if id, ok := cachedID.(string); ok {
+			return id, nil
+		}
+	}
+
 	var result string
 	err := c.WithRateLimit(ctx, "GetLatestPackageId", func(ctx context.Context) error {
 		var err error
 		result, err = c.getLatestPackageIdInternal(ctx, packageId, module)
+
+		// set the cache to be a very low TTL (few seconds) simply to reduce
+		// the risk of stale data but still relieve pressure on the RPC server
+		c.cache.Set(cacheKey, result, 10*time.Second)
+
 		return err
 	})
 	return result, err

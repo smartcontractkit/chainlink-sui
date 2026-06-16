@@ -9,7 +9,7 @@ import (
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 )
 
-// Close closes the underlying gRPC connection. JSON-RPC clients are stateless and need no cleanup.
+// Close closes the underlying gRPC connection
 func (c *PTBClient) Close() error {
 	if c.grpcClient == nil {
 		return nil
