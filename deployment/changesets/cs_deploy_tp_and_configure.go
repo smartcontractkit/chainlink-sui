@@ -67,6 +67,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 		case deployment.TokenPoolTypeBurnMint:
 			config.BurnMintTpInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.BurnMintTpInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
+			config.BurnMintTpInput.FastMcmsAddress = state[config.SuiChainSelector].FastCurseMCMSPackageID
 			// TODO: MCMSOwner address should come state
 			config.BurnMintTpInput.MCMSOwnerAddress = deployerAddr
 			config.BurnMintTpInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
@@ -74,6 +75,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 		case deployment.TokenPoolTypeLockRelease:
 			config.LockReleaseTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.LockReleaseTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
+			config.LockReleaseTPInput.FastMcmsAddress = state[config.SuiChainSelector].FastCurseMCMSPackageID
 			config.LockReleaseTPInput.MCMSOwnerAddress = deployerAddr
 			config.LockReleaseTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.LockReleaseTPInput.TokenPoolAdministrator = deployerAddr
@@ -89,6 +91,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			config.ManagedTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.ManagedTPInput.ManagedTokenPackageId = managedTokenState.PackageID
 			config.ManagedTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
+			config.ManagedTPInput.FastMcmsAddress = state[config.SuiChainSelector].FastCurseMCMSPackageID
 			config.ManagedTPInput.MCMSOwnerAddress = deployerAddr
 			config.ManagedTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.ManagedTPInput.TokenPoolAdministrator = deployerAddr
