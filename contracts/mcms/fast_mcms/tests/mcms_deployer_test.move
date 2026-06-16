@@ -16,12 +16,16 @@ public struct TestOwnerCap has key, store {
 const ADMIN: address = @0xA;
 const OTHER: address = @0xB;
 
+// Non-zero package id for package::test_publish when get_multisig_address() is @0x0 in tests.
+// Sui >= 1.73 uses @0x0 as a sentinel on UpgradeCap.package during authorize_upgrade.
+const TEST_UPGRADE_CAP_PACKAGE: address = @0x42;
+
 fun create_test_scenario(): Scenario {
     ts::begin(ADMIN)
 }
 
 fun generate_upgrade_cap(ctx: &mut TxContext): UpgradeCap {
-    package::test_publish(mcms_registry::get_multisig_address().to_id(), ctx)
+    package::test_publish(TEST_UPGRADE_CAP_PACKAGE.to_id(), ctx)
 }
 
 /// Boots MCMS account/registry/deployer state and registers `MCMS_DEPLOYER_TEST`
@@ -53,8 +57,10 @@ fun init_mcms(scenario: &mut Scenario) {
     ts::return_shared(registry);
 }
 
-/// Registers a fresh `UpgradeCap` through the production `register_upgrade_cap`
-/// path. Returns `(package_address, cap_id)`.
+/// Registers a fresh `UpgradeCap` with the same state layout as production
+/// `register_upgrade_cap`, but keys the cap by the registered MCMS package address
+/// while keeping a non-zero `upgrade_cap.package` id for authorize/commit tests.
+/// Returns `(package_address, cap_id)`.
 fun register_cap_through_production(scenario: &mut Scenario): (address, ID) {
     ts::next_tx(scenario, OTHER);
     let mut deployer_state = ts::take_shared<DeployerState>(scenario);
@@ -62,13 +68,14 @@ fun register_cap_through_production(scenario: &mut Scenario): (address, ID) {
     let ctx = ts::ctx(scenario);
 
     let upgrade_cap = generate_upgrade_cap(ctx);
-    let package_address = upgrade_cap.package().to_address();
+    let package_address = mcms_registry::get_multisig_address();
     let cap_id = object::id(&upgrade_cap);
 
-    mcms_deployer::register_upgrade_cap(
+    mcms_deployer::test_register_upgrade_cap_for_package_with_original_mapping(
         &mut deployer_state,
         &registry,
         upgrade_cap,
+        package_address,
         ctx,
     );
 
@@ -89,7 +96,7 @@ fun register_cap_legacy(scenario: &mut Scenario): (address, ID) {
     let ctx = ts::ctx(scenario);
 
     let upgrade_cap = generate_upgrade_cap(ctx);
-    let package_address = upgrade_cap.package().to_address();
+    let package_address = mcms_registry::get_multisig_address();
     let cap_id = object::id(&upgrade_cap);
 
     mcms_deployer::test_register_upgrade_cap_for_package(

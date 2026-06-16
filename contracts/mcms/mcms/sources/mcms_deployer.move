@@ -268,6 +268,36 @@ public fun test_register_upgrade_cap_for_package(
 }
 
 #[test_only]
+/// Like `test_register_upgrade_cap_for_package`, but also writes the stable
+/// `OriginalToCapKey` indirection used by `release_upgrade_cap`.
+public fun test_register_upgrade_cap_for_package_with_original_mapping(
+    state: &mut DeployerState,
+    registry: &Registry,
+    upgrade_cap: UpgradeCap,
+    package_address: address,
+    ctx: &mut TxContext,
+) {
+    test_register_upgrade_cap_for_package(
+        state,
+        registry,
+        upgrade_cap,
+        package_address,
+        ctx,
+    );
+
+    let cap_id = object::id(state.upgrade_caps.borrow(package_address));
+    let proof_type = mcms_registry::get_registered_proof_type(
+        registry,
+        package_address.to_ascii_string(),
+    );
+    df::add(
+        &mut state.id,
+        OriginalToCapKey { original: package_address },
+        OriginalToCapRecord { cap_id, proof_type },
+    );
+}
+
+#[test_only]
 public fun test_init(ctx: &mut TxContext) {
     init(MCMS_DEPLOYER {}, ctx);
 }
