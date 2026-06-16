@@ -9,6 +9,7 @@ use mcms::mcms_registry::{Self, Registry};
 use std::string;
 use sui::address;
 use sui::bcs;
+use sui::package;
 use sui::test_scenario::{Self, Scenario};
 
 const SENDER_1: address = @0x1;
@@ -670,6 +671,107 @@ fun test_mcms_three_step_ownership_transfer() {
 
         scenario.return_to_sender(owner_cap);
     };
+
+    test_scenario::return_shared(registry);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+fun test_mcms_three_step_ownership_transfer_with_upgrade_cap() {
+    let (mut scenario, mut registry, mut ref) = setup_with_mcms_ownership();
+
+    scenario.next_tx(OWNER);
+    {
+        let mut deployer_state = test_scenario::take_shared<mcms_deployer::DeployerState>(&scenario);
+        let ctx = scenario.ctx();
+        let upgrade_cap = package::test_publish(@ccip.to_id(), ctx);
+
+        mcms_deployer::register_upgrade_cap(
+            &mut deployer_state,
+            &registry,
+            upgrade_cap,
+            ctx,
+        );
+
+        assert!(mcms_deployer::has_upgrade_cap(&deployer_state, @ccip));
+        test_scenario::return_shared(deployer_state);
+    };
+
+    let new_owner = SENDER_2;
+    scenario.next_tx(OWNER);
+
+    {
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(
+            &registry,
+            @ccip.to_ascii_string(),
+        );
+
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&owner_cap_address));
+        data.append(bcs::to_bytes(&new_owner));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"state_object"),
+            string::utf8(b"transfer_ownership"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000001",
+            0,
+            1,
+        );
+
+        state_object::mcms_transfer_ownership(
+            &mut ref,
+            &mut registry,
+            params,
+            scenario.ctx(),
+        );
+    };
+
+    scenario.next_tx(new_owner);
+    {
+        state_object::accept_ownership(&mut ref, scenario.ctx());
+    };
+
+    scenario.next_tx(OWNER);
+    {
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(
+            &registry,
+            @ccip.to_ascii_string(),
+        );
+        let mut deployer_state = test_scenario::take_shared<mcms_deployer::DeployerState>(&scenario);
+
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&owner_cap_address));
+        data.append(bcs::to_bytes(&new_owner));
+        data.append(bcs::to_bytes(&@ccip));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"state_object"),
+            string::utf8(b"execute_ownership_transfer"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000002",
+            0,
+            1,
+        );
+
+        state_object::mcms_execute_ownership_transfer(
+            &mut ref,
+            &mut registry,
+            &mut deployer_state,
+            params,
+            scenario.ctx(),
+        );
+
+        assert!(!mcms_deployer::has_upgrade_cap(&deployer_state, @ccip));
+        test_scenario::return_shared(deployer_state);
+    };
+
+    assert!(state_object::owner(&ref) == new_owner);
 
     test_scenario::return_shared(registry);
     test_scenario::return_shared(ref);

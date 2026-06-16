@@ -12,6 +12,7 @@ use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry};
 use std::string;
 use sui::bcs;
+use sui::package::{Self, UpgradeCap};
 use sui::test_scenario::{Self as ts, Scenario};
 
 const DEST_CHAIN_SELECTOR_1: u64 = 1;
@@ -142,6 +143,17 @@ fun transfer_to_mcms(
 
     // Step 3: execute_ownership_transfer_to_mcms (includes registering OwnerCap)
     onramp::execute_ownership_transfer_to_mcms(ref, owner_cap, state, registry, @mcms, ctx);
+}
+
+fun register_onramp_upgrade_cap(env: &mut Env) {
+    let ctx = env.scenario.ctx();
+    let upgrade_cap = package::test_publish(@ccip_onramp.to_id(), ctx);
+    mcms_deployer::register_upgrade_cap(
+        &mut env.deployer_state,
+        &env.registry,
+        upgrade_cap,
+        ctx,
+    );
 }
 
 #[test]
@@ -395,6 +407,97 @@ public fun test_mcms_transfer_ownership_e2e() {
     assert!(onramp::pending_transfer_from(&env.state) == option::none());
     assert!(onramp::pending_transfer_to(&env.state) == option::none());
     assert!(onramp::pending_transfer_accepted(&env.state) == option::none());
+
+    env.tear_down();
+}
+
+#[test]
+public fun test_mcms_execute_ownership_transfer_with_upgrade_cap() {
+    let (mut env, nonce_manager_cap, source_transfer_cap) = setup();
+
+    let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
+    let owner_cap_address = object::id_address(&owner_cap);
+    initialize_onramp(&mut env, &owner_cap, nonce_manager_cap, source_transfer_cap);
+
+    let new_owner = @0x999;
+    let mut data = vector[];
+    data.append(bcs::to_bytes(&object::id_address(&env.ref)));
+    data.append(bcs::to_bytes(&object::id_address(&env.state)));
+    data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
+    data.append(bcs::to_bytes(&new_owner));
+
+    transfer_to_mcms(
+        &env.ref,
+        &mut env.state,
+        &mut env.registry,
+        owner_cap,
+        env.scenario.ctx(),
+    );
+
+    env.scenario.next_tx(OWNER);
+    {
+        register_onramp_upgrade_cap(&mut env);
+        assert!(mcms_deployer::has_upgrade_cap(&env.deployer_state, @ccip_onramp));
+    };
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip_onramp,
+        string::utf8(MODULE_NAME),
+        string::utf8(b"transfer_ownership"),
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000007",
+        0,
+        1,
+    );
+
+    onramp::mcms_transfer_ownership(
+        &env.ref,
+        &mut env.state,
+        &mut env.registry,
+        params,
+        env.scenario.ctx(),
+    );
+
+    env.scenario.next_tx(new_owner);
+    onramp::accept_ownership(&env.ref, &mut env.state, env.scenario.ctx());
+
+    let mut data = vector[];
+    data.append(bcs::to_bytes(&object::id_address(&env.ref)));
+    data.append(bcs::to_bytes(&owner_cap_address));
+    data.append(bcs::to_bytes(&object::id_address(&env.state)));
+    data.append(bcs::to_bytes(&new_owner));
+    data.append(bcs::to_bytes(&@ccip_onramp));
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip_onramp,
+        string::utf8(MODULE_NAME),
+        string::utf8(b"execute_ownership_transfer"),
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000008",
+        0,
+        1,
+    );
+
+    onramp::mcms_execute_ownership_transfer(
+        &env.ref,
+        &mut env.state,
+        &mut env.registry,
+        &mut env.deployer_state,
+        params,
+        env.scenario.ctx(),
+    );
+
+    assert!(onramp::owner(&env.state) == new_owner);
+    assert!(!mcms_deployer::has_upgrade_cap(&env.deployer_state, @ccip_onramp));
+
+    env.scenario.next_tx(new_owner);
+    {
+        let received_owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
+        let received_upgrade_cap = ts::take_from_sender<UpgradeCap>(&env.scenario);
+        assert!(received_upgrade_cap.package().to_address() == @ccip_onramp);
+        ts::return_to_address(new_owner, received_owner_cap);
+        ts::return_to_address(new_owner, received_upgrade_cap);
+    };
 
     env.tear_down();
 }

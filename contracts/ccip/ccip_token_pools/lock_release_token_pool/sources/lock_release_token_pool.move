@@ -1226,6 +1226,16 @@ public fun mcms_execute_ownership_transfer<T>(
     let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap_at(
+            deployer_state,
+            registry,
+            package_address,
+            McmsCallback<T> {},
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
     let McmsCap<T> { id, owner_cap, rebalancer_cap } = mcms_registry::release_cap(
         registry,
         McmsCallback<T> {},
@@ -1234,15 +1244,6 @@ public fun mcms_execute_ownership_transfer<T>(
 
     rebalancer_cap.destroy_none();
     object::delete(id);
-
-    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
-        let upgrade_cap = mcms_deployer::release_upgrade_cap(
-            deployer_state,
-            registry,
-            McmsCallback<T> {},
-        );
-        transfer::public_transfer(upgrade_cap, to);
-    };
 
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }
