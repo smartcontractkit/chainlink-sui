@@ -74,14 +74,30 @@ var initLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.InitializeLocalDecimals(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().InitializeLocalDecimals(
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode InitializeLocalDecimals call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of InitializeLocalDecimals on TokenAdminRegistry as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute local decimals initialization: %w", err)
 	}
@@ -90,6 +106,7 @@ var initLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   NoObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -114,16 +131,35 @@ var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.BackfillLocalDecimals(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().BackfillLocalDecimals(
 		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.StateObjectId},
 		input.CoinMetadataAddress,
 		input.LocalDecimals,
 	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode BackfillLocalDecimals call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of BackfillLocalDecimals on TokenAdminRegistry as per no Signer provided",
+			"CoinMetadataAddress", input.CoinMetadataAddress,
+			"LocalDecimals", input.LocalDecimals,
+		)
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute backfill local decimals: %w", err)
 	}
@@ -132,6 +168,7 @@ var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   NoObjects{},
+		Call:      call,
 	}, nil
 }
 

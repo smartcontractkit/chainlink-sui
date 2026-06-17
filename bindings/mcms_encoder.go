@@ -12,6 +12,7 @@ import (
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
 	module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
@@ -385,6 +386,31 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return rmnRemote.Encoder().McmsDeregisterCurserCapIdsWithArgs(ccipRef, registryObj, executingCallbackParams)
 		default:
 			return nil, fmt.Errorf("unsupported rmn_remote MCMS function: %q", function)
+		}
+
+	// TOKEN ADMIN REGISTRY
+	case "token_admin_registry":
+		tokenAdminRegistry, err := module_token_admin_registry.NewTokenAdminRegistry(target, nil)
+		if err != nil {
+			return nil, err
+		}
+		switch function {
+		case "initialize_local_decimals":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			entrypointCall, err := tokenAdminRegistry.Encoder().McmsRegisterPoolWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "backfill_local_decimals":
+			deserializer := bcs.NewDeserializer(data)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			ccipRef := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
+			entrypointCall, err := tokenAdminRegistry.Encoder().McmsRegisterPoolWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
 		}
 
 	// MANAGED TOKEN
