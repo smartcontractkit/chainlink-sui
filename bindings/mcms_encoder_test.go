@@ -1390,3 +1390,57 @@ func TestEncodeEntryPointArg_RmnRemoteDeregisterCurserCapIds(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "mcms_deregister_curser_cap_ids", encoded.Function)
 }
+
+func TestEncodeEntryPointArg_TokenAdminRegistryInitializeLocalDecimals(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	data := serializeAddresses(ccipRef, ownerCap)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"token_admin_registry",
+		"initialize_local_decimals",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_initialize_local_decimals", encoded.Function)
+	require.Equal(t, "token_admin_registry", encoded.Module.ModuleName)
+}
+
+func TestEncodeEntryPointArg_TokenAdminRegistryBackfillLocalDecimals(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	coinMetadata := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	data := serializeAddresses(ownerCap, ccipRef, coinMetadata)
+	data = append(data, 9)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"token_admin_registry",
+		"backfill_local_decimals",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_backfill_local_decimals", encoded.Function)
+	require.Equal(t, "token_admin_registry", encoded.Module.ModuleName)
+}

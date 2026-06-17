@@ -97,7 +97,12 @@ var initLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
+	tx, err := contract.InitializeLocalDecimals(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute local decimals initialization: %w", err)
 	}
@@ -159,7 +164,14 @@ var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
+	tx, err := contract.BackfillLocalDecimals(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectId},
+		input.CoinMetadataAddress,
+		input.LocalDecimals,
+	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute backfill local decimals: %w", err)
 	}

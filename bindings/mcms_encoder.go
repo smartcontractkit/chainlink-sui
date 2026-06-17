@@ -397,20 +397,20 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		switch function {
 		case "initialize_local_decimals":
 			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
-			entrypointCall, err := tokenAdminRegistry.Encoder().McmsRegisterPoolWithArgs(ccipRef, registryObj, executingCallbackParams)
-			if err != nil {
-				return nil, err
-			}
-			return overrideCall(entrypointCall, module, function), nil
+			return tokenAdminRegistry.Encoder().McmsInitializeLocalDecimalsWithArgs(
+				ccipRef,
+				registryObj,
+				executingCallbackParams,
+			)
 		case "backfill_local_decimals":
 			deserializer := bcs.NewDeserializer(data)
 			deserializer.ReadFixedBytes(SuiAddressLength)
 			ccipRef := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
-			entrypointCall, err := tokenAdminRegistry.Encoder().McmsRegisterPoolWithArgs(ccipRef, registryObj, executingCallbackParams)
-			if err != nil {
-				return nil, err
-			}
-			return overrideCall(entrypointCall, module, function), nil
+			return tokenAdminRegistry.Encoder().McmsBackfillLocalDecimalsWithArgs(
+				ccipRef,
+				registryObj,
+				executingCallbackParams,
+			)
 		}
 
 	// MANAGED TOKEN
