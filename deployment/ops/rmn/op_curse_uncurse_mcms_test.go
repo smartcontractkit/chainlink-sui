@@ -143,6 +143,62 @@ func TestMcmsDeregisterCurserCapIdsOp_ProposalDataMatchesBindingEncoder(t *testi
 	mcmstest.AssertProposalDataMatches(t, report.Output.Call.Data, encoded, mcmstest.StateObjectID, nil)
 }
 
+func TestMcmsMintAndRegisterCurserCapOp_ProposalDataMatchesBindingEncoder(t *testing.T) {
+	t.Parallel()
+
+	report, err := cld_ops.ExecuteOperation(
+		mcmstest.Bundle(t),
+		McmsMintAndRegisterCurserCapOp,
+		sui_ops.OpTxDeps{},
+		McmsMintAndRegisterCurserCapInput{
+			CCIPPackageId:        mcmstest.PackageID,
+			StateObjectId:        mcmstest.StateObjectID,
+			SlowOwnerCapObjectId: mcmstest.OwnerCapID,
+			FastRegistryObjectId: mcmstest.RegistryID,
+		},
+	)
+	require.NoError(t, err)
+
+	contract, err := module_rmn_remote.NewRmnRemote(mcmstest.PackageID, nil)
+	require.NoError(t, err)
+	encoded, err := contract.Encoder().MintAndRegisterCurserCap(
+		bind.Object{Id: mcmstest.StateObjectID},
+		bind.Object{Id: mcmstest.OwnerCapID},
+		bind.Object{Id: mcmstest.RegistryID},
+	)
+	require.NoError(t, err)
+	mcmstest.AssertProposalDataMatches(t, report.Output.Call.Data, encoded, mcmstest.StateObjectID, nil)
+}
+
+func TestMcmsRegisterCurserCapOp_ProposalDataMatchesBindingEncoder(t *testing.T) {
+	t.Parallel()
+
+	report, err := cld_ops.ExecuteOperation(
+		mcmstest.Bundle(t),
+		McmsRegisterCurserCapOp,
+		sui_ops.OpTxDeps{},
+		McmsRegisterCurserCapInput{
+			CCIPPackageId:        mcmstest.PackageID,
+			StateObjectId:        mcmstest.StateObjectID,
+			SlowOwnerCapObjectId: mcmstest.OwnerCapID,
+			FastRegistryObjectId: mcmstest.RegistryID,
+			CurserCapObjectId:    mcmstest.CoinMetadata,
+		},
+	)
+	require.NoError(t, err)
+
+	contract, err := module_rmn_remote.NewRmnRemote(mcmstest.PackageID, nil)
+	require.NoError(t, err)
+	encoded, err := contract.Encoder().RegisterCurserCap(
+		bind.Object{Id: mcmstest.StateObjectID},
+		bind.Object{Id: mcmstest.OwnerCapID},
+		bind.Object{Id: mcmstest.RegistryID},
+		bind.Object{Id: mcmstest.CoinMetadata},
+	)
+	require.NoError(t, err)
+	mcmstest.AssertProposalDataMatches(t, report.Output.Call.Data, encoded, mcmstest.StateObjectID, nil)
+}
+
 func TestCreateCurserCapOp_ProposalDataMatchesBindingEncoder(t *testing.T) {
 	t.Parallel()
 

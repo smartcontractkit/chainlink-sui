@@ -88,8 +88,8 @@ func createCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Creat
 // McmsMintAndRegisterCurserCapInput builds a slow-MCMS proposal leaf that atomically
 // mints a CurserCap and registers it in the fast MCMS Registry.
 //
-// MCMS-only: there is no direct Move entrypoint for this flow. Use CreateCurserCapOp
-// when an EOA holds OwnerCap and only needs to mint the cap object.
+// Direct path: EOA holds OwnerCap and signs the PTB (deps.Signer set).
+// MCMS path: proposal leaf uses inner function mint_and_register_curser_cap, routed by bindings/mcms_encoder.go.
 type McmsMintAndRegisterCurserCapInput struct {
 	CCIPPackageId        string
 	StateObjectId        string
@@ -105,33 +105,46 @@ var McmsMintAndRegisterCurserCapOp = cld_ops.NewOperation(
 )
 
 func mcmsMintAndRegisterCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input McmsMintAndRegisterCurserCapInput) (sui_ops.OpTxResult[NoObjects], error) {
-	if deps.Signer != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("mint_and_register_curser_cap must run through slow MCMS proposal execution, not direct signer PTB")
-	}
-
-	data, err := SerializeMcmsObjectAddrs(
-		input.StateObjectId,
-		input.SlowOwnerCapObjectId,
-		input.FastRegistryObjectId,
-	)
+	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to serialize mint_and_register_curser_cap data: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
 
-	call := sui_ops.TransactionCall{
-		PackageID:  input.CCIPPackageId,
-		Module:     "rmn_remote",
-		Function:   "mint_and_register_curser_cap",
-		Data:       data,
-		StateObjID: input.StateObjectId,
-		TypeArgs:   []string{},
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.SlowOwnerCapObjectId}
+	fastRegistry := bind.Object{Id: input.FastRegistryObjectId}
+
+	encodedCall, err := contract.Encoder().MintAndRegisterCurserCap(ref, ownerCap, fastRegistry)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode mint_and_register_curser_cap: %w", err)
 	}
 
-	b.Logger.Infow("Encoded mint_and_register_curser_cap MCMS leaf",
-		"fastRegistry", input.FastRegistryObjectId,
-	)
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
+	}
+
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of mint_and_register_curser_cap as no signer provided",
+			"fastRegistry", input.FastRegistryObjectId,
+		)
+		return sui_ops.OpTxResult[NoObjects]{
+			PackageId: input.CCIPPackageId,
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.MintAndRegisterCurserCap(b.GetContext(), opts, ref, ownerCap, fastRegistry)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute mint_and_register_curser_cap: %w", err)
+	}
+
+	b.Logger.Infow("CurserCap minted and registered in fast registry", "digest", tx.Digest, "fastRegistry", input.FastRegistryObjectId)
 
 	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Call:      call,
 	}, nil
@@ -208,7 +221,9 @@ func mcmsCreateCurserCapAndTransferHandler(b cld_ops.Bundle, deps sui_ops.OpTxDe
 // existing on-chain CurserCap in the fast MCMS Registry. The cap object ID is
 // pinned in callback data and validated on-chain at execution.
 //
-// MCMS-only: use McmsMintAndRegisterCurserCapOp when the cap does not exist yet.
+// Direct path: EOA holds OwnerCap and signs the PTB (deps.Signer set).
+// MCMS path: proposal leaf uses inner function register_curser_cap, routed by bindings/mcms_encoder.go.
+// Use McmsMintAndRegisterCurserCapOp when the cap does not exist yet.
 type McmsRegisterCurserCapInput struct {
 	CCIPPackageId        string
 	StateObjectId        string
@@ -225,38 +240,56 @@ var McmsRegisterCurserCapOp = cld_ops.NewOperation(
 )
 
 func mcmsRegisterCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input McmsRegisterCurserCapInput) (sui_ops.OpTxResult[NoObjects], error) {
-	if deps.Signer != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("register_curser_cap must run through slow MCMS proposal execution, not direct signer PTB")
-	}
 	if input.CurserCapObjectId == "" {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("curser cap object id is required for register_curser_cap")
 	}
 
-	data, err := SerializeMcmsObjectAddrs(
-		input.StateObjectId,
-		input.SlowOwnerCapObjectId,
-		input.FastRegistryObjectId,
-		input.CurserCapObjectId,
-	)
+	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to serialize register_curser_cap data: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
 
-	call := sui_ops.TransactionCall{
-		PackageID:  input.CCIPPackageId,
-		Module:     "rmn_remote",
-		Function:   "register_curser_cap",
-		Data:       data,
-		StateObjID: input.StateObjectId,
-		TypeArgs:   []string{},
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.SlowOwnerCapObjectId}
+	fastRegistry := bind.Object{Id: input.FastRegistryObjectId}
+	curserCap := bind.Object{Id: input.CurserCapObjectId}
+
+	encodedCall, err := contract.Encoder().RegisterCurserCap(ref, ownerCap, fastRegistry, curserCap)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode register_curser_cap: %w", err)
 	}
 
-	b.Logger.Infow("Encoded register_curser_cap MCMS leaf",
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
+	}
+
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of register_curser_cap as no signer provided",
+			"fastRegistry", input.FastRegistryObjectId,
+			"curserCap", input.CurserCapObjectId,
+		)
+		return sui_ops.OpTxResult[NoObjects]{
+			PackageId: input.CCIPPackageId,
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.RegisterCurserCap(b.GetContext(), opts, ref, ownerCap, fastRegistry, curserCap)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute register_curser_cap: %w", err)
+	}
+
+	b.Logger.Infow("CurserCap registered in fast registry",
+		"digest", tx.Digest,
 		"fastRegistry", input.FastRegistryObjectId,
 		"curserCap", input.CurserCapObjectId,
 	)
 
 	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Call:      call,
 	}, nil
