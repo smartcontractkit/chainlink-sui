@@ -1043,6 +1043,8 @@ func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.Ch
 		expressions = aptosCRUtils.ApplyEventFilterRenames(expressions, eventConfig.EventFilterRenames)
 	}
 
+	expressions = crUtil.NormalizeLargeIntComparatorsToString(expressions)
+
 	s.logger.Debugw("QueryKey received request",
 		"contract", eventConfig.Package,
 		"eventHandle", eventHandle,

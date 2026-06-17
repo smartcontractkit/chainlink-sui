@@ -16,6 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 
+	chainreaderutil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
@@ -213,15 +214,7 @@ func (eIndexer *EventsIndexer) processEventsForHandle(
 	// Build event records
 	records := make([]database.EventRecord, 0, len(items))
 	for i, item := range items {
-		// Convert event JSON data using SDK's AsInterface()
-		data := make(map[string]any)
-		if jsonVal := item.Event.GetJson(); jsonVal != nil {
-			if iface := jsonVal.AsInterface(); iface != nil {
-				if mapData, ok := iface.(map[string]any); ok {
-					data = mapData
-				}
-			}
-		}
+		data := chainreaderutil.ParseEventDataFromJSON(item.Event.GetJson())
 
 		// Normalize keys to camelCase
 		if normalized := common.ConvertMapKeysToCamelCase(data); normalized != nil {
@@ -229,6 +222,19 @@ func (eIndexer *EventsIndexer) processEventsForHandle(
 				data = mapData
 			}
 		}
+
+		if strings.HasSuffix(handle, "::CCIPMessageSent") {
+			if contents := item.Event.GetContents(); contents != nil {
+				chainreaderutil.OverlayLeadingU64FromBCS(
+					data,
+					contents.GetValue(),
+					"destChainSelector",
+					"sequenceNumber",
+				)
+			}
+		}
+
+		chainreaderutil.NormalizeLargeIntEventFields(data)
 
 		// Convert tx digest to hex format
 		txDigestHex := item.TxDigest
