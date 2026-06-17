@@ -105,13 +105,19 @@ type BackfillLocalDecimalsInput struct {
 	StateObjectId       string
 	OwnerCapObjectId    string
 	CoinMetadataAddress string
-	LocalDecimals       byte
+	TokenType           string
+	LocalDecimals       *byte
 }
 
 var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BackfillLocalDecimalsInput) (output sui_ops.OpTxResult[NoObjects], err error) {
 	contract, err := module_token_admin_registry.NewTokenAdminRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
+	}
+
+	localDecimals, err := ResolveLocalDecimals(b.GetContext(), deps.Client, input.TokenType, input.LocalDecimals)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, err
 	}
 
 	opts := deps.GetCallOpts()
@@ -122,7 +128,7 @@ var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.StateObjectId},
 		input.CoinMetadataAddress,
-		input.LocalDecimals,
+		localDecimals,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute backfill local decimals: %w", err)

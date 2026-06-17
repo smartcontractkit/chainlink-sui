@@ -1277,7 +1277,7 @@ fun test_backfill_local_decimals() {
 }
 
 #[test]
-fun test_backfill_local_decimals_no_overwrite() {
+fun test_backfill_local_decimals_overwrites() {
     let mut scenario = create_test_scenario(CCIP_ADMIN);
     initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
 
@@ -1289,8 +1289,7 @@ fun test_backfill_local_decimals_no_overwrite() {
 
         registry::backfill_local_decimals(&owner_cap, &mut ref, token_addr, 9);
         registry::backfill_local_decimals(&owner_cap, &mut ref, token_addr, 18);
-        // insert_local_decimals is a no-op if entry already exists
-        assert!(registry::test_get_local_decimals(&ref, token_addr) == 9);
+        assert!(registry::test_get_local_decimals(&ref, token_addr) == 18);
 
         scenario.return_to_sender(owner_cap);
         ts::return_shared(ref);

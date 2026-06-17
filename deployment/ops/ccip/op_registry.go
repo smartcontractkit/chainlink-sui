@@ -26,6 +26,8 @@ var AllOperationsCCIP = []any{
 	*TokenAdminRegistryInitializeOp,
 	*TokenAdminRegistryInitializeLocalDecimalsOp,
 	*TokenAdminRegistryBackfillLocalDecimalsOp,
+	*TokenAdminRegistryBackfillAllLocalDecimalsOp,
+	*TokenAdminRegistryVerifyLocalDecimalsOp,
 	*TokenAdminRegistryUnregisterPoolOp,
 	*TokenAdminRegistryTransferAdminRoleOp,
 	*TokenAdminRegistryAcceptAdminRoleOp,
