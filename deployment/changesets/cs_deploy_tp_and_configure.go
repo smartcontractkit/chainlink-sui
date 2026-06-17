@@ -61,12 +61,21 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 		SuiRPC: suiChain.URL,
 	}
 
+	fastMcmsPackageID := state[config.SuiChainSelector].FastCurseMCMSPackageID
+	if fastMcmsPackageID == "" {
+		return cldf.ChangesetOutput{}, fmt.Errorf(
+			"fast MCMS package not deployed for Sui chain %d; run DeploySuiChain first",
+			config.SuiChainSelector,
+		)
+	}
+
 	// Populate state information for each token pool type
 	for _, tokenPoolType := range config.TokenPoolTypes {
 		switch tokenPoolType {
 		case deployment.TokenPoolTypeBurnMint:
 			config.BurnMintTpInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.BurnMintTpInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
+			config.BurnMintTpInput.FastMcmsAddress = fastMcmsPackageID
 			// TODO: MCMSOwner address should come state
 			config.BurnMintTpInput.MCMSOwnerAddress = deployerAddr
 			config.BurnMintTpInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
@@ -74,6 +83,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 		case deployment.TokenPoolTypeLockRelease:
 			config.LockReleaseTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.LockReleaseTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
+			config.LockReleaseTPInput.FastMcmsAddress = fastMcmsPackageID
 			config.LockReleaseTPInput.MCMSOwnerAddress = deployerAddr
 			config.LockReleaseTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.LockReleaseTPInput.TokenPoolAdministrator = deployerAddr
@@ -89,6 +99,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			config.ManagedTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.ManagedTPInput.ManagedTokenPackageId = managedTokenState.PackageID
 			config.ManagedTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
+			config.ManagedTPInput.FastMcmsAddress = fastMcmsPackageID
 			config.ManagedTPInput.MCMSOwnerAddress = deployerAddr
 			config.ManagedTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.ManagedTPInput.TokenPoolAdministrator = deployerAddr
@@ -204,5 +215,15 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
 func (d DeployTPAndConfigure) VerifyPreconditions(e cldf.Environment, config DeployTPAndConfigureConfig) error {
+	state, err := deployment.LoadOnchainStatesui(e)
+	if err != nil {
+		return err
+	}
+	if state[config.SuiChainSelector].FastCurseMCMSPackageID == "" {
+		return fmt.Errorf(
+			"fast MCMS package not deployed for Sui chain %d; run DeploySuiChain first",
+			config.SuiChainSelector,
+		)
+	}
 	return nil
 }
