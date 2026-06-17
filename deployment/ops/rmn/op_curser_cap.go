@@ -63,7 +63,7 @@ func createCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Creat
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
+	tx, err := contract.CreateCurserCap(b.GetContext(), opts, ref, ownerCap)
 	if err != nil {
 		return sui_ops.OpTxResult[CreateCurserCapObjects]{}, fmt.Errorf("failed to execute create_curser_cap: %w", err)
 	}
@@ -137,9 +137,10 @@ func mcmsMintAndRegisterCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 	}, nil
 }
 
-// McmsCreateCurserCapAndTransferInput builds a slow-MCMS proposal leaf that mints a
-// CurserCap and transfers it to RecipientAddress. Use before McmsRegisterCurserCapOp
-// in a follow-on proposal once the cap object ID is known from the mint tx.
+// McmsCreateCurserCapAndTransferInput mints a CurserCap and transfers it to RecipientAddress.
+//
+// Direct path: EOA holds OwnerCap and signs the PTB (deps.Signer set).
+// MCMS path: proposal leaf uses inner function create_curser_cap_and_transfer, routed by bindings/mcms_encoder.go.
 type McmsCreateCurserCapAndTransferInput struct {
 	CCIPPackageId        string
 	StateObjectId        string
@@ -155,36 +156,49 @@ var McmsCreateCurserCapAndTransferOp = cld_ops.NewOperation(
 )
 
 func mcmsCreateCurserCapAndTransferHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input McmsCreateCurserCapAndTransferInput) (sui_ops.OpTxResult[NoObjects], error) {
-	if deps.Signer != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("create_curser_cap_and_transfer must run through slow MCMS proposal execution, not direct signer PTB")
-	}
 	if input.RecipientAddress == "" {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("recipient address is required for create_curser_cap_and_transfer")
 	}
 
-	data, err := SerializeMcmsObjectAddrs(
-		input.StateObjectId,
-		input.SlowOwnerCapObjectId,
-		input.RecipientAddress,
-	)
+	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to serialize create_curser_cap_and_transfer data: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
 
-	call := sui_ops.TransactionCall{
-		PackageID:  input.CCIPPackageId,
-		Module:     "rmn_remote",
-		Function:   "create_curser_cap_and_transfer",
-		Data:       data,
-		StateObjID: input.StateObjectId,
-		TypeArgs:   []string{},
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.SlowOwnerCapObjectId}
+
+	encodedCall, err := contract.Encoder().CreateCurserCapAndTransfer(ref, ownerCap, input.RecipientAddress)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode create_curser_cap_and_transfer: %w", err)
 	}
 
-	b.Logger.Infow("Encoded create_curser_cap_and_transfer MCMS leaf",
-		"recipient", input.RecipientAddress,
-	)
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
+	}
+
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of create_curser_cap_and_transfer as no signer provided",
+			"recipient", input.RecipientAddress,
+		)
+		return sui_ops.OpTxResult[NoObjects]{
+			PackageId: input.CCIPPackageId,
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.CreateCurserCapAndTransfer(b.GetContext(), opts, ref, ownerCap, input.RecipientAddress)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute create_curser_cap_and_transfer: %w", err)
+	}
+
+	b.Logger.Infow("CurserCap minted and transferred", "digest", tx.Digest, "recipient", input.RecipientAddress)
 
 	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Call:      call,
 	}, nil
@@ -248,8 +262,10 @@ func mcmsRegisterCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 	}, nil
 }
 
-// McmsInitializeAllowedCurserCapsInput builds a slow-MCMS proposal leaf that
-// initializes the CurserCap allowlist with an optional initial cap ID set.
+// McmsInitializeAllowedCurserCapsInput initializes the CurserCap allowlist with an optional initial cap ID set.
+//
+// Direct path: EOA holds OwnerCap and signs the PTB (deps.Signer set).
+// MCMS path: proposal leaf uses inner function initialize_allowed_curser_caps, routed by bindings/mcms_encoder.go.
 type McmsInitializeAllowedCurserCapsInput struct {
 	CCIPPackageId        string
 	StateObjectId        string
@@ -265,39 +281,54 @@ var McmsInitializeAllowedCurserCapsOp = cld_ops.NewOperation(
 )
 
 func mcmsInitializeAllowedCurserCapsHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input McmsInitializeAllowedCurserCapsInput) (sui_ops.OpTxResult[NoObjects], error) {
-	if deps.Signer != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("initialize_allowed_curser_caps must run through slow MCMS proposal execution, not direct signer PTB")
-	}
-
-	data, err := SerializeMcmsObjectAddrsWithAddressVector(
-		[]string{input.StateObjectId, input.SlowOwnerCapObjectId},
-		input.InitialCurserCapIds,
-	)
+	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to serialize initialize_allowed_curser_caps data: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
 
-	call := sui_ops.TransactionCall{
-		PackageID:  input.CCIPPackageId,
-		Module:     "rmn_remote",
-		Function:   "initialize_allowed_curser_caps",
-		Data:       data,
-		StateObjID: input.StateObjectId,
-		TypeArgs:   []string{},
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.SlowOwnerCapObjectId}
+
+	encodedCall, err := contract.Encoder().InitializeAllowedCurserCaps(ref, ownerCap, input.InitialCurserCapIds)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode initialize_allowed_curser_caps: %w", err)
 	}
 
-	b.Logger.Infow("Encoded initialize_allowed_curser_caps MCMS leaf",
-		"initialCurserCapIds", input.InitialCurserCapIds,
-	)
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
+	}
+
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of initialize_allowed_curser_caps as no signer provided",
+			"initialCurserCapIds", input.InitialCurserCapIds,
+		)
+		return sui_ops.OpTxResult[NoObjects]{
+			PackageId: input.CCIPPackageId,
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.InitializeAllowedCurserCaps(b.GetContext(), opts, ref, ownerCap, input.InitialCurserCapIds)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute initialize_allowed_curser_caps: %w", err)
+	}
+
+	b.Logger.Infow("CurserCap allowlist initialized", "digest", tx.Digest, "initialCurserCapIds", input.InitialCurserCapIds)
 
 	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Call:      call,
 	}, nil
 }
 
-// McmsRegisterCurserCapIdsInput builds a slow-MCMS proposal leaf that adds cap
-// object IDs to the on-chain allowlist.
+// McmsRegisterCurserCapIdsInput adds cap object IDs to the on-chain allowlist.
+//
+// Direct path: EOA holds OwnerCap and signs the PTB (deps.Signer set).
+// MCMS path: proposal leaf uses inner function register_curser_cap_ids, routed by bindings/mcms_encoder.go.
 type McmsRegisterCurserCapIdsInput struct {
 	CCIPPackageId        string
 	StateObjectId        string
@@ -313,42 +344,58 @@ var McmsRegisterCurserCapIdsOp = cld_ops.NewOperation(
 )
 
 func mcmsRegisterCurserCapIdsHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input McmsRegisterCurserCapIdsInput) (sui_ops.OpTxResult[NoObjects], error) {
-	if deps.Signer != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("register_curser_cap_ids must run through slow MCMS proposal execution, not direct signer PTB")
-	}
 	if len(input.CurserCapObjectIds) == 0 {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("at least one curser cap object id is required")
 	}
 
-	data, err := SerializeMcmsObjectAddrsWithAddressVector(
-		[]string{input.StateObjectId, input.SlowOwnerCapObjectId},
-		input.CurserCapObjectIds,
-	)
+	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to serialize register_curser_cap_ids data: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
 
-	call := sui_ops.TransactionCall{
-		PackageID:  input.CCIPPackageId,
-		Module:     "rmn_remote",
-		Function:   "register_curser_cap_ids",
-		Data:       data,
-		StateObjID: input.StateObjectId,
-		TypeArgs:   []string{},
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.SlowOwnerCapObjectId}
+
+	encodedCall, err := contract.Encoder().RegisterCurserCapIds(ref, ownerCap, input.CurserCapObjectIds)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode register_curser_cap_ids: %w", err)
 	}
 
-	b.Logger.Infow("Encoded register_curser_cap_ids MCMS leaf",
-		"curserCapIds", input.CurserCapObjectIds,
-	)
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
+	}
+
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of register_curser_cap_ids as no signer provided",
+			"curserCapIds", input.CurserCapObjectIds,
+		)
+		return sui_ops.OpTxResult[NoObjects]{
+			PackageId: input.CCIPPackageId,
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.RegisterCurserCapIds(b.GetContext(), opts, ref, ownerCap, input.CurserCapObjectIds)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute register_curser_cap_ids: %w", err)
+	}
+
+	b.Logger.Infow("CurserCap IDs registered on allowlist", "digest", tx.Digest, "curserCapIds", input.CurserCapObjectIds)
 
 	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Call:      call,
 	}, nil
 }
 
-// McmsDeregisterCurserCapIdsInput builds a slow-MCMS proposal leaf that removes
-// CurserCap object IDs from the on-chain allowlist, revoking curse authority.
+// McmsDeregisterCurserCapIdsInput removes CurserCap object IDs from the on-chain allowlist.
+//
+// Direct path: EOA holds OwnerCap and signs the PTB (deps.Signer set).
+// MCMS path: proposal leaf uses inner function deregister_curser_cap_ids, routed by bindings/mcms_encoder.go.
 type McmsDeregisterCurserCapIdsInput struct {
 	CCIPPackageId        string
 	StateObjectId        string
@@ -364,35 +411,49 @@ var McmsDeregisterCurserCapIdsOp = cld_ops.NewOperation(
 )
 
 func mcmsDeregisterCurserCapIdsHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input McmsDeregisterCurserCapIdsInput) (sui_ops.OpTxResult[NoObjects], error) {
-	if deps.Signer != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("deregister_curser_cap_ids must run through slow MCMS proposal execution, not direct signer PTB")
-	}
 	if len(input.CurserCapObjectIds) == 0 {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("at least one curser cap object id is required")
 	}
 
-	data, err := SerializeMcmsObjectAddrsWithAddressVector(
-		[]string{input.StateObjectId, input.SlowOwnerCapObjectId},
-		input.CurserCapObjectIds,
-	)
+	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to serialize deregister_curser_cap_ids data: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
 
-	call := sui_ops.TransactionCall{
-		PackageID:  input.CCIPPackageId,
-		Module:     "rmn_remote",
-		Function:   "deregister_curser_cap_ids",
-		Data:       data,
-		StateObjID: input.StateObjectId,
-		TypeArgs:   []string{},
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.SlowOwnerCapObjectId}
+
+	encodedCall, err := contract.Encoder().DeregisterCurserCapIds(ref, ownerCap, input.CurserCapObjectIds)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode deregister_curser_cap_ids: %w", err)
 	}
 
-	b.Logger.Infow("Encoded deregister_curser_cap_ids MCMS leaf",
-		"curserCapIds", input.CurserCapObjectIds,
-	)
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
+	}
+
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of deregister_curser_cap_ids as no signer provided",
+			"curserCapIds", input.CurserCapObjectIds,
+		)
+		return sui_ops.OpTxResult[NoObjects]{
+			PackageId: input.CCIPPackageId,
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.DeregisterCurserCapIds(b.GetContext(), opts, ref, ownerCap, input.CurserCapObjectIds)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute deregister_curser_cap_ids: %w", err)
+	}
+
+	b.Logger.Infow("CurserCap IDs deregistered from allowlist", "digest", tx.Digest, "curserCapIds", input.CurserCapObjectIds)
 
 	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Call:      call,
 	}, nil
@@ -451,7 +512,13 @@ func curseWithCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Cu
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
+	tx, err := contract.CurseMultipleWithCurserCap(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.CurserCapObjectId},
+		input.Subjects,
+	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute curse_with_curser_cap: %w", err)
 	}

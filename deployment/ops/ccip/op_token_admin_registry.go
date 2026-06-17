@@ -227,10 +227,11 @@ var unregisterPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.UnregisterPool(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.CCIPObjectRef},
+		input.CoinMetadataAddress,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute UnregisterPool on TokenAdminRegistry: %w", err)
@@ -290,10 +291,12 @@ var transferAdminRoleHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.TransferAdminRole(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.CCIPObjectRef},
+		input.CoinMetadataAddress,
+		input.NewAdmin,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute TransferAdminRole on TokenAdminRegistry: %w", err)
@@ -352,10 +355,11 @@ var acceptAdminRoleHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.AcceptAdminRole(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.CCIPObjectRef},
+		input.CoinMetadataAddress,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute AcceptAdminRole on TokenAdminRegistry: %w", err)

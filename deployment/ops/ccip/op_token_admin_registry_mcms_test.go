@@ -20,6 +20,7 @@ const (
 	testStateObjectID = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	testOwnerCapID    = "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 	testCoinMetadata  = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	testNewAdmin      = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 )
 
 func testBundle(t *testing.T) cld_ops.Bundle {
@@ -147,4 +148,87 @@ func bytesToHex(b []byte) string {
 		out[i*2+1] = hex[v&0x0f]
 	}
 	return string(out)
+}
+
+func TestTokenAdminRegistryUnregisterPoolOp_ProposalDataMatchesBindingEncoder(t *testing.T) {
+	t.Parallel()
+
+	report, err := cld_ops.ExecuteOperation(
+		testBundle(t),
+		TokenAdminRegistryUnregisterPoolOp,
+		sui_ops.OpTxDeps{},
+		UnregisterPoolInput{
+			CCIPPackageId:       testCCIPPackageID,
+			CCIPObjectRef:       testStateObjectID,
+			CoinMetadataAddress: testCoinMetadata,
+		},
+	)
+	require.NoError(t, err)
+
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(testCCIPPackageID, nil)
+	require.NoError(t, err)
+	encodedCall, err := contract.Encoder().UnregisterPool(
+		bind.Object{Id: testStateObjectID},
+		testCoinMetadata,
+	)
+	require.NoError(t, err)
+	expected, err := sui_ops.ToTransactionCall(encodedCall, testStateObjectID)
+	require.NoError(t, err)
+	require.Equal(t, expected.Data, report.Output.Call.Data)
+}
+
+func TestTokenAdminRegistryTransferAdminRoleOp_ProposalDataMatchesBindingEncoder(t *testing.T) {
+	t.Parallel()
+
+	report, err := cld_ops.ExecuteOperation(
+		testBundle(t),
+		TokenAdminRegistryTransferAdminRoleOp,
+		sui_ops.OpTxDeps{},
+		TransferAdminRoleInput{
+			CCIPPackageId:       testCCIPPackageID,
+			CCIPObjectRef:       testStateObjectID,
+			CoinMetadataAddress: testCoinMetadata,
+			NewAdmin:            testNewAdmin,
+		},
+	)
+	require.NoError(t, err)
+
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(testCCIPPackageID, nil)
+	require.NoError(t, err)
+	encodedCall, err := contract.Encoder().TransferAdminRole(
+		bind.Object{Id: testStateObjectID},
+		testCoinMetadata,
+		testNewAdmin,
+	)
+	require.NoError(t, err)
+	expected, err := sui_ops.ToTransactionCall(encodedCall, testStateObjectID)
+	require.NoError(t, err)
+	require.Equal(t, expected.Data, report.Output.Call.Data)
+}
+
+func TestTokenAdminRegistryAcceptAdminRoleOp_ProposalDataMatchesBindingEncoder(t *testing.T) {
+	t.Parallel()
+
+	report, err := cld_ops.ExecuteOperation(
+		testBundle(t),
+		TokenAdminRegistryAcceptAdminRoleOp,
+		sui_ops.OpTxDeps{},
+		AcceptAdminRoleInput{
+			CCIPPackageId:       testCCIPPackageID,
+			CCIPObjectRef:       testStateObjectID,
+			CoinMetadataAddress: testCoinMetadata,
+		},
+	)
+	require.NoError(t, err)
+
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(testCCIPPackageID, nil)
+	require.NoError(t, err)
+	encodedCall, err := contract.Encoder().AcceptAdminRole(
+		bind.Object{Id: testStateObjectID},
+		testCoinMetadata,
+	)
+	require.NoError(t, err)
+	expected, err := sui_ops.ToTransactionCall(encodedCall, testStateObjectID)
+	require.NoError(t, err)
+	require.Equal(t, expected.Data, report.Output.Call.Data)
 }

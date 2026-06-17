@@ -125,10 +125,13 @@ var applyUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Fe
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.ApplyFeeTokenUpdates(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.FeeTokensToRemove,
+		input.FeeTokensToAdd,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyFeeTokenUpdates on FeeQuoter: %w", err)
@@ -205,10 +208,20 @@ var applyTokenTransferFeeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.ApplyTokenTransferFeeConfigUpdates(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.DestChainSelector,
+		input.AddTokens,
+		input.AddMinFeeUsdCents,
+		input.AddMaxFeeUsdCents,
+		input.AddDeciBps,
+		input.AddDestGasOverhead,
+		input.AddDestBytesOverhead,
+		input.AddIsEnabled,
+		input.RemoveTokens,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyTokenTransferFeeConfigUpdates on FeeQuoter: %w", err)
@@ -307,10 +320,31 @@ var applyDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.ApplyDestChainConfigUpdates(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.DestChainSelector,
+		input.IsEnabled,
+		input.MaxNumberOfTokensPerMsg,
+		input.MaxDataBytes,
+		input.MaxPerMsgGasLimit,
+		input.DestGasOverhead,
+		input.DestGasPerPayloadByteBase,
+		input.DestGasPerPayloadByteHigh,
+		input.DestGasPerPayloadByteThreshold,
+		input.DestDataAvailabilityOverheadGas,
+		input.DestGasPerDataAvailabilityByte,
+		input.DestDataAvailabilityMultiplierBps,
+		input.ChainFamilySelector,
+		input.EnforceOutOfOrder,
+		input.DefaultTokenFeeUsdCents,
+		input.DefaultTokenDestGasOverhead,
+		input.DefaultTxGasLimit,
+		input.GasMultiplierWeiPerEth,
+		input.GasPriceStalenessThreshold,
+		input.NetworkFeeUsdCents,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyDestChainConfigUpdates on FeeQuoter: %w", err)
@@ -373,10 +407,13 @@ var applyPremiumMultiplierHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.ApplyPremiumMultiplierWeiPerEthUpdates(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.Tokens,
+		input.PremiumMultiplierWeiPerEth,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyPremiumMultiplierWeiPerEthUpdates on FeeQuoter: %w", err)
