@@ -468,7 +468,7 @@ public fun test_mcms_new_fee_quoter_cap_and_transfer() {
     );
 
     env.scenario.next_tx(RECIPIENT);
-    assert!(ts::has_most_recent_for_address<fee_quoter::FeeQuoterCap>(&env.scenario, RECIPIENT));
+    assert!(ts::has_most_recent_for_address<fee_quoter::FeeQuoterCap>(RECIPIENT));
 
     env.tear_down();
 }

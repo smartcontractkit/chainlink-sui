@@ -156,8 +156,8 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			deserializer.ReadFixedBytes(SuiAddressLength)
 			capBytes := deserializer.ReadFixedBytes(SuiAddressLength)
 			ccipRef := bind.Object{Id: stateObjID}
-			cap := bind.Object{Id: toHexString(capBytes)}
-			return feeQuoter.Encoder().McmsDestroyFeeQuoterCapWithArgs(ccipRef, registryObj, executingCallbackParams, cap)
+			c := bind.Object{Id: toHexString(capBytes)}
+			return feeQuoter.Encoder().McmsDestroyFeeQuoterCapWithArgs(ccipRef, registryObj, executingCallbackParams, c)
 		default:
 			return nil, fmt.Errorf("unsupported fee_quoter MCMS function: %q", function)
 		}
