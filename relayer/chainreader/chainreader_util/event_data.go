@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 	"strconv"
 
+	"google.golang.org/protobuf/types/known/structpb"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var largeIntJSONFieldNames = map[string]struct{}{
