@@ -854,6 +854,61 @@ public fun mcms_accept_admin_role(
     accept_admin_role_internal(ref, coin_metadata_address, mcms_registry::get_multisig_address());
 }
 
+public fun mcms_initialize_local_decimals(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"initialize_local_decimals"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    initialize_local_decimals(ref, owner_cap, ctx);
+}
+
+public fun mcms_backfill_local_decimals(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    _ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"backfill_local_decimals"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(owner_cap), object::id_address(ref)],
+        &mut stream,
+    );
+
+    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
+    let local_decimals = bcs_stream::deserialize_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    backfill_local_decimals(owner_cap, ref, coin_metadata_address, local_decimals);
+}
+
 #[test_only]
 public fun insert_token_configs_for_test<TypeProof: drop>(
     ref: &mut CCIPObjectRef,
