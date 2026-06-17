@@ -90,6 +90,28 @@ fun initialize_rmn_remote(
     rmn_remote::initialize(ref, owner_cap, chain_selector, ctx);
 }
 
+fun allowlist_curser_cap(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    curser_cap: &CurserCap,
+    ctx: &mut TxContext,
+) {
+    allowlist_curser_cap_ids(ref, owner_cap, vector[object::id_address(curser_cap)], ctx);
+}
+
+fun allowlist_curser_cap_ids(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    cap_ids: vector<address>,
+    ctx: &mut TxContext,
+) {
+    if (state_object::contains<rmn_remote::AllowedCurserCaps>(ref)) {
+        rmn_remote::register_curser_cap_ids(ref, owner_cap, cap_ids);
+    } else {
+        rmn_remote::initialize_allowed_curser_caps(ref, owner_cap, cap_ids, ctx);
+    };
+}
+
 fun setup_basic_config(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap) {
     rmn_remote::set_config(
         ref,
@@ -589,6 +611,7 @@ public fun test_curse_with_curser_cap_succeeds() {
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
     let curser_cap = rmn_remote::create_curser_cap(&mut ref, &owner_cap, ctx);
+    allowlist_curser_cap(&mut ref, &owner_cap, &curser_cap, ctx);
 
     rmn_remote::curse_with_curser_cap(&mut ref, &curser_cap, SUBJECT_1);
     assert!(rmn_remote::is_cursed(&ref, SUBJECT_1));
@@ -607,6 +630,7 @@ public fun test_curse_multiple_with_curser_cap_succeeds() {
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
     let curser_cap = rmn_remote::create_curser_cap(&mut ref, &owner_cap, ctx);
+    allowlist_curser_cap(&mut ref, &owner_cap, &curser_cap, ctx);
 
     rmn_remote::curse_multiple_with_curser_cap(
         &mut ref,
@@ -628,6 +652,7 @@ public fun test_curse_with_curser_cap_invalid_subject_length() {
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
     let curser_cap = rmn_remote::create_curser_cap(&mut ref, &owner_cap, ctx);
+    allowlist_curser_cap(&mut ref, &owner_cap, &curser_cap, ctx);
 
     rmn_remote::curse_with_curser_cap(&mut ref, &curser_cap, INVALID_SHORT_SUBJECT);
 
@@ -643,6 +668,7 @@ public fun test_curse_with_curser_cap_already_cursed() {
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
     let curser_cap = rmn_remote::create_curser_cap(&mut ref, &owner_cap, ctx);
+    allowlist_curser_cap(&mut ref, &owner_cap, &curser_cap, ctx);
 
     rmn_remote::curse_with_curser_cap(&mut ref, &curser_cap, SUBJECT_1);
     rmn_remote::curse_with_curser_cap(&mut ref, &curser_cap, SUBJECT_1);
@@ -770,6 +796,13 @@ fun setup_fast_registry_with_cap(): (Scenario, OwnerCap, CCIPObjectRef, FastRegi
 
     let curser_cap = rmn_remote::create_curser_cap(&mut ref, &owner_cap, scenario.ctx());
     let curser_cap_id = object::id_address(&curser_cap);
+
+    allowlist_curser_cap_ids(
+        &mut ref,
+        &owner_cap,
+        vector[curser_cap_id],
+        scenario.ctx(),
+    );
 
     let publisher_wrapper = fast_mcms_registry::create_publisher_wrapper(
         ccip::ownable::borrow_publisher(&owner_cap),
@@ -1849,14 +1882,27 @@ fun test_owner_cap_address_in_registry(registry: &Registry): address {
 // ================================================================
 
 #[test]
-public fun test_is_curser_cap_allowed_before_init_returns_true() {
+public fun test_is_curser_cap_allowed_before_init_returns_false() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
     let curser_cap = rmn_remote::create_curser_cap(&mut ref, &owner_cap, ctx);
-    assert!(rmn_remote::is_curser_cap_allowed(&ref, object::id_address(&curser_cap)));
-    assert!(!rmn_remote::is_curser_cap_allowlist_enabled(&ref));
+    assert!(!rmn_remote::is_curser_cap_allowed(&ref, object::id_address(&curser_cap)));
+
+    unit_test::destroy(curser_cap);
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+#[test]
+#[expected_failure(abort_code = rmn_remote::EAllowedCurserCapsNotInitialized)]
+public fun test_curse_with_curser_cap_without_allowlist_aborts() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+    let ctx = scenario.ctx();
+
+    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
+    let curser_cap = rmn_remote::create_curser_cap(&mut ref, &owner_cap, ctx);
+    rmn_remote::curse_with_curser_cap(&mut ref, &curser_cap, SUBJECT_1);
 
     unit_test::destroy(curser_cap);
     tear_down_test(scenario, owner_cap, ref);
@@ -1877,7 +1923,6 @@ public fun test_initialize_allowed_curser_caps_and_deregister_revokes_curse() {
         vector[cap_id],
         ctx,
     );
-    assert!(rmn_remote::is_curser_cap_allowlist_enabled(&ref));
     assert!(rmn_remote::is_curser_cap_allowed(&ref, cap_id));
 
     rmn_remote::curse_with_curser_cap(&mut ref, &curser_cap, SUBJECT_1);
@@ -1952,7 +1997,6 @@ public fun test_register_curser_cap_ids_supports_multiple_caps() {
         &owner_cap,
         vector[object::id_address(&cap_a), object::id_address(&cap_b)],
     );
-    rmn_remote::set_curser_cap_allowlist_enabled(&mut ref, &owner_cap, true);
 
     rmn_remote::curse_with_curser_cap(&mut ref, &cap_a, SUBJECT_1);
     rmn_remote::curse_with_curser_cap(&mut ref, &cap_b, SUBJECT_2);
@@ -2002,7 +2046,6 @@ public fun test_mcms_mint_and_register_auto_allowlists_cap() {
         &fast_registry,
         sui::address::to_ascii_string(@ccip),
     );
-    assert!(rmn_remote::is_curser_cap_allowlist_enabled(&ref));
     assert!(rmn_remote::is_curser_cap_allowed(&ref, curser_cap_address));
     assert!(rmn_remote::get_allowed_curser_cap_ids(&ref) == vector[curser_cap_address]);
 
