@@ -834,10 +834,13 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 					return nil, fmt.Errorf("failed to convert parameter %s of type %s: %w",
 						paramConfig.Name, paramConfig.Type, err)
 				}
+				s.logger.Debugw("parseLoopParams convertedValue", "convertedValue", convertedValue, "rawValue", jsonValue)
 				argMap[paramConfig.Name] = convertedValue
 			}
 		}
 	}
+
+	s.logger.Debugw("parseLoopParams argMap", "argMap", argMap)
 
 	return argMap, nil
 }
