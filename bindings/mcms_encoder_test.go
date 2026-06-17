@@ -193,6 +193,46 @@ func TestEncodeEntryPointArg_FeeQuoter(t *testing.T) {
 		assert.Equal(t, "mcms_apply_premium_multiplier_wei_per_eth_updates", result.Function)
 	})
 
+	t.Run("new_fee_quoter_cap_and_transfer", func(t *testing.T) {
+		data := serializeAddress(stateObjID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"fee_quoter",
+			"new_fee_quoter_cap_and_transfer",
+			stateObjID,
+			data,
+			nil,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "mcms_new_fee_quoter_cap_and_transfer", result.Function)
+	})
+
+	t.Run("destroy_fee_quoter_cap", func(t *testing.T) {
+		ownerCapID := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+		capID := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+		data := serializeAddresses(stateObjID, ownerCapID, capID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"fee_quoter",
+			"destroy_fee_quoter_cap",
+			stateObjID,
+			data,
+			nil,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "mcms_destroy_fee_quoter_cap", result.Function)
+		require.Len(t, result.CallArgs, 4)
+		capFromResult, err := extractObjectID(result.CallArgs[3])
+		require.NoError(t, err)
+		assert.Equal(t, capID, capFromResult)
+	})
+
 	t.Run("unsupported_function", func(t *testing.T) {
 		_, err := encoder.EncodeEntryPointArg(
 			executingCallbackParams,

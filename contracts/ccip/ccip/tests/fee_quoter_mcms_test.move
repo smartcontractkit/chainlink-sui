@@ -15,6 +15,7 @@ use sui::clock::{Self, Clock};
 use sui::test_scenario::{Self as ts, Scenario};
 
 const OWNER: address = @0x123;
+const RECIPIENT: address = @0x456;
 const TOKEN_1: address = @0x1000;
 const TOKEN_2: address = @0x2000;
 const LINK_TOKEN: address = @0x4000;
@@ -432,6 +433,81 @@ public fun test_mcms_update_prices_with_owner_cap() {
     let (usd_per_unit_gas, gas_timestamp) = fee_quoter::get_timestamped_price_fields(gas_price);
     assert!(usd_per_unit_gas == (30000000 as u256), 4);
     assert!(gas_timestamp == (current_timestamp / 1000), 5); // Timestamp is in seconds
+
+    env.tear_down();
+}
+
+#[test]
+public fun test_mcms_new_fee_quoter_cap_and_transfer() {
+    let mut env = setup();
+
+    let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
+
+    let mut data = vector[];
+    data.append(bcs::to_bytes(&object::id_address(&env.ref)));
+    data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
+    data.append(bcs::to_bytes(&RECIPIENT));
+
+    transfer_ownership_to_mcms(&mut env, owner_cap);
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(FEE_QUOTER_MODULE_NAME),
+        string::utf8(b"new_fee_quoter_cap_and_transfer"),
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000006",
+        0,
+        1,
+    );
+
+    fee_quoter::mcms_new_fee_quoter_cap_and_transfer(
+        &mut env.ref,
+        &mut env.registry,
+        params,
+        env.scenario.ctx(),
+    );
+
+    env.scenario.next_tx(RECIPIENT);
+    assert!(ts::has_most_recent_for_address<fee_quoter::FeeQuoterCap>(&env.scenario, RECIPIENT));
+
+    env.tear_down();
+}
+
+#[test]
+public fun test_mcms_destroy_fee_quoter_cap() {
+    let mut env = setup();
+
+    let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
+    let cap = fee_quoter::new_fee_quoter_cap(&mut env.ref, &owner_cap, env.scenario.ctx());
+    sui::transfer::public_transfer(cap, OWNER);
+
+    env.scenario.next_tx(OWNER);
+    let cap = ts::take_from_sender<fee_quoter::FeeQuoterCap>(&env.scenario);
+
+    let mut data = vector[];
+    data.append(bcs::to_bytes(&object::id_address(&env.ref)));
+    data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
+    data.append(bcs::to_bytes(&object::id_address(&cap)));
+
+    transfer_ownership_to_mcms(&mut env, owner_cap);
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(FEE_QUOTER_MODULE_NAME),
+        string::utf8(b"destroy_fee_quoter_cap"),
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000007",
+        0,
+        1,
+    );
+
+    fee_quoter::mcms_destroy_fee_quoter_cap(
+        &mut env.ref,
+        &mut env.registry,
+        params,
+        cap,
+        env.scenario.ctx(),
+    );
 
     env.tear_down();
 }

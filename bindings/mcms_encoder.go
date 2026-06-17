@@ -147,6 +147,17 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "apply_premium_multiplier_wei_per_eth_updates":
 			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
 			return feeQuoter.Encoder().McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "new_fee_quoter_cap_and_transfer":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return feeQuoter.Encoder().McmsNewFeeQuoterCapAndTransferWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "destroy_fee_quoter_cap":
+			deserializer := bcs.NewDeserializer(data)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			capBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			ccipRef := bind.Object{Id: stateObjID}
+			cap := bind.Object{Id: toHexString(capBytes)}
+			return feeQuoter.Encoder().McmsDestroyFeeQuoterCapWithArgs(ccipRef, registryObj, executingCallbackParams, cap)
 		default:
 			return nil, fmt.Errorf("unsupported fee_quoter MCMS function: %q", function)
 		}

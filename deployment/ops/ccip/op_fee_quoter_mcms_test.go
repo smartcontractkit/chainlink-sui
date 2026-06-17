@@ -200,3 +200,67 @@ func TestFeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp_ProposalDataMatchesBi
 	require.NoError(t, err)
 	require.Equal(t, expected.Data, report.Output.Call.Data)
 }
+
+func TestFeeQuoterNewFeeQuoterCapOp_ProposalDataMatchesBindingEncoder(t *testing.T) {
+	t.Parallel()
+
+	const recipient = "0x1111111111111111111111111111111111111111111111111111111111111111"
+
+	report, err := cld_ops.ExecuteOperation(
+		feeQuoterTestBundle(t),
+		FeeQuoterNewFeeQuoterCapOp,
+		sui_ops.OpTxDeps{},
+		NewFeeQuoterCapInput{
+			CCIPPackageId:    testCCIPPackageID,
+			CCIPObjectRef:    testStateObjectID,
+			OwnerCapObjectId: testOwnerCapID,
+			RecipientAddress: recipient,
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "new_fee_quoter_cap_and_transfer", report.Output.Call.Function)
+
+	contract, err := module_fee_quoter.NewFeeQuoter(testCCIPPackageID, nil)
+	require.NoError(t, err)
+	encodedCall, err := contract.Encoder().NewFeeQuoterCapAndTransfer(
+		bind.Object{Id: testStateObjectID},
+		bind.Object{Id: testOwnerCapID},
+		recipient,
+	)
+	require.NoError(t, err)
+	expected, err := sui_ops.ToTransactionCall(encodedCall, testStateObjectID)
+	require.NoError(t, err)
+	require.Equal(t, expected.Data, report.Output.Call.Data)
+}
+
+func TestFeeQuoterDestroyFeeQuoterCapOp_ProposalDataMatchesBindingEncoder(t *testing.T) {
+	t.Parallel()
+
+	const feeQuoterCapID = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+
+	report, err := cld_ops.ExecuteOperation(
+		feeQuoterTestBundle(t),
+		FeeQuoterDestroyFeeQuoterCapOp,
+		sui_ops.OpTxDeps{},
+		DestroyFeeQuoterCapInput{
+			CCIPPackageId:        testCCIPPackageID,
+			CCIPObjectRef:        testStateObjectID,
+			OwnerCapObjectId:     testOwnerCapID,
+			FeeQuoterCapObjectId: feeQuoterCapID,
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, "destroy_fee_quoter_cap", report.Output.Call.Function)
+
+	contract, err := module_fee_quoter.NewFeeQuoter(testCCIPPackageID, nil)
+	require.NoError(t, err)
+	encodedCall, err := contract.Encoder().DestroyFeeQuoterCap(
+		bind.Object{Id: testStateObjectID},
+		bind.Object{Id: testOwnerCapID},
+		bind.Object{Id: feeQuoterCapID},
+	)
+	require.NoError(t, err)
+	expected, err := sui_ops.ToTransactionCall(encodedCall, testStateObjectID)
+	require.NoError(t, err)
+	require.Equal(t, expected.Data, report.Output.Call.Data)
+}
