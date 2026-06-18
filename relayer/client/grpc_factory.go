@@ -29,7 +29,7 @@ const (
 	// DefaultMaxGrpcConnections is the number of independent gRPC connections each client opens to the
 	// node. Spreading RPCs round-robin across several connections multiplies the available concurrent
 	// HTTP/2 streams so a single connection's stream limit does not throttle bursty reads.
-	DefaultMaxGrpcConnections = 8
+	DefaultMaxGrpcConnections = 128
 )
 
 // GrpcClientConfig holds configuration for a Sui gRPC client connection.

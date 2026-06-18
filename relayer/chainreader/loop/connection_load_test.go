@@ -48,10 +48,37 @@ type mockRPCNode struct {
 	simulateCalls           int64
 	listOwnedObjectsCalls   int64
 	getEpochCalls           int64
+
+	// pathSem models a shared transport choke that sits BETWEEN the client and the node and is shared
+	// across every gRPC connection — e.g. Docker Desktop's userland proxy / VM network gateway on macOS,
+	// which forwards all host<->container traffic through one limited-capacity hop. When set, at most
+	// cap(pathSem) RPCs can be "in transit" at once regardless of how many connections the pool opens.
+	// A request blocks here (queuing in the path) before it ever reaches the node, so the node-observed
+	// concurrency (maxInFlight) stays low and its CPU stays idle even while client latency runs away.
+	pathSem chan struct{}
+	// pathWaitNanos accumulates total time spent blocked on pathSem (the "stuck in the network path" time).
+	pathWaitNanos int64
 }
 
 func (m *mockRPCNode) track(ctx context.Context) error {
 	atomic.AddInt64(&m.totalCalls, 1)
+
+	// Queue in the shared transport path first. This is connection-count independent: opening more
+	// pooled connections does not widen this gate, which is the whole point of the Docker-path scenario.
+	if m.pathSem != nil {
+		waitStart := time.Now()
+		select {
+		case m.pathSem <- struct{}{}:
+			atomic.AddInt64(&m.pathWaitNanos, int64(time.Since(waitStart)))
+			defer func() { <-m.pathSem }()
+		case <-ctx.Done():
+			atomic.AddInt64(&m.pathWaitNanos, int64(time.Since(waitStart)))
+			return ctx.Err()
+		}
+	}
+
+	// Past the path gate the request reaches the node. Node-observed concurrency is therefore bounded by
+	// the path capacity, not the pool size.
 	cur := atomic.AddInt64(&m.inFlight, 1)
 	defer atomic.AddInt64(&m.inFlight, -1)
 
@@ -144,6 +171,10 @@ type loadScenario struct {
 	StreamLimit uint32
 	CallLatency time.Duration
 	Concurrency int
+	// SharedPathLimit, when > 0, caps the number of RPCs in transit across the shared client<->node path
+	// (the Docker proxy / VM gateway), regardless of pool size. Zero means the path is unconstrained and
+	// only the per-connection StreamLimit applies.
+	SharedPathLimit int
 }
 
 func (s loadScenario) withDefaults() loadScenario {
@@ -223,6 +254,9 @@ type ccipLoadResult struct {
 	// per-batch deadline). In production each such failure is a config refresh that times out and
 	// therefore a merkle root that never gets committed.
 	BatchErrors int
+	// PathWait is the total time RPCs spent blocked in the shared transport path (Docker proxy). Large
+	// values with a low ServerPeak are the signature of a path choke rather than a busy node.
+	PathWait time.Duration
 }
 
 // startMockLedger starts an in-process gRPC LedgerService with the given per-call latency and
@@ -245,14 +279,19 @@ func startMockLedger(t *testing.T, latency time.Duration, streamLimit uint32) (s
 }
 
 // startMockSuiReadNode starts an in-process mock Sui read node exposing Ledger, State, and
-// TransactionExecution services with configurable per-RPC latency and MaxConcurrentStreams.
-func startMockSuiReadNode(t *testing.T, latency time.Duration, streamLimit uint32) (string, *mockRPCNode, func()) {
+// TransactionExecution services with configurable per-RPC latency and MaxConcurrentStreams. When
+// sharedPathLimit > 0 the node also enforces a shared, connection-count-independent transit cap that
+// models the Docker proxy / VM network gateway between client and node.
+func startMockSuiReadNode(t *testing.T, latency time.Duration, streamLimit uint32, sharedPathLimit int) (string, *mockRPCNode, func()) {
 	t.Helper()
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	node := &mockRPCNode{latency: latency}
+	if sharedPathLimit > 0 {
+		node.pathSem = make(chan struct{}, sharedPathLimit)
+	}
 	mock := &mockSuiReadNode{node: node}
 
 	srv := grpc.NewServer(grpc.MaxConcurrentStreams(streamLimit))
@@ -396,7 +435,7 @@ func runCCIPMixedLoadScenario(t *testing.T, s ccipLoadScenario) ccipLoadResult {
 	t.Helper()
 	s = s.withDefaults()
 
-	addr, mock, stop := startMockSuiReadNode(t, s.CallLatency, s.StreamLimit)
+	addr, mock, stop := startMockSuiReadNode(t, s.CallLatency, s.StreamLimit, s.SharedPathLimit)
 	defer stop()
 
 	c, err := client.NewPTBClient(logger.Test(t), client.PTBClientConfig{
@@ -483,14 +522,16 @@ func runCCIPMixedLoadScenario(t *testing.T, s ccipLoadScenario) ccipLoadResult {
 		ListOwnedObjectsCalls: atomic.LoadInt64(&mock.listOwnedObjectsCalls),
 		GetEpochCalls:         atomic.LoadInt64(&mock.getEpochCalls),
 		BatchErrors:           int(atomic.LoadInt64(&batchErrCount)),
+		PathWait:              time.Duration(atomic.LoadInt64(&mock.pathWaitNanos)),
 	}
 }
 
 func logCCIPResult(t *testing.T, label string, r ccipLoadResult) {
 	t.Helper()
 	logResult(t, label, r.loadResult)
-	t.Logf("%-18s getObject=%d simulate=%d listOwned=%d getEpoch=%d batchErrors=%d",
-		label, r.GetObjectCalls, r.SimulateCalls, r.ListOwnedObjectsCalls, r.GetEpochCalls, r.BatchErrors)
+	t.Logf("%-18s getObject=%d simulate=%d listOwned=%d getEpoch=%d batchErrors=%d pathWait=%s",
+		label, r.GetObjectCalls, r.SimulateCalls, r.ListOwnedObjectsCalls, r.GetEpochCalls, r.BatchErrors,
+		r.PathWait.Round(time.Millisecond))
 }
 
 func logResult(t *testing.T, label string, r loadResult) {
@@ -723,4 +764,75 @@ func TestConnectionPoolPreventsReadDeadlineExceeded(t *testing.T) {
 		"single connection should be limited to ~StreamLimit concurrent RPCs at the node")
 	require.Greater(t, pooled.ServerPeak, single.ServerPeak,
 		"connection pool should achieve higher node-side concurrency")
+}
+
+// TestSharedTransportChokeIsPoolInvariant reproduces the OTHER bottleneck shape — the one the live E2E
+// actually exhibits. Here the limit is not per-connection stream count at the node, but a shared transit
+// cap in the path between client and node (Docker Desktop's userland proxy / VM network gateway on macOS).
+//
+// The defining observations from the E2E this models:
+//   - node CPU stays low (< 30%) — the node is not the bottleneck,
+//   - reads still block for tens of seconds and batches miss the deadline,
+//   - going from 8 to 128 connections barely changes anything.
+//
+// So unlike TestConnectionPoolPreventsReadDeadlineExceeded (where the cap is per-connection and a pool
+// relieves it), here the cap is shared across all connections. The test sweeps pool sizes (1 → 32; a
+// 32× spread is enough to show invariance — the live E2E confirmed 128 behaves identically) and asserts
+// the outcome is pool-INVARIANT: batches fail at every pool size, and node-observed concurrency stays
+// pinned at the path limit no matter how many connections the pool opens. StreamLimit is set high so the
+// per-connection limit is deliberately NOT the binding constraint — the shared path is.
+func TestSharedTransportChokeIsPoolInvariant(t *testing.T) {
+	t.Parallel()
+
+	const (
+		streamLimit     = uint32(256) // high on purpose: not the binding constraint here
+		sharedPathLimit = 4           // the Docker proxy / VM gateway: shared across ALL connections
+		latency         = 150 * time.Millisecond
+		batchDeadline   = 3 * time.Second
+		batchCount      = 10
+	)
+
+	scenario := func(poolSize int, name string) ccipLoadScenario {
+		return ccipLoadScenario{
+			loadScenario: loadScenario{
+				Name:            name,
+				PoolSize:        poolSize,
+				StreamLimit:     streamLimit,
+				CallLatency:     latency,
+				SharedPathLimit: sharedPathLimit,
+			},
+			BatchCount:        batchCount,
+			ReadsPerBatch:     6,
+			ObjectRefsPerRead: 2,
+			BackgroundWorkers: 8,
+			BatchDeadline:     batchDeadline,
+		}
+	}
+
+	poolSizes := []int{1, 8, 32}
+	results := make([]ccipLoadResult, len(poolSizes))
+	for i, ps := range poolSizes {
+		results[i] = runCCIPMixedLoadScenario(t, scenario(ps, fmt.Sprintf("path-choke-pool-%d", ps)))
+		logCCIPResult(t, fmt.Sprintf("path-choke-pool-%d", ps), results[i])
+	}
+
+	for i, ps := range poolSizes {
+		r := results[i]
+		// The failure reproduces at EVERY pool size — the pool cannot widen a shared path.
+		require.Positive(t, r.BatchErrors,
+			"pool=%d: config batches should still time out behind the shared path choke", ps)
+		// Node-observed concurrency is pinned at the path limit regardless of pool size: the node is idle,
+		// requests are queued in the path (high pathWait), which is the CPU-headroom-but-slow signature.
+		require.LessOrEqual(t, r.ServerPeak, int64(sharedPathLimit)+1,
+			"pool=%d: node-side concurrency should stay capped at the shared path limit", ps)
+		require.Positive(t, int64(r.PathWait),
+			"pool=%d: time should be spent waiting in the shared path, not at the node", ps)
+	}
+
+	// The headline contrast with the per-connection case: a large pool does not rescue the batches the
+	// way it would if the bottleneck were per-connection streams. ServerPeak does not grow with the pool.
+	require.Positive(t, results[len(results)-1].BatchErrors,
+		"a large connection pool should NOT fix a shared-path bottleneck (matches the live E2E)")
+	require.LessOrEqual(t, results[len(results)-1].ServerPeak, results[0].ServerPeak+1,
+		"node-side concurrency at the largest pool should be no higher than at pool=1 — the pool can't widen the path")
 }
