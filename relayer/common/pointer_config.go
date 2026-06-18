@@ -63,13 +63,6 @@ var PointerConfigs = map[string][]PointerConfig{
 			ParentFieldName: "managed_token_pool_object_id",
 		},
 	},
-	"usdc_token_pool": {
-		{
-			Module:          "usdc_token_pool",
-			Pointer:         "USDCTokenPoolStatePointer",
-			ParentFieldName: "usdc_token_pool_object_id",
-		},
-	},
 	"lock_release_token_pool": {
 		{
 			Module:          "lock_release_token_pool",
@@ -94,7 +87,6 @@ var StateObjectNameByModule = map[string]string{
 	"burn_mint_token_pool":    "BurnMintTokenPoolState",
 	"lock_release_token_pool": "LockReleaseTokenPoolState",
 	"managed_token_pool":      "ManagedTokenPoolState",
-	"usdc_token_pool":         "USDCTokenPoolState",
 	"counter":                 "Counter",
 }
 

@@ -20,7 +20,6 @@ const (
 	CCIPRouter           = Package("ccip_router")
 	LockReleaseTokenPool = Package("lock_release_token_pool")
 	BurnMintTokenPool    = Package("burn_mint_token_pool")
-	USDCTokenPool        = Package("usdc_token_pool")
 	ManagedTokenPool     = Package("managed_token_pool")
 	ManagedToken         = Package("managed_token")
 	ManagedTokenFaucet   = Package("managed_token_faucet")
@@ -51,7 +50,6 @@ var Contracts map[Package]string = map[Package]string{
 	CCIPRouter:           filepath.Join("ccip", "ccip_router"),
 	LockReleaseTokenPool: filepath.Join("ccip", "ccip_token_pools", "lock_release_token_pool"),
 	BurnMintTokenPool:    filepath.Join("ccip", "ccip_token_pools", "burn_mint_token_pool"),
-	USDCTokenPool:        filepath.Join("ccip", "ccip_token_pools", "usdc_token_pool"),
 	ManagedTokenPool:     filepath.Join("ccip", "ccip_token_pools", "managed_token_pool"),
 	ManagedToken:         filepath.Join("ccip", "managed_token"),
 	ManagedTokenFaucet:   filepath.Join("ccip", "managed_token_faucet"),
