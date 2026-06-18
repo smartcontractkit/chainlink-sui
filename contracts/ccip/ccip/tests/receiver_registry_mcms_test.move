@@ -56,6 +56,8 @@ fun setup(): Env {
     receiver_registry::initialize(&mut ref, &owner_cap, scenario.ctx());
     ts::return_to_address(OWNER, owner_cap);
 
+    scenario.next_tx(OWNER);
+
     Env {
         scenario,
         ref,
