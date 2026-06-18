@@ -615,24 +615,32 @@ func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgty
 			}(i, read, contract)
 		}
 
-		// wait for all the results to be processed then close the channel
+		// Close resultChan once all goroutines finish (may happen after caller ctx expires).
 		go func() {
 			waitgroup.Wait()
 			close(resultChan)
 		}()
 
 		resultsReceived := 0
-		for res := range resultChan {
-			batchResults[res.index] = res.result
-			resultsReceived++
-		}
-
-		// check if all the results were received
-		if resultsReceived != len(batch) {
-			if err := ctx.Err(); err != nil {
-				return nil, err
+		for resultsReceived < len(batch) {
+			select {
+			case res, ok := <-resultChan:
+				if !ok {
+					if err := ctx.Err(); err != nil {
+						return nil, err
+					}
+					return nil, fmt.Errorf("batch processing failed: result channel closed early")
+				}
+				batchResults[res.index] = res.result
+				resultsReceived++
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
+			case <-ctx.Done():
+				// Return immediately when the caller's deadline fires (e.g. CCIP config poller's 30s
+				// bgRefreshTimeout). Do not block on slow in-flight RPCs that outlive the parent context.
+				return nil, ctx.Err()
 			}
-			return nil, fmt.Errorf("batch processing failed: expected %d results, received %d", len(batch), resultsReceived)
 		}
 
 		result[contract] = batchResults

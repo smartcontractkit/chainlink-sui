@@ -38,6 +38,12 @@ const (
 	DefaultCacheExpiration      time.Duration = 120 * time.Minute
 	DefaultCacheCleanupInterval time.Duration = 240 * time.Minute
 	DefaultHTTPTimeout          time.Duration = 30 * time.Second
+	// DefaultReadOpTimeout caps a single read chain (transform + simulate). Prevents gRPC calls from
+	// outliving the CCIP config poller's 30s deadline when the node is overloaded.
+	DefaultReadOpTimeout time.Duration = 10 * time.Second
+	// DefaultPackageIdCacheTTL caches resolved latest package IDs to avoid repeated heavy
+	// GetFunction/GetPackage/ListOwnedObjects chains under bursty config polling.
+	DefaultPackageIdCacheTTL time.Duration = 5 * time.Minute
 )
 
 var RateLimitWeights = map[string]int64{
@@ -377,8 +383,6 @@ func (c *PTBClient) readObjectIdInternal(ctx context.Context, objectId string) (
 // the full (and growing) object state on every read.
 func (c *PTBClient) readObjectMetadataInternal(ctx context.Context, objectId string) (*suirpcv2.Object, error) {
 	// #region agent log
-	// H9/H10: locate the missing time. svcSec = getLedgerService (grpcServicesMu mutex), acquireSec =
-	// node read limiter, rpcSec = pure GetObject. Log full breakdown on ALL paths when total is slow.
 	metaStart := time.Now()
 	// #endregion
 	ledgerService, err := c.getLedgerService(ctx)
@@ -413,7 +417,7 @@ func (c *PTBClient) readObjectMetadataInternal(ctx context.Context, objectId str
 			objType = response.Object.GetObjectType()
 		}
 		common.DebugLog("grpc_client.go:readObjectMetadataInternal", "metadata read breakdown", map[string]any{
-			"hypothesisId": "POOL",
+			"hypothesisId": "H12",
 			"objectId":     objectId,
 			"objectType":   objType,
 			"svcSec":       svcSec.Seconds(),
@@ -590,8 +594,25 @@ func (c *PTBClient) ReadFunction(ctx context.Context, packageId string, module s
 	return results, err
 }
 
+// readOpContext returns a context capped by max, or sooner if the parent already has a shorter deadline.
+func readOpContext(ctx context.Context, max time.Duration) (context.Context, context.CancelFunc) {
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return ctx, func() {}
+		}
+		if remaining < max {
+			return context.WithTimeout(ctx, remaining)
+		}
+	}
+	return context.WithTimeout(ctx, max)
+}
+
 // readFunctionInternal is the internal implementation without rate limiting
 func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+	readCtx, cancel := readOpContext(ctx, DefaultReadOpTimeout)
+	defer cancel()
+
 	// #region agent log
 	// RUN2: break down where readFunctionInternal spends time (transform vs build vs simulate) and
 	// track the TRUE aggregate number of read RPC chains in flight per process (covers slow reads that
@@ -601,7 +622,7 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 	rfStart := time.Now()
 	var svcDur, typeArgDur, transformDur, buildDur, simDur time.Duration
 	// #endregion
-	txExecService, err := c.getTransactionExecutionService(ctx)
+	txExecService, err := c.getTransactionExecutionService(readCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction execution service: %w", err)
 	}
@@ -637,7 +658,7 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 			argType = common.InferArgumentType(arg)
 		}
 
-		txArg, transformErr := c.TransformTransactionArg(ctx, txn, arg, argType, true)
+		txArg, transformErr := c.TransformTransactionArg(readCtx, txn, arg, argType, true)
 		if transformErr != nil {
 			return nil, fmt.Errorf("failed to transform transaction arg: %w", transformErr)
 		}
@@ -665,7 +686,7 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 	// #region agent log
 	buildStart := time.Now()
 	// #endregion
-	bcsBytes, err := txn.BuildBCSBytes(ctx)
+	bcsBytes, err := txn.BuildBCSBytes(readCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build bcs bytes: %w", err)
 	}
@@ -674,7 +695,7 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 	simStart := time.Now()
 	// #endregion
 
-	results, err = c.simulatePTBInternal(ctx, txExecService, bcsBytes)
+	results, err = c.simulatePTBInternal(readCtx, txExecService, bcsBytes)
 	// #region agent log
 	simDur = time.Since(simStart)
 	totalDur := time.Since(rfStart)
@@ -694,7 +715,7 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 			"readInflight": atomic.LoadInt64(&debugReadInflight),
 			"simInflight":  atomic.LoadInt64(&debugSimInflight),
 			"readPeak":     readInflight,
-			"ctxErr":       ctxErrString(ctx),
+			"ctxErr":       ctxErrString(readCtx),
 		})
 	}
 	// #endregion
@@ -1473,9 +1494,9 @@ func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, mo
 		var err error
 		result, err = c.getLatestPackageIdInternal(ctx, packageId, module)
 
-		// set the cache to be a very low TTL (few seconds) simply to reduce
-		// the risk of stale data but still relieve pressure on the RPC server
-		c.cache.Set(cacheKey, result, 60*time.Second)
+		// Package IDs are stable for the duration of a CCIP deployment; a longer TTL avoids
+		// repeated GetFunction/GetPackage/ListOwnedObjects storms during config polling.
+		c.cache.Set(cacheKey, result, DefaultPackageIdCacheTTL)
 
 		return err
 	})

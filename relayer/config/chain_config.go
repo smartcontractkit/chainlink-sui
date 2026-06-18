@@ -19,7 +19,7 @@ const (
 	DefaultIndexerPollIntervalSecs = uint64(10)
 	DefaultIndexerSyncTimeoutSecs  = uint64(60)
 
-	DefaultChainPollerPollIntervalSecs  = uint64(3)
+	DefaultChainPollerPollIntervalSecs  = uint64(2)
 	DefaultChainPollerSyncTimeoutSecs   = uint64(60)
 	DefaultChainPollerChannelBufferSize = uint64(16)
 

@@ -70,7 +70,10 @@ func (p *grpcConnPool) next() (*pooledConn, error) {
 	return p.conns[n%uint64(len(p.conns))], nil
 }
 
-func (p *grpcConnPool) ledgerService(ctx context.Context) (suirpcv2.LedgerServiceClient, error) {
+// acquire picks the next pooled connection round-robin and ensures it is connected before returning its
+// underlying SuiGrpcClient. All the typed service getters funnel through here so connection selection and
+// lazy initialization live in one place.
+func (p *grpcConnPool) acquire(ctx context.Context) (*grpcconn.SuiGrpcClient, error) {
 	pc, err := p.next()
 	if err != nil {
 		return nil, err
@@ -78,40 +81,39 @@ func (p *grpcConnPool) ledgerService(ctx context.Context) (suirpcv2.LedgerServic
 	if err := pc.ensure(ctx); err != nil {
 		return nil, fmt.Errorf("failed to initialize gRPC connection: %w", err)
 	}
-	return pc.client.LedgerService(ctx)
+	return pc.client, nil
+}
+
+func (p *grpcConnPool) ledgerService(ctx context.Context) (suirpcv2.LedgerServiceClient, error) {
+	client, err := p.acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return client.LedgerService(ctx)
 }
 
 func (p *grpcConnPool) stateService(ctx context.Context) (suirpcv2.StateServiceClient, error) {
-	pc, err := p.next()
+	client, err := p.acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := pc.ensure(ctx); err != nil {
-		return nil, fmt.Errorf("failed to initialize gRPC connection: %w", err)
-	}
-	return pc.client.StateService(ctx)
+	return client.StateService(ctx)
 }
 
 func (p *grpcConnPool) transactionExecutionService(ctx context.Context) (suirpcv2.TransactionExecutionServiceClient, error) {
-	pc, err := p.next()
+	client, err := p.acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := pc.ensure(ctx); err != nil {
-		return nil, fmt.Errorf("failed to initialize gRPC connection: %w", err)
-	}
-	return pc.client.TransactionExecutionService(ctx)
+	return client.TransactionExecutionService(ctx)
 }
 
 func (p *grpcConnPool) movePackageService(ctx context.Context) (suirpcv2.MovePackageServiceClient, error) {
-	pc, err := p.next()
+	client, err := p.acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := pc.ensure(ctx); err != nil {
-		return nil, fmt.Errorf("failed to initialize gRPC connection: %w", err)
-	}
-	return pc.client.MovePackageService(ctx)
+	return client.MovePackageService(ctx)
 }
 
 func (p *grpcConnPool) Close() error {
