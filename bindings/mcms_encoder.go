@@ -20,7 +20,6 @@ import (
 	module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
 	module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
 	module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
-	module_usdc_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/usdc_token_pool"
 	module_managed_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/managed_token/managed_token"
 )
 
@@ -316,29 +315,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return encodeExecuteOwnershipTransferWithTypeArgs()
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
-			return encodeDefaultWithTypeArgsAndClock()
-		}
-
-	// USDC TOKEN POOL
-	case "usdc_token_pool":
-		usdcTokenPool, err := module_usdc_token_pool.NewUsdcTokenPool(target, nil)
-		if err != nil {
-			return nil, err
-		}
-		switch function {
-		case "accept_ownership":
-
-			return usdcTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
-		case "set_allowlist_enabled",
-			"apply_allowlist_updates",
-			"apply_chain_updates",
-			"add_remote_pool",
-			"remove_remote_pool",
-			"transfer_ownership":
-			return encodeDefaultWithTypeArgs()
-		case "execute_ownership_transfer":
-			return encodeExecuteOwnershipTransferWithTypeArgs()
-		case "set_chain_rate_limiter_configs", "set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
 		}
 

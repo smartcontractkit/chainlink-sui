@@ -177,7 +177,7 @@ jobs:
       - name: Install latest gomods and modgraph
         run: |
           nix develop -c go get -tool github.com/jmank88/gomods@latest github.com/jmank88/modgraph@latest
-
+      
       - name: Ensure modules are tidy
         run: |
           nix develop -c go tool gomods tidy

@@ -16,7 +16,6 @@ import (
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
-	usdctokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_usdc_token_pool"
 	managedtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/managed_token"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
@@ -40,7 +39,6 @@ type MCMSExecuteTransferOwnershipInput struct {
 	OffRamp                         bool   `json:"offramp,omitempty" yaml:"offramp,omitempty"`
 	Router                          bool   `json:"router,omitempty" yaml:"router,omitempty"`
 	ManagedToken                    bool   `json:"managed_token,omitempty" yaml:"managed_token,omitempty"`
-	UsdcTokenPool                   bool   `json:"usdc_token_pool,omitempty" yaml:"usdc_token_pool,omitempty"`
 	BurnMintTokenPoolTokenSymbol    string `json:"burn_mint_token_pool,omitempty" yaml:"burn_mint_token_pool,omitempty"`
 	LockReleaseTokenPoolTokenSymbol string `json:"lock_release_token_pool,omitempty" yaml:"lock_release_token_pool,omitempty"`
 	ManagedTokenPoolTokenSymbol     string `json:"managed_token_pool,omitempty" yaml:"managed_token_pool,omitempty"`
@@ -181,12 +179,6 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 		}
 	}
 
-	// TODO: not supported yet
-	if config.UsdcTokenPool {
-		input.UsdcTokenPool = &usdctokenpoolops.ExecuteOwnershipTransferToMcmsUsdcTokenPoolInput{}
-		return cldf.ChangesetOutput{}, fmt.Errorf("usdc token pool ownership transfer not implemented yet")
-	}
-
 	// Execute the sequence
 	_, err = cld_ops.ExecuteSequence(e.OperationsBundle, ownershipops.ExecuteOwnershipTransferToMcmsSequence, deps, input)
 	if err != nil {
@@ -204,7 +196,7 @@ func (d MCMSExecuteTransferOwnership) VerifyPreconditions(e cldf.Environment, co
 	// Check that at least one contract type is selected
 	if !config.MCMS && !config.StateObject && !config.OnRamp &&
 		!config.OffRamp && !config.Router && !config.ManagedToken &&
-		!config.UsdcTokenPool && config.LockReleaseTokenPoolTokenSymbol == "" &&
+		config.LockReleaseTokenPoolTokenSymbol == "" &&
 		config.ManagedTokenPoolTokenSymbol == "" && config.BurnMintTokenPoolTokenSymbol == "" {
 		return fmt.Errorf("at least one contract type must be selected for ownership transfer")
 	}
