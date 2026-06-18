@@ -40,7 +40,7 @@ const (
 	DefaultHTTPTimeout          time.Duration = 30 * time.Second
 	// DefaultReadOpTimeout caps a single read chain (transform + simulate). Prevents gRPC calls from
 	// outliving the CCIP config poller's 30s deadline when the node is overloaded.
-	DefaultReadOpTimeout time.Duration = 10 * time.Second
+	DefaultReadOpTimeout time.Duration = 30 * time.Second
 	// DefaultPackageIdCacheTTL caches resolved latest package IDs to avoid repeated heavy
 	// GetFunction/GetPackage/ListOwnedObjects chains under bursty config polling.
 	DefaultPackageIdCacheTTL time.Duration = 5 * time.Minute
