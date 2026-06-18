@@ -272,16 +272,18 @@ fun setup_with_mcms_ownership(): (Scenario, Registry, CCIPObjectRef) {
 fun test_mcms_add_allowed_modules_success() {
     let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
-    // Verify initial allowed modules (should have fee_quoter, rmn_remote, state_object, token_admin_registry)
+    // Verify initial allowed modules
     let initial_modules = mcms_registry::get_allowed_modules(
         &registry,
         address::to_ascii_string(@ccip),
     );
     assert!(initial_modules.contains(&b"fee_quoter"), 0);
     assert!(initial_modules.contains(&b"rmn_remote"), 1);
-    assert!(initial_modules.contains(&b"state_object"), 2);
-    assert!(initial_modules.contains(&b"token_admin_registry"), 3);
-    assert!(!initial_modules.contains(&b"nonce_manager"), 4); // Should not exist yet
+    assert!(initial_modules.contains(&b"receiver_registry"), 2);
+    assert!(initial_modules.contains(&b"state_object"), 3);
+    assert!(initial_modules.contains(&b"token_admin_registry"), 4);
+    assert!(initial_modules.contains(&b"upgrade_registry"), 5);
+    assert!(!initial_modules.contains(&b"nonce_manager"), 6); // Should not exist yet
 
     // Prepare data for mcms_add_allowed_modules
     // Data format: [registry_address][vector<vector<u8>> of module names]
