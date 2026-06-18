@@ -150,6 +150,19 @@ type PTBClient struct {
 	normalizedModules map[string]map[string]models.GetNormalizedMoveModuleResponse
 
 	cache *cache.Cache // used for caching object IDs (e.g. offramp state object ID or state pointers)
+
+	// objectCache, when set, de-duplicates and caches version-stable object reference metadata so the
+	// per-read GetObject fan-out does not hit the node on every read. It is injected via PTBClientConfig
+	// (the implementation lives in chainreader/reader, which imports this package, so it is referenced
+	// here only through the ObjectMetadataCache interface to avoid an import cycle). May be nil.
+	objectCache ObjectMetadataCache
+}
+
+// ObjectMetadataCache caches version-stable object reference metadata (owner/version/digest) to avoid
+// redundant GetObject RPCs on the read hot path. It is satisfied by chainreader/reader.ReaderCache and
+// supplied via PTBClientConfig.ObjectCache.
+type ObjectMetadataCache interface {
+	GetObjectMetadata(ctx context.Context, objectID string, loader func(context.Context) (*suirpcv2.Object, error)) (*suirpcv2.Object, error)
 }
 
 var _ SuiPTBClient = (*PTBClient)(nil)
@@ -380,8 +393,20 @@ func (c *PTBClient) readObjectIdInternal(ctx context.Context, objectId string) (
 // readObjectMetadataInternal fetches only the lightweight reference metadata of an object
 // (object_type, owner, version, digest) and intentionally omits the potentially large `contents`/`json`
 // fields. This is all that is needed to build a transaction ObjectArg, and avoids transferring/serializing
-// the full (and growing) object state on every read.
+// the full (and growing) object state on every read. When an objectCache is configured it is consulted
+// first (and concurrent reads of the same object are collapsed) so version-stable shared/immutable objects
+// are not re-fetched on every read.
 func (c *PTBClient) readObjectMetadataInternal(ctx context.Context, objectId string) (*suirpcv2.Object, error) {
+	if c.objectCache != nil {
+		return c.objectCache.GetObjectMetadata(ctx, objectId, func(ctx context.Context) (*suirpcv2.Object, error) {
+			return c.fetchObjectMetadata(ctx, objectId)
+		})
+	}
+	return c.fetchObjectMetadata(ctx, objectId)
+}
+
+// fetchObjectMetadata performs the actual GetObject RPC for an object's reference metadata.
+func (c *PTBClient) fetchObjectMetadata(ctx context.Context, objectId string) (*suirpcv2.Object, error) {
 	// #region agent log
 	metaStart := time.Now()
 	// #endregion

@@ -232,6 +232,7 @@ func TestTransactionsIndexer(t *testing.T) {
 		readerConfig,
 		db,
 		indexerInstance,
+		nil,
 	)
 	require.NoError(t, err)
 

@@ -48,7 +48,8 @@ type SuiRelayer struct {
 	txm            *txm.SuiTxm
 	balanceMonitor services.Service
 
-	indexer *indexer.Indexer
+	indexer     *indexer.Indexer
+	readerCache *chainreader.ReaderCache
 }
 
 var _ types.Relayer = &SuiRelayer{}
@@ -96,6 +97,11 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		TransactionRetentionSecs: *cfg.TransactionManager.TransactionRetentionSecs,
 	}
 
+	// One ReaderCache is shared by the read client (object-metadata caching) and the ChainReader (read-call
+	// caching) so each relayer instance stops re-fetching the same version-stable shared objects on every
+	// config-poll cycle.
+	readerCache := chainreader.NewReaderCache(loggerInstance, chainreader.DefaultReaderCacheConfig())
+
 	ptbClientConfig := client.PTBClientConfig{
 		GrpcTarget:            *nodeConfig.GrpcTarget,
 		GrpcToken:             *nodeConfig.GrpcToken,
@@ -103,6 +109,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		MaxConcurrentRequests: maxConcurrentRequests * 3,
 		KeystoreService:       keystore,
 		DefaultRequestType:    client.TransactionRequestType(requestType),
+		ObjectCache:           readerCache,
 	}
 
 	// Use config values instead of constants
@@ -209,6 +216,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		balanceMonitor: balanceMonitorService,
 		db:             db,
 		indexer:        indexerInstance,
+		readerCache:    readerCache,
 	}, nil
 }
 
@@ -312,7 +320,7 @@ func (r *SuiRelayer) NewContractReader(ctx context.Context, contractReaderConfig
 	}
 
 	// TODO: validate chainConfig
-	chainReader, err := chainreader.NewChainReader(ctx, r.lggr, r.client, chainConfig, r.db, r.indexer)
+	chainReader, err := chainreader.NewChainReader(ctx, r.lggr, r.client, chainConfig, r.db, r.indexer, r.readerCache)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractReader: %w", err)
 	}

@@ -552,7 +552,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	)
 
 	// ChainReader in non-loop mode
-	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
+	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance, nil)
 	require.NoError(t, err)
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding, onRampBinding, routerBinding, feeQuoterBinding})

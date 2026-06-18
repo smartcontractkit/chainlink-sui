@@ -80,6 +80,9 @@ type PTBClientConfig struct {
 	// MaxGrpcConnections is the size of the round-robin gRPC connection pool. Zero means use
 	// DefaultMaxGrpcConnections.
 	MaxGrpcConnections int
+	// ObjectCache, when set, caches version-stable object reference metadata to avoid redundant GetObject
+	// RPCs on the read hot path. Nil disables object-metadata caching.
+	ObjectCache        ObjectMetadataCache
 	DefaultRequestType TransactionRequestType
 }
 
@@ -138,5 +141,6 @@ func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient,
 		defaultRequestType: cfg.DefaultRequestType,
 		normalizedModules:  make(map[string]map[string]models.GetNormalizedMoveModuleResponse),
 		cache:              cache.New(DefaultCacheExpiration, DefaultCacheCleanupInterval),
+		objectCache:        cfg.ObjectCache,
 	}, nil
 }

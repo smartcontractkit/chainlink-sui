@@ -66,6 +66,7 @@ type suiChainReader struct {
 	client          *client.PTBClient
 	dbStore         *database.DBStore
 	indexer         indexer.IndexerApi
+	readerCache     *ReaderCache
 
 	// Cache of parent object IDs for pointer objects
 	// Key format: "{packageID}::{module}::{pointerName}"
@@ -95,6 +96,7 @@ func NewChainReader(
 	configs config.ChainReaderConfig,
 	db sqlutil.DataSource,
 	indexer indexer.IndexerApi,
+	readerCache *ReaderCache,
 ) (pkgtypes.ContractReader, error) {
 	dbStore := database.NewDBStore(db, lgr)
 
@@ -111,6 +113,7 @@ func NewChainReader(
 		packageResolver: crUtil.NewPackageResolver(lgr, ptbClient),
 		// indexers
 		indexer:         indexer,
+		readerCache:     readerCache,
 		parentObjectIDs: make(map[string]string),
 	}, nil
 }
@@ -422,7 +425,13 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		"function", parsed.readName,
 	)
 
-	results, err := s.callFunction(ctx, parsed, params, functionConfig)
+	// Route the devInspect read through the cache: concurrent identical reads are collapsed and, when read
+	// caching is enabled, the decoded result is reused for a short TTL. A nil readerCache (or disabled read
+	// cache) simply invokes callFunction directly. Decoding into returnVal stays per-call below.
+	readCacheKey := fmt.Sprintf("%s::%s::%s::%v", parsed.address, parsed.contractName, parsed.readName, params)
+	results, err := s.readerCache.GetReadResults(ctx, readCacheKey, func(ctx context.Context) ([]any, error) {
+		return s.callFunction(ctx, parsed, params, functionConfig)
+	})
 	if err != nil {
 		return err
 	}
