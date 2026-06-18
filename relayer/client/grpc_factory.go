@@ -25,6 +25,11 @@ const (
 	DefaultGrpcTimeout    = 30 * time.Second
 	DefaultGrpcRetryCount = 3
 	DefaultGrpcMaxMsgSize = 20 * 1024 * 1024
+
+	// DefaultMaxGrpcConnections is the number of independent gRPC connections each client opens to the
+	// node. Spreading RPCs round-robin across several connections multiplies the available concurrent
+	// HTTP/2 streams so a single connection's stream limit does not throttle bursty reads.
+	DefaultMaxGrpcConnections = 8
 )
 
 // GrpcClientConfig holds configuration for a Sui gRPC client connection.
@@ -72,7 +77,10 @@ type PTBClientConfig struct {
 	TransactionTimeout    time.Duration
 	KeystoreService       loop.Keystore
 	MaxConcurrentRequests int64
-	DefaultRequestType    TransactionRequestType
+	// MaxGrpcConnections is the size of the round-robin gRPC connection pool. Zero means use
+	// DefaultMaxGrpcConnections.
+	MaxGrpcConnections int
+	DefaultRequestType TransactionRequestType
 }
 
 func (cfg PTBClientConfig) grpcEnabled() bool {
@@ -89,13 +97,20 @@ func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient,
 		maxConcurrentRequests = 500
 	}
 
-	var grpcClient *grpcconn.SuiGrpcClient
+	maxGrpcConnections := cfg.MaxGrpcConnections
+	if maxGrpcConnections <= 0 {
+		maxGrpcConnections = DefaultMaxGrpcConnections
+	}
+
+	var connPool *grpcConnPool
 	var moveModuleClient sui.ISuiAPI
 	if cfg.grpcEnabled() {
-		log.Infow("Initializing Sui gRPC client", "target", cfg.GrpcTarget)
+		log.Infow("Initializing Sui gRPC client", "target", cfg.GrpcTarget, "connections", maxGrpcConnections)
 		grpcConfig := DefaultGrpcConfig(cfg.GrpcTarget, cfg.GrpcToken)
 		grpcConfig.UseTLS = false
-		grpcClient = NewSuiGrpcClient(grpcConfig)
+		connPool = newGrpcConnPool(maxGrpcConnections, func() *grpcconn.SuiGrpcClient {
+			return NewSuiGrpcClient(grpcConfig)
+		})
 		moveModuleClient = sui.NewSuiClientWithCustomClient(
 			"http://"+cfg.GrpcTarget,
 			&http.Client{Timeout: cfg.TransactionTimeout},
@@ -105,16 +120,17 @@ func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient,
 	}
 
 	log.Infof(
-		"PTBClient config transactionTimeout: %s, maxConcurrentRequests: %d, grpcEnabled: %t",
+		"PTBClient config transactionTimeout: %s, maxConcurrentRequests: %d, grpcConnections: %d, grpcEnabled: %t",
 		cfg.TransactionTimeout,
 		maxConcurrentRequests,
+		maxGrpcConnections,
 		cfg.grpcEnabled(),
 	)
 
 	return &PTBClient{
 		log:                log,
 		moveModuleClient:   moveModuleClient,
-		grpcClient:         grpcClient,
+		connPool:           connPool,
 		maxRetries:         cfg.MaxRetries,
 		transactionTimeout: cfg.TransactionTimeout,
 		keystoreService:    cfg.KeystoreService,

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -40,6 +41,20 @@ const (
 	offrampName         = "OffRamp"
 	ccipPointerKey      = "state_object::CCIPObjectRefPointer"
 )
+
+// #region agent log
+// ctxErrStr returns the context error string (e.g. deadline exceeded) for session 39639b debugging.
+func ctxErrStr(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if err := ctx.Err(); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+// #endregion
 
 type suiChainReader struct {
 	pkgtypes.UnimplementedContractReader
@@ -546,6 +561,31 @@ func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgt
 func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgtypes.BatchGetLatestValuesRequest) (pkgtypes.BatchGetLatestValuesResult, error) {
 	result := make(pkgtypes.BatchGetLatestValuesResult)
 
+	// #region agent log
+	// Confirms the batch shape (contracts iterated sequentially, reads per contract concurrent) and
+	// whether the overall batch trips the caller's 30s deadline (the merkle-root-blocking failure).
+	batchStart := time.Now()
+	totalReads := 0
+	contractCount := 0
+	readNames := make([]string, 0)
+	for contract, batch := range request {
+		contractCount++
+		totalReads += len(batch)
+		for _, r := range batch {
+			readNames = append(readNames, contract.Name+"."+r.ReadName)
+		}
+	}
+	defer func() {
+		common.DebugLog("chainreader.go:BatchGetLatestValues", "batch completed", map[string]any{
+			"contracts": contractCount,
+			"reads":     totalReads,
+			"readNames": readNames,
+			"totalSec":  time.Since(batchStart).Seconds(),
+			"ctxErr":    ctxErrStr(ctx),
+		})
+	}()
+	// #endregion
+
 	for contract, batch := range request {
 		batchResults := make(pkgtypes.ContractBatchResults, len(batch))
 		resultChan := make(chan struct {
@@ -989,7 +1029,13 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 
 	// Override the package ID with the latest package ID of the module being called.
 	// This ensure we are always using the latestPkgID in case of upgrades.
+	// #region agent log
+	execFnStart := time.Now()
+	// #endregion
 	latestPackageId, err := s.client.GetLatestPackageId(ctx, parsed.address, common.GetModuleForContract(parsed.contractName))
+	// #region agent log
+	pkgIDDur := time.Since(execFnStart)
+	// #endregion
 	if err != nil {
 		return []any{}, err
 	}
@@ -1010,7 +1056,26 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 		}
 	}
 
+	// #region agent log
+	readFnStart := time.Now()
+	// #endregion
 	values, err := s.client.ReadFunction(ctx, parsed.address, parsed.contractName, parsed.readName, args, argTypes, typeArgs)
+	// #region agent log
+	// H1/H2/H4: per-read breakdown of where time goes (package-id resolution vs the simulate read).
+	readFnDur := time.Since(readFnStart)
+	totalDur := time.Since(execFnStart)
+	if totalDur > 2*time.Second {
+		common.DebugLog("chainreader.go:executeFunction", "slow read", map[string]any{
+			"hypothesisId":    "H1H2H4",
+			"contract":        parsed.contractName,
+			"method":          parsed.readName,
+			"getPkgIdSec":     pkgIDDur.Seconds(),
+			"readFunctionSec": readFnDur.Seconds(),
+			"totalSec":        totalDur.Seconds(),
+			"ctxErr":          ctxErrStr(ctx),
+		})
+	}
+	// #endregion
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
 			"error", err,

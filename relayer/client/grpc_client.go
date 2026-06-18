@@ -10,11 +10,10 @@ import (
 	"math/big"
 	"slices"
 	"strings"
-	"sync"
+	"sync/atomic" // #region agent log // #endregion
 	"testing"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/common/grpcconn"
 	"github.com/block-vision/sui-go-sdk/models"
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/signer"
@@ -129,14 +128,12 @@ type SuiPTBClient interface {
 // During the gRPC migration, JSON-RPC (client) and gRPC (grpcClient) coexist:
 // migrated methods use gRPC service accessors; others continue via JSON-RPC.
 type PTBClient struct {
-	log                logger.Logger
-	moveModuleClient   sui.ISuiAPI // internal JSON-RPC client for unmigrated read APIs
-	grpcClient         *grpcconn.SuiGrpcClient
-	grpcServicesMu     sync.Mutex
-	ledgerService      suirpcv2.LedgerServiceClient
-	stateService       suirpcv2.StateServiceClient
-	txExecService      suirpcv2.TransactionExecutionServiceClient
-	movePkgService     suirpcv2.MovePackageServiceClient
+	log              logger.Logger
+	moveModuleClient sui.ISuiAPI // internal JSON-RPC client for unmigrated read APIs
+	// connPool holds one or more independent gRPC connections to the node, handed out round-robin by the
+	// service getters. Using several connections multiplies the available concurrent HTTP/2 streams so a
+	// single connection's stream limit does not become a head-of-line bottleneck under bursty reads.
+	connPool           *grpcConnPool
 	maxRetries         *int
 	transactionTimeout time.Duration
 	keystoreService    loop.Keystore
@@ -179,12 +176,28 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 	if err := c.rateLimiter.Acquire(workCtx, weight); err != nil {
 		duration := time.Since(timer)
 		c.log.Debugw("WithRateLimit failed to acquire rate limit", "methodName", methodName, "duration", duration)
+		// #region agent log
+		common.DebugLog("grpc_client.go:WithRateLimit", "acquire failed", map[string]any{
+			"hypothesisId": "H3", "methodName": methodName,
+			"acquireWaitSec": time.Since(timer).Seconds(),
+			"inUse":          atomic.LoadInt64(&debugSemInUse),
+		})
+		// #endregion
 		return fmt.Errorf("failed to acquire rate limit for %s: %w", methodName, err)
 	}
+
+	// #region agent log
+	acquireWait := time.Since(timer)
+	atomic.AddInt64(&debugSemInUse, weight)
+	execStart := time.Now()
+	// #endregion
 
 	// ensure cleanup on exit
 	defer func() {
 		c.rateLimiter.Release(weight)
+		// #region agent log
+		atomic.AddInt64(&debugSemInUse, -weight)
+		// #endregion
 	}()
 
 	// run the user function with the timeout context
@@ -192,8 +205,47 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 	err := f(workCtx)
 	duration := time.Since(timer)
 	c.log.Debugw("WithRateLimit completed", "methodName", methodName, "duration", duration)
+	// #region agent log
+	// H3: distinguish time spent waiting on the semaphore vs running the RPC.
+	if duration > 2*time.Second || acquireWait > 500*time.Millisecond {
+		common.DebugLog("grpc_client.go:WithRateLimit", "slow rate-limited call", map[string]any{
+			"hypothesisId":   "H3",
+			"methodName":     methodName,
+			"acquireWaitSec": acquireWait.Seconds(),
+			"execSec":        time.Since(execStart).Seconds(),
+			"totalSec":       duration.Seconds(),
+			"semInUse":       atomic.LoadInt64(&debugSemInUse),
+			"ctxErr":         ctxErrString(ctx),
+		})
+	}
+	// #endregion
 	return err
 }
+
+// #region agent log
+// debugSemInUse tracks the approximate number of weighted units currently held by WithRateLimit
+// (i.e. concurrent in-flight rate-limited operations). Session 39639b instrumentation only.
+var debugSemInUse int64
+
+// debugSimInflight tracks the number of SimulateTransaction RPCs currently in flight to the
+// single shared gRPC connection / local Sui node. Session 39639b instrumentation only.
+var debugSimInflight int64
+
+// debugReadInflight tracks the number of readFunctionInternal chains currently in flight (covers the
+// whole transform+build+simulate pipeline, not just the simulate RPC). Session 39639b instrumentation.
+var debugReadInflight int64
+
+func ctxErrString(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if err := ctx.Err(); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+// #endregion
 
 // MoveCall is a method that's used primarily in tests for adhoc contract calls.
 // It simply builds the transaction bytes and returns them.
@@ -314,6 +366,65 @@ func (c *PTBClient) readObjectIdInternal(ctx context.Context, objectId string) (
 	response, err := ledgerService.GetObject(ctx, &objectReq)
 	if err != nil || response.Object == nil {
 		return nil, fmt.Errorf("failed to read object: %w", err)
+	}
+
+	return response.Object, nil
+}
+
+// readObjectMetadataInternal fetches only the lightweight reference metadata of an object
+// (object_type, owner, version, digest) and intentionally omits the potentially large `contents`/`json`
+// fields. This is all that is needed to build a transaction ObjectArg, and avoids transferring/serializing
+// the full (and growing) object state on every read.
+func (c *PTBClient) readObjectMetadataInternal(ctx context.Context, objectId string) (*suirpcv2.Object, error) {
+	// #region agent log
+	// H9/H10: locate the missing time. svcSec = getLedgerService (grpcServicesMu mutex), acquireSec =
+	// node read limiter, rpcSec = pure GetObject. Log full breakdown on ALL paths when total is slow.
+	metaStart := time.Now()
+	// #endregion
+	ledgerService, err := c.getLedgerService(ctx)
+	// #region agent log
+	svcSec := time.Since(metaStart)
+	// #endregion
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ledger service: %w", err)
+	}
+
+	objectReq := suirpcv2.GetObjectRequest{
+		ObjectId: &objectId,
+		ReadMask: &fieldmaskpb.FieldMask{
+			Paths: []string{
+				"object_type",
+				"owner",
+				"version",
+				"digest",
+			},
+		},
+	}
+
+	// #region agent log
+	rpcStart := time.Now()
+	// #endregion
+	response, err := ledgerService.GetObject(ctx, &objectReq)
+	// #region agent log
+	rpcSec := time.Since(rpcStart)
+	if time.Since(metaStart) > 2*time.Second {
+		objType := ""
+		if response != nil && response.Object != nil {
+			objType = response.Object.GetObjectType()
+		}
+		common.DebugLog("grpc_client.go:readObjectMetadataInternal", "metadata read breakdown", map[string]any{
+			"hypothesisId": "POOL",
+			"objectId":     objectId,
+			"objectType":   objType,
+			"svcSec":       svcSec.Seconds(),
+			"rpcSec":       rpcSec.Seconds(),
+			"totalSec":     time.Since(metaStart).Seconds(),
+			"err":          err != nil,
+		})
+	}
+	// #endregion
+	if err != nil || response.Object == nil {
+		return nil, fmt.Errorf("failed to read object metadata: %w", err)
 	}
 
 	return response.Object, nil
@@ -481,10 +592,22 @@ func (c *PTBClient) ReadFunction(ctx context.Context, packageId string, module s
 
 // readFunctionInternal is the internal implementation without rate limiting
 func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+	// #region agent log
+	// RUN2: break down where readFunctionInternal spends time (transform vs build vs simulate) and
+	// track the TRUE aggregate number of read RPC chains in flight per process (covers slow reads that
+	// never reach simulatePTBInternal, e.g. blocked in arg/object-ref transform).
+	readInflight := atomic.AddInt64(&debugReadInflight, 1)
+	defer atomic.AddInt64(&debugReadInflight, -1)
+	rfStart := time.Now()
+	var svcDur, typeArgDur, transformDur, buildDur, simDur time.Duration
+	// #endregion
 	txExecService, err := c.getTransactionExecutionService(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction execution service: %w", err)
 	}
+	// #region agent log
+	svcDur = time.Since(rfStart)
+	// #endregion
 
 	var results []any
 	txn := transaction.NewTransaction()
@@ -493,6 +616,9 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 	var txnTypeArgs []transaction.TypeTag
 
 	// Process type arguments
+	// #region agent log
+	typeArgStart := time.Now()
+	// #endregion
 	for _, typeArg := range typeArgs {
 		typeTag, typeTagErr := c.CreateTypeTag(typeArg)
 		if typeTagErr != nil {
@@ -500,6 +626,10 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 		}
 		txnTypeArgs = append(txnTypeArgs, typeTag)
 	}
+	// #region agent log
+	typeArgDur = time.Since(typeArgStart)
+	transformStart := time.Now()
+	// #endregion
 
 	for i, arg := range args {
 		argType, ok := common.ValueAt(argTypes, i)
@@ -513,6 +643,9 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 		}
 		txnArgs = append(txnArgs, *txArg)
 	}
+	// #region agent log
+	transformDur = time.Since(transformStart)
+	// #endregion
 
 	// TODO: use a "read-only" signer for this operation instead of creating a new one
 	// each time, it can be empty since gas selection is disabled
@@ -529,12 +662,42 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 	txn.MoveCall(models.SuiAddress(packageId), module, function, txnTypeArgs, txnArgs)
 
 	// Get transaction bytes
+	// #region agent log
+	buildStart := time.Now()
+	// #endregion
 	bcsBytes, err := txn.BuildBCSBytes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build bcs bytes: %w", err)
 	}
+	// #region agent log
+	buildDur = time.Since(buildStart)
+	simStart := time.Now()
+	// #endregion
 
 	results, err = c.simulatePTBInternal(ctx, txExecService, bcsBytes)
+	// #region agent log
+	simDur = time.Since(simStart)
+	totalDur := time.Since(rfStart)
+	if totalDur > 3*time.Second {
+		common.DebugLog("grpc_client.go:readFunctionInternal", "slow read breakdown", map[string]any{
+			"hypothesisId": "RUN2",
+			"module":       module,
+			"function":     function,
+			"numArgs":      len(args),
+			"numTypeArgs":  len(typeArgs),
+			"getSvcSec":    svcDur.Seconds(),
+			"typeArgSec":   typeArgDur.Seconds(),
+			"transformSec": transformDur.Seconds(),
+			"buildSec":     buildDur.Seconds(),
+			"simulateSec":  simDur.Seconds(),
+			"totalSec":     totalDur.Seconds(),
+			"readInflight": atomic.LoadInt64(&debugReadInflight),
+			"simInflight":  atomic.LoadInt64(&debugSimInflight),
+			"readPeak":     readInflight,
+			"ctxErr":       ctxErrString(ctx),
+		})
+	}
+	// #endregion
 	if err != nil {
 		return nil, err
 	}
@@ -562,10 +725,29 @@ func (c *PTBClient) SimulatePTB(ctx context.Context, bcsBytes []byte) ([]any, er
 
 func (c *PTBClient) simulatePTBInternal(ctx context.Context, txExecService suirpcv2.TransactionExecutionServiceClient, bcsBytes []byte) ([]any, error) {
 	doGasSelection := false
+
+	// #region agent log
+	// H1: measure the raw SimulateTransaction RPC latency and the number of simulate calls
+	// concurrently hitting the single gRPC connection / local Sui node.
+	inflight := atomic.AddInt64(&debugSimInflight, 1)
+	simStart := time.Now()
+	defer atomic.AddInt64(&debugSimInflight, -1)
+	// #endregion
 	response, err := txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
 		Transaction:    &suirpcv2.Transaction{Bcs: &suirpcv2.Bcs{Value: bcsBytes}},
 		DoGasSelection: &doGasSelection,
 	})
+	// #region agent log
+	simDur := time.Since(simStart)
+	if simDur > time.Second {
+		common.DebugLog("grpc_client.go:simulatePTBInternal", "slow SimulateTransaction RPC", map[string]any{
+			"hypothesisId":    "H1",
+			"simSec":          simDur.Seconds(),
+			"simInflightPeak": inflight,
+			"simErr":          err != nil,
+		})
+	}
+	// #endregion
 	if err != nil {
 		return nil, fmt.Errorf("failed to simulate transaction: %w", err)
 	}
@@ -1272,10 +1454,20 @@ func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, mo
 	cacheKey := "latest_pkg_id_fetch:" + packageId + ":" + module
 	if cachedID, found := c.cache.Get(cacheKey); found {
 		if id, ok := cachedID.(string); ok {
+			// #region agent log
+			// H2: count cache hits to gauge thundering-herd severity vs misses below.
+			atomic.AddInt64(&debugPkgIDCacheHits, 1)
+			// #endregion
 			return id, nil
 		}
 	}
 
+	// #region agent log
+	// H2: a cache miss triggers GetFunction+GetPackage+ListOwnedObjects (~3-4 RPC). When many reads
+	// miss simultaneously (10s TTL expiry) this multiplies the RPC load in bursts.
+	missStart := time.Now()
+	missCount := atomic.AddInt64(&debugPkgIDCacheMisses, 1)
+	// #endregion
 	var result string
 	err := c.WithRateLimit(ctx, "GetLatestPackageId", func(ctx context.Context) error {
 		var err error
@@ -1283,12 +1475,32 @@ func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, mo
 
 		// set the cache to be a very low TTL (few seconds) simply to reduce
 		// the risk of stale data but still relieve pressure on the RPC server
-		c.cache.Set(cacheKey, result, 10*time.Second)
+		c.cache.Set(cacheKey, result, 60*time.Second)
 
 		return err
 	})
+	// #region agent log
+	common.DebugLog("grpc_client.go:GetLatestPackageId", "package id cache MISS", map[string]any{
+		"hypothesisId": "H2",
+		"module":       module,
+		"missSec":      time.Since(missStart).Seconds(),
+		"totalMisses":  missCount,
+		"totalHits":    atomic.LoadInt64(&debugPkgIDCacheHits),
+		"simInflight":  atomic.LoadInt64(&debugSimInflight),
+		"err":          err != nil,
+	})
+	// #endregion
 	return result, err
 }
+
+// #region agent log
+// Session 39639b: GetLatestPackageId cache hit/miss counters (H2 thundering-herd measurement).
+var (
+	debugPkgIDCacheHits   int64
+	debugPkgIDCacheMisses int64
+)
+
+// #endregion
 
 // getLatestPackageIdInternal is the internal implementation without rate limiting
 func (c *PTBClient) getLatestPackageIdInternal(ctx context.Context, packageId string, module string) (string, error) {

@@ -4,31 +4,141 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"sync/atomic"
 
 	"github.com/block-vision/sui-go-sdk/common/grpcconn"
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 )
 
-// Close closes the underlying gRPC connection
-func (c *PTBClient) Close() error {
-	if c.grpcClient == nil {
-		return nil
-	}
-
-	c.grpcServicesMu.Lock()
-	defer c.grpcServicesMu.Unlock()
-
-	c.ledgerService = nil
-	c.stateService = nil
-	c.txExecService = nil
-	c.movePkgService = nil
-
-	err := c.grpcClient.Close()
-	c.grpcClient = nil
-	return err
+// pooledConn wraps a single Sui gRPC connection with a one-time, race-free initialization. The Sui SDK's
+// SuiGrpcClient lazily (and non-atomically) creates its service stubs on first use, so we drive that
+// initialization exactly once via sync.Once. After initialization the cached stubs are read-only, which
+// makes the per-call service getters lock-free on the hot path.
+type pooledConn struct {
+	client  *grpcconn.SuiGrpcClient
+	once    sync.Once
+	initErr error
 }
 
-// HealthCheckGrpc verifies the gRPC connection by calling LedgerService.GetServiceInfo.
+func (pc *pooledConn) ensure(ctx context.Context) error {
+	pc.once.Do(func() {
+		pc.initErr = pc.client.Connect(ctx)
+	})
+	return pc.initErr
+}
+
+// grpcConnPool holds several independent Sui gRPC connections and hands them out round-robin. Each
+// connection is a separate HTTP/2 connection to the node, so spreading calls across the pool multiplies
+// the number of concurrent in-flight streams available to the node and avoids a single connection's
+// MaxConcurrentStreams becoming a head-of-line bottleneck under bursty CCIP read load.
+type grpcConnPool struct {
+	conns []*pooledConn
+	idx   uint64
+}
+
+// newGrpcConnPool builds a pool of `size` connections using the provided factory. size < 1 is treated as 1.
+func newGrpcConnPool(size int, factory func() *grpcconn.SuiGrpcClient) *grpcConnPool {
+	if size < 1 {
+		size = 1
+	}
+	conns := make([]*pooledConn, size)
+	for i := range conns {
+		conns[i] = &pooledConn{client: factory()}
+	}
+	return &grpcConnPool{conns: conns}
+}
+
+// Size returns the number of connections in the pool.
+func (p *grpcConnPool) Size() int {
+	if p == nil {
+		return 0
+	}
+	return len(p.conns)
+}
+
+// next returns the next connection in round-robin order.
+func (p *grpcConnPool) next() (*pooledConn, error) {
+	if p == nil || len(p.conns) == 0 {
+		return nil, errors.New("gRPC connection pool is not configured")
+	}
+	if len(p.conns) == 1 {
+		return p.conns[0], nil
+	}
+	n := atomic.AddUint64(&p.idx, 1)
+	//nolint:gosec // G115: modulo keeps the index within bounds
+	return p.conns[n%uint64(len(p.conns))], nil
+}
+
+func (p *grpcConnPool) ledgerService(ctx context.Context) (suirpcv2.LedgerServiceClient, error) {
+	pc, err := p.next()
+	if err != nil {
+		return nil, err
+	}
+	if err := pc.ensure(ctx); err != nil {
+		return nil, fmt.Errorf("failed to initialize gRPC connection: %w", err)
+	}
+	return pc.client.LedgerService(ctx)
+}
+
+func (p *grpcConnPool) stateService(ctx context.Context) (suirpcv2.StateServiceClient, error) {
+	pc, err := p.next()
+	if err != nil {
+		return nil, err
+	}
+	if err := pc.ensure(ctx); err != nil {
+		return nil, fmt.Errorf("failed to initialize gRPC connection: %w", err)
+	}
+	return pc.client.StateService(ctx)
+}
+
+func (p *grpcConnPool) transactionExecutionService(ctx context.Context) (suirpcv2.TransactionExecutionServiceClient, error) {
+	pc, err := p.next()
+	if err != nil {
+		return nil, err
+	}
+	if err := pc.ensure(ctx); err != nil {
+		return nil, fmt.Errorf("failed to initialize gRPC connection: %w", err)
+	}
+	return pc.client.TransactionExecutionService(ctx)
+}
+
+func (p *grpcConnPool) movePackageService(ctx context.Context) (suirpcv2.MovePackageServiceClient, error) {
+	pc, err := p.next()
+	if err != nil {
+		return nil, err
+	}
+	if err := pc.ensure(ctx); err != nil {
+		return nil, fmt.Errorf("failed to initialize gRPC connection: %w", err)
+	}
+	return pc.client.MovePackageService(ctx)
+}
+
+func (p *grpcConnPool) Close() error {
+	if p == nil {
+		return nil
+	}
+	var closeErr error
+	for _, pc := range p.conns {
+		if pc == nil || pc.client == nil {
+			continue
+		}
+		if err := pc.client.Close(); err != nil {
+			closeErr = errors.Join(closeErr, err)
+		}
+	}
+	return closeErr
+}
+
+// Close closes all underlying gRPC connections in the pool.
+func (c *PTBClient) Close() error {
+	if c.connPool == nil {
+		return nil
+	}
+	return c.connPool.Close()
+}
+
+// HealthCheckGrpc verifies gRPC connectivity by calling LedgerService.GetServiceInfo on a pooled connection.
 func (c *PTBClient) HealthCheckGrpc(ctx context.Context) (chainID string, err error) {
 	service, err := c.getLedgerService(ctx)
 	if err != nil {
@@ -65,101 +175,34 @@ func (c *PTBClient) VerifyGrpcServices(ctx context.Context) error {
 	return nil
 }
 
-func (c *PTBClient) requireGrpcClient() (*grpcconn.SuiGrpcClient, error) {
-	if c.grpcClient == nil {
+// getLedgerService returns a LedgerService client from the next pooled connection.
+func (c *PTBClient) getLedgerService(ctx context.Context) (suirpcv2.LedgerServiceClient, error) {
+	if c.connPool == nil {
 		return nil, errors.New("gRPC client is not configured")
 	}
-	return c.grpcClient, nil
+	return c.connPool.ledgerService(ctx)
 }
 
-// getLedgerService returns the LedgerService client, lazily initializing on first use.
-func (c *PTBClient) getLedgerService(ctx context.Context) (suirpcv2.LedgerServiceClient, error) {
-	c.grpcServicesMu.Lock()
-	defer c.grpcServicesMu.Unlock()
-
-	if c.ledgerService != nil {
-		return c.ledgerService, nil
-	}
-
-	grpcClient, err := c.requireGrpcClient()
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := grpcClient.LedgerService(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ledger service: %w", err)
-	}
-
-	c.ledgerService = service
-	return service, nil
-}
-
-// getStateService returns the StateService client, lazily initializing on first use.
+// getStateService returns a StateService client from the next pooled connection.
 func (c *PTBClient) getStateService(ctx context.Context) (suirpcv2.StateServiceClient, error) {
-	c.grpcServicesMu.Lock()
-	defer c.grpcServicesMu.Unlock()
-
-	if c.stateService != nil {
-		return c.stateService, nil
+	if c.connPool == nil {
+		return nil, errors.New("gRPC client is not configured")
 	}
-
-	grpcClient, err := c.requireGrpcClient()
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := grpcClient.StateService(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get state service: %w", err)
-	}
-
-	c.stateService = service
-	return service, nil
+	return c.connPool.stateService(ctx)
 }
 
-// getTransactionExecutionService returns the TransactionExecutionService client.
+// getTransactionExecutionService returns a TransactionExecutionService client from the next pooled connection.
 func (c *PTBClient) getTransactionExecutionService(ctx context.Context) (suirpcv2.TransactionExecutionServiceClient, error) {
-	c.grpcServicesMu.Lock()
-	defer c.grpcServicesMu.Unlock()
-
-	if c.txExecService != nil {
-		return c.txExecService, nil
+	if c.connPool == nil {
+		return nil, errors.New("gRPC client is not configured")
 	}
-
-	grpcClient, err := c.requireGrpcClient()
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := grpcClient.TransactionExecutionService(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get transaction execution service: %w", err)
-	}
-
-	c.txExecService = service
-	return service, nil
+	return c.connPool.transactionExecutionService(ctx)
 }
 
-// getMovePackageService returns the MovePackageService client.
+// getMovePackageService returns a MovePackageService client from the next pooled connection.
 func (c *PTBClient) getMovePackageService(ctx context.Context) (suirpcv2.MovePackageServiceClient, error) {
-	c.grpcServicesMu.Lock()
-	defer c.grpcServicesMu.Unlock()
-
-	if c.movePkgService != nil {
-		return c.movePkgService, nil
+	if c.connPool == nil {
+		return nil, errors.New("gRPC client is not configured")
 	}
-
-	grpcClient, err := c.requireGrpcClient()
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := grpcClient.MovePackageService(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get move package service: %w", err)
-	}
-
-	c.movePkgService = service
-	return service, nil
+	return c.connPool.movePackageService(ctx)
 }
