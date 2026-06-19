@@ -88,7 +88,7 @@ func (s *loopChainReader) BatchGetLatestValues(ctx context.Context, request type
 			}
 			convertedBatch = append(convertedBatch, types.BatchRead{
 				ReadName:  read.ReadName,
-				Params:    &jsonParamBytes,
+				Params:    jsonParamBytes,
 				ReturnVal: &[]byte{},
 			})
 		}

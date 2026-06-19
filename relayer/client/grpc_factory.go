@@ -1,11 +1,14 @@
 package client
 
 import (
+	"crypto/rand"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/common/grpcconn"
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/semaphore"
@@ -130,6 +133,14 @@ func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient,
 		cfg.grpcEnabled(),
 	)
 
+	// TODO: use a "read-only" signer for this operation instead of creating a new one
+	// each time, it can be empty since gas selection is disabled
+	seed := make([]byte, 32)
+	if _, seedErr := rand.Read(seed); seedErr != nil {
+		return nil, fmt.Errorf("failed to generate random seed: %w", seedErr)
+	}
+	devInspectSigner := signer.NewSigner(seed)
+
 	return &PTBClient{
 		log:                log,
 		moveModuleClient:   moveModuleClient,
@@ -137,6 +148,7 @@ func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient,
 		maxRetries:         cfg.MaxRetries,
 		transactionTimeout: cfg.TransactionTimeout,
 		keystoreService:    cfg.KeystoreService,
+		devInspectSigner:   devInspectSigner,
 		rateLimiter:        semaphore.NewWeighted(maxConcurrentRequests),
 		defaultRequestType: cfg.DefaultRequestType,
 		normalizedModules:  make(map[string]map[string]models.GetNormalizedMoveModuleResponse),

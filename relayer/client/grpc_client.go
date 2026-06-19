@@ -3,7 +3,6 @@ package client
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -145,6 +144,7 @@ type PTBClient struct {
 	keystoreService    loop.Keystore
 	rateLimiter        *semaphore.Weighted
 	defaultRequestType TransactionRequestType
+	devInspectSigner   *signer.Signer
 
 	// map of module name to normalized module definition (similar to an ABI)
 	normalizedModules map[string]map[string]models.GetNormalizedMoveModuleResponse
@@ -693,16 +693,10 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 	transformDur = time.Since(transformStart)
 	// #endregion
 
-	// TODO: use a "read-only" signer for this operation instead of creating a new one
-	// each time, it can be empty since gas selection is disabled
-	seed := make([]byte, 32)
-	if _, seedErr := rand.Read(seed); seedErr != nil {
-		return nil, fmt.Errorf("failed to generate random seed: %w", seedErr)
-	}
-	devInspectSigner := signer.NewSigner(seed)
-	txn.SetSigner(devInspectSigner)
+	// set a read-only (no funds) signer for read (simulate) calls
+	txn.SetSigner(c.devInspectSigner)
+	txn.SetSender(models.SuiAddress(c.devInspectSigner.Address))
 
-	txn.SetSender(models.SuiAddress(devInspectSigner.Address))
 	txn.SetGasBudget(DefaultGasBudget)
 	txn.SetGasPrice(DefaultGasPrice)
 	txn.MoveCall(models.SuiAddress(packageId), module, function, txnTypeArgs, txnArgs)

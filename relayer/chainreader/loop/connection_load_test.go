@@ -44,10 +44,10 @@ type mockRPCNode struct {
 	maxInFlight int64
 	totalCalls  int64
 
-	getObjectCalls          int64
-	simulateCalls           int64
-	listOwnedObjectsCalls   int64
-	getEpochCalls           int64
+	getObjectCalls        int64
+	simulateCalls         int64
+	listOwnedObjectsCalls int64
+	getEpochCalls         int64
 
 	// pathSem models a shared transport choke that sits BETWEEN the client and the node and is shared
 	// across every gRPC connection — e.g. Docker Desktop's userland proxy / VM network gateway on macOS,
@@ -786,10 +786,10 @@ func TestSharedTransportChokeIsPoolInvariant(t *testing.T) {
 
 	const (
 		streamLimit     = uint32(256) // high on purpose: not the binding constraint here
-		sharedPathLimit = 4           // the Docker proxy / VM gateway: shared across ALL connections
+		sharedPathLimit = 4
 		latency         = 150 * time.Millisecond
-		batchDeadline   = 3 * time.Second
-		batchCount      = 10
+		batchDeadline   = 10 * time.Second
+		batchCount      = 100
 	)
 
 	scenario := func(poolSize int, name string) ccipLoadScenario {
@@ -809,7 +809,7 @@ func TestSharedTransportChokeIsPoolInvariant(t *testing.T) {
 		}
 	}
 
-	poolSizes := []int{1, 8, 32}
+	poolSizes := []int{1, 8, 32, 64, 128}
 	results := make([]ccipLoadResult, len(poolSizes))
 	for i, ps := range poolSizes {
 		results[i] = runCCIPMixedLoadScenario(t, scenario(ps, fmt.Sprintf("path-choke-pool-%d", ps)))
