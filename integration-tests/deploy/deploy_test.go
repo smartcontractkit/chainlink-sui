@@ -200,10 +200,10 @@ func (s *DeployTestSuite) DeployLinkBurnMintTokenPool() {
 		TokenPoolTypes:   []deployment.TokenPoolType{deployment.TokenPoolTypeBurnMint},
 		BurnMintTpInput: burnminttokenpoolops.DeployAndInitBurnMintTokenPoolInput{
 			BurnMintTokenPoolDeployInput: burnminttokenpoolops.BurnMintTokenPoolDeployInput{
-				CCIPPackageId:     s.ccipPackageID,
-				MCMSAddress:       s.mcmsPackageID,
-				FastMcmsAddress:   s.fastMcmsPackageID,
-				MCMSOwnerAddress:  s.deployerAddr,
+				CCIPPackageId:    s.ccipPackageID,
+				MCMSAddress:      s.mcmsPackageID,
+				FastMcmsAddress:  s.fastMcmsPackageID,
+				MCMSOwnerAddress: s.deployerAddr,
 			},
 			CoinObjectTypeArg:      coinTypeArg,
 			CCIPObjectRefObjectId:  s.ccipObjectRef,

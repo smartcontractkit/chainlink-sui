@@ -2732,17 +2732,17 @@ func TestDeserializeExecutionReport_RejectsOversizedVectorLength(t *testing.T) {
 		}
 	}
 
-	u64(1)       // sourceChainSelector
-	fixed32()    // messageID
-	u64(1)       // headerSourceChain (must match sourceChainSelector)
-	u64(2)       // destChainSelector
-	u64(3)       // sequenceNumber
-	u64(4)       // nonce
-	uleb(0)      // sender length (empty)
-	uleb(0)      // data length (empty)
-	fixed32()    // receiver
-	fixed32()    // gasLimit (u256)
-	fixed32()    // tokenReceiver
+	u64(1)           // sourceChainSelector
+	fixed32()        // messageID
+	u64(1)           // headerSourceChain (must match sourceChainSelector)
+	u64(2)           // destChainSelector
+	u64(3)           // sequenceNumber
+	u64(4)           // nonce
+	uleb(0)          // sender length (empty)
+	uleb(0)          // data length (empty)
+	fixed32()        // receiver
+	fixed32()        // gasLimit (u256)
+	fixed32()        // tokenReceiver
 	uleb(0xFFFFFFFF) // token_amounts length -- the malicious value
 
 	report, err := DeserializeExecutionReport(buf)
@@ -2784,18 +2784,18 @@ func TestDeserializeExecutionReport_RejectsTokenAmountsLengthExceedingWireBudget
 		}
 	}
 
-	u64(1)    // sourceChainSelector
-	fixed32() // messageID
-	u64(1)    // headerSourceChain
-	u64(2)    // destChainSelector
-	u64(3)    // sequenceNumber
-	u64(4)    // nonce
-	uleb(0)   // sender
-	uleb(0)   // data
-	fixed32() // receiver
-	fixed32() // gasLimit
-	fixed32() // tokenReceiver
-	uleb(100) // token_amounts length: 100 elements need 7000 bytes
+	u64(1)                                  // sourceChainSelector
+	fixed32()                               // messageID
+	u64(1)                                  // headerSourceChain
+	u64(2)                                  // destChainSelector
+	u64(3)                                  // sequenceNumber
+	u64(4)                                  // nonce
+	uleb(0)                                 // sender
+	uleb(0)                                 // data
+	fixed32()                               // receiver
+	fixed32()                               // gasLimit
+	fixed32()                               // tokenReceiver
+	uleb(100)                               // token_amounts length: 100 elements need 7000 bytes
 	buf = append(buf, make([]byte, 100)...) // only 100 bytes remain on the wire
 
 	report, err := DeserializeExecutionReport(buf)
@@ -2837,20 +2837,20 @@ func TestDeserializeExecutionReport_RejectsProofsLengthExceedingWireBudget(t *te
 		}
 	}
 
-	u64(1)    // sourceChainSelector
-	fixed32() // messageID
-	u64(1)    // headerSourceChain
-	u64(2)    // destChainSelector
-	u64(3)    // sequenceNumber
-	u64(4)    // nonce
-	uleb(0)   // sender
-	uleb(0)   // data
-	fixed32() // receiver
-	fixed32() // gasLimit
-	fixed32() // tokenReceiver
-	uleb(0)   // token_amounts
-	uleb(0)   // offchain_token_data
-	uleb(10)  // proofs length: 10 elements need 320 bytes
+	u64(1)                                  // sourceChainSelector
+	fixed32()                               // messageID
+	u64(1)                                  // headerSourceChain
+	u64(2)                                  // destChainSelector
+	u64(3)                                  // sequenceNumber
+	u64(4)                                  // nonce
+	uleb(0)                                 // sender
+	uleb(0)                                 // data
+	fixed32()                               // receiver
+	fixed32()                               // gasLimit
+	fixed32()                               // tokenReceiver
+	uleb(0)                                 // token_amounts
+	uleb(0)                                 // offchain_token_data
+	uleb(10)                                // proofs length: 10 elements need 320 bytes
 	buf = append(buf, make([]byte, 100)...) // only 100 bytes remain on the wire
 
 	report, err := DeserializeExecutionReport(buf)

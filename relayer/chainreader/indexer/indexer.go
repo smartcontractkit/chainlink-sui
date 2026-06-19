@@ -51,8 +51,8 @@ type IndexerApi interface {
 	RescanRecentCheckpoints()
 }
 
-// IndexerParams holds the dependencies needed to construct a fully-wired Indexer via NewIndexer.
-type IndexerParams struct {
+// Params holds the dependencies needed to construct a fully-wired Indexer via NewIndexer.
+type Params struct {
 	Logger       logger.Logger
 	DB           sqlutil.DataSource
 	Client       client.SuiPTBClient
@@ -69,7 +69,7 @@ type IndexerParams struct {
 // and ChainPoller, and connects the poller's SelectorProvider to the EventsIndexer so that event
 // selectors registered at bind time are honored during polling. This is the production entry point;
 // tests that need to inject mocks can use NewIndexerFromComponents instead.
-func NewIndexer(p IndexerParams) *Indexer {
+func NewIndexer(p Params) *Indexer {
 	eventSelectors := p.EventSelectors
 	if eventSelectors == nil {
 		eventSelectors = []*client.EventSelector{}

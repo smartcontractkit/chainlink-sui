@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -33,13 +34,13 @@ func NewCCIPUSDCTokenPool(address string, chainClient client.BindingsClient) (US
 		return nil, err
 	}
 
-	packageId, err := bind.ToSuiAddress(address)
+	packageID, err := bind.ToSuiAddress(address)
 	if err != nil {
 		return nil, err
 	}
 
 	return CCIPUSDCTokenPoolPackage{
-		address:       packageId,
+		address:       packageID,
 		usdcTokenPool: usdcTokenPoolContract,
 	}, nil
 }
@@ -49,12 +50,12 @@ func PublishCCIPUSDCTokenPool(
 	opts *bind.CallOpts,
 	chainClient client.BindingsClient,
 	ccipAddress,
-	usdcCoinMetadataObjectId,
-	tokenMessengerMinterPackageId,
-	tokenMessengerMinterStateObjectId,
-	messageTransmitterPackageId,
-	messageTransmitterStateObjectId,
-	treasuryObjectId,
+	usdcCoinMetadataObjectID,
+	tokenMessengerMinterPackageID,
+	tokenMessengerMinterStateObjectID,
+	messageTransmitterPackageID,
+	messageTransmitterStateObjectID,
+	treasuryObjectID,
 	mcmsAddress,
 	fastMcmsAddress,
 	mcmsOwnerAddress, suiRPC string) (USDCTokenPool, *models.SuiTransactionBlockResponse, error) {
@@ -66,12 +67,12 @@ func PublishCCIPUSDCTokenPool(
 	artifact, err := bind.CompilePackage(contracts.USDCTokenPool, map[string]string{
 		"ccip":                              ccipAddress,
 		"usdc_token_pool":                   "0x0",
-		"usdc_coin_metadata_object_id":      usdcCoinMetadataObjectId,
-		"token_messenger_minter_package_id": tokenMessengerMinterPackageId,
-		"token_messenger_minter_state":      tokenMessengerMinterStateObjectId,
-		"message_transmitter_package_id":    messageTransmitterPackageId,
-		"message_transmitter_state":         messageTransmitterStateObjectId,
-		"treasury":                          treasuryObjectId,
+		"usdc_coin_metadata_object_id":      usdcCoinMetadataObjectID,
+		"token_messenger_minter_package_id": tokenMessengerMinterPackageID,
+		"token_messenger_minter_state":      tokenMessengerMinterStateObjectID,
+		"message_transmitter_package_id":    messageTransmitterPackageID,
+		"message_transmitter_state":         messageTransmitterStateObjectID,
+		"treasury":                          treasuryObjectID,
 		"mcms":                              mcmsAddress,
 		"fast_mcms":                         fastMcmsAddress,
 		"mcms_owner":                        mcmsOwnerAddress,

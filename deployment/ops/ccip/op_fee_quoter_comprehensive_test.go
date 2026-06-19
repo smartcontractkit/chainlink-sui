@@ -76,9 +76,9 @@ func TestFeeQuoterOperations(t *testing.T) {
 		LinkTokenCoinMetadataObjectId: linkReport.Output.Objects.CoinMetadataObjectId,
 		LocalChainSelector:            1,
 		DestChainSelector:             2,
-		DeployCCIPInput: inputCCIP,
-		MaxFeeJuelsPerMsg:            "100000000",
-		TokenPriceStalenessThreshold: 60,
+		DeployCCIPInput:               inputCCIP,
+		MaxFeeJuelsPerMsg:             "100000000",
+		TokenPriceStalenessThreshold:  60,
 		// Fee Quoter configuration
 		AddMinFeeUsdCents:    []uint32{3000},
 		AddMaxFeeUsdCents:    []uint32{30000},

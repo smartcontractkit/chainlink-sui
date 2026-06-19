@@ -159,7 +159,7 @@ type PTBClient struct {
 }
 
 // ObjectMetadataCache caches version-stable object reference metadata (owner/version/digest) to avoid
-// redundant GetObject RPCs on the read hot path. It is satisfied by chainreader/reader.ReaderCache and
+// redundant GetObject RPCs on the read hot path. It is satisfied by chainreader/reader.Cache and
 // supplied via PTBClientConfig.ObjectCache.
 type ObjectMetadataCache interface {
 	GetObjectMetadata(ctx context.Context, objectID string, loader func(context.Context) (*suirpcv2.Object, error)) (*suirpcv2.Object, error)
@@ -412,7 +412,7 @@ func (c *PTBClient) fetchObjectMetadata(ctx context.Context, objectId string) (*
 	// #endregion
 	ledgerService, err := c.getLedgerService(ctx)
 	// #region agent log
-	svcSec := time.Since(metaStart)
+	svcDur := time.Since(metaStart)
 	// #endregion
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ledger service: %w", err)
@@ -435,7 +435,7 @@ func (c *PTBClient) fetchObjectMetadata(ctx context.Context, objectId string) (*
 	// #endregion
 	response, err := ledgerService.GetObject(ctx, &objectReq)
 	// #region agent log
-	rpcSec := time.Since(rpcStart)
+	rpcDur := time.Since(rpcStart)
 	if time.Since(metaStart) > 2*time.Second {
 		objType := ""
 		if response != nil && response.Object != nil {
@@ -445,8 +445,8 @@ func (c *PTBClient) fetchObjectMetadata(ctx context.Context, objectId string) (*
 			"hypothesisId": "H12",
 			"objectId":     objectId,
 			"objectType":   objType,
-			"svcSec":       svcSec.Seconds(),
-			"rpcSec":       rpcSec.Seconds(),
+			"svcSec":       svcDur.Seconds(),
+			"rpcSec":       rpcDur.Seconds(),
 			"totalSec":     time.Since(metaStart).Seconds(),
 			"err":          err != nil,
 		})
@@ -619,23 +619,24 @@ func (c *PTBClient) ReadFunction(ctx context.Context, packageId string, module s
 	return results, err
 }
 
-// readOpContext returns a context capped by max, or sooner if the parent already has a shorter deadline.
-func readOpContext(ctx context.Context, max time.Duration) (context.Context, context.CancelFunc) {
+// readFunctionInternal is the internal implementation without rate limiting
+func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+	readCtx := ctx
+	cancel := func() {}
+	timeout := DefaultReadOpTimeout
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
-			return ctx, func() {}
+			// Parent deadline already passed; ctx is already cancelled.
+		} else {
+			if remaining < timeout {
+				timeout = remaining
+			}
+			readCtx, cancel = context.WithTimeout(ctx, timeout)
 		}
-		if remaining < max {
-			return context.WithTimeout(ctx, remaining)
-		}
+	} else {
+		readCtx, cancel = context.WithTimeout(ctx, timeout)
 	}
-	return context.WithTimeout(ctx, max)
-}
-
-// readFunctionInternal is the internal implementation without rate limiting
-func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
-	readCtx, cancel := readOpContext(ctx, DefaultReadOpTimeout)
 	defer cancel()
 
 	// #region agent log

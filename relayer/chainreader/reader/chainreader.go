@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -66,7 +67,7 @@ type suiChainReader struct {
 	client          *client.PTBClient
 	dbStore         *database.DBStore
 	indexer         indexer.IndexerApi
-	readerCache     *ReaderCache
+	readerCache     *Cache
 
 	// Cache of parent object IDs for pointer objects
 	// Key format: "{packageID}::{module}::{pointerName}"
@@ -96,7 +97,7 @@ func NewChainReader(
 	configs config.ChainReaderConfig,
 	db sqlutil.DataSource,
 	indexer indexer.IndexerApi,
-	readerCache *ReaderCache,
+	readerCache *Cache,
 ) (pkgtypes.ContractReader, error) {
 	dbStore := database.NewDBStore(db, lgr)
 
@@ -271,7 +272,7 @@ func (s *suiChainReader) registerConfiguredEventSelectors(ctx context.Context, b
 
 		// Resolve the module name the same way updateEventConfigs does: prefer the selector's
 		// module, fall back to the module config name, and finally to the binding name.
-		module := eventConfig.EventSelector.Module
+		module := eventConfig.Module
 		if module == "" {
 			module = moduleConfig.Name
 		}
@@ -283,7 +284,7 @@ func (s *suiChainReader) registerConfiguredEventSelectors(ctx context.Context, b
 		// to build the event handle); fall back to the selector's Event and then the config key.
 		event := eventConfig.EventType
 		if event == "" {
-			event = eventConfig.EventSelector.Event
+			event = eventConfig.Event
 		}
 		if event == "" {
 			event = eventKey
@@ -667,7 +668,7 @@ func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgty
 					if err := ctx.Err(); err != nil {
 						return nil, err
 					}
-					return nil, fmt.Errorf("batch processing failed: result channel closed early")
+					return nil, errors.New("batch processing failed: result channel closed early")
 				}
 				batchResults[res.index] = res.result
 				resultsReceived++

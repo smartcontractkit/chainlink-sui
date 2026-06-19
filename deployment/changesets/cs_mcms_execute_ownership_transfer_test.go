@@ -43,7 +43,7 @@ func TestCurseUncurseChains_VerifyPreconditions_FastUncurseBlocked(t *testing.T)
 		SuiChainSelector: 1,
 		OperationType:    string(UncurseOperationType),
 		IsGlobalCurse:    true,
-		IsFastCurse:        true,
+		IsFastCurse:      true,
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "uncurse via fastcurse MCMS is not supported")

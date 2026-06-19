@@ -3,6 +3,8 @@ package testutils
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
@@ -327,7 +329,7 @@ func ConfigureOnRampChainWriter(
 				tokenTransferCommands = append(tokenTransferCommands, managedCommand)
 			case TokenPoolTypeUSDC:
 				// TODO: Add USDC token pool command when available
-				return cwConfig.ChainWriterConfig{}, fmt.Errorf("usdc_token_pool not yet implemented")
+				return cwConfig.ChainWriterConfig{}, errors.New("usdc_token_pool not yet implemented")
 			default:
 				return cwConfig.ChainWriterConfig{}, fmt.Errorf("unknown token pool type: %s", tokenPool.TokenPoolType)
 			}

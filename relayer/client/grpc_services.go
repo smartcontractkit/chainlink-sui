@@ -66,7 +66,7 @@ func (p *grpcConnPool) next() (*pooledConn, error) {
 		return p.conns[0], nil
 	}
 	n := atomic.AddUint64(&p.idx, 1)
-	//nolint:gosec // G115: modulo keeps the index within bounds
+
 	return p.conns[n%uint64(len(p.conns))], nil
 }
 

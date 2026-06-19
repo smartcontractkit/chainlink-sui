@@ -23,7 +23,7 @@ func objWithOwner(kind suirpcv2.Owner_OwnerKind) *suirpcv2.Object {
 func TestReaderCache_ObjectMetadata_CachesVersionStable(t *testing.T) {
 	t.Parallel()
 	for _, kind := range []suirpcv2.Owner_OwnerKind{suirpcv2.Owner_SHARED, suirpcv2.Owner_IMMUTABLE} {
-		rc := NewReaderCache(logger.Test(t), ReaderCacheConfig{ObjectCacheEnabled: true})
+		rc := NewCache(logger.Test(t), CacheConfig{ObjectCacheEnabled: true})
 		var calls int32
 		loader := func(context.Context) (*suirpcv2.Object, error) {
 			atomic.AddInt32(&calls, 1)
@@ -41,7 +41,7 @@ func TestReaderCache_ObjectMetadata_CachesVersionStable(t *testing.T) {
 // address-owned objects bump their version on mutation, so they must never be cached.
 func TestReaderCache_ObjectMetadata_DoesNotCacheAddressOwned(t *testing.T) {
 	t.Parallel()
-	rc := NewReaderCache(logger.Test(t), ReaderCacheConfig{ObjectCacheEnabled: true})
+	rc := NewCache(logger.Test(t), CacheConfig{ObjectCacheEnabled: true})
 	var calls int32
 	loader := func(context.Context) (*suirpcv2.Object, error) {
 		atomic.AddInt32(&calls, 1)
@@ -57,7 +57,7 @@ func TestReaderCache_ObjectMetadata_DoesNotCacheAddressOwned(t *testing.T) {
 // concurrent reads of the same object collapse onto one in-flight load (the cold-start-storm relief).
 func TestReaderCache_ObjectMetadata_SingleflightCollapsesConcurrent(t *testing.T) {
 	t.Parallel()
-	rc := NewReaderCache(logger.Test(t), ReaderCacheConfig{ObjectCacheEnabled: true})
+	rc := NewCache(logger.Test(t), CacheConfig{ObjectCacheEnabled: true})
 	var calls int32
 	release := make(chan struct{})
 	loader := func(context.Context) (*suirpcv2.Object, error) {
@@ -92,7 +92,7 @@ func TestReaderCache_ObjectMetadata_DisabledAndNilPassthrough(t *testing.T) {
 		}
 	}
 
-	disabled := NewReaderCache(logger.Test(t), ReaderCacheConfig{ObjectCacheEnabled: false})
+	disabled := NewCache(logger.Test(t), CacheConfig{ObjectCacheEnabled: false})
 	var dCalls int32
 	for i := 0; i < 3; i++ {
 		_, err := disabled.GetObjectMetadata(context.Background(), "0xabc", loader(&dCalls))
@@ -100,7 +100,7 @@ func TestReaderCache_ObjectMetadata_DisabledAndNilPassthrough(t *testing.T) {
 	}
 	require.Equal(t, int32(3), atomic.LoadInt32(&dCalls), "disabled object cache should pass through")
 
-	var nilCache *ReaderCache
+	var nilCache *Cache
 	var nCalls int32
 	obj, err := nilCache.GetObjectMetadata(context.Background(), "0xabc", loader(&nCalls))
 	require.NoError(t, err)
@@ -112,7 +112,7 @@ func TestReaderCache_ObjectMetadata_DisabledAndNilPassthrough(t *testing.T) {
 func TestReaderCache_ReadResults(t *testing.T) {
 	t.Parallel()
 
-	enabled := NewReaderCache(logger.Test(t), ReaderCacheConfig{ReadCacheEnabled: true, ReadTTL: time.Minute})
+	enabled := NewCache(logger.Test(t), CacheConfig{ReadCacheEnabled: true, ReadTTL: time.Minute})
 	var eCalls int32
 	for i := 0; i < 4; i++ {
 		res, err := enabled.GetReadResults(context.Background(), "key", func(context.Context) ([]any, error) {
@@ -124,7 +124,7 @@ func TestReaderCache_ReadResults(t *testing.T) {
 	}
 	require.Equal(t, int32(1), atomic.LoadInt32(&eCalls), "enabled read cache should reuse the result")
 
-	disabled := NewReaderCache(logger.Test(t), ReaderCacheConfig{ReadCacheEnabled: false})
+	disabled := NewCache(logger.Test(t), CacheConfig{ReadCacheEnabled: false})
 	var dCalls int32
 	for i := 0; i < 3; i++ {
 		_, err := disabled.GetReadResults(context.Background(), "key", func(context.Context) ([]any, error) {

@@ -49,7 +49,7 @@ type SuiRelayer struct {
 	balanceMonitor services.Service
 
 	indexer     *indexer.Indexer
-	readerCache *chainreader.ReaderCache
+	readerCache *chainreader.Cache
 }
 
 var _ types.Relayer = &SuiRelayer{}
@@ -100,7 +100,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	// One ReaderCache is shared by the read client (object-metadata caching) and the ChainReader (read-call
 	// caching) so each relayer instance stops re-fetching the same version-stable shared objects on every
 	// config-poll cycle.
-	readerCache := chainreader.NewReaderCache(loggerInstance, chainreader.DefaultReaderCacheConfig())
+	readerCache := chainreader.NewCache(loggerInstance, chainreader.DefaultCacheConfig())
 
 	ptbClientConfig := client.PTBClientConfig{
 		GrpcTarget:            *nodeConfig.GrpcTarget,
@@ -162,7 +162,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 
 	// Create main indexer that constructs and orchestrates the poller + consumer indexers.
 	// A separate client (suiClientIndexers) is used for the poller to avoid rate limiting.
-	indexerInstance := indexer.NewIndexer(indexer.IndexerParams{
+	indexerInstance := indexer.NewIndexer(indexer.Params{
 		Logger:       loggerInstance,
 		DB:           db,
 		Client:       suiClientIndexers,

@@ -264,7 +264,7 @@ type ccipLoadResult struct {
 func startMockLedger(t *testing.T, latency time.Duration, streamLimit uint32) (string, *mockRPCNode, func()) {
 	t.Helper()
 
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	lis, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	node := &mockRPCNode{latency: latency}
@@ -285,7 +285,7 @@ func startMockLedger(t *testing.T, latency time.Duration, streamLimit uint32) (s
 func startMockSuiReadNode(t *testing.T, latency time.Duration, streamLimit uint32, sharedPathLimit int) (string, *mockRPCNode, func()) {
 	t.Helper()
 
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	lis, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	node := &mockRPCNode{latency: latency}

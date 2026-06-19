@@ -11,9 +11,9 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
-// ReaderCacheConfig tunes the ReaderCache. Zero-value durations fall back to the values in
-// DefaultReaderCacheConfig via withDefaults(), so a partially-populated config is always valid.
-type ReaderCacheConfig struct {
+// CacheConfig tunes the Cache. Zero-value durations fall back to the values in
+// DefaultCacheConfig via withDefaults(), so a partially-populated config is always valid.
+type CacheConfig struct {
 	// ObjectCacheEnabled caches version-stable object reference metadata (owner/version/digest). The Sui
 	// read hot path resolves the same shared CCIP config objects (the CCIPObjectRef, OffRamp state, fee
 	// quoter, ...) on every read; caching their refs removes that redundant GetObject fan-out so it does
@@ -32,10 +32,10 @@ type ReaderCacheConfig struct {
 	CleanupInterval time.Duration
 }
 
-// DefaultReaderCacheConfig returns safe defaults: object caching ON (high value, no staleness risk for
+// DefaultCacheConfig returns safe defaults: object caching ON (high value, no staleness risk for
 // version-stable objects) and read-call caching OFF (opt-in, since it can briefly mask config changes).
-func DefaultReaderCacheConfig() ReaderCacheConfig {
-	return ReaderCacheConfig{
+func DefaultCacheConfig() CacheConfig {
+	return CacheConfig{
 		ObjectCacheEnabled: true,
 		ObjectTTL:          5 * time.Minute,
 		ReadCacheEnabled:   false,
@@ -44,8 +44,8 @@ func DefaultReaderCacheConfig() ReaderCacheConfig {
 	}
 }
 
-func (c ReaderCacheConfig) withDefaults() ReaderCacheConfig {
-	d := DefaultReaderCacheConfig()
+func (c CacheConfig) withDefaults() CacheConfig {
+	d := DefaultCacheConfig()
 	if c.ObjectTTL <= 0 {
 		c.ObjectTTL = d.ObjectTTL
 	}
@@ -58,7 +58,7 @@ func (c ReaderCacheConfig) withDefaults() ReaderCacheConfig {
 	return c
 }
 
-// ReaderCache de-duplicates and caches the read-path RPCs that dominate Sui CCIP config polling:
+// Cache de-duplicates and caches the read-path RPCs that dominate Sui CCIP config polling:
 //   - object reference metadata (GetObject) for shared/immutable objects, and
 //   - optionally, decoded read-call (devInspect) results.
 //
@@ -68,11 +68,11 @@ func (c ReaderCacheConfig) withDefaults() ReaderCacheConfig {
 // lives within a single relayer instance (each node re-reads the same shared objects on every poll); it
 // does not need to be shared across nodes.
 //
-// All methods are safe to call on a nil *ReaderCache: they degrade to invoking the loader directly, so
+// All methods are safe to call on a nil *Cache: they degrade to invoking the loader directly, so
 // callers can hold an optional cache without nil checks.
-type ReaderCache struct {
+type Cache struct {
 	lggr logger.Logger
-	cfg  ReaderCacheConfig
+	cfg  CacheConfig
 
 	objectCache *cache.Cache
 	objectGroup singleflight.Group
@@ -81,10 +81,10 @@ type ReaderCache struct {
 	readGroup singleflight.Group
 }
 
-// NewReaderCache builds a ReaderCache from cfg (missing durations are defaulted).
-func NewReaderCache(lggr logger.Logger, cfg ReaderCacheConfig) *ReaderCache {
+// NewCache builds a Cache from cfg (missing durations are defaulted).
+func NewCache(lggr logger.Logger, cfg CacheConfig) *Cache {
 	cfg = cfg.withDefaults()
-	return &ReaderCache{
+	return &Cache{
 		lggr:        logger.Named(lggr, "ReaderCache"),
 		cfg:         cfg,
 		objectCache: cache.New(cfg.ObjectTTL, cfg.CleanupInterval),
@@ -97,7 +97,7 @@ func NewReaderCache(lggr logger.Logger, cfg ReaderCacheConfig) *ReaderCache {
 // version-stable objects (SHARED/IMMUTABLE) are cached; address-owned objects, whose version changes on
 // mutation, always go to loader so a stale ref is never served. This method satisfies the
 // client.ObjectMetadataCache interface used by the gRPC client.
-func (rc *ReaderCache) GetObjectMetadata(
+func (rc *Cache) GetObjectMetadata(
 	ctx context.Context,
 	objectID string,
 	loader func(context.Context) (*suirpcv2.Object, error),
@@ -135,8 +135,8 @@ func (rc *ReaderCache) GetObjectMetadata(
 // GetReadResults returns the decoded results of a read call, serving them from cache when enabled and
 // otherwise invoking loader exactly once across concurrent callers for the same key. The cached value is
 // the raw []any decoded result; callers decode it into their own return value on each call, so no shared
-// mutable state escapes. Disabled by default — see ReaderCacheConfig.ReadCacheEnabled.
-func (rc *ReaderCache) GetReadResults(
+// mutable state escapes. Disabled by default — see CacheConfig.ReadCacheEnabled.
+func (rc *Cache) GetReadResults(
 	ctx context.Context,
 	key string,
 	loader func(context.Context) ([]any, error),
