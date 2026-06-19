@@ -241,13 +241,26 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 func (s *suiChainReader) registerConfiguredEventSelectors(ctx context.Context, binding pkgtypes.BoundContract) {
 	moduleConfig, ok := s.config.Modules[binding.Name]
 	if !ok || moduleConfig == nil {
+		s.logger.Debugw("No module config for binding; skipping event selector registration",
+			"contract", binding.Name, "address", binding.Address)
 		return
 	}
 
 	evIndexer := s.indexer.GetEventIndexer()
 	if evIndexer == nil {
+		s.logger.Warnw("Event indexer unavailable; skipping event selector registration",
+			"contract", binding.Name, "address", binding.Address)
 		return
 	}
+
+	if len(moduleConfig.Events) == 0 {
+		s.logger.Debugw("Contract has no configured events; nothing to register",
+			"contract", binding.Name, "address", binding.Address)
+		return
+	}
+
+	s.logger.Infow("Registering configured event selectors at bind",
+		"contract", binding.Name, "address", binding.Address, "eventCount", len(moduleConfig.Events))
 
 	for eventKey, eventConfig := range moduleConfig.Events {
 		if eventConfig == nil {
@@ -286,7 +299,14 @@ func (s *suiChainReader) registerConfiguredEventSelectors(ctx context.Context, b
 				"module", module,
 				"event", event,
 				"error", err)
+			continue
 		}
+
+		s.logger.Infow("Registered configured event selector at bind",
+			"contract", binding.Name,
+			"package", binding.Address,
+			"module", module,
+			"event", event)
 	}
 }
 

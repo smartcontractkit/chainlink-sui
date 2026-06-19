@@ -616,7 +616,7 @@ func TestMixedCCIPReadLoadOnReadNodeConnection(t *testing.T) {
 	t.Parallel()
 
 	const (
-		streamLimit = uint32(4)
+		streamLimit = uint32(10)
 		latency     = 150 * time.Millisecond
 		poolSize    = 8
 	)
