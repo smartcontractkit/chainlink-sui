@@ -45,6 +45,10 @@ type IndexerApi interface {
 	Close() error
 	GetEventIndexer() EventsIndexerApi
 	GetTransactionIndexer() TransactionsIndexerApi
+	// RescanRecentCheckpoints rewinds the ChainPoller so recently-processed checkpoints are re-scanned.
+	// The ChainReader calls this after a Bind registers new event selectors, so events the poller already
+	// processed and discarded (before the selector existed) are picked up on a second pass.
+	RescanRecentCheckpoints()
 }
 
 // IndexerParams holds the dependencies needed to construct a fully-wired Indexer via NewIndexer.
@@ -80,14 +84,6 @@ func NewIndexer(p IndexerParams) *Indexer {
 	// The poller pulls the live selector set from the events indexer on each checkpoint, so
 	// selectors added later (e.g. during Bind) are picked up without re-wiring.
 	chainPoller := NewChainPoller(p.Client, p.Logger, p.PollerConfig, eventsIndexer.GetEventSelectors)
-
-	// When a new event selector is registered after the poller has advanced, rewind the poller so the
-	// recent checkpoints are re-scanned with it — otherwise events filtered out before the selector
-	// existed (e.g. OnRamp CCIPMessageSent, whose selector registers only after the slow contract
-	// discovery/bind) are lost forever. Re-inserts are idempotent, so the re-scan is safe.
-	if ei, ok := eventsIndexer.(*EventsIndexer); ok {
-		ei.SetOnSelectorAdded(chainPoller.RescanRecent)
-	}
 
 	return NewIndexerFromComponents(p.Logger, chainPoller, eventsIndexer, txnIndexer)
 }
@@ -243,4 +239,13 @@ func (i *Indexer) GetTransactionIndexer() TransactionsIndexerApi {
 		return nil
 	}
 	return i.transactionIndexer
+}
+
+// RescanRecentCheckpoints rewinds the ChainPoller so recently-processed checkpoints are re-scanned. See
+// the IndexerApi docs: the ChainReader calls this after a Bind registers new event selectors.
+func (i *Indexer) RescanRecentCheckpoints() {
+	if i.chainPoller == nil {
+		return
+	}
+	i.chainPoller.RescanRecent()
 }

@@ -262,6 +262,8 @@ func (s *suiChainReader) registerConfiguredEventSelectors(ctx context.Context, b
 	s.logger.Infow("Registering configured event selectors at bind",
 		"contract", binding.Name, "address", binding.Address, "eventCount", len(moduleConfig.Events))
 
+	selectorsBefore := len(evIndexer.GetEventSelectors())
+
 	for eventKey, eventConfig := range moduleConfig.Events {
 		if eventConfig == nil {
 			continue
@@ -307,6 +309,13 @@ func (s *suiChainReader) registerConfiguredEventSelectors(ctx context.Context, b
 			"package", binding.Address,
 			"module", module,
 			"event", event)
+	}
+
+	// If this bind registered any new selectors, the poller may have already advanced past the
+	// checkpoints carrying their events (selectors register only after the contract is discovered/bound).
+	// Rewind it once to re-scan those checkpoints with the new selectors; re-inserts are idempotent.
+	if len(evIndexer.GetEventSelectors()) > selectorsBefore {
+		s.indexer.RescanRecentCheckpoints()
 	}
 }
 

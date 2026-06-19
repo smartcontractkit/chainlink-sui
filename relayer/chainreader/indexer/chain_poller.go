@@ -25,6 +25,9 @@ type ChainPollerAPI interface {
 	Start(ctx context.Context) error
 	EventsChannel() <-chan CheckpointEventsBatch
 	TransactionsChannel() <-chan CheckpointTransactionsBatch
+	// RescanRecent rewinds the poller so recently-processed checkpoints are re-scanned (used when a new
+	// event selector is registered after the poller has already advanced past the events it matches).
+	RescanRecent()
 	Close() error
 }
 

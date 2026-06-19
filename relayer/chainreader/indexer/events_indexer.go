@@ -32,17 +32,7 @@ type EventsIndexer struct {
 	eventConfigurations []*client.EventSelector
 	configMutex         sync.RWMutex
 
-	// onSelectorAdded, if set, is invoked once whenever a brand-new selector is registered. It is wired
-	// to the ChainPoller's rescan so checkpoints processed before the selector existed are revisited.
-	onSelectorAdded func()
-
 	starter services.StateMachine
-}
-
-// SetOnSelectorAdded registers a callback fired when a new (not-already-present) event selector is added.
-// Set once before Start; not safe to change concurrently with AddEventSelector.
-func (eIndexer *EventsIndexer) SetOnSelectorAdded(fn func()) {
-	eIndexer.onSelectorAdded = fn
 }
 
 // EventsIndexerApi defines the interface for the events indexer.
@@ -328,13 +318,6 @@ func (eIndexer *EventsIndexer) AddEventSelector(ctx context.Context, selector *c
 			"module", selector.Module,
 			"event", selector.Event,
 			"totalSelectors", total)
-
-		// A selector usually registers only after its contract is discovered/bound, by which time the
-		// poller may have already processed (and discarded) the checkpoints carrying its events. Trigger
-		// a re-scan so those checkpoints are revisited with the new selector active.
-		if eIndexer.onSelectorAdded != nil {
-			eIndexer.onSelectorAdded()
-		}
 	}
 
 	return nil
