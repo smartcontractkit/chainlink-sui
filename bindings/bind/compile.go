@@ -309,7 +309,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		filepath.Join(dstRoot, "ccip", "ccip_token_pools", "lock_release_token_pool"),
 		filepath.Join(dstRoot, "ccip", "ccip_token_pools", "burn_mint_token_pool"),
 		filepath.Join(dstRoot, "ccip", "ccip_token_pools", "managed_token_pool"),
-		filepath.Join(dstRoot, "ccip", "ccip_token_pools", "usdc_token_pool"),
 	}
 	for _, depDir := range commonDependencyDirs {
 		if _, statErr := os.Stat(depDir); statErr == nil {
@@ -416,7 +415,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		}
 	}
 
-	if packageName == contracts.LockReleaseTokenPool || packageName == contracts.BurnMintTokenPool || packageName == contracts.ManagedTokenPool || packageName == contracts.USDCTokenPool {
+	if packageName == contracts.LockReleaseTokenPool || packageName == contracts.BurnMintTokenPool || packageName == contracts.ManagedTokenPool {
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
@@ -443,9 +442,6 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		case contracts.ManagedTokenPool:
 			originalPkgKey = "original_managed_token_pool_pkg"
 			packageDir = "managed_token_pool"
-		case contracts.USDCTokenPool:
-			originalPkgKey = "original_usdc_token_pool_pkg"
-			packageDir = "usdc_token_pool"
 		}
 
 		originalAddr := namedAddresses[originalPkgKey]
@@ -839,7 +835,7 @@ func ownPackageAddressKey(packageName contracts.Package) string {
 	case contracts.CCIP, contracts.CCIPOnramp, contracts.CCIPOfframp,
 		contracts.CCIPRouter, contracts.CCIPDummyReceiver, contracts.CCIPBrokenReceiver,
 		contracts.LockReleaseTokenPool, contracts.BurnMintTokenPool,
-		contracts.ManagedTokenPool, contracts.USDCTokenPool,
+		contracts.ManagedTokenPool,
 		contracts.ManagedToken, contracts.ManagedTokenFaucet, contracts.CCIPBnM,
 		contracts.MCMS, contracts.FastMCMS, contracts.MCMSUser, contracts.MCMSUserV2,
 		contracts.LINK, contracts.MockLinkToken, contracts.MockEthToken,
@@ -860,7 +856,7 @@ func requiredPublishDeps(packageName contracts.Package, namedAddresses map[strin
 	case contracts.CCIPOnramp, contracts.CCIPOfframp,
 		contracts.CCIPDummyReceiver, contracts.CCIPBrokenReceiver,
 		contracts.LockReleaseTokenPool, contracts.BurnMintTokenPool,
-		contracts.ManagedTokenPool, contracts.USDCTokenPool:
+		contracts.ManagedTokenPool:
 		return []string{
 			namedAddresses["mcms"],
 			namedAddresses["fast_mcms"],

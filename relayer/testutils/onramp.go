@@ -3,9 +3,8 @@ package testutils
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
@@ -22,7 +21,6 @@ const (
 	TokenPoolTypeBurnMint    TokenPoolType = "burn_mint_token_pool"
 	TokenPoolTypeManaged     TokenPoolType = "managed_token_pool"
 	TokenPoolTypeBase        TokenPoolType = "token_pool"
-	TokenPoolTypeUSDC        TokenPoolType = "usdc_token_pool"
 	ZeroAddress              string        = "0x0000000000000000000000000000000000000000000000000000000000000000"
 )
 
@@ -327,9 +325,6 @@ func ConfigureOnRampChainWriter(
 			case TokenPoolTypeManaged:
 				managedCommand := getManagedLockOrBurnCommand(tokenPool.TokenPoolPackageId, ethTokenType)
 				tokenTransferCommands = append(tokenTransferCommands, managedCommand)
-			case TokenPoolTypeUSDC:
-				// TODO: Add USDC token pool command when available
-				return cwConfig.ChainWriterConfig{}, errors.New("usdc_token_pool not yet implemented")
 			default:
 				return cwConfig.ChainWriterConfig{}, fmt.Errorf("unknown token pool type: %s", tokenPool.TokenPoolType)
 			}
