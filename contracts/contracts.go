@@ -21,6 +21,7 @@ const (
 	LockReleaseTokenPool = Package("lock_release_token_pool")
 	BurnMintTokenPool    = Package("burn_mint_token_pool")
 	ManagedTokenPool     = Package("managed_token_pool")
+	USDCTokenPool        = Package("usdc_token_pool")
 	ManagedToken         = Package("managed_token")
 	ManagedTokenFaucet   = Package("managed_token_faucet")
 	MockLinkToken        = Package("mock_link_token")
