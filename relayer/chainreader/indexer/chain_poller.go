@@ -213,6 +213,37 @@ func (cp *ChainPoller) getLatestCheckpointSequence(ctx context.Context) (uint64,
 	return seq, nil
 }
 
+// defaultRescanRewindCheckpoints is how far RescanRecent rewinds when no explicit backfill window is set.
+const defaultRescanRewindCheckpoints uint64 = 100
+
+// RescanRecent rewinds lastProcessed so the most recent checkpoints are re-processed on the next poll. It
+// is wired to fire when a new event selector is registered after the poller has advanced: a selector for
+// an event (e.g. the OnRamp CCIPMessageSent) only registers once its contract is discovered/bound, by
+// which point the poller may have already processed — and, lacking the selector, discarded — the
+// checkpoints carrying that event. Event inserts are idempotent (ON CONFLICT DO NOTHING), so re-scanning
+// is safe. The rewind span matches the configured backfill window.
+func (cp *ChainPoller) RescanRecent() {
+	rewind := defaultRescanRewindCheckpoints
+	if cp.config.BackfillCheckpointCount != nil && *cp.config.BackfillCheckpointCount > 0 {
+		rewind = *cp.config.BackfillCheckpointCount
+	}
+
+	cp.mu.Lock()
+	prev := cp.lastProcessed
+	if cp.lastProcessed > rewind {
+		cp.lastProcessed -= rewind
+	} else {
+		cp.lastProcessed = 0
+	}
+	curr := cp.lastProcessed
+	cp.mu.Unlock()
+
+	if curr != prev {
+		cp.logger.Infow("Rewinding poller to re-scan for newly registered event selector",
+			"from", prev, "to", curr, "rewind", rewind)
+	}
+}
+
 // catchUp processes checkpoints from startSeq to endSeq (inclusive).
 func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 	for seq := startSeq; seq <= endSeq; seq++ {

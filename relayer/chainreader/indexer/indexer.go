@@ -81,6 +81,14 @@ func NewIndexer(p IndexerParams) *Indexer {
 	// selectors added later (e.g. during Bind) are picked up without re-wiring.
 	chainPoller := NewChainPoller(p.Client, p.Logger, p.PollerConfig, eventsIndexer.GetEventSelectors)
 
+	// When a new event selector is registered after the poller has advanced, rewind the poller so the
+	// recent checkpoints are re-scanned with it — otherwise events filtered out before the selector
+	// existed (e.g. OnRamp CCIPMessageSent, whose selector registers only after the slow contract
+	// discovery/bind) are lost forever. Re-inserts are idempotent, so the re-scan is safe.
+	if ei, ok := eventsIndexer.(*EventsIndexer); ok {
+		ei.SetOnSelectorAdded(chainPoller.RescanRecent)
+	}
+
 	return NewIndexerFromComponents(p.Logger, chainPoller, eventsIndexer, txnIndexer)
 }
 
