@@ -10,6 +10,7 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	"github.com/smartcontractkit/chainlink-sui/deployment/ops/rmn"
