@@ -1279,6 +1279,32 @@ func TestEncodeEntryPointArg_TokenAdminRegistryBackfillLocalDecimals(t *testing.
 	require.Equal(t, "mcms_backfill_local_decimals", encoded.Function)
 }
 
+func TestEncodeEntryPointArg_TokenAdminRegistryTransferAdminRole(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	coinMetadata := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	newAdmin := "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	data := serializeAddresses(ccipRef, coinMetadata, newAdmin)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"token_admin_registry",
+		"transfer_admin_role",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_transfer_admin_role", encoded.Function)
+}
+
 func TestEncodeEntryPointArg_RmnRemoteDeregisterCurserCapIds(t *testing.T) {
 	t.Parallel()
 

@@ -370,15 +370,30 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		if err != nil {
 			return nil, err
 		}
-		deserializer := bcs.NewDeserializer(data)
-		deserializer.ReadFixedBytes(SuiAddressLength)
-		ccipRefBytes := deserializer.ReadFixedBytes(SuiAddressLength)
-		ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
 		switch function {
-		case "initialize_local_decimals":
-			return tokenAdminRegistry.Encoder().McmsInitializeLocalDecimalsWithArgs(ccipRef, registryObj, executingCallbackParams)
-		case "backfill_local_decimals":
-			return tokenAdminRegistry.Encoder().McmsBackfillLocalDecimalsWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "initialize_local_decimals", "backfill_local_decimals", "register_pool":
+			deserializer := bcs.NewDeserializer(data)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			ccipRefBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
+			switch function {
+			case "initialize_local_decimals":
+				return tokenAdminRegistry.Encoder().McmsInitializeLocalDecimalsWithArgs(ccipRef, registryObj, executingCallbackParams)
+			case "backfill_local_decimals":
+				return tokenAdminRegistry.Encoder().McmsBackfillLocalDecimalsWithArgs(ccipRef, registryObj, executingCallbackParams)
+			case "register_pool":
+				return tokenAdminRegistry.Encoder().McmsRegisterPoolWithArgs(ccipRef, registryObj, executingCallbackParams)
+			}
+		case "unregister_pool", "transfer_admin_role", "accept_admin_role":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			switch function {
+			case "unregister_pool":
+				return tokenAdminRegistry.Encoder().McmsUnregisterPoolWithArgs(ccipRef, registryObj, executingCallbackParams)
+			case "transfer_admin_role":
+				return tokenAdminRegistry.Encoder().McmsTransferAdminRoleWithArgs(ccipRef, registryObj, executingCallbackParams)
+			case "accept_admin_role":
+				return tokenAdminRegistry.Encoder().McmsAcceptAdminRoleWithArgs(ccipRef, registryObj, executingCallbackParams)
+			}
 		default:
 			return nil, fmt.Errorf("unsupported token_admin_registry MCMS function: %q", function)
 		}
