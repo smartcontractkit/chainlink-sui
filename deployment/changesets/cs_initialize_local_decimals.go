@@ -16,20 +16,19 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
-type BackfillLocalDecimalsConfig struct {
+type InitializeLocalDecimalsConfig struct {
 	SuiChainSelector uint64                `yaml:"suiChainSelector"`
 	CCIPPackageId    string                `yaml:"ccipPackageId,omitempty"`
 	StateObjectId    string                `yaml:"stateObjectId,omitempty"`
 	OwnerCapObjectId string                `yaml:"ownerCapObjectId,omitempty"`
-	VerifyOnly       bool                  `yaml:"verifyOnly,omitempty"`
 	TimelockConfig   *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
 }
 
-var _ cldf.ChangeSetV2[BackfillLocalDecimalsConfig] = BackfillLocalDecimals{}
+var _ cldf.ChangeSetV2[InitializeLocalDecimalsConfig] = InitializeLocalDecimals{}
 
-type BackfillLocalDecimals struct{}
+type InitializeLocalDecimals struct{}
 
-func (d BackfillLocalDecimals) Apply(e cldf.Environment, config BackfillLocalDecimalsConfig) (cldf.ChangesetOutput, error) {
+func (d InitializeLocalDecimals) Apply(e cldf.Environment, config InitializeLocalDecimalsConfig) (cldf.ChangesetOutput, error) {
 	state, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load onchain state: %w", err)
@@ -61,10 +60,10 @@ func (d BackfillLocalDecimals) Apply(e cldf.Environment, config BackfillLocalDec
 		Client: suiChain.Client,
 		Signer: suiChain.Signer,
 		GetCallOpts: func() *bind.CallOpts {
-			gasBudget := uint64(400_000_000)
+			b := uint64(400_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
-				GasBudget:        &gasBudget,
+				GasBudget:        &b,
 			}
 		},
 		SuiRPC: suiChain.URL,
@@ -74,54 +73,48 @@ func (d BackfillLocalDecimals) Apply(e cldf.Environment, config BackfillLocalDec
 		deps.Signer = nil
 	}
 
-	seqResult, err := operations.ExecuteSequence(
+	report, err := operations.ExecuteOperation(
 		e.OperationsBundle,
-		ccipops.BackfillLocalDecimalsSequence,
+		ccipops.TokenAdminRegistryInitializeLocalDecimalsOp,
 		deps,
-		ccipops.BackfillLocalDecimalsSeqInput{
+		ccipops.InitLocalDecimalsInput{
 			CCIPPackageId:    ccipPackageId,
 			StateObjectId:    stateObjectId,
 			OwnerCapObjectId: ownerCapObjectId,
-			VerifyOnly:       config.VerifyOnly,
 		},
 	)
 	if err != nil {
-		reports := seqResult.Output.Reports
-		return cldf.ChangesetOutput{Reports: reports}, fmt.Errorf(
-			"failed to backfill local decimals for Sui chain %d: %w",
-			config.SuiChainSelector,
-			err,
-		)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to initialize local decimals for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
 
-	if config.TimelockConfig == nil || len(seqResult.Output.McmsDefs) == 0 {
-		return cldf.ChangesetOutput{Reports: seqResult.Output.Reports}, nil
-	}
-
-	mcmsConfig := mcmsops.ProposalGenerateInput{
-		ChainSelector:      config.SuiChainSelector,
-		Defs:               seqResult.Output.McmsDefs,
-		Inputs:             seqResult.Output.McmsInputs,
-		MmcsPackageID:      chainState.MCMSPackageID,
-		McmsStateObjID:     chainState.MCMSStateObjectID,
-		TimelockObjID:      chainState.MCMSTimelockObjectID,
-		AccountObjID:       chainState.MCMSAccountStateObjectID,
-		RegistryObjID:      chainState.MCMSRegistryObjectID,
-		DeployerStateObjID: chainState.MCMSDeployerStateObjectID,
-		TimelockConfig:     *config.TimelockConfig,
-	}
-	proposalResult, err := operations.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, mcmsConfig)
-	if err != nil {
-		return cldf.ChangesetOutput{Reports: seqResult.Output.Reports}, fmt.Errorf("failed to generate MCMS proposal: %w", err)
+	if config.TimelockConfig != nil {
+		mcmsConfig := mcmsops.ProposalGenerateInput{
+			ChainSelector:      config.SuiChainSelector,
+			Defs:               []operations.Definition{report.Def},
+			Inputs:             []any{report.Input},
+			MmcsPackageID:      chainState.MCMSPackageID,
+			McmsStateObjID:     chainState.MCMSStateObjectID,
+			TimelockObjID:      chainState.MCMSTimelockObjectID,
+			AccountObjID:       chainState.MCMSAccountStateObjectID,
+			RegistryObjID:      chainState.MCMSRegistryObjectID,
+			DeployerStateObjID: chainState.MCMSDeployerStateObjectID,
+			TimelockConfig:     *config.TimelockConfig,
+		}
+		result, err := operations.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, mcmsConfig)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to generate MCMS proposal: %w", err)
+		}
+		return cldf.ChangesetOutput{
+			MCMSTimelockProposals: []mcms.TimelockProposal{result.Output},
+		}, nil
 	}
 
 	return cldf.ChangesetOutput{
-		Reports:               seqResult.Output.Reports,
-		MCMSTimelockProposals: []mcms.TimelockProposal{proposalResult.Output},
+		Reports: []operations.Report[any, any]{report.ToGenericReport()},
 	}, nil
 }
 
-func (d BackfillLocalDecimals) VerifyPreconditions(e cldf.Environment, config BackfillLocalDecimalsConfig) error {
+func (d InitializeLocalDecimals) VerifyPreconditions(e cldf.Environment, config InitializeLocalDecimalsConfig) error {
 	if config.SuiChainSelector == 0 {
 		return fmt.Errorf("sui chain selector is required")
 	}
@@ -152,26 +145,26 @@ func (d BackfillLocalDecimals) VerifyPreconditions(e cldf.Environment, config Ba
 		return fmt.Errorf("state object id is required")
 	}
 
-	if !config.VerifyOnly && config.TimelockConfig == nil {
+	if config.TimelockConfig == nil {
 		ownerCapObjectId := strings.TrimSpace(config.OwnerCapObjectId)
 		if ownerCapObjectId == "" {
 			ownerCapObjectId = strings.TrimSpace(chainState.CCIPOwnerCapObjectId)
 		}
 		if ownerCapObjectId == "" {
-			return fmt.Errorf("owner cap object id is required when backfilling directly")
+			return fmt.Errorf("owner cap object id is required when executing directly")
 		}
+		return nil
 	}
 
-	if config.TimelockConfig != nil {
-		if strings.TrimSpace(chainState.MCMSPackageID) == "" || strings.TrimSpace(chainState.MCMSRegistryObjectID) == "" {
-			return fmt.Errorf("MCMS package ID and registry object ID must be present in chain state (selector %d)", config.SuiChainSelector)
-		}
-		if strings.TrimSpace(chainState.MCMSStateObjectID) == "" ||
-			strings.TrimSpace(chainState.MCMSTimelockObjectID) == "" ||
-			strings.TrimSpace(chainState.MCMSAccountStateObjectID) == "" ||
-			strings.TrimSpace(chainState.MCMSDeployerStateObjectID) == "" {
-			return fmt.Errorf("MCMS state, timelock, account, and deployer object IDs are required when timelockConfig is set (selector %d)", config.SuiChainSelector)
-		}
+	if strings.TrimSpace(chainState.MCMSPackageID) == "" || strings.TrimSpace(chainState.MCMSRegistryObjectID) == "" {
+		return fmt.Errorf("MCMS package ID and registry object ID must be present in chain state (selector %d)", config.SuiChainSelector)
+	}
+
+	if strings.TrimSpace(chainState.MCMSStateObjectID) == "" ||
+		strings.TrimSpace(chainState.MCMSTimelockObjectID) == "" ||
+		strings.TrimSpace(chainState.MCMSAccountStateObjectID) == "" ||
+		strings.TrimSpace(chainState.MCMSDeployerStateObjectID) == "" {
+		return fmt.Errorf("MCMS state, timelock, account, and deployer object IDs are required when timelockConfig is set (selector %d)", config.SuiChainSelector)
 	}
 
 	return nil

@@ -45,6 +45,8 @@ type ITokenAdminRegistry interface {
 	McmsUnregisterPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAcceptAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsInitializeLocalDecimals(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsBackfillLocalDecimals(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() ITokenAdminRegistryDevInspect
 	Encoder() TokenAdminRegistryEncoder
 	Bound() bind.IBoundContract
@@ -113,6 +115,10 @@ type TokenAdminRegistryEncoder interface {
 	McmsTransferAdminRoleWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsAcceptAdminRole(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAcceptAdminRoleWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsInitializeLocalDecimals(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsInitializeLocalDecimalsWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsBackfillLocalDecimals(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsBackfillLocalDecimalsWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type TokenAdminRegistryContract struct {
@@ -441,6 +447,26 @@ func (c *TokenAdminRegistryContract) McmsTransferAdminRole(ctx context.Context, 
 // McmsAcceptAdminRole executes the mcms_accept_admin_role Move function.
 func (c *TokenAdminRegistryContract) McmsAcceptAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.tokenAdminRegistryEncoder.McmsAcceptAdminRole(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsInitializeLocalDecimals executes the mcms_initialize_local_decimals Move function.
+func (c *TokenAdminRegistryContract) McmsInitializeLocalDecimals(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.McmsInitializeLocalDecimals(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsBackfillLocalDecimals executes the mcms_backfill_local_decimals Move function.
+func (c *TokenAdminRegistryContract) McmsBackfillLocalDecimals(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.McmsBackfillLocalDecimals(ref, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1625,4 +1651,66 @@ func (c tokenAdminRegistryEncoder) McmsAcceptAdminRoleWithArgs(args ...any) (*bi
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_accept_admin_role", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsInitializeLocalDecimals encodes a call to the mcms_initialize_local_decimals Move function.
+func (c tokenAdminRegistryEncoder) McmsInitializeLocalDecimals(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_initialize_local_decimals", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsInitializeLocalDecimalsWithArgs encodes a call to the mcms_initialize_local_decimals Move function using arbitrary arguments.
+func (c tokenAdminRegistryEncoder) McmsInitializeLocalDecimalsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_initialize_local_decimals", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsBackfillLocalDecimals encodes a call to the mcms_backfill_local_decimals Move function.
+func (c tokenAdminRegistryEncoder) McmsBackfillLocalDecimals(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_backfill_local_decimals", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsBackfillLocalDecimalsWithArgs encodes a call to the mcms_backfill_local_decimals Move function using arbitrary arguments.
+func (c tokenAdminRegistryEncoder) McmsBackfillLocalDecimalsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_backfill_local_decimals", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
