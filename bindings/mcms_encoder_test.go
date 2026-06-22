@@ -1414,6 +1414,33 @@ func TestEncodeEntryPointArg_TokenAdminRegistryBackfillLocalDecimals(t *testing.
 	require.Equal(t, "token_admin_registry", encoded.Module.ModuleName)
 }
 
+func TestEncodeEntryPointArg_TokenAdminRegistryUnregisterPool(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	coinMetadata := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	data := serializeAddresses(ownerCap, ccipRef, coinMetadata)
+	paramsArg := transaction.Argument{}
+
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"token_admin_registry",
+		"unregister_pool",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_unregister_pool", encoded.Function)
+	require.Equal(t, "token_admin_registry", encoded.Module.ModuleName)
+}
+
 func TestEncodeEntryPointArg_UpgradeRegistry(t *testing.T) {
 	t.Parallel()
 
@@ -1479,10 +1506,12 @@ func TestEncodeEntryPointArg_TokenAdminRegistryPoolOps(t *testing.T) {
 	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
 
 	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 	coinMetadata := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 	newAdmin := "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 	data := serializeAddresses(ccipRef, coinMetadata)
 	dataWithAdmin := serializeAddresses(ccipRef, coinMetadata, newAdmin)
+	unregisterData := serializeAddresses(ownerCap, ccipRef, coinMetadata)
 	paramsArg := transaction.Argument{}
 
 	testCases := []struct {
@@ -1491,7 +1520,7 @@ func TestEncodeEntryPointArg_TokenAdminRegistryPoolOps(t *testing.T) {
 		want     string
 		data     []byte
 	}{
-		{"unregister_pool", "unregister_pool", "mcms_unregister_pool", serializeAddress(ccipRef)},
+		{"unregister_pool", "unregister_pool", "mcms_unregister_pool", unregisterData},
 		{"transfer_admin_role", "transfer_admin_role", "mcms_transfer_admin_role", dataWithAdmin},
 		{"accept_admin_role", "accept_admin_role", "mcms_accept_admin_role", data},
 	}

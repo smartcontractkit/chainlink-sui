@@ -10,6 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	"github.com/smartcontractkit/chainlink-sui/deployment/ops/rmn"
 )
 
 type InitTARObjects struct {
@@ -198,6 +199,7 @@ var TokenAdminRegistryBackfillLocalDecimalsOp = cld_ops.NewOperation(
 type UnregisterPoolInput struct {
 	CCIPPackageId       string
 	CCIPObjectRef       string
+	OwnerCapObjectId    string
 	CoinMetadataAddress string
 }
 
@@ -207,13 +209,20 @@ var unregisterPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
 
-	encodedCall, err := contract.Encoder().UnregisterPool(bind.Object{Id: input.CCIPObjectRef}, input.CoinMetadataAddress)
+	data, err := rmn.SerializeMcmsObjectAddrs(
+		input.OwnerCapObjectId,
+		input.CCIPObjectRef,
+		input.CoinMetadataAddress,
+	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode UnregisterPool call: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode unregister_pool MCMS callback data: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRef)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	call := sui_ops.TransactionCall{
+		PackageID:  input.CCIPPackageId,
+		Module:     "token_admin_registry",
+		Function:   "unregister_pool",
+		Data:       data,
+		StateObjID: input.CCIPObjectRef,
 	}
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of UnregisterPool on TokenAdminRegistry as per no Signer provided", "CoinMetadataAddress", input.CoinMetadataAddress)

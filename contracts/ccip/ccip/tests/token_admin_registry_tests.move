@@ -1517,3 +1517,61 @@ public fun test_mcms_backfill_local_decimals() {
 
     ts::end(scenario);
 }
+
+#[test]
+public fun test_mcms_unregister_pool() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_address(&coin_metadata);
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    let mut unregister_data = vector[];
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
+        );
+        assert!(registry::is_pool_registered(&ref, local_token));
+
+        unregister_data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
+        unregister_data.append(bcs::to_bytes(&object::id_address(&ref)));
+        unregister_data.append(bcs::to_bytes(&local_token));
+
+        transfer::public_transfer(treasury_cap, CCIP_ADMIN);
+        ts::return_shared(ref);
+        transfer_ccip_ownership_to_mcms(&mut scenario, owner_cap);
+    };
+
+    scenario.next_tx(mcms_registry::get_multisig_address());
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"unregister_pool"),
+            unregister_data,
+            x"0000000000000000000000000000000000000000000000000000000000000001",
+            0,
+            1,
+        );
+
+        registry::mcms_unregister_pool(&mut ref, &mut registry, params, scenario.ctx());
+        assert!(!registry::is_pool_registered(&ref, local_token));
+
+        ts::return_shared(ref);
+        ts::return_shared(registry);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}

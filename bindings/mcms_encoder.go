@@ -414,7 +414,9 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 				executingCallbackParams,
 			)
 		case "unregister_pool":
-			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			deserializer := bcs.NewDeserializer(data)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			ccipRef := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
 			return tokenAdminRegistry.Encoder().McmsUnregisterPoolWithArgs(ccipRef, registryObj, executingCallbackParams)
 		case "transfer_admin_role":
 			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}

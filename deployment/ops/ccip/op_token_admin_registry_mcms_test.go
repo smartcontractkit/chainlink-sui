@@ -10,9 +10,9 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	"github.com/smartcontractkit/chainlink-sui/deployment/ops/rmn"
 )
 
 const (
@@ -160,21 +160,23 @@ func TestTokenAdminRegistryUnregisterPoolOp_ProposalDataMatchesBindingEncoder(t 
 		UnregisterPoolInput{
 			CCIPPackageId:       testCCIPPackageID,
 			CCIPObjectRef:       testStateObjectID,
+			OwnerCapObjectId:    testOwnerCapID,
 			CoinMetadataAddress: testCoinMetadata,
 		},
 	)
 	require.NoError(t, err)
+	require.Equal(t, "token_admin_registry", report.Output.Call.Module)
+	require.Equal(t, "unregister_pool", report.Output.Call.Function)
+	require.Equal(t, testStateObjectID, report.Output.Call.StateObjID)
 
-	contract, err := module_token_admin_registry.NewTokenAdminRegistry(testCCIPPackageID, nil)
+	expected, err := rmn.SerializeMcmsObjectAddrs(testOwnerCapID, testStateObjectID, testCoinMetadata)
 	require.NoError(t, err)
-	encodedCall, err := contract.Encoder().UnregisterPool(
-		bind.Object{Id: testStateObjectID},
-		testCoinMetadata,
-	)
-	require.NoError(t, err)
-	expected, err := sui_ops.ToTransactionCall(encodedCall, testStateObjectID)
-	require.NoError(t, err)
-	require.Equal(t, expected.Data, report.Output.Call.Data)
+	require.Equal(t, expected, report.Output.Call.Data)
+
+	d := bcs.NewDeserializer(report.Output.Call.Data)
+	require.Equal(t, testOwnerCapID[2:], bytesToHex(d.ReadFixedBytes(32)))
+	require.Equal(t, testStateObjectID[2:], bytesToHex(d.ReadFixedBytes(32)))
+	require.Equal(t, testCoinMetadata[2:], bytesToHex(d.ReadFixedBytes(32)))
 }
 
 func TestTokenAdminRegistryTransferAdminRoleOp_ProposalDataMatchesBindingEncoder(t *testing.T) {
