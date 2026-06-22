@@ -1669,6 +1669,7 @@ func (c tokenAdminRegistryEncoder) McmsInitializeLocalDecimals(ref bind.Object, 
 }
 
 // McmsInitializeLocalDecimalsWithArgs encodes a call to the mcms_initialize_local_decimals Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c tokenAdminRegistryEncoder) McmsInitializeLocalDecimalsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
@@ -1700,6 +1701,7 @@ func (c tokenAdminRegistryEncoder) McmsBackfillLocalDecimals(ref bind.Object, re
 }
 
 // McmsBackfillLocalDecimalsWithArgs encodes a call to the mcms_backfill_local_decimals Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c tokenAdminRegistryEncoder) McmsBackfillLocalDecimalsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",

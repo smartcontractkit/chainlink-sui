@@ -1343,7 +1343,7 @@ public fun test_mcms_backfill_local_decimals() {
             init_data,
             x"0000000000000000000000000000000000000000000000000000000000000001",
             0,
-            1,
+            2,
         );
         registry::mcms_initialize_local_decimals(&mut ref, &mut registry, init_params, scenario.ctx());
 
@@ -1359,8 +1359,8 @@ public fun test_mcms_backfill_local_decimals() {
             string::utf8(b"backfill_local_decimals"),
             backfill_data,
             x"0000000000000000000000000000000000000000000000000000000000000001",
-            0,
             1,
+            2,
         );
         registry::mcms_backfill_local_decimals(&mut ref, &mut registry, backfill_params);
 
