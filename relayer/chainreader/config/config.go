@@ -35,9 +35,17 @@ type ChainReaderFunction struct {
 	ResultTupleToStruct []string
 	// Defines a mapping for renaming response fields
 	ResultFieldRenames map[string]aptosCRConfig.RenamedField
-	// Static response
+	// Static response, returned as-is to mimic a response from the contract
+	// The contract can be entirely virtual as long as .Bind() is called with it.
 	StaticResponse []any
-	// Response from inputs
+	// Response from inputs, can reference parameters, package ID (with or without module name, same package), or pointer objects
+	// Example: ["package_id", "package_id.ANOTHER_MODULE", "params.SOME_PARAM_NAME"]
+	// If the `package_id` is used without a module name, the latest package ID of the module for this function is returned.
+	// If the `package_id` is used with a module name, the latest package ID of the module is returned.
+	//     * This might look the same as just `package_id`, however, getting the latest package ID is only possible within a specific module.
+	//     * This is helpful for virtual dependencies between modules (e.g. RMNRemote -> CCIP latest package ID from `state_object` module)
+	// If the `params.counter_id` is used, the value of the counter object id is returned.
+	//     * The `counter_id` parameter must be specified in the function config.
 	ResponseFromInputs []string
 }
 

@@ -338,13 +338,14 @@ func ExecutePTB(ctx context.Context, opts *CallOpts, chainClient client.Bindings
 		ptb.SetSender(models.SuiAddress(signerAddress))
 	}
 
-	if ptb.Data.V1.GasData.Budget == nil {
-		budget := DefaultGasBudget
-		if opts.GasBudget != nil {
-			budget = *opts.GasBudget
-		}
-		ptb.SetGasBudget(budget)
+	budget := DefaultGasBudget
+	if opts.GasBudget != nil {
+		budget = *opts.GasBudget
 	}
+	if ptb.Data.V1.GasData.Budget != nil && *ptb.Data.V1.GasData.Budget > budget {
+		budget = *ptb.Data.V1.GasData.Budget
+	}
+	ptb.SetGasBudget(budget)
 
 	if ptb.Data.V1.GasData.Price == nil {
 		gasPrice, gasPriceErr := chainClient.GetReferenceGasPrice(ctx)

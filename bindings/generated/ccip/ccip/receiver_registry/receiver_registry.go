@@ -29,6 +29,7 @@ type IReceiverRegistry interface {
 	GetReceiverConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	GetReceiverConfigFields(ctx context.Context, opts *bind.CallOpts, rc ReceiverConfig) (*models.SuiTransactionBlockResponse, error)
 	GetReceiverInfo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
+	McmsUnregisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IReceiverRegistryDevInspect
 	Encoder() ReceiverRegistryEncoder
 	Bound() bind.IBoundContract
@@ -59,6 +60,8 @@ type ReceiverRegistryEncoder interface {
 	GetReceiverConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetReceiverInfo(ref bind.Object, receiverPackageId string) (*bind.EncodedCall, error)
 	GetReceiverInfoWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsUnregisterReceiver(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsUnregisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type ReceiverRegistryContract struct {
@@ -193,6 +196,16 @@ func (c *ReceiverRegistryContract) GetReceiverConfigFields(ctx context.Context, 
 // GetReceiverInfo executes the get_receiver_info Move function.
 func (c *ReceiverRegistryContract) GetReceiverInfo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.receiverRegistryEncoder.GetReceiverInfo(ref, receiverPackageId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsUnregisterReceiver executes the mcms_unregister_receiver Move function.
+func (c *ReceiverRegistryContract) McmsUnregisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.receiverRegistryEncoder.McmsUnregisterReceiver(ref, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -586,4 +599,36 @@ func (c receiverRegistryEncoder) GetReceiverInfoWithArgs(args ...any) (*bind.Enc
 		"0x1::string::String",
 		"ascii::String",
 	})
+}
+
+// McmsUnregisterReceiver encodes a call to the mcms_unregister_receiver Move function.
+func (c receiverRegistryEncoder) McmsUnregisterReceiver(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_unregister_receiver", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsUnregisterReceiverWithArgs encodes a call to the mcms_unregister_receiver Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c receiverRegistryEncoder) McmsUnregisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_unregister_receiver", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

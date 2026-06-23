@@ -149,7 +149,9 @@ public(package) fun get_local_decimals_for_token(
 fun insert_local_decimals(ref: &mut CCIPObjectRef, coin_metadata_address: address, decimals: u8) {
     assert!(state_object::contains<LocalDecimalsState>(ref), ELocalDecimalsNotInitialized);
     let state = state_object::borrow_mut<LocalDecimalsState>(ref);
-    if (!state.decimals.contains(coin_metadata_address)) {
+    if (state.decimals.contains(coin_metadata_address)) {
+        *state.decimals.borrow_mut(coin_metadata_address) = decimals;
+    } else {
         state.decimals.push_back(coin_metadata_address, decimals);
     };
 }
@@ -555,7 +557,8 @@ public fun unregister_pool(
     remove_pool_config(ref, coin_metadata_address);
 }
 
-fun unregister_pool_via_mcms(
+fun unregister_pool_as_owner(
+    owner_cap: &OwnerCap,
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
 ) {
@@ -565,8 +568,9 @@ fun unregister_pool_via_mcms(
         string::utf8(b"unregister_pool"),
         VERSION,
     );
-    let state = state_object::borrow<TokenAdminRegistryState>(ref);
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
 
     remove_pool_config(ref, coin_metadata_address);
@@ -770,7 +774,7 @@ public fun mcms_unregister_pool(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         state_object::McmsCallback,
         OwnerCap,
     >(
@@ -782,14 +786,14 @@ public fun mcms_unregister_pool(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref)],
+        vector[object::id_address(owner_cap), object::id_address(ref)],
         &mut stream,
     );
 
     let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    unregister_pool_via_mcms(ref, coin_metadata_address);
+    unregister_pool_as_owner(owner_cap, ref, coin_metadata_address);
 }
 
 public fun mcms_transfer_admin_role(
@@ -852,6 +856,61 @@ public fun mcms_accept_admin_role(
     bcs_stream::assert_is_consumed(&stream);
 
     accept_admin_role_internal(ref, coin_metadata_address, mcms_registry::get_multisig_address());
+}
+
+public fun mcms_initialize_local_decimals(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"initialize_local_decimals"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    initialize_local_decimals(ref, owner_cap, ctx);
+}
+
+public fun mcms_backfill_local_decimals(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    _ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"backfill_local_decimals"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(owner_cap), object::id_address(ref)],
+        &mut stream,
+    );
+
+    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
+    let local_decimals = bcs_stream::deserialize_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    backfill_local_decimals(owner_cap, ref, coin_metadata_address, local_decimals);
 }
 
 #[test_only]

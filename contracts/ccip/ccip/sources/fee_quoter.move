@@ -14,6 +14,7 @@ use std::string::{Self, String};
 use sui::clock;
 use sui::event;
 use sui::table;
+use sui::transfer;
 
 const VERSION: u8 = 2;
 
@@ -315,6 +316,26 @@ public fun new_fee_quoter_cap(
     FeeQuoterCap {
         id: object::new(ctx),
     }
+}
+
+/// Mint a `FeeQuoterCap` and send it to `recipient`. Used when the cap must be held
+/// off-registry between MCMS executions before offramp provisioning.
+public fun new_fee_quoter_cap_and_transfer(
+    ref: &CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    recipient: address,
+    ctx: &mut TxContext,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"new_fee_quoter_cap_and_transfer"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
+    let cap = new_fee_quoter_cap(ref, owner_cap, ctx);
+    transfer::public_transfer(cap, recipient);
 }
 
 public fun get_token_price(ref: &CCIPObjectRef, token: address): TimestampedPrice {
@@ -2099,6 +2120,71 @@ public fun destroy_fee_quoter_cap(ref: &CCIPObjectRef, owner_cap: &OwnerCap, cap
 
     let FeeQuoterCap { id } = cap;
     object::delete(id);
+}
+
+/// Slow-MCMS wrapper that mints a `FeeQuoterCap` and transfers it to a pinned recipient.
+/// Void return so a standalone MCMS leaf does not leave an unconsumed `FeeQuoterCap`.
+public fun mcms_new_fee_quoter_cap_and_transfer(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(
+        function == string::utf8(b"new_fee_quoter_cap_and_transfer"),
+        EInvalidFunction,
+    );
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let recipient = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    new_fee_quoter_cap_and_transfer(ref, owner_cap, recipient, ctx);
+}
+
+/// Slow-MCMS wrapper that destroys an existing `FeeQuoterCap`. The cap object is passed
+/// as a PTB argument and its address is pinned in callback data.
+public fun mcms_destroy_fee_quoter_cap(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    cap: FeeQuoterCap,
+    _ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"destroy_fee_quoter_cap"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[
+            object::id_address(ref),
+            object::id_address(owner_cap),
+            object::id_address(&cap),
+        ],
+        &mut stream,
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    destroy_fee_quoter_cap(ref, owner_cap, cap);
 }
 
 #[test]
