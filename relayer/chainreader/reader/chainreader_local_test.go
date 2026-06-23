@@ -322,6 +322,22 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						Params:             []codec.SuiFunctionParam{},
 						ResponseFromInputs: []string{"package_id"},
 					},
+					// Mirrors how the E2E env wires RMNProxy `get_arm`: the Move function does not exist
+					// on the Sui contract, so the read never calls the chain and instead maps a value
+					// supplied via config (the param DefaultValue) straight back out as the response.
+					"response_from_input_value": {
+						Name:          "get_arm", // never actually invoked; module "counter" resolves for package-id lookup
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:         "address",
+								Name:         "arm",
+								DefaultValue: "0x000000000000000000000000000000000000000000000000000000000000beef",
+								Required:     false,
+							},
+						},
+						ResponseFromInputs: []string{"arm"},
+					},
 				},
 				Events: map[string]*config.ChainReaderEvent{
 					"counter_incremented": {
@@ -1615,5 +1631,25 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.NoError(t, err)
 		testutils.PrettyPrintDebug(log, retStaticResponse, "retStaticResponse")
 		require.Equal(t, map[string]any{"a": 1, "b": 2, "c": 3}, retStaticResponse, "Expected static response to be map[string]any with keys a, b, and c")
+	})
+
+	t.Run("GetLatestValue_ResponseFromInputValue", func(t *testing.T) {
+		// The configured "arm" param is not passed at call time, so its DefaultValue is resolved and
+		// echoed straight back as the response — no on-chain call is made (the function does not exist).
+		// This is the mechanism the E2E env uses to satisfy RMNProxy get_arm on Sui.
+		const expectedArm = "0x000000000000000000000000000000000000000000000000000000000000beef"
+
+		var retArm any
+		params := map[string]any{}
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Counter", "response_from_input_value"}, "-"),
+			primitives.Finalized,
+			&params,
+			&retArm,
+		)
+		require.NoError(t, err)
+		testutils.PrettyPrintDebug(log, retArm, "retArm")
+		require.Equal(t, expectedArm, retArm, "Expected the read to echo the 'arm' param DefaultValue")
 	})
 }

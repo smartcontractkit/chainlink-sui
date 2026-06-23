@@ -1044,14 +1044,33 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 	if len(functionConfig.StaticResponse) > 0 {
 		return functionConfig.StaticResponse, nil
 	} else if len(functionConfig.ResponseFromInputs) > 0 {
+		// Build the response from the resolved inputs instead of calling the chain. This is used for
+		// reads whose Move function does not exist on the Sui contract (e.g. the EVM-shaped RMNProxy
+		// get_arm), where the value is supplied via config (a param's DefaultValue) or at call time and
+		// simply mapped back out. Each selection is either the reserved "package_id" token or the name of
+		// a configured parameter, whose resolved arg value (DefaultValue when not passed) is echoed.
+		response := make([]any, 0, len(functionConfig.ResponseFromInputs))
 		for _, pluckFromInput := range functionConfig.ResponseFromInputs {
-			switch pluckFromInput {
-			case "package_id":
-				return []any{latestPackageId}, nil
-			default:
-				return nil, fmt.Errorf("unknown response from inputs selection: %s", pluckFromInput)
+			if pluckFromInput == "package_id" {
+				response = append(response, latestPackageId)
+				continue
 			}
+
+			paramIdx := -1
+			for i, param := range functionConfig.Params {
+				if param.Name == pluckFromInput {
+					paramIdx = i
+					break
+				}
+			}
+			if paramIdx < 0 || paramIdx >= len(args) {
+				return nil, fmt.Errorf("response from inputs selection %q matches no configured parameter", pluckFromInput)
+			}
+
+			response = append(response, args[paramIdx])
 		}
+
+		return response, nil
 	}
 
 	// #region agent log
@@ -1088,7 +1107,7 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 		return nil, fmt.Errorf("failed to call function %s: %w", parsed.readName, err)
 	}
 
-	s.logger.Debugf("Sui ReadFunction response", "returnValues", values)
+	s.logger.Debugw("Sui ReadFunction response", "returnValues", values)
 
 	return values, nil
 }
