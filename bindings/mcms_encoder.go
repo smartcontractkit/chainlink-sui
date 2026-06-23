@@ -10,14 +10,16 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
+	module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
+	module_upgrade_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/upgrade_registry"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
 	module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
 	module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
 	module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
-	module_usdc_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/usdc_token_pool"
 	module_managed_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/managed_token/managed_token"
 )
 
@@ -132,6 +134,31 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			}
 
 			return feeQuoter.Encoder().McmsUpdatePricesWithOwnerCapWithArgs(ccipRef, registryObj, clock, executingCallbackParams)
+		case "apply_fee_token_updates":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return feeQuoter.Encoder().McmsApplyFeeTokenUpdatesWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "apply_dest_chain_config_updates":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return feeQuoter.Encoder().McmsApplyDestChainConfigUpdatesWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "apply_token_transfer_fee_config_updates":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return feeQuoter.Encoder().McmsApplyTokenTransferFeeConfigUpdatesWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "apply_premium_multiplier_wei_per_eth_updates":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return feeQuoter.Encoder().McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "new_fee_quoter_cap_and_transfer":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return feeQuoter.Encoder().McmsNewFeeQuoterCapAndTransferWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "destroy_fee_quoter_cap":
+			deserializer := bcs.NewDeserializer(data)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			capBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			ccipRef := bind.Object{Id: stateObjID}
+			c := bind.Object{Id: toHexString(capBytes)}
+			return feeQuoter.Encoder().McmsDestroyFeeQuoterCapWithArgs(ccipRef, registryObj, executingCallbackParams, c)
+		default:
+			return nil, fmt.Errorf("unsupported fee_quoter MCMS function: %q", function)
 		}
 
 	// STATE OBJECT
@@ -143,6 +170,10 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		switch function {
 		case "accept_ownership":
 			return moduleStateObj.Encoder().McmsAcceptOwnershipWithArgs(stateObj, registryObj, executingCallbackParams)
+		case "add_allowed_modules":
+			return moduleStateObj.Encoder().McmsAddAllowedModulesWithArgs(registryObj, executingCallbackParams)
+		case "remove_allowed_modules":
+			return moduleStateObj.Encoder().McmsRemoveAllowedModulesWithArgs(registryObj, executingCallbackParams)
 		}
 
 	// OFFRAMP
@@ -287,27 +318,144 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return encodeDefaultWithTypeArgsAndClock()
 		}
 
-	// USDC TOKEN POOL
-	case "usdc_token_pool":
-		usdcTokenPool, err := module_usdc_token_pool.NewUsdcTokenPool(target, nil)
+	// RMN REMOTE
+	case "rmn_remote":
+		rmnRemote, err := module_rmn_remote.NewRmnRemote(target, nil)
+		if err != nil {
+			return nil, err
+		}
+		ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+		switch function {
+		case "curse", "curse_multiple":
+			entrypointCall, err := rmnRemote.Encoder().McmsCurseMultipleWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "uncurse", "uncurse_multiple":
+			entrypointCall, err := rmnRemote.Encoder().McmsUncurseMultipleWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "curse_with_curser_cap", "curse_multiple_with_curser_cap":
+			entrypointCall, err := rmnRemote.Encoder().McmsCurseMultipleWithCurserCapWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "create_curser_cap":
+			entrypointCall, err := rmnRemote.Encoder().McmsCreateCurserCapWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "create_curser_cap_and_transfer":
+			entrypointCall, err := rmnRemote.Encoder().McmsCreateCurserCapAndTransferWithArgs(ccipRef, registryObj, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "register_curser_cap":
+			deserializer := bcs.NewDeserializer(data)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			fastRegBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			curserCapBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			fastReg := bind.Object{Id: toHexString(fastRegBytes)}
+			curserCap := bind.Object{Id: toHexString(curserCapBytes)}
+			entrypointCall, err := rmnRemote.Encoder().McmsRegisterCurserCapWithArgs(ccipRef, registryObj, fastReg, executingCallbackParams, curserCap)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "mint_and_register_curser_cap":
+			deserializer := bcs.NewDeserializer(data)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			fastRegBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			fastReg := bind.Object{Id: toHexString(fastRegBytes)}
+			entrypointCall, err := rmnRemote.Encoder().McmsMintAndRegisterCurserCapWithArgs(ccipRef, registryObj, fastReg, executingCallbackParams)
+			if err != nil {
+				return nil, err
+			}
+			return overrideCall(entrypointCall, module, function), nil
+		case "initialize_allowed_curser_caps":
+			return rmnRemote.Encoder().McmsInitializeAllowedCurserCapsWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "register_curser_cap_ids":
+			return rmnRemote.Encoder().McmsRegisterCurserCapIdsWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "deregister_curser_cap_ids":
+			return rmnRemote.Encoder().McmsDeregisterCurserCapIdsWithArgs(ccipRef, registryObj, executingCallbackParams)
+		default:
+			return nil, fmt.Errorf("unsupported rmn_remote MCMS function: %q", function)
+		}
+
+	// TOKEN ADMIN REGISTRY
+	case "token_admin_registry":
+		tokenAdminRegistry, err := module_token_admin_registry.NewTokenAdminRegistry(target, nil)
 		if err != nil {
 			return nil, err
 		}
 		switch function {
-		case "accept_ownership":
+		case "initialize_local_decimals":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return tokenAdminRegistry.Encoder().McmsInitializeLocalDecimalsWithArgs(
+				ccipRef,
+				registryObj,
+				executingCallbackParams,
+			)
+		case "backfill_local_decimals", "register_pool", "unregister_pool":
+			deserializer := bcs.NewDeserializer(data)
+			deserializer.ReadFixedBytes(SuiAddressLength)
+			ccipRef := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
+			switch function {
+			case "backfill_local_decimals":
+				return tokenAdminRegistry.Encoder().McmsBackfillLocalDecimalsWithArgs(
+					ccipRef,
+					registryObj,
+					executingCallbackParams,
+				)
+			case "register_pool":
+				return tokenAdminRegistry.Encoder().McmsRegisterPoolWithArgs(
+					ccipRef,
+					registryObj,
+					executingCallbackParams,
+				)
+			case "unregister_pool":
+				return tokenAdminRegistry.Encoder().McmsUnregisterPoolWithArgs(
+					ccipRef,
+					registryObj,
+					executingCallbackParams,
+				)
+			}
+		case "transfer_admin_role":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return tokenAdminRegistry.Encoder().McmsTransferAdminRoleWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "accept_admin_role":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return tokenAdminRegistry.Encoder().McmsAcceptAdminRoleWithArgs(ccipRef, registryObj, executingCallbackParams)
+		default:
+			return nil, fmt.Errorf("unsupported token_admin_registry MCMS function: %q", function)
+		}
 
-			return usdcTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
-		case "set_allowlist_enabled",
-			"apply_allowlist_updates",
-			"apply_chain_updates",
-			"add_remote_pool",
-			"remove_remote_pool",
-			"transfer_ownership":
-			return encodeDefaultWithTypeArgs()
-		case "execute_ownership_transfer":
-			return encodeExecuteOwnershipTransferWithTypeArgs()
-		case "set_chain_rate_limiter_configs", "set_chain_rate_limiter_config":
-			return encodeDefaultWithTypeArgsAndClock()
+	// UPGRADE REGISTRY
+	case "upgrade_registry":
+		upgradeRegistry, err := module_upgrade_registry.NewUpgradeRegistry(target, nil)
+		if err != nil {
+			return nil, err
+		}
+		ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+		switch function {
+		case "block_version":
+			return upgradeRegistry.Encoder().McmsBlockVersionWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "unblock_version":
+			return upgradeRegistry.Encoder().McmsUnblockVersionWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "block_function":
+			return upgradeRegistry.Encoder().McmsBlockFunctionWithArgs(ccipRef, registryObj, executingCallbackParams)
+		case "unblock_function":
+			return upgradeRegistry.Encoder().McmsUnblockFunctionWithArgs(ccipRef, registryObj, executingCallbackParams)
+		default:
+			return nil, fmt.Errorf("unsupported upgrade_registry MCMS function: %q", function)
 		}
 
 	// MANAGED TOKEN

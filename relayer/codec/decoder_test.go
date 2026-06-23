@@ -3,6 +3,7 @@
 package codec
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/block-vision/sui-go-sdk/utils"
@@ -2693,4 +2695,183 @@ func TestCustomReportDeserializer(t *testing.T) {
 		dataStr := string(report.Message.Data)
 		require.Equal(t, "I am a test ccip message", dataStr)
 	})
+}
+
+func TestDeserializeExecutionReport_RejectsOversizedVectorLength(t *testing.T) {
+	t.Parallel()
+
+	// Build a minimal valid prefix up to token_amounts length, then inject a
+	// ULEB128 encoding of 0xFFFFFFFF. Without the bounds check this would
+	// trigger a ~343 GB allocation and a fatal OOM.
+	var buf []byte
+
+	u64 := func(v uint64) {
+		b := make([]byte, 8)
+		b[0] = byte(v)
+		b[1] = byte(v >> 8)
+		b[2] = byte(v >> 16)
+		b[3] = byte(v >> 24)
+		b[4] = byte(v >> 32)
+		b[5] = byte(v >> 40)
+		b[6] = byte(v >> 48)
+		b[7] = byte(v >> 56)
+		buf = append(buf, b...)
+	}
+	fixed32 := func() { buf = append(buf, make([]byte, 32)...) }
+	uleb := func(v uint32) {
+		for {
+			b := byte(v & 0x7f)
+			v >>= 7
+			if v != 0 {
+				b |= 0x80
+			}
+			buf = append(buf, b)
+			if v == 0 {
+				break
+			}
+		}
+	}
+
+	u64(1)       // sourceChainSelector
+	fixed32()    // messageID
+	u64(1)       // headerSourceChain (must match sourceChainSelector)
+	u64(2)       // destChainSelector
+	u64(3)       // sequenceNumber
+	u64(4)       // nonce
+	uleb(0)      // sender length (empty)
+	uleb(0)      // data length (empty)
+	fixed32()    // receiver
+	fixed32()    // gasLimit (u256)
+	fixed32()    // tokenReceiver
+	uleb(0xFFFFFFFF) // token_amounts length -- the malicious value
+
+	report, err := DeserializeExecutionReport(buf)
+	require.Nil(t, report)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "token_amounts length")
+	require.Contains(t, err.Error(), "exceeds remaining")
+}
+
+func TestDeserializeExecutionReport_RejectsTokenAmountsLengthExceedingWireBudget(t *testing.T) {
+	t.Parallel()
+
+	var buf []byte
+
+	u64 := func(v uint64) {
+		b := make([]byte, 8)
+		b[0] = byte(v)
+		b[1] = byte(v >> 8)
+		b[2] = byte(v >> 16)
+		b[3] = byte(v >> 24)
+		b[4] = byte(v >> 32)
+		b[5] = byte(v >> 40)
+		b[6] = byte(v >> 48)
+		b[7] = byte(v >> 56)
+		buf = append(buf, b...)
+	}
+	fixed32 := func() { buf = append(buf, make([]byte, 32)...) }
+	uleb := func(v uint32) {
+		for {
+			b := byte(v & 0x7f)
+			v >>= 7
+			if v != 0 {
+				b |= 0x80
+			}
+			buf = append(buf, b)
+			if v == 0 {
+				break
+			}
+		}
+	}
+
+	u64(1)    // sourceChainSelector
+	fixed32() // messageID
+	u64(1)    // headerSourceChain
+	u64(2)    // destChainSelector
+	u64(3)    // sequenceNumber
+	u64(4)    // nonce
+	uleb(0)   // sender
+	uleb(0)   // data
+	fixed32() // receiver
+	fixed32() // gasLimit
+	fixed32() // tokenReceiver
+	uleb(100) // token_amounts length: 100 elements need 7000 bytes
+	buf = append(buf, make([]byte, 100)...) // only 100 bytes remain on the wire
+
+	report, err := DeserializeExecutionReport(buf)
+	require.Nil(t, report)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "token_amounts length")
+	require.Contains(t, err.Error(), "exceeds remaining")
+}
+
+func TestDeserializeExecutionReport_RejectsProofsLengthExceedingWireBudget(t *testing.T) {
+	t.Parallel()
+
+	var buf []byte
+
+	u64 := func(v uint64) {
+		b := make([]byte, 8)
+		b[0] = byte(v)
+		b[1] = byte(v >> 8)
+		b[2] = byte(v >> 16)
+		b[3] = byte(v >> 24)
+		b[4] = byte(v >> 32)
+		b[5] = byte(v >> 40)
+		b[6] = byte(v >> 48)
+		b[7] = byte(v >> 56)
+		buf = append(buf, b...)
+	}
+	fixed32 := func() { buf = append(buf, make([]byte, 32)...) }
+	uleb := func(v uint32) {
+		for {
+			b := byte(v & 0x7f)
+			v >>= 7
+			if v != 0 {
+				b |= 0x80
+			}
+			buf = append(buf, b)
+			if v == 0 {
+				break
+			}
+		}
+	}
+
+	u64(1)    // sourceChainSelector
+	fixed32() // messageID
+	u64(1)    // headerSourceChain
+	u64(2)    // destChainSelector
+	u64(3)    // sequenceNumber
+	u64(4)    // nonce
+	uleb(0)   // sender
+	uleb(0)   // data
+	fixed32() // receiver
+	fixed32() // gasLimit
+	fixed32() // tokenReceiver
+	uleb(0)   // token_amounts
+	uleb(0)   // offchain_token_data
+	uleb(10)  // proofs length: 10 elements need 320 bytes
+	buf = append(buf, make([]byte, 100)...) // only 100 bytes remain on the wire
+
+	report, err := DeserializeExecutionReport(buf)
+	require.Nil(t, report)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "proofs length")
+	require.Contains(t, err.Error(), "exceeds remaining")
+}
+
+func TestDeserializeExecutionReportFromPure(t *testing.T) {
+	t.Parallel()
+
+	reportStr := "9b3c1f221aa3f0cc579b9518768ead0a57cc3d9d782049b702fab91dd723c757f287d20217d8e69b9b3c1f221aa3f0ccec1182faa7c27b87a40200000000000000000000000000001407775923481a094e41d51449b0b0f979c126a3b003486579b4dcbf61d5f5f447ae448e3c1503a811d83bdc074a8712ebeb241fd649b372e040420f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+	reportBytes, err := hex.DecodeString(reportStr)
+	require.NoError(t, err)
+
+	bcsEncoded := bytes.Buffer{}
+	bcsEncoder := mystenbcs.NewEncoder(&bcsEncoded)
+	require.NoError(t, bcsEncoder.Encode(reportBytes))
+
+	report, err := DeserializeExecutionReportFromPure(bcsEncoded.Bytes())
+	require.NoError(t, err)
+	require.Equal(t, uint64(14767482510784806043), report.SourceChainSelector)
 }

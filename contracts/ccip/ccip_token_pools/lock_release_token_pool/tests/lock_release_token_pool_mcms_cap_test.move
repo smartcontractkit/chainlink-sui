@@ -58,6 +58,7 @@ fun setup(): (TestEnv, OwnerCap, RebalancerCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_
     upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
+    token_admin_registry::initialize_local_decimals(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     onramp_state_helper::test_init(scenario.ctx());
     offramp_state_helper::test_init(scenario.ctx());
 
@@ -170,7 +171,7 @@ fun encode_set_rebalancer_data(
     owner_cap_id: address,
     rebalancer: address,
 ): vector<u8> {
-    let mut data = vector::empty();
+    let mut data = vector[];
     vector::append(&mut data, bcs::to_bytes(&state_id));
     vector::append(&mut data, bcs::to_bytes(&owner_cap_id));
     vector::append(&mut data, bcs::to_bytes(&rebalancer));
@@ -182,7 +183,7 @@ fun encode_provide_liquidity_data(
     rebalancer_cap_id: address,
     coin_id: address,
 ): vector<u8> {
-    let mut data = vector::empty();
+    let mut data = vector[];
     vector::append(&mut data, bcs::to_bytes(&state_id));
     vector::append(&mut data, bcs::to_bytes(&rebalancer_cap_id));
     vector::append(&mut data, bcs::to_bytes(&coin_id));
@@ -195,7 +196,7 @@ fun encode_withdraw_liquidity_data(
     amount: u64,
     to: address,
 ): vector<u8> {
-    let mut data = vector::empty();
+    let mut data = vector[];
     vector::append(&mut data, bcs::to_bytes(&state_id));
     vector::append(&mut data, bcs::to_bytes(&rebalancer_cap_id));
     vector::append(&mut data, bcs::to_bytes(&amount));

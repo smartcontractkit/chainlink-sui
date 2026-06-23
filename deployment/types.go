@@ -11,6 +11,7 @@ var (
 	SuiCCIPType                      deployment.ContractType = "SuiCCIP"
 	SuiCCIPObjectRefType             deployment.ContractType = "SuiCCIPObjectRef"
 	SuiCCIPOwnerCapObjectIDType      deployment.ContractType = "SuiCCIPOwnerCapObjectID"
+	SuiCurserCapObjectIDType         deployment.ContractType = "SuiCurserCapObjectID"
 	SuiCCIPUpgradeCapObjectIDType    deployment.ContractType = "SuiCCIPUpgradeCapObjectID"
 	SuiFeeQuoterCapType              deployment.ContractType = "SuiCCIPFeeQuoterCap"
 	SuiOnRampType                    deployment.ContractType = "SuiOnRamp"
@@ -28,6 +29,7 @@ var (
 	SuiCCIPRouterType                 deployment.ContractType = "SuiRouter"
 	SuiCCIPRouterStateObjectType      deployment.ContractType = "SuiRouterStateObjectID"
 	SuiCCIPRouterOwnerCapObjectIDType deployment.ContractType = "SuiCCIPRouterOwnerCapObjectID"
+	SuiRouterUpgradeCapObjectIDType   deployment.ContractType = "SuiRouterUpgradeCapObjectID"
 
 	// MCMS Related
 	SuiMCMSType                        deployment.ContractType = "SuiManyChainMultisig"

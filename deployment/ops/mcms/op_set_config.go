@@ -7,10 +7,11 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
-	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/mcms/sdk/evm"
+	"github.com/smartcontractkit/mcms/sdk"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/smartcontractkit/mcms/types"
+
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	modulemcms "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms"
@@ -18,16 +19,16 @@ import (
 )
 
 type MCMSSetConfigInput struct {
-	ChainSelector uint64 `json:"chainSelector"`
+	ChainSelector uint64 `yaml:"chainSelector"`
 	// MCMS related
-	McmsPackageID string `json:"mcmsPackageID"`
-	OwnerCap      string `json:"ownerCap"`
-	McmsObjectID  string `json:"mcmsObjectID"`
+	McmsPackageID string `yaml:"mcmsPackageID"`
+	OwnerCap      string `yaml:"ownerCap"`
+	McmsObjectID  string `yaml:"mcmsObjectID"`
 	// Timelock related
-	Role suisdk.TimelockRole `json:"role"`
+	Role suisdk.TimelockRole `yaml:"role"`
 	// Config related
-	Config    types.Config `json:"config"`
-	ClearRoot bool         `json:"clearRoot"`
+	Config    types.Config `yaml:"config"`
+	ClearRoot bool         `yaml:"clearRoot"`
 }
 
 var SetConfigMCMSOp = cld_ops.NewOperation(
@@ -50,7 +51,7 @@ var setConfigMcmsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input M
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, err
 	}
 	chainIDBig := new(big.Int).SetUint64(chainID)
-	groupQuorum, groupParents, signerAddresses, signerGroups, err := evm.ExtractSetConfigInputs(&input.Config)
+	groupQuorum, groupParents, signerAddresses, signerGroups, err := sdk.ExtractSetConfigInputs(&input.Config)
 
 	if err != nil {
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("unable to extract set config inputs: %w", err)

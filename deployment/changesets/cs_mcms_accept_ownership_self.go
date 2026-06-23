@@ -9,21 +9,49 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
-var _ cldf.ChangeSetV2[mcmsops.AcceptMCMSOwnershipSeqInput] = AcceptMCMSOwnership{}
+var _ cldf.ChangeSetV2[AcceptMCMSOwnershipConfig] = AcceptMCMSOwnership{}
+
+// AcceptMCMSOwnershipConfig identifies an MCMS deployment whose ownership
+// transfer proposal should be (re-)generated. When IsFastCurse is true the
+// fastcurse MCMS instance is targeted; otherwise the normal instance is used.
+type AcceptMCMSOwnershipConfig struct {
+	ChainSelector  uint64
+	IsFastCurse    bool
+	TimelockConfig utils.TimelockConfig `yaml:"timelockConfig"`
+}
 
 type AcceptMCMSOwnership struct{}
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
-func (a AcceptMCMSOwnership) VerifyPreconditions(e cldf.Environment, config mcmsops.AcceptMCMSOwnershipSeqInput) error {
+func (a AcceptMCMSOwnership) VerifyPreconditions(e cldf.Environment, config AcceptMCMSOwnershipConfig) error {
 	return nil
 }
 
 // Apply implements deployment.ChangeSetV2.
-func (a AcceptMCMSOwnership) Apply(e cldf.Environment, config mcmsops.AcceptMCMSOwnershipSeqInput) (cldf.ChangesetOutput, error) {
+func (a AcceptMCMSOwnership) Apply(e cldf.Environment, config AcceptMCMSOwnershipConfig) (cldf.ChangesetOutput, error) {
+	suiState, err := deployment.LoadOnchainStatesui(e)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load sui onchain state: %w", err)
+	}
+
+	mcmsFields := suiState[config.ChainSelector].MCMSState(config.IsFastCurse)
+
+	seqInput := mcmsops.AcceptMCMSOwnershipSeqInput{
+		ChainSelector:             config.ChainSelector,
+		PackageId:                 mcmsFields.PackageID,
+		McmsMultisigStateObjectId: mcmsFields.StateObjectID,
+		TimelockObjectId:          mcmsFields.TimelockObjectID,
+		McmsAccountStateObjectId:  mcmsFields.AccountStateObjectID,
+		McmsRegistryObjectId:      mcmsFields.RegistryObjectID,
+		McmsDeployerStateObjectId: mcmsFields.DeployerStateObjectID,
+		TimelockConfig:            config.TimelockConfig,
+	}
 	suiChains := e.BlockChains.SuiChains()
 	suiChain := suiChains[config.ChainSelector]
 	deps := sui_ops.OpTxDeps{
@@ -40,7 +68,7 @@ func (a AcceptMCMSOwnership) Apply(e cldf.Environment, config mcmsops.AcceptMCMS
 	}
 
 	// Run AcceptMCMSOwnership Sequence
-	acceptReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.AcceptMCMSOwnershipSequence, deps, config)
+	acceptReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.AcceptMCMSOwnershipSequence, deps, seqInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to generate accept ownership proposal for Sui chain %d: %w", config.ChainSelector, err)
 	}

@@ -26,8 +26,9 @@ type DeployCCIPObjects struct {
 }
 
 type DeployCCIPInput struct {
-	McmsPackageId string
-	McmsOwner     string
+	McmsPackageId     string
+	FastMcmsPackageId string
+	McmsOwner         string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPInput) (output sui_ops.OpTxResult[DeployCCIPObjects], err error) {
@@ -38,6 +39,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		opts,
 		deps.Client,
 		input.McmsPackageId,
+		input.FastMcmsPackageId,
 		input.McmsOwner,
 		deps.SuiRPC,
 	)

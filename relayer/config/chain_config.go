@@ -16,8 +16,12 @@ const (
 	DefaultConfirmPollSecs            = int64(10)
 	DefaultBalancePollIntervalSeconds = int64(10)
 
-	DefaultIndexerPollIntervalSecs = uint64(3)
-	DefaultIndexerSyncTimeoutSecs  = uint64(3)
+	DefaultIndexerPollIntervalSecs = uint64(10)
+	DefaultIndexerSyncTimeoutSecs  = uint64(60)
+
+	DefaultChainPollerPollIntervalSecs  = uint64(3)
+	DefaultChainPollerSyncTimeoutSecs   = uint64(60)
+	DefaultChainPollerChannelBufferSize = uint64(16)
 
 	DefaultReaperPollSecs           = uint64(10)
 	DefaultTransactionRetentionSecs = uint64(10)
@@ -31,8 +35,10 @@ type ChainInfo struct {
 }
 
 type NodeConfig struct {
-	Name *string
-	URL  *config.URL
+	Name       *string
+	URL        *config.URL
+	GrpcTarget *string
+	GrpcToken  *string
 }
 
 func (n *NodeConfig) ValidateConfig() error {

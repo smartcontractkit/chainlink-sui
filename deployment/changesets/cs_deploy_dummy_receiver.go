@@ -48,9 +48,10 @@ func (d DeployDummyReceiver) Apply(e cldf.Environment, config DeployDummyReceive
 
 	// Run DummyReceiver Operation
 	DeployDummyReceiverOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.DeployCCIPDummyReceiverOp, deps, ccipops.DeployDummyReceiverInput{
-		CCIPPackageId: state[config.SuiChainSelector].CCIPAddress,
-		McmsPackageId: state[config.SuiChainSelector].MCMSPackageID,
-		McmsOwner:     config.McmsOwner,
+		CCIPPackageId:     state[config.SuiChainSelector].CCIPAddress,
+		McmsPackageId:     state[config.SuiChainSelector].MCMSPackageID,
+		FastMcmsPackageId: state[config.SuiChainSelector].FastCurseMCMSPackageID,
+		McmsOwner:         config.McmsOwner,
 	})
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy dummy receiver for Sui chain %d: %w", config.SuiChainSelector, err)

@@ -125,10 +125,13 @@ var applyUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Fe
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.ApplyFeeTokenUpdates(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.FeeTokensToRemove,
+		input.FeeTokensToAdd,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyFeeTokenUpdates on FeeQuoter: %w", err)
@@ -205,10 +208,20 @@ var applyTokenTransferFeeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.ApplyTokenTransferFeeConfigUpdates(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.DestChainSelector,
+		input.AddTokens,
+		input.AddMinFeeUsdCents,
+		input.AddMaxFeeUsdCents,
+		input.AddDeciBps,
+		input.AddDestGasOverhead,
+		input.AddDestBytesOverhead,
+		input.AddIsEnabled,
+		input.RemoveTokens,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyTokenTransferFeeConfigUpdates on FeeQuoter: %w", err)
@@ -307,10 +320,31 @@ var applyDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.ApplyDestChainConfigUpdates(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.DestChainSelector,
+		input.IsEnabled,
+		input.MaxNumberOfTokensPerMsg,
+		input.MaxDataBytes,
+		input.MaxPerMsgGasLimit,
+		input.DestGasOverhead,
+		input.DestGasPerPayloadByteBase,
+		input.DestGasPerPayloadByteHigh,
+		input.DestGasPerPayloadByteThreshold,
+		input.DestDataAvailabilityOverheadGas,
+		input.DestGasPerDataAvailabilityByte,
+		input.DestDataAvailabilityMultiplierBps,
+		input.ChainFamilySelector,
+		input.EnforceOutOfOrder,
+		input.DefaultTokenFeeUsdCents,
+		input.DefaultTokenDestGasOverhead,
+		input.DefaultTxGasLimit,
+		input.GasMultiplierWeiPerEth,
+		input.GasPriceStalenessThreshold,
+		input.NetworkFeeUsdCents,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyDestChainConfigUpdates on FeeQuoter: %w", err)
@@ -373,10 +407,13 @@ var applyPremiumMultiplierHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.ApplyPremiumMultiplierWeiPerEthUpdates(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.Tokens,
+		input.PremiumMultiplierWeiPerEth,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyPremiumMultiplierWeiPerEthUpdates on FeeQuoter: %w", err)
@@ -495,6 +532,7 @@ type NewFeeQuoterCapInput struct {
 	CCIPPackageId    string
 	CCIPObjectRef    string
 	OwnerCapObjectId string
+	RecipientAddress string
 }
 
 var newFeeQuoterCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input NewFeeQuoterCapInput) (output sui_ops.OpTxResult[NewFeeQuoterCapObjects], err error) {
@@ -503,13 +541,41 @@ var newFeeQuoterCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 		return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
+	ref := bind.Object{Id: input.CCIPObjectRef}
+	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
+
+	if deps.Signer == nil {
+		if input.RecipientAddress == "" {
+			return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{}, fmt.Errorf("recipient address is required for MCMS new_fee_quoter_cap_and_transfer")
+		}
+
+		encodedCall, err := contract.Encoder().NewFeeQuoterCapAndTransfer(ref, ownerCap, input.RecipientAddress)
+		if err != nil {
+			return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{}, fmt.Errorf("failed to encode new_fee_quoter_cap_and_transfer: %w", err)
+		}
+		call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRef)
+		if err != nil {
+			return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+		}
+
+		b.Logger.Infow("Skipping execution of new_fee_quoter_cap_and_transfer as no signer provided",
+			"recipient", input.RecipientAddress,
+		)
+		return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NewFeeQuoterCapObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 	tx, err := contract.NewFeeQuoterCap(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.CCIPObjectRef},
-		bind.Object{Id: input.OwnerCapObjectId},
+		ref,
+		ownerCap,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{}, fmt.Errorf("failed to execute new_fee_quoter_cap: %w", err)
@@ -520,13 +586,23 @@ var newFeeQuoterCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 		return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{}, fmt.Errorf("failed to find fee quoter cap object ID in tx: %w", err1)
 	}
 
+	encodedCall, err := contract.Encoder().NewFeeQuoterCap(ref, ownerCap)
+	if err != nil {
+		return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{}, fmt.Errorf("failed to encode new_fee_quoter_cap: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRef)
+	if err != nil {
+		return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+
 	return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects: NewFeeQuoterCapObjects{
 			FeeQuoterCapObjectId: feeQuoterCapObjectId,
 		},
-	}, err
+		Call: call,
+	}, nil
 }
 
 var FeeQuoterNewFeeQuoterCapOp = cld_ops.NewOperation(
@@ -550,14 +626,36 @@ var destroyFeeQuoterCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
+	ref := bind.Object{Id: input.CCIPObjectRef}
+	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
+	cap := bind.Object{Id: input.FeeQuoterCapObjectId}
+
+	encodedCall, err := contract.Encoder().DestroyFeeQuoterCap(ref, ownerCap, cap)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode destroy_fee_quoter_cap: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRef)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of DestroyFeeQuoterCap as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 	tx, err := contract.DestroyFeeQuoterCap(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.CCIPObjectRef},
-		bind.Object{Id: input.OwnerCapObjectId},
-		bind.Object{Id: input.FeeQuoterCapObjectId},
+		ref,
+		ownerCap,
+		cap,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute destroy_fee_quoter_cap: %w", err)
@@ -566,7 +664,9 @@ var destroyFeeQuoterCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
-	}, err
+		Objects:   NoObjects{},
+		Call:      call,
+	}, nil
 }
 
 var FeeQuoterDestroyFeeQuoterCapOp = cld_ops.NewOperation(

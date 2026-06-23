@@ -107,6 +107,7 @@ fun setup(): (Env, NonceManagerCap, osh::SourceTransferCap) {
     upgrade_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     nonce_manager::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
+    token_admin_registry::initialize_local_decimals(&mut ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ref, &ccip_owner_cap, 1000, scenario.ctx());
     fee_quoter::initialize(
         &mut ref,
@@ -289,6 +290,7 @@ fun setup_standalone_fee_test_env(): (
     upgrade_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     nonce_manager::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
+    token_admin_registry::initialize_local_decimals(&mut ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ref, &ccip_owner_cap, 1000, scenario.ctx());
     fee_quoter::initialize(
         &mut ref,
@@ -670,7 +672,7 @@ public fun test_apply_allowlist_updates_by_admin_unauthorized() {
 #[test]
 public fun test_type_and_version() {
     let version = onramp::type_and_version();
-    assert!(version == string::utf8(b"OnRamp 1.6.0"));
+    assert!(version == string::utf8(b"OnRamp 1.6.1"));
 }
 
 #[test]

@@ -28,7 +28,8 @@ type SuiChainView struct {
 	ChainSelector uint64 `json:"chainSelector,omitempty"`
 	ChainID       string `json:"chainID,omitempty"`
 
-	MCMSWithTimelock view.MCMSWithTimelockView `json:"mcmsWithTimelock"`
+	MCMSWithTimelock          view.MCMSWithTimelockView `json:"mcmsWithTimelock"`
+	FastCurseMCMSWithTimelock view.MCMSWithTimelockView `json:"fastcurseMcmsWithTimelock,omitempty"`
 
 	CCIP    view.CCIPView               `json:"ccip,omitempty"`
 	OnRamp  map[string]view.OnRampView  `json:"onRamp,omitempty"`
@@ -63,8 +64,22 @@ type ManagedTokenFaucetState struct {
 	UpgradeCapObjectId string
 }
 
+// MCMSLabel is the address book label applied to the fastcurse MCMS instance.
+const MCMSFastCurseLabel = "fastcurse"
+
+// MCMSStateFields holds the seven object IDs that describe one MCMS deployment.
+type MCMSStateFields struct {
+	PackageID               string
+	StateObjectID           string
+	RegistryObjectID        string
+	DeployerStateObjectID   string
+	AccountStateObjectID    string
+	AccountOwnerCapObjectID string
+	TimelockObjectID        string
+}
+
 type CCIPChainState struct {
-	// MCMS related
+	// MCMS related (normal governance instance)
 	MCMSPackageID               string
 	MCMSStateObjectID           string
 	MCMSRegistryObjectID        string
@@ -73,10 +88,20 @@ type CCIPChainState struct {
 	MCMSAccountOwnerCapObjectID string
 	MCMSTimelockObjectID        string
 
+	// FastCurse MCMS related (fastcurse governance instance, stored with label "fastcurse")
+	FastCurseMCMSPackageID               string
+	FastCurseMCMSStateObjectID           string
+	FastCurseMCMSRegistryObjectID        string
+	FastCurseMCMSDeployerStateObjectID   string
+	FastCurseMCMSAccountStateObjectID    string
+	FastCurseMCMSAccountOwnerCapObjectID string
+	FastCurseMCMSTimelockObjectID        string
+
 	// CCIP related
 	CCIPAddress            string
 	CCIPObjectRef          string
 	CCIPOwnerCapObjectId   string
+	CurserCapObjectId      string
 	CCIPUpgradeCapObjectId string
 	FeeQuoterCapId         string
 
@@ -84,6 +109,7 @@ type CCIPChainState struct {
 	CCIPRouterAddress          string
 	CCIPRouterStateObjectID    string
 	CCIPRouterOwnerCapObjectId string
+	CCIPRouterUpgradeCapId     string
 
 	// OnRamp related
 	OnRampAddress          string
@@ -118,6 +144,13 @@ type CCIPChainState struct {
 	CCIPMockV2PackageId    string
 }
 
+// MCMSState returns the MCMS object IDs for the requested instance.
+// When isFastCurse is true the fastcurse instance fields are returned;
+// otherwise the normal governance instance fields are returned.
+func (s CCIPChainState) MCMSState(isFastCurse bool) MCMSStateFields {
+	return s.MCMSStateByInstance(MCMSInstanceFromFastCurseFlag(isFastCurse))
+}
+
 func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chainName string) (SuiChainView, error) {
 	lggr := e.Logger
 	chainView := SuiChainView{
@@ -135,7 +168,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	var mu sync.Mutex
 	g, ctxG1 := errgroup.WithContext(ctx)
 
-	// MCMS
+	// Normal MCMS
 	if s.MCMSStateObjectID != "" {
 		g.Go(func() error {
 			mcmsView, err := view.GenerateMCMSWithTimelockView(ctxG1, suiChain, s.MCMSPackageID, s.MCMSStateObjectID, s.MCMSTimelockObjectID, s.MCMSAccountStateObjectID)
@@ -146,6 +179,34 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 			chainView.MCMSWithTimelock = mcmsView
 			mu.Unlock()
 			lggr.Infow("generated MCMS view", "mcmsStateObjectID", s.MCMSStateObjectID, "chain", chainName)
+			return nil
+		})
+	}
+
+	// FastCurse MCMS — package may be published without role configuration (e.g. during
+	// DeploySuiChain before a dedicated ConfigureMCMS changeset runs).
+	if s.FastCurseMCMSStateObjectID != "" {
+		g.Go(func() error {
+			configured, err := view.IsMCMSConfigured(ctxG1, suiChain, s.FastCurseMCMSPackageID, s.FastCurseMCMSStateObjectID)
+			if err != nil {
+				return fmt.Errorf("failed to check fastcurse mcms configuration for %s: %w", s.FastCurseMCMSStateObjectID, err)
+			}
+			if !configured {
+				lggr.Infow("skipping FastCurse MCMS view: roles not configured yet",
+					"fastCurseMCMSStateObjectID", s.FastCurseMCMSStateObjectID,
+					"chain", chainName,
+				)
+				return nil
+			}
+
+			mcmsView, err := view.GenerateMCMSWithTimelockView(ctxG1, suiChain, s.FastCurseMCMSPackageID, s.FastCurseMCMSStateObjectID, s.FastCurseMCMSTimelockObjectID, s.FastCurseMCMSAccountStateObjectID)
+			if err != nil {
+				return fmt.Errorf("failed to generate fastcurse mcms view for mcms %s: %w", s.FastCurseMCMSStateObjectID, err)
+			}
+			mu.Lock()
+			chainView.FastCurseMCMSWithTimelock = mcmsView
+			mu.Unlock()
+			lggr.Infow("generated FastCurse MCMS view", "fastCurseMCMSStateObjectID", s.FastCurseMCMSStateObjectID, "chain", chainName)
 			return nil
 		})
 	}
@@ -357,24 +418,54 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		ManagedTokenPools:   make(map[string]CCIPPoolState),
 	}
 	for addr, typeAndVersion := range addresses {
-		// Parse addresss based on type and label
+		// Determine whether this address belongs to the fastcurse MCMS instance.
+		isFastCurse := typeAndVersion.Labels.Contains(MCMSFastCurseLabel)
+
 		switch typeAndVersion.Type {
 
-		// MCMS related
+		// MCMS related — route to normal or fastcurse fields based on the label.
 		case SuiMcmsPackageIDType:
-			chainState.MCMSPackageID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSPackageID = addr
+			} else {
+				chainState.MCMSPackageID = addr
+			}
 		case SuiMcmsRegistryObjectIDType:
-			chainState.MCMSRegistryObjectID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSRegistryObjectID = addr
+			} else {
+				chainState.MCMSRegistryObjectID = addr
+			}
 		case SuiMcmsObjectIDType:
-			chainState.MCMSStateObjectID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSStateObjectID = addr
+			} else {
+				chainState.MCMSStateObjectID = addr
+			}
 		case SuiMcmsAccountStateObjectIDType:
-			chainState.MCMSAccountStateObjectID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSAccountStateObjectID = addr
+			} else {
+				chainState.MCMSAccountStateObjectID = addr
+			}
 		case SuiMcmsAccountOwnerCapObjectIDType:
-			chainState.MCMSAccountOwnerCapObjectID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSAccountOwnerCapObjectID = addr
+			} else {
+				chainState.MCMSAccountOwnerCapObjectID = addr
+			}
 		case SuiMcmsTimelockObjectIDType:
-			chainState.MCMSTimelockObjectID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSTimelockObjectID = addr
+			} else {
+				chainState.MCMSTimelockObjectID = addr
+			}
 		case SuiMcmsDeployerObjectIDType:
-			chainState.MCMSDeployerStateObjectID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSDeployerStateObjectID = addr
+			} else {
+				chainState.MCMSDeployerStateObjectID = addr
+			}
 
 		// CCIP Router related
 		case SuiCCIPRouterType:
@@ -383,6 +474,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.CCIPRouterStateObjectID = addr
 		case SuiCCIPRouterOwnerCapObjectIDType:
 			chainState.CCIPRouterOwnerCapObjectId = addr
+		case SuiRouterUpgradeCapObjectIDType:
+			chainState.CCIPRouterUpgradeCapId = addr
 
 		// CCIP related
 		case SuiCCIPType:
@@ -391,6 +484,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.CCIPObjectRef = addr
 		case SuiCCIPOwnerCapObjectIDType:
 			chainState.CCIPOwnerCapObjectId = addr
+		case SuiCurserCapObjectIDType:
+			chainState.CurserCapObjectId = addr
 		case SuiCCIPUpgradeCapObjectIDType:
 			chainState.CCIPUpgradeCapObjectId = addr
 		case SuiFeeQuoterCapType:

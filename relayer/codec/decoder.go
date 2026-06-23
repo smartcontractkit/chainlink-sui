@@ -1,18 +1,20 @@
 package codec
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
-	"math/big"
 	"reflect"
 	"strconv"
 	"strings"
 
 	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/mitchellh/mapstructure"
+
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
 
 const (
@@ -30,97 +32,81 @@ const (
 
 	// Response parsing constants
 	maxByteValue = 255
+
+	// proofWireBytes is the fixed on-wire size of each merkle proof element.
+	proofWireBytes = 32
+
+	// tokenTransferMinWireBytes is the minimum BCS size of Any2SuiTokenTransfer:
+	// uleb128(0) source pool + 32 dest token + 4 dest gas + uleb128(0) extra data + 32 amount.
+	tokenTransferMinWireBytes = 70
 )
 
-// DecodeSuiJsonValue decodes Sui JSON-RPC response data into the provided target
+// DecodeSuiJsonValue decodes Sui JSON response data into the provided target.
 func DecodeSuiJsonValue(data any, target any) error {
-	if target == nil {
-		return fmt.Errorf("target cannot be nil")
-	}
+	return bind.DecodeJSONReturn(data, target)
+}
 
-	// unwrap raw JSON bytes / RawMessage
-	if raw, ok := data.(json.RawMessage); ok {
-		var intermediate any
-		if err := json.Unmarshal(raw, &intermediate); err != nil {
-			return fmt.Errorf("json unmarshal failed: %w", err)
+// ConvertBase64StringsToHex walks arbitrary JSON-like structures and converts any
+// base64-encoded strings into 0x-prefixed hex strings, preserving []byte slices.
+func ConvertBase64StringsToHex(data any) any {
+	switch v := data.(type) {
+	case nil:
+		return nil
+	case string:
+		// check if the string is entirely numeric
+		if _, err := strconv.ParseUint(v, 10, 64); err == nil {
+			return v
 		}
 
-		return DecodeSuiJsonValue(intermediate, target)
+		decoded, err := base64.StdEncoding.DecodeString(v)
+		if err == nil && len(decoded) > 0 {
+			return "0x" + hex.EncodeToString(decoded)
+		}
+		return v
+	case json.RawMessage:
+		var inner any
+		if err := json.Unmarshal(v, &inner); err != nil {
+			return v
+		}
+		return ConvertBase64StringsToHex(inner)
+	case map[string]any:
+		result := make(map[string]any, len(v))
+		for key, value := range v {
+			result[key] = ConvertBase64StringsToHex(value)
+		}
+		return result
+	case []any:
+		result := make([]any, len(v))
+		for i, value := range v {
+			result[i] = ConvertBase64StringsToHex(value)
+		}
+		return result
+	default:
+		rv := reflect.ValueOf(data)
+		if rv.Kind() == reflect.Slice {
+			// Preserve []byte and other byte slices as-is
+			if rv.Type().Elem().Kind() == reflect.Uint8 {
+				return data
+			}
+
+			result := make([]any, rv.Len())
+			for i := 0; i < rv.Len(); i++ {
+				result[i] = ConvertBase64StringsToHex(rv.Index(i).Interface())
+			}
+			return result
+		}
+
+		if rv.Kind() == reflect.Map && rv.Type().Key().Kind() == reflect.String {
+			result := make(map[string]any, rv.Len())
+			iter := rv.MapRange()
+			for iter.Next() {
+				result[iter.Key().String()] = ConvertBase64StringsToHex(iter.Value().Interface())
+			}
+			return result
+		}
 	}
 
-	// direct type‐match optimization
-	if reflect.TypeOf(data) == reflect.TypeOf(target).Elem() {
-		reflect.ValueOf(target).Elem().Set(reflect.ValueOf(data))
-		return nil
-	}
-
-	targetType := reflect.TypeOf(target).Elem()
-
-	// handle both big.Int and *big.Int specially (mapstructure doesn't handle this natively)
-	bigPtrT := reflect.TypeOf((*big.Int)(nil)) // *big.Int
-	bigValT := bigPtrT.Elem()                  // big.Int
-	if targetType == bigValT || targetType == bigPtrT {
-		return decodeBigInt(data, target)
-	}
-
-	// Let mapstructure handle everything else with our unified hook
-	return decodeWithMapstructure(data, target)
-}
-
-// decodeBigInt handles big.Int decoding
-func decodeBigInt(data any, target any) error {
-	str, ok := data.(string)
-	if !ok {
-		return fmt.Errorf("big.Int decode: expected string, got %T", data)
-	}
-
-	bi, success := new(big.Int).SetString(str, 10)
-	if !success {
-		return fmt.Errorf("big.Int decode: invalid number %q", str)
-	}
-
-	targetValue := reflect.ValueOf(target).Elem()
-	targetType := targetValue.Type()
-	bigPtrT := reflect.TypeOf((*big.Int)(nil))
-	bigValT := bigPtrT.Elem()
-
-	if targetType == bigValT {
-		// value form: big.Int
-		targetValue.Set(reflect.ValueOf(*bi))
-	} else {
-		// pointer form: *big.Int
-		targetValue.Set(reflect.ValueOf(bi))
-	}
-
-	return nil
-}
-
-// decodeWithMapstructure uses mapstructure to decode data into target
-func decodeWithMapstructure(data any, target any) error {
-	config := &mapstructure.DecoderConfig{
-		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			UnifiedTypeConverterHook,
-			mapstructure.StringToTimeDurationHookFunc(),
-		),
-		Result:           target,
-		WeaklyTypedInput: true,
-		TagName:          "json",
-		MatchName:        fuzzyFieldMatcher,
-	}
-
-	decoder, err := mapstructure.NewDecoder(config)
-	if err != nil {
-		return fmt.Errorf("failed to create decoder: %w", err)
-	}
-
-	return decoder.Decode(data)
-}
-
-// fuzzyFieldMatcher allows flexible field name matching (ignoring underscores and case)
-func fuzzyFieldMatcher(mapKey, fieldName string) bool {
-	mk := strings.ReplaceAll(mapKey, "_", "")
-	fn := strings.ReplaceAll(fieldName, "_", "")
-	return strings.EqualFold(mk, fn)
+	return data
 }
 
 // DecodeSuiStructToJSON decodes a Sui struct into a JSON object
@@ -331,42 +317,6 @@ func DecodeVectorOfStructs(bcsDecoder *aptosBCS.Deserializer, vectorType string,
 	return decodeVectorField(bcsDecoder, vectorTypedef, normalizedStructs)
 }
 
-// temp fix for uint64 and int64 to string when marshaling to JSON
-func preprocessForJSONSafeInteger(data any) any {
-	switch v := data.(type) {
-	case uint64:
-		return strconv.FormatUint(v, 10)
-	case int64:
-		return strconv.FormatInt(v, 10)
-	case []uint64:
-		result := make([]any, len(v))
-		for i, item := range v {
-			result[i] = strconv.FormatUint(item, 10)
-		}
-		return result
-	case []int64:
-		result := make([]any, len(v))
-		for i, item := range v {
-			result[i] = strconv.FormatInt(item, 10)
-		}
-		return result
-	case []any:
-		result := make([]any, len(v))
-		for i, item := range v {
-			result[i] = preprocessForJSONSafeInteger(item)
-		}
-		return result
-	case map[string]any:
-		result := make(map[string]any, len(v))
-		for key, val := range v {
-			result[key] = preprocessForJSONSafeInteger(val)
-		}
-		return result
-	default:
-		return data
-	}
-}
-
 // numericToBytes converts a number to byte slice (little-endian)
 // Used by type_converters.go
 func numericToBytes(num uint64) []byte {
@@ -480,15 +430,36 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 
 	// 1. Read source_chain_selector (u64)
 	sourceChainSelector := deserializer.U64()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize sourceChainSelector: %w", err)
+	}
 
 	// 2. Read message header
 	messageID := make([]byte, 32)
 	deserializer.ReadFixedBytesInto(messageID)
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize messageID: %w", err)
+	}
 
 	headerSourceChain := deserializer.U64()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize headerSourceChain: %w", err)
+	}
+
 	destChainSelector := deserializer.U64()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize destChainSelector: %w", err)
+	}
+
 	sequenceNumber := deserializer.U64()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize sequenceNumber: %w", err)
+	}
+
 	nonce := deserializer.U64()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize nonce: %w", err)
+	}
 
 	if sourceChainSelector != headerSourceChain {
 		return nil, fmt.Errorf("source chain selector mismatch: %d != %d", sourceChainSelector, headerSourceChain)
@@ -504,31 +475,68 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 
 	// 3. Read sender (vector<u8>)
 	sender := deserializer.ReadBytes()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize sender: %w", err)
+	}
 
 	// 4. Read data (vector<u8>)
 	msgData := deserializer.ReadBytes()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize data: %w", err)
+	}
 
 	// 5. Read receiver (address)
 	receiver := deserializer.ReadFixedBytes(32)
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize receiver: %w", err)
+	}
 
 	// 6. Read gas_limit (u256)
 	gasLimit := deserializer.U256()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize gas_limit: %w", err)
+	}
 
 	tokenReceiver := [32]byte{}
 	deserializer.ReadFixedBytesInto(tokenReceiver[:])
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize tokenReceiver: %w", err)
+	}
 
 	// 7. Read token_amounts vector
 	tokenAmountsLen := deserializer.Uleb128()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize token_amounts length: %w", err)
+	}
+	remaining := deserializer.Remaining()
+	if remaining < 0 || uint64(tokenAmountsLen)*tokenTransferMinWireBytes > uint64(remaining) {
+		return nil, fmt.Errorf("failed to deserialize execution report: token_amounts length %d exceeds remaining %d bytes", tokenAmountsLen, remaining)
+	}
 	tokenAmounts := make([]Any2SuiTokenTransfer, tokenAmountsLen)
 
 	for i := range tokenAmountsLen {
 		sourcePoolAddr := deserializer.ReadBytes()
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize sourcePoolAddr: %w", err)
+		}
 
 		destToken := deserializer.ReadFixedBytes(32)
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize destToken: %w", err)
+		}
 
 		destGas := deserializer.U32()
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize destGas: %w", err)
+		}
 		extraData := deserializer.ReadBytes()
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize extraData: %w", err)
+		}
 		amount := deserializer.U256()
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize amount: %w", err)
+		}
 
 		tokenAmounts[i] = Any2SuiTokenTransfer{
 			SourcePoolAddress: sourcePoolAddr,
@@ -551,18 +559,37 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 
 	// 8. Read offchain_token_data (vector<vector<u8>>)
 	offchainDataLen := deserializer.Uleb128()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize offchain_token_data length: %w", err)
+	}
+	if int(offchainDataLen) > deserializer.Remaining() {
+		return nil, fmt.Errorf("failed to deserialize execution report: offchain_token_data length %d exceeds remaining %d bytes", offchainDataLen, deserializer.Remaining())
+	}
 	offchainData := make([][]byte, offchainDataLen)
 
 	for i := range offchainDataLen {
 		offchainData[i] = deserializer.ReadBytes()
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize offchainData at index %d: %w", i, err)
+		}
 	}
 
 	// 9. Read proofs (vector<vector<u8>>)
 	proofsLen := deserializer.Uleb128()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to deserialize proofs length: %w", err)
+	}
+	remaining = deserializer.Remaining()
+	if remaining < 0 || uint64(proofsLen)*proofWireBytes > uint64(remaining) {
+		return nil, fmt.Errorf("failed to deserialize execution report: proofs length %d exceeds remaining %d bytes", proofsLen, remaining)
+	}
 	proofs := make([][]byte, proofsLen)
 
 	for i := range proofsLen {
-		proofs[i] = deserializer.ReadFixedBytes(32)
+		proofs[i] = deserializer.ReadFixedBytes(proofWireBytes)
+		if err := deserializer.Error(); err != nil {
+			return nil, fmt.Errorf("failed to deserialize proof at index %d: %w", i, err)
+		}
 	}
 
 	if err := deserializer.Error(); err != nil {
@@ -575,4 +602,31 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 		OffchainTokenData:   offchainData,
 		Proofs:              proofs,
 	}, nil
+}
+
+// UnwrapBCSPureBytes decodes a BCS-encoded pure input value stored on-chain.
+// Pure vector<u8> arguments are stored with a ULEB128 length prefix.
+func UnwrapBCSPureBytes(pure []byte) ([]byte, error) {
+	if len(pure) == 0 {
+		return nil, errors.New("pure bytes are empty")
+	}
+
+	deserializer := aptosBCS.NewDeserializer(pure)
+	unwrapped := deserializer.ReadBytes()
+	if err := deserializer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to unwrap pure bytes: %w", err)
+	}
+
+	return unwrapped, nil
+}
+
+// DeserializeExecutionReportFromPure deserializes an execution report from a
+// BCS-encoded pure input containing vector<u8>.
+func DeserializeExecutionReportFromPure(pure []byte) (*ExecutionReport, error) {
+	reportBytes, err := UnwrapBCSPureBytes(pure)
+	if err != nil {
+		return nil, err
+	}
+
+	return DeserializeExecutionReport(reportBytes)
 }

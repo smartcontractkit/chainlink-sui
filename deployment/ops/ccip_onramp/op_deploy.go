@@ -25,6 +25,7 @@ type DeployCCIPOnRampObjects struct {
 type DeployCCIPOnRampInput struct {
 	CCIPPackageId      string
 	MCMSPackageId      string
+	FastMcmsPackageId  string
 	MCMSOwnerPackageId string
 }
 
@@ -37,6 +38,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		deps.Client,
 		input.CCIPPackageId,
 		input.MCMSPackageId,
+		input.FastMcmsPackageId,
 		input.MCMSOwnerPackageId,
 		deps.SuiRPC,
 	)
@@ -336,11 +338,147 @@ var GetFee = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetFeeInput) (o
 	}, err
 }
 
+type SetDynamicConfigInput struct {
+	OnRampPackageId  string
+	CCIPObjectRefId  string
+	StateObjectId    string
+	OwnerCapObjectId string
+	FeeAggregator    string
+	AllowListAdmin   string
+}
+
+var SetDynamicConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetDynamicConfigInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
+	}
+
+	encodedCall, err := onRampPackage.Encoder().SetDynamicConfig(
+		bind.Object{Id: input.CCIPObjectRefId},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.FeeAggregator,
+		input.AllowListAdmin,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to encode SetDynamicConfig call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of SetDynamicConfig on OnRamp as per no Signer provided")
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
+			Digest:    "",
+			PackageId: input.OnRampPackageId,
+			Objects:   DeployCCIPOnRampObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute SetDynamicConfig on OnRamp: %w", err)
+	}
+
+	b.Logger.Infow("Dynamic config set on OnRamp")
+
+	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OnRampPackageId,
+		Objects:   DeployCCIPOnRampObjects{},
+		Call:      call,
+	}, nil
+}
+
 var ApplyAllowListUpdateOp = cld_ops.NewOperation(
 	sui_ops.NewSuiOperationName("ccip-onramp-apply-allow-list-updates", "package", "configure"),
 	semver.MustParse("0.1.0"),
 	"Runs ApplyAllowListUpdates on OnRamp",
 	ApplyAllowListUpdatesHandler,
+)
+
+type WithdrawFeeTokensInput struct {
+	OnRampPackageId    string
+	CCIPObjectRefId    string
+	StateObjectId      string
+	OwnerCapObjectId   string
+	FeeTokenMetadataId string
+	TypeArg            string
+}
+
+var WithdrawFeeTokensHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input WithdrawFeeTokensInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
+	}
+
+	encodedCall, err := onRampPackage.Encoder().WithdrawFeeTokens(
+		[]string{input.TypeArg},
+		bind.Object{Id: input.CCIPObjectRefId},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.FeeTokenMetadataId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to encode WithdrawFeeTokens call: %w", err)
+	}
+
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, []string{input.TypeArg})
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of WithdrawFeeTokens on OnRamp as per no Signer provided")
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
+			Digest:    "",
+			PackageId: input.OnRampPackageId,
+			Objects:   DeployCCIPOnRampObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute WithdrawFeeTokens on OnRamp: %w", err)
+	}
+
+	b.Logger.Infow("Fee tokens withdrawn on OnRamp")
+
+	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OnRampPackageId,
+		Objects:   DeployCCIPOnRampObjects{},
+		Call:      call,
+	}, nil
+}
+
+var WithdrawFeeTokensOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-withdraw-fee-tokens", "package", "withdraw"),
+	semver.MustParse("0.1.0"),
+	"Withdraws fee tokens from the OnRamp",
+	WithdrawFeeTokensHandler,
+)
+
+var SetDynamicConfigOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-set-dynamic-config", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Runs set_dynamic_config on OnRamp",
+	SetDynamicConfigHandler,
 )
 
 var DeployCCIPOnRampOp = cld_ops.NewOperation(
@@ -379,10 +517,11 @@ var GetDestChainConfigOp = cld_ops.NewOperation(
 )
 
 type AddPackageIdInput struct {
-	OnRampPackageId  string
+	PackageId        string // original package ID (MCMS registry identity; used as binary when LatestPackageId is "")
+	LatestPackageId  string // optional: upgraded package ID (PTB execution target when set)
 	StateObjectId    string
 	OwnerCapObjectId string
-	PackageId        string
+	NewPackageId     string // the package ID to register in the OnRamp state
 }
 
 type AddPackageIdObjects struct {
@@ -390,7 +529,11 @@ type AddPackageIdObjects struct {
 }
 
 var addPackageIdHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddPackageIdInput) (output sui_ops.OpTxResult[AddPackageIdObjects], err error) {
-	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	binaryPkgId := input.PackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	onRampPackage, err := module_onramp.NewOnramp(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdObjects]{}, err
 	}
@@ -398,7 +541,7 @@ var addPackageIdHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Ad
 	encodedCall, err := onRampPackage.Encoder().AddPackageId(
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
-		input.PackageId,
+		input.NewPackageId,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdObjects]{}, fmt.Errorf("failed to encode AddPackageId call: %w", err)
@@ -407,11 +550,15 @@ var addPackageIdHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Ad
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID // current PackageID is the latest (from binaryPkgId)
+		call.PackageID = input.PackageId      // replace with original for on-chain identity
+	}
 	if deps.Signer == nil {
-		b.Logger.Infow("Skipping execution of AddPackageId on OnRamp as per no Signer provided", "packageId", input.PackageId)
+		b.Logger.Infow("Skipping execution of AddPackageId on OnRamp as per no Signer provided", "newPackageId", input.NewPackageId)
 		return sui_ops.OpTxResult[AddPackageIdObjects]{
 			Digest:    "",
-			PackageId: input.OnRampPackageId,
+			PackageId: input.PackageId,
 			Objects:   AddPackageIdObjects{},
 			Call:      call,
 		}, nil
@@ -428,11 +575,11 @@ var addPackageIdHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Ad
 		return sui_ops.OpTxResult[AddPackageIdObjects]{}, fmt.Errorf("failed to execute AddPackageId on OnRamp: %w", err)
 	}
 
-	b.Logger.Infow("Package ID added to OnRamp", "packageId", input.PackageId)
+	b.Logger.Infow("Package ID added to OnRamp", "newPackageId", input.NewPackageId)
 
 	return sui_ops.OpTxResult[AddPackageIdObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.OnRampPackageId,
+		PackageId: input.PackageId,
 		Objects:   AddPackageIdObjects{},
 		Call:      call,
 	}, nil

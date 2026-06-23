@@ -3,9 +3,8 @@ package operations
 import (
 	"fmt"
 
-	"github.com/block-vision/sui-go-sdk/sui"
-
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
@@ -22,16 +21,17 @@ type OpTxResult[O any] struct {
 }
 
 type TransactionCall struct {
-	PackageID  string
-	Module     string
-	Function   string
-	Data       []byte
-	StateObjID string
-	TypeArgs   []string
+	PackageID       string
+	LatestPackageID string // optional: when set, the PTB MoveCall targets this (upgraded) package while PackageID remains the on-chain MCMS identity
+	Module          string
+	Function        string
+	Data            []byte
+	StateObjID      string
+	TypeArgs        []string
 }
 
 type OpTxDeps struct {
-	Client sui.ISuiAPI
+	Client client.SuiPTBClient
 	Signer rel.SuiSigner
 	// We could have some logic to modify the gas based on input
 	GetCallOpts func() *bind.CallOpts

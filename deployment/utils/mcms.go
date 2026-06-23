@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/mcms"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/smartcontractkit/mcms/types"
 
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	cslclient "github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
@@ -26,7 +26,7 @@ type TimelockConfig struct {
 
 type GenerateProposalInput struct {
 	ChainSelector      uint64
-	Client             sui.ISuiAPI
+	Client             cslclient.BindingsClient
 	MCMSPackageID      string
 	MCMSStateObjID     string
 	AccountObjID       string
@@ -76,7 +76,8 @@ func GenerateProposal(ctx context.Context, input GenerateProposalInput) (*mcms.T
 		AddTimelockAddress(types.ChainSelector(input.ChainSelector), input.TimelockObjID).
 		AddChainMetadata(types.ChainSelector(input.ChainSelector), metadata).
 		AddOperation(input.BatchOp).
-		SetAction(input.TimelockConfig.MCMSAction)
+		SetAction(input.TimelockConfig.MCMSAction).
+		SetOverridePreviousRoot(input.TimelockConfig.OverrideRoot)
 
 	if delay != nil {
 		builder.SetDelay(*delay)

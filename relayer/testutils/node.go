@@ -63,12 +63,12 @@ func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
 	// Wait for the node to start
 	const defaultDelay = 10 * time.Second
 	const backoffDelay = 100 * time.Millisecond
-	err := waitForConnection(LocalUrl, defaultDelay, backoffDelay)
+	err := waitForConnection(LocalURL, defaultDelay, backoffDelay)
 	if err != nil {
 		return nil, err
 	}
 	// wait for Faucet to be available
-	err = waitForConnection(LocalFaucetUrl, defaultDelay, backoffDelay)
+	err = waitForConnection(LocalFaucetURL, defaultDelay, backoffDelay)
 	if err != nil {
 		return nil, err
 	}
@@ -77,60 +77,35 @@ func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
 }
 
 func waitForConnection(url string, timeout time.Duration, backoffDelay time.Duration) error {
-	// Parse the URL to extract host and port
 	parsedURL, err := netUrl.Parse(url)
 	if err != nil {
 		return fmt.Errorf("invalid URL %s: %w", url, err)
 	}
-
-	host := parsedURL.Host
-	if host == "" {
-		// Handle case where URL might just be "host:port"
-		host = parsedURL.Path
+	if parsedURL.Host == "" {
+		return fmt.Errorf("invalid URL %s: missing host", url)
 	}
 
-	// Add default port if missing
-	if !strings.Contains(host, ":") {
-		if parsedURL.Scheme == "https" {
-			host += ":443"
-		} else {
-			host += ":80"
-		}
-	}
-
-	// Use exponential backoff for retries
 	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		d := net.Dialer{
+			Timeout: 5 * time.Second,
+		}
 
-	for attempt := 1; time.Now().Before(deadline); attempt++ {
-		conn, err := net.DialTimeout("tcp", host, 1*time.Second)
+		conn, err := d.Dial("tcp", parsedURL.Host)
 		if err == nil {
 			conn.Close()
 			return nil
 		}
-
-		// Calculate next backoff with exponential increase
-		nextBackoff := backoffDelay * time.Duration(attempt)
-
-		// Don't sleep longer than remaining time
-		remainingTime := time.Until(deadline)
-		if remainingTime < nextBackoff {
-			nextBackoff = remainingTime
-		}
-
-		if remainingTime <= 0 {
-			break
-		}
-
-		time.Sleep(nextBackoff)
+		time.Sleep(backoffDelay)
 	}
 
-	return fmt.Errorf("timed out waiting for %s after %s", host, timeout)
+	return fmt.Errorf("timed out waiting for %s after %s", parsedURL.Host, timeout)
 }
 
 func GetFaucetHost(network string) string {
 	switch network {
 	default:
-		return LocalUrl
+		return LocalURL
 	}
 }
 

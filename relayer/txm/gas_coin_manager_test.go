@@ -22,10 +22,10 @@ func TestSuiGasCoinManager_TryReserveCoins(t *testing.T) {
 	lggr := logger.Test(t)
 	mockClient := &testutils.FakeSuiPTBClient{}
 	gcm := txm.NewGasCoinManager(lggr, mockClient)
-	
+
 	ctx := context.Background()
 	txID := "test-tx-123"
-	
+
 	// Create test coin IDs
 	coinID1 := models.SuiAddress("0x1234567890abcdef1234567890abcdef12345678")
 	coinID2 := models.SuiAddress("0xabcdef1234567890abcdef1234567890abcdef12")
@@ -47,22 +47,22 @@ func TestSuiGasCoinManager_TryReserveCoins(t *testing.T) {
 			Digest:   nil,
 		},
 	}
-	
+
 	t.Run("successfully reserve coins", func(t *testing.T) {
 		err := gcm.TryReserveCoins(ctx, txID, coinIDs, nil)
 		assert.NoError(t, err)
-		
+
 		// Verify coins are reserved
 		assert.True(t, gcm.IsCoinReserved(*coinID1Bytes))
 		assert.True(t, gcm.IsCoinReserved(*coinID2Bytes))
-		
+
 		// Verify transaction is stored
 		isReserved := gcm.IsCoinReserved(*coinID1Bytes)
 		assert.True(t, isReserved)
 		isReserved = gcm.IsCoinReserved(*coinID2Bytes)
 		assert.True(t, isReserved)
 	})
-	
+
 	t.Run("fail to reserve already reserved coin", func(t *testing.T) {
 		// Try to reserve the same coins again
 		err := gcm.TryReserveCoins(ctx, "tx-test-2", coinIDs, nil)
@@ -74,11 +74,11 @@ func TestSuiGasCoinManager_TryReserveCoins(t *testing.T) {
 		coinID1 := models.SuiAddress("0x1234567890abcdef1234123890abcdef12345678")
 		coinID1Bytes, err := transaction.ConvertSuiAddressStringToBytes(coinID1)
 		require.NoError(t, err)
-		
+
 		coinID2 := models.SuiAddress("0x1234567890abcdef1234153890abcdef12345678")
 		coinID2Bytes, err := transaction.ConvertSuiAddressStringToBytes(coinID2)
 		require.NoError(t, err)
-		
+
 		coinIDs := []transaction.SuiObjectRef{
 			{
 				ObjectId: *coinID1Bytes,
@@ -122,10 +122,10 @@ func TestSuiGasCoinManager_TryReserveCoins(t *testing.T) {
 				Digest:   nil,
 			},
 		}
-		
+
 		err = gcm.TryReserveCoins(ctx, "tx-test-4", coinIDs, nil)
 		assert.NoError(t, err)
-		
+
 		// coins should be released automatically after the default TTL (30 seconds)
 		require.Eventually(t, func() bool {
 			isReserved := gcm.IsCoinReserved(*coinID1Bytes)

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
+	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
@@ -22,6 +23,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
 	aptosBalanceMonitor "github.com/smartcontractkit/chainlink-aptos/relayer/monitor"
+	aptosTypes "github.com/smartcontractkit/chainlink-aptos/relayer/types"
+
 	chainreaderConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	chainreader "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
@@ -93,60 +96,88 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		TransactionRetentionSecs: *cfg.TransactionManager.TransactionRetentionSecs,
 	}
 
+	ptbClientConfig := client.PTBClientConfig{
+		GrpcTarget:            *nodeConfig.GrpcTarget,
+		GrpcToken:             *nodeConfig.GrpcToken,
+		TransactionTimeout:    timeout,
+		MaxConcurrentRequests: maxConcurrentRequests * 3,
+		KeystoreService:       keystore,
+		DefaultRequestType:    client.TransactionRequestType(requestType),
+	}
+
 	// Use config values instead of constants
-	suiClient, err := client.NewPTBClient(
-		loggerInstance,
-		nodeConfig.URL.String(),
-		nil,
-		timeout,
-		keystore,
-		// Use 3 times more concurrency allowance for the main client due to core making
-		// frequent RPC calls to get latest values
-		maxConcurrentRequests*3,
-		client.TransactionRequestType(requestType),
-	)
+	suiClient, err := client.NewPTBClient(loggerInstance, ptbClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
+	}
+
+	indexerClientConfig := client.PTBClientConfig{
+		GrpcTarget:            *nodeConfig.GrpcTarget,
+		GrpcToken:             *nodeConfig.GrpcToken,
+		TransactionTimeout:    timeout,
+		MaxConcurrentRequests: maxConcurrentRequests,
+		KeystoreService:       keystore,
+		DefaultRequestType:    client.TransactionRequestType(requestType),
 	}
 
 	// Use a separate client for the indexers to avoid rate limiting
-	suiClientIndexers, err := client.NewPTBClient(
-		loggerInstance,
-		nodeConfig.URL.String(),
-		nil,
-		timeout,
-		keystore,
-		maxConcurrentRequests,
-		client.TransactionRequestType(requestType),
-	)
+	suiClientIndexers, err := client.NewPTBClient(loggerInstance, indexerClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
 
-	// Setup indexers
+	// Setup indexers with checkpoint-based architecture
+	// ChainPoller fetches checkpoints and fans out to EventsIndexer and TransactionsIndexer
+
+	// Create consumer indexers first (they get channels from poller)
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
 		loggerInstance,
-		suiClientIndexers,
-		time.Duration(*cfg.TransactionsIndexer.PollingIntervalSecs)*time.Second,
-		time.Duration(*cfg.TransactionsIndexer.SyncTimeoutSecs)*time.Second,
-		// start without any configs, they will be set when ChainReader is initialized and gets a reference
-		// to the transaction indexer to avoid having to reading ChainReader configs here as well
+		// start without any configs, they will be set when ChainReader is initialized
 		map[string]*chainreaderConfig.ChainReaderEvent{},
 	)
 
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		loggerInstance,
-		suiClientIndexers,
-		// start without any selectors, they will be added during .Bind() calls on ChainReader
+		// start without any selectors, they will be added during .Bind() calls
 		[]*client.EventSelector{},
-		time.Duration(*cfg.EventsIndexer.PollingIntervalSecs)*time.Second,
-		time.Duration(*cfg.EventsIndexer.SyncTimeoutSecs)*time.Second,
 	)
 
+	// Build ChainPoller config from TOML settings
+	pollingInterval, err := common.DurationFromSeconds(*cfg.ChainPoller.PollingIntervalSecs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller polling interval: %w", err)
+	}
+	syncTimeout, err := common.DurationFromSeconds(*cfg.ChainPoller.SyncTimeoutSecs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller sync timeout: %w", err)
+	}
+	channelBufferSize, err := common.IntFromUint64(*cfg.ChainPoller.ChannelBufferSize)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller channel buffer size: %w", err)
+	}
+
+	pollerConfig := chainreaderConfig.ChainPollerConfig{
+		PollingInterval:         pollingInterval,
+		SyncTimeout:             syncTimeout,
+		BackfillCheckpointCount: cfg.ChainPoller.BackfillCheckpointCount,
+		StartCheckpointSequence: cfg.ChainPoller.StartCheckpointSequence,
+		ChannelBufferSize:       channelBufferSize,
+	}
+
+	// Create ChainPoller - it provides channels via EventsChannel() and TransactionsChannel()
+	chainPoller := indexer.NewChainPoller(
+		suiClientIndexers,
+		loggerInstance,
+		pollerConfig,
+		evIndexer.GetEventSelectors, // SelectorProvider callback for dynamic registration
+	)
+
+	// Create main indexer that orchestrates poller + consumers
 	indexerInstance := indexer.NewIndexer(
 		loggerInstance,
+		chainPoller,
 		evIndexer,
 		txnIndexer,
 	)
@@ -169,14 +200,14 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		return nil, fmt.Errorf("error in NewRelayer (monitor) - invalid balance poll period: %w", err)
 	}
 	balanceMonitorService, err := monitor.NewBalanceMonitor(monitor.BalanceMonitorOpts{
-		ChainInfo: aptosBalanceMonitor.ChainInfo{
+		ChainInfo: aptosTypes.ChainInfo{
 			ChainFamilyName: "sui",
 			ChainID:         *cfg.ChainID,
 			NetworkName:     *cfg.NetworkName,
 			NetworkNameFull: *cfg.NetworkNameFull,
 		},
 		Config: aptosBalanceMonitor.GenericBalanceConfig{
-			BalancePollPeriod: balancePollPeriod,
+			BalancePollPeriod: &balancePollPeriod,
 		},
 		Logger:   loggerInstance,
 		Keystore: keystore,
@@ -226,7 +257,14 @@ func (r *SuiRelayer) Close() error {
 	return r.StopOnce("SuiRelayer", func() error {
 		r.lggr.Debug("Stopping Sui Relayer")
 
-		return services.CloseAll(r.txm, r.indexer, r.balanceMonitor)
+		closeErr := services.CloseAll(r.txm, r.indexer, r.balanceMonitor)
+		if r.client != nil {
+			if err := r.client.Close(); err != nil {
+				closeErr = errors.Join(closeErr, fmt.Errorf("failed to close Sui client: %w", err))
+			}
+		}
+
+		return closeErr
 	})
 }
 

@@ -46,6 +46,7 @@ fun setup_ccip_environment(
     // Initialize required CCIP modules
     upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
+    token_admin_registry::initialize_local_decimals(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
 
     (ccip_owner_cap, ccip_ref)
@@ -709,6 +710,137 @@ public fun test_destroy_token_pool() {
         transfer::public_transfer(returned_treasury_cap, scenario.ctx().sender());
     };
 
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+public fun test_destroy_token_pool_after_rate_limiter_configured() {
+    let mut scenario = test_scenario::begin(@burn_mint_token_pool);
+    let mut ctx = tx_context::dummy();
+    let clock = clock::create_for_testing(&mut ctx);
+
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            BURN_MINT_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"BMTP",
+            b"BurnMintTestToken",
+            b"burn_mint_test_token",
+            option::none(),
+            ctx,
+        );
+
+        burn_mint_token_pool::test_init(ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, @burn_mint_token_pool);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut owner_cap = scenario.take_from_sender<OwnerCap>();
+        let coin_metadata = scenario.take_immutable<
+            coin::CoinMetadata<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+        let treasury_cap = scenario.take_from_sender<
+            coin::TreasuryCap<BURN_MINT_TOKEN_POOL_TESTS>,
+        >();
+
+        burn_mint_token_pool::initialize(
+            &mut owner_cap,
+            &mut ccip_ref,
+            &coin_metadata,
+            treasury_cap,
+            @burn_mint_token_pool,
+            scenario.ctx(),
+        );
+
+        transfer::public_transfer(owner_cap, @burn_mint_token_pool);
+        test_scenario::return_immutable(coin_metadata);
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let mut pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        burn_mint_token_pool::apply_chain_updates(
+            &mut pool_state,
+            &owner_cap,
+            vector[],
+            vector[DefaultRemoteChain],
+            vector[vector[DefaultRemotePool]],
+            vector[DefaultRemoteToken],
+        );
+
+        burn_mint_token_pool::set_chain_rate_limiter_config(
+            &mut pool_state,
+            &owner_cap,
+            &clock,
+            DefaultRemoteChain,
+            true,
+            1000,
+            100,
+            true,
+            2000,
+            200,
+        );
+
+        burn_mint_token_pool::set_chain_rate_limiter_config(
+            &mut pool_state,
+            &owner_cap,
+            &clock,
+            DefaultRemoteChain,
+            false,
+            0,
+            0,
+            false,
+            0,
+            0,
+        );
+
+        burn_mint_token_pool::apply_chain_updates(
+            &mut pool_state,
+            &owner_cap,
+            vector[DefaultRemoteChain],
+            vector[],
+            vector[],
+            vector[],
+        );
+
+        scenario.return_to_sender(owner_cap);
+        test_scenario::return_shared(pool_state);
+    };
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        token_admin_registry::unregister_pool(
+            &mut ccip_ref,
+            burn_mint_token_pool::get_token(&pool_state),
+            scenario.ctx(),
+        );
+
+        let returned_treasury_cap = burn_mint_token_pool::destroy_token_pool(
+            &mut ccip_ref,
+            pool_state,
+            owner_cap,
+            scenario.ctx(),
+        );
+
+        transfer::public_transfer(returned_treasury_cap, scenario.ctx().sender());
+    };
+
+    clock.destroy_for_testing();
     test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }

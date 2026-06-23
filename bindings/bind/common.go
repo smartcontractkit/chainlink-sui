@@ -2,19 +2,42 @@ package bind
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
+
+// Polling parameters for waitForTransactionIndexed.
+var (
+	WaitForTxIndexedTimeout        = 30 * time.Second
+	WaitForTxIndexedInitialBackoff = 100 * time.Millisecond
+	WaitForTxIndexedMaxBackoff     = 1 * time.Second
+)
+
+var ErrTxIndexingTimeout = errors.New("tx submitted but fullnode indexing wait timed out")
+
+type transactionStatusClient interface {
+	GetTransactionStatus(ctx context.Context, digest string) (client.TransactionResult, error)
+}
+
+type transactionObjectChangesClient interface {
+	GetTransactionChangedObjects(ctx context.Context, digest string) ([]*suirpcv2.ChangedObject, error)
+}
 
 type Object struct {
 	Id                   string
 	InitialSharedVersion *uint64
 }
+
+type EmptyMoveStructWitness struct{}
 
 type CallOpts struct {
 	Signer           bindutils.SuiSigner
@@ -26,105 +49,107 @@ type CallOpts struct {
 	ObjectResolver *ObjectResolver
 }
 
-func SignAndSendTx(ctx context.Context, signer bindutils.SuiSigner, client sui.ISuiAPI, txBytes []byte, waitForExecution bool) (*models.SuiTransactionBlockResponse, error) {
+func SignAndSendTx(ctx context.Context, signer bindutils.SuiSigner, chainClient client.BindingsClient, txBytes []byte, waitForExecution bool) (*models.SuiTransactionBlockResponse, error) {
 	signatures, err := signer.Sign(txBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign tx: %w", err)
 	}
 
-	b64bytes := bindutils.EncodeBase64(txBytes)
-
-	// Convert signatures to string array
-	signatureStrings := make([]string, 0, len(signatures))
-	signatureStrings = append(signatureStrings, signatures...)
-
-	blockReq := models.SuiExecuteTransactionBlockRequest{
-		TxBytes:   b64bytes,
-		Signature: signatureStrings,
-		Options: models.SuiTransactionBlockOptions{
-			ShowInput:          true,
-			ShowRawInput:       true,
-			ShowEffects:        true,
-			ShowObjectChanges:  true,
-			ShowBalanceChanges: true,
-			ShowEvents:         true,
-		},
-		RequestType: "WaitForEffectsCert",
-	}
-
-	if waitForExecution {
-		// TODO: this has been noted to be deprecated and removed, but still works and is used in sui-go-sdk:
-		// https://forums.sui.io/t/deprecating-waitforlocalexecution/45988
-		// The typescript SDK has switched to polling: https://github.com/MystenLabs/ts-sdks/blob/502ad7f2803bf6443f7cb000c802d78110585b6f/packages/typescript/src/experimental/core.ts#L114
-		blockReq.RequestType = "WaitForLocalExecution"
-	}
-
-	tx, err := client.SuiExecuteTransactionBlock(ctx, blockReq)
+	execReq, err := buildExecuteRequest(txBytes, signatures)
 	if err != nil {
-		msg := fmt.Errorf("tx failed calling move method: %w", err)
-		return nil, msg
+		return nil, fmt.Errorf("failed to build execute request: %w", err)
 	}
 
-	if err := GetFailedTxError(&tx); err != nil {
-		return &tx, err
-	}
-
-	return &tx, nil
-}
-
-func DevInspectTx(ctx context.Context, signerAddress string, client sui.ISuiAPI, txBytes []byte) (*models.SuiTransactionBlockResponse, error) {
-	b64bytes := bindutils.EncodeBase64(txBytes)
-
-	devInspectReq := models.SuiDevInspectTransactionBlockRequest{
-		Sender:  signerAddress,
-		TxBytes: b64bytes,
-	}
-
-	tx, err := client.SuiDevInspectTransactionBlock(ctx, devInspectReq)
+	resp, err := chainClient.SendTransaction(ctx, execReq)
 	if err != nil {
-		msg := fmt.Errorf("tx failed calling dev inspect method: %w", err)
-		return nil, msg
+		return nil, fmt.Errorf("tx failed calling move method: %w", err)
 	}
 
-	return &tx, nil
-}
-
-// DevInspectPTB executes a PTB using DevInspect
-func DevInspectPTB(ctx context.Context, signerAddress string, client sui.ISuiAPI, ptb *transaction.Transaction) (*models.SuiTransactionBlockResponse, error) {
-	// ensure the PTB has the required data
-	if ptb.Data.V1 == nil || ptb.Data.V1.Kind == nil {
-		return nil, fmt.Errorf("PTB is not properly initialized")
+	tx, err := mapExecuteResponseToModels(resp)
+	if err != nil {
+		return nil, err
 	}
 
-	// at this stage, we do not have any type information, and all unresolved variants should be resolved.
-	if ptb.Data.V1.Kind.ProgrammableTransaction != nil && len(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs) > 0 {
-		for _, input := range ptb.Data.V1.Kind.ProgrammableTransaction.Inputs {
-			if input.UnresolvedPure != nil {
-				return nil, fmt.Errorf("UnresolvedPure found in PTB inputs")
-			}
-			if input.UnresolvedObject != nil {
-				return nil, fmt.Errorf("UnresolvedObject found in PTB inputs")
+	if tx.Digest != "" {
+		if fetcher, ok := chainClient.(transactionObjectChangesClient); ok {
+			if changed, fetchErr := fetcher.GetTransactionChangedObjects(ctx, tx.Digest); fetchErr == nil && len(changed) > 0 {
+				tx.ObjectChanges = mapChangedObjectsToModels(changed)
 			}
 		}
 	}
 
-	txBytes, err := ptb.Data.V1.Kind.Marshal()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal transaction kind: %w", err)
+	if err := GetFailedTxError(tx); err != nil {
+		return tx, err
 	}
 
-	b64TxBytes := bindutils.EncodeBase64(txBytes)
-
-	devInspectReq := models.SuiDevInspectTransactionBlockRequest{
-		Sender:  signerAddress,
-		TxBytes: b64TxBytes,
+	if waitForExecution && tx.Digest != "" {
+		if waitErr := WaitForTransactionIndexed(ctx, chainClient, tx.Digest); waitErr != nil {
+			return tx, waitErr
+		}
 	}
 
-	tx, err := client.SuiDevInspectTransactionBlock(ctx, devInspectReq)
-	if err != nil {
-		msg := fmt.Errorf("tx failed calling dev inspect method: %w", err)
-		return nil, msg
+	return tx, nil
+}
+
+func WaitForTransactionIndexed(ctx context.Context, chainClient transactionStatusClient, digest string) error {
+	pollCtx, cancel := context.WithTimeout(ctx, WaitForTxIndexedTimeout)
+	defer cancel()
+
+	backoff := WaitForTxIndexedInitialBackoff
+	var lastErr error
+	for {
+		result, err := chainClient.GetTransactionStatus(pollCtx, digest)
+		if err == nil && result.Status == "success" {
+			return nil
+		}
+		lastErr = err
+
+		select {
+		case <-pollCtx.Done():
+			if lastErr != nil {
+				return fmt.Errorf("%w (digest=%s): %w", ErrTxIndexingTimeout, digest, lastErr)
+			}
+			return fmt.Errorf("%w (digest=%s)", ErrTxIndexingTimeout, digest)
+		case <-time.After(backoff):
+		}
+
+		if backoff < WaitForTxIndexedMaxBackoff {
+			backoff *= 2
+			if backoff > WaitForTxIndexedMaxBackoff {
+				backoff = WaitForTxIndexedMaxBackoff
+			}
+		}
+	}
+}
+
+func buildSimulateBCS(ctx context.Context, chainClient client.BindingsClient, ptb *transaction.Transaction, opts *CallOpts) ([]byte, error) {
+	if ptb.Data.V1.GasData.Budget == nil {
+		budget := DefaultGasBudget
+		if opts != nil && opts.GasBudget != nil {
+			budget = *opts.GasBudget
+		}
+		ptb.SetGasBudget(budget)
 	}
 
-	return &tx, nil
+	if ptb.Data.V1.GasData.Price == nil {
+		var gasPrice uint64
+		if opts != nil && opts.GasPrice != nil {
+			gasPrice = *opts.GasPrice
+		} else {
+			price, err := chainClient.GetReferenceGasPrice(ctx)
+			if err != nil {
+				gasPrice = defaultGasPrice
+			} else {
+				gasPrice = price.Uint64()
+			}
+		}
+		ptb.SetGasPrice(gasPrice)
+	}
+
+	if ptb.Data.V1.Sender != nil {
+		addr := transaction.ConvertSuiAddressBytesToString(*ptb.Data.V1.Sender)
+		ptb.SetSigner(&signer.Signer{Address: string(addr)})
+	}
+
+	return ptb.BuildBCSBytes(ctx)
 }

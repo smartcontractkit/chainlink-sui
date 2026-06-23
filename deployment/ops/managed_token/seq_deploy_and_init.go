@@ -12,10 +12,11 @@ import (
 )
 
 type DeployManagedTokenObjects struct {
-	OwnerCapObjectId  string
-	StateObjectId     string
-	MinterCapObjectId string
-	PublisherObjectId string
+	OwnerCapObjectId   string
+	StateObjectId      string
+	MinterCapObjectId  string
+	PublisherObjectId  string
+	UpgradeCapObjectId string
 }
 
 type DeployManagedTokenOutput struct {
@@ -99,10 +100,11 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 			ManagedTokenPackageId: deployReport.Output.PackageId,
 			TokenSymbol:           symbol,
 			Objects: DeployManagedTokenObjects{
-				OwnerCapObjectId:  initReport.Output.Objects.OwnerCapObjectId,
-				StateObjectId:     initReport.Output.Objects.StateObjectId,
-				PublisherObjectId: deployReport.Output.Objects.PublisherObjectId,
-				MinterCapObjectId: minterObjectId,
+				OwnerCapObjectId:   initReport.Output.Objects.OwnerCapObjectId,
+				StateObjectId:      initReport.Output.Objects.StateObjectId,
+				PublisherObjectId:  deployReport.Output.Objects.PublisherObjectId,
+				MinterCapObjectId:  minterObjectId,
+				UpgradeCapObjectId: deployReport.Output.Objects.UpgradeCapObjectId,
 			},
 		}, nil
 	},

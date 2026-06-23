@@ -1,6 +1,8 @@
 package testutils
 
 import (
+	"encoding/json"
+	"fmt"
 	"math/big"
 	"os/exec"
 	"testing"
@@ -20,7 +22,7 @@ const (
 	defaultTransactionTimeout = 10 * time.Second
 	defaultNumberRetries      = 5
 	defaultGasLimit           = 10000000
-	waitTimeNextTest          = 2 * time.Second
+	waitTimeNextTest          = 3 * time.Second
 )
 
 type TestState struct {
@@ -57,7 +59,15 @@ func SetupClients(
 ) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore) {
 	t.Helper()
 
-	relayerClient, err := client.NewPTBClient(logg, rpcURL, nil, defaultTransactionTimeout, keystore, maxConcurrentRequests, "WaitForEffectsCert")
+	relayerClient, err := client.NewPTBClient(logg, client.PTBClientConfig{
+		GrpcTarget:            rpcURL,
+		GrpcToken:             "test",
+		MaxRetries:            IntPointer(defaultNumberRetries),
+		TransactionTimeout:    defaultTransactionTimeout,
+		KeystoreService:       keystore,
+		MaxConcurrentRequests: maxConcurrentRequests,
+		DefaultRequestType:    "WaitForEffectsCert",
+	})
 	if err != nil {
 		t.Fatalf("Failed to create relayer client: %v", err)
 	}
@@ -88,12 +98,18 @@ func SetupTestEnv(
 	lgr logger.Logger,
 	gasLimit int64,
 ) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore, string, *TestKeystore, []byte, string, string) {
+	CleanupTestContracts()
+
 	cmd, err := StartSuiNode(CLI)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
+		CleanupTestContracts()
+
 		if cmd.Process != nil {
 			perr := cmd.Process.Kill()
+			t.Logf("Killed Sui node process: %v", perr)
+
 			if perr != nil {
 				t.Logf("Failed to kill process: %v", perr)
 			}
@@ -110,7 +126,15 @@ func SetupTestEnv(
 	faucetFundErr := FundWithFaucet(lgr, SuiLocalnet, accountAddress)
 	require.NoError(t, faucetFundErr)
 
-	patchContractTOMLSection(t, "contracts/test", "addresses", "test_secondary", "_")
+	chainID, err := GetChainIdentifier(LocalURL)
+	require.NoError(t, err)
+
+	// Patch toml files for test contracts
+	// Must be done for the contract and its dependencies
+	PatchEnvironmentTOML("contracts/test", "local", chainID)
+	lgr.Debugw("Patched Environment TOML", "chainID", chainID)
+
+	PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
 
 	contractPath := BuildSetup(t, "contracts/test")
 	gasBudget := int(2000000000)
@@ -124,7 +148,7 @@ func SetupTestEnv(
 	counterObjectId, err := QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	suiClient, txManager, transactionRepository := SetupClients(t, LocalUrl, keystoreInstance, lgr, gasLimit)
+	suiClient, txManager, transactionRepository := SetupClients(t, LocalGrpcURL, keystoreInstance, lgr, gasLimit)
 
 	return suiClient, txManager, transactionRepository, accountAddress, keystoreInstance, publicKeyBytes, packageId, counterObjectId
 }
@@ -139,4 +163,20 @@ func SetupTestSigner(
 	accountAddress, publicKeyBytes := GetAccountAndKeyFromSui(keystoreInstance)
 
 	return keystoreInstance, accountAddress, publicKeyBytes
+}
+
+func GetChainIdentifier(rpcURL string) (string, error) {
+	req := `{"jsonrpc":"2.0","id":1,"method":"sui_getChainIdentifier"}`
+	cmd := exec.Command("curl", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", req, rpcURL)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to query chain identifier: %w", err)
+	}
+	var resp struct {
+		Result string `json:"result"`
+	}
+	if err := json.Unmarshal(out, &resp); err != nil {
+		return "", fmt.Errorf("failed to parse chain identifier: %w\nResponse:\n%s", err, string(out))
+	}
+	return resp.Result, nil
 }

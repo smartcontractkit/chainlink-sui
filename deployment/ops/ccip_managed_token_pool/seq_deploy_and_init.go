@@ -13,6 +13,7 @@ type DeployAndInitManagedTokenPoolInput struct {
 	CCIPPackageId         string
 	ManagedTokenPackageId string // ManagedToken
 	MCMSAddress           string
+	FastMcmsAddress       string
 	MCMSOwnerAddress      string
 	// initialize
 	CoinObjectTypeArg         string // CCIPBnM Token TypeArgs
@@ -38,8 +39,9 @@ type DeployAndInitManagedTokenPoolInput struct {
 }
 
 type DeployManagedTokenPoolObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	OwnerCapObjectId   string
+	StateObjectId      string
+	UpgradeCapObjectId string
 }
 
 type DeployManagedTokenPoolOutput struct {
@@ -57,6 +59,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 			CCIPPackageId:         input.CCIPPackageId,
 			ManagedTokenPackageId: input.ManagedTokenPackageId,
 			MCMSAddress:           input.MCMSAddress,
+			FastMcmsAddress:       input.FastMcmsAddress,
 			MCMSOwnerAddress:      input.MCMSOwnerAddress,
 		})
 		if err != nil {
@@ -144,8 +147,9 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 		return DeployManagedTokenPoolOutput{
 			ManagedTPPackageId: deployReport.Output.PackageId,
 			Objects: DeployManagedTokenPoolObjects{
-				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
-				StateObjectId:    initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectId:   deployReport.Output.Objects.OwnerCapObjectId,
+				StateObjectId:      initReport.Output.Objects.StateObjectId,
+				UpgradeCapObjectId: deployReport.Output.Objects.UpgradeCapObjectId,
 			},
 		}, nil
 	},

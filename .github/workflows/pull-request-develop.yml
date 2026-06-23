@@ -150,6 +150,9 @@ jobs:
   testnet-integration-tests:
     name: Testnet Integration Tests
     runs-on: ubuntu-latest
+    env:
+      GRPC_TARGET: ${{ secrets.GRPC_TARGET }}
+      GRPC_TOKEN: ${{ secrets.GRPC_TOKEN }}
 
     steps:
       - name: Checkout repo
@@ -171,6 +174,10 @@ jobs:
       - name: Setup Nix
         uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
 
+      - name: Install latest gomods and modgraph
+        run: |
+          nix develop -c go get -tool github.com/jmank88/gomods@latest github.com/jmank88/modgraph@latest
+      
       - name: Ensure modules are tidy
         run: |
           nix develop -c go tool gomods tidy

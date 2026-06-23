@@ -124,9 +124,8 @@ func TestEncodeEntryPointArg_FeeQuoter(t *testing.T) {
 		assert.Equal(t, stateObjID, ccipRefFromResult, "CcipRef should match stateObjID (from BCS data)")
 	})
 
-	t.Run("fallback_case", func(t *testing.T) {
-		// Test an unhandled function that falls back to default encoding
-		data := []byte{}
+	t.Run("apply_fee_token_updates", func(t *testing.T) {
+		data := serializeAddress(stateObjID)
 
 		result, err := encoder.EncodeEntryPointArg(
 			executingCallbackParams,
@@ -135,13 +134,117 @@ func TestEncodeEntryPointArg_FeeQuoter(t *testing.T) {
 			"apply_fee_token_updates",
 			stateObjID,
 			data,
-			[]string{"0x1::sui::SUI"},
+			nil,
 		)
 
 		require.NoError(t, err)
-		assert.NotNil(t, result)
 		assert.Equal(t, "fee_quoter", result.Module.ModuleName)
 		assert.Equal(t, "mcms_apply_fee_token_updates", result.Function)
+	})
+
+	t.Run("apply_dest_chain_config_updates", func(t *testing.T) {
+		data := serializeAddress(stateObjID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"fee_quoter",
+			"apply_dest_chain_config_updates",
+			stateObjID,
+			data,
+			nil,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "mcms_apply_dest_chain_config_updates", result.Function)
+	})
+
+	t.Run("apply_token_transfer_fee_config_updates", func(t *testing.T) {
+		data := serializeAddress(stateObjID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"fee_quoter",
+			"apply_token_transfer_fee_config_updates",
+			stateObjID,
+			data,
+			nil,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "mcms_apply_token_transfer_fee_config_updates", result.Function)
+	})
+
+	t.Run("apply_premium_multiplier_wei_per_eth_updates", func(t *testing.T) {
+		data := serializeAddress(stateObjID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"fee_quoter",
+			"apply_premium_multiplier_wei_per_eth_updates",
+			stateObjID,
+			data,
+			nil,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "mcms_apply_premium_multiplier_wei_per_eth_updates", result.Function)
+	})
+
+	t.Run("new_fee_quoter_cap_and_transfer", func(t *testing.T) {
+		data := serializeAddress(stateObjID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"fee_quoter",
+			"new_fee_quoter_cap_and_transfer",
+			stateObjID,
+			data,
+			nil,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "mcms_new_fee_quoter_cap_and_transfer", result.Function)
+	})
+
+	t.Run("destroy_fee_quoter_cap", func(t *testing.T) {
+		ownerCapID := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+		capID := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+		data := serializeAddresses(stateObjID, ownerCapID, capID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"fee_quoter",
+			"destroy_fee_quoter_cap",
+			stateObjID,
+			data,
+			nil,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "mcms_destroy_fee_quoter_cap", result.Function)
+		require.Len(t, result.CallArgs, 4)
+		capFromResult, err := extractObjectID(result.CallArgs[3])
+		require.NoError(t, err)
+		assert.Equal(t, capID, capFromResult)
+	})
+
+	t.Run("unsupported_function", func(t *testing.T) {
+		_, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"fee_quoter",
+			"unknown_function",
+			stateObjID,
+			nil,
+			nil,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported fee_quoter MCMS function")
 	})
 }
 
@@ -722,140 +825,6 @@ func TestEncodeEntryPointArg_ManagedTokenPool(t *testing.T) {
 	}
 }
 
-func TestEncodeEntryPointArg_UsdcTokenPool(t *testing.T) {
-	encoder := &CCIPEntrypointArgEncoder{
-		registryObjID:      "0x1234567890123456789012345678901234567890123456789012345678901234",
-		deployerStateObjID: "0x8888888888888888888888888888888888888888888888888888888888888888",
-	}
-
-	target := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-	stateObjID := "0x9999999999999999999999999999999999999999999999999999999999999999"
-	executingCallbackParams := &transaction.Argument{}
-
-	t.Run("accept_ownership", func(t *testing.T) {
-		data := []byte{}
-
-		result, err := encoder.EncodeEntryPointArg(
-			executingCallbackParams,
-			target,
-			"usdc_token_pool",
-			"accept_ownership",
-			stateObjID,
-			data,
-			[]string{"0x1::sui::SUI"},
-		)
-
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, "usdc_token_pool", result.Module.ModuleName)
-		assert.Equal(t, "mcms_accept_ownership", result.Function)
-	})
-
-	typeArgTestCases := []string{
-		"set_allowlist_enabled",
-		"apply_allowlist_updates",
-		"apply_chain_updates",
-		"add_remote_pool",
-		"remove_remote_pool",
-		"transfer_ownership",
-	}
-
-	for _, fn := range typeArgTestCases {
-		t.Run(fn, func(t *testing.T) {
-			data := []byte{}
-
-			result, err := encoder.EncodeEntryPointArg(
-				executingCallbackParams,
-				target,
-				"usdc_token_pool",
-				fn,
-				stateObjID,
-				data,
-				[]string{"0x1::sui::SUI"},
-			)
-
-			require.NoError(t, err)
-			assert.NotNil(t, result)
-			assert.Equal(t, "usdc_token_pool", result.Module.ModuleName)
-			assert.Equal(t, "mcms_"+fn, result.Function)
-
-			require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
-			require.Len(t, result.CallArgs, 3, "Expected 3 arguments: state, registry, executingCallbackParams")
-
-			// Verify the state was deserialized correctly
-			stateFromResult, err := extractObjectID(result.CallArgs[0])
-			require.NoError(t, err, "Failed to extract state object ID")
-			assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID (from BCS data)")
-		})
-	}
-
-	t.Run("execute_ownership_transfer", func(t *testing.T) {
-		data := []byte{}
-
-		result, err := encoder.EncodeEntryPointArg(
-			executingCallbackParams,
-			target,
-			"usdc_token_pool",
-			"execute_ownership_transfer",
-			stateObjID,
-			data,
-			[]string{"0x1::sui::SUI"},
-		)
-
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, "usdc_token_pool", result.Module.ModuleName)
-		assert.Equal(t, "mcms_execute_ownership_transfer", result.Function)
-
-		require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
-		require.Len(t, result.CallArgs, 4, "Expected 4 arguments: state, registry, deployer_state, executingCallbackParams")
-
-		// Verify the state was deserialized correctly
-		stateFromResult, err := extractObjectID(result.CallArgs[0])
-		require.NoError(t, err, "Failed to extract state object ID")
-		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
-
-		// Verify the deployer state was set correctly
-		deployerStateFromResult, err := extractObjectID(result.CallArgs[2])
-		require.NoError(t, err, "Failed to extract deployer state object ID")
-		assert.Equal(t, encoder.deployerStateObjID, deployerStateFromResult, "Deployer state should match deployerStateObjID")
-	})
-
-	rateLimiterTestCases := []string{
-		"set_chain_rate_limiter_configs",
-		"set_chain_rate_limiter_config",
-	}
-
-	for _, fn := range rateLimiterTestCases {
-		t.Run(fn, func(t *testing.T) {
-			data := []byte{}
-
-			result, err := encoder.EncodeEntryPointArg(
-				executingCallbackParams,
-				target,
-				"usdc_token_pool",
-				fn,
-				stateObjID,
-				data,
-				[]string{"0x1::sui::SUI"},
-			)
-
-			require.NoError(t, err)
-			assert.NotNil(t, result)
-			assert.Equal(t, "usdc_token_pool", result.Module.ModuleName)
-			assert.Equal(t, "mcms_"+fn, result.Function)
-
-			require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
-			require.Len(t, result.CallArgs, 4, "Expected 4 arguments: state, clock, registry, executingCallbackParams")
-
-			// Verify the state was deserialized correctly
-			stateFromResult, err := extractObjectID(result.CallArgs[0])
-			require.NoError(t, err, "Failed to extract state object ID")
-			assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID (from BCS data)")
-		})
-	}
-}
-
 func TestEncodeEntryPointArg_ManagedToken(t *testing.T) {
 	encoder := &CCIPEntrypointArgEncoder{
 		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
@@ -954,6 +923,49 @@ func TestEncodeEntryPointArg_ManagedToken(t *testing.T) {
 			denyListFromResult, err := extractObjectID(result.CallArgs[2])
 			require.NoError(t, err, "Failed to extract denyList object ID")
 			assert.Equal(t, toHexString(createAddress(denyListID)), denyListFromResult, "DenyList should match deserialized value from data")
+		})
+	}
+}
+
+func TestEncodeEntryPointArg_StateObject(t *testing.T) {
+	encoder := &CCIPEntrypointArgEncoder{
+		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
+	}
+
+	target := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+	stateObjID := "0x9999999999999999999999999999999999999999999999999999999999999999"
+	executingCallbackParams := &transaction.Argument{}
+
+	for _, tc := range []struct {
+		name     string
+		function string
+	}{
+		{name: "add_allowed_modules", function: "add_allowed_modules"},
+		{name: "remove_allowed_modules", function: "remove_allowed_modules"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := []byte{}
+
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"state_object",
+				tc.function,
+				stateObjID,
+				data,
+				[]string{},
+			)
+
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.Equal(t, "state_object", result.Module.ModuleName)
+			assert.Equal(t, fmt.Sprintf("mcms_%s", tc.function), result.Function)
+			// 2 args: registry + executingCallbackParams (no stateObj / ccipRef)
+			require.Len(t, result.CallArgs, 2, "Expected 2 arguments: registry, executingCallbackParams")
+
+			registryFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err)
+			assert.Equal(t, encoder.registryObjID, registryFromResult, "First arg should be the registry object")
 		})
 	}
 }
@@ -1148,4 +1160,424 @@ func TestNewCCIPEntrypointArgEncoder(t *testing.T) {
 	assert.NotNil(t, encoder)
 	assert.Equal(t, registryObjID, encoder.registryObjID)
 	assert.Equal(t, deployerStateObjID, encoder.deployerStateObjID)
+}
+
+func TestEncodeEntryPointArg_RmnRemoteCurserCapCurse(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	curserCap := "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	subject := make([]byte, 16)
+	subject[15] = 1
+
+	data := serializeAddresses(ccipRef, curserCap)
+	s := &bcs.Serializer{}
+	s.Uleb128(1)
+	s.Uleb128(uint32(len(subject)))
+	s.FixedBytes(subject)
+	data = append(data, s.ToBytes()...)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"rmn_remote",
+		"curse_multiple_with_curser_cap",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_curse_multiple_with_curser_cap", encoded.Function)
+	require.Equal(t, "rmn_remote", encoded.Module.ModuleName)
+}
+
+func TestEncodeEntryPointArg_RmnRemoteCreateCurserCapAndTransfer(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	recipient := "0xf45ca00000000000000000000000000000000000000000000000000000000000"
+	data := serializeAddresses(ccipRef, ownerCap, recipient)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"rmn_remote",
+		"create_curser_cap_and_transfer",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_create_curser_cap_and_transfer", encoded.Function)
+}
+
+func TestEncodeEntryPointArg_RmnRemoteRegisterCurserCap(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	fastReg := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	curserCap := "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	data := serializeAddresses(ccipRef, ownerCap, fastReg, curserCap)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"rmn_remote",
+		"register_curser_cap",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_register_curser_cap", encoded.Function)
+	require.NotEmpty(t, encoded.CallArgs)
+}
+
+func TestEncodeEntryPointArg_RmnRemoteMintAndRegisterCurserCap(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	fastReg := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	data := serializeAddresses(ccipRef, ownerCap, fastReg)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"rmn_remote",
+		"mint_and_register_curser_cap",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_mint_and_register_curser_cap", encoded.Function)
+}
+
+func TestEncodeEntryPointArg_RmnRemoteInitializeAllowedCurserCaps(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	data := serializeAddresses(ccipRef, ownerCap)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"rmn_remote",
+		"initialize_allowed_curser_caps",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_initialize_allowed_curser_caps", encoded.Function)
+}
+
+func TestEncodeEntryPointArg_RmnRemoteRegisterCurserCapIds(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	capID := "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	data := serializeAddresses(ccipRef, ownerCap)
+	data = append(data, 1) // vector length uleb128
+	data = append(data, serializeAddresses(capID)...)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"rmn_remote",
+		"register_curser_cap_ids",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_register_curser_cap_ids", encoded.Function)
+}
+
+func TestEncodeEntryPointArg_TokenAdminRegistryTransferAdminRole(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	coinMetadata := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	newAdmin := "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	data := serializeAddresses(ccipRef, coinMetadata, newAdmin)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"token_admin_registry",
+		"transfer_admin_role",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_transfer_admin_role", encoded.Function)
+}
+
+func TestEncodeEntryPointArg_RmnRemoteDeregisterCurserCapIds(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	capID := "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	data := serializeAddresses(ccipRef, ownerCap)
+	data = append(data, 1) // vector length uleb128
+	data = append(data, serializeAddresses(capID)...)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"rmn_remote",
+		"deregister_curser_cap_ids",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_deregister_curser_cap_ids", encoded.Function)
+}
+
+func TestEncodeEntryPointArg_TokenAdminRegistryInitializeLocalDecimals(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	data := serializeAddresses(ccipRef, ownerCap)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"token_admin_registry",
+		"initialize_local_decimals",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_initialize_local_decimals", encoded.Function)
+	require.Equal(t, "token_admin_registry", encoded.Module.ModuleName)
+}
+
+func TestEncodeEntryPointArg_TokenAdminRegistryBackfillLocalDecimals(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	coinMetadata := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	data := serializeAddresses(ownerCap, ccipRef, coinMetadata)
+	data = append(data, 9)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"token_admin_registry",
+		"backfill_local_decimals",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_backfill_local_decimals", encoded.Function)
+	require.Equal(t, "token_admin_registry", encoded.Module.ModuleName)
+}
+
+func TestEncodeEntryPointArg_TokenAdminRegistryUnregisterPool(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	coinMetadata := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	data := serializeAddresses(ownerCap, ccipRef, coinMetadata)
+	paramsArg := transaction.Argument{}
+
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"token_admin_registry",
+		"unregister_pool",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "mcms_unregister_pool", encoded.Function)
+	require.Equal(t, "token_admin_registry", encoded.Module.ModuleName)
+}
+
+func TestEncodeEntryPointArg_UpgradeRegistry(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	target := ccipRef
+	data := serializeAddresses(ccipRef, ownerCap)
+	paramsArg := transaction.Argument{}
+
+	testCases := []struct {
+		function     string
+		wantMcmsFunc string
+	}{
+		{"block_version", "mcms_block_version"},
+		{"unblock_version", "mcms_unblock_version"},
+		{"block_function", "mcms_block_function"},
+		{"unblock_function", "mcms_unblock_function"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.function, func(t *testing.T) {
+			t.Parallel()
+			encoded, err := encoder.EncodeEntryPointArg(
+				&paramsArg,
+				target,
+				"upgrade_registry",
+				tc.function,
+				ccipRef,
+				data,
+				nil,
+			)
+			require.NoError(t, err)
+			require.Equal(t, "upgrade_registry", encoded.Module.ModuleName)
+			require.Equal(t, tc.wantMcmsFunc, encoded.Function)
+		})
+	}
+
+	t.Run("unsupported_function", func(t *testing.T) {
+		t.Parallel()
+		_, err := encoder.EncodeEntryPointArg(
+			&paramsArg,
+			target,
+			"upgrade_registry",
+			"unknown_function",
+			ccipRef,
+			data,
+			nil,
+		)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported upgrade_registry MCMS function")
+	})
+}
+
+func TestEncodeEntryPointArg_TokenAdminRegistryPoolOps(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	coinMetadata := "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	newAdmin := "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	data := serializeAddresses(ccipRef, coinMetadata)
+	dataWithAdmin := serializeAddresses(ccipRef, coinMetadata, newAdmin)
+	unregisterData := serializeAddresses(ownerCap, ccipRef, coinMetadata)
+	paramsArg := transaction.Argument{}
+
+	testCases := []struct {
+		name     string
+		function string
+		want     string
+		data     []byte
+	}{
+		{"unregister_pool", "unregister_pool", "mcms_unregister_pool", unregisterData},
+		{"transfer_admin_role", "transfer_admin_role", "mcms_transfer_admin_role", dataWithAdmin},
+		{"accept_admin_role", "accept_admin_role", "mcms_accept_admin_role", data},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			encoded, err := encoder.EncodeEntryPointArg(
+				&paramsArg,
+				ccipRef,
+				"token_admin_registry",
+				tc.function,
+				ccipRef,
+				tc.data,
+				nil,
+			)
+			require.NoError(t, err)
+			require.Equal(t, "token_admin_registry", encoded.Module.ModuleName)
+			require.Equal(t, tc.want, encoded.Function)
+		})
+	}
+
+	t.Run("unsupported_function", func(t *testing.T) {
+		t.Parallel()
+		_, err := encoder.EncodeEntryPointArg(
+			&paramsArg,
+			ccipRef,
+			"token_admin_registry",
+			"unknown_function",
+			ccipRef,
+			serializeAddress(ccipRef),
+			nil,
+		)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported token_admin_registry MCMS function")
+	})
 }

@@ -14,8 +14,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccip_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
-	mcms_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +26,7 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
@@ -47,13 +45,8 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 	signerAddress, err := signer.GetAddress()
 	require.NoError(t, err, "failed to get signer address")
 
-	reportMCMs, err := cld_ops.ExecuteOperation(bundle, mcms_ops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
-	require.NoError(t, err, "failed to deploy MCMS Package")
-
-	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageId: reportMCMs.Output.PackageId,
-		McmsOwner:     signerAddress,
-	}
+	inputCCIP, err := ccip_ops.DeployCCIPDependencyPackages(bundle, deps)
+	require.NoError(t, err, "failed to deploy CCIP dependency packages")
 
 	report, err := cld_ops.ExecuteOperation(bundle, ccip_ops.DeployCCIPOp, deps, inputCCIP)
 	require.NoError(t, err, "failed to deploy CCIP Package")
@@ -80,7 +73,8 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 	inputOnRamp := DeployAndInitCCIPOnRampSeqInput{
 		DeployCCIPOnRampInput: DeployCCIPOnRampInput{
 			CCIPPackageId:      report.Output.PackageId,
-			MCMSPackageId:      reportMCMs.Output.PackageId,
+			MCMSPackageId:      inputCCIP.McmsPackageId,
+			FastMcmsPackageId:  inputCCIP.FastMcmsPackageId,
 			MCMSOwnerPackageId: signerAddress,
 		},
 		OnRampInitializeInput: OnRampInitializeInput{

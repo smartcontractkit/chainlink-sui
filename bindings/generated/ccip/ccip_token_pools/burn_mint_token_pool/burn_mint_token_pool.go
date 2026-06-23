@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -209,8 +208,8 @@ type BurnMintTokenPoolDevInspect struct {
 var _ IBurnMintTokenPool = (*BurnMintTokenPoolContract)(nil)
 var _ IBurnMintTokenPoolDevInspect = (*BurnMintTokenPoolDevInspect)(nil)
 
-func NewBurnMintTokenPool(packageID string, client sui.ISuiAPI) (IBurnMintTokenPool, error) {
-	contract, err := bind.NewBoundContract(packageID, "burn_mint_token_pool", "burn_mint_token_pool", client)
+func NewBurnMintTokenPool(packageID string, chainClient client.BindingsClient) (IBurnMintTokenPool, error) {
+	contract, err := bind.NewBoundContract(packageID, "burn_mint_token_pool", "burn_mint_token_pool", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -269,172 +268,6 @@ type McmsCallback struct {
 }
 
 type McmsAcceptOwnershipProof struct {
-}
-
-type bcsBurnMintTokenPoolStatePointer struct {
-	Id                        string
-	BurnMintTokenPoolObjectId [32]byte
-}
-
-func convertBurnMintTokenPoolStatePointerFromBCS(bcs bcsBurnMintTokenPoolStatePointer) (BurnMintTokenPoolStatePointer, error) {
-
-	return BurnMintTokenPoolStatePointer{
-		Id:                        bcs.Id,
-		BurnMintTokenPoolObjectId: fmt.Sprintf("0x%x", bcs.BurnMintTokenPoolObjectId),
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BURN_MINT_TOKEN_POOL", func(data []byte) (interface{}, error) {
-		var result BURN_MINT_TOKEN_POOL
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for BURN_MINT_TOKEN_POOL
-	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::BURN_MINT_TOKEN_POOL>", func(data []byte) (interface{}, error) {
-		var results []BURN_MINT_TOKEN_POOL
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolObject", func(data []byte) (interface{}, error) {
-		var result BurnMintTokenPoolObject
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for BurnMintTokenPoolObject
-	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolObject>", func(data []byte) (interface{}, error) {
-		var results []BurnMintTokenPoolObject
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolStatePointer", func(data []byte) (interface{}, error) {
-		var temp bcsBurnMintTokenPoolStatePointer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertBurnMintTokenPoolStatePointerFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for BurnMintTokenPoolStatePointer
-	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolStatePointer>", func(data []byte) (interface{}, error) {
-		var temps []bcsBurnMintTokenPoolStatePointer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]BurnMintTokenPoolStatePointer, len(temps))
-		for i, temp := range temps {
-			result, err := convertBurnMintTokenPoolStatePointerFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolState", func(data []byte) (interface{}, error) {
-		var result BurnMintTokenPoolState
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for BurnMintTokenPoolState
-	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::BurnMintTokenPoolState>", func(data []byte) (interface{}, error) {
-		var results []BurnMintTokenPoolState
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::TokenBucketWrapper", func(data []byte) (interface{}, error) {
-		var result TokenBucketWrapper
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TokenBucketWrapper
-	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::TokenBucketWrapper>", func(data []byte) (interface{}, error) {
-		var results []TokenBucketWrapper
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::TypeProof", func(data []byte) (interface{}, error) {
-		var result TypeProof
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TypeProof
-	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::TypeProof>", func(data []byte) (interface{}, error) {
-		var results []TypeProof
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::McmsCallback", func(data []byte) (interface{}, error) {
-		var result McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsCallback
-	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::McmsCallback>", func(data []byte) (interface{}, error) {
-		var results []McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("burn_mint_token_pool::burn_mint_token_pool::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
-		var result McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsAcceptOwnershipProof
-	bind.RegisterStructDecoder("vector<burn_mint_token_pool::burn_mint_token_pool::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
-		var results []McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -932,9 +765,9 @@ func (d *BurnMintTokenPoolDevInspect) TypeAndVersion(ctx context.Context, opts *
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -954,9 +787,9 @@ func (d *BurnMintTokenPoolDevInspect) GetToken(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -976,9 +809,9 @@ func (d *BurnMintTokenPoolDevInspect) GetTokenDecimals(ctx context.Context, opts
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(byte)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected byte, got %T", results[0])
+	var result byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -998,9 +831,9 @@ func (d *BurnMintTokenPoolDevInspect) GetTokenSymbol(ctx context.Context, opts *
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1020,9 +853,9 @@ func (d *BurnMintTokenPoolDevInspect) GetRemotePools(ctx context.Context, opts *
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([][]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected [][]byte, got %T", results[0])
+	var result [][]byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1042,9 +875,9 @@ func (d *BurnMintTokenPoolDevInspect) IsRemotePool(ctx context.Context, opts *bi
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1064,9 +897,9 @@ func (d *BurnMintTokenPoolDevInspect) GetRemoteToken(ctx context.Context, opts *
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1086,9 +919,9 @@ func (d *BurnMintTokenPoolDevInspect) IsSupportedChain(ctx context.Context, opts
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1108,9 +941,9 @@ func (d *BurnMintTokenPoolDevInspect) GetSupportedChains(ctx context.Context, op
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]uint64)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []uint64, got %T", results[0])
+	var result []uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1130,9 +963,9 @@ func (d *BurnMintTokenPoolDevInspect) GetAllowlistEnabled(ctx context.Context, o
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1152,9 +985,9 @@ func (d *BurnMintTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts *bi
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	var result []string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1174,9 +1007,9 @@ func (d *BurnMintTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx cont
 	if len(results) == 0 {
 		return TokenBucketWrapper{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(TokenBucketWrapper)
-	if !ok {
-		return TokenBucketWrapper{}, fmt.Errorf("unexpected return type: expected TokenBucketWrapper, got %T", results[0])
+	var result TokenBucketWrapper
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return TokenBucketWrapper{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1196,9 +1029,9 @@ func (d *BurnMintTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx con
 	if len(results) == 0 {
 		return TokenBucketWrapper{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(TokenBucketWrapper)
-	if !ok {
-		return TokenBucketWrapper{}, fmt.Errorf("unexpected return type: expected TokenBucketWrapper, got %T", results[0])
+	var result TokenBucketWrapper
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return TokenBucketWrapper{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1236,9 +1069,9 @@ func (d *BurnMintTokenPoolDevInspect) Owner(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1258,9 +1091,9 @@ func (d *BurnMintTokenPoolDevInspect) HasPendingTransfer(ctx context.Context, op
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1280,9 +1113,9 @@ func (d *BurnMintTokenPoolDevInspect) PendingTransferFrom(ctx context.Context, o
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1302,9 +1135,9 @@ func (d *BurnMintTokenPoolDevInspect) PendingTransferTo(ctx context.Context, opt
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1324,9 +1157,9 @@ func (d *BurnMintTokenPoolDevInspect) PendingTransferAccepted(ctx context.Contex
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*bool)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *bool, got %T", results[0])
+	var result *bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

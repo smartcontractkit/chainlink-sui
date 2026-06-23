@@ -45,7 +45,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		Client: suiChain.Client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
@@ -55,10 +55,8 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	}
 
 	// in case the registry is not loaded with all operations. Needed to build accept ownership proposals
-	ops := make([]*cld_ops.Operation[any, any, any], len(opregistry.AllOperations))
 	for i := range opregistry.AllOperations {
-		ops[i] = &opregistry.AllOperations[i]
-		cld_ops.RegisterOperation(e.OperationsBundle.OperationRegistry, &opregistry.AllOperations[i])
+		cld_ops.RegisterOperation(e.OperationsBundle.OperationRegistry, opregistry.AllOperations[i])
 	}
 
 	suiState, err := deployment.LoadOnchainStatesui(e)
@@ -78,12 +76,30 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for Sui chain %d: %w", config.SuiChainSelector, err)
 		}
 
-		err = storeMCMSInAddressBook(ab, config.SuiChainSelector, mcmsReport.Output)
+		err = deployment.StoreMCMSInAddressBook(ab, config.SuiChainSelector, mcmsReport.Output, deployment.MCMSInstanceSlow)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to store MCMS in address book for Sui chain %d: %w", config.SuiChainSelector, err)
 		}
 
 		mcmsPackageId = mcmsReport.Output.PackageId
+	}
+
+	fastMcmsPackageId := state.FastCurseMCMSPackageID
+	if fastMcmsPackageId == "" {
+		fastMcmsReport, err := cld_ops.ExecuteOperation(e.OperationsBundle, mcmsops.DeployFastMCMSOp, deps, cld_ops.EmptyInput{})
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy fast MCMS for Sui chain %d: %w", config.SuiChainSelector, err)
+		}
+
+		err = deployment.StoreMCMSInAddressBook(ab, config.SuiChainSelector, mcmsops.DeployMCMSSeqOutput{
+			PackageId: fastMcmsReport.Output.PackageId,
+			Objects:   fastMcmsReport.Output.Objects,
+		}, deployment.MCMSInstanceFastCurse)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to store fast MCMS in address book for Sui chain %d: %w", config.SuiChainSelector, err)
+		}
+
+		fastMcmsPackageId = fastMcmsReport.Output.PackageId
 	}
 
 	// Deploy Router
@@ -126,6 +142,12 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save Router owner cap object Id %s for Sui chain %d: %w", routerReport.Output.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 	}
 
+	typeAndVersionRouterUpgradeCapId := cldf.NewTypeAndVersion(deployment.SuiRouterUpgradeCapObjectIDType, deployment.Version1_0_0)
+	err = ab.Save(config.SuiChainSelector, routerReport.Output.Objects.UpgradeCapObjectId, typeAndVersionRouterUpgradeCapId)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save RouterUpgradeCapId  %s for Sui chain %d: %w", routerReport.Output.Objects.UpgradeCapObjectId, config.SuiChainSelector, err)
+	}
+
 	// --------------------------
 	// CCIP SEQUENCE
 	// --------------------------
@@ -136,6 +158,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	ccipSeqInput.LocalChainSelector = config.SuiChainSelector
 	ccipSeqInput.DestChainSelector = config.DestChainSelector
 	ccipSeqInput.DeployCCIPInput.McmsPackageId = mcmsPackageId
+	ccipSeqInput.DeployCCIPInput.FastMcmsPackageId = fastMcmsPackageId
 	ccipSeqInput.DeployCCIPInput.McmsOwner = signerAddr
 
 	ccipSeqReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, ccipops.DeployAndInitCCIPSequence, deps, ccipSeqInput)
@@ -201,6 +224,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.CCIPPackageId = ccipSeqReport.Output.CCIPPackageId
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSPackageId = mcmsPackageId
+	ccipOnRampSeqInput.DeployCCIPOnRampInput.FastMcmsPackageId = fastMcmsPackageId
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSOwnerPackageId = signerAddr
 	ccipOnRampSeqInput.OnRampInitializeInput.NonceManagerCapId = ccipSeqReport.Output.Objects.NonceManagerCapObjectId
 	ccipOnRampSeqInput.OnRampInitializeInput.SourceTransferCapId = ccipSeqReport.Output.Objects.SourceTransferCapObjectId
@@ -260,6 +284,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	ccipOffRampSeqInput.CCIPObjectRefId = ccipSeqReport.Output.Objects.CCIPObjectRefObjectId
 	ccipOffRampSeqInput.DeployCCIPOffRampInput.CCIPPackageId = ccipSeqReport.Output.CCIPPackageId
 	ccipOffRampSeqInput.DeployCCIPOffRampInput.MCMSPackageId = mcmsPackageId
+	ccipOffRampSeqInput.DeployCCIPOffRampInput.FastMcmsPackageId = fastMcmsPackageId
 
 	ccipOffRampSeqInput.InitializeOffRampInput.DestTransferCapId = ccipSeqReport.Output.Objects.DestTransferCapObjectId
 	ccipOffRampSeqInput.InitializeOffRampInput.FeeQuoterCapId = ccipSeqReport.Output.Objects.FeeQuoterCapObjectId

@@ -1,7 +1,9 @@
 package ccipops
 
 import (
+	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -15,10 +17,11 @@ import (
 // =================== Add Package ID Operations =================== //
 
 type AddPackageIdStateObjectInput struct {
-	CCIPPackageId         string
+	PackageId             string // original package ID (MCMS registry identity; used as binary when LatestPackageId is "")
+	LatestPackageId       string // optional: upgraded package ID (PTB execution target when set)
 	CCIPObjectRefObjectId string
 	OwnerCapObjectId      string
-	PackageId             string
+	NewPackageId          string // the package ID to register in the CCIP StateObject
 }
 
 type AddPackageIdStateObjectObjects struct {
@@ -26,12 +29,17 @@ type AddPackageIdStateObjectObjects struct {
 }
 
 var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddPackageIdStateObjectInput) (output sui_ops.OpTxResult[AddPackageIdStateObjectObjects], err error) {
-	contract, err := module_state_object.NewStateObject(input.CCIPPackageId, deps.Client)
+	// When the package has been upgraded, PTB must target the latest bytecode for execution.
+	binaryPkgId := input.PackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	contract, err := module_state_object.NewStateObject(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
 	}
 
-	encodedCall, err := contract.Encoder().AddPackageId(bind.Object{Id: input.CCIPObjectRefObjectId}, bind.Object{Id: input.OwnerCapObjectId}, input.PackageId)
+	encodedCall, err := contract.Encoder().AddPackageId(bind.Object{Id: input.CCIPObjectRefObjectId}, bind.Object{Id: input.OwnerCapObjectId}, input.NewPackageId)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to encode AddPackageId call: %w", err)
 	}
@@ -39,11 +47,18 @@ var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDep
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
+	// When the package has been upgraded, the on-chain MCMS registry still holds the original package's
+	// proof type, so tx.To must be the original package ID. The PTB MoveCall must target the latest package
+	// so upgraded bytecode runs. Use LatestPackageId so the proposal generator can separate the two.
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID // current PackageID is the latest (from binaryPkgId)
+		call.PackageID = input.PackageId      // replace with original for on-chain identity
+	}
 	if deps.Signer == nil {
-		b.Logger.Infow("Skipping execution of AddPackageId on StateObject as per no Signer provided", "packageId", input.PackageId)
+		b.Logger.Infow("Skipping execution of AddPackageId on StateObject as per no Signer provided", "newPackageId", input.NewPackageId)
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{
 			Digest:    "",
-			PackageId: input.CCIPPackageId,
+			PackageId: input.PackageId,
 			Objects:   AddPackageIdStateObjectObjects{},
 			Call:      call,
 		}, nil
@@ -60,11 +75,11 @@ var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDep
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to execute AddPackageId on StateObject: %w", err)
 	}
 
-	b.Logger.Infow("Package ID added to CCIP StateObject", "packageId", input.PackageId)
+	b.Logger.Infow("Package ID added to CCIP StateObject", "newPackageId", input.NewPackageId)
 
 	return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.PackageId,
 		Objects:   AddPackageIdStateObjectObjects{},
 		Call:      call,
 	}, nil
@@ -535,4 +550,110 @@ var ExecuteOwnershipTransferToMcmsStateObjectOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Executes ownership transfer to MCMS for the CCIP StateObject",
 	executeOwnershipTransferToMcmsStateObjectHandler,
+)
+
+// AddAllowedModulesStateObjectInput configures mcms_registry::add_allowed_modules<T>
+type AddAllowedModulesStateObjectInput struct {
+	PackageId         string // original CCIP package ID (MCMS registry identity; used as binary when LatestPackageId is "")
+	LatestPackageId   string // optional: upgraded CCIP package ID (PTB execution target when set)
+	MCMSRegistryObjId string // mcms_registry Registry shared object ID
+	AllowedModules    []string
+}
+
+type AddAllowedModulesStateObjectObjects struct{}
+
+// bcsAppendULEB128 appends n encoded as an unsigned LEB128 integer to data (BCS length encoding).
+func bcsAppendULEB128(data []byte, n uint64) []byte {
+	for {
+		b := byte(n & 0x7F)
+		n >>= 7
+		if n == 0 {
+			return append(data, b)
+		}
+		data = append(data, b|0x80)
+	}
+}
+
+var addAllowedModulesStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddAllowedModulesStateObjectInput) (output sui_ops.OpTxResult[AddAllowedModulesStateObjectObjects], err error) {
+	if strings.TrimSpace(input.PackageId) == "" {
+		return sui_ops.OpTxResult[AddAllowedModulesStateObjectObjects]{}, fmt.Errorf("PackageId is required")
+	}
+	if len(input.AllowedModules) == 0 {
+		return sui_ops.OpTxResult[AddAllowedModulesStateObjectObjects]{}, fmt.Errorf("AllowedModules must not be empty")
+	}
+
+	// When the package has been upgraded, PTB must target the latest bytecode for execution.
+	binaryPkgId := input.PackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+
+	// state_object::mcms_add_allowed_modules routes to mcms_registry::add_allowed_modules internally.
+	// There is no direct (non-MCMS) add_allowed_modules function; this op is for proposal generation only.
+	// The function BCS-decodes data as:
+	//   1. validate_obj_addr(registry) → 32 raw address bytes
+	//   2. deserialize_vector<vector<u8>>(modules) → ULEB128(N) + each: ULEB128(len)+bytes
+	registryHex := strings.TrimPrefix(strings.TrimSpace(input.MCMSRegistryObjId), "0x")
+	if len(registryHex)%2 != 0 {
+		registryHex = "0" + registryHex
+	}
+	registryBytes, err := hex.DecodeString(registryHex)
+	if err != nil {
+		return sui_ops.OpTxResult[AddAllowedModulesStateObjectObjects]{}, fmt.Errorf("invalid MCMSRegistryObjId: %w", err)
+	}
+	if len(registryBytes) < 32 {
+		padded := make([]byte, 32)
+		copy(padded[32-len(registryBytes):], registryBytes)
+		registryBytes = padded
+	}
+	if len(registryBytes) != 32 {
+		return sui_ops.OpTxResult[AddAllowedModulesStateObjectObjects]{}, fmt.Errorf("MCMSRegistryObjId must be a 32-byte Sui address, got %d bytes", len(registryBytes))
+	}
+
+	data := make([]byte, 0, 32+1+len(input.AllowedModules)*16)
+	data = append(data, registryBytes...)
+	data = bcsAppendULEB128(data, uint64(len(input.AllowedModules)))
+	for _, m := range input.AllowedModules {
+		modBytes := []byte(m)
+		data = bcsAppendULEB128(data, uint64(len(modBytes)))
+		data = append(data, modBytes...)
+	}
+
+	call := sui_ops.TransactionCall{
+		PackageID:  binaryPkgId,
+		Module:     "state_object",
+		Function:   "add_allowed_modules",
+		Data:       data,
+		StateObjID: input.MCMSRegistryObjId,
+		TypeArgs:   []string{},
+	}
+	// When the package has been upgraded, the on-chain MCMS registry still holds the original package's
+	// proof type, so tx.To must be the original package ID. The PTB MoveCall must target the latest package
+	// so upgraded bytecode runs. Use LatestPackageID so the proposal generator can separate the two.
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID // current PackageID is the latest (from binaryPkgId)
+		call.PackageID = input.PackageId      // replace with original for on-chain MCMS identity
+	}
+
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of add_allowed_modules on StateObject as per no Signer provided",
+			"registry", input.MCMSRegistryObjId, "modules", input.AllowedModules)
+		return sui_ops.OpTxResult[AddAllowedModulesStateObjectObjects]{
+			Digest:    "",
+			PackageId: input.PackageId,
+			Objects:   AddAllowedModulesStateObjectObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	return sui_ops.OpTxResult[AddAllowedModulesStateObjectObjects]{}, fmt.Errorf(
+		"direct execution of state_object::add_allowed_modules is not supported; the function can only be invoked through the MCMS executor",
+	)
+}
+
+var AddAllowedModulesStateObjectOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "state_object", "add_allowed_modules"),
+	semver.MustParse("0.1.0"),
+	"Adds module names to the MCMS registry allowlist via the CCIP state_object MCMS entrypoint (state_object::add_allowed_modules)",
+	addAllowedModulesStateObjectHandler,
 )

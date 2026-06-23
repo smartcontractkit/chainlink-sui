@@ -2,6 +2,7 @@ package ccipops
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -11,6 +12,13 @@ import (
 	module_upgrade_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/upgrade_registry"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
+
+func requireCCIPPackageID(id string) error {
+	if strings.TrimSpace(id) == "" {
+		return fmt.Errorf("CCIPPackageId is required")
+	}
+	return nil
+}
 
 // =================== Initialize Operations =================== //
 
@@ -25,6 +33,9 @@ type InitUpgradeRegistryInput struct {
 }
 
 var initUpgradeRegistryHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitUpgradeRegistryInput) (output sui_ops.OpTxResult[InitUpgradeRegistryObjects], err error) {
+	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
+		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, err
+	}
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
@@ -68,7 +79,8 @@ var UpgradeRegistryInitializeOp = cld_ops.NewOperation(
 // =================== Version Blocking Operations =================== //
 
 type BlockVersionInput struct {
-	CCIPPackageId    string
+	PackageId        string // original package ID (MCMS registry identity; used as binary when LatestPackageId is "")
+	LatestPackageId  string // optional: upgraded package ID (PTB execution target when set)
 	StateObjectId    string
 	OwnerCapObjectId string
 	ModuleName       string
@@ -80,21 +92,46 @@ type BlockVersionObjects struct {
 }
 
 var blockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BlockVersionInput) (output sui_ops.OpTxResult[BlockVersionObjects], err error) {
-	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
+	if err := requireCCIPPackageID(input.PackageId); err != nil {
+		return sui_ops.OpTxResult[BlockVersionObjects]{}, err
+	}
+	binaryPkgId := input.PackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	contract, err := module_upgrade_registry.NewUpgradeRegistry(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[BlockVersionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
 	}
 
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
+	encodedCall, err := contract.Encoder().BlockVersion(ref, ownerCap, input.ModuleName, input.Version)
+	if err != nil {
+		return sui_ops.OpTxResult[BlockVersionObjects]{}, fmt.Errorf("failed to encode BlockVersion call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[BlockVersionObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID // current PackageID is the latest (from binaryPkgId)
+		call.PackageID = input.PackageId      // replace with original for on-chain identity
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of BlockVersion on UpgradeRegistry as per no Signer provided",
+			"moduleName", input.ModuleName, "version", input.Version)
+		return sui_ops.OpTxResult[BlockVersionObjects]{
+			Digest:    "",
+			PackageId: input.PackageId,
+			Objects:   BlockVersionObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.BlockVersion(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.ModuleName,
-		input.Version,
-	)
+	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
 	if err != nil {
 		return sui_ops.OpTxResult[BlockVersionObjects]{}, fmt.Errorf("failed to execute BlockVersion: %w", err)
 	}
@@ -106,8 +143,9 @@ var blockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Bl
 
 	return sui_ops.OpTxResult[BlockVersionObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.PackageId,
 		Objects:   BlockVersionObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -121,7 +159,8 @@ var BlockVersionOp = cld_ops.NewOperation(
 // =================== Unblock Version Operations =================== //
 
 type UnblockVersionInput struct {
-	CCIPPackageId    string
+	PackageId        string // original package ID (MCMS registry identity; used as binary when LatestPackageId is "")
+	LatestPackageId  string // optional: upgraded package ID (PTB execution target when set)
 	StateObjectId    string
 	OwnerCapObjectId string
 	ModuleName       string
@@ -133,21 +172,46 @@ type UnblockVersionObjects struct {
 }
 
 var unblockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input UnblockVersionInput) (output sui_ops.OpTxResult[UnblockVersionObjects], err error) {
-	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
+	if err := requireCCIPPackageID(input.PackageId); err != nil {
+		return sui_ops.OpTxResult[UnblockVersionObjects]{}, err
+	}
+	binaryPkgId := input.PackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	contract, err := module_upgrade_registry.NewUpgradeRegistry(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
 	}
 
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
+	encodedCall, err := contract.Encoder().UnblockVersion(ref, ownerCap, input.ModuleName, input.Version)
+	if err != nil {
+		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to encode UnblockVersion call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID // current PackageID is the latest (from binaryPkgId)
+		call.PackageID = input.PackageId      // replace with original for on-chain identity
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of UnblockVersion on UpgradeRegistry as per no Signer provided",
+			"moduleName", input.ModuleName, "version", input.Version)
+		return sui_ops.OpTxResult[UnblockVersionObjects]{
+			Digest:    "",
+			PackageId: input.PackageId,
+			Objects:   UnblockVersionObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.UnblockVersion(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.ModuleName,
-		input.Version,
-	)
+	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
 	if err != nil {
 		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to execute UnblockVersion: %w", err)
 	}
@@ -159,8 +223,9 @@ var unblockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 
 	return sui_ops.OpTxResult[UnblockVersionObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.PackageId,
 		Objects:   UnblockVersionObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -174,7 +239,8 @@ var UnblockVersionOp = cld_ops.NewOperation(
 // =================== Function Blocking Operations =================== //
 
 type BlockFunctionInput struct {
-	CCIPPackageId    string
+	PackageId        string // original package ID (MCMS registry identity; used as binary when LatestPackageId is "")
+	LatestPackageId  string // optional: upgraded package ID (PTB execution target when set)
 	StateObjectId    string
 	OwnerCapObjectId string
 	ModuleName       string
@@ -187,22 +253,46 @@ type BlockFunctionObjects struct {
 }
 
 var blockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BlockFunctionInput) (output sui_ops.OpTxResult[BlockFunctionObjects], err error) {
-	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
+	if err := requireCCIPPackageID(input.PackageId); err != nil {
+		return sui_ops.OpTxResult[BlockFunctionObjects]{}, err
+	}
+	binaryPkgId := input.PackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	contract, err := module_upgrade_registry.NewUpgradeRegistry(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[BlockFunctionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
 	}
 
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
+	encodedCall, err := contract.Encoder().BlockFunction(ref, ownerCap, input.ModuleName, input.FunctionName, input.Version)
+	if err != nil {
+		return sui_ops.OpTxResult[BlockFunctionObjects]{}, fmt.Errorf("failed to encode BlockFunction call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[BlockFunctionObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID // current PackageID is the latest (from binaryPkgId)
+		call.PackageID = input.PackageId      // replace with original for on-chain identity
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of BlockFunction on UpgradeRegistry as per no Signer provided",
+			"moduleName", input.ModuleName, "functionName", input.FunctionName, "version", input.Version)
+		return sui_ops.OpTxResult[BlockFunctionObjects]{
+			Digest:    "",
+			PackageId: input.PackageId,
+			Objects:   BlockFunctionObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.BlockFunction(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.ModuleName,
-		input.FunctionName,
-		input.Version,
-	)
+	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
 	if err != nil {
 		return sui_ops.OpTxResult[BlockFunctionObjects]{}, fmt.Errorf("failed to execute BlockFunction: %w", err)
 	}
@@ -215,8 +305,9 @@ var blockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input B
 
 	return sui_ops.OpTxResult[BlockFunctionObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.PackageId,
 		Objects:   BlockFunctionObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -230,7 +321,8 @@ var BlockFunctionOp = cld_ops.NewOperation(
 // =================== Unblock Function Operations =================== //
 
 type UnblockFunctionInput struct {
-	CCIPPackageId    string
+	PackageId        string // original package ID (MCMS registry identity; used as binary when LatestPackageId is "")
+	LatestPackageId  string // optional: upgraded package ID (PTB execution target when set)
 	StateObjectId    string
 	OwnerCapObjectId string
 	ModuleName       string
@@ -243,22 +335,46 @@ type UnblockFunctionObjects struct {
 }
 
 var unblockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input UnblockFunctionInput) (output sui_ops.OpTxResult[UnblockFunctionObjects], err error) {
-	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
+	if err := requireCCIPPackageID(input.PackageId); err != nil {
+		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, err
+	}
+	binaryPkgId := input.PackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	contract, err := module_upgrade_registry.NewUpgradeRegistry(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
 	}
 
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
+	encodedCall, err := contract.Encoder().UnblockFunction(ref, ownerCap, input.ModuleName, input.FunctionName, input.Version)
+	if err != nil {
+		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to encode UnblockFunction call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID // current PackageID is the latest (from binaryPkgId)
+		call.PackageID = input.PackageId      // replace with original for on-chain identity
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of UnblockFunction on UpgradeRegistry as per no Signer provided",
+			"moduleName", input.ModuleName, "functionName", input.FunctionName, "version", input.Version)
+		return sui_ops.OpTxResult[UnblockFunctionObjects]{
+			Digest:    "",
+			PackageId: input.PackageId,
+			Objects:   UnblockFunctionObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.UnblockFunction(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.ModuleName,
-		input.FunctionName,
-		input.Version,
-	)
+	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encodedCall)
 	if err != nil {
 		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to execute UnblockFunction: %w", err)
 	}
@@ -271,8 +387,9 @@ var unblockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 
 	return sui_ops.OpTxResult[UnblockFunctionObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.PackageId,
 		Objects:   UnblockFunctionObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -296,6 +413,9 @@ type GetModuleRestrictionsOutput struct {
 }
 
 var getModuleRestrictionsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetModuleRestrictionsInput) (output sui_ops.OpTxResult[GetModuleRestrictionsOutput], err error) {
+	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
+		return sui_ops.OpTxResult[GetModuleRestrictionsOutput]{}, err
+	}
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[GetModuleRestrictionsOutput]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
@@ -349,6 +469,9 @@ type IsFunctionAllowedOutput struct {
 }
 
 var isFunctionAllowedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input IsFunctionAllowedInput) (output sui_ops.OpTxResult[IsFunctionAllowedOutput], err error) {
+	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
+		return sui_ops.OpTxResult[IsFunctionAllowedOutput]{}, err
+	}
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[IsFunctionAllowedOutput]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
@@ -406,6 +529,9 @@ type VerifyFunctionAllowedObjects struct {
 }
 
 var verifyFunctionAllowedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input VerifyFunctionAllowedInput) (output sui_ops.OpTxResult[VerifyFunctionAllowedObjects], err error) {
+	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
+		return sui_ops.OpTxResult[VerifyFunctionAllowedObjects]{}, err
+	}
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[VerifyFunctionAllowedObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)

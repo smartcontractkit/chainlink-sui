@@ -16,7 +16,6 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccip_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	managedtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/managed_token"
-	mcms_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
 
 func TestDeployAndInitSeq(t *testing.T) {
@@ -27,7 +26,7 @@ func TestDeployAndInitSeq(t *testing.T) {
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
@@ -45,21 +44,15 @@ func TestDeployAndInitSeq(t *testing.T) {
 	signerAddress, err := signer.GetAddress()
 	require.NoError(t, err, "failed to get signer address")
 
-	reportMCMs, err := cld_ops.ExecuteOperation(bundle, mcms_ops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
-	require.NoError(t, err, "failed to deploy MCMS Package")
-
-	// Deploy CCIP
-	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageId: reportMCMs.Output.PackageId,
-		McmsOwner:     signerAddress,
-	}
+	inputCCIP, err := ccip_ops.DeployCCIPDependencyPackages(bundle, deps)
+	require.NoError(t, err, "failed to deploy CCIP dependency packages")
 
 	reportCCIP, err := cld_ops.ExecuteOperation(bundle, ccip_ops.DeployCCIPOp, deps, inputCCIP)
 	require.NoError(t, err, "failed to deploy CCIP Package")
 
 	// deploy managed token
 	reportManagedToken, err := cld_ops.ExecuteOperation(bundle, managedtokenops.DeployCCIPManagedTokenOp, deps, managedtokenops.ManagedTokenDeployInput{
-		MCMSAddress:      reportMCMs.Output.PackageId,
+		MCMSAddress:      inputCCIP.McmsPackageId,
 		MCMSOwnerAddress: signerAddress,
 	})
 	require.NoError(t, err, "failed to deploy ManagedToken Package")
@@ -75,11 +68,19 @@ func TestDeployAndInitSeq(t *testing.T) {
 	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.TokenAdminRegistryInitializeOp, deps, inputTAR)
 	require.NoError(t, err, "failed to initialize TokenAdminRegistry")
 
+	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.TokenAdminRegistryInitializeLocalDecimalsOp, deps, ccip_ops.InitLocalDecimalsInput{
+		CCIPPackageId:    reportCCIP.Output.PackageId,
+		StateObjectId:    reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		OwnerCapObjectId: reportCCIP.Output.Objects.OwnerCapObjectId,
+	})
+	require.NoError(t, err, "failed to initialize local decimals state")
+
 	// Test just the package deployment for now
 	managedTokenPoolInput := ManagedTokenPoolDeployInput{
 		CCIPPackageId:         reportCCIP.Output.PackageId,
 		ManagedTokenPackageId: reportManagedToken.Output.PackageId,
-		MCMSAddress:           reportMCMs.Output.PackageId,
+		MCMSAddress:           inputCCIP.McmsPackageId,
+		FastMcmsAddress:       inputCCIP.FastMcmsPackageId,
 		MCMSOwnerAddress:      signerAddress,
 	}
 

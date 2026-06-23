@@ -9,6 +9,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	aptosBalanceMonitor "github.com/smartcontractkit/chainlink-aptos/relayer/monitor"
+	aptosTypes "github.com/smartcontractkit/chainlink-aptos/relayer/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
@@ -20,7 +21,7 @@ const BalanceCheckTimeout = 30 * time.Second
 
 // BalanceMonitorOpts contains the options for creating a new Sui account balance monitor.
 type BalanceMonitorOpts struct {
-	ChainInfo aptosBalanceMonitor.ChainInfo
+	ChainInfo aptosTypes.ChainInfo
 
 	Config    aptosBalanceMonitor.GenericBalanceConfig
 	Logger    logger.Logger
@@ -72,7 +73,7 @@ func (c balanceClient) GetAccountBalance(address string) (float64, error) {
 		return 0, fmt.Errorf("failed to get balance: %w", err)
 	}
 
-	return mistToSui(balance.Uint64()), nil
+	return mistToSui(balance.GetBalance()), nil
 }
 
 // Convert MIST to SUI as 1/10^9 SUI

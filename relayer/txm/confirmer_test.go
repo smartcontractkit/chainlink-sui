@@ -8,16 +8,20 @@ import (
 	"crypto/rand"
 	"math/big"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client/mocks"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
@@ -35,28 +39,65 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 	nrRetries := 3
 	retryManager := txm.NewDefaultRetryManager(nrRetries)
 
-	// For this test, we simulate a failure with error "simulated gas error".
+	// Create gomock controller and mock client
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockClient := mocks.NewMockSuiPTBClient(ctrl)
+
+	// For this test, we simulate a failure with error "ErrGasBudgetTooHigh".
 	// The confirmer will then invoke the retry logic.
-	fakeClient := &testutils.FakeSuiPTBClient{
-		Status: client.TransactionResult{
+	mockClient.EXPECT().
+		GetTransactionStatus(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(client.TransactionResult{
 			Status: "failure",
 			Error:  "ErrGasBudgetTooHigh",
-		},
-		CoinsData: []models.CoinData{
-			{
-				CoinType:     "0x2::sui::SUI",
-				Balance:      "100000000",
-				CoinObjectId: "0x1234567890abcdef1234567890abcdef12345678",
-				Version:      "1",
-				Digest:       "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT",
-			},
-		},
+		}, nil)
+
+	// Return a SUI coin with sufficient balance for gas
+	objectID := "0x1234567890abcdef1234567890abcdef12345678"
+	digest := "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT"
+	coinType := "0x2::sui::SUI"
+	version := uint64(1)
+	balance := uint64(100000000)
+	testCoin := &suirpcv2.Object{
+		ObjectId:   &objectID,
+		Version:    &version,
+		Digest:     &digest,
+		ObjectType: &coinType,
+		Balance:    &balance,
 	}
+
+	mockClient.EXPECT().
+		QueryCoinsByAddress(gomock.Any(), gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return([]*suirpcv2.Object{testCoin}, nil)
+
+	mockClient.EXPECT().
+		GetSUIBalance(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(&suirpcv2.Balance{Balance: &balance}, nil)
+
+	gasPrice := uint64(1000)
+	mockClient.EXPECT().
+		GetReferenceGasPrice(gomock.Any()).
+		AnyTimes().
+		Return(big.NewInt(int64(gasPrice)), nil)
+
+	mockClient.EXPECT().
+		HashTxBytes(gomock.Any()).
+		AnyTimes().
+		Return([]byte("hashed-tx-bytes"))
+
+	mockClient.EXPECT().
+		SendTransaction(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(&suirpcv2.ExecuteTransactionResponse{}, nil)
 
 	// Create a fake gas manager that returns an updated gas value.
 	maxGasBudget := big.NewInt(12000000)
-	gasManager := txm.NewSuiGasManager(lggr, fakeClient, *maxGasBudget, 0)
-	coinManager := txm.NewGasCoinManager(lggr, fakeClient)
+	gasManager := txm.NewSuiGasManager(lggr, mockClient, *maxGasBudget, 0)
+	coinManager := txm.NewGasCoinManager(lggr, mockClient)
 
 	// For the confirmer, the keystore is not used; create a dummy signer.
 	keystoreInstance := testutils.NewTestKeystore(t)
@@ -65,7 +106,7 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 	conf := txm.DefaultConfigSet
 
 	// Create the TXM.
-	txmInstance, err := txm.NewSuiTxm(lggr, fakeClient, keystoreInstance, conf, store, retryManager, gasManager)
+	txmInstance, err := txm.NewSuiTxm(lggr, mockClient, keystoreInstance, conf, store, retryManager, gasManager)
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -166,27 +207,71 @@ func TestConfirmerRoutine_SuccessfulGasBumpAfterTwoAttempts(t *testing.T) {
 	nrRetries := 3
 	retryManager := txm.NewDefaultRetryManager(nrRetries)
 
-	// Create a stateful fake client that changes behavior based on gas budget
-	fakeClient := &testutils.StatefulFakeSuiPTBClient{
-		CoinsData: []models.CoinData{
-			{
-				CoinType:     "0x2::sui::SUI",
-				Balance:      "100000000",
-				CoinObjectId: "0x1234567890abcdef1234567890abcdef12345678",
-				Version:      "1",
-				Digest:       "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT",
-			},
-		},
-		// Track gas budgets and return appropriate status
-		GasBudgetThreshold: 8000000, // Minimum gas budget required for success
-		CallCount:          0,
+	// Create gomock controller and mock client
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockClient := mocks.NewMockSuiPTBClient(ctrl)
+
+	// Set up expectations: first two calls fail with GasBudgetTooLow, third succeeds
+	// Use Any() for digest since it may change after re-broadcast
+	gomock.InOrder(
+		mockClient.EXPECT().
+			GetTransactionStatus(gomock.Any(), gomock.Any()).
+			Return(client.TransactionResult{Status: "failure", Error: "GasBudgetTooLow"}, nil),
+		mockClient.EXPECT().
+			GetTransactionStatus(gomock.Any(), gomock.Any()).
+			Return(client.TransactionResult{Status: "failure", Error: "GasBudgetTooLow"}, nil),
+		mockClient.EXPECT().
+			GetTransactionStatus(gomock.Any(), gomock.Any()).
+			Return(client.TransactionResult{Status: "success"}, nil),
+	)
+
+	// Return a SUI coin with sufficient balance for gas
+	objectID := "0x1234567890abcdef1234567890abcdef12345678"
+	digest := "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT"
+	coinType := "0x2::sui::SUI"
+	version := uint64(1)
+	balance := uint64(100000000)
+	testCoin := &suirpcv2.Object{
+		ObjectId:   &objectID,
+		Version:    &version,
+		Digest:     &digest,
+		ObjectType: &coinType,
+		Balance:    &balance,
 	}
+
+	// Allow these methods to be called any number of times with default returns
+	mockClient.EXPECT().
+		QueryCoinsByAddress(gomock.Any(), gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return([]*suirpcv2.Object{testCoin}, nil)
+
+	mockClient.EXPECT().
+		GetSUIBalance(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(&suirpcv2.Balance{Balance: &balance}, nil)
+
+	gasPrice := uint64(1000)
+	mockClient.EXPECT().
+		GetReferenceGasPrice(gomock.Any()).
+		AnyTimes().
+		Return(big.NewInt(int64(gasPrice)), nil)
+
+	mockClient.EXPECT().
+		HashTxBytes(gomock.Any()).
+		AnyTimes().
+		Return([]byte("hashed-tx-bytes"))
+
+	mockClient.EXPECT().
+		SendTransaction(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(&suirpcv2.ExecuteTransactionResponse{}, nil)
 
 	// Create a gas manager with lower max budget and percentage increase
 	maxGasBudget := big.NewInt(10000000)
 	percentIncrease := int64(120) // 120% (20% increase) per bump
-	gasManager := txm.NewSuiGasManager(lggr, fakeClient, *maxGasBudget, percentIncrease)
-	coinManager := txm.NewGasCoinManager(lggr, fakeClient)
+	gasManager := txm.NewSuiGasManager(lggr, mockClient, *maxGasBudget, percentIncrease)
+	coinManager := txm.NewGasCoinManager(lggr, mockClient)
 
 	// Create keystore
 	keystoreInstance := testutils.NewTestKeystore(t)
@@ -195,7 +280,7 @@ func TestConfirmerRoutine_SuccessfulGasBumpAfterTwoAttempts(t *testing.T) {
 	conf := txm.DefaultConfigSet
 
 	// Create the TXM.
-	txmInstance, err := txm.NewSuiTxm(lggr, fakeClient, keystoreInstance, conf, store, retryManager, gasManager)
+	txmInstance, err := txm.NewSuiTxm(lggr, mockClient, keystoreInstance, conf, store, retryManager, gasManager)
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -219,7 +304,7 @@ func TestConfirmerRoutine_SuccessfulGasBumpAfterTwoAttempts(t *testing.T) {
 	ptb.SetGasBudget(initialGasBudget)
 	ptb.SetSender(models.SuiAddress(address))
 	ptb.SetGasOwner(models.SuiAddress(address))
-	ptb.SetGasPrice(uint64(1000))
+	ptb.SetGasPrice(gasPrice)
 
 	coinObjectIdBytes, _ := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(address))
 	versionUint, _ := strconv.ParseUint("1", 10, 64)
@@ -285,70 +370,107 @@ func TestConfirmerRoutine_SuccessfulGasBumpAfterTwoAttempts(t *testing.T) {
 
 func TestConfirmerRoutine_ExponentialBackoffRetry(t *testing.T) {
 	t.Parallel()
-	// Set up logger.
 	lggr := logger.Test(t)
-
-	// Use the real in-memory store.
 	store := txm.NewTxmStoreImpl(lggr)
 
-	// Create a fake retry manager that marks errors as retryable with the GasBump strategy.
 	nrRetries := 3
 	retryManager := txm.NewDefaultRetryManager(nrRetries)
 
-	// Create a stateful fake client that changes behavior based on gas budget
-	fakeClient := &testutils.StatefulFakeSuiPTBClient{
-		CoinsData: []models.CoinData{
-			{
-				CoinType:     "0x2::sui::SUI",
-				Balance:      "100000000",
-				CoinObjectId: "0x1234567890abcdef1234567890abcdef12345678",
-				Version:      "1",
-				Digest:       "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT",
-			},
-		},
-		// Track gas budgets and return appropriate status
-		GasBudgetThreshold:           8000000, // Minimum gas budget required for success
-		CallCount:                    0,
-		ForcedTransactionStatusError: "ErrVerifiedCheckpointNotFound",
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockClient := mocks.NewMockSuiPTBClient(ctrl)
+
+	checkpointNotFoundErr := suierrors.ErrVerifiedCheckpointNotFound.Error()
+	var broadcastCount atomic.Int32
+
+	// Exponential backoff polls status repeatedly while waiting for the delay to elapse,
+	// so use a dynamic mock keyed off re-broadcast count instead of a fixed call order.
+	mockClient.EXPECT().
+		GetTransactionStatus(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		DoAndReturn(func(context.Context, string) (client.TransactionResult, error) {
+			if broadcastCount.Load() < 2 {
+				return client.TransactionResult{Status: "failure", Error: checkpointNotFoundErr}, nil
+			}
+
+			return client.TransactionResult{Status: "success"}, nil
+		})
+
+	objectID := "0x1234567890abcdef1234567890abcdef12345678"
+	digest := "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT"
+	coinType := "0x2::sui::SUI"
+	version := uint64(1)
+	balance := uint64(100000000)
+	testCoin := &suirpcv2.Object{
+		ObjectId:   &objectID,
+		Version:    &version,
+		Digest:     &digest,
+		ObjectType: &coinType,
+		Balance:    &balance,
 	}
 
-	// Create a gas manager with lower max budget and percentage increase
+	mockClient.EXPECT().
+		QueryCoinsByAddress(gomock.Any(), gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return([]*suirpcv2.Object{testCoin}, nil)
+
+	mockClient.EXPECT().
+		GetSUIBalance(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(&suirpcv2.Balance{Balance: &balance}, nil)
+
+	gasPrice := uint64(1000)
+	mockClient.EXPECT().
+		GetReferenceGasPrice(gomock.Any()).
+		AnyTimes().
+		Return(big.NewInt(int64(gasPrice)), nil)
+
+	mockClient.EXPECT().
+		HashTxBytes(gomock.Any()).
+		AnyTimes().
+		Return([]byte("hashed-tx-bytes"))
+
+	mockClient.EXPECT().
+		SendTransaction(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		DoAndReturn(func(context.Context, *suirpcv2.ExecuteTransactionRequest) (*suirpcv2.ExecuteTransactionResponse, error) {
+			broadcastCount.Add(1)
+			return &suirpcv2.ExecuteTransactionResponse{}, nil
+		})
+
 	maxGasBudget := big.NewInt(10000000)
-	percentIncrease := int64(120) // 120% (20% increase) per bump
-	gasManager := txm.NewSuiGasManager(lggr, fakeClient, *maxGasBudget, percentIncrease)
+	gasManager := txm.NewSuiGasManager(lggr, mockClient, *maxGasBudget, 0)
+	coinManager := txm.NewGasCoinManager(lggr, mockClient)
 
-	// Create keystore
 	keystoreInstance := testutils.NewTestKeystore(t)
-
-	// Use the default configuration.
 	conf := txm.DefaultConfigSet
 
-	// Create the TXM.
-	txmInstance, err := txm.NewSuiTxm(lggr, fakeClient, keystoreInstance, conf, store, retryManager, gasManager)
+	txmInstance, err := txm.NewSuiTxm(lggr, mockClient, keystoreInstance, conf, store, retryManager, gasManager)
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+
+	t.Cleanup(func() {
+		cancel()
+		txmInstance.Close()
+	})
+
 	_ = txmInstance.Start(ctx)
 
-	// Generate a real Ed25519 public key for testing
 	publicKey, privKey, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
 
 	keystoreInstance.AddKey(privKey)
-
-	// Convert public key to bytes
 	publicKeyBytes := []byte(publicKey)
 
 	address, err := client.GetAddressFromPublicKey(publicKeyBytes)
 	require.NoError(t, err)
 
-	// Create a minimal PTB for testing with low initial gas budget
-	initialGasBudget := uint64(6000000) // Start with low gas budget
+	gasBudget := uint64(6000000)
 	ptb := transaction.NewTransaction()
-	ptb.SetGasBudget(initialGasBudget)
+	ptb.SetGasBudget(gasBudget)
 	ptb.SetSender(models.SuiAddress(address))
 	ptb.SetGasOwner(models.SuiAddress(address))
-	ptb.SetGasPrice(uint64(1000))
+	ptb.SetGasPrice(gasPrice)
 
 	coinObjectIdBytes, _ := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(address))
 	versionUint, _ := strconv.ParseUint("1", 10, 64)
@@ -362,41 +484,44 @@ func TestConfirmerRoutine_ExponentialBackoffRetry(t *testing.T) {
 		},
 	})
 
-	// Add a transaction in StateSubmitted with a known digest
 	txID := "tx-exponential-backoff-retry-test"
-	coinManager := txm.NewGasCoinManager(lggr, fakeClient)
 	tx := txm.SuiTx{
 		TransactionID: txID,
 		Sender:        address,
 		PublicKey:     publicKeyBytes,
-		Metadata:      &commontypes.TxMeta{GasLimit: big.NewInt(int64(initialGasBudget))},
+		Metadata:      &commontypes.TxMeta{GasLimit: big.NewInt(int64(gasBudget))},
 		Timestamp:     txm.GetCurrentUnixTimestamp(),
-		Payload:       "payload",
-		Signatures:    []string{"signature"},
 		RequestType:   "WaitForEffectsCert",
 		Attempt:       1,
 		State:         txm.StateSubmitted,
 		Digest:        "test-digest-exponential-backoff-retry",
 		LastUpdatedAt: txm.GetCurrentUnixTimestamp(),
-		TxError:       nil,
-		GasBudget:     initialGasBudget,
+		GasBudget:     gasBudget,
 		Ptb:           ptb,
 		CoinManager:   coinManager,
 	}
+
+	// Exponential backoff re-broadcasts the existing payload without rebuilding it
+	// (unlike gas bump), so the tx must already have valid base64 payload and signatures.
+	err = tx.UpdateBSCPayload(ctx, lggr, keystoreInstance, mockClient)
+	require.NoError(t, err)
+
 	err = store.AddTransaction(tx)
 	require.NoError(t, err)
 	err = store.ChangeState(txID, txm.StateSubmitted)
 	require.NoError(t, err)
 
-	// Wait for the transaction to eventually succeed after exponential backoff retry
 	require.Eventually(t, func() bool {
 		updatedTx, e := store.GetTransaction(txID)
 		if e != nil {
 			return false
 		}
 
-		return updatedTx.Attempt > 2
-	}, 60*time.Second, 5*time.Second, "Transaction did not retry as expected")
+		return updatedTx.State == txm.StateFinalized
+	}, 30*time.Second, 100*time.Millisecond, "Transaction did not finalize after exponential backoff retries")
 
-	txmInstance.Close()
+	updatedTx, err := store.GetTransaction(txID)
+	require.NoError(t, err)
+	require.Equal(t, 3, updatedTx.Attempt)
+	require.Nil(t, updatedTx.TxError)
 }

@@ -217,7 +217,7 @@ public fun verify_function_allowed(
 
 // =================== MCMS Functions =================== //
 
-public struct McmsCallback has drop {}
+public struct McmsCallback has drop {} // not used, kept for compatibility
 
 public fun mcms_block_version(
     ref: &mut CCIPObjectRef,
@@ -226,11 +226,11 @@ public fun mcms_block_version(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"block_version"), EInvalidFunction);
@@ -255,11 +255,11 @@ public fun mcms_unblock_version(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"unblock_version"), EInvalidFunction);
@@ -284,11 +284,11 @@ public fun mcms_block_function(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"block_function"), EInvalidFunction);
@@ -314,11 +314,11 @@ public fun mcms_unblock_function(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"unblock_function"), EInvalidFunction);

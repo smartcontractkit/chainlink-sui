@@ -136,7 +136,7 @@ func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
-					TypeAndVersion: "FeeQuoter 1.6.0",
+					TypeAndVersion: "FeeQuoter 1.6.1",
 					StateObjectID:  state.CCIPObjectRef,
 				},
 				FeeTokens: []string{state.LinkTokenCoinMetadataId},
@@ -184,7 +184,7 @@ func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
-					TypeAndVersion: "TokenAdminRegistry 1.6.0",
+					TypeAndVersion: "TokenAdminRegistry 1.6.1",
 					StateObjectID:  state.CCIPObjectRef,
 				},
 				TokenConfigs: map[string]view.TokenConfigView{
@@ -228,7 +228,7 @@ func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.OnRampAddress,
 					Owner:          owner,
-					TypeAndVersion: "OnRamp 1.6.0",
+					TypeAndVersion: "OnRamp 1.6.1",
 					StateObjectID:  state.OnRampStateObjectId,
 				},
 				StaticConfig: view.OnRampStaticConfig{
@@ -362,9 +362,10 @@ func (s *DeployTestSuite) GetDeployTPAndConfigureConfig() changesets.DeployTPAnd
 		TokenPoolTypes:   []deployment.TokenPoolType{deployment.TokenPoolTypeBurnMint},
 		BurnMintTpInput: burnminttokenpoolops.DeployAndInitBurnMintTokenPoolInput{
 			BurnMintTokenPoolDeployInput: burnminttokenpoolops.BurnMintTokenPoolDeployInput{
-				CCIPPackageId:    s.ccipPackageID,
-				MCMSAddress:      s.mcmsPackageID,
-				MCMSOwnerAddress: s.deployerAddr,
+				CCIPPackageId:     s.ccipPackageID,
+				MCMSAddress:       s.mcmsPackageID,
+				FastMcmsAddress:   s.fastMcmsPackageID,
+				MCMSOwnerAddress:  s.deployerAddr,
 			},
 			CoinObjectTypeArg:      coinTypeArg,
 			CCIPObjectRefObjectId:  s.ccipObjectRef,

@@ -1,22 +1,8 @@
 [package]
-name = "ManagedTokenPool"
+name = "managed_token_pool"
 edition = "2024"
 
-[addresses]
-ccip = "_"
-managed_token_pool = "0x0"
-managed_token = "_"
-mcms = "_"
-mcms_owner = "_"
-
-[dev-addresses]
-ccip = "0x1000"
-managed_token_pool = "0x2001"
-managed_token = "0x9000"
-mcms = "0x4000"
-mcms_owner = "0x4010"
-
 [dependencies]
-ChainlinkCCIP = { local = "../../ccip" }
-ChainlinkManyChainMultisig = { local = "../../../mcms/mcms" }
-ManagedToken = { local = "../../managed_token" }
+ccip = { local = "../../ccip" }
+mcms = { local = "../../../mcms/mcms" }
+managed_token = { local = "../../managed_token" }

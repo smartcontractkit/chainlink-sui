@@ -1,16 +1,10 @@
 [package]
-name = "ChainlinkCCIP"
+name = "ccip"
 edition = "2024"
 
-[addresses]
-ccip = "0x0"
-mcms = "_"
-mcms_owner = "_"
-
-[dev-addresses]
-ccip = "0x1000"
-mcms = "0x4000"
-mcms_owner = "0x4010"
-
 [dependencies]
-ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
+mcms = { local = "../../mcms/mcms" }
+fast_mcms = { local = "../../mcms/fast_mcms", rename-from = "mcms" }
+
+[environments]
+devnet = "a9149565"

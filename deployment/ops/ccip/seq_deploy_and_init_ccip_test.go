@@ -15,8 +15,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
-	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +27,7 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
@@ -48,9 +46,8 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 	linkReport, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy LINK token")
 
-	// Deploy MCMS
-	mcmsReport, err := cld_ops.ExecuteOperation(bundle, mcmsops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
-	require.NoError(t, err, "failed to deploy MCMS Contract")
+	inputCCIP, err := DeployCCIPDependencyPackages(bundle, deps)
+	require.NoError(t, err, "failed to deploy CCIP dependency packages")
 
 	configDigestHex := "e3b1c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 	configDigest, err := hex.DecodeString(configDigestHex)
@@ -72,17 +69,11 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 	publicKey4, err := hex.DecodeString(publicKey4Hex)
 	require.NoError(t, err, "failed to decode public key 4")
 
-	signerAddress, err := signer.GetAddress()
-	require.NoError(t, err, "failed to get signer address")
-
 	report, err := cld_ops.ExecuteSequence(bundle, DeployAndInitCCIPSequence, deps, DeployAndInitCCIPSeqInput{
 		LinkTokenCoinMetadataObjectId: linkReport.Output.Objects.CoinMetadataObjectId,
 		LocalChainSelector:            1,
 		DestChainSelector:             2,
-		DeployCCIPInput: DeployCCIPInput{
-			McmsPackageId: mcmsReport.Output.PackageId,
-			McmsOwner:     signerAddress,
-		},
+		DeployCCIPInput:               inputCCIP,
 		MaxFeeJuelsPerMsg:            "100000000",
 		TokenPriceStalenessThreshold: 60,
 		// Fee Quoter configuration

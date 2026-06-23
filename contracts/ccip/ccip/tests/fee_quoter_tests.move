@@ -445,7 +445,7 @@ public fun test_process_message_args_evm() {
         vector[bcs::to_bytes(&MOCK_ADDRESS_3)], // dest_pool_datas
     );
 
-    assert!(msg_fee_juels == 10000000000000);
+    assert!(msg_fee_juels == 1000000000000);
     assert!(is_out_of_order_execution == true);
     assert!(converted_extra_args == evm_extra_args);
     // This is the dest gas overhead. hex(02bc) = 700
@@ -496,7 +496,7 @@ public fun test_process_message_args_svm() {
         vector[bcs::to_bytes(&MOCK_ADDRESS_3)], // dest_pool_datas
     );
 
-    assert!(msg_fee_juels == 10000000000000);
+    assert!(msg_fee_juels == 1000000000000);
     assert!(is_out_of_order_execution == true);
     assert!(converted_extra_args == svm_extra_args);
     // This is the dest gas overhead. hex(02bc) = 700
@@ -557,7 +557,7 @@ public fun test_process_message_args_sui() {
         vector[bcs::to_bytes(&MOCK_ADDRESS_3)], // dest_pool_datas
     );
 
-    assert!(msg_fee_juels == 10000000000000);
+    assert!(msg_fee_juels == 1000000000000);
     assert!(is_out_of_order_execution == true);
     assert!(converted_extra_args == sui_extra_args);
     // This is the dest gas overhead. hex(02bc) = 700
@@ -696,7 +696,7 @@ public fun test_get_validated_fee() {
 #[test]
 public fun test_type_and_version() {
     let version = fee_quoter::type_and_version();
-    assert!(version == string::utf8(b"FeeQuoter 1.6.0"));
+    assert!(version == string::utf8(b"FeeQuoter 1.6.1"));
 }
 
 #[test]
@@ -1581,7 +1581,7 @@ public fun test_apply_fee_token_updates_function_not_allowed() {
         &owner_cap,
         string::utf8(b"fee_quoter"),
         string::utf8(b"apply_fee_token_updates"),
-        1, // block version 1
+        2, // block version 2
         ctx,
     );
 

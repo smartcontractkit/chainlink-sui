@@ -15,13 +15,8 @@ use std::string;
 use std::type_name;
 use sui::address;
 use sui::coin;
-use sui::coin_registry::{Self, Currency, CoinRegistry};
 use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
-
-/// Type identifier for the coin (not a one-time witness)
-/// This struct has a UID field, making it incompatible with OTW pattern
-public struct MyCoin has key { id: UID }
 
 // === Test Witness Types ===
 
@@ -64,9 +59,70 @@ fun initialize_state_and_registry(scenario: &mut Scenario, admin: address) {
         // Initialize upgrade registry first (required by token_admin_registry functions)
         upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
         registry::initialize(&mut ref, &owner_cap, ctx);
+        registry::initialize_local_decimals(&mut ref, &owner_cap, ctx);
 
         scenario.return_to_sender(owner_cap);
         ts::return_shared(ref);
+    };
+}
+
+fun initialize_state_without_local_decimals(scenario: &mut Scenario, admin: address) {
+    scenario.next_tx(admin);
+    {
+        let ctx = scenario.ctx();
+        mcms_account::test_init(ctx);
+        mcms_registry::test_init(ctx);
+        mcms_deployer::test_init(ctx);
+        state_object::test_init(ctx);
+    };
+
+    scenario.next_tx(admin);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let ctx = scenario.ctx();
+
+        upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
+        registry::initialize(&mut ref, &owner_cap, ctx);
+
+        scenario.return_to_sender(owner_cap);
+        ts::return_shared(ref);
+    };
+}
+
+fun transfer_ccip_ownership_to_mcms(scenario: &mut Scenario, owner_cap: OwnerCap) {
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        state_object::transfer_ownership(
+            &mut ref,
+            &owner_cap,
+            mcms_registry::get_multisig_address(),
+            scenario.ctx(),
+        );
+        ts::return_shared(ref);
+    };
+
+    scenario.next_tx(mcms_registry::get_multisig_address());
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        state_object::accept_ownership(&mut ref, scenario.ctx());
+        ts::return_shared(ref);
+    };
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let mut registry = scenario.take_shared<Registry>();
+        state_object::execute_ownership_transfer_to_mcms(
+            &mut ref,
+            owner_cap,
+            &mut registry,
+            mcms_registry::get_multisig_address(),
+            scenario.ctx(),
+        );
+        ts::return_shared(ref);
+        ts::return_shared(registry);
     };
 }
 
@@ -101,68 +157,6 @@ fun register_test_pool<T>(
         admin,
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
-        publisher_wrapper,
-        TypeProof {},
-    );
-
-    package::burn_publisher(publisher);
-}
-
-// fun create_test_currency(scenario: &mut Scenario): coin::TreasuryCap<MyCoin> {
-//     // Transaction 0: Create the CoinRegistry for testing (as system address @0x0)
-//     scenario.next_tx(@0x0);
-//     {
-//         let registry = coin_registry::create_coin_data_registry_for_testing(scenario.ctx());
-//         coin_registry::share_for_testing(registry);
-//     };
-
-//     // Transaction 1: Create currency and finalize (shares the Currency)
-//     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
-//     let (treasury_cap, metadata_cap) = {
-//         let mut registry = scenario.take_shared<CoinRegistry>();
-//         let (initializer, treasury_cap) = coin_registry::new_currency<MyCoin>(
-//             &mut registry,
-//             DECIMALS,
-//             string::utf8(b"TEST"),
-//             string::utf8(b"TestToken"),
-//             string::utf8(b"test_token"),
-//             string::utf8(b""),
-//             scenario.ctx(),
-//         );
-//         // finalize shares the Currency internally and returns MetadataCap
-//         let metadata_cap = coin_registry::finalize(initializer, scenario.ctx());
-//         ts::return_shared(registry);
-//         (treasury_cap, metadata_cap)
-//     };
-
-//     // Transaction 2: Delete the metadata cap (Currency is now available as shared)
-//     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
-//     {
-//         let mut currency = scenario.take_shared<Currency<MyCoin>>();
-//         coin_registry::delete_metadata_cap(&mut currency, metadata_cap);
-//         ts::return_shared(currency);
-//     };
-
-//     treasury_cap
-// }
-
-fun register_test_pool_with_currency<T>(
-    ref: &mut CCIPObjectRef,
-    treasury_cap: &coin::TreasuryCap<T>,
-    currency: &Currency<T>,
-    admin: address,
-    ctx: &mut TxContext,
-) {
-    let publisher = package::test_claim(TOKEN_ADMIN_REGISTRY_TESTS {}, ctx);
-    let publisher_wrapper = publisher_wrapper::create(&publisher, TypeProof {});
-
-    registry::register_pool_with_currency(
-        ref,
-        treasury_cap,
-        currency,
-        admin,
-        vector<address>[],
-        vector<address>[],
         publisher_wrapper,
         TypeProof {},
     );
@@ -240,7 +234,7 @@ public fun test_initialize() {
 #[test]
 public fun test_type_and_version() {
     let version = registry::type_and_version();
-    assert!(version == string::utf8(b"TokenAdminRegistry 1.6.0"));
+    assert!(version == string::utf8(b"TokenAdminRegistry 1.6.1"));
 }
 
 #[test]
@@ -296,7 +290,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let ctx = scenario.ctx();
 
-        registry::register_pool_as_owner(
+        registry::register_pool_as_owner_v2(
             &owner_cap,
             &mut ref,
             @0xABC1, // coin_metadata_address #1
@@ -307,6 +301,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
             ascii::string(b"ProofOne"),
             vector[@0x6, @0x1111],
             vector[@0x6, @0x2222],
+            8, // local_decimals
             ctx,
         );
 
@@ -326,7 +321,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let ctx = scenario.ctx();
 
-        registry::register_pool_as_owner(
+        registry::register_pool_as_owner_v2(
             &owner_cap,
             &mut ref,
             @0xABC2, // coin_metadata_address #2
@@ -337,6 +332,7 @@ public fun test_register_pool_duplicate_package_id_fails() {
             ascii::string(b"ProofTwo"),
             vector[@0x6, @0x3333],
             vector[@0x6, @0x4444],
+            8, // local_decimals
             ctx,
         );
 
@@ -397,63 +393,6 @@ public fun test_register_and_unregister() {
     ts::end(scenario);
 }
 
-// #[test]
-// public fun test_register_and_unregister_with_currency() {
-//     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-//     let treasury_cap = create_test_currency(&mut scenario);
-
-//     // Get the local_token address from the Currency (need next_tx to access shared objects)
-//     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
-//     let local_token = {
-//         let currency = scenario.take_shared<Currency<MyCoin>>();
-//         let addr = object::id_to_address(&object::id(&currency));
-//         ts::return_shared(currency);
-//         addr
-//     };
-
-//     initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
-
-//     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
-//     {
-//         let mut ref = scenario.take_shared<CCIPObjectRef>();
-//         let currency = scenario.take_shared<Currency<MyCoin>>();
-
-//         register_test_pool_with_currency(
-//             &mut ref,
-//             &treasury_cap,
-//             &currency,
-//             TOKEN_ADMIN_ADDRESS_2,
-//             scenario.ctx(),
-//         );
-
-//         // Verify registration
-//         let pool_addresses = registry::get_pools(&ref, vector[local_token]);
-//         assert!(pool_addresses.length() == 1);
-//         let tn = type_name::with_defining_ids<TypeProof>();
-//         let expected_package_id = address::from_ascii_bytes(&tn.address_string().into_bytes());
-//         assert!(pool_addresses[0] == expected_package_id);
-//         assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS_2));
-
-//         let ctx = scenario.ctx();
-//         transfer::public_transfer(treasury_cap, ctx.sender());
-//         ts::return_shared(currency);
-//         ts::return_shared(ref);
-//     };
-
-//     // Unregister the token as the token admin
-//     scenario.next_tx(TOKEN_ADMIN_ADDRESS_2);
-//     {
-//         let mut ref = scenario.take_shared<CCIPObjectRef>();
-
-//         registry::unregister_pool(&mut ref, local_token, scenario.ctx());
-//         assert_empty_token_config(&ref, local_token);
-
-//         ts::return_shared(ref);
-//     };
-
-//     ts::end(scenario);
-// }
-
 #[test]
 public fun test_register() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
@@ -499,7 +438,7 @@ public fun test_register() {
             local_token,
         );
         assert!(
-            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
+            token_type == type_name::into_string(type_name::with_defining_ids<TOKEN_ADMIN_REGISTRY_TESTS>()),
         );
         assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
 
@@ -537,7 +476,7 @@ public fun test_register() {
             local_token,
         );
         assert!(
-            token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
+            token_type == type_name::into_string(type_name::with_defining_ids<TOKEN_ADMIN_REGISTRY_TESTS>()),
         );
         // Since TypeProof and TypeProof2 have the same package ID, the type proof should remain as TypeProof
         assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
@@ -724,7 +663,7 @@ public fun test_transfer_admin_role_not_registered() {
 }
 
 #[test]
-#[expected_failure(abort_code = registry::ENotAllowed)]
+#[expected_failure(abort_code = registry::ENotAdministrator)]
 public fun test_register_and_unregister_as_non_admin() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
     let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
@@ -1346,7 +1285,7 @@ public fun test_register_pool_function_not_allowed() {
             &owner_cap,
             string::utf8(b"token_admin_registry"),
             string::utf8(b"register_pool"),
-            1, // block version 1
+            2, // block version 2
             ctx,
         );
 
@@ -1370,6 +1309,316 @@ public fun test_register_pool_function_not_allowed() {
         let ctx = scenario.ctx();
         transfer::public_transfer(treasury_cap, ctx.sender());
         ts::return_shared(ref);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+#[test]
+fun test_backfill_local_decimals() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let token_addr = @0xABC;
+
+        registry::backfill_local_decimals(&owner_cap, &mut ref, token_addr, 9);
+        assert!(registry::test_get_local_decimals(&ref, token_addr) == 9);
+
+        scenario.return_to_sender(owner_cap);
+        ts::return_shared(ref);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_backfill_local_decimals_overwrites() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let token_addr = @0xABC;
+
+        registry::backfill_local_decimals(&owner_cap, &mut ref, token_addr, 9);
+        registry::backfill_local_decimals(&owner_cap, &mut ref, token_addr, 18);
+        assert!(registry::test_get_local_decimals(&ref, token_addr) == 18);
+
+        scenario.return_to_sender(owner_cap);
+        ts::return_shared(ref);
+    };
+
+    ts::end(scenario);
+}
+
+#[test, expected_failure(abort_code = registry::ELocalDecimalsNotInitialized)]
+fun test_backfill_local_decimals_not_initialized() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let ctx = scenario.ctx();
+        mcms_account::test_init(ctx);
+        mcms_registry::test_init(ctx);
+        mcms_deployer::test_init(ctx);
+        state_object::test_init(ctx);
+    };
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let ctx = scenario.ctx();
+
+        upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
+
+        scenario.return_to_sender(owner_cap);
+        ts::return_shared(ref);
+    };
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        // Don't call initialize_local_decimals — should abort
+        registry::backfill_local_decimals(&owner_cap, &mut ref, @0xABC, 9);
+
+        scenario.return_to_sender(owner_cap);
+        ts::return_shared(ref);
+    };
+
+    ts::end(scenario);
+}
+
+// ================================ MCMS Local Decimals Tests ================================
+
+#[test]
+public fun test_mcms_initialize_local_decimals() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_without_local_decimals(&mut scenario, CCIP_ADMIN);
+
+    let mut data = vector[];
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
+
+        ts::return_shared(ref);
+        transfer_ccip_ownership_to_mcms(&mut scenario, owner_cap);
+    };
+
+    scenario.next_tx(mcms_registry::get_multisig_address());
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"initialize_local_decimals"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000001",
+            0,
+            1,
+        );
+
+        registry::mcms_initialize_local_decimals(&mut ref, &mut registry, params, scenario.ctx());
+
+        let token_addr = @0xABC;
+        registry::backfill_local_decimals(
+            mcms_registry::get_cap<OwnerCap>(&registry, @ccip.to_ascii_string()),
+            &mut ref,
+            token_addr,
+            9,
+        );
+        assert!(registry::test_get_local_decimals(&ref, token_addr) == 9);
+
+        ts::return_shared(ref);
+        ts::return_shared(registry);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+public fun test_mcms_backfill_local_decimals() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_without_local_decimals(&mut scenario, CCIP_ADMIN);
+
+    let mut init_data = vector[];
+    let mut backfill_data = vector[];
+    let token_addr = @0xDEF;
+    let local_decimals: u8 = 6;
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        let ref_id = object::id_address(&ref);
+        let owner_cap_id = object::id_address(&owner_cap);
+
+        init_data.append(bcs::to_bytes(&ref_id));
+        init_data.append(bcs::to_bytes(&owner_cap_id));
+
+        backfill_data.append(bcs::to_bytes(&owner_cap_id));
+        backfill_data.append(bcs::to_bytes(&ref_id));
+        backfill_data.append(bcs::to_bytes(&token_addr));
+        backfill_data.append(bcs::to_bytes(&local_decimals));
+
+        ts::return_shared(ref);
+        transfer_ccip_ownership_to_mcms(&mut scenario, owner_cap);
+    };
+
+    scenario.next_tx(mcms_registry::get_multisig_address());
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        let init_params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"initialize_local_decimals"),
+            init_data,
+            x"0000000000000000000000000000000000000000000000000000000000000001",
+            0,
+            2,
+        );
+        registry::mcms_initialize_local_decimals(&mut ref, &mut registry, init_params, scenario.ctx());
+
+        let backfill_params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"backfill_local_decimals"),
+            backfill_data,
+            x"0000000000000000000000000000000000000000000000000000000000000001",
+            1,
+            2,
+        );
+        registry::mcms_backfill_local_decimals(&mut ref, &mut registry, backfill_params, scenario.ctx());
+
+        assert!(registry::test_get_local_decimals(&ref, token_addr) == local_decimals);
+
+        ts::return_shared(ref);
+        ts::return_shared(registry);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+public fun test_mcms_backfill_local_decimals_overwrites() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    let token_addr = @0xABC;
+    let mut backfill_data = vector[];
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        registry::backfill_local_decimals(&owner_cap, &mut ref, token_addr, 9);
+
+        let owner_cap_id = object::id_address(&owner_cap);
+        backfill_data.append(bcs::to_bytes(&owner_cap_id));
+        backfill_data.append(bcs::to_bytes(&object::id_address(&ref)));
+        backfill_data.append(bcs::to_bytes(&token_addr));
+        backfill_data.append(bcs::to_bytes(&(18 as u8)));
+
+        ts::return_shared(ref);
+        transfer_ccip_ownership_to_mcms(&mut scenario, owner_cap);
+    };
+
+    scenario.next_tx(mcms_registry::get_multisig_address());
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        let backfill_params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"backfill_local_decimals"),
+            backfill_data,
+            x"0000000000000000000000000000000000000000000000000000000000000001",
+            0,
+            1,
+        );
+        registry::mcms_backfill_local_decimals(&mut ref, &mut registry, backfill_params, scenario.ctx());
+
+        assert!(registry::test_get_local_decimals(&ref, token_addr) == 18);
+
+        ts::return_shared(ref);
+        ts::return_shared(registry);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+public fun test_mcms_unregister_pool() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_address(&coin_metadata);
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    let mut unregister_data = vector[];
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            TOKEN_ADMIN_ADDRESS,
+            scenario.ctx(),
+        );
+        assert!(registry::is_pool_registered(&ref, local_token));
+
+        unregister_data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
+        unregister_data.append(bcs::to_bytes(&object::id_address(&ref)));
+        unregister_data.append(bcs::to_bytes(&local_token));
+
+        transfer::public_transfer(treasury_cap, CCIP_ADMIN);
+        ts::return_shared(ref);
+        transfer_ccip_ownership_to_mcms(&mut scenario, owner_cap);
+    };
+
+    scenario.next_tx(mcms_registry::get_multisig_address());
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"unregister_pool"),
+            unregister_data,
+            x"0000000000000000000000000000000000000000000000000000000000000001",
+            0,
+            1,
+        );
+
+        registry::mcms_unregister_pool(&mut ref, &mut registry, params, scenario.ctx());
+        assert!(!registry::is_pool_registered(&ref, local_token));
+
+        ts::return_shared(ref);
+        ts::return_shared(registry);
     };
 
     transfer::public_freeze_object(coin_metadata);
