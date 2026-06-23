@@ -466,66 +466,17 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		return err
 	}
 
-	if functionConfig.ResultTupleToStruct != nil {
-		structResult := make(map[string]any)
-		// Check the length of results to avoid panics
-		if len(results) < len(functionConfig.ResultTupleToStruct) {
-			return fmt.Errorf("expected %d results, got %d", len(functionConfig.ResultTupleToStruct), len(results))
-		}
-
-		for i, mapKey := range functionConfig.ResultTupleToStruct {
-			structResult[mapKey] = results[i]
-		}
-
-		// Apply result field renames if configured
-		if functionConfig.ResultFieldRenames != nil {
-			err = aptosCRUtils.MaybeRenameFields(structResult, functionConfig.ResultFieldRenames)
-			if err != nil {
-				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
-			}
-		}
-
-		// if we are running in loop plugin mode, we will want to encode the result into JSON bytes
-		if s.config.IsLoopPlugin {
-			return s.encodeLoopResult(structResult, returnVal)
-		}
-
-		return codec.DecodeSuiJsonValue(structResult, returnVal)
+	prepared, err := s.prepareFunctionReadResult(results, functionConfig, s.config.IsLoopPlugin)
+	if err != nil {
+		return err
 	}
 
-	// otherwise, no tuple to struct specification, just a slice of values
 	if s.config.IsLoopPlugin {
-		// Apply renames to the result slice or contained maps before encoding
-		var renamed any = results
-		if functionConfig.ResultFieldRenames != nil {
-			err = aptosCRUtils.MaybeRenameFields(renamed, functionConfig.ResultFieldRenames)
-			if err != nil {
-				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
-			}
-		}
-		return s.encodeLoopResult(renamed, returnVal)
+		return s.encodeLoopResult(prepared, returnVal)
 	}
 
 	s.logger.Debugw("GLV results before decoding to SUI json", "results", results, "returnVal", returnVal)
-
-	// Apply renames (if any) to the primary result element before decoding
-	responseValues := make([]any, len(results))
-	for i, result := range results {
-		current := result
-		if functionConfig.ResultFieldRenames != nil {
-			err = aptosCRUtils.MaybeRenameFields(current, functionConfig.ResultFieldRenames)
-			if err != nil {
-				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
-			}
-		}
-		responseValues[i] = current
-	}
-
-	if len(results) > 1 {
-		return codec.DecodeSuiJsonValue(responseValues, returnVal)
-	}
-
-	return codec.DecodeSuiJsonValue(results[0], returnVal)
+	return codec.DecodeSuiJsonValue(prepared, returnVal)
 }
 
 // QueryKey queries events from the indexer database for events that were populated from the RPC node
@@ -1140,6 +1091,62 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 	s.logger.Debugf("Sui ReadFunction response", "returnValues", values)
 
 	return values, nil
+}
+
+func (s *suiChainReader) applyResultFieldRenames(value any, renames map[string]aptosCRConfig.RenamedField) error {
+	if renames == nil {
+		return nil
+	}
+
+	if err := aptosCRUtils.MaybeRenameFields(value, renames); err != nil {
+		return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
+	}
+
+	return nil
+}
+
+// prepareFunctionReadResult shapes JSON-native ReadFunction results (from Json.AsInterface)
+// for LOOP encoding or native typed decoding.
+func (s *suiChainReader) prepareFunctionReadResult(results []any, cfg *config.ChainReaderFunction, forLoop bool) (any, error) {
+	if cfg.ResultTupleToStruct != nil {
+		if len(results) < len(cfg.ResultTupleToStruct) {
+			return nil, fmt.Errorf("expected %d results, got %d", len(cfg.ResultTupleToStruct), len(results))
+		}
+
+		structResult := make(map[string]any, len(cfg.ResultTupleToStruct))
+		for i, mapKey := range cfg.ResultTupleToStruct {
+			structResult[mapKey] = results[i]
+		}
+
+		if err := s.applyResultFieldRenames(structResult, cfg.ResultFieldRenames); err != nil {
+			return nil, err
+		}
+
+		return structResult, nil
+	}
+
+	if forLoop {
+		if err := s.applyResultFieldRenames(results, cfg.ResultFieldRenames); err != nil {
+			return nil, err
+		}
+
+		return results, nil
+	}
+
+	responseValues := make([]any, len(results))
+	for i, result := range results {
+		current := result
+		if err := s.applyResultFieldRenames(current, cfg.ResultFieldRenames); err != nil {
+			return nil, err
+		}
+		responseValues[i] = current
+	}
+
+	if len(results) == 1 {
+		return results[0], nil
+	}
+
+	return responseValues, nil
 }
 
 // encodeLoopResult encodes results for LOOP plugin mode
