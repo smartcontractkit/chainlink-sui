@@ -70,18 +70,18 @@ type InitLocalDecimalsInput struct {
 }
 
 var initLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitLocalDecimalsInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	// MCMS callback validate_obj_addrs expects owner_cap then ref; direct Move entry uses ref then owner_cap.
-	data, err := SerializeMcmsObjectAddrs(input.OwnerCapObjectId, input.StateObjectId)
+	// MCMS callback validate_obj_addrs expects ref then owner_cap (see mcms_initialize_local_decimals).
+	data, err := SerializeMcmsObjectAddrs(input.StateObjectId, input.OwnerCapObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to serialize initialize_local_decimals MCMS data: %w", err)
 	}
 	call := sui_ops.TransactionCall{
 		PackageID:  input.CCIPPackageId,
-		Module:       "token_admin_registry",
-		Function:     "initialize_local_decimals",
-		Data:         data,
-		StateObjID:   input.StateObjectId,
-		TypeArgs:     []string{},
+		Module:     "token_admin_registry",
+		Function:   "initialize_local_decimals",
+		Data:       data,
+		StateObjID: input.StateObjectId,
+		TypeArgs:   []string{},
 	}
 
 	if deps.Signer == nil {
@@ -105,18 +105,9 @@ var initLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode InitializeLocalDecimals call: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	call, err = sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
-	}
-	if deps.Signer == nil {
-		b.Logger.Infow("Skipping execution of InitializeLocalDecimals on TokenAdminRegistry as per no Signer provided")
-		return sui_ops.OpTxResult[NoObjects]{
-			Digest:    "",
-			PackageId: input.CCIPPackageId,
-			Objects:   NoObjects{},
-			Call:      call,
-		}, nil
 	}
 
 	opts := deps.GetCallOpts()
@@ -163,26 +154,16 @@ var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
 
-<<<<<<< HEAD
 	localDecimals, err := ResolveLocalDecimals(b.GetContext(), deps.Client, input.TokenType, input.LocalDecimals)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, err
 	}
 
-	ref := bind.Object{Id: input.StateObjectId}
-	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
-	encodedCall, err := contract.Encoder().BackfillLocalDecimals(
-		ownerCap,
-		ref,
-		input.CoinMetadataAddress,
-		localDecimals,
-=======
 	encodedCall, err := contract.Encoder().BackfillLocalDecimals(
 		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.StateObjectId},
 		input.CoinMetadataAddress,
-		input.LocalDecimals,
->>>>>>> develop
+		localDecimals,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode BackfillLocalDecimals call: %w", err)
@@ -191,7 +172,6 @@ var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
-<<<<<<< HEAD
 
 	if deps.Signer == nil {
 		b.Logger.Infow(
@@ -200,15 +180,6 @@ var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 			"localDecimals", localDecimals,
 		)
 		return sui_ops.OpTxResult[NoObjects]{
-=======
-	if deps.Signer == nil {
-		b.Logger.Infow("Skipping execution of BackfillLocalDecimals on TokenAdminRegistry as per no Signer provided",
-			"CoinMetadataAddress", input.CoinMetadataAddress,
-			"LocalDecimals", input.LocalDecimals,
-		)
-		return sui_ops.OpTxResult[NoObjects]{
-			Digest:    "",
->>>>>>> develop
 			PackageId: input.CCIPPackageId,
 			Objects:   NoObjects{},
 			Call:      call,
