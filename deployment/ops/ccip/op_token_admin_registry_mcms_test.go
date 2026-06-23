@@ -32,13 +32,13 @@ type stubCoinMetadataPTBClient struct {
 	decimals int
 }
 
-func (s stubCoinMetadataPTBClient) GetCoinMetadata(context.Context, string) (models.CoinMetadataResponse, error) {
+func (s *stubCoinMetadataPTBClient) GetCoinMetadata(context.Context, string) (models.CoinMetadataResponse, error) {
 	return models.CoinMetadataResponse{Decimals: s.decimals}, nil
 }
 
 func testMCMSDeps(decimals int) sui_ops.OpTxDeps {
 	return sui_ops.OpTxDeps{
-		Client: stubCoinMetadataPTBClient{decimals: decimals},
+		Client: &stubCoinMetadataPTBClient{decimals: decimals},
 	}
 }
 
