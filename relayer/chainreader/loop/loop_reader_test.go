@@ -4,6 +4,7 @@ package loop
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
+	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 	"github.com/stretchr/testify/require"
@@ -549,5 +551,47 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		require.NoError(t, err)
 		require.NotEmpty(t, retOCRConfig, "Expected to find OCRConfig")
 		log.Debugw("retOCRConfig", "retOCRConfig", retOCRConfig)
+	})
+
+	// Regression for the EVM->Sui commit blocker. The commit plugin's report-acceptance check
+	// (plugincommon.ConfigDigestsMatch -> ccipReader.GetOffRampConfigDigest) reads the OffRamp
+	// latest_config_details and the core node json.Unmarshals the relayer's LOOP bytes into
+	// cciptypes.OCRConfigResponse, then compares ConfigInfo.ConfigDigest against the DON's digest.
+	//
+	// The Sui relayer emits the Move struct with snake_case keys (config_info / config_digest / big_f /
+	// is_signature_verification_enabled) and the digest base64-encoded. OCRConfigResponse uses PascalCase
+	// fields with no tags, and ConfigDigest is a Bytes32 whose UnmarshalJSON requires "0x"-hex. So a plain
+	// json.Unmarshal of the relayer output never populates ConfigDigest -> it stays zero -> the commit
+	// plugin rejects every commit report -> EVM->Sui never commits.
+	//
+	// This decodes the relayer's RAW LOOP bytes exactly like the core node does. It fails until the read
+	// config emits the OCR config in the shape OCRConfigResponse expects (field renames + 0x-hex digest).
+	t.Run("LoopReader_GetOCRConfig_DecodesIntoCCIPOCRConfigResponse", func(t *testing.T) {
+		readID := strings.Join([]string{packageId, counterBinding.Name, "get_ocr_config"}, "-")
+
+		paramBytes, mErr := json.Marshal(map[string]any{})
+		require.NoError(t, mErr)
+
+		// Call the underlying (LOOP) ChainReader directly to capture the exact JSON bytes that cross the
+		// LOOP boundary to the core node (params and returnVal are *[]byte in IsLoopPlugin mode).
+		var rawBytes []byte
+		err = chainReader.GetLatestValue(ctx, readID, primitives.Finalized, &paramBytes, &rawBytes)
+		require.NoError(t, err)
+		log.Debugw("relayer-emitted get_ocr_config JSON", "json", string(rawBytes))
+
+		// Decode the same way the core node (chainlink-ccip) does for the config snapshot.
+		var resp cciptypes.OCRConfigResponse
+		require.NoErrorf(t, json.Unmarshal(rawBytes, &resp),
+			"relayer output must json.Unmarshal into OCRConfigResponse; got: %s", string(rawBytes))
+
+		// get_ocr_config returns config_digest [2,3,4,5], big_f 1, n 2, signature verification enabled.
+		info := resp.OCRConfig.ConfigInfo
+		require.NotEqualf(t, cciptypes.Bytes32{}, info.ConfigDigest,
+			"ConfigDigest decoded to zero from relayer output %s — a zero digest is exactly what makes the "+
+				"commit plugin reject all EVM->Sui reports", string(rawBytes))
+		require.Equal(t, uint8(1), info.F, "Move big_f must map to OCRConfigResponse.ConfigInfo.F")
+		require.Equal(t, uint8(2), info.N, "Move n must map to OCRConfigResponse.ConfigInfo.N")
+		require.True(t, info.IsSignatureVerificationEnabled,
+			"Move is_signature_verification_enabled must map to OCRConfigResponse.ConfigInfo.IsSignatureVerificationEnabled")
 	})
 }

@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"math"
 	"math/big"
 	"reflect"
@@ -18,7 +17,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
-	"github.com/block-vision/sui-go-sdk/utils"
 
 	"github.com/smartcontractkit/chainlink-sui/shared"
 
@@ -363,9 +361,9 @@ func TestDecodeSuiJsonValue_StructTypes(t *testing.T) {
 	err = DecodeSuiJsonValue(nestedData, &nestedTarget)
 	require.NoError(t, err)
 
-	fmt.Println("nestedTarget value", nestedTarget)
-
 	require.Equal(t, uint64(123), nestedTarget.Outer.ID)
+	require.Equal(t, "test_name", nestedTarget.Outer.Name)
+	require.Equal(t, []byte("Hello"), nestedTarget.Outer.Data)
 	require.Equal(t, uint32(42), nestedTarget.Inner.Count)
 }
 
@@ -392,9 +390,13 @@ func TestDecodeSuiJsonValue_JSONToConcreteTypeWithConversion(t *testing.T) {
 	err := DecodeSuiJsonValue(data, &target)
 	require.NoError(t, err)
 
-	fmt.Println("target value", target)
-
-	// fmt.Println("target value", target.sourceChainSelector, target.sequenceNumber, target.messageId, target.messageHash, target.state)
+	// String/numeric fields decode directly; byte-array fields (messageId/messageHash) decode into the
+	// string fields as 0x-prefixed hex.
+	require.Equal(t, uint64(16015286601757825753), target.SourceChainSelector)
+	require.Equal(t, uint64(1), target.SequenceNumber)
+	require.Equal(t, "0x7622e5f604d90f481a24383cd8935bbd4f17c71bebc58b17ed4f24240764dc8f", target.MessageId)
+	require.Equal(t, "0xd745b478210fb97d92bf9ee6ea4753a7dc6ddd47284e00839991876db1e6522c", target.MessageHash)
+	require.Equal(t, uint8(2), target.State)
 }
 
 func TestHexStringHook(t *testing.T) {
@@ -1844,7 +1846,31 @@ func TestDecodeSuiJsonValue_SuiSpecificCases(t *testing.T) {
 		)
 
 		require.NoError(t, err)
-		utils.PrettyPrint(jsonMap)
+
+		// DecodeSuiStructToJSON renders every byte vector (config_digest, signers, transmitters) as
+		// base64, and primitives/bools directly. Assert the full decoded shape.
+		actual, mErr := json.Marshal(jsonMap)
+		require.NoError(t, mErr)
+		require.JSONEq(t, `{
+			"config_info": {
+				"config_digest": "AAqjOnwsAM0Zr6yP4xYIryo0/EogCmvsUAGxooNSc0c=",
+				"big_f": 1,
+				"n": 4,
+				"is_signature_verification_enabled": true
+			},
+			"signers": [
+				"mccvDaK+MIuVVFxwXfm654h7Ly/kBn48D+GJqVgkb98=",
+				"uQY6DX5W7b7AlpYTSuEVB1MTpOFGJUSMipvDEg7JNrg=",
+				"7VEQaCUQ88Z8WQtWwxgShHhsDRl0n0C+AbivZ0gSev8=",
+				"1cA4Aq+Xumn6PM4INlvQUC1Ajg8ttmVXfZBykr2lgrs="
+			],
+			"transmitters": [
+				"M+LM0NLhsvvXoRcTp/rQZlj1CNPmCgdbRMpvqS7ZCYk=",
+				"WAJU67tC8zn1whJcs17yeXfivH2F34jEunpo4deM5qo=",
+				"dnybnVDd28JSAI1rhQ/kf/ip01xSiWVWa1YRwSq2ZD0=",
+				"P1h1fJFXKkoRPEM9F8jbCNRU6WEW0+R9T3ZmAPyvYXQ="
+			]
+		}`, string(actual))
 	})
 
 	t.Run("JSON Struct Decoder (String case)", func(t *testing.T) {
@@ -2650,7 +2676,17 @@ func TestDecodeSuiJsonValue_SuiSpecificCases(t *testing.T) {
 		)
 
 		require.NoError(t, err)
-		utils.PrettyPrint(jsonMap)
+
+		// String-typed fields (token_pool_modules, token_types) decode as plain strings; address vectors
+		// (package ids, state addresses) decode as base64.
+		actual, mErr := json.Marshal(jsonMap)
+		require.NoError(t, mErr)
+		require.JSONEq(t, `{
+			"token_pool_modules": ["lock_release_token_pool"],
+			"token_pool_package_ids": ["y4NoQ/fU1T/qAKz9aFCnxqd646XTnhva+JSg1FyQ/2s="],
+			"token_pool_state_addresses": ["Bfjsufj+C5P+jvLiBm0OHz/X8WikdgazGZMjq9W9f/A="],
+			"token_types": ["e90b749ea5529de14341f7369b254b28268e6c029a7239538c061bea58a642d2::link_token::LINK_TOKEN"]
+		}`, string(actual))
 	})
 }
 

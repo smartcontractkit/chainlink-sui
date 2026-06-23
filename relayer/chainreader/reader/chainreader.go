@@ -1137,12 +1137,9 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 		return nil, fmt.Errorf("failed to call function %s: %w", parsed.readName, err)
 	}
 
-	s.logger.Debugw("Sui ReadFunction response", "returnValues", values)
+	s.logger.Debugf("Sui ReadFunction response", "returnValues", values)
 
-	// TODO: Remove this once bindings are used in CR, this is a temporary fix for data ingestion
-	hexified := common.ConvertBytesToHex(values).([]any)
-
-	return hexified, nil
+	return values, nil
 }
 
 // encodeLoopResult encodes results for LOOP plugin mode
