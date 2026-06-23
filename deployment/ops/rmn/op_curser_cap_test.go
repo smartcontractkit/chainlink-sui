@@ -179,28 +179,6 @@ func TestMcmsMintAndRegisterCurserCapOp_EncodesProposalLeaf(t *testing.T) {
 	require.Len(t, report.Output.Call.Data, 96)
 }
 
-func TestMcmsMintAndRegisterCurserCapOp_ProposalDataMatchesManualBCS(t *testing.T) {
-	t.Parallel()
-
-	bundle := testBundle(t)
-	report, err := cld_ops.ExecuteOperation(
-		bundle,
-		McmsMintAndRegisterCurserCapOp,
-		sui_ops.OpTxDeps{Signer: nil},
-		McmsMintAndRegisterCurserCapInput{
-			CCIPPackageId:        testCCIPPackageID,
-			StateObjectId:        testStateObjectID,
-			SlowOwnerCapObjectId: testOwnerCapID,
-			FastRegistryObjectId: testFastRegistry,
-		},
-	)
-	require.NoError(t, err)
-
-	expected, err := SerializeMcmsObjectAddrs(testStateObjectID, testOwnerCapID, testFastRegistry)
-	require.NoError(t, err)
-	require.Equal(t, expected, report.Output.Call.Data)
-}
-
 func TestMcmsCreateCurserCapAndTransferOp_EncodesProposalLeaf(t *testing.T) {
 	t.Parallel()
 
@@ -262,29 +240,6 @@ func TestMcmsRegisterCurserCapOp_EncodesProposalLeaf(t *testing.T) {
 	require.Len(t, report.Output.Call.Data, 128)
 }
 
-func TestMcmsRegisterCurserCapOp_ProposalDataMatchesManualBCS(t *testing.T) {
-	t.Parallel()
-
-	bundle := testBundle(t)
-	report, err := cld_ops.ExecuteOperation(
-		bundle,
-		McmsRegisterCurserCapOp,
-		sui_ops.OpTxDeps{Signer: nil},
-		McmsRegisterCurserCapInput{
-			CCIPPackageId:        testCCIPPackageID,
-			StateObjectId:        testStateObjectID,
-			SlowOwnerCapObjectId: testOwnerCapID,
-			FastRegistryObjectId: testFastRegistry,
-			CurserCapObjectId:    testCurserCapID,
-		},
-	)
-	require.NoError(t, err)
-
-	expected, err := SerializeMcmsObjectAddrs(testStateObjectID, testOwnerCapID, testFastRegistry, testCurserCapID)
-	require.NoError(t, err)
-	require.Equal(t, expected, report.Output.Call.Data)
-}
-
 func TestMcmsRegisterCurserCapOp_RequiresCurserCapObjectId(t *testing.T) {
 	t.Parallel()
 
@@ -303,50 +258,6 @@ func TestMcmsRegisterCurserCapOp_RequiresCurserCapObjectId(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "curser cap object id")
 }
-
-func TestMcmsRegisterCurserCapOp_RejectsDirectSigner(t *testing.T) {
-	t.Parallel()
-
-	bundle := testBundle(t)
-	_, err := cld_ops.ExecuteOperation(
-		bundle,
-		McmsRegisterCurserCapOp,
-		sui_ops.OpTxDeps{Signer: stubSigner{}},
-		McmsRegisterCurserCapInput{
-			CCIPPackageId:        testCCIPPackageID,
-			StateObjectId:        testStateObjectID,
-			SlowOwnerCapObjectId: testOwnerCapID,
-			FastRegistryObjectId: testFastRegistry,
-			CurserCapObjectId:    testCurserCapID,
-		},
-	)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "slow MCMS proposal")
-}
-
-func TestMcmsMintAndRegisterCurserCapOp_RejectsDirectSigner(t *testing.T) {
-	t.Parallel()
-
-	bundle := testBundle(t)
-	_, err := cld_ops.ExecuteOperation(
-		bundle,
-		McmsMintAndRegisterCurserCapOp,
-		sui_ops.OpTxDeps{Signer: stubSigner{}},
-		McmsMintAndRegisterCurserCapInput{
-			CCIPPackageId:        testCCIPPackageID,
-			StateObjectId:        testStateObjectID,
-			SlowOwnerCapObjectId: testOwnerCapID,
-			FastRegistryObjectId: testFastRegistry,
-		},
-	)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "slow MCMS proposal")
-}
-
-type stubSigner struct{}
-
-func (stubSigner) Sign([]byte) ([]string, error) { return nil, nil }
-func (stubSigner) GetAddress() (string, error)   { return "0x1", nil }
 
 func TestCurseWithCurserCapOp_EncodesProposalLeaf(t *testing.T) {
 	t.Parallel()

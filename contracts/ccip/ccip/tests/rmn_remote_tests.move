@@ -917,6 +917,64 @@ public fun test_mcms_curse_with_curser_cap_wrong_function_name() {
     tear_down_fast_registry(scenario, owner_cap, ref, fast_registry);
 }
 
+// === Fast registry registration (direct entry) ===
+
+#[test]
+public fun test_mint_and_register_curser_cap_direct_succeeds() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+    let ctx = scenario.ctx();
+    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
+
+    fast_mcms_registry::test_init(ctx);
+    scenario.next_tx(ADMIN_ADDRESS);
+    let mut fast_registry = test_scenario::take_shared<FastRegistry>(&scenario);
+
+    rmn_remote::mint_and_register_curser_cap(
+        &mut ref,
+        &owner_cap,
+        &mut fast_registry,
+        scenario.ctx(),
+    );
+
+    let allowed = fast_mcms_registry::get_allowed_modules(
+        &fast_registry,
+        sui::address::to_ascii_string(@ccip),
+    );
+    assert!(allowed == vector[b"rmn_remote"]);
+
+    test_scenario::return_shared(fast_registry);
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+#[test]
+public fun test_register_curser_cap_direct_succeeds() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+    let ctx = scenario.ctx();
+    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
+
+    fast_mcms_registry::test_init(ctx);
+    scenario.next_tx(ADMIN_ADDRESS);
+    let mut fast_registry = test_scenario::take_shared<FastRegistry>(&scenario);
+
+    let curser_cap = rmn_remote::create_curser_cap(&mut ref, &owner_cap, scenario.ctx());
+    rmn_remote::register_curser_cap(
+        &mut ref,
+        &owner_cap,
+        &mut fast_registry,
+        curser_cap,
+        scenario.ctx(),
+    );
+
+    let allowed = fast_mcms_registry::get_allowed_modules(
+        &fast_registry,
+        sui::address::to_ascii_string(@ccip),
+    );
+    assert!(allowed == vector[b"rmn_remote"]);
+
+    test_scenario::return_shared(fast_registry);
+    tear_down_test(scenario, owner_cap, ref);
+}
+
 // === Slow-MCMS bootstrap tests (two Registries) ===
 
 fun append_pinned_obj_addrs(data: &mut vector<u8>, addrs: vector<address>) {
