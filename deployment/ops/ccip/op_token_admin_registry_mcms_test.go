@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/aptos-labs/aptos-go-sdk/bcs"
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/stretchr/testify/require"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -14,6 +15,7 @@ import (
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	"github.com/smartcontractkit/chainlink-sui/deployment/ops/rmn"
+	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
 const (
@@ -22,7 +24,23 @@ const (
 	testOwnerCapID    = "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 	testCoinMetadata  = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 	testNewAdmin      = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	testTokenType     = "0xabc::link::LINK"
 )
+
+type stubCoinMetadataPTBClient struct {
+	testutils.FakeSuiPTBClient
+	decimals int
+}
+
+func (s *stubCoinMetadataPTBClient) GetCoinMetadata(context.Context, string) (models.CoinMetadataResponse, error) {
+	return models.CoinMetadataResponse{Decimals: s.decimals}, nil
+}
+
+func testMCMSDeps(decimals int) sui_ops.OpTxDeps {
+	return sui_ops.OpTxDeps{
+		Client: &stubCoinMetadataPTBClient{decimals: decimals},
+	}
+}
 
 func testBundle(t *testing.T) cld_ops.Bundle {
 	t.Helper()
@@ -69,16 +87,13 @@ func TestTokenAdminRegistryInitializeLocalDecimalsOp_ProposalDataMatchesBindingE
 	)
 	require.NoError(t, err)
 
-	contract, err := module_token_admin_registry.NewTokenAdminRegistry(testCCIPPackageID, nil)
+	expected, err := SerializeMcmsObjectAddrs(testStateObjectID, testOwnerCapID)
 	require.NoError(t, err)
-	encodedCall, err := contract.Encoder().InitializeLocalDecimals(
-		bind.Object{Id: testStateObjectID},
-		bind.Object{Id: testOwnerCapID},
-	)
-	require.NoError(t, err)
-	expected, err := sui_ops.ToTransactionCall(encodedCall, testStateObjectID)
-	require.NoError(t, err)
-	require.Equal(t, expected.Data, report.Output.Call.Data)
+	require.Equal(t, expected, report.Output.Call.Data)
+
+	d := bcs.NewDeserializer(report.Output.Call.Data)
+	require.Equal(t, testStateObjectID[2:], bytesToHex(d.ReadFixedBytes(32)))
+	require.Equal(t, testOwnerCapID[2:], bytesToHex(d.ReadFixedBytes(32)))
 }
 
 func TestTokenAdminRegistryBackfillLocalDecimalsOp_EncodesProposalLeaf(t *testing.T) {
@@ -87,13 +102,13 @@ func TestTokenAdminRegistryBackfillLocalDecimalsOp_EncodesProposalLeaf(t *testin
 	report, err := cld_ops.ExecuteOperation(
 		testBundle(t),
 		TokenAdminRegistryBackfillLocalDecimalsOp,
-		sui_ops.OpTxDeps{},
+		testMCMSDeps(9),
 		BackfillLocalDecimalsInput{
 			CCIPPackageId:       testCCIPPackageID,
 			StateObjectId:       testStateObjectID,
 			OwnerCapObjectId:    testOwnerCapID,
 			CoinMetadataAddress: testCoinMetadata,
-			LocalDecimals:       9,
+			TokenType:           testTokenType,
 		},
 	)
 	require.NoError(t, err)
@@ -107,16 +122,18 @@ func TestTokenAdminRegistryBackfillLocalDecimalsOp_EncodesProposalLeaf(t *testin
 func TestTokenAdminRegistryBackfillLocalDecimalsOp_ProposalDataMatchesBindingEncoder(t *testing.T) {
 	t.Parallel()
 
+	supplied := byte(6)
 	report, err := cld_ops.ExecuteOperation(
 		testBundle(t),
 		TokenAdminRegistryBackfillLocalDecimalsOp,
-		sui_ops.OpTxDeps{},
+		testMCMSDeps(6),
 		BackfillLocalDecimalsInput{
 			CCIPPackageId:       testCCIPPackageID,
 			StateObjectId:       testStateObjectID,
 			OwnerCapObjectId:    testOwnerCapID,
 			CoinMetadataAddress: testCoinMetadata,
-			LocalDecimals:       6,
+			TokenType:           testTokenType,
+			LocalDecimals:       &supplied,
 		},
 	)
 	require.NoError(t, err)

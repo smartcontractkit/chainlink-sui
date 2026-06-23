@@ -149,7 +149,9 @@ public(package) fun get_local_decimals_for_token(
 fun insert_local_decimals(ref: &mut CCIPObjectRef, coin_metadata_address: address, decimals: u8) {
     assert!(state_object::contains<LocalDecimalsState>(ref), ELocalDecimalsNotInitialized);
     let state = state_object::borrow_mut<LocalDecimalsState>(ref);
-    if (!state.decimals.contains(coin_metadata_address)) {
+    if (state.decimals.contains(coin_metadata_address)) {
+        *state.decimals.borrow_mut(coin_metadata_address) = decimals;
+    } else {
         state.decimals.push_back(coin_metadata_address, decimals);
     };
 }

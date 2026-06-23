@@ -404,20 +404,30 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 				registryObj,
 				executingCallbackParams,
 			)
-		case "backfill_local_decimals":
+		case "backfill_local_decimals", "register_pool", "unregister_pool":
 			deserializer := bcs.NewDeserializer(data)
 			deserializer.ReadFixedBytes(SuiAddressLength)
 			ccipRef := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
-			return tokenAdminRegistry.Encoder().McmsBackfillLocalDecimalsWithArgs(
-				ccipRef,
-				registryObj,
-				executingCallbackParams,
-			)
-		case "unregister_pool":
-			deserializer := bcs.NewDeserializer(data)
-			deserializer.ReadFixedBytes(SuiAddressLength)
-			ccipRef := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
-			return tokenAdminRegistry.Encoder().McmsUnregisterPoolWithArgs(ccipRef, registryObj, executingCallbackParams)
+			switch function {
+			case "backfill_local_decimals":
+				return tokenAdminRegistry.Encoder().McmsBackfillLocalDecimalsWithArgs(
+					ccipRef,
+					registryObj,
+					executingCallbackParams,
+				)
+			case "register_pool":
+				return tokenAdminRegistry.Encoder().McmsRegisterPoolWithArgs(
+					ccipRef,
+					registryObj,
+					executingCallbackParams,
+				)
+			case "unregister_pool":
+				return tokenAdminRegistry.Encoder().McmsUnregisterPoolWithArgs(
+					ccipRef,
+					registryObj,
+					executingCallbackParams,
+				)
+			}
 		case "transfer_admin_role":
 			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
 			return tokenAdminRegistry.Encoder().McmsTransferAdminRoleWithArgs(ccipRef, registryObj, executingCallbackParams)
