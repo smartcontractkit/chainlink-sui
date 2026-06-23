@@ -18,12 +18,13 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"fee_quoter","name":"apply_dest_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selector","type":"u64"},{"name":"is_enabled","type":"bool"},{"name":"max_number_of_tokens_per_msg","type":"u16"},{"name":"max_data_bytes","type":"u32"},{"name":"max_per_msg_gas_limit","type":"u32"},{"name":"dest_gas_overhead","type":"u32"},{"name":"dest_gas_per_payload_byte_base","type":"u8"},{"name":"dest_gas_per_payload_byte_high","type":"u8"},{"name":"dest_gas_per_payload_byte_threshold","type":"u16"},{"name":"dest_data_availability_overhead_gas","type":"u32"},{"name":"dest_gas_per_data_availability_byte","type":"u16"},{"name":"dest_data_availability_multiplier_bps","type":"u16"},{"name":"chain_family_selector","type":"vector<u8>"},{"name":"enforce_out_of_order","type":"bool"},{"name":"default_token_fee_usd_cents","type":"u16"},{"name":"default_token_dest_gas_overhead","type":"u32"},{"name":"default_tx_gas_limit","type":"u32"},{"name":"gas_multiplier_wei_per_eth","type":"u64"},{"name":"gas_price_staleness_threshold","type":"u32"},{"name":"network_fee_usd_cents","type":"u32"}]},{"package":"ccip","module":"fee_quoter","name":"apply_fee_token_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_tokens_to_remove","type":"vector<address>"},{"name":"fee_tokens_to_add","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"apply_premium_multiplier_wei_per_eth_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"tokens","type":"vector<address>"},{"name":"premium_multiplier_wei_per_eth","type":"vector<u64>"}]},{"package":"ccip","module":"fee_quoter","name":"apply_token_transfer_fee_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selector","type":"u64"},{"name":"add_tokens","type":"vector<address>"},{"name":"add_min_fee_usd_cents","type":"vector<u32>"},{"name":"add_max_fee_usd_cents","type":"vector<u32>"},{"name":"add_deci_bps","type":"vector<u16>"},{"name":"add_dest_gas_overhead","type":"vector<u32>"},{"name":"add_dest_bytes_overhead","type":"vector<u32>"},{"name":"add_is_enabled","type":"vector<bool>"},{"name":"remove_tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"convert_token_amount","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"from_token","type":"address"},{"name":"from_token_amount","type":"u64"},{"name":"to_token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"destroy_fee_quoter_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"cap","type":"FeeQuoterCap"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_config_fields","parameters":[{"name":"dest_chain_config","type":"DestChainConfig"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_gas_price","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_fee_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_premium_multiplier_wei_per_eth","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_static_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_static_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_timestamped_price_fields","parameters":[{"name":"tp","type":"TimestampedPrice"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_and_gas_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"clock::Clock"},{"name":"token","type":"address"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_price","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"extra_args","type":"vector<u8>"},{"name":"default_token_receiver","type":"vector<u8>"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_transfer_fee_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_transfer_fee_config_fields","parameters":[{"name":"cfg","type":"TokenTransferFeeConfig"}]},{"package":"ccip","module":"fee_quoter","name":"get_validated_fee","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"clock::Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"local_token_addresses","type":"vector<address>"},{"name":"local_token_amounts","type":"vector<u64>"},{"name":"fee_token","type":"address"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip","module":"fee_quoter","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"max_fee_juels_per_msg","type":"u256"},{"name":"link_token","type":"address"},{"name":"token_price_staleness_threshold","type":"u64"},{"name":"fee_tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"new_fee_quoter_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"fee_quoter","name":"process_message_args","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"fee_token","type":"address"},{"name":"fee_token_amount","type":"u64"},{"name":"extra_args","type":"vector<u8>"},{"name":"local_token_addresses","type":"vector<address>"},{"name":"dest_token_addresses","type":"vector<vector<u8>>"},{"name":"dest_pool_datas","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"fee_quoter","name":"type_and_version","parameters":null},{"package":"ccip","module":"fee_quoter","name":"update_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_","type":"FeeQuoterCap"},{"name":"clock","type":"clock::Clock"},{"name":"source_tokens","type":"vector<address>"},{"name":"source_usd_per_token","type":"vector<u256>"},{"name":"gas_dest_chain_selectors","type":"vector<u64>"},{"name":"gas_usd_per_unit_gas","type":"vector<u256>"}]},{"package":"ccip","module":"fee_quoter","name":"update_prices_with_owner_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"clock::Clock"},{"name":"source_tokens","type":"vector<address>"},{"name":"source_usd_per_token","type":"vector<u256>"},{"name":"gas_dest_chain_selectors","type":"vector<u64>"},{"name":"gas_usd_per_unit_gas","type":"vector<u256>"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"fee_quoter","name":"apply_dest_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selector","type":"u64"},{"name":"is_enabled","type":"bool"},{"name":"max_number_of_tokens_per_msg","type":"u16"},{"name":"max_data_bytes","type":"u32"},{"name":"max_per_msg_gas_limit","type":"u32"},{"name":"dest_gas_overhead","type":"u32"},{"name":"dest_gas_per_payload_byte_base","type":"u8"},{"name":"dest_gas_per_payload_byte_high","type":"u8"},{"name":"dest_gas_per_payload_byte_threshold","type":"u16"},{"name":"dest_data_availability_overhead_gas","type":"u32"},{"name":"dest_gas_per_data_availability_byte","type":"u16"},{"name":"dest_data_availability_multiplier_bps","type":"u16"},{"name":"chain_family_selector","type":"vector<u8>"},{"name":"enforce_out_of_order","type":"bool"},{"name":"default_token_fee_usd_cents","type":"u16"},{"name":"default_token_dest_gas_overhead","type":"u32"},{"name":"default_tx_gas_limit","type":"u32"},{"name":"gas_multiplier_wei_per_eth","type":"u64"},{"name":"gas_price_staleness_threshold","type":"u32"},{"name":"network_fee_usd_cents","type":"u32"}]},{"package":"ccip","module":"fee_quoter","name":"apply_fee_token_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_tokens_to_remove","type":"vector<address>"},{"name":"fee_tokens_to_add","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"apply_premium_multiplier_wei_per_eth_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"tokens","type":"vector<address>"},{"name":"premium_multiplier_wei_per_eth","type":"vector<u64>"}]},{"package":"ccip","module":"fee_quoter","name":"apply_token_transfer_fee_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selector","type":"u64"},{"name":"add_tokens","type":"vector<address>"},{"name":"add_min_fee_usd_cents","type":"vector<u32>"},{"name":"add_max_fee_usd_cents","type":"vector<u32>"},{"name":"add_deci_bps","type":"vector<u16>"},{"name":"add_dest_gas_overhead","type":"vector<u32>"},{"name":"add_dest_bytes_overhead","type":"vector<u32>"},{"name":"add_is_enabled","type":"vector<bool>"},{"name":"remove_tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"convert_token_amount","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"from_token","type":"address"},{"name":"from_token_amount","type":"u64"},{"name":"to_token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"destroy_fee_quoter_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"cap","type":"FeeQuoterCap"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_config_fields","parameters":[{"name":"dest_chain_config","type":"DestChainConfig"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_gas_price","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_fee_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_premium_multiplier_wei_per_eth","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_static_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_static_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_timestamped_price_fields","parameters":[{"name":"tp","type":"TimestampedPrice"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_and_gas_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"clock::Clock"},{"name":"token","type":"address"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_price","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"extra_args","type":"vector<u8>"},{"name":"default_token_receiver","type":"vector<u8>"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_transfer_fee_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_transfer_fee_config_fields","parameters":[{"name":"cfg","type":"TokenTransferFeeConfig"}]},{"package":"ccip","module":"fee_quoter","name":"get_validated_fee","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"clock::Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"local_token_addresses","type":"vector<address>"},{"name":"local_token_amounts","type":"vector<u64>"},{"name":"fee_token","type":"address"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip","module":"fee_quoter","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"max_fee_juels_per_msg","type":"u256"},{"name":"link_token","type":"address"},{"name":"token_price_staleness_threshold","type":"u64"},{"name":"fee_tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"new_fee_quoter_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"fee_quoter","name":"new_fee_quoter_cap_and_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"recipient","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"process_message_args","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"fee_token","type":"address"},{"name":"fee_token_amount","type":"u64"},{"name":"extra_args","type":"vector<u8>"},{"name":"local_token_addresses","type":"vector<address>"},{"name":"dest_token_addresses","type":"vector<vector<u8>>"},{"name":"dest_pool_datas","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"fee_quoter","name":"type_and_version","parameters":null},{"package":"ccip","module":"fee_quoter","name":"update_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_","type":"FeeQuoterCap"},{"name":"clock","type":"clock::Clock"},{"name":"source_tokens","type":"vector<address>"},{"name":"source_usd_per_token","type":"vector<u256>"},{"name":"gas_dest_chain_selectors","type":"vector<u64>"},{"name":"gas_usd_per_unit_gas","type":"vector<u256>"}]},{"package":"ccip","module":"fee_quoter","name":"update_prices_with_owner_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"clock::Clock"},{"name":"source_tokens","type":"vector<address>"},{"name":"source_usd_per_token","type":"vector<u256>"},{"name":"gas_dest_chain_selectors","type":"vector<u64>"},{"name":"gas_usd_per_unit_gas","type":"vector<u256>"}]}]`
 
 type IFeeQuoter interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*models.SuiTransactionBlockResponse, error)
 	NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	NewFeeQuoterCapAndTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, recipient string) (*models.SuiTransactionBlockResponse, error)
 	GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error)
 	GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) (*models.SuiTransactionBlockResponse, error)
 	GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) (*models.SuiTransactionBlockResponse, error)
@@ -53,6 +54,8 @@ type IFeeQuoter interface {
 	McmsUpdatePricesWithOwnerCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, clock bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsNewFeeQuoterCapAndTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsDestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IFeeQuoterDevInspect
 	Encoder() FeeQuoterEncoder
 	Bound() bind.IBoundContract
@@ -87,6 +90,8 @@ type FeeQuoterEncoder interface {
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	NewFeeQuoterCap(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	NewFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error)
+	NewFeeQuoterCapAndTransfer(ref bind.Object, ownerCap bind.Object, recipient string) (*bind.EncodedCall, error)
+	NewFeeQuoterCapAndTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenPrice(ref bind.Object, token string) (*bind.EncodedCall, error)
 	GetTokenPriceWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTimestampedPriceFields(tp TimestampedPrice) (*bind.EncodedCall, error)
@@ -145,6 +150,10 @@ type FeeQuoterEncoder interface {
 	McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	DestroyFeeQuoterCap(ref bind.Object, ownerCap bind.Object, cap bind.Object) (*bind.EncodedCall, error)
 	DestroyFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsNewFeeQuoterCapAndTransfer(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsNewFeeQuoterCapAndTransferWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsDestroyFeeQuoterCap(ref bind.Object, registry bind.Object, params bind.Object, cap bind.Object) (*bind.EncodedCall, error)
+	McmsDestroyFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type FeeQuoterContract struct {
@@ -314,6 +323,16 @@ func (c *FeeQuoterContract) Initialize(ctx context.Context, opts *bind.CallOpts,
 // NewFeeQuoterCap executes the new_fee_quoter_cap Move function.
 func (c *FeeQuoterContract) NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.feeQuoterEncoder.NewFeeQuoterCap(ref, ownerCap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// NewFeeQuoterCapAndTransfer executes the new_fee_quoter_cap_and_transfer Move function.
+func (c *FeeQuoterContract) NewFeeQuoterCapAndTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, recipient string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.NewFeeQuoterCapAndTransfer(ref, ownerCap, recipient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -604,6 +623,26 @@ func (c *FeeQuoterContract) McmsApplyPremiumMultiplierWeiPerEthUpdates(ctx conte
 // DestroyFeeQuoterCap executes the destroy_fee_quoter_cap Move function.
 func (c *FeeQuoterContract) DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.feeQuoterEncoder.DestroyFeeQuoterCap(ref, ownerCap, cap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsNewFeeQuoterCapAndTransfer executes the mcms_new_fee_quoter_cap_and_transfer Move function.
+func (c *FeeQuoterContract) McmsNewFeeQuoterCapAndTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.McmsNewFeeQuoterCapAndTransfer(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsDestroyFeeQuoterCap executes the mcms_destroy_fee_quoter_cap Move function.
+func (c *FeeQuoterContract) McmsDestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.McmsDestroyFeeQuoterCap(ref, registry, params, cap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1333,6 +1372,38 @@ func (c feeQuoterEncoder) NewFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCal
 	return c.EncodeCallArgsWithGenerics("new_fee_quoter_cap", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"ccip::fee_quoter::FeeQuoterCap",
 	})
+}
+
+// NewFeeQuoterCapAndTransfer encodes a call to the new_fee_quoter_cap_and_transfer Move function.
+func (c feeQuoterEncoder) NewFeeQuoterCapAndTransfer(ref bind.Object, ownerCap bind.Object, recipient string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("new_fee_quoter_cap_and_transfer", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"&OwnerCap",
+		"address",
+	}, []any{
+		ref,
+		ownerCap,
+		recipient,
+	}, nil)
+}
+
+// NewFeeQuoterCapAndTransferWithArgs encodes a call to the new_fee_quoter_cap_and_transfer Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) NewFeeQuoterCapAndTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"&OwnerCap",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("new_fee_quoter_cap_and_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // GetTokenPrice encodes a call to the get_token_price Move function.
@@ -2494,4 +2565,71 @@ func (c feeQuoterEncoder) DestroyFeeQuoterCapWithArgs(args ...any) (*bind.Encode
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("destroy_fee_quoter_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsNewFeeQuoterCapAndTransfer encodes a call to the mcms_new_fee_quoter_cap_and_transfer Move function.
+func (c feeQuoterEncoder) McmsNewFeeQuoterCapAndTransfer(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_new_fee_quoter_cap_and_transfer", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsNewFeeQuoterCapAndTransferWithArgs encodes a call to the mcms_new_fee_quoter_cap_and_transfer Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) McmsNewFeeQuoterCapAndTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_new_fee_quoter_cap_and_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsDestroyFeeQuoterCap encodes a call to the mcms_destroy_fee_quoter_cap Move function.
+func (c feeQuoterEncoder) McmsDestroyFeeQuoterCap(ref bind.Object, registry bind.Object, params bind.Object, cap bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_fee_quoter_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+		"ccip::fee_quoter::FeeQuoterCap",
+	}, []any{
+		ref,
+		registry,
+		params,
+		cap,
+	}, nil)
+}
+
+// McmsDestroyFeeQuoterCapWithArgs encodes a call to the mcms_destroy_fee_quoter_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) McmsDestroyFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+		"ccip::fee_quoter::FeeQuoterCap",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_fee_quoter_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

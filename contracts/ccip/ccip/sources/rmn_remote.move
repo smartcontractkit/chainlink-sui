@@ -338,6 +338,78 @@ public fun create_curser_cap_and_transfer(
     transfer::public_transfer(cap, recipient);
 }
 
+/// Mint a `CurserCap` and register it as the package cap on a fast MCMS Registry.
+/// Owner-only. Callable directly from a signer PTB or via `mcms_mint_and_register_curser_cap`.
+public fun mint_and_register_curser_cap(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    fast_registry: &mut FastRegistry,
+    ctx: &mut TxContext,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"mint_and_register_curser_cap"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
+    let publisher_wrapper = fast_mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(owner_cap),
+        state_object::mcms_callback(),
+    );
+
+    let curser_cap = CurserCap { id: object::new(ctx) };
+    let cap_id = object::id_address(&curser_cap);
+
+    fast_mcms_registry::register_entrypoint(
+        fast_registry,
+        publisher_wrapper,
+        state_object::mcms_callback(),
+        curser_cap,
+        vector[b"rmn_remote"],
+        ctx,
+    );
+
+    ensure_curser_cap_allowlisted(ref, owner_cap, cap_id, ctx);
+}
+
+/// Register an existing `CurserCap` on a fast MCMS Registry. Owner-only.
+/// Callable directly from a signer PTB or via `mcms_register_curser_cap`.
+public fun register_curser_cap(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    fast_registry: &mut FastRegistry,
+    curser_cap: CurserCap,
+    ctx: &mut TxContext,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"register_curser_cap"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
+    let publisher_wrapper = fast_mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(owner_cap),
+        state_object::mcms_callback(),
+    );
+
+    let cap_id = object::id_address(&curser_cap);
+
+    fast_mcms_registry::register_entrypoint(
+        fast_registry,
+        publisher_wrapper,
+        state_object::mcms_callback(),
+        curser_cap,
+        vector[b"rmn_remote"],
+        ctx,
+    );
+
+    ensure_curser_cap_allowlisted(ref, owner_cap, cap_id, ctx);
+}
+
 // ================================================================
 // |              CurserCap Allowlist (revocation)                |
 // ================================================================
@@ -921,30 +993,7 @@ public fun mcms_register_curser_cap(
     );
     bcs_stream::assert_is_consumed(&stream);
 
-    verify_function_allowed(
-        ref,
-        string::utf8(b"rmn_remote"),
-        string::utf8(b"register_curser_cap"),
-        VERSION,
-    );
-
-    let publisher_wrapper = fast_mcms_registry::create_publisher_wrapper(
-        ownable::borrow_publisher(owner_cap),
-        state_object::mcms_callback(),
-    );
-
-    let cap_id = object::id_address(&curser_cap);
-
-    fast_mcms_registry::register_entrypoint(
-        fast_registry,
-        publisher_wrapper,
-        state_object::mcms_callback(),
-        curser_cap,
-        vector[b"rmn_remote"],
-        ctx,
-    );
-
-    ensure_curser_cap_allowlisted(ref, owner_cap, cap_id, ctx);
+    register_curser_cap(ref, owner_cap, fast_registry, curser_cap, ctx);
 }
 
 /// Slow-MCMS wrapper that mints a `CurserCap` and atomically registers it in
@@ -978,32 +1027,7 @@ public fun mcms_mint_and_register_curser_cap(
     );
     bcs_stream::assert_is_consumed(&stream);
 
-    verify_function_allowed(
-        ref,
-        string::utf8(b"rmn_remote"),
-        string::utf8(b"mint_and_register_curser_cap"),
-        VERSION,
-    );
-
-    let publisher_wrapper = fast_mcms_registry::create_publisher_wrapper(
-        ownable::borrow_publisher(owner_cap),
-        state_object::mcms_callback(),
-    );
-
-    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
-    let curser_cap = CurserCap { id: object::new(ctx) };
-    let cap_id = object::id_address(&curser_cap);
-
-    fast_mcms_registry::register_entrypoint(
-        fast_registry,
-        publisher_wrapper,
-        state_object::mcms_callback(),
-        curser_cap,
-        vector[b"rmn_remote"],
-        ctx,
-    );
-
-    ensure_curser_cap_allowlisted(ref, owner_cap, cap_id, ctx);
+    mint_and_register_curser_cap(ref, owner_cap, fast_registry, ctx);
 }
 
 // ================================================================

@@ -18,7 +18,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"rmn_remote","name":"create_curser_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"rmn_remote","name":"create_curser_cap_and_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"recipient","type":"address"}]},{"package":"ccip","module":"rmn_remote","name":"curse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_multiple_with_curser_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"curser_cap","type":"CurserCap"},{"name":"subjects","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_with_curser_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"curser_cap","type":"CurserCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"deregister_curser_cap_ids","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"cap_ids","type":"vector<address>"}]},{"package":"ccip","module":"rmn_remote","name":"get_allowed_curser_cap_ids","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_cursed_subjects","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_local_chain_selector","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_report_digest_header","parameters":null},{"package":"ccip","module":"rmn_remote","name":"get_versioned_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"local_chain_selector","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"initialize_allowed_curser_caps","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"initial_cap_ids","type":"vector<address>"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_global","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_u128","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject_value","type":"u128"}]},{"package":"ccip","module":"rmn_remote","name":"is_curser_cap_allowed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"cap_id","type":"address"}]},{"package":"ccip","module":"rmn_remote","name":"register_curser_cap_ids","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"cap_ids","type":"vector<address>"}]},{"package":"ccip","module":"rmn_remote","name":"set_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"rmn_home_contract_config_digest","type":"vector<u8>"},{"name":"signer_onchain_public_keys","type":"vector<vector<u8>>"},{"name":"node_indexes","type":"vector<u64>"},{"name":"f_sign","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"type_and_version","parameters":null},{"package":"ccip","module":"rmn_remote","name":"uncurse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"uncurse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"rmn_remote","name":"create_curser_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"rmn_remote","name":"create_curser_cap_and_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"recipient","type":"address"}]},{"package":"ccip","module":"rmn_remote","name":"curse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_multiple_with_curser_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"curser_cap","type":"CurserCap"},{"name":"subjects","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"rmn_remote","name":"curse_with_curser_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"curser_cap","type":"CurserCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"deregister_curser_cap_ids","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"cap_ids","type":"vector<address>"}]},{"package":"ccip","module":"rmn_remote","name":"get_allowed_curser_cap_ids","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_cursed_subjects","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_local_chain_selector","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"get_report_digest_header","parameters":null},{"package":"ccip","module":"rmn_remote","name":"get_versioned_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"local_chain_selector","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"initialize_allowed_curser_caps","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"initial_cap_ids","type":"vector<address>"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_global","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"rmn_remote","name":"is_cursed_u128","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"subject_value","type":"u128"}]},{"package":"ccip","module":"rmn_remote","name":"is_curser_cap_allowed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"cap_id","type":"address"}]},{"package":"ccip","module":"rmn_remote","name":"mint_and_register_curser_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fast_registry","type":"FastRegistry"}]},{"package":"ccip","module":"rmn_remote","name":"register_curser_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fast_registry","type":"FastRegistry"},{"name":"curser_cap","type":"CurserCap"}]},{"package":"ccip","module":"rmn_remote","name":"register_curser_cap_ids","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"cap_ids","type":"vector<address>"}]},{"package":"ccip","module":"rmn_remote","name":"set_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"rmn_home_contract_config_digest","type":"vector<u8>"},{"name":"signer_onchain_public_keys","type":"vector<vector<u8>>"},{"name":"node_indexes","type":"vector<u64>"},{"name":"f_sign","type":"u64"}]},{"package":"ccip","module":"rmn_remote","name":"type_and_version","parameters":null},{"package":"ccip","module":"rmn_remote","name":"uncurse","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subject","type":"vector<u8>"}]},{"package":"ccip","module":"rmn_remote","name":"uncurse_multiple","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"subjects","type":"vector<vector<u8>>"}]}]`
 
 type IRmnRemote interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -33,6 +33,8 @@ type IRmnRemote interface {
 	CurseMultipleWithCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, curserCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
 	CreateCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	CreateCurserCapAndTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, recipient string) (*models.SuiTransactionBlockResponse, error)
+	MintAndRegisterCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, fastRegistry bind.Object) (*models.SuiTransactionBlockResponse, error)
+	RegisterCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, fastRegistry bind.Object, curserCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	InitializeAllowedCurserCaps(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, initialCapIds []string) (*models.SuiTransactionBlockResponse, error)
 	RegisterCurserCapIds(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, capIds []string) (*models.SuiTransactionBlockResponse, error)
 	DeregisterCurserCapIds(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, capIds []string) (*models.SuiTransactionBlockResponse, error)
@@ -103,6 +105,10 @@ type RmnRemoteEncoder interface {
 	CreateCurserCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	CreateCurserCapAndTransfer(ref bind.Object, ownerCap bind.Object, recipient string) (*bind.EncodedCall, error)
 	CreateCurserCapAndTransferWithArgs(args ...any) (*bind.EncodedCall, error)
+	MintAndRegisterCurserCap(ref bind.Object, ownerCap bind.Object, fastRegistry bind.Object) (*bind.EncodedCall, error)
+	MintAndRegisterCurserCapWithArgs(args ...any) (*bind.EncodedCall, error)
+	RegisterCurserCap(ref bind.Object, ownerCap bind.Object, fastRegistry bind.Object, curserCap bind.Object) (*bind.EncodedCall, error)
+	RegisterCurserCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	InitializeAllowedCurserCaps(ref bind.Object, ownerCap bind.Object, initialCapIds []string) (*bind.EncodedCall, error)
 	InitializeAllowedCurserCapsWithArgs(args ...any) (*bind.EncodedCall, error)
 	RegisterCurserCapIds(ref bind.Object, ownerCap bind.Object, capIds []string) (*bind.EncodedCall, error)
@@ -357,6 +363,26 @@ func (c *RmnRemoteContract) CreateCurserCap(ctx context.Context, opts *bind.Call
 // CreateCurserCapAndTransfer executes the create_curser_cap_and_transfer Move function.
 func (c *RmnRemoteContract) CreateCurserCapAndTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, recipient string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.rmnRemoteEncoder.CreateCurserCapAndTransfer(ref, ownerCap, recipient)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// MintAndRegisterCurserCap executes the mint_and_register_curser_cap Move function.
+func (c *RmnRemoteContract) MintAndRegisterCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, fastRegistry bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.MintAndRegisterCurserCap(ref, ownerCap, fastRegistry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// RegisterCurserCap executes the register_curser_cap Move function.
+func (c *RmnRemoteContract) RegisterCurserCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, fastRegistry bind.Object, curserCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.RegisterCurserCap(ref, ownerCap, fastRegistry, curserCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1266,6 +1292,73 @@ func (c rmnRemoteEncoder) CreateCurserCapAndTransferWithArgs(args ...any) (*bind
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("create_curser_cap_and_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// MintAndRegisterCurserCap encodes a call to the mint_and_register_curser_cap Move function.
+func (c rmnRemoteEncoder) MintAndRegisterCurserCap(ref bind.Object, ownerCap bind.Object, fastRegistry bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mint_and_register_curser_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"&mut FastRegistry",
+	}, []any{
+		ref,
+		ownerCap,
+		fastRegistry,
+	}, nil)
+}
+
+// MintAndRegisterCurserCapWithArgs encodes a call to the mint_and_register_curser_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) MintAndRegisterCurserCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"&mut FastRegistry",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mint_and_register_curser_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// RegisterCurserCap encodes a call to the register_curser_cap Move function.
+func (c rmnRemoteEncoder) RegisterCurserCap(ref bind.Object, ownerCap bind.Object, fastRegistry bind.Object, curserCap bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("register_curser_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"&mut FastRegistry",
+		"ccip::rmn_remote::CurserCap",
+	}, []any{
+		ref,
+		ownerCap,
+		fastRegistry,
+		curserCap,
+	}, nil)
+}
+
+// RegisterCurserCapWithArgs encodes a call to the register_curser_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) RegisterCurserCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"&mut FastRegistry",
+		"ccip::rmn_remote::CurserCap",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("register_curser_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // InitializeAllowedCurserCaps encodes a call to the initialize_allowed_curser_caps Move function.

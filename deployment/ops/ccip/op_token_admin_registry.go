@@ -10,6 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	"github.com/smartcontractkit/chainlink-sui/deployment/ops/rmn"
 )
 
 type InitTARObjects struct {
@@ -97,6 +98,27 @@ var initLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
 
+	encodedCall, err := contract.Encoder().InitializeLocalDecimals(
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode InitializeLocalDecimals call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of InitializeLocalDecimals on TokenAdminRegistry as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 	tx, err := contract.InitializeLocalDecimals(
@@ -141,6 +163,7 @@ var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
 
+<<<<<<< HEAD
 	localDecimals, err := ResolveLocalDecimals(b.GetContext(), deps.Client, input.TokenType, input.LocalDecimals)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, err
@@ -153,6 +176,13 @@ var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		ref,
 		input.CoinMetadataAddress,
 		localDecimals,
+=======
+	encodedCall, err := contract.Encoder().BackfillLocalDecimals(
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectId},
+		input.CoinMetadataAddress,
+		input.LocalDecimals,
+>>>>>>> develop
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode BackfillLocalDecimals call: %w", err)
@@ -161,6 +191,7 @@ var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
+<<<<<<< HEAD
 
 	if deps.Signer == nil {
 		b.Logger.Infow(
@@ -169,6 +200,15 @@ var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 			"localDecimals", localDecimals,
 		)
 		return sui_ops.OpTxResult[NoObjects]{
+=======
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of BackfillLocalDecimals on TokenAdminRegistry as per no Signer provided",
+			"CoinMetadataAddress", input.CoinMetadataAddress,
+			"LocalDecimals", input.LocalDecimals,
+		)
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+>>>>>>> develop
 			PackageId: input.CCIPPackageId,
 			Objects:   NoObjects{},
 			Call:      call,
@@ -215,6 +255,7 @@ var TokenAdminRegistryBackfillLocalDecimalsOp = cld_ops.NewOperation(
 type UnregisterPoolInput struct {
 	CCIPPackageId       string
 	CCIPObjectRef       string
+	OwnerCapObjectId    string
 	CoinMetadataAddress string
 }
 
@@ -224,13 +265,20 @@ var unregisterPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
 
-	encodedCall, err := contract.Encoder().UnregisterPool(bind.Object{Id: input.CCIPObjectRef}, input.CoinMetadataAddress)
+	data, err := rmn.SerializeMcmsObjectAddrs(
+		input.OwnerCapObjectId,
+		input.CCIPObjectRef,
+		input.CoinMetadataAddress,
+	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode UnregisterPool call: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode unregister_pool MCMS callback data: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRef)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	call := sui_ops.TransactionCall{
+		PackageID:  input.CCIPPackageId,
+		Module:     "token_admin_registry",
+		Function:   "unregister_pool",
+		Data:       data,
+		StateObjID: input.CCIPObjectRef,
 	}
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of UnregisterPool on TokenAdminRegistry as per no Signer provided", "CoinMetadataAddress", input.CoinMetadataAddress)
@@ -244,10 +292,11 @@ var unregisterPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.UnregisterPool(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.CCIPObjectRef},
+		input.CoinMetadataAddress,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute UnregisterPool on TokenAdminRegistry: %w", err)
@@ -307,10 +356,12 @@ var transferAdminRoleHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.TransferAdminRole(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.CCIPObjectRef},
+		input.CoinMetadataAddress,
+		input.NewAdmin,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute TransferAdminRole on TokenAdminRegistry: %w", err)
@@ -369,10 +420,11 @@ var acceptAdminRoleHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.Bound().ExecuteTransaction(
+	tx, err := contract.AcceptAdminRole(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.CCIPObjectRef},
+		input.CoinMetadataAddress,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute AcceptAdminRole on TokenAdminRegistry: %w", err)
