@@ -4,6 +4,8 @@ use ccip::ownable::OwnerCap;
 use ccip::publisher_wrapper::{Self, PublisherWrapper};
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::upgrade_registry::verify_function_allowed;
+use mcms::bcs_stream;
+use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
@@ -35,6 +37,7 @@ const EAlreadyRegistered: u64 = 1;
 const EAlreadyInitialized: u64 = 2;
 const EUnknownReceiver: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
+const EInvalidFunction: u64 = 5;
 
 const VERSION: u8 = 1;
 
@@ -155,4 +158,35 @@ public fun get_receiver_info(
     };
 
     (string::utf8(b""), ascii::string(b""))
+}
+
+// ================================================================
+// |                       MCMS Functions                         |
+// ================================================================
+
+public fun mcms_unregister_receiver(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"unregister_receiver"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let receiver_package_id = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    unregister_receiver(ref, owner_cap, receiver_package_id, ctx);
 }

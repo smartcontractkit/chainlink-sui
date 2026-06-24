@@ -787,6 +787,7 @@ func RunUnregisterLnRTokenPoolProposal(s *TokenPoolTestSuite) {
 			ccipops.UnregisterPoolInput{
 				CCIPPackageId:       s.ccipPackageId,
 				CCIPObjectRef:       s.ccipObjects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:    s.ccipObjects.OwnerCapObjectId,
 				CoinMetadataAddress: s.lnrTokenObjects.CoinMetadataObjectId,
 			},
 		},

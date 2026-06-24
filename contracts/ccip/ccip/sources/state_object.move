@@ -172,6 +172,7 @@ public fun execute_ownership_transfer_to_mcms(
         vector[
             b"fee_quoter",
             b"rmn_remote",
+            b"receiver_registry",
             b"state_object",
             b"token_admin_registry",
             b"upgrade_registry",
