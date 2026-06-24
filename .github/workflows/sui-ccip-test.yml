@@ -180,6 +180,10 @@ jobs:
           cd deployment
           go get github.com/smartcontractkit/chainlink-sui/deployment@$REF
 
+          cd ../integration-tests
+          go get github.com/smartcontractkit/chainlink-sui@$REF
+          go get github.com/smartcontractkit/chainlink-sui/deployment@$REF
+
           cd ..
           make gomodtidy
 
