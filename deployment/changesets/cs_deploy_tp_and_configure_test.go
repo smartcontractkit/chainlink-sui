@@ -16,7 +16,7 @@ import (
 type stubSigner struct{}
 
 func (stubSigner) Sign([]byte) ([]string, error) { return nil, nil }
-func (stubSigner) GetAddress() (string, error)  { return "0x1", nil }
+func (stubSigner) GetAddress() (string, error)   { return "0x1", nil }
 
 func deployTPEnv(t *testing.T, ab *cldf.AddressBookMap, selector uint64) cldf.Environment {
 	t.Helper()

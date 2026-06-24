@@ -82,10 +82,10 @@ func TestLockReleaseTokenPoolDualModeOps_ProposalDataMatchesBindingEncoder(t *te
 		t.Parallel()
 		input := LockReleaseTokenPoolSetAllowlistEnabledInput{
 			LockReleaseTokenPoolPackageId: mcmstest.PackageID,
-			StateObjectId:        mcmstest.StateObjectID,
-			OwnerCap:             mcmstest.OwnerCapID,
-			CoinObjectTypeArg:    mcmstest.CoinTypeArg,
-			Enabled:              true,
+			StateObjectId:                 mcmstest.StateObjectID,
+			OwnerCap:                      mcmstest.OwnerCapID,
+			CoinObjectTypeArg:             mcmstest.CoinTypeArg,
+			Enabled:                       true,
 		}
 		report, err := cld_ops.ExecuteOperation(mcmstest.Bundle(t), LockReleaseTokenPoolSetAllowlistEnabledOp, sui_ops.OpTxDeps{}, input)
 		require.NoError(t, err)
@@ -98,11 +98,11 @@ func TestLockReleaseTokenPoolDualModeOps_ProposalDataMatchesBindingEncoder(t *te
 		t.Parallel()
 		input := LockReleaseTokenPoolApplyAllowlistUpdatesInput{
 			LockReleaseTokenPoolPackageId: mcmstest.PackageID,
-			StateObjectId:        mcmstest.StateObjectID,
-			OwnerCap:             mcmstest.OwnerCapID,
-			CoinObjectTypeArg:    mcmstest.CoinTypeArg,
-			Removes:              []string{},
-			Adds:                 []string{mcmstest.Recipient},
+			StateObjectId:                 mcmstest.StateObjectID,
+			OwnerCap:                      mcmstest.OwnerCapID,
+			CoinObjectTypeArg:             mcmstest.CoinTypeArg,
+			Removes:                       []string{},
+			Adds:                          []string{mcmstest.Recipient},
 		}
 		report, err := cld_ops.ExecuteOperation(mcmstest.Bundle(t), LockReleaseTokenPoolApplyAllowlistUpdatesOp, sui_ops.OpTxDeps{}, input)
 		require.NoError(t, err)
@@ -116,11 +116,11 @@ func TestLockReleaseTokenPoolDualModeOps_ProposalDataMatchesBindingEncoder(t *te
 		poolAddr := []byte(mcmstest.CoinMetadata)
 		input := LockReleaseTokenPoolRemoveRemotePoolInput{
 			LockReleaseTokenPoolPackageId: mcmstest.PackageID,
-			CoinObjectTypeArg:    mcmstest.CoinTypeArg,
-			StateObjectId:        mcmstest.StateObjectID,
-			OwnerCap:             mcmstest.OwnerCapID,
-			RemoteChainSelector:  mcmstest.DestChainSel,
-			RemotePoolAddress:    mcmstest.CoinMetadata,
+			CoinObjectTypeArg:             mcmstest.CoinTypeArg,
+			StateObjectId:                 mcmstest.StateObjectID,
+			OwnerCap:                      mcmstest.OwnerCapID,
+			RemoteChainSelector:           mcmstest.DestChainSel,
+			RemotePoolAddress:             mcmstest.CoinMetadata,
 		}
 		report, err := cld_ops.ExecuteOperation(mcmstest.Bundle(t), LockReleaseTokenPoolRemoveRemotePoolOp, sui_ops.OpTxDeps{}, input)
 		require.NoError(t, err)
