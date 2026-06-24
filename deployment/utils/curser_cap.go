@@ -8,13 +8,13 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/block-vision/sui-go-sdk/utils"
-	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"golang.org/x/crypto/blake2b"
 
-	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 

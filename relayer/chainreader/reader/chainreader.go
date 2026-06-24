@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -41,6 +43,20 @@ const (
 	ccipPointerKey      = "state_object::CCIPObjectRefPointer"
 )
 
+// #region agent log
+// ctxErrStr returns the context error string (e.g. deadline exceeded) for session 39639b debugging.
+func ctxErrStr(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if err := ctx.Err(); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+// #endregion
+
 type suiChainReader struct {
 	pkgtypes.UnimplementedContractReader
 
@@ -51,6 +67,7 @@ type suiChainReader struct {
 	client          *client.PTBClient
 	dbStore         *database.DBStore
 	indexer         indexer.IndexerApi
+	readerCache     *Cache
 
 	// Cache of parent object IDs for pointer objects
 	// Key format: "{packageID}::{module}::{pointerName}"
@@ -80,6 +97,7 @@ func NewChainReader(
 	configs config.ChainReaderConfig,
 	db sqlutil.DataSource,
 	indexer indexer.IndexerApi,
+	readerCache *Cache,
 ) (pkgtypes.ContractReader, error) {
 	dbStore := database.NewDBStore(db, lgr)
 
@@ -96,6 +114,7 @@ func NewChainReader(
 		packageResolver: crUtil.NewPackageResolver(lgr, ptbClient),
 		// indexers
 		indexer:         indexer,
+		readerCache:     readerCache,
 		parentObjectIDs: make(map[string]string),
 	}, nil
 }
@@ -163,6 +182,12 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 			return fmt.Errorf("failed to bind package: %w", err)
 		}
 
+		// Register every event selector configured for this contract with the events indexer,
+		// using the binding's package address. This ensures the ChainPoller filters these events
+		// in from the moment the contract is bound, instead of only after the first QueryKey for
+		// each event (which would drop any events emitted in between).
+		s.registerConfiguredEventSelectors(ctx, binding)
+
 		// Pre-load parent object IDs for known pointer types
 		if err := s.preloadParentObjectIDs(ctx, binding); err != nil {
 			s.logger.Warnw("Failed to pre-load parent object IDs", "contract", binding.Name, "error", err)
@@ -207,6 +232,92 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 	}
 
 	return nil
+}
+
+// registerConfiguredEventSelectors registers every event selector configured for the bound
+// contract with the EventsIndexer, using the binding's package address as the authoritative
+// address. The selectors are derived to match exactly what updateEventConfigs / QueryKey build
+// for the event handle, so polled events line up with subsequent queries. AddEventSelector is
+// idempotent, so re-binding or the OffRamp special-case below cannot create duplicates.
+func (s *suiChainReader) registerConfiguredEventSelectors(ctx context.Context, binding pkgtypes.BoundContract) {
+	moduleConfig, ok := s.config.Modules[binding.Name]
+	if !ok || moduleConfig == nil {
+		s.logger.Debugw("No module config for binding; skipping event selector registration",
+			"contract", binding.Name, "address", binding.Address)
+		return
+	}
+
+	evIndexer := s.indexer.GetEventIndexer()
+	if evIndexer == nil {
+		s.logger.Warnw("Event indexer unavailable; skipping event selector registration",
+			"contract", binding.Name, "address", binding.Address)
+		return
+	}
+
+	if len(moduleConfig.Events) == 0 {
+		s.logger.Debugw("Contract has no configured events; nothing to register",
+			"contract", binding.Name, "address", binding.Address)
+		return
+	}
+
+	s.logger.Infow("Registering configured event selectors at bind",
+		"contract", binding.Name, "address", binding.Address, "eventCount", len(moduleConfig.Events))
+
+	selectorsBefore := len(evIndexer.GetEventSelectors())
+
+	for eventKey, eventConfig := range moduleConfig.Events {
+		if eventConfig == nil {
+			continue
+		}
+
+		// Resolve the module name the same way updateEventConfigs does: prefer the selector's
+		// module, fall back to the module config name, and finally to the binding name.
+		module := eventConfig.Module
+		if module == "" {
+			module = moduleConfig.Name
+		}
+		if module == "" {
+			module = binding.Name
+		}
+
+		// Resolve the event (struct) name. EventType is authoritative (it is what QueryKey uses
+		// to build the event handle); fall back to the selector's Event and then the config key.
+		event := eventConfig.EventType
+		if event == "" {
+			event = eventConfig.Event
+		}
+		if event == "" {
+			event = eventKey
+		}
+
+		selector := &client.EventSelector{
+			Package: binding.Address,
+			Module:  module,
+			Event:   event,
+		}
+
+		if err := evIndexer.AddEventSelector(ctx, selector); err != nil {
+			s.logger.Errorw("Failed to register configured event selector at bind",
+				"contract", binding.Name,
+				"module", module,
+				"event", event,
+				"error", err)
+			continue
+		}
+
+		s.logger.Infow("Registered configured event selector at bind",
+			"contract", binding.Name,
+			"package", binding.Address,
+			"module", module,
+			"event", event)
+	}
+
+	// If this bind registered any new selectors, the poller may have already advanced past the
+	// checkpoints carrying their events (selectors register only after the contract is discovered/bound).
+	// Rewind it once to re-scan those checkpoints with the new selectors; re-inserts are idempotent.
+	if len(evIndexer.GetEventSelectors()) > selectorsBefore {
+		s.indexer.RescanRecentCheckpoints()
+	}
 }
 
 func (s *suiChainReader) Unbind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
@@ -344,71 +455,28 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		"function", parsed.readName,
 	)
 
-	results, err := s.callFunction(ctx, parsed, params, functionConfig)
+	// Route the devInspect read through the cache: concurrent identical reads are collapsed and, when read
+	// caching is enabled, the decoded result is reused for a short TTL. A nil readerCache (or disabled read
+	// cache) simply invokes callFunction directly. Decoding into returnVal stays per-call below.
+	readCacheKey := fmt.Sprintf("%s::%s::%s::%v", parsed.address, parsed.contractName, parsed.readName, params)
+	results, err := s.readerCache.GetReadResults(ctx, readCacheKey, func(ctx context.Context) ([]any, error) {
+		return s.callFunction(ctx, parsed, params, functionConfig)
+	})
 	if err != nil {
 		return err
 	}
 
-	if functionConfig.ResultTupleToStruct != nil {
-		structResult := make(map[string]any)
-		// Check the length of results to avoid panics
-		if len(results) < len(functionConfig.ResultTupleToStruct) {
-			return fmt.Errorf("expected %d results, got %d", len(functionConfig.ResultTupleToStruct), len(results))
-		}
-
-		for i, mapKey := range functionConfig.ResultTupleToStruct {
-			structResult[mapKey] = results[i]
-		}
-
-		// Apply result field renames if configured
-		if functionConfig.ResultFieldRenames != nil {
-			err = aptosCRUtils.MaybeRenameFields(structResult, functionConfig.ResultFieldRenames)
-			if err != nil {
-				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
-			}
-		}
-
-		// if we are running in loop plugin mode, we will want to encode the result into JSON bytes
-		if s.config.IsLoopPlugin {
-			return s.encodeLoopResult(structResult, returnVal)
-		}
-
-		return codec.DecodeSuiJsonValue(structResult, returnVal)
+	prepared, err := s.prepareFunctionReadResult(results, functionConfig, s.config.IsLoopPlugin)
+	if err != nil {
+		return err
 	}
 
-	// otherwise, no tuple to struct specification, just a slice of values
 	if s.config.IsLoopPlugin {
-		// Apply renames to the result slice or contained maps before encoding
-		var renamed any = results
-		if functionConfig.ResultFieldRenames != nil {
-			err = aptosCRUtils.MaybeRenameFields(renamed, functionConfig.ResultFieldRenames)
-			if err != nil {
-				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
-			}
-		}
-		return s.encodeLoopResult(renamed, returnVal)
+		return s.encodeLoopResult(prepared, returnVal)
 	}
 
 	s.logger.Debugw("GLV results before decoding to SUI json", "results", results, "returnVal", returnVal)
-
-	// Apply renames (if any) to the primary result element before decoding
-	responseValues := make([]any, len(results))
-	for i, result := range results {
-		current := result
-		if functionConfig.ResultFieldRenames != nil {
-			err = aptosCRUtils.MaybeRenameFields(current, functionConfig.ResultFieldRenames)
-			if err != nil {
-				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
-			}
-		}
-		responseValues[i] = current
-	}
-
-	if len(results) > 1 {
-		return codec.DecodeSuiJsonValue(responseValues, returnVal)
-	}
-
-	return codec.DecodeSuiJsonValue(results[0], returnVal)
+	return codec.DecodeSuiJsonValue(prepared, returnVal)
 }
 
 // QueryKey queries events from the indexer database for events that were populated from the RPC node
@@ -483,6 +551,31 @@ func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgt
 func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgtypes.BatchGetLatestValuesRequest) (pkgtypes.BatchGetLatestValuesResult, error) {
 	result := make(pkgtypes.BatchGetLatestValuesResult)
 
+	// #region agent log
+	// Confirms the batch shape (contracts iterated sequentially, reads per contract concurrent) and
+	// whether the overall batch trips the caller's 30s deadline (the merkle-root-blocking failure).
+	batchStart := time.Now()
+	totalReads := 0
+	contractCount := 0
+	readNames := make([]string, 0)
+	for contract, batch := range request {
+		contractCount++
+		totalReads += len(batch)
+		for _, r := range batch {
+			readNames = append(readNames, contract.Name+"."+r.ReadName)
+		}
+	}
+	defer func() {
+		common.DebugLog("chainreader.go:BatchGetLatestValues", "batch completed", map[string]any{
+			"contracts": contractCount,
+			"reads":     totalReads,
+			"readNames": readNames,
+			"totalSec":  time.Since(batchStart).Seconds(),
+			"ctxErr":    ctxErrStr(ctx),
+		})
+	}()
+	// #endregion
+
 	for contract, batch := range request {
 		batchResults := make(pkgtypes.ContractBatchResults, len(batch))
 		resultChan := make(chan struct {
@@ -512,24 +605,32 @@ func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgty
 			}(i, read, contract)
 		}
 
-		// wait for all the results to be processed then close the channel
+		// Close resultChan once all goroutines finish (may happen after caller ctx expires).
 		go func() {
 			waitgroup.Wait()
 			close(resultChan)
 		}()
 
 		resultsReceived := 0
-		for res := range resultChan {
-			batchResults[res.index] = res.result
-			resultsReceived++
-		}
-
-		// check if all the results were received
-		if resultsReceived != len(batch) {
-			if err := ctx.Err(); err != nil {
-				return nil, err
+		for resultsReceived < len(batch) {
+			select {
+			case res, ok := <-resultChan:
+				if !ok {
+					if err := ctx.Err(); err != nil {
+						return nil, err
+					}
+					return nil, errors.New("batch processing failed: result channel closed early")
+				}
+				batchResults[res.index] = res.result
+				resultsReceived++
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
+			case <-ctx.Done():
+				// Return immediately when the caller's deadline fires (e.g. CCIP config poller's 30s
+				// bgRefreshTimeout). Do not block on slow in-flight RPCs that outlive the parent context.
+				return nil, ctx.Err()
 			}
-			return nil, fmt.Errorf("batch processing failed: expected %d results, received %d", len(batch), resultsReceived)
 		}
 
 		result[contract] = batchResults
@@ -771,10 +872,13 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 					return nil, fmt.Errorf("failed to convert parameter %s of type %s: %w",
 						paramConfig.Name, paramConfig.Type, err)
 				}
+				s.logger.Debugw("parseLoopParams convertedValue", "convertedValue", convertedValue, "rawValue", jsonValue)
 				argMap[paramConfig.Name] = convertedValue
 			}
 		}
 	}
+
+	s.logger.Debugw("parseLoopParams argMap", "argMap", argMap)
 
 	return argMap, nil
 }
@@ -923,7 +1027,13 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 
 	// Override the package ID with the latest package ID of the module being called.
 	// This ensure we are always using the latestPkgID in case of upgrades.
+	// #region agent log
+	execFnStart := time.Now()
+	// #endregion
 	latestPackageId, err := s.client.GetLatestPackageId(ctx, parsed.address, common.GetModuleForContract(parsed.contractName))
+	// #region agent log
+	pkgIDDur := time.Since(execFnStart)
+	// #endregion
 	if err != nil {
 		return []any{}, err
 	}
@@ -934,17 +1044,55 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 	if len(functionConfig.StaticResponse) > 0 {
 		return functionConfig.StaticResponse, nil
 	} else if len(functionConfig.ResponseFromInputs) > 0 {
+		// Build the response from the resolved inputs instead of calling the chain. This is used for
+		// reads whose Move function does not exist on the Sui contract (e.g. the EVM-shaped RMNProxy
+		// get_arm), where the value is supplied via config (a param's DefaultValue) or at call time and
+		// simply mapped back out. Each selection is either the reserved "package_id" token or the name of
+		// a configured parameter, whose resolved arg value (DefaultValue when not passed) is echoed.
+		response := make([]any, 0, len(functionConfig.ResponseFromInputs))
 		for _, pluckFromInput := range functionConfig.ResponseFromInputs {
-			switch pluckFromInput {
-			case "package_id":
-				return []any{latestPackageId}, nil
-			default:
-				return nil, fmt.Errorf("unknown response from inputs selection: %s", pluckFromInput)
+			if pluckFromInput == "package_id" {
+				response = append(response, latestPackageId)
+				continue
 			}
+
+			paramIdx := -1
+			for i, param := range functionConfig.Params {
+				if param.Name == pluckFromInput {
+					paramIdx = i
+					break
+				}
+			}
+			if paramIdx < 0 || paramIdx >= len(args) {
+				return nil, fmt.Errorf("response from inputs selection %q matches no configured parameter", pluckFromInput)
+			}
+
+			response = append(response, args[paramIdx])
 		}
+
+		return response, nil
 	}
 
+	// #region agent log
+	readFnStart := time.Now()
+	// #endregion
 	values, err := s.client.ReadFunction(ctx, parsed.address, parsed.contractName, parsed.readName, args, argTypes, typeArgs)
+	// #region agent log
+	// H1/H2/H4: per-read breakdown of where time goes (package-id resolution vs the simulate read).
+	readFnDur := time.Since(readFnStart)
+	totalDur := time.Since(execFnStart)
+	if totalDur > 2*time.Second {
+		common.DebugLog("chainreader.go:executeFunction", "slow read", map[string]any{
+			"hypothesisId":    "H1H2H4",
+			"contract":        parsed.contractName,
+			"method":          parsed.readName,
+			"getPkgIdSec":     pkgIDDur.Seconds(),
+			"readFunctionSec": readFnDur.Seconds(),
+			"totalSec":        totalDur.Seconds(),
+			"ctxErr":          ctxErrStr(ctx),
+		})
+	}
+	// #endregion
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
 			"error", err,
@@ -961,10 +1109,63 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 
 	s.logger.Debugw("Sui ReadFunction response", "returnValues", values)
 
-	// TODO: Remove this once bindings are used in CR, this is a temporary fix for data ingestion
-	hexified := common.ConvertBytesToHex(values).([]any)
+	return values, nil
+}
 
-	return hexified, nil
+func (s *suiChainReader) applyResultFieldRenames(value any, renames map[string]aptosCRConfig.RenamedField) error {
+	if renames == nil {
+		return nil
+	}
+
+	if err := aptosCRUtils.MaybeRenameFields(value, renames); err != nil {
+		return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
+	}
+
+	return nil
+}
+
+// prepareFunctionReadResult shapes JSON-native ReadFunction results (from Json.AsInterface)
+// for LOOP encoding or native typed decoding.
+func (s *suiChainReader) prepareFunctionReadResult(results []any, cfg *config.ChainReaderFunction, forLoop bool) (any, error) {
+	if cfg.ResultTupleToStruct != nil {
+		if len(results) < len(cfg.ResultTupleToStruct) {
+			return nil, fmt.Errorf("expected %d results, got %d", len(cfg.ResultTupleToStruct), len(results))
+		}
+
+		structResult := make(map[string]any, len(cfg.ResultTupleToStruct))
+		for i, mapKey := range cfg.ResultTupleToStruct {
+			structResult[mapKey] = results[i]
+		}
+
+		if err := s.applyResultFieldRenames(structResult, cfg.ResultFieldRenames); err != nil {
+			return nil, err
+		}
+
+		return structResult, nil
+	}
+
+	if forLoop {
+		if err := s.applyResultFieldRenames(results, cfg.ResultFieldRenames); err != nil {
+			return nil, err
+		}
+
+		return results, nil
+	}
+
+	responseValues := make([]any, len(results))
+	for i, result := range results {
+		current := result
+		if err := s.applyResultFieldRenames(current, cfg.ResultFieldRenames); err != nil {
+			return nil, err
+		}
+		responseValues[i] = current
+	}
+
+	if len(results) == 1 {
+		return results[0], nil
+	}
+
+	return responseValues, nil
 }
 
 // encodeLoopResult encodes results for LOOP plugin mode

@@ -86,10 +86,10 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	// Run LR TokenPool deploy + configure sequence
 	LRTokenPoolInput := DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: LockReleaseTokenPoolDeployInput{
-			CCIPPackageId:     reportCCIP.Output.PackageId,
-			MCMSAddress:       inputCCIP.McmsPackageId,
-			FastMcmsAddress:   inputCCIP.FastMcmsPackageId,
-			MCMSOwnerAddress:  signerAddress,
+			CCIPPackageId:    reportCCIP.Output.PackageId,
+			MCMSAddress:      inputCCIP.McmsPackageId,
+			FastMcmsAddress:  inputCCIP.FastMcmsPackageId,
+			MCMSOwnerAddress: signerAddress,
 		},
 
 		// initialize

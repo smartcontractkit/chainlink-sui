@@ -4,6 +4,7 @@ package loop
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
@@ -16,9 +17,12 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
+	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 	"github.com/stretchr/testify/require"
+
+	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	chainreaderConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
@@ -212,6 +216,24 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 						Params:        []codec.SuiFunctionParam{},
 						// used to wrap entire result
 						ResultTupleToStruct: []string{"OCRConfig"},
+						// The Sui node renders the Move struct with snake_case keys. The core node decodes the LOOP
+						// bytes into cciptypes.OCRConfigResponse via DecodeSuiJsonValue (mapstructure), whose fuzzy
+						// matcher strips underscores and is case-insensitive: config_info->ConfigInfo,
+						// config_digest->ConfigDigest, n->N, is_signature_verification_enabled->... all match on their
+						// own. The lone exception is `big_f` ("bigf") which does NOT match `F` ("f"), so F silently
+						// decodes to 0. Rename it so it lands on OCRConfigResponse.ConfigInfo.F. This mirrors the fix
+						// in chainlink core's Sui contract_reader.go for the OffRamp latest_config_details read.
+						ResultFieldRenames: map[string]aptosCRConfig.RenamedField{
+							"OCRConfig": {
+								SubFieldRenames: map[string]aptosCRConfig.RenamedField{
+									"config_info": {
+										SubFieldRenames: map[string]aptosCRConfig.RenamedField{
+											"big_f": {NewName: "f"},
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -266,14 +288,14 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		evIndexer.GetEventSelectors,
 	)
 
-	indexerInstance := indexer.NewIndexer(
+	indexerInstance := indexer.NewIndexerFromComponents(
 		log,
 		chainPoller,
 		evIndexer,
 		txnIndexer,
 	)
 
-	chainReader, err := reader.NewChainReader(ctx, log, relayerClient, chainReaderConfigs, db, indexerInstance)
+	chainReader, err := reader.NewChainReader(ctx, log, relayerClient, chainReaderConfigs, db, indexerInstance, nil)
 	require.NoError(t, err)
 
 	// Wrap the base chain reader with loop chain reader
@@ -549,5 +571,53 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		require.NoError(t, err)
 		require.NotEmpty(t, retOCRConfig, "Expected to find OCRConfig")
 		log.Debugw("retOCRConfig", "retOCRConfig", retOCRConfig)
+	})
+
+	// Regression for the EVM->Sui commit blocker. The commit plugin's report-acceptance check
+	// (plugincommon.ConfigDigestsMatch -> ccipReader.GetOffRampConfigDigest) reads the OffRamp
+	// latest_config_details and decodes the relayer's LOOP bytes into cciptypes.OCRConfigResponse,
+	// then compares ConfigInfo.ConfigDigest against the DON's digest.
+	//
+	// IMPORTANT: the core node's Sui LOOP reader (suiloop.loopChainReader.decodeGLVReturnValue) does NOT
+	// plain json.Unmarshal into the typed target. It json.Unmarshals the bytes into a generic map and then
+	// runs codec.DecodeSuiJsonValue (mapstructure with a fuzzy, underscore-insensitive field matcher and
+	// hex/base64 type-conversion hooks). That decoder happily maps the Sui node's snake_case keys and
+	// decodes the base64 digest / 0x-hex transmitters correctly. The one field it can NOT map on its own is
+	// `big_f` -> `F` (the fuzzy matcher compares "bigf" vs "f"), so without a rename F silently stays 0.
+	//
+	// This test exercises that exact production path (via the loopReader wrapper into a typed
+	// OCRConfigResponse) and relies on the get_ocr_config ResultFieldRenames (big_f -> f) above. It guards
+	// that the OffRamp OCR config the commit plugin consumes decodes fully and correctly.
+	t.Run("LoopReader_GetOCRConfig_DecodesIntoCCIPOCRConfigResponse", func(t *testing.T) {
+		readID := strings.Join([]string{packageId, counterBinding.Name, "get_ocr_config"}, "-")
+
+		// Capture the exact JSON bytes that cross the LOOP boundary (params/returnVal are *[]byte in
+		// IsLoopPlugin mode) purely for diagnostics on failure.
+		paramBytes, mErr := json.Marshal(map[string]any{})
+		require.NoError(t, mErr)
+		var rawBytes []byte
+		require.NoError(t, chainReader.GetLatestValue(ctx, readID, primitives.Finalized, &paramBytes, &rawBytes))
+		log.Debugw("relayer-emitted get_ocr_config JSON", "json", string(rawBytes))
+
+		// Decode exactly like the core node does: the loopReader wrapper json.Unmarshals the LOOP bytes and
+		// then runs DecodeSuiJsonValue into the typed OCRConfigResponse.
+		var resp cciptypes.OCRConfigResponse
+		require.NoErrorf(t,
+			loopReader.GetLatestValue(ctx, readID, primitives.Finalized, map[string]any{}, &resp),
+			"relayer output must decode into OCRConfigResponse via the LOOP path; raw bytes: %s", string(rawBytes))
+
+		// get_ocr_config returns config_digest [2,3,4,5], big_f 1, n 2, signature verification enabled.
+		info := resp.OCRConfig.ConfigInfo
+		require.Falsef(t, info.ConfigDigest.IsEmpty(),
+			"ConfigDigest decoded to zero from relayer output %s — a zero digest is exactly what makes the "+
+				"commit plugin reject all EVM->Sui reports", string(rawBytes))
+		require.Equal(t, []byte{2, 3, 4, 5}, info.ConfigDigest[:4],
+			"Move config_digest bytes must land in OCRConfigResponse.ConfigInfo.ConfigDigest")
+		require.Equal(t, uint8(1), info.F, "Move big_f must map (via rename) to OCRConfigResponse.ConfigInfo.F")
+		require.Equal(t, uint8(2), info.N, "Move n must map to OCRConfigResponse.ConfigInfo.N")
+		require.True(t, info.IsSignatureVerificationEnabled,
+			"Move is_signature_verification_enabled must map to OCRConfigResponse.ConfigInfo.IsSignatureVerificationEnabled")
+		require.NotEmpty(t, resp.OCRConfig.Signers, "signers must decode")
+		require.NotEmpty(t, resp.OCRConfig.Transmitters, "transmitters (vector<address>, 0x-hex) must decode")
 	})
 }

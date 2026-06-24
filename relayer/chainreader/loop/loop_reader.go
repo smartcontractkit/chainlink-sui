@@ -57,6 +57,8 @@ func (s *loopChainReader) Close() error {
 func (s *loopChainReader) GetLatestValue(ctx context.Context, readIdentifier string, confidenceLevel primitives.ConfidenceLevel, params, returnVal any) error {
 	convertedResult := []byte{}
 
+	s.logger.Debugw("GetLatestValue params before serialization over LOOP", "params", params)
+
 	jsonParamBytes, err := json.Marshal(params)
 	if err != nil {
 		return fmt.Errorf("failed to marshal params: %+w", err)
@@ -129,6 +131,8 @@ func (s *loopChainReader) QueryKey(ctx context.Context, contract types.BoundCont
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize QueryKey expressions: %w", err)
 	}
+
+	s.logger.Debugw("QueryKey expressions after serialization over LOOP", "expressions", convertedExpressions)
 
 	convertedFilter := query.KeyFilter{
 		Key:         filter.Key,

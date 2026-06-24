@@ -294,12 +294,30 @@ func (eIndexer *EventsIndexer) AddEventSelector(ctx context.Context, selector *c
 		return fmt.Errorf("unspecified selector for AddEventSelector call")
 	}
 
-	if !eIndexer.isEventSelectorAdded(*selector) {
-		eIndexer.configMutex.Lock()
-		if !eIndexer.isEventSelectorAddedLocked(*selector) {
-			eIndexer.eventConfigurations = append(eIndexer.eventConfigurations, selector)
-		}
-		eIndexer.configMutex.Unlock()
+	if eIndexer.isEventSelectorAdded(*selector) {
+		eIndexer.logger.Debugw("Event selector already registered, skipping",
+			"package", selector.Package, "module", selector.Module, "event", selector.Event)
+		return nil
+	}
+
+	eIndexer.configMutex.Lock()
+	added := false
+	if !eIndexer.isEventSelectorAddedLocked(*selector) {
+		eIndexer.eventConfigurations = append(eIndexer.eventConfigurations, selector)
+		added = true
+	}
+	total := len(eIndexer.eventConfigurations)
+	eIndexer.configMutex.Unlock()
+
+	if added {
+		// This is the signal to watch: until at least one selector is registered, the ChainPoller's
+		// filterEvents returns empty batches and the EventsIndexer never indexes anything (e.g. the
+		// OnRamp CCIPMessageSent events the commit plugin needs for Sui-source merkle roots).
+		eIndexer.logger.Infow("Registered event selector",
+			"package", selector.Package,
+			"module", selector.Module,
+			"event", selector.Event,
+			"totalSelectors", total)
 	}
 
 	return nil

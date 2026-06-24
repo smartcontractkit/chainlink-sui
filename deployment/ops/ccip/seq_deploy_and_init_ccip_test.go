@@ -74,8 +74,8 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 		LocalChainSelector:            1,
 		DestChainSelector:             2,
 		DeployCCIPInput:               inputCCIP,
-		MaxFeeJuelsPerMsg:            "100000000",
-		TokenPriceStalenessThreshold: 60,
+		MaxFeeJuelsPerMsg:             "100000000",
+		TokenPriceStalenessThreshold:  60,
 		// Fee Quoter configuration
 		AddMinFeeUsdCents:    []uint32{3000},
 		AddMaxFeeUsdCents:    []uint32{30000},

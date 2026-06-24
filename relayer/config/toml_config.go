@@ -223,6 +223,10 @@ func (c *ChainPollerConfig) setDefaults() {
 		v := DefaultChainPollerChannelBufferSize
 		c.ChannelBufferSize = &v
 	}
+	if c.BackfillCheckpointCount == nil {
+		v := DefaultChainPollerBackfillCheckpointCount
+		c.BackfillCheckpointCount = &v
+	}
 }
 
 func (t *TransactionManagerConfig) setDefaults() {

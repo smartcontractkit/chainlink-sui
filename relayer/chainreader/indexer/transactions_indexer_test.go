@@ -217,7 +217,7 @@ func TestTransactionsIndexer(t *testing.T) {
 		evIndexer.GetEventSelectors,
 	)
 
-	indexerInstance := indexer.NewIndexer(
+	indexerInstance := indexer.NewIndexerFromComponents(
 		log,
 		chainPoller,
 		evIndexer,
@@ -232,6 +232,7 @@ func TestTransactionsIndexer(t *testing.T) {
 		readerConfig,
 		db,
 		indexerInstance,
+		nil,
 	)
 	require.NoError(t, err)
 

@@ -13,7 +13,6 @@ concurrency:
 jobs:
   ccip_test_sui2evm:
     name: Run Sui <-> EVM Test
-    if: false # disabled until core node is updated for the new Sui gRPC client
     runs-on: ubuntu-latest
 
     strategy:
@@ -179,6 +178,10 @@ jobs:
           go get github.com/smartcontractkit/chainlink-sui@$REF
 
           cd deployment
+          go get github.com/smartcontractkit/chainlink-sui/deployment@$REF
+
+          cd ../integration-tests
+          go get github.com/smartcontractkit/chainlink-sui@$REF
           go get github.com/smartcontractkit/chainlink-sui/deployment@$REF
 
           cd ..

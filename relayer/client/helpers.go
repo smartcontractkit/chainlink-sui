@@ -120,8 +120,10 @@ func (c *PTBClient) TransformTransactionArg(
 		if err != nil {
 			return nil, err
 		}
-		// get object's details
-		objectDetails, err := c.ReadObjectId(ctx, arg.(string))
+		// get object's reference metadata (owner/version/digest only) - intentionally avoids fetching the
+		// full (and growing) object contents/json, which is unnecessary for building an ObjectArg and was
+		// the dominant source of read latency under load.
+		objectDetails, err := c.readObjectMetadataInternal(ctx, arg.(string))
 		if err != nil || objectDetails == nil {
 			return nil, fmt.Errorf("failed to read object %s: %w", arg.(string), err)
 		}

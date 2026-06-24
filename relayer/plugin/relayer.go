@@ -48,7 +48,8 @@ type SuiRelayer struct {
 	txm            *txm.SuiTxm
 	balanceMonitor services.Service
 
-	indexer *indexer.Indexer
+	indexer     *indexer.Indexer
+	readerCache *chainreader.Cache
 }
 
 var _ types.Relayer = &SuiRelayer{}
@@ -96,6 +97,11 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		TransactionRetentionSecs: *cfg.TransactionManager.TransactionRetentionSecs,
 	}
 
+	// One ReaderCache is shared by the read client (object-metadata caching) and the ChainReader (read-call
+	// caching) so each relayer instance stops re-fetching the same version-stable shared objects on every
+	// config-poll cycle.
+	readerCache := chainreader.NewCache(loggerInstance, chainreader.DefaultCacheConfig())
+
 	ptbClientConfig := client.PTBClientConfig{
 		GrpcTarget:            *nodeConfig.GrpcTarget,
 		GrpcToken:             *nodeConfig.GrpcToken,
@@ -103,6 +109,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		MaxConcurrentRequests: maxConcurrentRequests * 3,
 		KeystoreService:       keystore,
 		DefaultRequestType:    client.TransactionRequestType(requestType),
+		ObjectCache:           readerCache,
 	}
 
 	// Use config values instead of constants
@@ -126,23 +133,10 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
 
-	// Setup indexers with checkpoint-based architecture
-	// ChainPoller fetches checkpoints and fans out to EventsIndexer and TransactionsIndexer
-
-	// Create consumer indexers first (they get channels from poller)
-	txnIndexer := indexer.NewTransactionsIndexer(
-		db,
-		loggerInstance,
-		// start without any configs, they will be set when ChainReader is initialized
-		map[string]*chainreaderConfig.ChainReaderEvent{},
-	)
-
-	evIndexer := indexer.NewEventIndexer(
-		db,
-		loggerInstance,
-		// start without any selectors, they will be added during .Bind() calls
-		[]*client.EventSelector{},
-	)
+	// Setup indexers with checkpoint-based architecture.
+	// The ChainPoller fetches checkpoints and fans them out to the EventsIndexer and
+	// TransactionsIndexer. NewIndexer constructs and wires all three together; selectors and
+	// transaction configs are registered later when the ChainReader binds contracts.
 
 	// Build ChainPoller config from TOML settings
 	pollingInterval, err := common.DurationFromSeconds(*cfg.ChainPoller.PollingIntervalSecs)
@@ -166,21 +160,14 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		ChannelBufferSize:       channelBufferSize,
 	}
 
-	// Create ChainPoller - it provides channels via EventsChannel() and TransactionsChannel()
-	chainPoller := indexer.NewChainPoller(
-		suiClientIndexers,
-		loggerInstance,
-		pollerConfig,
-		evIndexer.GetEventSelectors, // SelectorProvider callback for dynamic registration
-	)
-
-	// Create main indexer that orchestrates poller + consumers
-	indexerInstance := indexer.NewIndexer(
-		loggerInstance,
-		chainPoller,
-		evIndexer,
-		txnIndexer,
-	)
+	// Create main indexer that constructs and orchestrates the poller + consumer indexers.
+	// A separate client (suiClientIndexers) is used for the poller to avoid rate limiting.
+	indexerInstance := indexer.NewIndexer(indexer.Params{
+		Logger:       loggerInstance,
+		DB:           db,
+		Client:       suiClientIndexers,
+		PollerConfig: pollerConfig,
+	})
 
 	loggerInstance.Infof("Creating retry manager. NumberRetries: %d", *cfg.TransactionManager.MaxTxRetryAttempts)
 	//nolint:gosec
@@ -229,6 +216,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		balanceMonitor: balanceMonitorService,
 		db:             db,
 		indexer:        indexerInstance,
+		readerCache:    readerCache,
 	}, nil
 }
 
@@ -332,7 +320,7 @@ func (r *SuiRelayer) NewContractReader(ctx context.Context, contractReaderConfig
 	}
 
 	// TODO: validate chainConfig
-	chainReader, err := chainreader.NewChainReader(ctx, r.lggr, r.client, chainConfig, r.db, r.indexer)
+	chainReader, err := chainreader.NewChainReader(ctx, r.lggr, r.client, chainConfig, r.db, r.indexer, r.readerCache)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractReader: %w", err)
 	}

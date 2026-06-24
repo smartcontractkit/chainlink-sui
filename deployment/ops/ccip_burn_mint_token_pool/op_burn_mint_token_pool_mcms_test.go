@@ -43,17 +43,17 @@ func TestBurnMintTokenPoolDualModeOps_ProposalDataMatchesBindingEncoder(t *testi
 	t.Run("set_chain_rate_limiter", func(t *testing.T) {
 		t.Parallel()
 		input := BurnMintTokenPoolSetChainRateLimiterInput{
-			BurnMintPackageId:     mcmstest.PackageID,
-			CoinObjectTypeArg:     mcmstest.CoinTypeArg,
-			StateObjectId:         mcmstest.StateObjectID,
-			OwnerCap:              mcmstest.OwnerCapID,
-			RemoteChainSelectors:  []uint64{mcmstest.DestChainSel},
-			OutboundIsEnableds:    []bool{true},
-			OutboundCapacities:    []uint64{1000},
-			OutboundRates:         []uint64{100},
-			InboundIsEnableds:     []bool{true},
-			InboundCapacities:     []uint64{1000},
-			InboundRates:          []uint64{100},
+			BurnMintPackageId:    mcmstest.PackageID,
+			CoinObjectTypeArg:    mcmstest.CoinTypeArg,
+			StateObjectId:        mcmstest.StateObjectID,
+			OwnerCap:             mcmstest.OwnerCapID,
+			RemoteChainSelectors: []uint64{mcmstest.DestChainSel},
+			OutboundIsEnableds:   []bool{true},
+			OutboundCapacities:   []uint64{1000},
+			OutboundRates:        []uint64{100},
+			InboundIsEnableds:    []bool{true},
+			InboundCapacities:    []uint64{1000},
+			InboundRates:         []uint64{100},
 		}
 		report, err := cld_ops.ExecuteOperation(mcmstest.Bundle(t), BurnMintTokenPoolSetChainRateLimiterOp, sui_ops.OpTxDeps{}, input)
 		require.NoError(t, err)

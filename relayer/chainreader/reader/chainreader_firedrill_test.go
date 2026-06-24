@@ -184,7 +184,7 @@ func TestChainReaderFiredrill(t *testing.T) {
 		evIndexer.GetEventSelectors,
 	)
 
-	indexerInstance := indexer.NewIndexer(
+	indexerInstance := indexer.NewIndexerFromComponents(
 		log,
 		chainPoller,
 		evIndexer,
@@ -192,7 +192,7 @@ func TestChainReaderFiredrill(t *testing.T) {
 	)
 
 	// ChainReader in non-loop mode
-	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
+	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance, nil)
 	require.NoError(t, err)
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{{

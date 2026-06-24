@@ -5,6 +5,7 @@ package reader
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"os"
 	"strings"
@@ -321,6 +322,22 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						Params:             []codec.SuiFunctionParam{},
 						ResponseFromInputs: []string{"package_id"},
 					},
+					// Mirrors how the E2E env wires RMNProxy `get_arm`: the Move function does not exist
+					// on the Sui contract, so the read never calls the chain and instead maps a value
+					// supplied via config (the param DefaultValue) straight back out as the response.
+					"response_from_input_value": {
+						Name:          "get_arm", // never actually invoked; module "counter" resolves for package-id lookup
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:         "address",
+								Name:         "arm",
+								DefaultValue: "0x000000000000000000000000000000000000000000000000000000000000beef",
+								Required:     false,
+							},
+						},
+						ResponseFromInputs: []string{"arm"},
+					},
 				},
 				Events: map[string]*config.ChainReaderEvent{
 					"counter_incremented": {
@@ -526,7 +543,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		log,
-		// start without any selectors, they will be added during .Bind() calls on ChainReader
+		// start without any selectors; they are registered during .Bind() on the ChainReader
 		[]*client.EventSelector{},
 	)
 
@@ -541,7 +558,9 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		evIndexer.GetEventSelectors,
 	)
 
-	indexerInstance := indexer.NewIndexer(
+	// Use the component constructor so the test retains direct handles to the poller (to drain
+	// the transactions channel) and the events indexer (to assert selector registration).
+	indexerInstance := indexer.NewIndexerFromComponents(
 		log,
 		chainPoller,
 		evIndexer,
@@ -549,11 +568,32 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	)
 
 	// ChainReader in non-loop mode
-	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
+	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance, nil)
 	require.NoError(t, err)
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding, onRampBinding, routerBinding, feeQuoterBinding})
 	require.NoError(t, err)
+
+	// Binding must register every configured event selector with the events indexer so the
+	// ChainPoller filters them in from the first checkpoint. This validates the full
+	// bind -> selector-registration -> poll -> index -> query path exercised below: none of the
+	// QueryKey subtests register selectors manually anymore; they rely on this registration.
+	registeredSelectors := make(map[string]bool)
+	for _, sel := range evIndexer.GetEventSelectors() {
+		registeredSelectors[fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event)] = true
+	}
+	expectedSelectors := []string{
+		fmt.Sprintf("%s::counter::CounterIncremented", packageId),
+		fmt.Sprintf("%s::counter::CounterDecremented", packageId),
+		fmt.Sprintf("%s::counter::CounterBytes", packageId),
+		fmt.Sprintf("%s::offramp::ExecutionStateChanged", packageId),
+		fmt.Sprintf("%s::onramp::CCIPMessageSent", packageId),
+		fmt.Sprintf("%s::fee_quoter::UsdPerTokenUpdated", packageId),
+	}
+	for _, want := range expectedSelectors {
+		require.True(t, registeredSelectors[want],
+			"expected event selector %q to be registered with the events indexer after Bind", want)
+	}
 
 	go func() {
 		err = chainReader.Start(ctx)
@@ -786,13 +826,8 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Increment the counter to emit an event
 		log.Debugw("Incrementing counter to emit event", "counterObjectId", counterObjectId)
 
-		// Add the event selector so the poller starts filtering for it
-		err := evIndexer.AddEventSelector(ctx, &client.EventSelector{
-			Package: packageId,
-			Module:  "counter",
-			Event:   "CounterIncremented",
-		})
-		require.NoError(t, err)
+		// The counter::CounterIncremented selector was registered during Bind, so the poller is
+		// already filtering for it; no manual AddEventSelector is needed here.
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
@@ -883,12 +918,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Increment the counter to emit an event
 		log.Debugw("Emitting UsdPerTokenUpdated event")
 
-		evIndexer.AddEventSelector(ctx, &client.EventSelector{
-			Package: packageId,
-			Module:  "fee_quoter",
-			Event:   "UsdPerTokenUpdated",
-		})
-		require.NoError(t, err)
+		// The fee_quoter::UsdPerTokenUpdated selector was registered during Bind.
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
@@ -983,12 +1013,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Increment the counter to emit an event
 		log.Debugw("Emitting CCIPMessageSent event")
 
-		evIndexer.AddEventSelector(ctx, &client.EventSelector{
-			Package: packageId,
-			Module:  "onramp",
-			Event:   "CCIPMessageSent",
-		})
-		require.NoError(t, err)
+		// The onramp::CCIPMessageSent selector was registered during Bind.
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
@@ -1076,12 +1101,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Increment the counter to emit an event
 		log.Debugw("Emitting CCIPMessageSent event")
 
-		evIndexer.AddEventSelector(ctx, &client.EventSelector{
-			Package: packageId,
-			Module:  "onramp",
-			Event:   "CCIPMessageSent",
-		})
-		require.NoError(t, err)
+		// The onramp::CCIPMessageSent selector was registered during Bind.
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
@@ -1177,12 +1197,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Decrement the counter to emit an event (different from what has been previously emitted)
 		log.Debugw("Decrementing counter to emit event", "counterObjectId", counterObjectId)
 
-		evIndexer.AddEventSelector(ctx, &client.EventSelector{
-			Package: packageId,
-			Module:  "counter",
-			Event:   "CounterDecremented",
-		})
-		require.NoError(t, err)
+		// The counter::CounterDecremented selector was registered during Bind.
 
 		moveCallReq := client.MoveCallRequest{
 			Signer:          accountAddress,
@@ -1616,5 +1631,25 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.NoError(t, err)
 		testutils.PrettyPrintDebug(log, retStaticResponse, "retStaticResponse")
 		require.Equal(t, map[string]any{"a": 1, "b": 2, "c": 3}, retStaticResponse, "Expected static response to be map[string]any with keys a, b, and c")
+	})
+
+	t.Run("GetLatestValue_ResponseFromInputValue", func(t *testing.T) {
+		// The configured "arm" param is not passed at call time, so its DefaultValue is resolved and
+		// echoed straight back as the response — no on-chain call is made (the function does not exist).
+		// This is the mechanism the E2E env uses to satisfy RMNProxy get_arm on Sui.
+		const expectedArm = "0x000000000000000000000000000000000000000000000000000000000000beef"
+
+		var retArm any
+		params := map[string]any{}
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Counter", "response_from_input_value"}, "-"),
+			primitives.Finalized,
+			&params,
+			&retArm,
+		)
+		require.NoError(t, err)
+		testutils.PrettyPrintDebug(log, retArm, "retArm")
+		require.Equal(t, expectedArm, retArm, "Expected the read to echo the 'arm' param DefaultValue")
 	})
 }
