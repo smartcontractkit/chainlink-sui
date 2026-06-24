@@ -37,6 +37,61 @@ func WithConnectChainsEnvironment(e cldf.Environment, fn func() error) error {
 	return fn()
 }
 
+var latestPackageIDsEnv struct {
+	mu         sync.RWMutex
+	bySelector map[uint64]LatestPackageIDsConfig
+	active     bool
+}
+
+// WithSuiLatestPackageIDs runs fn while lane sequences read optional upgraded package IDs
+// keyed by Sui chain selector. CLD resolver populates this map from durable pipeline YAML.
+func WithSuiLatestPackageIDs(bySelector map[uint64]LatestPackageIDsConfig, fn func() error) error {
+	latestPackageIDsEnv.mu.Lock()
+	latestPackageIDsEnv.bySelector = copyLatestPackageIDsBySelector(bySelector)
+	latestPackageIDsEnv.active = true
+	latestPackageIDsEnv.mu.Unlock()
+
+	defer func() {
+		latestPackageIDsEnv.mu.Lock()
+		latestPackageIDsEnv.active = false
+		latestPackageIDsEnv.bySelector = nil
+		latestPackageIDsEnv.mu.Unlock()
+	}()
+
+	return fn()
+}
+
+// RunConnectChainsWithSuiScopes wraps ConnectChains with address-book and resolver latest-package-ID scopes.
+func RunConnectChainsWithSuiScopes(
+	e cldf.Environment,
+	latestBySelector map[uint64]LatestPackageIDsConfig,
+	fn func() error,
+) error {
+	return WithConnectChainsEnvironment(e, func() error {
+		return WithSuiLatestPackageIDs(latestBySelector, fn)
+	})
+}
+
+func currentLatestPackageIDs(chainSelector uint64) LatestPackageIDsConfig {
+	latestPackageIDsEnv.mu.RLock()
+	defer latestPackageIDsEnv.mu.RUnlock()
+	if !latestPackageIDsEnv.active || latestPackageIDsEnv.bySelector == nil {
+		return LatestPackageIDsConfig{}
+	}
+	return latestPackageIDsEnv.bySelector[chainSelector]
+}
+
+func copyLatestPackageIDsBySelector(in map[uint64]LatestPackageIDsConfig) map[uint64]LatestPackageIDsConfig {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[uint64]LatestPackageIDsConfig, len(in))
+	for selector, ids := range in {
+		out[selector] = ids
+	}
+	return out
+}
+
 func connectChainsEnvironment() (cldf.Environment, error) {
 	connectChainsEnv.mu.RLock()
 	defer connectChainsEnv.mu.RUnlock()
