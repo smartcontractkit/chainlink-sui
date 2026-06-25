@@ -19,7 +19,15 @@ func opTxDepsForChain(chains cldf_chain.BlockChains, chainSelector uint64) (sui_
 
 	return sui_ops.OpTxDeps{
 		Client: chain.Client,
-		Signer: chain.Signer,
+		// Signer is intentionally nil. The cross-family lane connect flow always emits
+		// MCMS batch operations (CCIP contracts on Sui are timelock-owned) rather than
+		// executing transactions directly: a nil signer makes every op skip execution
+		// and return its encoded Call for proposal assembly (see appendMCMSBatchOpFromCall).
+		// Passing chain.Signer here would instead execute each update against the
+		// timelock-owned contracts (which fails) and produce no proposal. Direct,
+		// signer-based execution of these updates remains available via the dedicated
+		// ConnectSuiToEVM changeset.
+		Signer: nil,
 		GetCallOpts: func() *bind.CallOpts {
 			gasBudget := uint64(400_000_000)
 			return &bind.CallOpts{WaitForExecution: true, GasBudget: &gasBudget}

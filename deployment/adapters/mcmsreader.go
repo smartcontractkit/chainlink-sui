@@ -19,7 +19,7 @@ type MCMSReader struct{}
 
 // mcmsFieldsFromInput loads the on-chain state and selects the correct
 // MCMSStateFields (normal or fastcurse) based on the Qualifier in the input.
-// A Qualifier value of "fastcurse" selects the fastcurse MCMS instance.
+// A Qualifier value of "RMNMCMS" (fastCurseQualifier) selects the fastcurse MCMS instance.
 func mcmsFieldsFromInput(e cldf.Environment, chainSelector uint64, input mcms_utils.Input) (suideploy.MCMSStateFields, error) {
 	stateMap, err := suideploy.LoadOnchainStatesui(e)
 	if err != nil {

@@ -245,6 +245,61 @@ func TestConfigureLaneLegAsSource_MCMSBatchOp_FirstOpEncoderParity(t *testing.T)
 	)
 }
 
+func TestConfigureLaneLegAsSource_MCMSBatchOp_WithLatestPackageIDs(t *testing.T) {
+	env := testEnvWithAddressBook(t)
+	chains := testSuiChains()
+	input := sourceLegInput(common.HexToAddress(evmRouterAddress).Bytes())
+
+	const (
+		// Address-book (registry-identity) package IDs for the source Sui chain.
+		ccipPkg   = "0xece742a763bddf1e36629fa06b605497e413241afd14f05e558e80eef4f64e95"
+		onRampPkg = "0xf87c6010be571a304f0d860857204bc66f037842156f0f6c9d80be265fd83752"
+		routerPkg = "0xed4613bd35004954c07150c3e9b10230f5e23e3058bc2ca0e3e676cb43eb4dc1"
+
+		latestCCIP   = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		latestOnRamp = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+		latestRouter = "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	)
+
+	var report cldf_ops.SequenceReport[laneapi.UpdateLanesInput, sequences.OnChainOutput]
+	err := lanes.WithConnectChainsEnvironment(env, func() error {
+		return lanes.WithSuiLatestPackageIDs(map[uint64]lanes.LatestPackageIDsConfig{
+			suiTestnetSelector: {CCIP: latestCCIP, OnRamp: latestOnRamp, Router: latestRouter},
+		}, func() error {
+			var execErr error
+			report, execErr = cldf_ops.ExecuteSequence(
+				mcmstest.Bundle(t),
+				lanes.ConfigureLaneLegAsSource,
+				chains,
+				input,
+			)
+			return execErr
+		})
+	})
+	require.NoError(t, err)
+	require.Len(t, report.Output.BatchOps, 5)
+
+	// Each op keeps the registry-identity package ID as the MCMS target (tx.To) while
+	// routing PTB execution through the upgraded (latest) package ID.
+	expected := []struct {
+		registry string
+		latest   string
+	}{
+		{ccipPkg, latestCCIP},   // FeeQuoter apply_token_transfer_fee_config_updates
+		{ccipPkg, latestCCIP},   // FeeQuoter apply_dest_chain_config_updates
+		{ccipPkg, latestCCIP},   // FeeQuoter apply_premium_multiplier_wei_per_eth_updates
+		{onRampPkg, latestOnRamp}, // OnRamp apply_dest_chain_config_updates
+		{routerPkg, latestRouter}, // Router set_on_ramps
+	}
+	for i, exp := range expected {
+		tx := report.Output.BatchOps[i].Transactions[0]
+		require.Equal(t, exp.registry, tx.To, "batch op %d To should be registry package id", i)
+		latest, err := utils.TransactionLatestPackageID(tx)
+		require.NoError(t, err)
+		require.Equal(t, exp.latest, latest, "batch op %d should route through latest package id", i)
+	}
+}
+
 func runSourceLeg(
 	t *testing.T,
 	env cldf.Environment,

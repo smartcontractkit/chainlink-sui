@@ -50,10 +50,13 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("decode dest router for chain %d: %w", input.Dest.Selector, err)
 		}
 
+		latestIDs := resolveLatestPackageIDs(input.Source.Selector)
+
 		var out sequences.OnChainOutput
 
 		tokenFeeReport, err := cldf_ops.ExecuteOperation(b, ccip_ops.FeeQuoterApplyTokenTransferFeeConfigUpdatesOp, deps, ccip_ops.FeeQuoterApplyTokenTransferFeeConfigUpdatesInput{
 			CCIPPackageId:        state.CCIPAddress,
+			LatestPackageId:      latestIDs.CCIP,
 			StateObjectId:        state.CCIPObjectRef,
 			OwnerCapObjectId:     state.CCIPOwnerCapObjectId,
 			DestChainSelector:    input.Dest.Selector,
@@ -74,6 +77,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 
 		destCfgInput := TranslateDestChainConfig(input.Dest.FeeQuoterDestChainConfig, input.Dest.Selector)
 		destCfgInput.CCIPPackageId = state.CCIPAddress
+		destCfgInput.LatestPackageId = latestIDs.CCIP
 		destCfgInput.StateObjectId = state.CCIPObjectRef
 		destCfgInput.OwnerCapObjectId = state.CCIPOwnerCapObjectId
 		destCfgReport, err := cldf_ops.ExecuteOperation(b, ccip_ops.FeeQuoterApplyDestChainConfigUpdatesOp, deps, destCfgInput)
@@ -86,6 +90,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 
 		premiumReport, err := cldf_ops.ExecuteOperation(b, ccip_ops.FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp, deps, ccip_ops.FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput{
 			CCIPPackageId:              state.CCIPAddress,
+			LatestPackageId:            latestIDs.CCIP,
 			StateObjectId:              state.CCIPObjectRef,
 			OwnerCapObjectId:           state.CCIPOwnerCapObjectId,
 			Tokens:                     []string{state.LinkTokenCoinMetadataId},
@@ -100,6 +105,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 
 		onRampReport, err := cldf_ops.ExecuteOperation(b, ccip_onramp_ops.ApplyDestChainConfigUpdateOp, deps, ccip_onramp_ops.ApplyDestChainConfigureOnRampInput{
 			OnRampPackageId:           state.OnRampAddress,
+			LatestPackageId:           latestIDs.OnRamp,
 			CCIPObjectRefId:           state.CCIPObjectRef,
 			OwnerCapObjectId:          state.OnRampOwnerCapObjectId,
 			StateObjectId:             state.OnRampStateObjectId,
@@ -116,6 +122,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 
 		routerReport, err := cldf_ops.ExecuteOperation(b, ccip_router_ops.SetOnRampsOp, deps, ccip_router_ops.SetOnRampsInput{
 			RouterPackageId:     state.CCIPRouterAddress,
+			LatestPackageId:     latestIDs.Router,
 			RouterStateObjectId: state.CCIPRouterStateObjectID,
 			OwnerCapObjectId:    state.CCIPRouterOwnerCapObjectId,
 			DestChainSelectors:  []uint64{input.Dest.Selector},
