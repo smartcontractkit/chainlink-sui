@@ -18,7 +18,7 @@ import (
 type ConfigureMCMSConfig struct {
 	mcmsops.ConfigureMCMSSeqInput
 	TimelockConfig *utils.TimelockConfig // If nil, configuration will be executed directly
-	IsFastCurse    bool                  // If true, the fastcurse MCMS instance is configured
+	IsFastCurse    bool `yaml:"isFastCurse,omitempty"` // If true, the fastcurse MCMS instance is configured
 }
 
 var _ cldf.ChangeSetV2[ConfigureMCMSConfig] = ConfigureMCMS{}
@@ -64,8 +64,16 @@ func (c ConfigureMCMS) Apply(e cldf.Environment, config ConfigureMCMSConfig) (cl
 		deps.Signer = nil
 	}
 
+	seqInput := config.ConfigureMCMSSeqInput
+	if seqInput.PackageId == "" {
+		seqInput.PackageId = mcmsState.PackageID
+		seqInput.McmsAccountOwnerCapObjectId = mcmsState.AccountOwnerCapObjectID
+		seqInput.McmsAccountStateObjectId = mcmsState.AccountStateObjectID
+		seqInput.McmsMultisigStateObjectId = mcmsState.StateObjectID
+	}
+
 	// Run ConfigureMCMS Sequence
-	configReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.ConfigureMCMSSequence, deps, config.ConfigureMCMSSeqInput)
+	configReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.ConfigureMCMSSequence, deps, seqInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to configure MCMS for Sui chain %d: %w", config.ChainSelector, err)
 	}
