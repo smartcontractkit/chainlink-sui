@@ -87,6 +87,9 @@ flowchart LR
 	chainlink-canton --> chainlink-ccv/build/devenv
 	chainlink-canton --> chainlink-ccv/deployment
 	chainlink-canton --> chainlink-common/keystore
+	chainlink-canton --> chainlink-evm
+	chainlink-canton --> chainlink-evm/gethwrappers
+	chainlink-canton --> chainlink-framework/chains
 	chainlink-canton --> chainlink-framework/multinode
 	chainlink-canton --> chainlink-protos/chainlink-ccv/committee-verifier
 	chainlink-canton --> chainlink-protos/chainlink-ccv/heartbeat
@@ -111,9 +114,7 @@ flowchart LR
 	click chainlink-ccip/chains/solana href "https://github.com/smartcontractkit/chainlink-ccip"
 	chainlink-ccip/chains/solana/gobindings
 	click chainlink-ccip/chains/solana/gobindings href "https://github.com/smartcontractkit/chainlink-ccip"
-	chainlink-ccip/deployment --> chainlink-evm
-	chainlink-ccip/deployment --> chainlink-evm/gethwrappers
-	chainlink-ccip/deployment --> chainlink-framework/chains
+	chainlink-ccip/deployment
 	click chainlink-ccip/deployment href "https://github.com/smartcontractkit/chainlink-ccip"
 	chainlink-ccv
 	click chainlink-ccv href "https://github.com/smartcontractkit/chainlink-ccv"
