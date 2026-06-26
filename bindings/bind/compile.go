@@ -40,8 +40,8 @@ const env = "local"
 type SourceModifier func(packageRoot string) error
 
 var (
-	testModifierMu  sync.Mutex
-	testModifier    SourceModifier
+	testModifierMu   sync.Mutex
+	testModifier     SourceModifier
 	compilePackageMu sync.Mutex
 )
 

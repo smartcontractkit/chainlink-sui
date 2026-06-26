@@ -184,13 +184,35 @@ jobs:
           go get github.com/smartcontractkit/chainlink-sui@$REF
           go get github.com/smartcontractkit/chainlink-sui/deployment@$REF
 
+          # chainlink-sui/deployment pulls a newer chainlink-ccip/deployment than chainlink
+          # develop pins for chains/evm; keep both sibling modules on the same commit.
+          CCIP_DEP=$(grep -m1 'github.com/smartcontractkit/chainlink-ccip/deployment v' \
+            ../../chainlink-sui/deployment/go.mod | awk '{print $2}')
+          CCIP_REF="${CCIP_DEP##*-}"
+          echo "Aligning chainlink-ccip modules to commit ${CCIP_REF} (from ${CCIP_DEP})"
+          go get "github.com/smartcontractkit/chainlink-ccip/deployment@${CCIP_REF}"
+          go get "github.com/smartcontractkit/chainlink-ccip/chains/evm@${CCIP_REF}"
+
+          cd ../deployment
+          go get "github.com/smartcontractkit/chainlink-ccip/deployment@${CCIP_REF}"
+          go get "github.com/smartcontractkit/chainlink-ccip/chains/evm@${CCIP_REF}"
+
           cd ..
           make gomodtidy
 
-      # 6) Build LOOP plugin
-      - name: Build LOOP plugin
+      # 6) Install public LOOP plugins (same as chainlink integration CI), then overlay PR relayer
+      - name: Install LOOP plugins (public)
+        working-directory: temp/chainlink
+        env:
+          GOPRIVATE: github.com/smartcontractkit/*
+        run: |
+          make install-loopinstall
+          make install-plugins-public
+
+      - name: Build chainlink-sui LOOP plugin from PR
         working-directory: temp/chainlink-sui
-        run: go build -o chainlink-sui ./relayer/cmd/chainlink-sui/main.go
+        run: |
+          go build -ldflags=-s -o "$(go env GOPATH)/bin/chainlink-sui" ./relayer/cmd/chainlink-sui
 
       # 7) Setup Sui CLI
       - name: Setup Sui CLI
@@ -214,7 +236,6 @@ jobs:
         env:
           CL_DATABASE_URL: ${{ env.CL_DATABASE_URL }}
           TEST_ENV_TYPE: in-memory
-          CL_SUI_CMD: ${{ github.workspace }}/temp/chainlink-sui/chainlink-sui
         run: |
           cd temp/chainlink/integration-tests
           echo "=== Running ${{ matrix.test_name }} ==="
