@@ -40,8 +40,6 @@ func generateSortedSigners(count int) []common.Address {
 }
 
 func TestDeployMCMSSeq(t *testing.T) {
-	t.Parallel()
-
 	signer, client := testenv.SetupEnvironment(t)
 
 	deps := sui_ops.OpTxDeps{
@@ -196,8 +194,6 @@ func TestDeployMCMSSeq(t *testing.T) {
 }
 
 func TestDeployFastMCMSSeq_SkipOwnershipTransfer(t *testing.T) {
-	t.Parallel()
-
 	signer, client := testenv.SetupEnvironment(t)
 
 	deps := sui_ops.OpTxDeps{
@@ -238,8 +234,6 @@ func TestDeployFastMCMSSeq_SkipOwnershipTransfer(t *testing.T) {
 }
 
 func TestDeployFastMCMSSeq_PublishesDistinctPackageFromSlowMCMS(t *testing.T) {
-	t.Parallel()
-
 	signer, client := testenv.SetupEnvironment(t)
 
 	deps := sui_ops.OpTxDeps{
