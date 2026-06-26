@@ -102,6 +102,13 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	// config-poll cycle.
 	readerCache := chainreader.NewCache(loggerInstance, chainreader.DefaultCacheConfig())
 
+	// Prevent nil pointer dereference in NewPTBClientFromConfig if the token is not set.
+	if nodeConfig.GrpcToken == nil {
+		loggerInstance.Warn("no gRPC token provided, using empty string fallback")
+		grpcToken := ""
+		nodeConfig.GrpcToken = &grpcToken
+	}
+
 	ptbClientConfig := client.PTBClientConfig{
 		GrpcTarget:            *nodeConfig.GrpcTarget,
 		GrpcToken:             *nodeConfig.GrpcToken,
