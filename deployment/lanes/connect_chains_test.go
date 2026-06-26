@@ -203,10 +203,19 @@ func TestConfigureLaneLegAsSource_RouterAddressBytes(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("32 byte native address", func(t *testing.T) {
+		native := make([]byte, 32)
+		for i := range native {
+			native[i] = byte(i + 1)
+		}
+		_, err := runSourceLeg(t, env, chains, sourceLegInput(native))
+		require.NoError(t, err)
+	})
+
 	t.Run("invalid router length", func(t *testing.T) {
-		_, err := runSourceLeg(t, env, chains, sourceLegInput([]byte{0x01, 0x02, 0x03}))
+		_, err := runSourceLeg(t, env, chains, sourceLegInput(make([]byte, 33)))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "unexpected address length")
+		require.Contains(t, err.Error(), "address longer than 32 bytes")
 	})
 }
 

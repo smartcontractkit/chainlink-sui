@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/ethereum/go-ethereum/common"
 
 	laneapi "github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
@@ -45,9 +44,9 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			return sequences.OnChainOutput{}, err
 		}
 
-		destRouter, err := evmAddressHexFromBytes(input.Dest.Router)
+		destRouter, err := remoteAddressBytesToHex(input.Dest.Router)
 		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("decode dest router for chain %d: %w", input.Dest.Selector, err)
+			return sequences.OnChainOutput{}, fmt.Errorf("encode dest router for chain %d: %w", input.Dest.Selector, err)
 		}
 
 		latestIDs := resolveLatestPackageIDs(input.Source.Selector)
@@ -141,18 +140,4 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 
 func (a *SuiAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[laneapi.UpdateLanesInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return ConfigureLaneLegAsSource
-}
-
-func evmAddressHexFromBytes(b []byte) (string, error) {
-	if len(b) == 0 {
-		return "", fmt.Errorf("empty address bytes")
-	}
-	switch len(b) {
-	case 20:
-		return common.BytesToAddress(b).Hex(), nil
-	case 32:
-		return common.BytesToAddress(b[12:]).Hex(), nil
-	default:
-		return "", fmt.Errorf("unexpected address length %d", len(b))
-	}
 }

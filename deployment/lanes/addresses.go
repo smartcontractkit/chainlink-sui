@@ -1,6 +1,7 @@
 package lanes
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -16,6 +17,21 @@ func packageIDToBytes(address string) ([]byte, error) {
 		return nil, fmt.Errorf("invalid Sui package id %q: %w", address, err)
 	}
 	return out, nil
+}
+
+// remoteAddressBytesToHex encodes opaque remote address bytes from ConnectChains as a
+// Sui address string. Bytes are left-padded to 32 bytes when shorter, matching EVM
+// OffRamp source OnRamp encoding and deployment.StrTo32.
+func remoteAddressBytesToHex(b []byte) (string, error) {
+	if len(b) == 0 {
+		return "", fmt.Errorf("empty address bytes")
+	}
+	if len(b) > 32 {
+		return "", fmt.Errorf("address longer than 32 bytes: %d", len(b))
+	}
+	padded := make([]byte, 32)
+	copy(padded[32-len(b):], b)
+	return "0x" + hex.EncodeToString(padded), nil
 }
 
 func loadChainState(env cldf.Environment, chainSelector uint64) (suideploy.CCIPChainState, error) {
