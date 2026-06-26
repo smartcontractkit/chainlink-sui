@@ -18,7 +18,6 @@ func TestSuiAdapter_GetFeeQuoterDestChainConfig(t *testing.T) {
 	cfg := (&lanes.SuiAdapter{}).GetFeeQuoterDestChainConfig()
 
 	require.True(t, cfg.IsEnabled)
-	require.Equal(t, uint16(10), cfg.MaxNumberOfTokensPerMsg)
 	require.Equal(t, uint32(16_000), cfg.MaxDataBytes)
 	require.Equal(t, uint32(3_000_000), cfg.MaxPerMsgGasLimit)
 	require.Equal(t, uint32(300_000), cfg.DestGasOverhead)
@@ -27,9 +26,11 @@ func TestSuiAdapter_GetFeeQuoterDestChainConfig(t *testing.T) {
 	require.Equal(t, uint16(25), cfg.DefaultTokenFeeUSDCents)
 	require.Equal(t, uint32(90_000), cfg.DefaultTokenDestGasOverhead)
 	require.Equal(t, uint32(200_000), cfg.DefaultTxGasLimit)
-	require.Equal(t, uint32(10), cfg.NetworkFeeUSDCents)
-	require.True(t, cfg.EnforceOutOfOrder)
-	require.Equal(t, uint64(11e17), cfg.GasMultiplierWeiPerEth)
+	require.Equal(t, uint16(10), cfg.NetworkFeeUSDCents)
+	require.NotNil(t, cfg.V1Params)
+	require.Equal(t, uint16(10), cfg.V1Params.MaxNumberOfTokensPerMsg)
+	require.True(t, cfg.V1Params.EnforceOutOfOrder)
+	require.Equal(t, uint64(11e17), cfg.V1Params.GasMultiplierWeiPerEth)
 }
 
 func TestSuiAdapter_GetDefaultGasPrice(t *testing.T) {
@@ -51,25 +52,27 @@ func TestTranslateDestChainConfig(t *testing.T) {
 
 	const destSel = uint64(945045181441419236)
 	cfg := laneapi.FeeQuoterDestChainConfig{
-		IsEnabled:                         true,
-		MaxNumberOfTokensPerMsg:           1,
-		MaxDataBytes:                      30_000,
-		MaxPerMsgGasLimit:                 3_000_000,
-		DestGasOverhead:                   300_000,
-		DestGasPerPayloadByteBase:         16,
-		DestGasPerPayloadByteHigh:         40,
-		DestGasPerPayloadByteThreshold:    3_000,
-		DestDataAvailabilityOverheadGas:   100,
-		DestGasPerDataAvailabilityByte:    16,
-		DestDataAvailabilityMultiplierBps: 1,
-		ChainFamilySelector:               0x2812d52c,
-		EnforceOutOfOrder:                 true,
-		DefaultTokenFeeUSDCents:           25,
-		DefaultTokenDestGasOverhead:       90_000,
-		DefaultTxGasLimit:                 200_000,
-		GasMultiplierWeiPerEth:            1e18,
-		GasPriceStalenessThreshold:        1_000_000,
-		NetworkFeeUSDCents:                10,
+		IsEnabled:                   true,
+		MaxDataBytes:                30_000,
+		MaxPerMsgGasLimit:           3_000_000,
+		DestGasOverhead:             300_000,
+		DestGasPerPayloadByteBase:   16,
+		ChainFamilySelector:         0x2812d52c,
+		DefaultTokenFeeUSDCents:     25,
+		DefaultTokenDestGasOverhead: 90_000,
+		DefaultTxGasLimit:           200_000,
+		NetworkFeeUSDCents:          10,
+		V1Params: &laneapi.FeeQuoterV1Params{
+			MaxNumberOfTokensPerMsg:           1,
+			DestGasPerPayloadByteHigh:         40,
+			DestGasPerPayloadByteThreshold:    3_000,
+			DestDataAvailabilityOverheadGas:   100,
+			DestGasPerDataAvailabilityByte:    16,
+			DestDataAvailabilityMultiplierBps: 1,
+			EnforceOutOfOrder:                 true,
+			GasMultiplierWeiPerEth:            1e18,
+			GasPriceStalenessThreshold:        1_000_000,
+		},
 	}
 
 	got := lanes.TranslateDestChainConfig(cfg, destSel)

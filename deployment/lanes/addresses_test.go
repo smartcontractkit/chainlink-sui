@@ -42,8 +42,6 @@ func loadTestAddressBook(t *testing.T) cldf.AddressBook {
 }
 
 func TestSuiAdapter_AddressGettersFromAddressBook(t *testing.T) {
-	t.Parallel()
-
 	env := testEnvWithAddressBook(t)
 	adapter := &lanes.SuiAdapter{}
 
@@ -75,8 +73,6 @@ func TestSuiAdapter_AddressGettersFromAddressBook(t *testing.T) {
 }
 
 func TestSuiAdapter_AddressGettersFromAddressBook_MissingRef(t *testing.T) {
-	t.Parallel()
-
 	adapter := &lanes.SuiAdapter{}
 	env := cldf.Environment{
 		ExistingAddresses: cldf.NewMemoryAddressBook(),
@@ -95,8 +91,6 @@ func TestSuiAdapter_AddressGettersFromAddressBook_MissingRef(t *testing.T) {
 }
 
 func TestSuiAdapter_AddressGetters_RequireConnectChainsScope(t *testing.T) {
-	t.Parallel()
-
 	adapter := &lanes.SuiAdapter{}
 	_, err := adapter.GetOnRampAddress(nil, suiTestnetSelector)
 	require.Error(t, err)

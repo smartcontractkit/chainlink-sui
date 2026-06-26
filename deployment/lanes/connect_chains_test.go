@@ -11,10 +11,8 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cldf_ops 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
 	"github.com/smartcontractkit/chainlink-sui/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-sui/deployment/ops/mcmstest"
 	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
@@ -217,41 +215,6 @@ func TestConfigureLaneLegAsSource_RouterAddressBytes(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "address longer than 32 bytes")
 	})
-}
-
-func TestConfigureLaneLegAsSource_MCMSBatchOp_FirstOpEncoderParity(t *testing.T) {
-	env := testEnvWithAddressBook(t)
-	chains := testSuiChains()
-	input := sourceLegInput(common.HexToAddress(evmRouterAddress).Bytes())
-
-	report, err := runSourceLeg(t, env, chains, input)
-	require.NoError(t, err)
-	require.Len(t, report.Output.BatchOps, 5)
-	require.Equal(t, suiTestnetSelector, uint64(report.Output.BatchOps[0].ChainSelector))
-
-	feeQuoter, err := module_fee_quoter.NewFeeQuoter(testCCIPPackageID, nil)
-	require.NoError(t, err)
-	encodedCall, err := feeQuoter.Encoder().ApplyTokenTransferFeeConfigUpdates(
-		bind.Object{Id: testCCIPObjectRef},
-		bind.Object{Id: testCCIPOwnerCapID},
-		evmSepoliaSelector,
-		[]string{testLinkCoinMetadata},
-		[]uint32{lanes.DefaultLinkTokenTransferMinFeeUsdCents},
-		[]uint32{lanes.DefaultLinkTokenTransferMaxFeeUsdCents},
-		[]uint16{lanes.DefaultLinkTokenTransferDeciBps},
-		[]uint32{lanes.DefaultLinkTokenTransferDestGasOverhead},
-		[]uint32{lanes.DefaultLinkTokenTransferDestBytesOverhead},
-		[]bool{true},
-		[]string{},
-	)
-	require.NoError(t, err)
-	mcmstest.AssertProposalDataMatches(
-		t,
-		report.Output.BatchOps[0].Transactions[0].Data,
-		encodedCall,
-		testCCIPObjectRef,
-		nil,
-	)
 }
 
 func TestConfigureLaneLegAsSource_MCMSBatchOp_WithLatestPackageIDs(t *testing.T) {

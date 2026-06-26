@@ -15,26 +15,30 @@ func TranslateDestChainConfig(
 	cfg laneapi.FeeQuoterDestChainConfig,
 	destChainSelector uint64,
 ) ccip_ops.FeeQuoterApplyDestChainConfigUpdatesInput {
+	var v1 laneapi.FeeQuoterV1Params
+	if cfg.V1Params != nil {
+		v1 = *cfg.V1Params
+	}
 	return ccip_ops.FeeQuoterApplyDestChainConfigUpdatesInput{
 		DestChainSelector:                 destChainSelector,
 		IsEnabled:                         cfg.IsEnabled,
-		MaxNumberOfTokensPerMsg:           cfg.MaxNumberOfTokensPerMsg,
+		MaxNumberOfTokensPerMsg:           v1.MaxNumberOfTokensPerMsg,
 		MaxDataBytes:                      cfg.MaxDataBytes,
 		MaxPerMsgGasLimit:                 cfg.MaxPerMsgGasLimit,
 		DestGasOverhead:                   cfg.DestGasOverhead,
 		DestGasPerPayloadByteBase:         cfg.DestGasPerPayloadByteBase,
-		DestGasPerPayloadByteHigh:         cfg.DestGasPerPayloadByteHigh,
-		DestGasPerPayloadByteThreshold:    cfg.DestGasPerPayloadByteThreshold,
-		DestDataAvailabilityOverheadGas:   cfg.DestDataAvailabilityOverheadGas,
-		DestGasPerDataAvailabilityByte:    cfg.DestGasPerDataAvailabilityByte,
-		DestDataAvailabilityMultiplierBps: cfg.DestDataAvailabilityMultiplierBps,
+		DestGasPerPayloadByteHigh:         v1.DestGasPerPayloadByteHigh,
+		DestGasPerPayloadByteThreshold:    v1.DestGasPerPayloadByteThreshold,
+		DestDataAvailabilityOverheadGas:   v1.DestDataAvailabilityOverheadGas,
+		DestGasPerDataAvailabilityByte:    v1.DestGasPerDataAvailabilityByte,
+		DestDataAvailabilityMultiplierBps: v1.DestDataAvailabilityMultiplierBps,
 		ChainFamilySelector:               binary.BigEndian.AppendUint32(nil, cfg.ChainFamilySelector),
-		EnforceOutOfOrder:                 cfg.EnforceOutOfOrder,
+		EnforceOutOfOrder:                 v1.EnforceOutOfOrder,
 		DefaultTokenFeeUsdCents:           cfg.DefaultTokenFeeUSDCents,
 		DefaultTokenDestGasOverhead:       cfg.DefaultTokenDestGasOverhead,
 		DefaultTxGasLimit:                 cfg.DefaultTxGasLimit,
-		GasMultiplierWeiPerEth:            cfg.GasMultiplierWeiPerEth,
-		GasPriceStalenessThreshold:        cfg.GasPriceStalenessThreshold,
-		NetworkFeeUsdCents:                cfg.NetworkFeeUSDCents,
+		GasMultiplierWeiPerEth:            v1.GasMultiplierWeiPerEth,
+		GasPriceStalenessThreshold:        v1.GasPriceStalenessThreshold,
+		NetworkFeeUsdCents:                uint32(cfg.NetworkFeeUSDCents),
 	}
 }

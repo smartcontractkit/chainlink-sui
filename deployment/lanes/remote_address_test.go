@@ -16,7 +16,7 @@ func TestRemoteAddressBytesToHex(t *testing.T) {
 	t.Run("20 byte EVM address is left padded", func(t *testing.T) {
 		got, err := remoteAddressBytesToHex(evmAddr.Bytes())
 		require.NoError(t, err)
-		require.Equal(t, "0x000000000000000000000000d3e190f381f06dc0d289590fd452c42fadac586", got)
+		require.Equal(t, "0x000000000000000000000000d3e190f381f06dc0d289590fd452c42fa2dac586", got)
 	})
 
 	t.Run("32 byte address is preserved", func(t *testing.T) {
