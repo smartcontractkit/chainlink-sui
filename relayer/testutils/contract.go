@@ -280,13 +280,11 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		patchMoveTomlEnvironment(filepath.Join(dir, "Move.toml"), envName, chainID)
 	}
 
-	// #region agent log
 	logFile, _ := os.OpenFile("/Users/felix/dev/chainlink/.cursor/debug-7c7360.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if logFile != nil {
 		fmt.Fprintf(logFile, "{\"sessionId\":\"7c7360\",\"hypothesisId\":\"A\",\"location\":\"contract.go:PublishContract\",\"message\":\"pre-publish state\",\"data\":{\"chainID\":%q,\"envName\":%q,\"contractPath\":%q,\"dirsToClean\":%q},\"timestamp\":%d}\n", chainID, envName, contractPath, dirsToClean, time.Now().UnixMilli())
 		logFile.Close()
 	}
-	// #endregion
 
 	publishCmd := exec.Command("sui", "client", "publish",
 		"--gas-budget", gasBudgetArg,
@@ -298,7 +296,6 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 
 	publishOutput, err := publishCmd.CombinedOutput()
 
-	// #region agent log
 	logFile2, _ := os.OpenFile("/Users/felix/dev/chainlink/.cursor/debug-7c7360.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if logFile2 != nil {
 		outSnippet := string(publishOutput)
@@ -308,7 +305,6 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		fmt.Fprintf(logFile2, "{\"sessionId\":\"7c7360\",\"hypothesisId\":\"A\",\"location\":\"contract.go:PublishContract:post\",\"message\":\"publish result\",\"data\":{\"err\":%q,\"outputSnippet\":%q},\"timestamp\":%d}\n", fmt.Sprint(err), outSnippet, time.Now().UnixMilli())
 		logFile2.Close()
 	}
-	// #endregion
 
 	require.NoError(t, err, "Failed to publish contract: %s", string(publishOutput))
 
@@ -603,13 +599,11 @@ func ensureCLIEnvForChainID(chainID string) string {
 	switchCmd := exec.Command("sui", "client", "switch", "--env", envName)
 	switchCmd.CombinedOutput() //nolint:errcheck
 
-	// #region agent log
 	logFile, _ := os.OpenFile("/Users/felix/dev/chainlink/.cursor/debug-7c7360.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if logFile != nil {
 		fmt.Fprintf(logFile, "{\"sessionId\":\"7c7360\",\"hypothesisId\":\"B\",\"location\":\"contract.go:ensureCLIEnvForChainID\",\"message\":\"CLI env created\",\"data\":{\"envName\":%q,\"chainID\":%q},\"timestamp\":%d}\n", envName, chainID, time.Now().UnixMilli())
 		logFile.Close()
 	}
-	// #endregion
 
 	return envName
 }
