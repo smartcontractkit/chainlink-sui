@@ -23,6 +23,13 @@ type DeployMCMSSeqInput struct {
 	Bypasser  *types.Config `json:"bypasser,omitempty" yaml:"bypasser,omitempty"`
 	Proposer  *types.Config `json:"proposer,omitempty" yaml:"proposer,omitempty"`
 	Canceller *types.Config `json:"canceller,omitempty" yaml:"canceller,omitempty"`
+
+	// FastMCMS publishes contracts/mcms/fast_mcms instead of contracts/mcms/mcms.
+	// Typically set by the DeployMCMS changeset from IsFastCurse rather than YAML input.
+	FastMCMS bool `json:"fastMCMS,omitempty" yaml:"fastMCMS,omitempty"`
+
+	// SkipOwnershipTransfer omits the MCMS self-ownership init and accept-ownership proposal.
+	SkipOwnershipTransfer bool `json:"skipOwnershipTransfer,omitempty" yaml:"skipOwnershipTransfer,omitempty"`
 }
 
 type DeployMCMSSeqOutput struct {
@@ -39,10 +46,9 @@ var DeployMCMSSequence = cld_ops.NewSequence(
 )
 
 func deployMCMS(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployMCMSSeqInput) (DeployMCMSSeqOutput, error) {
-	// Deploy MCMS first
-	deployReport, err := cld_ops.ExecuteOperation(env, DeployMCMSOp, deps, cld_ops.EmptyInput{})
+	deployReport, err := executeMCMSDeploy(env, deps, input.FastMCMS)
 	if err != nil {
-		return DeployMCMSSeqOutput{}, fmt.Errorf("failed to deploy MCMS: %w", err)
+		return DeployMCMSSeqOutput{}, err
 	}
 
 	// Configure each timelock role if config is provided
@@ -59,6 +65,13 @@ func deployMCMS(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployMCMSSeqIn
 	_, err = cld_ops.ExecuteSequence(env, ConfigureMCMSSequence, deps, cfgMCMSInput)
 	if err != nil {
 		return DeployMCMSSeqOutput{}, fmt.Errorf("failed to configure MCMS: %w", err)
+	}
+
+	if input.SkipOwnershipTransfer {
+		return DeployMCMSSeqOutput{
+			PackageId: deployReport.Output.PackageId,
+			Objects:   deployReport.Output.Objects,
+		}, nil
 	}
 
 	// Init the ownership transfer to self
@@ -98,4 +111,20 @@ func deployMCMS(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployMCMSSeqIn
 	}
 
 	return output, nil
+}
+
+func executeMCMSDeploy(env cld_ops.Bundle, deps sui_ops.OpTxDeps, fastMCMS bool) (cld_ops.Report[cld_ops.EmptyInput, sui_ops.OpTxResult[DeployMCMSObjects]], error) {
+	if fastMCMS {
+		deployReport, err := cld_ops.ExecuteOperation(env, DeployFastMCMSOp, deps, cld_ops.EmptyInput{})
+		if err != nil {
+			return cld_ops.Report[cld_ops.EmptyInput, sui_ops.OpTxResult[DeployMCMSObjects]]{}, fmt.Errorf("failed to deploy fast MCMS: %w", err)
+		}
+		return deployReport, nil
+	}
+
+	deployReport, err := cld_ops.ExecuteOperation(env, DeployMCMSOp, deps, cld_ops.EmptyInput{})
+	if err != nil {
+		return cld_ops.Report[cld_ops.EmptyInput, sui_ops.OpTxResult[DeployMCMSObjects]]{}, fmt.Errorf("failed to deploy MCMS: %w", err)
+	}
+	return deployReport, nil
 }

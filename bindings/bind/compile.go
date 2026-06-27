@@ -40,8 +40,9 @@ const env = "local"
 type SourceModifier func(packageRoot string) error
 
 var (
-	testModifierMu sync.Mutex
-	testModifier   SourceModifier
+	testModifierMu   sync.Mutex
+	testModifier     SourceModifier
+	compilePackageMu sync.Mutex
 )
 
 // SetTestModifier sets a source modifier for the next compilation (test only)
@@ -208,6 +209,11 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 }
 
 func compilePackageInternal(packageName contracts.Package, namedAddresses map[string]string, isUpgrade bool, suiRPC string, modifier SourceModifier) (PackageArtifact, error) {
+	// CompilePackage uses a process-global SUI_CONFIG_DIR; serialize compiles so
+	// parallel integration tests do not cross-contaminate temp CLI configs.
+	compilePackageMu.Lock()
+	defer compilePackageMu.Unlock()
+
 	var rpcURL string
 	// 1️. Detect dynamic RPC from Docker
 	if suiRPC == "" {
@@ -1162,7 +1168,7 @@ func setupSuiEnv(alias, rpcURL string) error {
 	newCmd.Env = os.Environ()
 	newOut, err := newCmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("failed to create sui env '%s': %v\nOutput:\n%s", alias, err, string(newOut))
+		return fmt.Errorf("failed to create sui env '%s': %w\nOutput:\n%s", alias, err, string(newOut))
 	}
 
 	// Step 4️ — Switch to new env
