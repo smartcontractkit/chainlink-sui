@@ -16,12 +16,12 @@ import (
 var _ cldf.ChangeSetV2[DeployMCMSConfig] = DeployMCMS{}
 
 // DeployMCMSConfig wraps DeployMCMSSeqInput and adds the IsFastCurse flag.
-// When IsFastCurse is true all address-book entries are stored with the
-// "fastcurse" label so that LoadOnchainStatesui can distinguish the two
-// MCMS instances deployed on the same chain.
+// When IsFastCurse is true the fast_mcms package is published and all address-book
+// entries are stored with the "fastcurse" label so LoadOnchainStatesui can distinguish
+// the two MCMS instances deployed on the same chain.
 type DeployMCMSConfig struct {
 	mcmsops.DeployMCMSSeqInput
-	IsFastCurse bool
+	IsFastCurse bool `yaml:"isFastCurse,omitempty"`
 }
 
 type DeployMCMS struct{}
@@ -48,8 +48,10 @@ func (d DeployMCMS) Apply(e cldf.Environment, config DeployMCMSConfig) (cldf.Cha
 		SuiRPC: suiChain.URL,
 	}
 
-	// Run DeployMCMS Sequence
-	mcmsReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.DeployMCMSSequence, deps, config.DeployMCMSSeqInput)
+	seqInput := config.DeployMCMSSeqInput
+	seqInput.FastMCMS = config.IsFastCurse
+
+	mcmsReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.DeployMCMSSequence, deps, seqInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for Sui chain %d: %w", config.ChainSelector, err)
 	}
@@ -59,10 +61,15 @@ func (d DeployMCMS) Apply(e cldf.Environment, config DeployMCMSConfig) (cldf.Cha
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to store MCMS in address book for Sui chain %d: %w", config.ChainSelector, err)
 	}
 
+	proposals := []mcms.TimelockProposal{}
+	if !seqInput.SkipOwnershipTransfer {
+		proposals = append(proposals, mcmsReport.Output.AcceptOwnershipProposal)
+	}
+
 	return cldf.ChangesetOutput{
 		AddressBook:           ab,
 		Reports:               seqReports,
-		MCMSTimelockProposals: []mcms.TimelockProposal{mcmsReport.Output.AcceptOwnershipProposal},
+		MCMSTimelockProposals: proposals,
 	}, nil
 }
 
