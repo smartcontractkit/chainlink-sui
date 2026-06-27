@@ -86,6 +86,39 @@ func GenerateProposal(ctx context.Context, input GenerateProposalInput) (*mcms.T
 	return builder.Build()
 }
 
+// TransactionCallToMCMSTransaction converts an encoded Sui op call into an MCMS transaction.
+// When call.LatestPackageID is set, it is propagated for upgraded-package PTB routing.
+func TransactionCallToMCMSTransaction(call sui_ops.TransactionCall) (types.Transaction, error) {
+	tx, err := suisdk.NewTransactionWithStateObj(
+		call.Module,
+		call.Function,
+		call.PackageID,
+		call.Data,
+		call.Module,
+		[]string{},
+		call.StateObjID,
+		call.TypeArgs,
+	)
+	if err != nil {
+		return types.Transaction{}, fmt.Errorf("create MCMS transaction: %w", err)
+	}
+	if call.LatestPackageID != "" {
+		if setErr := suisdk.SetLatestPackageID(&tx, call.LatestPackageID); setErr != nil {
+			return types.Transaction{}, fmt.Errorf("set latest package ID: %w", setErr)
+		}
+	}
+	return tx, nil
+}
+
+// TransactionLatestPackageID returns the optional upgraded package ID stored on an MCMS transaction.
+func TransactionLatestPackageID(tx types.Transaction) (string, error) {
+	var fields suisdk.AdditionalFields
+	if err := json.Unmarshal(tx.AdditionalFields, &fields); err != nil {
+		return "", fmt.Errorf("unmarshal transaction additional fields: %w", err)
+	}
+	return fields.LatestPackageID, nil
+}
+
 func ExtractTransactionCall(output interface{}, operationID string) (sui_ops.TransactionCall, error) {
 	jsonBytes, err := json.Marshal(output)
 	if err != nil {

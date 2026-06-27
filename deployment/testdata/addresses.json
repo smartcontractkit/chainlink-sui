@@ -221,6 +221,10 @@
       "Type": "SuiRouterStateObjectID",
       "Version": "1.0.0"
     },
+    "0xb000000000000000000000000000000000000000000000000000000000000001": {
+      "Type": "SuiCCIPRouterOwnerCapObjectID",
+      "Version": "1.0.0"
+    },
     "0xbeace36c3c1e1f37c5806c4954140d15cbc7b0002ef7ccb490de26e82f5ec4ca": {
       "Type": "SuiCCIPObjectRef",
       "Version": "1.0.0"

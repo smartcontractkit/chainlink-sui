@@ -62,6 +62,32 @@ func TestOffRampDualModeOps_ProposalDataMatchesBindingEncoder(t *testing.T) {
 		mcmstest.AssertProposalDataMatches(t, report.Output.Call.Data, encoded, input.OffRampStateId, nil)
 	})
 
+	t.Run("apply_source_chain_config_updates_with_latest_package_id", func(t *testing.T) {
+		t.Parallel()
+		const latestPackageID = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+		input := ApplySourceChainConfigUpdateInput{
+			CCIPObjectRef:                         mcmstest.StateObjectID,
+			OffRampPackageId:                      mcmstest.PackageID,
+			LatestPackageId:                       latestPackageID,
+			OffRampStateId:                        mcmstest.CoinMetadata,
+			OwnerCapObjectId:                      mcmstest.OwnerCapID,
+			SourceChainsSelectors:                 []uint64{mcmstest.DestChainSel},
+			SourceChainsIsEnabled:                 []bool{true},
+			SourceChainsIsRMNVerificationDisabled: []bool{false},
+			SourceChainsOnRamp:                    [][]byte{{0x01}},
+		}
+		report, err := cld_ops.ExecuteOperation(mcmstest.Bundle(t), ApplySourceChainConfigUpdatesOp, sui_ops.OpTxDeps{}, input)
+		require.NoError(t, err)
+		require.Equal(t, mcmstest.PackageID, report.Output.Call.PackageID)
+		require.Equal(t, latestPackageID, report.Output.Call.LatestPackageID)
+
+		latestOfframp, err := module_offramp.NewOfframp(latestPackageID, nil)
+		require.NoError(t, err)
+		encoded, err := latestOfframp.Encoder().ApplySourceChainConfigUpdates(bind.Object{Id: input.CCIPObjectRef}, bind.Object{Id: input.OffRampStateId}, bind.Object{Id: input.OwnerCapObjectId}, input.SourceChainsSelectors, input.SourceChainsIsEnabled, input.SourceChainsIsRMNVerificationDisabled, input.SourceChainsOnRamp)
+		require.NoError(t, err)
+		mcmstest.AssertProposalDataMatches(t, report.Output.Call.Data, encoded, input.OffRampStateId, nil)
+	})
+
 	t.Run("add_package_id", func(t *testing.T) {
 		t.Parallel()
 		input := AddPackageIdOffRampInput{

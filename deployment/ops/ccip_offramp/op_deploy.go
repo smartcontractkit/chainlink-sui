@@ -181,6 +181,7 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 type ApplySourceChainConfigUpdateInput struct {
 	CCIPObjectRef                         string
 	OffRampPackageId                      string
+	LatestPackageId                       string // optional: upgraded package ID for PTB execution when OffRampPackageId is the MCMS registry identity
 	OffRampStateId                        string
 	OwnerCapObjectId                      string
 	SourceChainsSelectors                 []uint64
@@ -190,7 +191,11 @@ type ApplySourceChainConfigUpdateInput struct {
 }
 
 var applySourceChainConfigUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ApplySourceChainConfigUpdateInput) (output sui_ops.OpTxResult[DeployCCIPOffRampObjects], err error) {
-	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	binaryPkgId := input.OffRampPackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	offRampPackage, err := module_offramp.NewOfframp(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, err
 	}
@@ -210,6 +215,10 @@ var applySourceChainConfigUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.Op
 	call, err := sui_ops.ToTransactionCall(encodedCall, input.OffRampStateId)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID
+		call.PackageID = input.OffRampPackageId
 	}
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of ApplySourceChainConfigUpdates on OffRamp as per no Signer provided")

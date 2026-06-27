@@ -115,6 +115,7 @@ var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRa
 
 type ApplyDestChainConfigureOnRampInput struct {
 	OnRampPackageId           string
+	LatestPackageId           string // optional: upgraded package ID for PTB execution when OnRampPackageId is the MCMS registry identity
 	CCIPObjectRefId           string
 	OwnerCapObjectId          string
 	StateObjectId             string
@@ -124,7 +125,11 @@ type ApplyDestChainConfigureOnRampInput struct {
 }
 
 var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ApplyDestChainConfigureOnRampInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
-	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	binaryPkgId := input.OnRampPackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	onRampPackage, err := module_onramp.NewOnramp(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
 	}
@@ -143,6 +148,10 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID
+		call.PackageID = input.OnRampPackageId
 	}
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of ApplyDestChainConfigUpdates on OnRamp as per no Signer provided")

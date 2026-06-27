@@ -157,6 +157,7 @@ var FeeQuoterApplyFeeTokenUpdatesOp = cld_ops.NewOperation(
 // FEE QUOTER -- apply_token_transfer_fee_config_updates
 type FeeQuoterApplyTokenTransferFeeConfigUpdatesInput struct {
 	CCIPPackageId        string
+	LatestPackageId      string // optional: upgraded package ID for PTB execution when CCIPPackageId is the MCMS registry identity
 	StateObjectId        string
 	OwnerCapObjectId     string
 	DestChainSelector    uint64
@@ -171,7 +172,11 @@ type FeeQuoterApplyTokenTransferFeeConfigUpdatesInput struct {
 }
 
 var applyTokenTransferFeeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterApplyTokenTransferFeeConfigUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	binaryPkgId := input.CCIPPackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	contract, err := module_fee_quoter.NewFeeQuoter(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
@@ -195,6 +200,10 @@ var applyTokenTransferFeeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID
+		call.PackageID = input.CCIPPackageId
 	}
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of ApplyTokenTransferFeeConfigUpdates on FeeQuoter as per no Signer provided")
@@ -247,6 +256,7 @@ var FeeQuoterApplyTokenTransferFeeConfigUpdatesOp = cld_ops.NewOperation(
 // FEE QUOTER -- apply_dest_chain_config_updates
 type FeeQuoterApplyDestChainConfigUpdatesInput struct {
 	CCIPPackageId                     string
+	LatestPackageId                   string // optional: upgraded package ID for PTB execution when CCIPPackageId is the MCMS registry identity
 	StateObjectId                     string
 	OwnerCapObjectId                  string
 	DestChainSelector                 uint64
@@ -272,7 +282,11 @@ type FeeQuoterApplyDestChainConfigUpdatesInput struct {
 }
 
 var applyDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterApplyDestChainConfigUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	binaryPkgId := input.CCIPPackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	contract, err := module_fee_quoter.NewFeeQuoter(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
@@ -307,6 +321,10 @@ var applyDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID
+		call.PackageID = input.CCIPPackageId
 	}
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of ApplyDestChainConfigUpdates on FeeQuoter as per no Signer provided")
@@ -370,6 +388,7 @@ var FeeQuoterApplyDestChainConfigUpdatesOp = cld_ops.NewOperation(
 // FEE QUOTER -- apply_premium_multiplier_wei_per_eth_updates
 type FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput struct {
 	CCIPPackageId              string
+	LatestPackageId            string // optional: upgraded package ID for PTB execution when CCIPPackageId is the MCMS registry identity
 	StateObjectId              string
 	OwnerCapObjectId           string
 	Tokens                     []string
@@ -377,7 +396,11 @@ type FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput struct {
 }
 
 var applyPremiumMultiplierHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	binaryPkgId := input.CCIPPackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	contract, err := module_fee_quoter.NewFeeQuoter(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
@@ -394,6 +417,10 @@ var applyPremiumMultiplierHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID
+		call.PackageID = input.CCIPPackageId
 	}
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of ApplyPremiumMultiplierWeiPerEthUpdates on FeeQuoter as per no Signer provided")

@@ -173,6 +173,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 
 type SetOnRampsInput struct {
 	RouterPackageId     string
+	LatestPackageId     string // optional: upgraded package ID for PTB execution when RouterPackageId is the MCMS registry identity
 	RouterStateObjectId string
 	OwnerCapObjectId    string
 	DestChainSelectors  []uint64
@@ -191,7 +192,11 @@ var SetOnRampsOp = cld_ops.NewOperation(
 )
 
 var setOnRampsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetOnRampsInput) (output sui_ops.OpTxResult[SetOnRampsObjects], err error) {
-	routerPackage, err := module_router.NewRouter(input.RouterPackageId, deps.Client)
+	binaryPkgId := input.RouterPackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	routerPackage, err := module_router.NewRouter(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[SetOnRampsObjects]{}, err
 	}
@@ -208,6 +213,10 @@ var setOnRampsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetO
 	call, err := sui_ops.ToTransactionCall(encodedCall, input.RouterStateObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[SetOnRampsObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID
+		call.PackageID = input.RouterPackageId
 	}
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of SetOnRamps on Router as per no Signer provided",
