@@ -69,10 +69,14 @@ func (m *mockRPCNode) track(ctx context.Context) error {
 		waitStart := time.Now()
 		select {
 		case m.pathSem <- struct{}{}:
-			atomic.AddInt64(&m.pathWaitNanos, int64(time.Since(waitStart)))
+			if wait := time.Since(waitStart); wait > 0 {
+				atomic.AddInt64(&m.pathWaitNanos, int64(wait))
+			}
 			defer func() { <-m.pathSem }()
 		case <-ctx.Done():
-			atomic.AddInt64(&m.pathWaitNanos, int64(time.Since(waitStart)))
+			if wait := time.Since(waitStart); wait > 0 {
+				atomic.AddInt64(&m.pathWaitNanos, int64(wait))
+			}
 			return ctx.Err()
 		}
 	}
@@ -786,7 +790,7 @@ func TestSharedTransportChokeIsPoolInvariant(t *testing.T) {
 
 	const (
 		streamLimit     = uint32(256) // high on purpose: not the binding constraint here
-		sharedPathLimit = 4
+		sharedPathLimit = 1           // must be 1 so even pool=1 blocks behind the path gate under burst load
 		latency         = 150 * time.Millisecond
 		batchDeadline   = 10 * time.Second
 		batchCount      = 100
