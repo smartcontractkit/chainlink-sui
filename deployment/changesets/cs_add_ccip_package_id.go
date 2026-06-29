@@ -49,6 +49,20 @@ func (d AddCCIPPackageId) Apply(e cldf.Environment, config AddCCIPPackageIdConfi
 	}
 
 	chainState := state[config.SuiChainSelector]
+
+	// When the upgraded package IDs are not provided in the config, fall back to the
+	// latest package IDs recorded in the address book (addresses.json) so operations
+	// execute against the upgraded bytecode without explicit YAML input.
+	if config.LatestCCIPPackageId == "" {
+		config.LatestCCIPPackageId = chainState.LatestCCIPPackageID
+	}
+	if config.LatestOnRampPackageId == "" {
+		config.LatestOnRampPackageId = chainState.LatestOnRampPackageID
+	}
+	if config.LatestOffRampPackageId == "" {
+		config.LatestOffRampPackageId = chainState.LatestOffRampPackageID
+	}
+
 	suiChain := e.BlockChains.SuiChains()[config.SuiChainSelector]
 
 	deps := sui_ops.OpTxDeps{

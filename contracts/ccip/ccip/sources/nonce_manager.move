@@ -6,7 +6,7 @@ use ccip::upgrade_registry::verify_function_allowed;
 use std::string::{Self, String};
 use sui::table::{Self, Table};
 
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
 
 // store this cap to onramp
 public struct NonceManagerCap has key, store {
@@ -23,7 +23,7 @@ const EAlreadyInitialized: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 
 public fun type_and_version(): String {
-    string::utf8(b"NonceManager 1.6.0")
+    string::utf8(b"NonceManager 1.6.1")
 }
 
 #[allow(lint(self_transfer))]

@@ -44,7 +44,7 @@ func (d BackfillLocalDecimals) Apply(e cldf.Environment, config BackfillLocalDec
 
 	ccipPackageId := strings.TrimSpace(config.CCIPPackageId)
 	if ccipPackageId == "" {
-		ccipPackageId = strings.TrimSpace(chainState.CCIPAddress)
+		ccipPackageId = strings.TrimSpace(chainState.EffectiveCCIPPackageID())
 	}
 
 	stateObjectId := strings.TrimSpace(config.StateObjectId)
@@ -138,7 +138,7 @@ func (d BackfillLocalDecimals) VerifyPreconditions(e cldf.Environment, config Ba
 
 	ccipPackageId := strings.TrimSpace(config.CCIPPackageId)
 	if ccipPackageId == "" {
-		ccipPackageId = strings.TrimSpace(chainState.CCIPAddress)
+		ccipPackageId = strings.TrimSpace(chainState.EffectiveCCIPPackageID())
 	}
 	if ccipPackageId == "" {
 		return fmt.Errorf("ccip package id is required")

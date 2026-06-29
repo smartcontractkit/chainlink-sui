@@ -39,10 +39,10 @@ const EUnknownReceiver: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EInvalidFunction: u64 = 5;
 
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
 
 public fun type_and_version(): String {
-    string::utf8(b"ReceiverRegistry 1.6.0")
+    string::utf8(b"ReceiverRegistry 1.6.1")
 }
 
 public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {

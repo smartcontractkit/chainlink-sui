@@ -413,7 +413,7 @@ public fun test_get_source_chain_config_nonexistent() {
 #[test]
 public fun test_type_and_version() {
     let version = offramp::type_and_version();
-    assert!(version == std::string::utf8(b"OffRamp 1.6.0"));
+    assert!(version == std::string::utf8(b"OffRamp 1.6.1"));
 }
 
 #[test]

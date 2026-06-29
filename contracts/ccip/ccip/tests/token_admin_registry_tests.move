@@ -1034,7 +1034,7 @@ public fun test_mcms_accept_admin_role() {
         let mut registry = scenario.take_shared<Registry>();
 
         // Create MCMS callback params for accept (need to include object addresses first)
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&ref)));
         data.append(bcs::to_bytes(&local_token));
 
@@ -1121,7 +1121,7 @@ public fun test_mcms_full_admin_transfer_flow() {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let mut registry = scenario.take_shared<Registry>();
 
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&ref)));
         data.append(bcs::to_bytes(&local_token));
 
@@ -1190,7 +1190,7 @@ public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let mut registry = scenario.take_shared<Registry>();
 
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&ref)));
         data.append(bcs::to_bytes(&local_token));
 
@@ -1239,7 +1239,7 @@ public fun test_mcms_transfer_admin_role_token_not_registered_fails() {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let mut registry = scenario.take_shared<Registry>();
 
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&ref)));
         data.append(bcs::to_bytes(&@0x999)); // unregistered token
         data.append(bcs::to_bytes(&mcms));

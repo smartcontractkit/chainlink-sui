@@ -79,7 +79,7 @@ func (c RegisterCurserCap) Apply(e cldf.Environment, cfg RegisterCurserCapConfig
 	}
 
 	input := rmn_ops.McmsMintAndRegisterCurserCapInput{
-		CCIPPackageId:        chainState.CCIPAddress,
+		CCIPPackageId:        chainState.EffectiveCCIPPackageID(),
 		StateObjectId:        chainState.CCIPObjectRef,
 		SlowOwnerCapObjectId: chainState.CCIPOwnerCapObjectId,
 		FastRegistryObjectId: fastMCMS.RegistryObjectID,

@@ -12,7 +12,7 @@ fun set_up_test(allowlist: vector<address>, ctx: &mut TxContext): allowlist::All
 public fun init_empty_is_empty_and_disabled() {
     let mut scenario = test_scenario::begin(@0x1);
 
-    let state = set_up_test(vector::empty(), scenario.ctx());
+    let state = set_up_test(vector[], scenario.ctx());
 
     assert!(!allowlist::get_allowlist_enabled(&state));
     assert!(allowlist::get_allowlist(&state).is_empty());
@@ -52,11 +52,11 @@ public fun init_non_empty_is_non_empty_and_enabled() {
 public fun cannot_add_to_disabled_allowlist() {
     let mut scenario = test_scenario::begin(@0x1);
 
-    let mut state = set_up_test(vector::empty(), scenario.ctx());
+    let mut state = set_up_test(vector[], scenario.ctx());
 
     let adds = vector[@0x1];
 
-    allowlist::apply_allowlist_updates(&mut state, vector::empty(), adds);
+    allowlist::apply_allowlist_updates(&mut state, vector[], adds);
 
     allowlist::destroy_allowlist(state);
 
@@ -67,23 +67,23 @@ public fun cannot_add_to_disabled_allowlist() {
 public fun apply_allowlist_updates_mutates_state() {
     let mut scenario = test_scenario::begin(@0x1);
 
-    let mut state = set_up_test(vector::empty(), scenario.ctx());
+    let mut state = set_up_test(vector[], scenario.ctx());
 
     allowlist::set_allowlist_enabled(&mut state, true);
 
     assert!(allowlist::get_allowlist(&state).is_empty());
 
-    allowlist::apply_allowlist_updates(&mut state, vector::empty(), vector::empty());
+    allowlist::apply_allowlist_updates(&mut state, vector[], vector[]);
 
     assert!(allowlist::get_allowlist(&state).is_empty());
 
     let adds = vector[@0x1, @0x2];
 
-    allowlist::apply_allowlist_updates(&mut state, vector::empty(), adds);
+    allowlist::apply_allowlist_updates(&mut state, vector[], adds);
 
     let removes = vector[@0x1];
 
-    allowlist::apply_allowlist_updates(&mut state, removes, vector::empty());
+    allowlist::apply_allowlist_updates(&mut state, removes, vector[]);
 
     assert!(allowlist::get_allowlist(&state).length() == 1);
     assert!(allowlist::is_allowed(&state, @0x2));
@@ -98,14 +98,14 @@ public fun apply_allowlist_updates_mutates_state() {
 public fun apply_allowlist_updates_removes_before_adds() {
     let mut scenario = test_scenario::begin(@0x1);
 
-    let mut state = set_up_test(vector::empty(), scenario.ctx());
+    let mut state = set_up_test(vector[], scenario.ctx());
     let account_to_allow = @0x1;
 
     allowlist::set_allowlist_enabled(&mut state, true);
 
     let adds_and_removes = vector[account_to_allow];
 
-    allowlist::apply_allowlist_updates(&mut state, vector::empty(), adds_and_removes);
+    allowlist::apply_allowlist_updates(&mut state, vector[], adds_and_removes);
 
     assert!(allowlist::get_allowlist(&state).length() == 1);
     assert!(allowlist::is_allowed(&state, account_to_allow));

@@ -114,7 +114,7 @@ func (c CurseUncurseChains) Apply(e cldf.Environment, cfg CurseUncurseChainsConf
 	}
 
 	input := rmn_ops.CurseUncurseChainInput{
-		CCIPPackageId:    chainState.CCIPAddress,
+		CCIPPackageId:    chainState.EffectiveCCIPPackageID(),
 		StateObjectId:    chainState.CCIPObjectRef,
 		OwnerCapObjectId: chainState.CCIPOwnerCapObjectId,
 		Subjects:         subjects,
@@ -133,7 +133,7 @@ func (c CurseUncurseChains) Apply(e cldf.Environment, cfg CurseUncurseChainsConf
 			return cldf.ChangesetOutput{}, err
 		}
 		fastInput := rmn_ops.CurseWithCurserCapInput{
-			CCIPPackageId:     chainState.CCIPAddress,
+			CCIPPackageId:     chainState.EffectiveCCIPPackageID(),
 			StateObjectId:     chainState.CCIPObjectRef,
 			CurserCapObjectId: curserCapObjectID,
 			Subjects:          subjects,

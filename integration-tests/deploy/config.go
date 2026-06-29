@@ -173,7 +173,7 @@ func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
-					TypeAndVersion: "RMNRemote 1.6.0",
+					TypeAndVersion: "RMNRemote 1.6.1",
 					StateObjectID:  state.CCIPObjectRef,
 				},
 				IsCursed:             false,
@@ -212,14 +212,14 @@ func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
-					TypeAndVersion: "NonceManager 1.6.0",
+					TypeAndVersion: "NonceManager 1.6.1",
 				},
 			},
 			ReceiverRegistry: view.ReceiverRegistryView{
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
-					TypeAndVersion: "ReceiverRegistry 1.6.0",
+					TypeAndVersion: "ReceiverRegistry 1.6.1",
 				},
 			},
 		},
@@ -256,7 +256,7 @@ func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.OffRampAddress,
 					Owner:          owner,
-					TypeAndVersion: "OffRamp 1.6.0",
+					TypeAndVersion: "OffRamp 1.6.1",
 					StateObjectID:  state.OffRampStateObjectId,
 				},
 				StaticConfig: view.OffRampStaticConfig{
