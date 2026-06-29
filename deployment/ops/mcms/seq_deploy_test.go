@@ -221,10 +221,10 @@ func TestDeployFastMCMSSeq_SkipOwnershipTransfer(t *testing.T) {
 	}
 
 	report, err := cld_ops.ExecuteSequence(bundle, DeployMCMSSequence, deps, DeployMCMSSeqInput{
-		ChainSelector:           cselectors.SUI_TESTNET.Selector,
-		FastMCMS:                true,
-		SkipOwnershipTransfer:   true,
-		Proposer:                proposerConfig,
+		ChainSelector:         cselectors.SUI_TESTNET.Selector,
+		FastMCMS:              true,
+		SkipOwnershipTransfer: true,
+		Proposer:              proposerConfig,
 	})
 	require.NoError(t, err)
 

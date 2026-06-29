@@ -11,7 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	cldf_ops 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-sui/deployment/ops/mcmstest"
@@ -257,9 +257,9 @@ func TestConfigureLaneLegAsSource_MCMSBatchOp_WithLatestPackageIDs(t *testing.T)
 		registry string
 		latest   string
 	}{
-		{ccipPkg, latestCCIP},   // FeeQuoter apply_token_transfer_fee_config_updates
-		{ccipPkg, latestCCIP},   // FeeQuoter apply_dest_chain_config_updates
-		{ccipPkg, latestCCIP},   // FeeQuoter apply_premium_multiplier_wei_per_eth_updates
+		{ccipPkg, latestCCIP},     // FeeQuoter apply_token_transfer_fee_config_updates
+		{ccipPkg, latestCCIP},     // FeeQuoter apply_dest_chain_config_updates
+		{ccipPkg, latestCCIP},     // FeeQuoter apply_premium_multiplier_wei_per_eth_updates
 		{onRampPkg, latestOnRamp}, // OnRamp apply_dest_chain_config_updates
 		{routerPkg, latestRouter}, // Router set_on_ramps
 	}
