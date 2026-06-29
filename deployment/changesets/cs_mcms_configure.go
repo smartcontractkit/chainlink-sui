@@ -18,7 +18,7 @@ import (
 type ConfigureMCMSConfig struct {
 	mcmsops.ConfigureMCMSSeqInput
 	TimelockConfig *utils.TimelockConfig // If nil, configuration will be executed directly
-	IsFastCurse    bool `yaml:"isFastCurse,omitempty"` // If true, the fastcurse MCMS instance is configured
+	IsFastCurse    bool                  `yaml:"isFastCurse,omitempty"` // If true, the fastcurse MCMS instance is configured
 }
 
 var _ cldf.ChangeSetV2[ConfigureMCMSConfig] = ConfigureMCMS{}
