@@ -1,389 +1,201 @@
 # ChainReader
 
-The ChainReader is a core component of the Chainlink SUI Relayer that provides comprehensive blockchain data access capabilities. It enables efficient reading of Sui blockchain state, object data, and events with support for real-time monitoring and historical queries. It consists of 3 main components:
+The ChainReader is a core component of the Chainlink SUI Relayer that provides read access to Sui blockchain state, object data, and events. It consists of three cooperating pieces:
 
-**ContractReader Implementation**: Exposes methods for reading values from contracts and querying events. These methods include:
+**ContractReader implementation** (`suiChainReader`): exposes the LOOP read interface used by Core:
 
-- `GetLatestValue` - gets the latest value of some state in a bound contract
-- `QueryKey` - queries a certain event that was emitted on-chain (and potentially filters by the values of those events)
-- Other utility methods
+- `GetLatestValue` — reads the latest value of some state in a bound contract (object read or dev-inspect function call).
+- `QueryKey` — queries events emitted on-chain (with optional filtering on event field values).
+- `Bind` / `Unbind`, `GetLatestValueWithHeadData`, and other utility methods.
 
-**Events Indexer**: Continuously polls for a set of events defined in the ChainReader's configurations. The events indexer also inserts the found events into the database to ensure that querying them can be done easily with the full extent of SQL querying capabilities, unlike the possibly limited RPC querying features.
+**Events Indexer**: persists the events the ChainReader cares about into a local database, so queries can use the full power of SQL rather than the limited query surface of the node's gRPC API.
 
-> **Note**: It is important to recognize that each database instance is isolated to each individual relayer instance, therefore we must avoid relying completely on the database to answer for those events and should always query the RPC to ensure that the database is caught up before responding to events queries.
+**Transactions Indexer**: detects failed transactions from known transmitters and generates **synthetic events** (notably `ExecutionStateChanged` with a `FAILURE` state). This is necessary because, unlike EVM, Sui does not index events from failed transactions — so a failed CCIP execution would otherwise be invisible to event queries.
 
-**Transactions Indexer**: Finds the transmitters (accounts making on-chain calls to contracts) and watches for failed transactions originating from those accounts. This is useful because in Sui, unlike EVM, events from failed transactions are not indexed and are not findable by querying the RPC's events. Instead, we must generate synthetic events in cases like ExecutionStateChanged in the case of failures.
+> **Note**: Each relayer instance has its own database. Query responses must therefore not rely solely on the database; the indexing pipeline keeps the database current from the chain, and `QueryKey` registers the queried event so it is indexed before reading.
 
+## Indexing architecture
 
+The two indexers no longer poll the RPC independently. Both are **consumers** fed by a single producer, the `ChainPoller`, which streams checkpoint data over the node's gRPC API. This change accompanied the PTB Client's migration from JSON-RPC to gRPC, which removed the event/transaction search endpoints the old per-selector pollers depended on. See [Event Indexing](./event-indexing.md) for the full design.
 
-## Events Indexer Overview
+```mermaid
+graph LR
+    Node[Sui Node - gRPC] -->|checkpoints| CP[ChainPoller]
+    CP -->|events channel| EI[EventsIndexer]
+    CP -->|transactions channel| TI[TransactionsIndexer]
+    EI --> DB[(sui.events)]
+    TI --> DB
+    CR[suiChainReader] -->|Bind: register selectors| EI
+    CR -->|QueryKey: read| DB
+```
 
-During the initialization of the ChainReader abstraction, the events that we are interested in querying are received as part of the ChainReader's configuration. The ChainReader also receives polling frequency configs (interval and timeout) that will be used as polling constraints in the events indexer.
+### Who owns and starts what
 
-ChainReader then initializes the events indexer and stores it in the state (self struct). This takes places in the NewChainReader method in /relayer/chainreader/reader/chainreader.go. 
-
-Below is a code snippet that shows how this is done (code is omitted for brevity):
+The combined `Indexer` (`relayer/chainreader/indexer/indexer.go`) constructs and wires the `ChainPoller`, `EventsIndexer`, and `TransactionsIndexer`. In the relayer, the `Indexer` is created and **started by `SuiRelayer`** (alongside the TxM and balance monitor), and is then passed into the ChainReader as a dependency:
 
 ```go
-// File: /relayer/chainreader/reader/chainreader.go
+// relayer/plugin/relayer.go (abridged)
+indexerInstance := indexer.NewIndexer(indexer.Params{
+    Logger:       loggerInstance,
+    DB:           db,
+    Client:       suiClientIndexers, // a separate PTB client so poller load doesn't contend with writes
+    PollerConfig: pollerConfig,
+})
+// ... SuiRelayer.Start starts r.indexer via services.MultiStart ...
 
-func NewChainReader(..., configs config.ChainReaderConfig, ...) (...) {
-	//... omitted
+chainReader, err := chainreader.NewChainReader(
+    ctx, lggr, ptbClient, chainConfig, db, indexerInstance, readerCache,
+)
+```
 
-    // Create a list of all event selectors to pass to indexers
-	eventConfigurations := make([]*client.EventSelector, 0)
-	eventConfigurationsMap := make(map[string]*config.ChainReaderEvent)
-	for _, moduleConfig := range configs.Modules {
-		if moduleConfig.Events != nil {
-			for _, eventConfig := range moduleConfig.Events {
-				eventConfigurations = append(eventConfigurations, &eventConfig.EventSelector)
-				eventConfigurationsMap[fmt.Sprintf("%s::%s", eventConfig.Name, eventConfig.EventType)] = eventConfig
-			}
-		}
-	}
+`NewChainReader` therefore receives an already-constructed `indexer.IndexerApi`; it does not build or start the indexers itself:
 
-	eventsIndexer := indexer.NewEventIndexer(
-		dbStore, // Abstraction over the database connection with helper methods
-		lgr,
-		abstractClient, // PTB Client (abstraction over the RPC SDK)
-		eventConfigurations,
-		configs.EventsIndexer.PollingInterval,
-		configs.EventsIndexer.SyncTimeout,
-	)
-
-	//... omitted
-
-	return &suiChainReader{
-		//... omitted
-		eventsIndexer:             eventsIndexer,
-		eventsIndexerCancel:       nil,
-	}, nil
+```go
+// relayer/chainreader/reader/chainreader.go
+func NewChainReader(
+    ctx context.Context,
+    lgr logger.Logger,
+    ptbClient *client.PTBClient,
+    configs config.ChainReaderConfig,
+    db sqlutil.DataSource,
+    indexer indexer.IndexerApi,
+    readerCache *Cache,
+) (pkgtypes.ContractReader, error) {
+    // ... ensures DB schema, stores deps ...
+    return &suiChainReader{ /* ... */ indexer: indexer, /* ... */ }, nil
 }
 ```
 
+The ChainReader's own `Start` only applies any (now-deprecated) event offset overrides; the indexing pipeline is already running under the relayer.
 
-NOTE: eventConfigurations is a slice of the EventSelector type which in Sui refers to 3 values (package ID, module and type) delimited by ::.  
+## Registering event selectors
 
-For example `0x...::offramp::StaticConfigSet.`
+The poller only forwards events that match a registered selector. The ChainReader registers selectors at two points:
+
+### At bind time
+
+When `Bind` is called for a contract, the ChainReader registers **every event selector configured for that contract** using the binding's package address (`registerConfiguredEventSelectors`). This means events are filtered in from the moment the contract is bound, rather than only after the first `QueryKey` for each event.
+
+Binding the **OffRamp** contract additionally:
+
+- Resolves the latest OffRamp package ID and hands both the bound and latest package IDs to the Transactions Indexer (`SetOffRampPackage`).
+- Registers the `offramp::SourceChainConfigSet` and `ocr3_base::ConfigSet` selectors, which the Transactions Indexer needs to find transmitters and source-chain config when building synthetic events.
+
+Because a selector can only be registered once its contract is bound, the poller may already have advanced past — and discarded — checkpoints carrying those events. So when a bind registers new selectors, the ChainReader calls `RescanRecentCheckpoints`, which rewinds the poller to re-scan recent checkpoints. Re-inserts are idempotent (`ON CONFLICT DO NOTHING`), so this is safe.
 
 ```go
-// File: /relayer/client/models.go
-
+// A selector is the Sui event tag: packageId::moduleId::eventId
+// e.g. 0x...::offramp::StaticConfigSet
 type EventFilterByMoveEventModule struct {
-	Package string `json:"package"`
-	Module  string `json:"module"`
-	Event   string `json:"event"`
+    Package string `json:"package"`
+    Module  string `json:"module"`
+    Event   string `json:"event"`
 }
-
-// EventSelector is an alias for EventFilterByMoveEventModule
 type EventSelector = EventFilterByMoveEventModule
-​
 ```
 
-Once the ChainReader is initialized, a subsequent call to the Start method of ChainReader will also start the events indexer. This can also be found in same file referenced above.
+### On demand in `QueryKey`
 
-NOTE: we keep track of the cancel method of the context that the events indexer was started with to ensure that a clean stop is achievable later if ChainReader’s Stop method is called.
-
-
-```go
-// File: /relayer/chainreader/reader/chainreader.go
-
-func (s *suiChainReader) Start(ctx context.Context) error {
-	return s.starter.StartOnce(s.Name(), func() error {
-		// start events indexer
-		eventsIndexerCtx, cancelEventsIndexerCtx := context.WithCancel(ctx)
-		go func() {
-			err := s.eventsIndexer.Start(eventsIndexerCtx)
-			if err != nil {
-				s.logger.Error("Indexer failed to start", "error", err)
-				if s.eventsIndexerCancel != nil {
-					(*s.eventsIndexerCancel)()
-				}
-			}
-			s.logger.Info("Events indexer started")
-			// set the cancel function
-			s.eventsIndexerCancel = &cancelEventsIndexerCtx
-		}()
-
-		// ... omitted
-
-		return nil
-	})
-}
-```
-
-
-Once the events indexer starts, it will continuously polls the RPC endpoint for events that are listed within the specified selectors.
+`QueryKey` constructs the event configuration for the requested key (falling back to an ad-hoc config when none is declared), rewrites the selector's package to the bound contract address, and registers it with the events indexer before reading from the database. This keeps query responses current without over-relying on possibly-stale database records.
 
 ```go
-// File: /relayer/chainreader/indexer/events_indexer.go
-
-func (eIndexer *EventsIndexer) Start(ctx context.Context) error {
-	ticker := time.NewTicker(eIndexer.pollingInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			syncCtx, cancel := context.WithTimeout(ctx, eIndexer.syncTimeout)
-			start := time.Now()
-
-			err := eIndexer.SyncAllEvents(syncCtx)
-			elapsed := time.Since(start)
-
-			if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-				eIndexer.logger.Warnw("EventSync completed with errors", "error", err, "duration", elapsed)
-			} else if err != nil {
-				eIndexer.logger.Warnw("EventSync timed out", "duration", elapsed)
-			} else {
-				eIndexer.logger.Debugw("Event sync completed successfully", "duration", elapsed)
-			}
-
-			cancel()
-		case <-ctx.Done():
-			eIndexer.logger.Infow("Event polling stopped")
-			return nil
-		}
-	}
-}
-```
-
-The eIndexer.SyncAllEvents call does the following:
-
-- For each event listed in eventConfigurations
-- Fetch the latest cursor (from the DB) for it
-- Query the Sui RPC endpoint (using the PTB client) to get the latest events (of that type)
-- Insert each into the database
-
-The database events table is created with the following schema:
-
-| Column Name | Data Type | Constraints | Description |
-|-------------|-----------|-------------|-------------|
-| `id` | `BIGSERIAL` | `PRIMARY KEY` | Auto-incrementing unique identifier |
-| `event_account_address` | `TEXT` | `NOT NULL` | Address of the account that emitted the event |
-| `event_handle` | `TEXT` | `NOT NULL` | Fully qualified Sui event selector |
-| `event_offset` | `BIGINT` | `NOT NULL` | Offset position of the event within the transaction |
-| `tx_digest` | `TEXT` | `NOT NULL` | Unique transaction digest/hash |
-| `block_version` | `BIGINT` | `NOT NULL` | Version number of the block |
-| `block_height` | `TEXT` | `NOT NULL` | Height of the block in the chain |
-| `block_hash` | `BYTEA` | `NOT NULL` | Hash of the block (binary data) |
-| `block_timestamp` | `BIGINT` | `NOT NULL` | Unix timestamp when the block was created |
-| `data` | `JSONB` | `NOT NULL` | Event data as a JSON blob for efficient querying |
-
-**Unique Constraint**: `UNIQUE (event_account_address, event_handle, tx_digest, event_offset)`
-
-> **Note**: The `event_handle` field stores the fully qualified Sui event selector in the format `package::module::event_type`.
-​
-The event_handle being a string field in the fully qualified Sui event selector format discussed above. Also note that data is simply a JSON blob due to the ability of Postgres to query JSON fields efficiently.
-
-To view the exact fields of each event, you can refer to the corresponding contract or the /relayer/codec/types.go file. All event types will match exactly what is available in Aptos and other implementations as they are cast into strong types in Chainlink Core.
-
-NOTE: the types.go file in the codec module may not include all the types we are indexing since we don’t need to deserialize them in the Relayer but can be easily added to serve as a reference.
-
-
-
-In the case of queries for events, QueryKey in ChainReader, we must make update the configuration and sync that specific event before making a call to the database. This helps ensure that responses to queries are always upto date without over reliance on the database records which maybe stale.
-
-
-One of the challenges faced here is that the ChainReader does not know all the package IDs at compile time (at the time the configuration is set and ChainReader is started). QueryKey method must therefore update its configuration to set the package ID to ensure it’s available for querying.
-
-```go
-// File: /relayer/chainreader/reader/chainreader.go
-
-// QueryKey queries events from the indexer database for events that were populated from the RPC node
+// relayer/chainreader/reader/chainreader.go (abridged)
 func (s *suiChainReader) QueryKey(..., contract pkgtypes.BoundContract, filter query.KeyFilter, ...) (...) {
-	// ...omitted
+    // ...resolve eventConfig (or construct ad-hoc)...
 
-	// Get module and event configuration
-	moduleConfig := s.config.Modules[contract.Name]
-	eventConfig, err := s.getEventConfig(moduleConfig, filter.Key)
-	// No event config found, construct a config
-	if err == nil && eventConfig == nil {
-		// construct a new config ad-hoc
-		eventConfig = &config.ChainReaderEvent{
-			Name:      filter.Key,
-			EventType: filter.Key,
-			EventSelector: client.EventSelector{
-				Package: contract.Address,
-				Module:  contract.Name,
-				Event:   filter.Key,
-			},
-		}
-	} else if err != nil {
-		return nil, err
-	}
+    // only write the contract address; module/event come from config
+    eventConfig.Package = contract.Address
 
-	if moduleConfig.Name != "" {
-		eventConfig.Name = moduleConfig.Name
-	}
-
-	// only write contract address, rest will be handled during chainreader config
-	eventConfig.EventSelector.Package = contract.Address
-
-	// ...omitted
+    selector := client.EventSelector{
+        Package: contract.Address,
+        Module:  eventConfig.EventSelector.Module,
+        Event:   eventConfig.EventType,
+    }
+    // ensure the selector is indexed for upcoming checkpoints
+    err = s.indexer.GetEventIndexer().AddEventSelector(ctx, &selector)
+    // ...then query the database...
 }
 ```
+
+## Database events table
+
+Both real and synthetic events are stored in `sui.events`:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | `BIGSERIAL PRIMARY KEY` | Auto-incrementing identifier |
+| `event_account_address` | `TEXT NOT NULL` | Package address that owns the event |
+| `event_handle` | `TEXT NOT NULL` | Fully qualified `package::module::event` |
+| `event_offset` | `BIGINT NOT NULL` | Stable per-handle offset (`0` for synthetic events) |
+| `tx_digest` | `TEXT NOT NULL` | Transaction digest (hex) |
+| `block_version` | `BIGINT NOT NULL` | Reserved (currently `0`) |
+| `block_height` | `TEXT NOT NULL` | Checkpoint sequence number |
+| `block_hash` | `BYTEA NOT NULL` | Checkpoint digest bytes |
+| `block_timestamp` | `BIGINT NOT NULL` | Checkpoint timestamp (seconds) |
+| `data` | `JSONB NOT NULL` | Event payload (camelCase keys) |
+| `is_synthetic` | `BOOLEAN DEFAULT FALSE` | `true` for synthetic failure events |
+
+**Unique constraint**: `UNIQUE (event_account_address, event_handle, tx_digest, event_offset)`.
+
+> The `data` column is a JSON blob because Postgres can query JSON fields efficiently. To see the exact fields of each event, refer to the corresponding contract or `relayer/codec/types.go`. Event types are cast to strong types in Chainlink Core, matching the Aptos and other implementations. The codec `types.go` may not list every indexed type (we only need to deserialize some of them), but new types can be added there for reference.
+
+See [Database Integration](./database.md) for indexes and query helpers.
 
 ## Transactions Indexer Overview
 
-The Transactions Indexer addresses a unique challenge in Sui blockchain: unlike EVM chains, events from failed transactions are not indexed by the RPC and cannot be queried directly. To solve this, the Transactions Indexer monitors transmitter accounts for failed transactions and generates synthetic events that would have been emitted if the transactions had succeeded.
+The Transactions Indexer addresses a Sui-specific gap: events from **failed** transactions are not indexed by the node and cannot be queried. To compensate, it watches transmitter accounts for failed executions and emits synthetic `ExecutionStateChanged` events so downstream systems can track failed cross-chain messages.
 
-During ChainReader initialization, the Transactions Indexer is created alongside the Events Indexer. The indexer is configured to monitor specific accounts (transmitters) that are responsible for executing cross-chain transactions, particularly looking for failed `ExecutionStateChanged` events.
+It is a **channel consumer**: the `ChainPoller` sends it every transaction in each checkpoint (`CheckpointTransactionsBatch`), and the indexer decides which to act on.
+
+### Bootstrapping
+
+Processing is gated until the indexer has enough context. On start it:
+
+1. Waits for the ChainReader to bind the OffRamp package (`SetOffRampPackage`, called from `Bind`).
+2. Polls the database until the first `ocr3_base::ConfigSet` event has been indexed (the source of the transmitter set).
+
+Until both are satisfied it drains its channel without acting, so the poller is never blocked.
 
 ```go
-// File: /relayer/chainreader/reader/chainreader.go
-
-func NewChainReader(..., configs config.ChainReaderConfig, ...) (...) {
-    //... omitted
-
-    // Create transactions indexer for synthetic event generation
-    transactionIndexer := indexer.NewTransactionsIndexer(
-        dataStore.DB(),
-        lgr,
-        abstractClient,
-        configs.TransactionsIndexer.PollingInterval,
-        configs.TransactionsIndexer.SyncTimeout,
-        eventConfigurationsMap,
-    )
-
-    //... omitted
-
-    return &suiChainReader{
-        //... omitted
-        transactionIndexer:        transactionIndexer,
-        transactionIndexerCancel:  nil,
-    }, nil
+type TransactionsIndexerApi interface {
+    Start(ctx context.Context, transactionsCh <-chan CheckpointTransactionsBatch) error
+    ProcessCheckpointTransactions(ctx context.Context, batch CheckpointTransactionsBatch) error
+    SetOffRampPackage(pkg string, latestPkg string)
+    Ready() error
+    Close() error
 }
 ```
 
-The Transactions Indexer is initialized with several key parameters:
+### Failed-transaction detection
 
-- **Polling Configuration**: Controls how frequently to check for new transactions
-- **Execute Functions**: Monitors specific contract functions (`finish_execute`) that can fail
-- **Event Configurations**: Maps of events that need synthetic generation when transactions fail
-- **Transmitter Tracking**: Maintains cursors for each monitored transmitter account
+For each transaction in a checkpoint, the indexer keeps only those that are:
 
-### Synthetic Event Generation Process
+1. **From a known transmitter** — the sender is in the set parsed from the latest `ocr3_base::ConfigSet` event.
+2. **Failed** — `effects.status.success == false`.
+3. **Programmable** — the transaction kind is a `ProgrammableTransaction`.
 
-Once started, the Transactions Indexer follows a systematic process to identify failed transactions and generate synthetic events:
+It then parses the Move abort from the gRPC `ExecutionError` (`parseMoveAbortFromExecutionError`), confirms the PTB contains an `offramp::init_execute` call (matching either the bound or latest OffRamp package), and verifies the failure did **not** occur in `init_execute` itself.
 
-```go
-// File: /relayer/chainreader/indexer/transactions_indexer.go
+### Synthetic event creation
 
-func (tIndexer *TransactionsIndexer) Start(ctx context.Context) error {
-    // Wait for initial ExecutionStateChanged event before starting
-    if err := tIndexer.waitForInitialEvent(ctx); err != nil {
-        return err
-    }
-
-    ticker := time.NewTicker(tIndexer.pollingInterval)
-    defer ticker.Stop()
-
-    for {
-        select {
-        case <-ticker.C:
-            syncCtx, cancel := context.WithTimeout(ctx, tIndexer.syncTimeout)
-            err := tIndexer.SyncAllTransmittersTransactions(syncCtx)
-            
-            // Handle sync results and continue polling
-            
-        case <-ctx.Done():
-            return nil
-        }
-    }
-}
-```
-
-The indexer waits for an initial `ExecutionStateChanged` event to ensure the system is properly bootstrapped before monitoring for failures. This prevents the indexer from starting before the contracts are deployed and configured.
-
-### Failed Transaction Detection and Processing
-
-For each polling cycle, the Transactions Indexer performs the following steps:
-
-1. **Query Transmitter Transactions**: Retrieves recent transactions from each known transmitter account
-2. **Filter Failed Transactions**: Identifies transactions with `status != "success"`
-3. **Validate Transaction Type**: Ensures the failed transaction is a programmable transaction
-4. **Parse Error Details**: Extracts Move abort information from the transaction error
-5. **Validate Execution Context**: Confirms the failure occurred in the expected module and function
+When a valid failed execution is found, the indexer extracts the execution report from the `init_execute` call's arguments, deserializes it, looks up the source-chain config, computes the message hash, and builds a synthetic event:
 
 ```go
-// File: /relayer/chainreader/indexer/transactions_indexer.go
-
-// Process each failed transaction
-for _, transactionRecord := range queryResponse.Data {
-    if transactionRecord.Effects.Status.Status == "success" {
-        continue // Skip successful transactions
-    }
-
-    // Parse the Move abort error to understand failure context
-    errMessage := transactionRecord.Effects.Status.Error
-    moveAbort, err := tIndexer.parseMoveAbort(errMessage)
-    if err != nil {
-        continue
-    }
-
-    // Validate the failure occurred in the expected module/function
-    if moveAbort.Location.Module.Name != moduleKey || 
-       !slices.Contains(tIndexer.executeFunctions, *moveAbort.Location.FunctionName) {
-        continue
-    }
-
-    // Extract execution report from transaction arguments
-    // Generate synthetic ExecutionStateChanged event
-}
-```
-
-### Synthetic ExecutionStateChanged Event Creation
-
-When a valid failed execution is detected, the indexer creates a synthetic `ExecutionStateChanged` event that mirrors what would have been emitted if the transaction succeeded but with a failure state:
-
-```go
-// Create synthetic ExecutionStateChanged event
 executionStateChanged := map[string]any{
-    "source_chain_selector": fmt.Sprintf("%d", sourceChainSelector),
-    "sequence_number":       fmt.Sprintf("%d", execReport.Message.Header.SequenceNumber),
-    "message_id":            "0x" + hex.EncodeToString(execReport.Message.Header.MessageID),
-    "message_hash":          "0x" + hex.EncodeToString(messageHash[:]),
+    "source_chain_selector": strconv.FormatUint(sourceChainSelector, 10),
+    "sequence_number":       strconv.FormatUint(execReport.Message.Header.SequenceNumber, 10),
+    "message_id":            codec.BytesToAnySlice(execReport.Message.Header.MessageID),
+    "message_hash":          codec.BytesToAnySlice(messageHash[:]),
     "state":                 uint8(3), // 3 = FAILURE
 }
 ```
 
-The synthetic event contains the same data fields as a real `ExecutionStateChanged` event, but with the execution state set to `FAILURE` (value 3). This enables downstream systems to properly track failed cross-chain message executions.
+The record is written to the same `sui.events` table with `is_synthetic = true` and `event_offset = 0`. Inserts use batch-with-fallback (per-record on batch failure) for reliability.
 
-### Database Integration
+### Transmitter discovery
 
-Synthetic events are inserted into the same `sui.events` table used by the Events Indexer, ensuring consistent querying capabilities:
+Transmitters are not configured manually. The indexer reads them from the latest `ocr3_base::ConfigSet` event in the database, so it automatically tracks OCR configuration changes without restarts.
 
-```go
-record := database.EventRecord{
-    EventAccountAddress: eventAccountAddress,
-    EventHandle:         eventHandle,        // Same format as real events
-    EventOffset:         0,
-    TxDigest:            transactionRecord.Digest,
-    BlockHeight:         checkpointResponse.SequenceNumber,
-    BlockHash:           []byte(checkpointResponse.Digest),
-    BlockTimestamp:      blockTimestamp,
-    Data:                executionStateChanged, // Synthetic event data
-}
-```
+## Read path: `GetLatestValue`
 
-The indexer employs a batch insertion strategy with individual fallback to ensure maximum reliability when persisting synthetic events.
-
-### Transmitter Discovery and Management  
-
-The Transactions Indexer automatically discovers transmitter accounts by monitoring `ConfigSet` events from the OCR3 base contract. This ensures it stays synchronized with the current set of authorized transmitters without manual configuration:
-
-```go
-// File: /relayer/chainreader/indexer/transactions_indexer.go
-
-func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]models.SuiAddress, error) {
-    // Query ConfigSet events to find current transmitters
-    // Extract transmitter addresses from OCR configuration
-    // Update internal transmitter tracking
-}
-```
-
-This dynamic discovery mechanism ensures the indexer automatically adapts to OCR configuration changes without requiring restarts or manual intervention.
-
-**NOTE**: The Transactions Indexer maintains separate cursors for each transmitter account, enabling efficient incremental processing and avoiding duplicate synthetic event generation.
-
+`GetLatestValue` resolves the contract binding and module/function config, then performs either an object read or a dev-inspect (read-only) Move call via the PTB Client. Reads are routed through the shared `ReaderCache`, which collapses concurrent identical reads and (when enabled) reuses decoded results for a short TTL, reducing redundant RPCs during config polling. Pointer objects (needed to locate other objects/packages) are pre-loaded at bind time — see [Pointer Tags in ChainReader](./pointer-tags-in-cr.md).

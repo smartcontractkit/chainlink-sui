@@ -245,4 +245,41 @@ Another important note is that the Sui RPC offers endpoints to get the normalize
 
 ### Challenge 6: Events and Transactions Indexing
 
-In this section, two separate but related challenges are discussed, both originating from the topic of Sui RPC node reliance and possible limitations.
+In this section, two separate but related challenges are discussed, both originating from the topic of Sui node reliance and possible limitations.
+
+#### Background: the move to gRPC
+
+The relayer's PTB Client originally talked to the node over **JSON-RPC**, which offered search endpoints such as "query events by `package::module::event`" and "query transactions from address" with cursor-based pagination. The indexers used those endpoints: each event selector was polled independently with its own cursor, and a transactions indexer polled each transmitter's transaction history.
+
+The PTB Client has since migrated to the node's **gRPC** API for performance and forward compatibility. Crucially, the gRPC API does **not** expose those server-side search endpoints. There is no way to ask the node "give me all `offramp::ExecutionStateChanged` events since cursor X." This broke the original indexing design and forced a different approach.
+
+#### Sub-challenge A: events can no longer be searched server-side
+
+Without an event-search endpoint, the relayer cannot pull events by type on demand. The chain must instead be scanned.
+
+##### Solution: checkpoint-based polling with a ChainPoller
+
+A single `ChainPoller` watches **every checkpoint** the node produces (via `GetCheckpointData`), which returns each checkpoint's transactions together with their emitted events. The poller filters those events against the set of registered selectors client-side and forwards the matches to the `EventsIndexer`, which persists them to the `sui.events` table.
+
+Key properties of this design:
+
+- **Single producer, multiple consumers.** One poller fans checkpoint data out over channels to the Events Indexer (matching events) and Transactions Indexer (all transactions). This avoids N independent pollers and N cursors.
+- **Dynamic selectors.** Selectors are registered when contracts are bound (the relayer doesn't know all package IDs at compile time). The poller reads the live selector set on every checkpoint, so newly bound contracts are honored immediately.
+- **Backfill and rescan.** Because a selector can only be registered after its contract is bound, the poller may have already passed the checkpoints carrying matching events. Registering a selector triggers a bounded **rescan** that rewinds the poller; since inserts use `ON CONFLICT DO NOTHING`, re-scanning is idempotent and safe.
+
+See [Event Indexing](./event-indexing.md) for the full architecture.
+
+#### Sub-challenge B: failed transactions emit no events
+
+In Sui, a transaction that aborts does **not** emit its events, and the node does not index events from failed transactions. This is a problem for CCIP: a failed message execution should surface as an `ExecutionStateChanged` event with a `FAILURE` state, but no such event exists on-chain. Unlike EVM, we cannot simply read the receipt's logs.
+
+##### Solution: synthetic events from a Transactions Indexer
+
+The `TransactionsIndexer` consumes every transaction in each checkpoint (forwarded by the ChainPoller) and reconstructs the missing event:
+
+1. It tracks the current **transmitters** by reading the latest `ocr3_base::ConfigSet` event from the database.
+2. It keeps only failed, programmable transactions sent by a known transmitter.
+3. It parses the Move abort from the transaction's gRPC `ExecutionError`, confirms the PTB contained an `offramp::init_execute` call, and extracts the execution report from that call's arguments.
+4. It deserializes the report, looks up the source-chain config, computes the message hash, and writes a **synthetic** `ExecutionStateChanged` event (`state = 3`, `is_synthetic = true`) into the same `sui.events` table.
+
+Downstream queries treat synthetic and real events uniformly, so failed executions become visible to the same `QueryKey` path as successful ones.

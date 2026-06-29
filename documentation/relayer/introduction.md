@@ -15,11 +15,11 @@ The Sui relayer is responsible for using deployment configurations from Core to 
 
 **Transaction Manager (TXM)**: Responsible for maintaining a list of calls that need to be made to contracts (e.g., CCIP Send), enqueuing those transactions, tracking their states, and retrying failed transactions when needed. For more details, see the [Transaction Manager documentation](../relayer/transaction-manager.md).
 
-**ChainReader (CR)**: Responsible for reading values from contracts, watching for events, and monitoring failed transactions. It provides a separate entry point for the LOOP interface used by Core to read values. In Sui (similar to Aptos), we leverage a database to maintain a local store of events and synthetic events from failed transactions. For more details, see the [ChainReader documentation](../relayer/chainreader.md).
+**ChainReader (CR)**: Responsible for reading values from contracts, watching for events, and monitoring failed transactions. It provides a separate entry point for the LOOP interface used by Core to read values. In Sui (similar to Aptos), we leverage a database to maintain a local store of events and synthetic events from failed transactions. Events are populated by a checkpoint-based indexing pipeline (a `ChainPoller` feeding an Events Indexer and a Transactions Indexer); see [ChainReader](../relayer/chainreader.md) and [Event Indexing](../relayer/event-indexing.md).
 
 **ChainWriter (CW)**: Responsible for constructing PTBs (Programmable Transaction Blocks) with the necessary values based on configuration to ensure contract calls are made correctly. It contains a `SubmitTransaction` entry point that receives signals (such as CCIPSend) and prepares them for enqueuing in the Transaction Manager. The ChainWriter is the main interface for writing to contracts via the LOOP interface. For more details, see the [ChainWriter documentation](../relayer/chainwriter.md).
 
-**PTB Client**: Responsible for making calls to the RPC node and decoding/deserializing BCS-encoded responses. Used by both ChainReader and ChainWriter. For more details, see the [PTB Client documentation](../relayer/ptb-client.md).
+**PTB Client**: Responsible for making calls to the Sui node and decoding/deserializing BCS-encoded responses. It communicates with the node primarily over **gRPC** (migrated from JSON-RPC) using a round-robin connection pool. Used by both ChainReader and ChainWriter. For more details, see the [PTB Client documentation](../relayer/ptb-client.md).
 
 **Database**: Responsible for storing an event log used by ChainReader to respond to queries. For more details, see the [Database documentation](../relayer/database.md).
 
