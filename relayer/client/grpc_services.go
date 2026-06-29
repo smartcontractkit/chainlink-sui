@@ -7,8 +7,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/block-vision/sui-go-sdk/common/grpcconn"
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/client/suigrpcconn"
 )
 
 // pooledConn wraps a single Sui gRPC connection with a one-time, race-free initialization. The Sui SDK's
@@ -16,7 +17,7 @@ import (
 // initialization exactly once via sync.Once. After initialization the cached stubs are read-only, which
 // makes the per-call service getters lock-free on the hot path.
 type pooledConn struct {
-	client  *grpcconn.SuiGrpcClient
+	client  *suigrpcconn.SuiGrpcClient
 	once    sync.Once
 	initErr error
 }
@@ -38,7 +39,7 @@ type grpcConnPool struct {
 }
 
 // newGrpcConnPool builds a pool of `size` connections using the provided factory. size < 1 is treated as 1.
-func newGrpcConnPool(size int, factory func() *grpcconn.SuiGrpcClient) *grpcConnPool {
+func newGrpcConnPool(size int, factory func() *suigrpcconn.SuiGrpcClient) *grpcConnPool {
 	if size < 1 {
 		size = 1
 	}
@@ -73,7 +74,7 @@ func (p *grpcConnPool) next() (*pooledConn, error) {
 // acquire picks the next pooled connection round-robin and ensures it is connected before returning its
 // underlying SuiGrpcClient. All the typed service getters funnel through here so connection selection and
 // lazy initialization live in one place.
-func (p *grpcConnPool) acquire(ctx context.Context) (*grpcconn.SuiGrpcClient, error) {
+func (p *grpcConnPool) acquire(ctx context.Context) (*suigrpcconn.SuiGrpcClient, error) {
 	pc, err := p.next()
 	if err != nil {
 		return nil, err

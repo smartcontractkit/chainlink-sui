@@ -8,23 +8,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/common/grpcconn"
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/semaphore"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client/suigrpcconn"
 )
 
-// gRPC support requires sui-go-sdk with grpcconn (main branch or v2+):
-//
-//	GOPROXY=direct go get github.com/block-vision/sui-go-sdk@main
-//	go mod tidy
+// gRPC support uses the local suigrpcconn helper, which fixes TLS dial options for public Sui fullnodes.
 
 const (
 	DefaultGrpcTimeout    = 30 * time.Second
@@ -58,20 +53,13 @@ func DefaultGrpcConfig(target, token string) GrpcClientConfig {
 }
 
 // NewSuiGrpcClient creates an authenticated Sui gRPC client.
-func NewSuiGrpcClient(config GrpcClientConfig) *grpcconn.SuiGrpcClient {
-	opts := []grpcconn.GrpcConnOption{
-		grpcconn.WithTimeout(config.Timeout),
-		grpcconn.WithRetryCount(config.RetryCount),
+func NewSuiGrpcClient(config GrpcClientConfig) *suigrpcconn.SuiGrpcClient {
+	opts := []suigrpcconn.GrpcConnOption{
+		suigrpcconn.WithTimeout(config.Timeout),
+		suigrpcconn.WithRetryCount(config.RetryCount),
 	}
 
-	if config.UseTLS {
-		opts = append(opts, grpcconn.WithDialOptions(
-			grpc.WithTransportCredentials(credentials.NewTLS(nil)),
-			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(DefaultGrpcMaxMsgSize)),
-		))
-	}
-
-	return grpcconn.NewSuiGrpcClientWithAuth(config.Target, config.Token, opts...)
+	return suigrpcconn.NewSuiGrpcClientWithAuth(config.Target, config.Token, config.UseTLS, opts...)
 }
 
 // PTBClientConfig configures a PTBClient with gRPC endpoints.
@@ -148,7 +136,7 @@ func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient,
 
 		grpcConfig := DefaultGrpcConfig(cfg.GrpcTarget, cfg.GrpcToken)
 		grpcConfig.UseTLS = useTLS
-		connPool = newGrpcConnPool(maxGrpcConnections, func() *grpcconn.SuiGrpcClient {
+		connPool = newGrpcConnPool(maxGrpcConnections, func() *suigrpcconn.SuiGrpcClient {
 			return NewSuiGrpcClient(grpcConfig)
 		})
 
