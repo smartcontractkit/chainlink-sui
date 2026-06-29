@@ -103,6 +103,8 @@ func grpcTargetUsesTLS(target string) bool {
 		if target == "" || isLocalGrpcHost(target) {
 			return false
 		}
+		// Bare public hostnames default to port 443 when derived from https RPC URLs.
+		return true
 	}
 
 	if port == "443" {
