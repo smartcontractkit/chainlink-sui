@@ -107,7 +107,7 @@ func grpcTargetUsesTLS(target string) bool {
 		return true
 	}
 
-	if port == "443" {
+	if port == "" || port == "443" {
 		return true
 	}
 
