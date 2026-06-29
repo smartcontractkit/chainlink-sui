@@ -1,6 +1,5 @@
 package common
 
-// #region agent log
 // TEMPORARY debug instrumentation for session 39639b (Sui CCIP merkle-root read-path investigation).
 // Writes NDJSON lines to a fixed log file. Remove this file once debugging is complete.
 
@@ -45,5 +44,3 @@ func DebugLog(location, message string, data map[string]any) {
 
 	_, _ = f.Write(append(line, '\n'))
 }
-
-// #endregion

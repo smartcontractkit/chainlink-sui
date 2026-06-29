@@ -208,10 +208,10 @@ func TestConfigureLaneLegAsDest_Flags(t *testing.T) {
 	chains := testSuiChains()
 
 	tests := []struct {
-		name           string
-		isDisabled     bool
-		rmnEnabled     bool
-		wantEnabled    bool
+		name            string
+		isDisabled      bool
+		rmnEnabled      bool
+		wantEnabled     bool
 		wantRMNDisabled bool
 	}{
 		{name: "enabled with RMN verification", isDisabled: false, rmnEnabled: true, wantEnabled: true, wantRMNDisabled: false},
