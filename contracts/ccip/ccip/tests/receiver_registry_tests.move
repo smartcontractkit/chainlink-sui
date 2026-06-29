@@ -400,5 +400,5 @@ public fun test_complete_receiver_lifecycle() {
 #[test]
 public fun test_type_and_version() {
     let version = receiver_registry::type_and_version();
-    assert!(version == string::utf8(b"ReceiverRegistry 1.6.0"));
+    assert!(version == string::utf8(b"ReceiverRegistry 1.6.1"));
 }

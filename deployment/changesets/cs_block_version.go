@@ -36,6 +36,13 @@ func (d BlockVersion) Apply(e cldf.Environment, config BlockVersionConfig) (cldf
 	}
 
 	chainState := state[config.SuiChainSelector]
+
+	// When the upgraded package ID is not provided, fall back to the latest CCIP package
+	// ID recorded in the address book so the call executes against the upgraded bytecode.
+	if config.LatestPackageId == "" {
+		config.LatestPackageId = chainState.LatestCCIPPackageID
+	}
+
 	suiChain := e.BlockChains.SuiChains()[config.SuiChainSelector]
 
 	deps := sui_ops.OpTxDeps{

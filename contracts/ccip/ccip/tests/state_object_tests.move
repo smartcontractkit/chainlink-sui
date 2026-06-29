@@ -287,7 +287,7 @@ fun test_mcms_add_allowed_modules_success() {
 
     // Prepare data for mcms_add_allowed_modules
     // Data format: [registry_address][vector<vector<u8>> of module names]
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&registry))); // Registry address for validation
 
     // Serialize vector of module names (vector<vector<u8>>)
@@ -330,7 +330,7 @@ fun test_mcms_add_allowed_modules_already_exists() {
 
     // Try to add "fee_quoter" which already exists in initial allowed modules
     // Data format: [registry_address][vector<vector<u8>> of module names]
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&registry))); // Registry address for validation
 
     // Serialize vector of module names (vector<vector<u8>>)
@@ -367,7 +367,7 @@ fun test_mcms_add_allowed_modules_wrong_function_name() {
 
     // Prepare data with correct format
     // Data format: [registry_address][vector<vector<u8>> of module names]
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&registry))); // Registry address for validation
 
     // Serialize vector of module names (vector<vector<u8>>)
@@ -408,7 +408,7 @@ fun test_mcms_remove_allowed_modules_success() {
 
     // First, add a module that we'll later remove
     {
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&registry)));
         let module_names = vector[b"nonce_manager"];
         data.append(bcs::to_bytes(&module_names));
@@ -439,7 +439,7 @@ fun test_mcms_remove_allowed_modules_success() {
 
     // Now remove the module
     {
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&registry)));
         let module_names = vector[b"nonce_manager"];
         data.append(bcs::to_bytes(&module_names));
@@ -480,7 +480,7 @@ fun test_mcms_remove_allowed_modules_not_in_allowlist() {
     let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
     // Try to remove a module that doesn't exist
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&registry)));
     let module_names = vector[b"nonexistent_module"];
     data.append(bcs::to_bytes(&module_names));
@@ -514,7 +514,7 @@ fun test_mcms_remove_allowed_modules_wrong_function_name() {
     let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
     // Prepare data with correct format
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&registry)));
     let module_names = vector[b"fee_quoter"];
     data.append(bcs::to_bytes(&module_names));
@@ -565,7 +565,7 @@ fun test_mcms_three_step_ownership_transfer() {
             @ccip.to_ascii_string(),
         );
 
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&ref)));
         data.append(bcs::to_bytes(&owner_cap_address));
         data.append(bcs::to_bytes(&new_owner));
@@ -622,7 +622,7 @@ fun test_mcms_three_step_ownership_transfer() {
         let mut deployer_state = test_scenario::take_shared<mcms_deployer::DeployerState>(&scenario);
 
         // Serialize data: [ref_address][owner_cap_address][to_address][package_address]
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&ref)));
         data.append(bcs::to_bytes(&owner_cap_address));
         data.append(bcs::to_bytes(&new_owner));

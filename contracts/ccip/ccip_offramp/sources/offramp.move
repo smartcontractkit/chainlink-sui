@@ -232,10 +232,10 @@ const EInvalidOwnerCap: u64 = 30;
 const EUnknownSequenceNumber: u64 = 31;
 const EInvalidReportContextLength: u64 = 32;
 
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
 
 public fun type_and_version(): String {
-    string::utf8(b"OffRamp 1.6.0")
+    string::utf8(b"OffRamp 1.6.1")
 }
 
 public struct OFFRAMP has drop {}
