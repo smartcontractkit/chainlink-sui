@@ -98,7 +98,7 @@ func (cfg PTBClientConfig) grpcEnabled() bool {
 // grpcTargetUsesTLS reports whether the gRPC dial should use TLS for the given host:port target.
 // Public Sui full nodes serve gRPC over TLS on port 443; local nodes use plain gRPC on 9000.
 func grpcTargetUsesTLS(target string) bool {
-	host, port, err := net.SplitHostPort(target)
+	_, port, err := net.SplitHostPort(target)
 	if err != nil {
 		if target == "" || isLocalGrpcHost(target) {
 			return false
@@ -111,7 +111,8 @@ func grpcTargetUsesTLS(target string) bool {
 		return true
 	}
 
-	return isLocalGrpcHost(host)
+	// Local and other non-443 ports use plain gRPC.
+	return false
 }
 
 func isLocalGrpcHost(host string) bool {
