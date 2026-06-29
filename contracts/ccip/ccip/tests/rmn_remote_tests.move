@@ -44,6 +44,7 @@ const INVALID_SHORT_SUBJECT: vector<u8> = b"00003";
 const F_SIGN_VALUE: u64 = 1;
 const F_SIGN_HIGH_VALUE: u64 = 2;
 const VERSION_1: u32 = 1;
+const RMN_REMOTE_VERSION: u8 = 2;
 const U128_VALUE_256: u128 = 256;
 const U128_VALUE_100: u128 = 100;
 
@@ -141,7 +142,7 @@ public fun test_initialize() {
 public fun test_type_and_version() {
     // Test the type_and_version function
     let version = rmn_remote::type_and_version();
-    assert!(version == std::string::utf8(b"RMNRemote 1.6.0"));
+    assert!(version == std::string::utf8(b"RMNRemote 1.6.1"));
 }
 
 #[test]
@@ -543,7 +544,7 @@ public fun test_set_config_function_not_allowed() {
         &owner_cap,
         std::string::utf8(b"rmn_remote"),
         std::string::utf8(b"set_config"),
-        1, // block version 1
+        RMN_REMOTE_VERSION,
         ctx,
     );
 
@@ -575,7 +576,7 @@ public fun test_curse_function_not_allowed() {
         &owner_cap,
         std::string::utf8(b"rmn_remote"),
         std::string::utf8(b"curse"),
-        1, // block version 1
+        RMN_REMOTE_VERSION,
         ctx,
     );
 
@@ -691,7 +692,7 @@ public fun test_curse_with_curser_cap_function_not_allowed() {
         &owner_cap,
         string::utf8(b"rmn_remote"),
         string::utf8(b"curse_with_curser_cap"),
-        1,
+        RMN_REMOTE_VERSION,
         ctx,
     );
 
@@ -734,7 +735,7 @@ public fun test_create_curser_cap_and_transfer_function_not_allowed() {
         &owner_cap,
         string::utf8(b"rmn_remote"),
         string::utf8(b"create_curser_cap"),
-        1,
+        RMN_REMOTE_VERSION,
         ctx,
     );
 
@@ -756,7 +757,7 @@ public fun test_create_curser_cap_function_not_allowed() {
         &owner_cap,
         string::utf8(b"rmn_remote"),
         string::utf8(b"create_curser_cap"),
-        1,
+        RMN_REMOTE_VERSION,
         ctx,
     );
 
@@ -839,7 +840,7 @@ public fun test_mcms_curse_with_curser_cap_succeeds() {
     let (mut scenario, owner_cap, mut ref, mut fast_registry, curser_cap_id) =
         setup_fast_registry_with_cap();
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&ref)));
     data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
     data.append(bcs::to_bytes(&SUBJECT_1));
@@ -868,7 +869,7 @@ public fun test_mcms_curse_multiple_with_curser_cap_succeeds() {
 
     let subjects = vector[SUBJECT_1, SUBJECT_2];
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&ref)));
     data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
     data.append(bcs::to_bytes(&subjects));
@@ -897,7 +898,7 @@ public fun test_mcms_curse_with_curser_cap_wrong_function_name() {
     let (mut scenario, owner_cap, mut ref, mut fast_registry, curser_cap_id) =
         setup_fast_registry_with_cap();
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&ref)));
     data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
     data.append(bcs::to_bytes(&SUBJECT_1));
@@ -1052,7 +1053,7 @@ public fun test_mcms_create_curser_cap_and_transfer_succeeds() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&ref)));
     data.append(bcs::to_bytes(&owner_cap_address));
     data.append(bcs::to_bytes(&FAST_RECIPIENT));
@@ -1094,7 +1095,7 @@ public fun test_mcms_create_curser_cap_succeeds() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     append_pinned_obj_addrs(
         &mut data,
         vector[object::id_address(&ref), owner_cap_address],
@@ -1128,7 +1129,7 @@ public fun test_mcms_create_curser_cap_wrong_function_name() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     append_pinned_obj_addrs(
         &mut data,
         vector[object::id_address(&ref), owner_cap_address],
@@ -1162,7 +1163,7 @@ public fun test_mcms_create_curser_cap_wrong_ref_in_bcs() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     append_pinned_obj_addrs(
         &mut data,
         vector[WRONG_PINNED_ADDRESS, owner_cap_address],
@@ -1196,7 +1197,7 @@ public fun test_mcms_create_curser_cap_and_transfer_wrong_function_name() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     append_pinned_obj_addrs(
         &mut data,
         vector[object::id_address(&ref), owner_cap_address],
@@ -1228,7 +1229,7 @@ public fun test_mcms_create_curser_cap_and_transfer_wrong_function_name() {
 public fun test_mcms_create_curser_cap_and_transfer_wrong_owner_cap_in_bcs() {
     let (mut scenario, mut ref, mut slow_registry, fast_registry) = setup_slow_and_fast_registries();
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     append_pinned_obj_addrs(
         &mut data,
         vector[object::id_address(&ref), WRONG_PINNED_ADDRESS],
@@ -1262,7 +1263,7 @@ public fun test_mcms_path_b_transfer_then_register_succeeds() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut transfer_data = vector::empty<u8>();
+    let mut transfer_data = vector[];
     append_pinned_obj_addrs(
         &mut transfer_data,
         vector[object::id_address(&ref), owner_cap_address],
@@ -1297,7 +1298,7 @@ public fun test_mcms_path_b_transfer_then_register_succeeds() {
     let curser_cap = scenario.take_from_sender<CurserCap>();
     let curser_cap_address = object::id_address(&curser_cap);
 
-    let mut register_data = vector::empty<u8>();
+    let mut register_data = vector[];
     append_pinned_obj_addrs(
         &mut register_data,
         vector[
@@ -1344,7 +1345,7 @@ public fun test_mcms_register_curser_cap_succeeds() {
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
     // Op 0: mcms_create_curser_cap
-    let mut create_data = vector::empty<u8>();
+    let mut create_data = vector[];
     create_data.append(bcs::to_bytes(&object::id_address(&ref)));
     create_data.append(bcs::to_bytes(&owner_cap_address));
 
@@ -1366,7 +1367,7 @@ public fun test_mcms_register_curser_cap_succeeds() {
     );
 
     // Op 1: mcms_register_curser_cap
-    let mut register_data = vector::empty<u8>();
+    let mut register_data = vector[];
     register_data.append(bcs::to_bytes(&object::id_address(&ref)));
     register_data.append(bcs::to_bytes(&owner_cap_address));
     register_data.append(bcs::to_bytes(&object::id_address(&fast_registry)));
@@ -1408,7 +1409,7 @@ public fun test_mcms_register_curser_cap_wrong_function_name() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut create_data = vector::empty<u8>();
+    let mut create_data = vector[];
     append_pinned_obj_addrs(
         &mut create_data,
         vector[object::id_address(&ref), owner_cap_address],
@@ -1430,7 +1431,7 @@ public fun test_mcms_register_curser_cap_wrong_function_name() {
     );
 
     let curser_cap_address = object::id_address(&curser_cap);
-    let mut register_data = vector::empty<u8>();
+    let mut register_data = vector[];
     append_pinned_obj_addrs(
         &mut register_data,
         vector[
@@ -1471,7 +1472,7 @@ public fun test_mcms_register_curser_cap_wrong_cap_id_in_bcs() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut create_data = vector::empty<u8>();
+    let mut create_data = vector[];
     append_pinned_obj_addrs(
         &mut create_data,
         vector[object::id_address(&ref), owner_cap_address],
@@ -1492,7 +1493,7 @@ public fun test_mcms_register_curser_cap_wrong_cap_id_in_bcs() {
         scenario.ctx(),
     );
 
-    let mut register_data = vector::empty<u8>();
+    let mut register_data = vector[];
     append_pinned_obj_addrs(
         &mut register_data,
         vector[
@@ -1533,7 +1534,7 @@ public fun test_mcms_register_curser_cap_double_register_aborts() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut create_data = vector::empty<u8>();
+    let mut create_data = vector[];
     append_pinned_obj_addrs(
         &mut create_data,
         vector[object::id_address(&ref), owner_cap_address],
@@ -1555,7 +1556,7 @@ public fun test_mcms_register_curser_cap_double_register_aborts() {
     );
 
     let curser_cap_address = object::id_address(&curser_cap);
-    let mut register_data = vector::empty<u8>();
+    let mut register_data = vector[];
     append_pinned_obj_addrs(
         &mut register_data,
         vector[
@@ -1585,7 +1586,7 @@ public fun test_mcms_register_curser_cap_double_register_aborts() {
         scenario.ctx(),
     );
 
-    let mut create_data2 = vector::empty<u8>();
+    let mut create_data2 = vector[];
     append_pinned_obj_addrs(
         &mut create_data2,
         vector[object::id_address(&ref), owner_cap_address],
@@ -1607,7 +1608,7 @@ public fun test_mcms_register_curser_cap_double_register_aborts() {
     );
 
     let curser_cap2_address = object::id_address(&curser_cap2);
-    let mut register_data2 = vector::empty<u8>();
+    let mut register_data2 = vector[];
     append_pinned_obj_addrs(
         &mut register_data2,
         vector[
@@ -1647,7 +1648,7 @@ public fun test_mcms_mint_and_register_curser_cap_succeeds() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&ref)));
     data.append(bcs::to_bytes(&owner_cap_address));
     data.append(bcs::to_bytes(&object::id_address(&fast_registry)));
@@ -1687,7 +1688,7 @@ public fun test_mcms_mint_and_register_curser_cap_wrong_function_name() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     append_pinned_obj_addrs(
         &mut data,
         vector[
@@ -1726,7 +1727,7 @@ public fun test_mcms_mint_and_register_curser_cap_wrong_fast_registry_in_bcs() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     append_pinned_obj_addrs(
         &mut data,
         vector[object::id_address(&ref), owner_cap_address, WRONG_PINNED_ADDRESS],
@@ -1760,7 +1761,7 @@ public fun test_mcms_mint_and_register_then_curse_via_fast_registry() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut bootstrap_data = vector::empty<u8>();
+    let mut bootstrap_data = vector[];
     append_pinned_obj_addrs(
         &mut bootstrap_data,
         vector[
@@ -1794,7 +1795,7 @@ public fun test_mcms_mint_and_register_then_curse_via_fast_registry() {
     );
     let curser_cap_id = sui::object::id_from_address(curser_cap_address);
 
-    let mut curse_data = vector::empty<u8>();
+    let mut curse_data = vector[];
     curse_data.append(bcs::to_bytes(&object::id_address(&ref)));
     curse_data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
     curse_data.append(bcs::to_bytes(&SUBJECT_1));
@@ -1830,7 +1831,7 @@ public fun test_mcms_curse_with_curser_cap_unregistered_registry() {
     );
     unit_test::destroy(released_cap);
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&ref)));
     data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
     data.append(bcs::to_bytes(&SUBJECT_1));
@@ -1856,7 +1857,7 @@ public fun test_mcms_curse_and_uncurse_via_owner_cap() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut curse_data = vector::empty<u8>();
+    let mut curse_data = vector[];
     curse_data.append(bcs::to_bytes(&object::id_address(&ref)));
     curse_data.append(bcs::to_bytes(&owner_cap_address));
     curse_data.append(bcs::to_bytes(&vector[SUBJECT_1]));
@@ -1874,7 +1875,7 @@ public fun test_mcms_curse_and_uncurse_via_owner_cap() {
     rmn_remote::mcms_curse_multiple(&mut ref, &mut slow_registry, curse_params);
     assert!(rmn_remote::is_cursed(&ref, SUBJECT_1));
 
-    let mut uncurse_data = vector::empty<u8>();
+    let mut uncurse_data = vector[];
     uncurse_data.append(bcs::to_bytes(&object::id_address(&ref)));
     uncurse_data.append(bcs::to_bytes(&owner_cap_address));
     uncurse_data.append(bcs::to_bytes(&vector[SUBJECT_1]));
@@ -1905,7 +1906,7 @@ public fun test_global_curse_via_curser_cap_fast_path() {
     let (mut scenario, owner_cap, mut ref, mut fast_registry, curser_cap_id) =
         setup_fast_registry_with_cap();
 
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&ref)));
     data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
     data.append(bcs::to_bytes(&x"01000000000000000000000000000001"));
@@ -2072,7 +2073,7 @@ public fun test_mcms_mint_and_register_auto_allowlists_cap() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut bootstrap_data = vector::empty<u8>();
+    let mut bootstrap_data = vector[];
     append_pinned_obj_addrs(
         &mut bootstrap_data,
         vector[
@@ -2117,7 +2118,7 @@ public fun test_mcms_deregister_curser_cap_ids_revokes_fast_curse() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut bootstrap_data = vector::empty<u8>();
+    let mut bootstrap_data = vector[];
     append_pinned_obj_addrs(
         &mut bootstrap_data,
         vector[
@@ -2147,9 +2148,8 @@ public fun test_mcms_deregister_curser_cap_ids_revokes_fast_curse() {
         &fast_registry,
         sui::address::to_ascii_string(@ccip),
     );
-    let curser_cap_id = sui::object::id_from_address(curser_cap_address);
 
-    let mut deregister_data = vector::empty<u8>();
+    let mut deregister_data = vector[];
     append_pinned_obj_addrs(
         &mut deregister_data,
         vector[object::id_address(&ref), owner_cap_address],
@@ -2184,7 +2184,7 @@ public fun test_mcms_deregister_then_fast_curse_aborts() {
 
     let owner_cap_address = test_owner_cap_address_in_registry(&slow_registry);
 
-    let mut bootstrap_data = vector::empty<u8>();
+    let mut bootstrap_data = vector[];
     append_pinned_obj_addrs(
         &mut bootstrap_data,
         vector[
@@ -2216,7 +2216,7 @@ public fun test_mcms_deregister_then_fast_curse_aborts() {
     );
     let curser_cap_id = sui::object::id_from_address(curser_cap_address);
 
-    let mut deregister_data = vector::empty<u8>();
+    let mut deregister_data = vector[];
     append_pinned_obj_addrs(
         &mut deregister_data,
         vector[object::id_address(&ref), owner_cap_address],
@@ -2237,7 +2237,7 @@ public fun test_mcms_deregister_then_fast_curse_aborts() {
         ),
     );
 
-    let mut curse_data = vector::empty<u8>();
+    let mut curse_data = vector[];
     curse_data.append(bcs::to_bytes(&object::id_address(&ref)));
     curse_data.append(bcs::to_bytes(&sui::object::id_to_address(&curser_cap_id)));
     curse_data.append(bcs::to_bytes(&SUBJECT_1));
