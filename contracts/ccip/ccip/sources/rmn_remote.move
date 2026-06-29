@@ -95,10 +95,10 @@ const ECurserCapAlreadyAllowed: u64 = 16;
 const ECurserCapNotAllowed: u64 = 17;
 const ECurserCapNotRegistered: u64 = 18;
 
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
 
 public fun type_and_version(): String {
-    string::utf8(b"RMNRemote 1.6.0")
+    string::utf8(b"RMNRemote 1.6.1")
 }
 
 public fun initialize(
