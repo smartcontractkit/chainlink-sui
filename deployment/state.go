@@ -99,6 +99,7 @@ type CCIPChainState struct {
 
 	// CCIP related
 	CCIPAddress            string
+	LatestCCIPPackageID    string
 	CCIPObjectRef          string
 	CCIPOwnerCapObjectId   string
 	CurserCapObjectId      string
@@ -113,13 +114,15 @@ type CCIPChainState struct {
 
 	// OnRamp related
 	OnRampAddress          string
+	LatestOnRampPackageID  string
 	OnRampStateObjectId    string
 	OnRampOwnerCapObjectId string
 	OnRampUpgradeCapId     string
 
 	// OffRamp related
-	OffRampAddress       string
-	OffRampStateObjectId string
+	OffRampAddress         string
+	LatestOffRampPackageID string
+	OffRampStateObjectId   string
 	OffRampOwnerCapId    string
 	OffRampUpgradeCapId  string
 
@@ -142,6 +145,33 @@ type CCIPChainState struct {
 	OnRampMockV2PackageId  string
 	OffRampMockV2PackageId string
 	CCIPMockV2PackageId    string
+}
+
+// EffectiveCCIPPackageID returns the latest upgraded CCIP package head when recorded,
+// otherwise the genesis package ID from initial deploy.
+func (s CCIPChainState) EffectiveCCIPPackageID() string {
+	if s.LatestCCIPPackageID != "" {
+		return s.LatestCCIPPackageID
+	}
+	return s.CCIPAddress
+}
+
+// EffectiveOnRampPackageID returns the latest upgraded OnRamp package head when recorded,
+// otherwise the genesis package ID from initial deploy.
+func (s CCIPChainState) EffectiveOnRampPackageID() string {
+	if s.LatestOnRampPackageID != "" {
+		return s.LatestOnRampPackageID
+	}
+	return s.OnRampAddress
+}
+
+// EffectiveOffRampPackageID returns the latest upgraded OffRamp package head when recorded,
+// otherwise the genesis package ID from initial deploy.
+func (s CCIPChainState) EffectiveOffRampPackageID() string {
+	if s.LatestOffRampPackageID != "" {
+		return s.LatestOffRampPackageID
+	}
+	return s.OffRampAddress
 }
 
 // MCMSState returns the MCMS object IDs for the requested instance.
@@ -480,6 +510,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		// CCIP related
 		case SuiCCIPType:
 			chainState.CCIPAddress = addr
+		case SuiLatestCCIPPackageIDType:
+			chainState.LatestCCIPPackageID = addr
 		case SuiCCIPObjectRefType:
 			chainState.CCIPObjectRef = addr
 		case SuiCCIPOwnerCapObjectIDType:
@@ -494,6 +526,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		// OnRamp related
 		case SuiOnRampType:
 			chainState.OnRampAddress = addr
+		case SuiLatestOnRampPackageIDType:
+			chainState.LatestOnRampPackageID = addr
 		case SuiOnRampStateObjectIDType:
 			chainState.OnRampStateObjectId = addr
 		case SuiOnRampOwnerCapObjectIDType:
@@ -504,6 +538,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		// OffRamp related
 		case SuiOffRampType:
 			chainState.OffRampAddress = addr
+		case SuiLatestOffRampPackageIDType:
+			chainState.LatestOffRampPackageID = addr
 		case SuiOffRampStateObjectIDType:
 			chainState.OffRampStateObjectId = addr
 		case SuiOffRampOwnerCapObjectIDType:
