@@ -1,578 +1,283 @@
 # PTB Client
 
-The PTB (Programmable Transaction Block) Client is the core component responsible for interacting with the Sui blockchain in the Chainlink-Sui relayer. It provides a comprehensive interface for executing transactions, reading blockchain state, managing gas payments, and handling Move function calls.
+The PTB (Programmable Transaction Block) Client is the core component responsible for interacting with the Sui blockchain in the Chainlink-Sui relayer. It provides the interface for executing transactions, reading blockchain state, managing gas payments, and handling Move function calls.
 
 ## Overview
 
-The `PTBClient` implements the `SuiPTBClient` interface and serves as the primary gateway for all Sui blockchain operations. It wraps the blockvision Sui SDK and provides additional functionality specific to Chainlink's needs.
+The `PTBClient` implements the `SuiPTBClient` interface and serves as the primary gateway for all Sui blockchain operations. It is built on top of the [BlockVision `sui-go-sdk`](https://github.com/block-vision/sui-go-sdk).
+
+> **gRPC migration**: The PTB Client has migrated from Sui's JSON-RPC API to its **gRPC** API. The JSON-RPC endpoints that the relayer originally relied on (notably the event- and transaction-search endpoints) are not all available over gRPC, which is what motivated the move to checkpoint-based indexing — see [Event Indexing](./event-indexing.md).
+>
+> The migration is incremental. During the transition the client holds **both** a gRPC connection pool and a JSON-RPC client: methods that have been migrated use the gRPC service accessors, and the few that have not yet been migrated continue to use JSON-RPC. As a result, most read/write methods now return Sui gRPC v2 protobuf types (the `github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2` package, aliased as `suirpcv2` throughout the code).
 
 ### Core Capabilities
 
-- **Transaction Management**: Creating, signing, and executing Programmable Transaction Blocks with comprehensive error handling and retry logic
-- **State Reading**: Querying blockchain objects, events, and transaction status with intelligent filtering and pagination
-- **Gas Management**: Estimating gas costs, managing gas payments, and optimizing coin selection for transactions
-- **Caching System**: Multi-layer caching with configurable expiration for normalized modules, objects, and package metadata
-- **Rate Limiting**: Semaphore-based concurrent request limiting with configurable thresholds and timeout protection
-- **Package Management**: Advanced package upgrade detection, version tracking, and ABI-like module introspection
+- **Transaction Management**: Building, signing, and executing Programmable Transaction Blocks
+- **State Reading**: Querying objects, simulating Move functions (dev inspect), and reading checkpoints over gRPC
+- **Gas Management**: Estimating gas, selecting gas payment coins, and reading balances
+- **Caching**: A general-purpose cache (`go-cache`) for resolved package IDs and other metadata, plus an optional object-metadata cache injected on the read hot path
+- **Rate Limiting**: A weighted semaphore that bounds the number of concurrent in-flight RPCs
+- **gRPC Connection Pooling**: A round-robin pool of independent gRPC connections so a single connection's HTTP/2 stream limit does not become a bottleneck under bursty reads
+- **Package Management**: Package-upgrade detection and resolution of the latest package ID for a module
 
 ## Architecture
 
 ```mermaid
 graph TB
-    subgraph "PTBClient Core Functionality"
+    subgraph "PTBClient"
         PC[PTBClient]
-        
         TX[Transaction Execution]
         READ[State Reading]
         PKG[Package Management]
-        CACHE[Caching]
+        CACHE[Caching + Rate Limiting]
     end
-    
+
+    subgraph "SDK Layer (block-vision/sui-go-sdk)"
+        POOL[gRPC connection pool<br/>round-robin]
+        JSON[JSON-RPC client<br/>unmigrated reads]
+    end
+
     subgraph "External"
-        SDK[Blockvision SDK]
-        RPC[Sui RPC]
+        NODE[Sui Node]
     end
-    
-    %% Core functionality
+
     PC --> TX
     PC --> READ
     PC --> PKG
     PC --> CACHE
-    
-    %% External connections
-    PC --> SDK
-    SDK --> RPC
-    
-    %% Functionality details
-    TX -.-> |MoveCall, SignAndSend| SDK
-    READ -.-> |ReadObject, QueryEvents| SDK
-    PKG -.-> |GetNormalizedModule| SDK
-    CACHE -.-> |Store modules, objects| PC
+
+    TX --> POOL
+    READ --> POOL
+    PKG --> POOL
+    READ -.-> |unmigrated APIs| JSON
+
+    POOL --> NODE
+    JSON --> NODE
 ```
 
 ## Core Components
 
-### 1. Transaction Management System
+### 1. gRPC Connection Pool
 
-The transaction management system provides comprehensive transaction lifecycle handling:
+The client opens a pool of independent gRPC connections to the node and hands them out round-robin via the service getters (`grpc_services.go`). Spreading RPCs across several connections multiplies the available concurrent HTTP/2 streams, so a single connection's per-connection stream limit does not throttle bursty reads.
 
-**Features:**
-- **Programmable Transaction Blocks (PTB)**: Native support for Sui's PTB format with complex transaction chaining
-- **Transaction Signing**: Secure integration with keystore service for transaction signing
-- **Execution Modes**: Support for different execution modes (wait for local execution, wait for effects, etc.)
-- **Batch Processing**: Efficient batch submission of multiple transactions
-- **Gas Estimation**: Accurate gas cost calculation before transaction execution
+- Pool size is configured by `PTBClientConfig.MaxGrpcConnections` (default `DefaultMaxGrpcConnections = 128`).
+- Each connection wraps a `grpcconn.SuiGrpcClient` and is initialized lazily and race-free on first use.
+- Service getters (e.g. `getMovePackageService`, `getTransactionExecutionService`) pick the next connection and return the typed gRPC service stub.
 
-**Implementation Details:**
-- Uses blockvision SDK as the underlying RPC client
-- Implements retry logic with exponential backoff for failed transactions
-- Supports both simple transactions and complex multi-step PTBs
-- Automatic gas coin selection and management
+### 2. JSON-RPC Client (transitional)
 
-### 2. State Reading Engine
+A `sui.ISuiAPI` JSON-RPC client (`moveModuleClient`) is retained for the read APIs that have not yet been migrated to gRPC. It is only created when gRPC is configured. This will be removed as the remaining methods are migrated.
 
-Advanced blockchain state querying with intelligent filtering and caching:
+### 3. Caching
 
-**Capabilities:**
-- **Object Queries**: Fetch specific objects by ID with type validation
-- **Ownership Queries**: Retrieve all objects owned by an address with filtering
-- **Event Monitoring**: Search and filter events with cursor-based pagination
-- **Transaction History**: Query transaction history with flexible filtering options
-- **Read-Only Execution**: Execute Move functions without state changes (dev inspect)
+The client uses two cache layers:
 
-**Performance Optimizations:**
-- Intelligent caching of frequently accessed objects
-- Batch query optimization for multiple object requests
-- Cursor-based pagination for large result sets
-- Configurable query timeouts and retry mechanisms
+- **General cache** (`go-cache`): caches resolved package IDs and other metadata.
+  - `DefaultCacheExpiration = 120 minutes`, `DefaultCacheCleanupInterval = 240 minutes`.
+  - `DefaultPackageIdCacheTTL = 5 minutes` caches resolved "latest package ID" lookups to avoid repeating heavy `GetFunction`/`GetPackage`/`ListOwnedObjects` chains under bursty config polling.
+- **Object-metadata cache** (`ObjectMetadataCache`, optional): de-duplicates and caches version-stable object reference metadata (owner/version/digest) so the per-read `GetObject` fan-out does not hit the node on every read. It is injected via `PTBClientConfig.ObjectCache` (implemented by `chainreader/reader.Cache`) and may be `nil`.
 
-### 3. Package Management System
+### 4. Rate Limiting and Concurrency Control
 
-Sophisticated package and module management with upgrade detection:
+`WithRateLimit` wraps RPC calls with a weighted semaphore (`golang.org/x/sync/semaphore`) sized to `MaxConcurrentRequests` and applies the per-call `transactionTimeout`.
 
-**Core Features:**
-- **Module Introspection**: Fetch normalized Move module definitions (ABI-like functionality)
-- **Version Tracking**: Track all package versions for a given module across upgrades
-- **Upgrade Detection**: Automatically detect and handle package upgrades
-- **CCIP Integration**: Specialized handling for CCIP package identification
-
-**Technical Implementation:**
-- Caches normalized modules to avoid repeated RPC calls
-- Maintains package version history for upgrade compatibility
-- Provides type-safe access to Move function signatures and parameters
-- Supports both original and upgraded package resolution
-
-### 4. Caching System
-
-Multi-layer caching system designed for optimal performance:
-
-**Cache Layers:**
-- **Module Cache**: Long-term caching of normalized Move modules (rarely change)
-- **Object Cache**: Short-term caching of frequently accessed objects with TTL
-- **Package Metadata Cache**: Session-based caching of package version information
-- **Query Result Cache**: Temporary caching of expensive query results
-
-**Configuration:**
-- Default expiration: 120 minutes for most cached data
-- Cleanup interval: 240 minutes for expired entries
-- Memory-efficient LRU eviction for large datasets
-- Configurable cache sizes and expiration policies
-
-### 5. Rate Limiting and Concurrency Control
-
-Advanced rate limiting system to prevent RPC overload and ensure stability:
-
-**Implementation:**
-- **Semaphore-based Control**: Weighted semaphore limiting concurrent requests
-- **Configurable Limits**: Default 100 concurrent requests, adjustable per instance
-- **Request Queuing**: Intelligent queuing of requests during high load
-- **Timeout Protection**: Configurable timeouts for all operations
-
-**Benefits:**
-- Prevents RPC node overload and potential bans
-- Ensures fair resource allocation across different operation types
-- Provides backpressure mechanism for high-throughput scenarios
-- Maintains system stability under varying load conditions
+- Per-method weights are defined in the `RateLimitWeights` map. A weight of `0` skips the semaphore entirely for that method (avoiding unnecessary queuing); currently the map assigns weight `0` to all listed methods, so the semaphore is effectively a safety backstop rather than an active throttle.
+- `MaxConcurrentRequests` defaults to `500` when not set (or set `<= 0`).
 
 ## Configuration
 
 ### Client Initialization
 
+The client is constructed from a `PTBClientConfig`:
+
 ```go
-client, err := client.NewPTBClient(
-    logger,                    // Logger instance
-    "https://sui-rpc-url",    // RPC endpoint URL
-    &maxRetries,              // Max retry attempts
-    30*time.Second,           // Transaction timeout
-    keystoreService,          // Keystore for signing
-    100,                      // Max concurrent requests
-    client.TransactionRequestTypeWaitForLocalExecution,
-)
+client, err := client.NewPTBClient(logger, client.PTBClientConfig{
+    GrpcTarget:            "sui-grpc-host:443", // gRPC endpoint
+    GrpcToken:             "your-api-token",     // gRPC auth token
+    MaxRetries:            &maxRetries,
+    TransactionTimeout:    30 * time.Second,
+    KeystoreService:       keystoreService,
+    MaxConcurrentRequests: 500,
+    MaxGrpcConnections:    128,                  // 0 => DefaultMaxGrpcConnections
+    ObjectCache:           readerCache,          // optional, may be nil
+    DefaultRequestType:    client.WaitForEffectsCert,
+})
 ```
 
-### Configuration Parameters
+`NewPTBClient` delegates to `NewPTBClientFromConfig`. gRPC is considered enabled only when **both** `GrpcTarget` and `GrpcToken` are set; otherwise the client logs that it is running JSON-RPC only.
+
+### `PTBClientConfig` Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `maxRetries` | `*int` | - | Maximum retry attempts for failed operations |
-| `transactionTimeout` | `time.Duration` | - | Timeout for transaction operations |
-| `maxConcurrentRequests` | `int64` | 100 | Maximum concurrent RPC requests |
-| `defaultRequestType` | `TransactionRequestType` | - | Default execution mode for transactions |
+| `GrpcTarget` | `string` | - | gRPC endpoint (`host:port`) |
+| `GrpcToken` | `string` | - | gRPC auth token |
+| `MaxRetries` | `*int` | - | Max retry attempts for failed operations |
+| `TransactionTimeout` | `time.Duration` | - | Per-operation timeout (also used as the gRPC call timeout) |
+| `KeystoreService` | `loop.Keystore` | - | Keystore used for signing |
+| `MaxConcurrentRequests` | `int64` | `500` | Semaphore size for concurrent RPCs |
+| `MaxGrpcConnections` | `int` | `128` | Round-robin gRPC connection pool size |
+| `ObjectCache` | `ObjectMetadataCache` | `nil` | Optional object-metadata cache for the read hot path |
+| `DefaultRequestType` | `TransactionRequestType` | - | Default execution mode for transactions |
 
 ### Constants
 
 ```go
 const (
-    DefaultGasPrice             = 10_000        // 10K MIST
-    DefaultGasBudget           = 1_000_000_000  // 1 SUI
-    DefaultCacheExpiration     = 120 * time.Minute
+    DefaultGasPrice             = 10_000          // MIST
+    DefaultGasBudget            = 1_000_000_000   // 1 SUI
+    DefaultMinGasBudget         = 1_000_000
+    DefaultCacheExpiration      = 120 * time.Minute
     DefaultCacheCleanupInterval = 240 * time.Minute
-    DefaultHTTPTimeout         = 15 * time.Second
+    DefaultHTTPTimeout          = 30 * time.Second
+    DefaultReadOpTimeout        = 30 * time.Second // caps a single read chain (transform + simulate)
+    DefaultPackageIdCacheTTL    = 5 * time.Minute
+
+    // gRPC (grpc_factory.go)
+    DefaultGrpcTimeout        = 30 * time.Second
+    DefaultGrpcRetryCount     = 3
+    DefaultGrpcMaxMsgSize     = 20 * 1024 * 1024 // 20 MiB
+    DefaultMaxGrpcConnections = 128
 )
 ```
 
-## Move Function Execution
+## Core API Methods
 
-The PTB Client provides comprehensive support for executing Move functions on the Sui blockchain through various methods optimized for different use cases.
+The methods below reflect the current `SuiPTBClient` interface. Note that most reads now return `suirpcv2` protobuf types.
 
-### MoveCall Method
+### Transaction Methods
 
-The `MoveCall` method is the primary interface for executing Move functions and generating transaction bytes:
-
-**Purpose**: Execute Move function calls on deployed packages and return transaction metadata for signing and submission.
-
-**Key Features**:
-- Type-safe argument handling with automatic serialization
-- Gas estimation and budget management
-- Support for generic type arguments
-- Comprehensive error handling and validation
-
-**Usage Pattern**:
 ```go
-req := client.MoveCallRequest{
+// Build transaction bytes for a single Move call (primarily used in tests).
+metadata, err := ptbClient.MoveCall(ctx, client.MoveCallRequest{
     Signer:          signerAddress,
     PackageObjectId: packageId,
     Module:          "ccip",
     Function:        "execute_message",
     Arguments:       args,
-    GasBudget:       1000000000,
-}
-metadata, err := ptbClient.MoveCall(ctx, req)
-```
+    GasBudget:       client.DefaultGasBudget,
+})
 
-### Integration with PTB Construction
+// Sign and execute raw BCS transaction bytes (uses the client's default request type).
+resp, err := ptbClient.SignAndSendTransaction(ctx, txBytesBase64, signerPublicKey)
 
-MoveCall integrates seamlessly with Programmable Transaction Block construction:
+// Execute an already-signed transaction via the execution service.
+resp, err := ptbClient.SendTransaction(ctx, execRequest)
 
-```go
-ptb := transaction.NewTransaction()
-ptb.MoveCall(packageId, "ccip", "execute_message", typeArgs, args)
-```
+// Build, sign, and send a fully constructed PTB.
+resp, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForEffectsCert)
 
-## Core API Methods
+// Simulate a PTB (BCS bytes) and return the decoded results.
+results, err := ptbClient.SimulatePTB(ctx, bcsBytes)
 
-### Transaction Methods
+// Estimate gas for a constructed transaction.
+gas, err := ptbClient.EstimateGas(ctx, tx)
 
-#### SignAndSendTransaction
-Sign and execute a transaction in one operation:
-
-```go
-response, err := ptbClient.SignAndSendTransaction(ctx, txBytes, signerPublicKey, requestType)
+// Look up the status of a previously submitted transaction.
+status, err := ptbClient.GetTransactionStatus(ctx, digest)
 ```
 
 ### State Reading Methods
 
-#### ReadFunction
-Execute read-only function calls (dev inspect):
 ```go
-results, err := ptbClient.ReadFunction(ctx, signer, pkg, "ccip", "get_status", []any{messageId}, []string{"vector<u8>"})
+// Read object data by ID (returns a gRPC v2 Object).
+obj, err := ptbClient.ReadObjectId(ctx, objectId)
+
+// Read owned objects (optionally filtered by struct type).
+objs, err := ptbClient.ReadOwnedObjects(ctx, ownerAddress, cursor)
+objs, err := ptbClient.ReadFilterOwnedObjectIds(ctx, ownerAddress, structType, cursor)
+
+// Execute a read-only Move function (dev inspect).
+results, err := ptbClient.ReadFunction(ctx, packageId, "ccip", "get_status", args, argTypes, typeArgs)
+
+// Coins and balances.
+coins, err := ptbClient.GetCoinsByAddress(ctx, address)
+coins, err := ptbClient.QueryCoinsByAddress(ctx, address, coinType)
+balance, err := ptbClient.GetSUIBalance(ctx, address)
+gasPrice, err := ptbClient.GetReferenceGasPrice(ctx)
 ```
 
-#### ReadObjectId
-Fetch specific object data by ID:
+### Checkpoint Methods
+
+These power the checkpoint-based [ChainPoller](./event-indexing.md):
+
 ```go
-objectData, err := ptbClient.ReadObjectId(ctx, objectId)
+// Latest checkpoint (used to compute the poller's start/catch-up window).
+checkpoint, err := ptbClient.GetLatestCheckpoint(ctx)
+
+// Full checkpoint data (transactions + their events) for a sequence number.
+data, err := ptbClient.GetCheckpointData(ctx, sequenceNumber)
+
+// Look up a checkpoint by digest, or the latest epoch.
+checkpoint, err := ptbClient.GetBlockById(ctx, checkpointDigest)
+epoch, err := ptbClient.GetLatestEpoch(ctx)
 ```
 
-#### QueryEvents
-Search for events with filtering:
-```go
-filter := client.EventFilterByMoveEventModule{Package: packageId, Module: "ccip", Event: "MessageExecuted"}
-events, err := ptbClient.QueryEvents(ctx, filter, &limit, cursor, sortOptions)
-```
+`GetCheckpointData` returns a `*client.CheckpointData` containing the checkpoint summary and the list of `*suirpcv2.ExecutedTransaction` (each carrying its events). This is the primary input to the indexers.
 
 ### Package Management Methods
 
-#### GetNormalizedModule
-Fetch Move module definitions (ABI-like):
 ```go
-normalizedModule, err := ptbClient.GetNormalizedModule(ctx, packageId, "ccip")
+// All package versions for a module (upgrade tracking).
+packageIds, err := ptbClient.LoadModulePackageIds(ctx, packageId, "ccip")
+
+// Latest package ID for a module (cached for DefaultPackageIdCacheTTL).
+latest, err := ptbClient.GetLatestPackageId(ctx, packageId, "ccip")
+
+// Normalized module definition (ABI-like).
+normalized, err := ptbClient.GetNormalizedModule(ctx, packageId, "ccip")
+
+// Resolve the CCIP package ID from the OffRamp package.
+ccipPackageId, err := ptbClient.GetCCIPPackageID(ctx, offRampPackageID)
 ```
 
-#### LoadModulePackageIds
-Track all package versions for a module:
+### Pointer / Object Field Helpers
+
 ```go
-packageIds, err := ptbClient.LoadModulePackageIds(ctx, originalPackageId, "ccip", signerAddress)
+// Resolve a pointer object's parent object ID (see Pointer Tags in ChainReader).
+parentId, err := ptbClient.GetParentObjectID(ctx, packageID, "state_object", pointerName)
+
+// Read named fields from a package-owned object.
+values, err := ptbClient.GetValuesFromPackageOwnedObjectField(ctx, packageID, moduleID, objectName, fieldKeys)
 ```
 
-### Utility Methods
+## Integration with the Transaction Manager
 
-#### EstimateGas
-Calculate gas requirements before execution:
-```go
-gasEstimate, err := ptbClient.EstimateGas(ctx, txBytes)
-```
+The PTB Client is used by both the ChainReader (reads) and the Transaction Manager / ChainWriter (writes). For writes, the typical flow is:
 
-#### GetSUIBalance
-Check SUI balance for gas payments:
-```go
-balance, err := ptbClient.GetSUIBalance(ctx, address)
-```
-
-## Integration with Transaction Manager
-
-The PTB Client integrates seamlessly with the Transaction Manager (TxM) system for comprehensive transaction lifecycle management.
-
-### Transaction Flow
-
-1. **Enqueue**: TxM creates PTB and calls `EnqueuePTB`
-2. **Generation**: PTB Client prepares transaction with gas estimation
-3. **Signing**: Transaction is signed using the keystore service
-4. **Broadcasting**: Signed transaction is submitted to the network
-5. **Confirmation**: Transaction status is monitored until confirmation
-
-### Integration Pattern
+1. The ChainWriter / TxM constructs a `transaction.Transaction` (PTB).
+2. The PTB Client builds the BCS bytes, selects a gas payment coin, and estimates gas.
+3. The transaction is signed via the keystore service.
+4. The signed transaction is submitted over gRPC and its status is tracked.
 
 ```go
-// Create and configure PTB
 ptb := transaction.NewTransaction()
 ptb.SetSender(signerAddress)
 ptb.SetGasBudget(gasBudget)
+// ... add MoveCall / TransferObjects commands ...
 
-// Enqueue through TxM
-suiTx, err := txm.EnqueuePTB(ctx, transactionId, txMetadata, signerPublicKey, ptb)
+resp, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForEffectsCert)
 ```
 
 ## Error Handling
 
-The PTB Client implements comprehensive error handling:
+The client wraps and surfaces several error categories:
 
-### Common Error Types
-
-- **RPC Errors**: Network connectivity, node availability
-- **Transaction Errors**: Invalid transactions, insufficient gas
-- **Signing Errors**: Keystore unavailability, invalid keys
-- **Rate Limit Errors**: Too many concurrent requests
-- **Cache Errors**: Memory issues, expired data
-
-### Error Patterns
-
-```go
-// Check for specific error types
-if strings.Contains(err.Error(), "insufficient funds") {
-    // Handle insufficient gas
-} else if strings.Contains(err.Error(), "rate limit") {
-    // Handle rate limiting
-} else {
-    // Handle general errors
-}
-```
-
-## Performance Considerations
-
-### Caching Strategy
-
-- **Module Definitions**: Cached indefinitely (rarely change)
-- **Object State**: Cached with expiration (may change frequently)
-- **Package IDs**: Cached per session (upgrade detection)
-
-### Rate Limiting
-
-- **Concurrent Requests**: Limited to prevent RPC overload
-- **Request Batching**: Batch similar operations when possible
-- **Retry Logic**: Exponential backoff for failed requests
-
-### Gas Optimization
-
-- **Gas Estimation**: Always estimate before execution
-- **Coin Selection**: Optimize coin selection for gas payments
-- **Budget Management**: Monitor and adjust gas budgets
+- **gRPC errors**: connectivity, `NotFound` (e.g. a checkpoint not yet available), deadline exceeded. `google.golang.org/grpc/status` codes are inspected where it matters (e.g. the ChainPoller treats `codes.NotFound` as "checkpoint not yet produced").
+- **Transaction errors**: invalid transactions, insufficient gas, Move aborts.
+- **Signing errors**: keystore unavailability or invalid keys.
+- **Rate-limit / timeout errors**: failures acquiring the semaphore within `transactionTimeout`.
 
 ## Best Practices
 
-### 1. Connection Management
-
-```go
-// Use appropriate timeouts
-ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-defer cancel()
-
-// Configure reasonable concurrent request limits
-maxConcurrentRequests := 50 // Adjust based on RPC capacity
-```
-
-### 2. Error Handling
-
-```go
-// Always check for specific error conditions
-if err != nil {
-    if strings.Contains(err.Error(), "object not found") {
-        // Handle missing object
-        return handleMissingObject(objectId)
-    }
-    return fmt.Errorf("unexpected error: %w", err)
-}
-```
-
-### 3. Gas Management
-
-```go
-// Always estimate gas before execution
-gasEstimate, err := client.EstimateGas(ctx, txBytes)
-if err != nil {
-    return fmt.Errorf("gas estimation failed: %w", err)
-}
-
-// Add buffer for gas estimation
-gasBudget := gasEstimate + (gasEstimate * 10 / 100) // 10% buffer
-```
-
-### 4. Caching Usage
-
-```go
-// Check cache before expensive operations
-if cachedValue, found := client.GetCachedValue(cacheKey); found {
-    return cachedValue, nil
-}
-
-// Cache results of expensive operations
-result, err := expensiveOperation()
-if err == nil {
-    client.SetCachedValue(cacheKey, result)
-}
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **RPC Timeouts**: Increase timeout values or reduce concurrent requests
-2. **Gas Estimation Failures**: Check transaction validity and object availability
-3. **Cache Misses**: Verify cache configuration and expiration settings
-4. **Rate Limiting**: Reduce concurrent request limits or implement backoff
-
-### Debug Logging
-
-Enable debug logging to troubleshoot issues:
-
-```go
-// The PTB Client logs extensively at debug level
-logger := logger.NewLogger(logger.DebugLevel)
-```
-
-### Monitoring
-
-Key metrics to monitor:
-
-- **RPC Response Times**: Track RPC call latencies
-- **Error Rates**: Monitor failed requests by type
-- **Cache Hit Rates**: Measure caching effectiveness
-- **Gas Usage**: Track gas consumption patterns
-
-## Usage Examples
-
-### Basic Transaction Execution
-
-```go
-// Initialize client
-ptbClient, err := client.NewPTBClient(logger, rpcURL, nil, 30*time.Second, keystore, 50, requestType)
-
-// Execute Move function
-req := client.MoveCallRequest{
-    Signer: signerAddress, PackageObjectId: packageId, Module: "ccip", 
-    Function: "execute_message", Arguments: args, GasBudget: 1000000000,
-}
-txMetadata, err := ptbClient.MoveCall(ctx, req)
-
-// Sign and send
-response, err := ptbClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, signerKey, requestType)
-```
-
-### PTB Construction
-
-```go
-// Create and configure PTB
-ptb := transaction.NewTransaction()
-ptb.SetSender(signerAddress)
-ptb.SetGasBudget(30_000_000)
-
-// Chain multiple operations
-counterResult := ptb.MoveCall(packageId, "counter", "get_count", typeArgs, []transaction.Argument{ptb.Object(objectId)})
-ptb.MoveCall(packageId, "counter", "increment_by", typeArgs, []transaction.Argument{ptb.Object(objectId), counterResult})
-ptb.TransferObjects([]transaction.Argument{ptb.Object(tokenId)}, ptb.Pure(recipient))
-
-// Execute PTB
-response, err := ptbClient.FinishPTBAndSend(ctx, signer, ptb, requestType)
-```
-
-### State Reading
-
-```go
-// Read object data
-objectData, err := ptbClient.ReadObjectId(ctx, objectId)
-
-// Execute read-only function
-results, err := ptbClient.ReadFunction(ctx, signer, pkg, "ccip", "get_status", []any{messageId}, []string{"vector<u8>"})
-
-// Query events with filtering
-filter := client.EventFilterByMoveEventModule{Package: packageId, Module: "ccip", Event: "MessageExecuted"}
-events, err := ptbClient.QueryEvents(ctx, filter, &limit, nil, nil)
-
-// Get owned objects by type
-ownedObjects, err := ptbClient.ReadFilterOwnedObjectIds(ctx, owner, "0x123::token::Token", &limit)
-```
-
-### Gas Management
-
-```go
-// Check balance before transaction
-balance, err := ptbClient.GetSUIBalance(ctx, signerAddress)
-if balance.Cmp(requiredGas) < 0 {
-    return fmt.Errorf("insufficient balance")
-}
-
-// Estimate gas and add buffer
-gasEstimate, err := ptbClient.EstimateGas(ctx, txBytes)
-gasBudget := gasEstimate + (gasEstimate * 20 / 100) // 20% buffer
-
-coins, err := ptbClient.GetCoinsByAddress(ctx, signerAddress)
-```
-
-### Package Management
-
-```go
-// Get all package versions for a module
-packageIds, err := ptbClient.LoadModulePackageIds(ctx, originalPackageId, "ccip", signerAddress)
-
-// Get the latest package ID
-latestPackageId, err := ptbClient.GetLatestPackageId(ctx, originalPackageId, "ccip", signerAddress)
-
-// Get normalized module definition (ABI-like)
-normalizedModule, err := ptbClient.GetNormalizedModule(ctx, latestPackageId, "ccip")
-
-// Get CCIP-specific package ID
-ccipPackageId, err := ptbClient.GetCCIPPackageID(ctx, offrampPackageId, signerAddress)
-```
-
-### Event Monitoring
-
-```go
-// Query recent transactions
-limit := uint64(10)
-txResponse, err := ptbClient.QueryTransactions(ctx, fromAddress, nil, &limit)
-
-// Check transaction status
-status, err := ptbClient.GetTransactionStatus(ctx, txDigest)
-
-// Monitor events with cursor-based pagination
-filter := client.EventFilterByMoveEventModule{Package: packageId, Module: "ccip", Event: "MessageExecuted"}
-events, err := ptbClient.QueryEvents(ctx, filter, &eventLimit, cursor, sortOptions)
-```
-
-### Caching and Performance
-
-```go
-// Check cache before expensive operations
-if cachedValue, found := ptbClient.GetCachedValue(cacheKey); found {
-    return cachedValue, nil
-}
-
-// Cache results of expensive operations
-result, err := ptbClient.LoadModulePackageIds(ctx, packageId, "ccip", signerAddress)
-if err == nil {
-    ptbClient.SetCachedValue(cacheKey, result)
-}
-
-// Batch cache operations
-cacheData := map[string]any{"latest_package_id": latestId, "package_count": count}
-ptbClient.SetCachedValues(cacheData)
-```
-
-### Error Handling and Retry
-
-```go
-// Implement retry logic with exponential backoff
-for attempt := 0; attempt < maxRetries; attempt++ {
-    objectData, err := ptbClient.ReadObjectId(ctx, objectId)
-    if err == nil {
-        return objectData, nil
-    }
-    
-    // Check for retryable errors
-    if strings.Contains(err.Error(), "timeout") || strings.Contains(err.Error(), "rate limit") {
-        time.Sleep(time.Duration(attempt+1) * baseDelay)
-        continue
-    }
-    return nil, err // Non-retryable error
-}
-```
+- **Reuse clients**: construct one PTB Client per role. The relayer uses a separate client instance for the indexers (the ChainPoller fetches checkpoints continuously) so their load does not contend with the transaction-submission client.
+- **Tune the connection pool**: under heavy concurrent reads, the gRPC connection pool size (`MaxGrpcConnections`) matters more than the semaphore, because it determines how many HTTP/2 streams are available.
+- **Enable the object cache**: pass an `ObjectCache` to avoid repeatedly fetching version-stable shared objects on every config-poll cycle.
+- **Set sensible timeouts**: `TransactionTimeout` bounds each RPC; keep it under the deadline of any caller (e.g. the CCIP config poller).
 
 ## Security Considerations
 
-### Private Key Management
-
-- **Keystore Integration**: All signing operations use the secure keystore service
-- **No Key Exposure**: Private keys never leave the keystore
-- **Signature Verification**: All signatures are verified before submission
-
-### Transaction Safety
-
-- **Gas Limits**: Always set appropriate gas limits to prevent runaway transactions
-- **Simulation**: Simulate transactions before execution when possible
-- **Validation**: Validate all input parameters before processing
-
-### Network Security
-
-- **HTTPS Only**: Always use HTTPS for RPC connections
-- **Rate Limiting**: Implement rate limiting to prevent abuse
-- **Timeout Protection**: Set reasonable timeouts for all operations
+- **Keystore integration**: all signing goes through the keystore service; private keys never leave it.
+- **Transport**: gRPC connections support TLS (`GrpcClientConfig.UseTLS`); use authenticated, encrypted endpoints in production.
+- **Gas limits**: always set appropriate gas budgets to bound transaction cost.
