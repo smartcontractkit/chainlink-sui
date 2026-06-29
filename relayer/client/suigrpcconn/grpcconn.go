@@ -154,7 +154,7 @@ func (g *GrpcConn) Close() error {
 func (g *GrpcConn) Call(ctx context.Context, method string, req interface{}, reply interface{}) error {
 	if g.rl != nil {
 		if err := g.rl.Wait(ctx); err != nil {
-			return fmt.Errorf("rate limit error: %v", err)
+			return fmt.Errorf("rate limit error: %w", err)
 		}
 	}
 
@@ -166,7 +166,7 @@ func (g *GrpcConn) Call(ctx context.Context, method string, req interface{}, rep
 	for i := 0; i <= g.retryCount; i++ {
 		conn, err := g.GetConn(ctx)
 		if err != nil {
-			lastErr = fmt.Errorf("get connection error: %v", err)
+			lastErr = fmt.Errorf("get connection error: %w", err)
 			continue
 		}
 
@@ -175,7 +175,7 @@ func (g *GrpcConn) Call(ctx context.Context, method string, req interface{}, rep
 			return nil
 		}
 
-		lastErr = fmt.Errorf("invoke %s error (attempt %d): %v", method, i+1, err)
+		lastErr = fmt.Errorf("invoke %s error (attempt %d): %w", method, i+1, err)
 
 		if isConnectionError(err) {
 			g.mu.Lock()

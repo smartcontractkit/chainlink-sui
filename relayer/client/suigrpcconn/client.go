@@ -27,7 +27,8 @@ func NewSuiGrpcClient(target string, useTLS bool, opts ...GrpcConnOption) *SuiGr
 }
 
 func NewSuiGrpcClientWithAuth(target, token string, useTLS bool, opts ...GrpcConnOption) *SuiGrpcClient {
-	authOpts := []GrpcConnOption{
+	authOpts := make([]GrpcConnOption, 0, 2+len(opts))
+	authOpts = append(authOpts,
 		WithTransportSecurity(useTLS),
 		WithDialOptions(
 			grpc.WithUnaryInterceptor(func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, callOpts ...grpc.CallOption) error {
@@ -49,21 +50,20 @@ func NewSuiGrpcClientWithAuth(target, token string, useTLS bool, opts ...GrpcCon
 				return streamer(ctx, desc, cc, method, opts...)
 			}),
 		),
-	}
-
-	allOpts := append(authOpts, opts...)
-	conn := NewGrpcConn(target, allOpts...)
+	)
+	authOpts = append(authOpts, opts...)
+	conn := NewGrpcConn(target, authOpts...)
 	return &SuiGrpcClient{conn: conn}
 }
 
 func (c *SuiGrpcClient) Connect(ctx context.Context) error {
 	if err := c.conn.Connect(ctx); err != nil {
-		return fmt.Errorf("failed to connect: %v", err)
+		return fmt.Errorf("failed to connect: %w", err)
 	}
 
 	grpcConn, err := c.conn.GetConn(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get connection: %v", err)
+		return fmt.Errorf("failed to get connection: %w", err)
 	}
 
 	c.nameService = suirpcv2.NewNameServiceClient(grpcConn)
