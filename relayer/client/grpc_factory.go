@@ -103,8 +103,6 @@ func grpcTargetUsesTLS(target string) bool {
 		if target == "" || isLocalGrpcHost(target) {
 			return false
 		}
-		// Bare public hostnames default to port 443 when derived from https RPC URLs.
-		return true
 	}
 
 	if port == "443" {
@@ -142,12 +140,16 @@ func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient,
 	var moveModuleClient sui.ISuiAPI
 	if cfg.grpcEnabled() {
 		useTLS := grpcTargetUsesTLS(cfg.GrpcTarget)
+
 		log.Infow("Initializing Sui gRPC client", "target", cfg.GrpcTarget, "connections", maxGrpcConnections, "useTLS", useTLS)
+
 		grpcConfig := DefaultGrpcConfig(cfg.GrpcTarget, cfg.GrpcToken)
 		grpcConfig.UseTLS = useTLS
 		connPool = newGrpcConnPool(maxGrpcConnections, func() *grpcconn.SuiGrpcClient {
 			return NewSuiGrpcClient(grpcConfig)
 		})
+
+		// TODO: remove this to use the gRPC client only
 		jsonRPCScheme := "http"
 		if useTLS {
 			jsonRPCScheme = "https"
