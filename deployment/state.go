@@ -123,8 +123,8 @@ type CCIPChainState struct {
 	OffRampAddress         string
 	LatestOffRampPackageID string
 	OffRampStateObjectId   string
-	OffRampOwnerCapId    string
-	OffRampUpgradeCapId  string
+	OffRampOwnerCapId      string
+	OffRampUpgradeCapId    string
 
 	// LINK token related
 	LinkTokenAddress        string

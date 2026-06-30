@@ -16,7 +16,7 @@ var (
 	SuiCCIPUpgradeCapObjectIDType    deployment.ContractType = "SuiCCIPUpgradeCapObjectID"
 	SuiFeeQuoterCapType              deployment.ContractType = "SuiCCIPFeeQuoterCap"
 	SuiOnRampType                    deployment.ContractType = "SuiOnRamp"
-	SuiLatestOnRampPackageIDType   deployment.ContractType = "SuiLatestOnRampPackageID"
+	SuiLatestOnRampPackageIDType     deployment.ContractType = "SuiLatestOnRampPackageID"
 	SuiOnRampStateObjectIDType       deployment.ContractType = "SuiOnRampStateObjectID"
 	SuiOnRampOwnerCapObjectIDType    deployment.ContractType = "SuiOnRampOwnerCapObjectID"
 	SuiOnRampUpgradeCapObjectIDType  deployment.ContractType = "SuiOnRampUpgradeCapObjectID"

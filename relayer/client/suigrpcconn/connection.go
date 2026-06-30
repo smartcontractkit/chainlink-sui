@@ -79,15 +79,14 @@ func (c *Connection) dialOptions() []grpc.DialOption {
 		creds = insecure.NewCredentials()
 	}
 
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(creds),
-		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                defaultKeepAlive,
-			Timeout:             defaultKeepaliveTimeout,
-			PermitWithoutStream: !c.useTLS,
-		}),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaultMaxRecvMsgSize)),
-	}
+	opts := make([]grpc.DialOption, 0, 3)
+	opts = append(opts, grpc.WithTransportCredentials(creds))
+	opts = append(opts, grpc.WithKeepaliveParams(keepalive.ClientParameters{
+		Time:                defaultKeepAlive,
+		Timeout:             defaultKeepaliveTimeout,
+		PermitWithoutStream: !c.useTLS,
+	}))
+	opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaultMaxRecvMsgSize)))
 
 	return append(opts, c.interceptors...)
 }
