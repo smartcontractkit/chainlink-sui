@@ -22,8 +22,6 @@ import (
 // gRPC support uses the local suigrpcconn helper, which fixes TLS dial options for public Sui fullnodes.
 
 const (
-	DefaultGrpcTimeout    = 30 * time.Second
-	DefaultGrpcRetryCount = 3
 	DefaultGrpcMaxMsgSize = 20 * 1024 * 1024
 
 	// DefaultMaxGrpcConnections is the number of independent gRPC connections each client opens to the
@@ -34,32 +32,23 @@ const (
 
 // GrpcClientConfig holds configuration for a Sui gRPC client connection.
 type GrpcClientConfig struct {
-	Target     string
-	Token      string
-	Timeout    time.Duration
-	RetryCount int
-	UseTLS     bool
+	Target string
+	Token  string
+	UseTLS bool
 }
 
 // DefaultGrpcConfig returns sensible defaults for a gRPC endpoint and auth token.
 func DefaultGrpcConfig(target, token string) GrpcClientConfig {
 	return GrpcClientConfig{
-		Target:     target,
-		Token:      token,
-		Timeout:    DefaultGrpcTimeout,
-		RetryCount: DefaultGrpcRetryCount,
-		UseTLS:     true,
+		Target: target,
+		Token:  token,
+		UseTLS: true,
 	}
 }
 
-// NewSuiGrpcClient creates an authenticated Sui gRPC client.
-func NewSuiGrpcClient(config GrpcClientConfig) *suigrpcconn.SuiGrpcClient {
-	opts := []suigrpcconn.GrpcConnOption{
-		suigrpcconn.WithTimeout(config.Timeout),
-		suigrpcconn.WithRetryCount(config.RetryCount),
-	}
-
-	return suigrpcconn.NewSuiGrpcClientWithAuth(config.Target, config.Token, config.UseTLS, opts...)
+// NewSuiGrpcClient creates an authenticated Sui gRPC connection.
+func NewSuiGrpcClient(config GrpcClientConfig) *suigrpcconn.Connection {
+	return suigrpcconn.NewConnectionWithAuth(config.Target, config.Token, config.UseTLS)
 }
 
 // PTBClientConfig configures a PTBClient with gRPC endpoints.
@@ -136,7 +125,7 @@ func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient,
 
 		grpcConfig := DefaultGrpcConfig(cfg.GrpcTarget, cfg.GrpcToken)
 		grpcConfig.UseTLS = useTLS
-		connPool = newGrpcConnPool(maxGrpcConnections, func() *suigrpcconn.SuiGrpcClient {
+		connPool = newGrpcConnPool(maxGrpcConnections, func() *suigrpcconn.Connection {
 			return NewSuiGrpcClient(grpcConfig)
 		})
 
