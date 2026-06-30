@@ -79,10 +79,11 @@ func (d BackfillLocalDecimals) Apply(e cldf.Environment, config BackfillLocalDec
 		ccipops.BackfillLocalDecimalsSequence,
 		deps,
 		ccipops.BackfillLocalDecimalsSeqInput{
-			CCIPPackageId:    ccipPackageId,
-			StateObjectId:    stateObjectId,
-			OwnerCapObjectId: ownerCapObjectId,
-			VerifyOnly:       config.VerifyOnly,
+			CCIPPackageId:         ccipPackageId,          // latest/effective head = reads + direct-exec binary
+			OriginalCCIPPackageId: chainState.CCIPAddress, // original = MCMS on-chain identity (proposal target)
+			StateObjectId:         stateObjectId,
+			OwnerCapObjectId:      ownerCapObjectId,
+			VerifyOnly:            config.VerifyOnly,
 		},
 	)
 	if err != nil {

@@ -15,10 +15,11 @@ import (
 type NoObjects struct{}
 
 type CurseUncurseChainInput struct {
-	CCIPPackageId    string
-	StateObjectId    string
-	OwnerCapObjectId string
-	Subjects         [][]byte
+	CCIPPackageId       string // original CCIP package = MCMS on-chain identity (proposal target)
+	LatestCCIPPackageId string // upgraded CCIP package = PTB MoveCall dispatch target
+	StateObjectId       string
+	OwnerCapObjectId    string
+	Subjects            [][]byte
 }
 
 var CurseChainOp = cld_ops.NewOperation(
@@ -33,7 +34,7 @@ func curseChainHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input CurseUncur
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("at least one subject is required to curse")
 	}
 
-	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	contract, err := module_rmn_remote.NewRmnRemote(mcmsBinaryPackageID(input.CCIPPackageId, input.LatestCCIPPackageId), deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
@@ -51,6 +52,7 @@ func curseChainHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input CurseUncur
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call for curse: %w", err)
 	}
+	applyMcmsPackageIdentity(&call, input.CCIPPackageId, input.LatestCCIPPackageId)
 
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of curse_chain on RMN Remote as no signer provided")
@@ -95,7 +97,7 @@ func uncurseChainHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input CurseUnc
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("at least one subject is required to uncurse")
 	}
 
-	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	contract, err := module_rmn_remote.NewRmnRemote(mcmsBinaryPackageID(input.CCIPPackageId, input.LatestCCIPPackageId), deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
@@ -113,6 +115,7 @@ func uncurseChainHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input CurseUnc
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call for uncurse: %w", err)
 	}
+	applyMcmsPackageIdentity(&call, input.CCIPPackageId, input.LatestCCIPPackageId)
 
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of uncurse_chain on RMN Remote as no signer provided")

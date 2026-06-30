@@ -12,6 +12,26 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
 
+// mcmsBinaryPackageID returns the package the PTB MoveCall should be encoded and
+// dispatched against: the upgraded (latest) package when known, otherwise the original.
+func mcmsBinaryPackageID(originalPkgID, latestPkgID string) string {
+	if latestPkgID != "" {
+		return latestPkgID
+	}
+	return originalPkgID
+}
+
+// applyMcmsPackageIdentity keeps the original package as the MCMS on-chain identity
+// (the proposal target, validated on-chain against with_original_ids<state_object::McmsCallback>)
+// while routing the PTB MoveCall to the upgraded package. It is a no-op when the package
+// has not been upgraded (latestPkgID == ""), preserving original == latest behavior.
+func applyMcmsPackageIdentity(call *sui_ops.TransactionCall, originalPkgID, latestPkgID string) {
+	if latestPkgID != "" {
+		call.LatestPackageID = call.PackageID // latest (encode/dispatch target)
+		call.PackageID = originalPkgID        // original (on-chain MCMS identity)
+	}
+}
+
 // CreateCurserCapInput mints a CurserCap using CCIP OwnerCap.
 //
 // Direct path: EOA holds OwnerCap and signs the PTB (deps.Signer set).
@@ -91,7 +111,13 @@ func createCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Creat
 // Direct path: EOA holds OwnerCap and signs the PTB (deps.Signer set).
 // MCMS path: proposal leaf uses inner function mint_and_register_curser_cap, routed by bindings/mcms_encoder.go.
 type McmsMintAndRegisterCurserCapInput struct {
-	CCIPPackageId        string
+	// CCIPPackageId is the ORIGINAL CCIP package ID. It is used as the MCMS on-chain
+	// identity (the operation target validated by mcms_registry against
+	// with_original_ids<state_object::McmsCallback>).
+	CCIPPackageId string
+	// LatestCCIPPackageId is the upgraded CCIP package ID. When set, the PTB MoveCall
+	// dispatches against this package while the proposal target stays CCIPPackageId.
+	LatestCCIPPackageId  string
 	StateObjectId        string
 	SlowOwnerCapObjectId string
 	FastRegistryObjectId string
@@ -105,7 +131,7 @@ var McmsMintAndRegisterCurserCapOp = cld_ops.NewOperation(
 )
 
 func mcmsMintAndRegisterCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input McmsMintAndRegisterCurserCapInput) (sui_ops.OpTxResult[NoObjects], error) {
-	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	contract, err := module_rmn_remote.NewRmnRemote(mcmsBinaryPackageID(input.CCIPPackageId, input.LatestCCIPPackageId), deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
@@ -123,6 +149,7 @@ func mcmsMintAndRegisterCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
 	}
+	applyMcmsPackageIdentity(&call, input.CCIPPackageId, input.LatestCCIPPackageId)
 
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of mint_and_register_curser_cap as no signer provided",
@@ -155,7 +182,8 @@ func mcmsMintAndRegisterCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 // Direct path: EOA holds OwnerCap and signs the PTB (deps.Signer set).
 // MCMS path: proposal leaf uses inner function create_curser_cap_and_transfer, routed by bindings/mcms_encoder.go.
 type McmsCreateCurserCapAndTransferInput struct {
-	CCIPPackageId        string
+	CCIPPackageId        string // original CCIP package = MCMS on-chain identity (proposal target)
+	LatestCCIPPackageId  string // upgraded CCIP package = PTB MoveCall dispatch target
 	StateObjectId        string
 	SlowOwnerCapObjectId string
 	RecipientAddress     string
@@ -173,7 +201,7 @@ func mcmsCreateCurserCapAndTransferHandler(b cld_ops.Bundle, deps sui_ops.OpTxDe
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("recipient address is required for create_curser_cap_and_transfer")
 	}
 
-	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	contract, err := module_rmn_remote.NewRmnRemote(mcmsBinaryPackageID(input.CCIPPackageId, input.LatestCCIPPackageId), deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
@@ -190,6 +218,7 @@ func mcmsCreateCurserCapAndTransferHandler(b cld_ops.Bundle, deps sui_ops.OpTxDe
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
 	}
+	applyMcmsPackageIdentity(&call, input.CCIPPackageId, input.LatestCCIPPackageId)
 
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of create_curser_cap_and_transfer as no signer provided",
@@ -225,7 +254,8 @@ func mcmsCreateCurserCapAndTransferHandler(b cld_ops.Bundle, deps sui_ops.OpTxDe
 // MCMS path: proposal leaf uses inner function register_curser_cap, routed by bindings/mcms_encoder.go.
 // Use McmsMintAndRegisterCurserCapOp when the cap does not exist yet.
 type McmsRegisterCurserCapInput struct {
-	CCIPPackageId        string
+	CCIPPackageId        string // original CCIP package = MCMS on-chain identity (proposal target)
+	LatestCCIPPackageId  string // upgraded CCIP package = PTB MoveCall dispatch target
 	StateObjectId        string
 	SlowOwnerCapObjectId string
 	FastRegistryObjectId string
@@ -244,7 +274,7 @@ func mcmsRegisterCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("curser cap object id is required for register_curser_cap")
 	}
 
-	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	contract, err := module_rmn_remote.NewRmnRemote(mcmsBinaryPackageID(input.CCIPPackageId, input.LatestCCIPPackageId), deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
@@ -263,6 +293,7 @@ func mcmsRegisterCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
 	}
+	applyMcmsPackageIdentity(&call, input.CCIPPackageId, input.LatestCCIPPackageId)
 
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of register_curser_cap as no signer provided",
@@ -300,7 +331,8 @@ func mcmsRegisterCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 // Direct path: EOA holds OwnerCap and signs the PTB (deps.Signer set).
 // MCMS path: proposal leaf uses inner function initialize_allowed_curser_caps, routed by bindings/mcms_encoder.go.
 type McmsInitializeAllowedCurserCapsInput struct {
-	CCIPPackageId        string
+	CCIPPackageId        string // original CCIP package = MCMS on-chain identity (proposal target)
+	LatestCCIPPackageId  string // upgraded CCIP package = PTB MoveCall dispatch target
 	StateObjectId        string
 	SlowOwnerCapObjectId string
 	InitialCurserCapIds  []string
@@ -314,7 +346,7 @@ var McmsInitializeAllowedCurserCapsOp = cld_ops.NewOperation(
 )
 
 func mcmsInitializeAllowedCurserCapsHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input McmsInitializeAllowedCurserCapsInput) (sui_ops.OpTxResult[NoObjects], error) {
-	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	contract, err := module_rmn_remote.NewRmnRemote(mcmsBinaryPackageID(input.CCIPPackageId, input.LatestCCIPPackageId), deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
@@ -331,6 +363,7 @@ func mcmsInitializeAllowedCurserCapsHandler(b cld_ops.Bundle, deps sui_ops.OpTxD
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
 	}
+	applyMcmsPackageIdentity(&call, input.CCIPPackageId, input.LatestCCIPPackageId)
 
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of initialize_allowed_curser_caps as no signer provided",
@@ -363,7 +396,8 @@ func mcmsInitializeAllowedCurserCapsHandler(b cld_ops.Bundle, deps sui_ops.OpTxD
 // Direct path: EOA holds OwnerCap and signs the PTB (deps.Signer set).
 // MCMS path: proposal leaf uses inner function register_curser_cap_ids, routed by bindings/mcms_encoder.go.
 type McmsRegisterCurserCapIdsInput struct {
-	CCIPPackageId        string
+	CCIPPackageId        string // original CCIP package = MCMS on-chain identity (proposal target)
+	LatestCCIPPackageId  string // upgraded CCIP package = PTB MoveCall dispatch target
 	StateObjectId        string
 	SlowOwnerCapObjectId string
 	CurserCapObjectIds   []string
@@ -381,7 +415,7 @@ func mcmsRegisterCurserCapIdsHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("at least one curser cap object id is required")
 	}
 
-	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	contract, err := module_rmn_remote.NewRmnRemote(mcmsBinaryPackageID(input.CCIPPackageId, input.LatestCCIPPackageId), deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
@@ -398,6 +432,7 @@ func mcmsRegisterCurserCapIdsHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
 	}
+	applyMcmsPackageIdentity(&call, input.CCIPPackageId, input.LatestCCIPPackageId)
 
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of register_curser_cap_ids as no signer provided",
@@ -430,7 +465,8 @@ func mcmsRegisterCurserCapIdsHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 // Direct path: EOA holds OwnerCap and signs the PTB (deps.Signer set).
 // MCMS path: proposal leaf uses inner function deregister_curser_cap_ids, routed by bindings/mcms_encoder.go.
 type McmsDeregisterCurserCapIdsInput struct {
-	CCIPPackageId        string
+	CCIPPackageId        string // original CCIP package = MCMS on-chain identity (proposal target)
+	LatestCCIPPackageId  string // upgraded CCIP package = PTB MoveCall dispatch target
 	StateObjectId        string
 	SlowOwnerCapObjectId string
 	CurserCapObjectIds   []string
@@ -448,7 +484,7 @@ func mcmsDeregisterCurserCapIdsHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("at least one curser cap object id is required")
 	}
 
-	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	contract, err := module_rmn_remote.NewRmnRemote(mcmsBinaryPackageID(input.CCIPPackageId, input.LatestCCIPPackageId), deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
@@ -465,6 +501,7 @@ func mcmsDeregisterCurserCapIdsHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
 	}
+	applyMcmsPackageIdentity(&call, input.CCIPPackageId, input.LatestCCIPPackageId)
 
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of deregister_curser_cap_ids as no signer provided",
@@ -498,10 +535,11 @@ func mcmsDeregisterCurserCapIdsHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 // MCMS path: fast MCMS holds CurserCap in its Registry; proposal leaf uses inner
 // function curse_multiple_with_curser_cap, routed by bindings/mcms_encoder.go.
 type CurseWithCurserCapInput struct {
-	CCIPPackageId     string
-	StateObjectId     string
-	CurserCapObjectId string
-	Subjects          [][]byte
+	CCIPPackageId       string // original CCIP package = MCMS on-chain identity (proposal target)
+	LatestCCIPPackageId string // upgraded CCIP package = PTB MoveCall dispatch target
+	StateObjectId       string
+	CurserCapObjectId   string
+	Subjects            [][]byte
 }
 
 var CurseWithCurserCapOp = cld_ops.NewOperation(
@@ -516,7 +554,7 @@ func curseWithCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Cu
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("at least one subject is required to curse")
 	}
 
-	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	contract, err := module_rmn_remote.NewRmnRemote(mcmsBinaryPackageID(input.CCIPPackageId, input.LatestCCIPPackageId), deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
@@ -534,6 +572,7 @@ func curseWithCurserCapHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Cu
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to build transaction call: %w", err)
 	}
+	applyMcmsPackageIdentity(&call, input.CCIPPackageId, input.LatestCCIPPackageId)
 
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of curse_with_curser_cap as no signer provided")

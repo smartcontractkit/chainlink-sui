@@ -79,7 +79,8 @@ func (c RegisterCurserCap) Apply(e cldf.Environment, cfg RegisterCurserCapConfig
 	}
 
 	input := rmn_ops.McmsMintAndRegisterCurserCapInput{
-		CCIPPackageId:        chainState.EffectiveCCIPPackageID(),
+		CCIPPackageId:        chainState.CCIPAddress, // original package = MCMS on-chain identity (proposal target)
+		LatestCCIPPackageId:  chainState.LatestCCIPPackageID,
 		StateObjectId:        chainState.CCIPObjectRef,
 		SlowOwnerCapObjectId: chainState.CCIPOwnerCapObjectId,
 		FastRegistryObjectId: fastMCMS.RegistryObjectID,
