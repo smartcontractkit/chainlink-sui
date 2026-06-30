@@ -64,24 +64,34 @@ var TokenAdminRegistryInitializeOp = cld_ops.NewOperation(
 )
 
 type InitLocalDecimalsInput struct {
-	CCIPPackageId    string
+	CCIPPackageId    string // original CCIP package = MCMS on-chain identity (proposal target)
+	LatestPackageId  string // upgraded CCIP package = PTB dispatch / direct-exec binary (empty when not upgraded)
 	StateObjectId    string
 	OwnerCapObjectId string
 }
 
 var initLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitLocalDecimalsInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	// Encode/dispatch against the upgraded package; the on-chain MCMS identity stays the original.
+	binaryPkgId := input.CCIPPackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+
 	// MCMS callback validate_obj_addrs expects ref then owner_cap (see mcms_initialize_local_decimals).
 	data, err := SerializeMcmsObjectAddrs(input.StateObjectId, input.OwnerCapObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to serialize initialize_local_decimals MCMS data: %w", err)
 	}
 	call := sui_ops.TransactionCall{
-		PackageID:  input.CCIPPackageId,
+		PackageID:  input.CCIPPackageId, // original = MCMS on-chain identity (validated against with_original_ids)
 		Module:     "token_admin_registry",
 		Function:   "initialize_local_decimals",
 		Data:       data,
 		StateObjID: input.StateObjectId,
 		TypeArgs:   []string{},
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = input.LatestPackageId // upgraded = PTB MoveCall dispatch target
 	}
 
 	if deps.Signer == nil {
@@ -93,7 +103,7 @@ var initLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		}, nil
 	}
 
-	contract, err := module_token_admin_registry.NewTokenAdminRegistry(input.CCIPPackageId, deps.Client)
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
@@ -108,6 +118,10 @@ var initLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	call, err = sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID // latest (binaryPkgId) → PTB dispatch
+		call.PackageID = input.CCIPPackageId  // original → on-chain MCMS identity
 	}
 
 	opts := deps.GetCallOpts()
@@ -140,7 +154,8 @@ var TokenAdminRegistryInitializeLocalDecimalsOp = cld_ops.NewOperation(
 )
 
 type BackfillLocalDecimalsInput struct {
-	CCIPPackageId       string
+	CCIPPackageId       string // original CCIP package = MCMS on-chain identity (proposal target)
+	LatestPackageId     string // upgraded CCIP package = PTB dispatch / direct-exec binary (empty when not upgraded)
 	StateObjectId       string
 	OwnerCapObjectId    string
 	CoinMetadataAddress string
@@ -149,7 +164,11 @@ type BackfillLocalDecimalsInput struct {
 }
 
 var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BackfillLocalDecimalsInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_token_admin_registry.NewTokenAdminRegistry(input.CCIPPackageId, deps.Client)
+	binaryPkgId := input.CCIPPackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
@@ -171,6 +190,10 @@ var backfillLocalDecimalsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID // latest (binaryPkgId) → PTB dispatch
+		call.PackageID = input.CCIPPackageId  // original → on-chain MCMS identity
 	}
 
 	if deps.Signer == nil {

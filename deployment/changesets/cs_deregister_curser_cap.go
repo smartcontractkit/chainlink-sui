@@ -75,7 +75,8 @@ func (c DeregisterCurserCap) Apply(e cldf.Environment, cfg DeregisterCurserCapCo
 	}
 
 	input := rmn_ops.McmsDeregisterCurserCapIdsInput{
-		CCIPPackageId:        chainState.CCIPAddress,
+		CCIPPackageId:        chainState.CCIPAddress, // original package = MCMS on-chain identity (proposal target)
+		LatestCCIPPackageId:  chainState.LatestCCIPPackageID,
 		StateObjectId:        chainState.CCIPObjectRef,
 		SlowOwnerCapObjectId: chainState.CCIPOwnerCapObjectId,
 		CurserCapObjectIds:   cfg.CurserCapObjectIds,

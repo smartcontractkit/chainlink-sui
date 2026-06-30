@@ -114,10 +114,11 @@ func (c CurseUncurseChains) Apply(e cldf.Environment, cfg CurseUncurseChainsConf
 	}
 
 	input := rmn_ops.CurseUncurseChainInput{
-		CCIPPackageId:    chainState.EffectiveCCIPPackageID(),
-		StateObjectId:    chainState.CCIPObjectRef,
-		OwnerCapObjectId: chainState.CCIPOwnerCapObjectId,
-		Subjects:         subjects,
+		CCIPPackageId:       chainState.CCIPAddress, // original package = MCMS on-chain identity (proposal target)
+		LatestCCIPPackageId: chainState.LatestCCIPPackageID,
+		StateObjectId:       chainState.CCIPObjectRef,
+		OwnerCapObjectId:    chainState.CCIPOwnerCapObjectId,
+		Subjects:            subjects,
 	}
 
 	var genericReport operations.Report[any, any]
@@ -133,10 +134,11 @@ func (c CurseUncurseChains) Apply(e cldf.Environment, cfg CurseUncurseChainsConf
 			return cldf.ChangesetOutput{}, err
 		}
 		fastInput := rmn_ops.CurseWithCurserCapInput{
-			CCIPPackageId:     chainState.EffectiveCCIPPackageID(),
-			StateObjectId:     chainState.CCIPObjectRef,
-			CurserCapObjectId: curserCapObjectID,
-			Subjects:          subjects,
+			CCIPPackageId:       chainState.CCIPAddress, // original package = MCMS on-chain identity (proposal target)
+			LatestCCIPPackageId: chainState.LatestCCIPPackageID,
+			StateObjectId:       chainState.CCIPObjectRef,
+			CurserCapObjectId:   curserCapObjectID,
+			Subjects:            subjects,
 		}
 		report, execErr := operations.ExecuteOperation(e.OperationsBundle, rmn_ops.CurseWithCurserCapOp, deps, fastInput)
 		if execErr != nil {

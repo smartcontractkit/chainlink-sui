@@ -10,10 +10,13 @@ import (
 )
 
 type BackfillLocalDecimalsSeqInput struct {
-	CCIPPackageId    string
-	StateObjectId    string
-	OwnerCapObjectId string
-	VerifyOnly       bool
+	CCIPPackageId string // effective/latest CCIP package: used for reads (verify) and direct execution
+	// OriginalCCIPPackageId is the original/defining CCIP package, used as the MCMS on-chain identity
+	// (proposal target) for the proposal-routed backfill ops. Falls back to CCIPPackageId when empty.
+	OriginalCCIPPackageId string
+	StateObjectId         string
+	OwnerCapObjectId      string
+	VerifyOnly            bool
 }
 
 type BackfillLocalDecimalsSeqOutput struct {
@@ -55,6 +58,11 @@ var BackfillLocalDecimalsSequence = cld_ops.NewSequence(
 		}
 
 		if deps.Signer == nil {
+			// MCMS-routed: identity must be the original package; PTB dispatches against the latest.
+			originalPkgId := input.OriginalCCIPPackageId
+			if originalPkgId == "" {
+				originalPkgId = input.CCIPPackageId
+			}
 			defs := make([]cld_ops.Definition, 0, len(mismatches))
 			inputs := make([]any, 0, len(mismatches))
 			for _, mismatch := range mismatches {
@@ -63,7 +71,8 @@ var BackfillLocalDecimalsSequence = cld_ops.NewSequence(
 					TokenAdminRegistryBackfillLocalDecimalsOp,
 					deps,
 					BackfillLocalDecimalsInput{
-						CCIPPackageId:       input.CCIPPackageId,
+						CCIPPackageId:       originalPkgId,       // original = MCMS on-chain identity
+						LatestPackageId:     input.CCIPPackageId, // upgraded = PTB dispatch binary
 						StateObjectId:       input.StateObjectId,
 						OwnerCapObjectId:    input.OwnerCapObjectId,
 						CoinMetadataAddress: mismatch.CoinMetadataAddress,

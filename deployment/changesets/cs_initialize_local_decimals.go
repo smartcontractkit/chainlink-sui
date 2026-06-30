@@ -78,7 +78,8 @@ func (d InitializeLocalDecimals) Apply(e cldf.Environment, config InitializeLoca
 		ccipops.TokenAdminRegistryInitializeLocalDecimalsOp,
 		deps,
 		ccipops.InitLocalDecimalsInput{
-			CCIPPackageId:    ccipPackageId,
+			CCIPPackageId:    chainState.CCIPAddress, // original = MCMS on-chain identity (proposal target)
+			LatestPackageId:  ccipPackageId,          // latest/effective head = PTB dispatch / direct-exec binary
 			StateObjectId:    stateObjectId,
 			OwnerCapObjectId: ownerCapObjectId,
 		},
