@@ -546,9 +546,9 @@ func decodeOpenSignature(sig *suirpcv2.OpenSignature) (name string, reference st
 		if len(elementTypes) != 1 {
 			return "", "", "", fmt.Errorf("vector signature has %d type parameters, expected 1", len(elementTypes))
 		}
-		elementType, err := parseSignatureBodyType(elementTypes[0])
-		if err != nil {
-			return "", "", "", err
+		elementType, elmErr := parseSignatureBodyType(elementTypes[0])
+		if elmErr != nil {
+			return "", "", "", elmErr
 		}
 		return datatypeName(elementTypes[0].GetTypeName()), "Vector", elementType, nil
 	}
