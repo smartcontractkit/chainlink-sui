@@ -76,6 +76,17 @@ func newTestBundle(t *testing.T, registry *cld_ops.OperationRegistry) cld_ops.Bu
 	)
 }
 
+// Temporarily wrap the mock client from MCMS to mock the GetMoveModuleFunction method
+type proposalGenerateMockClient struct {
+	*mocksui.SuiPTBClient
+}
+
+func (c *proposalGenerateMockClient) GetMoveModuleFunction(
+	_ context.Context, _, _, _ string,
+) (*suirpcv2.FunctionDescriptor, error) {
+	return nil, nil
+}
+
 func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 	t.Parallel()
 
@@ -90,7 +101,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 	mockClient := setupProposalGenerateMockClient(t)
 	// Create mock dependencies
 	deps := sui_ops.OpTxDeps{
-		Client: mockClient,
+		Client: &proposalGenerateMockClient{mockClient},
 		Signer: nil, // We don't need a real signer for this test since NoExecute=true
 		GetCallOpts: func() *bind.CallOpts {
 			return &bind.CallOpts{}
