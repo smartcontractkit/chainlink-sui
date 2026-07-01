@@ -1281,19 +1281,33 @@ func (c *PTBClient) getNormalizedModuleInternal(ctx context.Context, packageId s
 }
 
 func (c *PTBClient) GetCoinMetadata(ctx context.Context, coinType string) (models.CoinMetadataResponse, error) {
-	if c.moveModuleClient == nil {
-		return models.CoinMetadataResponse{}, errors.New("move module client not configured")
-	}
-
 	var result models.CoinMetadataResponse
 	err := c.WithRateLimit(ctx, "GetCoinMetadata", func(ctx context.Context) error {
-		rsp, err := c.moveModuleClient.SuiXGetCoinMetadata(ctx, models.SuiXGetCoinMetadataRequest{
-			CoinType: coinType,
+		stateService, err := c.getStateService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get state service: %w", err)
+		}
+
+		coinInfoResponse, err := stateService.GetCoinInfo(ctx, &suirpcv2.GetCoinInfoRequest{
+			CoinType: &coinType,
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get coin info: %w", err)
 		}
-		result = rsp
+
+		metadata := coinInfoResponse.GetMetadata()
+		if metadata == nil {
+			return fmt.Errorf("no metadata found for coin type %s", coinType)
+		}
+
+		result = models.CoinMetadataResponse{
+			Id:          metadata.GetId(),
+			Decimals:    int(metadata.GetDecimals()),
+			Name:        metadata.GetName(),
+			Symbol:      metadata.GetSymbol(),
+			IconUrl:     metadata.GetIconUrl(),
+			Description: metadata.GetDescription(),
+		}
 		return nil
 	})
 
