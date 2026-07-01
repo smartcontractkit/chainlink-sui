@@ -113,6 +113,7 @@ type SuiPTBClient interface {
 	GetLatestCheckpoint(ctx context.Context) (*suirpcv2.Checkpoint, error)
 	GetCheckpointData(ctx context.Context, checkpointSequenceNumber uint64) (*CheckpointData, error)
 	GetNormalizedModule(ctx context.Context, packageId string, moduleId string) (models.GetNormalizedMoveModuleResponse, error)
+	GetMoveModuleFunction(ctx context.Context, packageId string, moduleId string, functionName string) (*suirpcv2.FunctionDescriptor, error)
 	GetSUIBalance(ctx context.Context, address string) (*suirpcv2.Balance, error)
 	LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error)
 	GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error)
@@ -1278,6 +1279,25 @@ func (c *PTBClient) getNormalizedModuleInternal(ctx context.Context, packageId s
 	c.normalizedModules[packageId][module] = normalizedModule
 
 	return normalizedModule, nil
+}
+
+func (c *PTBClient) GetMoveModuleFunction(ctx context.Context, packageId string, moduleId string, functionName string) (*suirpcv2.FunctionDescriptor, error) {
+	var result *suirpcv2.FunctionDescriptor
+	err := c.WithRateLimit(ctx, "GetMoveModuleFunction", func(ctx context.Context) error {
+		var err error
+		movePkgService, err := c.getMovePackageService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get move package service: %w", err)
+		}
+		response, err := movePkgService.GetFunction(ctx, &suirpcv2.GetFunctionRequest{
+			PackageId:  &packageId,
+			ModuleName: &moduleId,
+			Name:       &functionName,
+		})
+		result = response.GetFunction()
+		return err
+	})
+	return result, err
 }
 
 func (c *PTBClient) GetCoinMetadata(ctx context.Context, coinType string) (models.CoinMetadataResponse, error) {

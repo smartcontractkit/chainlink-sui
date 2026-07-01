@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 )
 
 func TestExposedFunctionSignature_InvalidShape(t *testing.T) {
@@ -598,6 +600,204 @@ func TestDecodeParameters_NilValue(t *testing.T) {
 	function := map[string]any{"parameters": nil}
 
 	result, err := DecodeParameters(lggr, function, "parameters")
+	require.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// The tests below exercise DecodeParametersFromFunctionDescriptor, the gRPC-based counterpart to
+// DecodeParameters, using suirpcv2.FunctionDescriptor fixtures instead of JSON-RPC-shaped maps.
+// Each case mirrors an equivalent DecodeParameters test above to confirm behavioral parity.
+
+func openSig(reference *suirpcv2.OpenSignature_Reference, body *suirpcv2.OpenSignatureBody) *suirpcv2.OpenSignature {
+	return &suirpcv2.OpenSignature{Reference: reference, Body: body}
+}
+
+func primitiveBody(t suirpcv2.OpenSignatureBody_Type) *suirpcv2.OpenSignatureBody {
+	return &suirpcv2.OpenSignatureBody{Type: AnyPointer(t)}
+}
+
+func datatypeBody(typeName string) *suirpcv2.OpenSignatureBody {
+	return &suirpcv2.OpenSignatureBody{Type: AnyPointer(suirpcv2.OpenSignatureBody_DATATYPE), TypeName: AnyPointer(typeName)}
+}
+
+func vectorBody(element *suirpcv2.OpenSignatureBody) *suirpcv2.OpenSignatureBody {
+	return &suirpcv2.OpenSignatureBody{
+		Type:                       AnyPointer(suirpcv2.OpenSignatureBody_VECTOR),
+		TypeParameterInstantiation: []*suirpcv2.OpenSignatureBody{element},
+	}
+}
+
+func typeParameterBody(position uint32) *suirpcv2.OpenSignatureBody {
+	return &suirpcv2.OpenSignatureBody{Type: AnyPointer(suirpcv2.OpenSignatureBody_TYPE_PARAMETER), TypeParameter: AnyPointer(position)}
+}
+
+func TestDecodeParametersFromFunctionDescriptor_NilDescriptor(t *testing.T) {
+	lggr := logger.Test(t)
+
+	result, err := DecodeParametersFromFunctionDescriptor(lggr, nil)
+	require.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestDecodeParametersFromFunctionDescriptor_EmptyParameters(t *testing.T) {
+	lggr := logger.Test(t)
+
+	result, err := DecodeParametersFromFunctionDescriptor(lggr, &suirpcv2.FunctionDescriptor{})
+	require.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+func TestDecodeParametersFromFunctionDescriptor_StringParam(t *testing.T) {
+	lggr := logger.Test(t)
+
+	fd := &suirpcv2.FunctionDescriptor{
+		Parameters: []*suirpcv2.OpenSignature{
+			openSig(nil, datatypeBody("0x1::string::String")),
+		},
+	}
+
+	result, err := DecodeParametersFromFunctionDescriptor(lggr, fd)
+	require.NoError(t, err)
+	assert.Equal(t, []string{moveStringType}, result)
+}
+
+func TestDecodeParametersFromFunctionDescriptor_VectorAsciiString(t *testing.T) {
+	lggr := logger.Test(t)
+
+	fd := &suirpcv2.FunctionDescriptor{
+		Parameters: []*suirpcv2.OpenSignature{
+			openSig(nil, vectorBody(datatypeBody("0x1::ascii::String"))),
+		},
+	}
+
+	result, err := DecodeParametersFromFunctionDescriptor(lggr, fd)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"vector<" + moveASCIIStringType + ">"}, result)
+}
+
+func TestDecodeParametersFromFunctionDescriptor_NestedVectorU8(t *testing.T) {
+	lggr := logger.Test(t)
+
+	fd := &suirpcv2.FunctionDescriptor{
+		Parameters: []*suirpcv2.OpenSignature{
+			openSig(nil, vectorBody(vectorBody(primitiveBody(suirpcv2.OpenSignatureBody_U8)))),
+		},
+	}
+
+	result, err := DecodeParametersFromFunctionDescriptor(lggr, fd)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"vector<vector<u8>>"}, result)
+}
+
+// TestDecodeParametersFromFunctionDescriptor_ComplexSignature mirrors
+// TestDecodeParameters_ComplexSignature using the gRPC FunctionDescriptor shape.
+func TestDecodeParametersFromFunctionDescriptor_ComplexSignature(t *testing.T) {
+	lggr := logger.Test(t)
+
+	fd := &suirpcv2.FunctionDescriptor{
+		Parameters: []*suirpcv2.OpenSignature{
+			// &CCIPObjectRef (object reference)
+			openSig(AnyPointer(suirpcv2.OpenSignature_IMMUTABLE), datatypeBody("0xccip::state_object::CCIPObjectRef")),
+			// address primitive (Move Address)
+			openSig(nil, primitiveBody(suirpcv2.OpenSignatureBody_ADDRESS)),
+			// vector<u8>
+			openSig(nil, vectorBody(primitiveBody(suirpcv2.OpenSignatureBody_U8))),
+			// vector<SomeStruct> (vector of object-like structs)
+			openSig(nil, vectorBody(datatypeBody("0xpool::burn_mint::BurnMintTokenPoolState"))),
+			// 0x1::string::String by value
+			openSig(nil, datatypeBody("0x1::string::String")),
+			// vector<0x1::string::String>
+			openSig(nil, vectorBody(datatypeBody("0x1::string::String"))),
+			// bool
+			openSig(nil, primitiveBody(suirpcv2.OpenSignatureBody_BOOL)),
+		},
+	}
+
+	result, err := DecodeParametersFromFunctionDescriptor(lggr, fd)
+	require.NoError(t, err)
+
+	expected := []string{
+		"&object",
+		"&object",
+		"vector<u8>",
+		"vector<object_id>",
+		moveStringType,
+		"vector<" + moveStringType + ">",
+		"bool",
+	}
+	assert.Equal(t, expected, result)
+}
+
+// TestDecodeParametersFromFunctionDescriptor_ValidDummyReceiverSignature mirrors
+// TestDecodeParameters_ValidDummyReceiverSignature using the gRPC FunctionDescriptor shape.
+func TestDecodeParametersFromFunctionDescriptor_ValidDummyReceiverSignature(t *testing.T) {
+	lggr := logger.Test(t)
+
+	fd := &suirpcv2.FunctionDescriptor{
+		Parameters: []*suirpcv2.OpenSignature{
+			openSig(nil, vectorBody(primitiveBody(suirpcv2.OpenSignatureBody_U8))),
+			openSig(AnyPointer(suirpcv2.OpenSignature_IMMUTABLE), datatypeBody("0xccip::state_object::CCIPObjectRef")),
+			openSig(nil, datatypeBody("0xccip::client::Any2SuiMessage")),
+			openSig(AnyPointer(suirpcv2.OpenSignature_IMMUTABLE), datatypeBody("0x2::clock::Clock")),
+			openSig(AnyPointer(suirpcv2.OpenSignature_MUTABLE), datatypeBody("0xreceiver::dummy_receiver::CCIPReceiverState")),
+			openSig(AnyPointer(suirpcv2.OpenSignature_MUTABLE), datatypeBody("0x2::tx_context::TxContext")),
+		},
+	}
+
+	result, err := DecodeParametersFromFunctionDescriptor(lggr, fd)
+	require.NoError(t, err)
+
+	// TxContext is skipped.
+	expected := []string{
+		"vector<u8>",
+		"&object",
+		"&object",
+		"&object",
+		"&mut object",
+	}
+	assert.Equal(t, expected, result)
+}
+
+func TestDecodeParametersFromFunctionDescriptor_TopLevelTypeParameter_Unsupported(t *testing.T) {
+	lggr := logger.Test(t)
+
+	fd := &suirpcv2.FunctionDescriptor{
+		Parameters: []*suirpcv2.OpenSignature{
+			openSig(nil, typeParameterBody(0)),
+		},
+	}
+
+	result, err := DecodeParametersFromFunctionDescriptor(lggr, fd)
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.ErrorIs(t, err, ErrUnsupportedReceiverABI)
+}
+
+func TestDecodeParametersFromFunctionDescriptor_VectorWrappingTypeParameter_Unsupported(t *testing.T) {
+	lggr := logger.Test(t)
+
+	fd := &suirpcv2.FunctionDescriptor{
+		Parameters: []*suirpcv2.OpenSignature{
+			openSig(AnyPointer(suirpcv2.OpenSignature_IMMUTABLE), vectorBody(typeParameterBody(0))),
+		},
+	}
+
+	result, err := DecodeParametersFromFunctionDescriptor(lggr, fd)
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.ErrorIs(t, err, ErrUnsupportedReceiverABI)
+}
+
+func TestDecodeParametersFromFunctionDescriptor_NilBody(t *testing.T) {
+	lggr := logger.Test(t)
+
+	fd := &suirpcv2.FunctionDescriptor{
+		Parameters: []*suirpcv2.OpenSignature{
+			openSig(nil, nil),
+		},
+	}
+
+	result, err := DecodeParametersFromFunctionDescriptor(lggr, fd)
 	require.Error(t, err)
 	assert.Nil(t, result)
 }
