@@ -70,10 +70,6 @@ func (d BackfillLocalDecimals) Apply(e cldf.Environment, config BackfillLocalDec
 		SuiRPC: suiChain.URL,
 	}
 
-	if config.TimelockConfig != nil {
-		deps.Signer = nil
-	}
-
 	seqResult, err := operations.ExecuteSequence(
 		e.OperationsBundle,
 		ccipops.BackfillLocalDecimalsSequence,
@@ -81,9 +77,10 @@ func (d BackfillLocalDecimals) Apply(e cldf.Environment, config BackfillLocalDec
 		ccipops.BackfillLocalDecimalsSeqInput{
 			CCIPPackageId:         ccipPackageId,          // latest/effective head = reads + direct-exec binary
 			OriginalCCIPPackageId: chainState.CCIPAddress, // original = MCMS on-chain identity (proposal target)
-			StateObjectId:         stateObjectId,
-			OwnerCapObjectId:      ownerCapObjectId,
-			VerifyOnly:            config.VerifyOnly,
+			StateObjectId:           stateObjectId,
+			OwnerCapObjectId:        ownerCapObjectId,
+			VerifyOnly:              config.VerifyOnly,
+			ProposalOnly:            config.TimelockConfig != nil,
 		},
 	)
 	if err != nil {

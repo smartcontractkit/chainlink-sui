@@ -73,7 +73,7 @@ func listConfiguredTokens(
 		return nil, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
+	opts := callOptsWithSigner(deps)
 	ccipRef := bind.Object{Id: ccipRefObjectID}
 	startKey := "0x0"
 	const pageSize uint64 = 1000
@@ -121,4 +121,12 @@ func listConfiguredTokens(
 	}
 
 	return tokens, nil
+}
+
+func callOptsWithSigner(deps sui_ops.OpTxDeps) *bind.CallOpts {
+	opts := deps.GetCallOpts()
+	if deps.Signer != nil {
+		opts.Signer = deps.Signer
+	}
+	return opts
 }
