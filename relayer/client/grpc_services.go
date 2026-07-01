@@ -12,12 +12,12 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suigrpcconn"
 )
 
-// pooledConn wraps a single Sui gRPC connection with a one-time, race-free initialization. The Sui SDK's
-// SuiGrpcClient lazily (and non-atomically) creates its service stubs on first use, so we drive that
+// pooledConn wraps a single Sui gRPC connection with a one-time, race-free initialization. A
+// Connection lazily (and non-atomically) creates its service stubs on first use, so we drive that
 // initialization exactly once via sync.Once. After initialization the cached stubs are read-only, which
 // makes the per-call service getters lock-free on the hot path.
 type pooledConn struct {
-	client  *suigrpcconn.SuiGrpcClient
+	client  *suigrpcconn.Connection
 	once    sync.Once
 	initErr error
 }
@@ -39,7 +39,7 @@ type grpcConnPool struct {
 }
 
 // newGrpcConnPool builds a pool of `size` connections using the provided factory. size < 1 is treated as 1.
-func newGrpcConnPool(size int, factory func() *suigrpcconn.SuiGrpcClient) *grpcConnPool {
+func newGrpcConnPool(size int, factory func() *suigrpcconn.Connection) *grpcConnPool {
 	if size < 1 {
 		size = 1
 	}
@@ -72,9 +72,9 @@ func (p *grpcConnPool) next() (*pooledConn, error) {
 }
 
 // acquire picks the next pooled connection round-robin and ensures it is connected before returning its
-// underlying SuiGrpcClient. All the typed service getters funnel through here so connection selection and
+// underlying Connection. All the typed service getters funnel through here so connection selection and
 // lazy initialization live in one place.
-func (p *grpcConnPool) acquire(ctx context.Context) (*suigrpcconn.SuiGrpcClient, error) {
+func (p *grpcConnPool) acquire(ctx context.Context) (*suigrpcconn.Connection, error) {
 	pc, err := p.next()
 	if err != nil {
 		return nil, err

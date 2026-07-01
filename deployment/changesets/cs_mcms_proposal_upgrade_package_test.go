@@ -147,15 +147,15 @@ func TestBackfillUpgradePackageConfig_FillsMCMSAndNamedAddresses(t *testing.T) {
 
 	chainState := deployment.CCIPChainState{
 		MCMSPackageID:               "0xslow_pkg",
-		MCMSStateObjectID:             "0xslow_state",
-		MCMSRegistryObjectID:          "0xslow_registry",
-		MCMSAccountStateObjectID:      "0xslow_account",
-		MCMSAccountOwnerCapObjectID:   "0xslow_owner_cap",
-		MCMSTimelockObjectID:          "0xslow_timelock",
-		MCMSDeployerStateObjectID:     "0xslow_deployer",
-		FastCurseMCMSPackageID:        "0xfast_pkg",
-		CCIPAddress:                   "0xccip_genesis",
-		LatestCCIPPackageID:           "0xccip_v2",
+		MCMSStateObjectID:           "0xslow_state",
+		MCMSRegistryObjectID:        "0xslow_registry",
+		MCMSAccountStateObjectID:    "0xslow_account",
+		MCMSAccountOwnerCapObjectID: "0xslow_owner_cap",
+		MCMSTimelockObjectID:        "0xslow_timelock",
+		MCMSDeployerStateObjectID:   "0xslow_deployer",
+		FastCurseMCMSPackageID:      "0xfast_pkg",
+		CCIPAddress:                 "0xccip_genesis",
+		LatestCCIPPackageID:         "0xccip_v2",
 	}
 
 	cfg := UpgradePackageConfig{
