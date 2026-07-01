@@ -17,6 +17,8 @@ type BackfillLocalDecimalsSeqInput struct {
 	StateObjectId         string
 	OwnerCapObjectId      string
 	VerifyOnly            bool
+	// ProposalOnly encodes MCMS backfill ops without executing them. Verify still uses deps.Signer.
+	ProposalOnly bool
 }
 
 type BackfillLocalDecimalsSeqOutput struct {
@@ -28,7 +30,7 @@ type BackfillLocalDecimalsSeqOutput struct {
 var BackfillLocalDecimalsSequence = cld_ops.NewSequence(
 	sui_ops.NewSuiOperationName("ccip", "token_admin_registry", "backfill_local_decimals"),
 	semver.MustParse("0.1.0"),
-	"Verifies and backfills local token decimals, producing MCMS proposal inputs when no signer is provided",
+	"Verifies and backfills local token decimals, producing MCMS proposal inputs when ProposalOnly is set",
 	func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BackfillLocalDecimalsSeqInput) (BackfillLocalDecimalsSeqOutput, error) {
 		reports := make([]cld_ops.Report[any, any], 0)
 
@@ -57,11 +59,15 @@ var BackfillLocalDecimalsSequence = cld_ops.NewSequence(
 			return BackfillLocalDecimalsSeqOutput{Reports: reports}, nil
 		}
 
-		if deps.Signer == nil {
+		if input.ProposalOnly || deps.Signer == nil {
 			// MCMS-routed: identity must be the original package; PTB dispatches against the latest.
 			originalPkgId := input.OriginalCCIPPackageId
 			if originalPkgId == "" {
 				originalPkgId = input.CCIPPackageId
+			}
+			encodeDeps := deps
+			if input.ProposalOnly {
+				encodeDeps.Signer = nil
 			}
 			defs := make([]cld_ops.Definition, 0, len(mismatches))
 			inputs := make([]any, 0, len(mismatches))
@@ -69,7 +75,7 @@ var BackfillLocalDecimalsSequence = cld_ops.NewSequence(
 				report, err := cld_ops.ExecuteOperation(
 					b,
 					TokenAdminRegistryBackfillLocalDecimalsOp,
-					deps,
+					encodeDeps,
 					BackfillLocalDecimalsInput{
 						CCIPPackageId:       originalPkgId,       // original = MCMS on-chain identity
 						LatestPackageId:     input.CCIPPackageId, // upgraded = PTB dispatch binary

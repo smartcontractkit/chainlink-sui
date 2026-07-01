@@ -98,7 +98,7 @@ var verifyLocalDecimalsHandler = func(
 		return sui_ops.OpTxResult[VerifyLocalDecimalsOutput]{}, err
 	}
 
-	opts := deps.GetCallOpts()
+	opts := callOptsWithSigner(deps)
 	ccipRef := bind.Object{Id: input.StateObjectId}
 	mismatches := make([]VerifyLocalDecimalsMismatch, 0)
 
