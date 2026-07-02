@@ -168,7 +168,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 								Type:     "vector<vector<u8>>",
 								Name:     "val",
 								Required: true,
-			mi			},
+							},
 						},
 					},
 					"simple_event_echo": {

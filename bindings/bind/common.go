@@ -11,8 +11,8 @@ import (
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
-	"github.com/smartcontractkit/chainlink-sui/codec"
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
+	"github.com/smartcontractkit/chainlink-sui/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 

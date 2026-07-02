@@ -37,10 +37,11 @@ flowchart LR
 	click chainlink-protos/storage-service href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/workflows/go
 	click chainlink-protos/workflows/go href "https://github.com/smartcontractkit/chainlink-protos"
+	chainlink-sui --> chainlink-ccip
 	chainlink-sui --> chainlink-sui/codec
 	click chainlink-sui href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/codec --> chainlink-aptos
-	chainlink-sui/codec --> chainlink-ccip
+	chainlink-sui/codec --> chainlink-sui
 	click chainlink-sui/codec href "https://github.com/smartcontractkit/chainlink-sui"
 	freeport
 	click freeport href "https://github.com/smartcontractkit/freeport"
@@ -197,10 +198,10 @@ flowchart LR
 	click chainlink-protos/svr href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/workflows/go
 	click chainlink-protos/workflows/go href "https://github.com/smartcontractkit/chainlink-protos"
+	chainlink-sui --> chainlink-ccip
 	chainlink-sui --> chainlink-sui/codec
 	click chainlink-sui href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/codec --> chainlink-aptos
-	chainlink-sui/codec --> chainlink-ccip
 	chainlink-sui/codec --> chainlink-sui
 	click chainlink-sui/codec href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/deployment --> chainlink-ccip/deployment
