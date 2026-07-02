@@ -113,6 +113,7 @@ type SuiPTBClient interface {
 	GetLatestCheckpoint(ctx context.Context) (*suirpcv2.Checkpoint, error)
 	GetCheckpointData(ctx context.Context, checkpointSequenceNumber uint64) (*CheckpointData, error)
 	GetNormalizedModule(ctx context.Context, packageId string, moduleId string) (models.GetNormalizedMoveModuleResponse, error)
+	GetMoveModuleFunction(ctx context.Context, packageId string, moduleId string, functionName string) (*suirpcv2.FunctionDescriptor, error)
 	GetSUIBalance(ctx context.Context, address string) (*suirpcv2.Balance, error)
 	LoadModulePackageIds(ctx context.Context, packageId string, module string) ([]string, error)
 	GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error)
@@ -1280,20 +1281,53 @@ func (c *PTBClient) getNormalizedModuleInternal(ctx context.Context, packageId s
 	return normalizedModule, nil
 }
 
-func (c *PTBClient) GetCoinMetadata(ctx context.Context, coinType string) (models.CoinMetadataResponse, error) {
-	if c.moveModuleClient == nil {
-		return models.CoinMetadataResponse{}, errors.New("move module client not configured")
-	}
+func (c *PTBClient) GetMoveModuleFunction(ctx context.Context, packageId string, moduleId string, functionName string) (*suirpcv2.FunctionDescriptor, error) {
+	var result *suirpcv2.FunctionDescriptor
+	err := c.WithRateLimit(ctx, "GetMoveModuleFunction", func(ctx context.Context) error {
+		var err error
+		movePkgService, err := c.getMovePackageService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get move package service: %w", err)
+		}
+		response, err := movePkgService.GetFunction(ctx, &suirpcv2.GetFunctionRequest{
+			PackageId:  &packageId,
+			ModuleName: &moduleId,
+			Name:       &functionName,
+		})
+		result = response.GetFunction()
+		return err
+	})
+	return result, err
+}
 
+func (c *PTBClient) GetCoinMetadata(ctx context.Context, coinType string) (models.CoinMetadataResponse, error) {
 	var result models.CoinMetadataResponse
 	err := c.WithRateLimit(ctx, "GetCoinMetadata", func(ctx context.Context) error {
-		rsp, err := c.moveModuleClient.SuiXGetCoinMetadata(ctx, models.SuiXGetCoinMetadataRequest{
-			CoinType: coinType,
+		stateService, err := c.getStateService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get state service: %w", err)
+		}
+
+		coinInfoResponse, err := stateService.GetCoinInfo(ctx, &suirpcv2.GetCoinInfoRequest{
+			CoinType: &coinType,
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get coin info: %w", err)
 		}
-		result = rsp
+
+		metadata := coinInfoResponse.GetMetadata()
+		if metadata == nil {
+			return fmt.Errorf("no metadata found for coin type %s", coinType)
+		}
+
+		result = models.CoinMetadataResponse{
+			Id:          metadata.GetId(),
+			Decimals:    int(metadata.GetDecimals()),
+			Name:        metadata.GetName(),
+			Symbol:      metadata.GetSymbol(),
+			IconUrl:     metadata.GetIconUrl(),
+			Description: metadata.GetDescription(),
+		}
 		return nil
 	})
 

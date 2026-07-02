@@ -183,3 +183,7 @@ func (c *FakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, 
 func (c *FakeSuiPTBClient) GetTokenPoolConfigByPackageAddress(ctx context.Context, accountAddress string, tokenPoolAddress string, ccipPackageAddress string) (module_token_admin_registry.TokenConfig, error) {
 	return module_token_admin_registry.TokenConfig{}, nil
 }
+
+func (c *FakeSuiPTBClient) GetMoveModuleFunction(ctx context.Context, packageId string, moduleId string, functionName string) (*suirpcv2.FunctionDescriptor, error) {
+	return &suirpcv2.FunctionDescriptor{}, nil
+}

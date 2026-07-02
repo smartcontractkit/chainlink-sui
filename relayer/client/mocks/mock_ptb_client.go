@@ -14,8 +14,9 @@ import (
 	signer "github.com/block-vision/sui-go-sdk/signer"
 	transaction "github.com/block-vision/sui-go-sdk/transaction"
 	cache "github.com/patrickmn/go-cache"
-	client "github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"go.uber.org/mock/gomock"
+
+	client "github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 // MockSuiPTBClient is a mock of SuiPTBClient interface.
@@ -556,4 +557,17 @@ func (m *MockSuiPTBClient) SignAndSendTransaction(ctx context.Context, txBytesRa
 func (mr *MockSuiPTBClientMockRecorder) SignAndSendTransaction(ctx, txBytesRaw, signerPublicKey interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignAndSendTransaction", reflect.TypeOf((*MockSuiPTBClient)(nil).SignAndSendTransaction), ctx, txBytesRaw, signerPublicKey)
+}
+
+func (m *MockSuiPTBClient) GetMoveModuleFunction(ctx context.Context, packageId string, moduleId string, functionName string) (*v2.FunctionDescriptor, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMoveModuleFunction", ctx, packageId, moduleId, functionName)
+	ret0, _ := ret[0].(*v2.FunctionDescriptor)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (mr *MockSuiPTBClientMockRecorder) GetMoveModuleFunction(ctx, packageId, moduleId, functionName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMoveModuleFunction", reflect.TypeOf((*MockSuiPTBClient)(nil).GetMoveModuleFunction), ctx, packageId, moduleId, functionName)
 }
