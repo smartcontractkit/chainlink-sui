@@ -10,12 +10,14 @@ import (
 )
 
 // IsSuiAddress returns true if addr is a valid Sui address/ObjectID.
+//
 // Deprecated: use codec.IsSuiAddress directly.
 func IsSuiAddress(addr string) bool {
 	return codec.IsSuiAddress(addr)
 }
 
 // ToSuiAddress normalizes and validates a Sui address.
+//
 // Deprecated: use codec.ToSuiAddress directly.
 func ToSuiAddress(address string) (string, error) {
 	return codec.ToSuiAddress(address)

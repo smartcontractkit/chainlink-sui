@@ -34,6 +34,7 @@ type transactionObjectChangesClient interface {
 }
 
 // Object is an alias for codec.Object for backward compatibility.
+//
 // Deprecated: use codec.Object directly.
 type Object = codec.Object
 

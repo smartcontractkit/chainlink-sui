@@ -12,6 +12,7 @@ import (
 )
 
 // DecodeJSONReturn decodes gRPC/JSON Move return values into the provided target.
+//
 // Deprecated: use codec.DecodeJSONReturn directly.
 func DecodeJSONReturn(data any, target any) error {
 	return codec.DecodeJSONReturn(data, target)

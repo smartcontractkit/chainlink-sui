@@ -8,9 +8,9 @@ import (
 )
 
 //go:fix inline
-const READ_COMPONENTS_COUNT = loop.READ_COMPONENTS_COUNT
+const ReadComponentsCount = loop.READ_COMPONENTS_COUNT
 
-//Deprecated: use loop.NewLoopChainReader
+// Deprecated: use loop.NewLoopChainReader.
 //
 //go:fix inline
 func NewLoopChainReader(log logger.Logger, reader types.ContractReader) types.ContractReader {
