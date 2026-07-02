@@ -214,26 +214,33 @@ func (s *CCIPCurseMCMSTestSuite) executeSlowMCMSFromGenericReport(genericReport 
 	s.ExecuteProposalE2e(&seqResult.Output, s.bypasserConfig, 0)
 }
 
+func (s *CCIPCurseMCMSTestSuite) slowCurseUncurseSeqInput(subjects []fastcurse.Subject) rmn_ops.CurseUncurseSeqInput {
+	return rmn_ops.CurseUncurseSeqInput{
+		CCIPAddress:          s.ccipPackageId,
+		CCIPObjectRef:        s.ccipObjects.CCIPObjectRefObjectId,
+		CCIPOwnerCapObjectID: s.ccipObjects.OwnerCapObjectId,
+		ChainSelector:        uint64(s.chainSelector),
+		Subjects:             subjects,
+	}
+}
+
 func (s *CCIPCurseMCMSTestSuite) testDirectCurseUncurse() {
 	a := s.newAdapter()
 	env := s.buildEnv()
 	chains := s.buildSuiChains(true)
-	bundle := s.NewOpBundle()
+	bundle := s.NewOpBundleWithRegistry()
 
 	subject := a.SelectorToSubject(cselectors.ETHEREUM_MAINNET.Selector)
-	curseInput := fastcurse.CurseInput{
-		ChainSelector: uint64(s.chainSelector),
-		Subjects:      []fastcurse.Subject{subject},
-	}
+	seqInput := s.slowCurseUncurseSeqInput([]fastcurse.Subject{subject})
 
 	s.assertIsCursed(a, env, subject, false)
 
-	_, err := cld_ops.ExecuteSequence(bundle, a.Curse(), chains, curseInput)
-	s.Require().NoError(err, "executing Curse() sequence directly")
+	_, err := cld_ops.ExecuteSequence(bundle, rmn_ops.CurseSequence, chains, seqInput)
+	s.Require().NoError(err, "executing slow OwnerCap curse sequence directly")
 	s.assertIsCursed(a, env, subject, true)
 
-	_, err = cld_ops.ExecuteSequence(bundle, a.Uncurse(), chains, curseInput)
-	s.Require().NoError(err, "executing Uncurse() sequence directly")
+	_, err = cld_ops.ExecuteSequence(bundle, rmn_ops.UncurseSequence, chains, seqInput)
+	s.Require().NoError(err, "executing slow OwnerCap uncurse sequence directly")
 	s.assertIsCursed(a, env, subject, false)
 }
 
@@ -243,16 +250,13 @@ func (s *CCIPCurseMCMSTestSuite) testMCMSCurseProposal() {
 	a := s.newAdapter()
 	env := s.buildEnv()
 	chains := s.buildSuiChains(false)
-	bundle := s.NewOpBundle()
+	bundle := s.NewOpBundleWithRegistry()
 
 	subject := fastcurse.GlobalCurseSubject()
-	curseInput := fastcurse.CurseInput{
-		ChainSelector: uint64(s.chainSelector),
-		Subjects:      []fastcurse.Subject{subject},
-	}
+	seqInput := s.slowCurseUncurseSeqInput([]fastcurse.Subject{subject})
 
-	curseReport, err := cld_ops.ExecuteSequence(bundle, a.Curse(), chains, curseInput)
-	s.Require().NoError(err, "building curse MCMS batch operations")
+	curseReport, err := cld_ops.ExecuteSequence(bundle, rmn_ops.CurseSequence, chains, seqInput)
+	s.Require().NoError(err, "building slow OwnerCap curse MCMS batch operations")
 
 	curseProposal, err := utils.GenerateProposal(s.T().Context(), utils.GenerateProposalInput{
 		ChainSelector:      uint64(s.chainSelector),
@@ -272,7 +276,7 @@ func (s *CCIPCurseMCMSTestSuite) testMCMSCurseProposal() {
 	s.ExecuteProposalE2e(curseProposal, s.bypasserConfig, 0)
 	s.assertIsCursed(a, env, subject, true)
 
-	uncurseReport, err := cld_ops.ExecuteSequence(bundle, a.Uncurse(), chains, curseInput)
+	uncurseReport, err := cld_ops.ExecuteSequence(bundle, rmn_ops.UncurseSequence, chains, seqInput)
 	s.Require().NoError(err)
 
 	uncurseProposal, err := utils.GenerateProposal(s.T().Context(), utils.GenerateProposalInput{
