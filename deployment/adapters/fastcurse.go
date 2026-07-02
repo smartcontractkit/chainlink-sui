@@ -1,6 +1,7 @@
 package adapters
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -63,7 +64,9 @@ func (c *CurseAdapter) Initialize(e cldf.Environment, selector uint64) error {
 	return nil
 }
 
-// IsSubjectCursedOnChain returns true if the given subject is cursed on the Sui chain.
+// IsSubjectCursedOnChain returns true when subject is explicitly present in the on-chain
+// cursed-subjects set. A global curse does not cause lane subjects to appear cursed here;
+// call with GlobalCurseSubject() to test global curse state.
 func (c *CurseAdapter) IsSubjectCursedOnChain(e cldf.Environment, selector uint64, subject fastcurse.Subject) (bool, error) {
 	chain, ok := e.BlockChains.SuiChains()[selector]
 	if !ok {
@@ -73,12 +76,24 @@ func (c *CurseAdapter) IsSubjectCursedOnChain(e cldf.Environment, selector uint6
 	if err != nil {
 		return false, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
-	return contract.DevInspect().IsCursed(
+	cursedSubjects, err := contract.DevInspect().GetCursedSubjects(
 		context.Background(),
 		&bind.CallOpts{Signer: chain.Signer},
 		bind.Object{Id: c.CCIPObjectRef},
-		subject[:],
 	)
+	if err != nil {
+		return false, fmt.Errorf("failed to get cursed subjects on Sui chain %d: %w", selector, err)
+	}
+	return subjectInCursedSubjects(cursedSubjects, subject), nil
+}
+
+func subjectInCursedSubjects(cursedSubjects [][]byte, subject fastcurse.Subject) bool {
+	for _, cursedSubject := range cursedSubjects {
+		if len(cursedSubject) == len(subject) && bytes.Equal(cursedSubject, subject[:]) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsChainConnectedToTargetChain returns true if targetSelector is a configured destination
