@@ -14,7 +14,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/loop"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/codec"
 )
 
 const (

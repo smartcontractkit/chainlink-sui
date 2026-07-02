@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
 
 const (
@@ -75,12 +74,12 @@ func EncodeToSuiValue(typeName string, value any) (any, error) {
 	}
 }
 
-func encodeObject(value any) (bind.Object, error) {
+func encodeObject(value any) (Object, error) {
 	switch v := value.(type) {
-	case bind.Object:
-		return bind.Object{Id: v.Id}, nil
+	case Object:
+		return Object{Id: v.Id}, nil
 	default:
-		return bind.Object{}, fmt.Errorf("cannot convert %T to object", value)
+		return Object{}, fmt.Errorf("cannot convert %T to object", value)
 	}
 }
 
@@ -92,7 +91,7 @@ func encodeAddress(value any) (string, error) {
 			v = "0x" + v
 		}
 
-		normalizedAddress, err := bind.ToSuiAddress(v)
+		normalizedAddress, err := ToSuiAddress(v)
 		if err != nil {
 			return "", fmt.Errorf("failed to convert address to Sui address: %w", err)
 		}
@@ -101,7 +100,7 @@ func encodeAddress(value any) (string, error) {
 	case []byte:
 		stringAddr := "0x" + hex.EncodeToString(v)
 
-		normalizedAddress, err := bind.ToSuiAddress(stringAddr)
+		normalizedAddress, err := ToSuiAddress(stringAddr)
 		if err != nil {
 			return "", fmt.Errorf("failed to convert address to Sui address: %w", err)
 		}

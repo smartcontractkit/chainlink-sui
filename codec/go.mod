@@ -5,9 +5,9 @@ go 1.26.2
 require (
 	github.com/aptos-labs/aptos-go-sdk v1.13.0
 	github.com/block-vision/sui-go-sdk v1.2.1
+	github.com/mitchellh/mapstructure v1.5.1-0.20220423185008-bf980b35cac4
 	github.com/smartcontractkit/chainlink-aptos v0.0.0-20260428085939-5c70de12dbfc
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260506120607-7f10be016c89
-	github.com/smartcontractkit/chainlink-sui v0.0.0-20260702142810-715ee5ac4ef5
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/grpc v1.81.1
 )

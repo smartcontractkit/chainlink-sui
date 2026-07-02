@@ -14,7 +14,6 @@ import (
 	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/block-vision/sui-go-sdk/models"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
 
 const (
@@ -43,7 +42,7 @@ const (
 
 // DecodeSuiJsonValue decodes Sui JSON response data into the provided target.
 func DecodeSuiJsonValue(data any, target any) error {
-	return bind.DecodeJSONReturn(data, target)
+	return DecodeJSONReturn(data, target)
 }
 
 // ConvertBase64StringsToHex walks arbitrary JSON-like structures and converts any

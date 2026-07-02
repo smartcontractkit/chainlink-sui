@@ -4,6 +4,8 @@ go 1.26.2
 
 replace github.com/smartcontractkit/chainlink-sui => ../
 
+replace github.com/smartcontractkit/chainlink-sui/codec => ../codec
+
 replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
 
 require (

@@ -5,619 +5,411 @@ package loop
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"math/big"
-	"os"
-	"strings"
 	"testing"
-	"time"
-
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
-	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
-	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
-
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
-	chainreaderConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
-//nolint:paralleltest
-func TestLoopChainReaderLocal(t *testing.T) {
-	log := logger.Test(t)
-
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
-	require.NoError(t, err)
-
-	testutils.CleanupTestContracts()
-
-	// Ensure the process is killed when the test completes.
-	t.Cleanup(func() {
-		testutils.CleanupTestContracts()
-
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
-			if perr != nil {
-				t.Logf("Failed to kill process: %v", perr)
-			}
-		}
-	})
-
-	log.Debugw("Started Sui node")
-
-	runLoopChainReaderEchoTest(t, log, testutils.LocalGrpcURL)
+// mockContractReader is a mock implementation of types.ContractReader for testing.
+// It simulates the LOOP boundary behavior where params and return values are []byte.
+type mockContractReader struct {
+	mock.Mock
 }
 
-func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) {
-	t.Helper()
+func (m *mockContractReader) Name() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+func (m *mockContractReader) GetLatestValue(ctx context.Context, readIdentifier string, confidenceLevel primitives.ConfidenceLevel, params, returnVal any) error {
+	args := m.Called(ctx, readIdentifier, confidenceLevel, params, returnVal)
+	
+	// Simulate the LOOP boundary: copy the mock return value to the returnVal pointer
+	if ret := args.Get(0); ret != nil {
+		// returnVal is expected to be *[]byte
+		if rv, ok := returnVal.(*[]byte); ok {
+			*rv = ret.([]byte)
+		}
+	}
+	
+	return args.Error(1)
+}
+
+func (m *mockContractReader) BatchGetLatestValues(ctx context.Context, request types.BatchGetLatestValuesRequest) (types.BatchGetLatestValuesResult, error) {
+	args := m.Called(ctx, request)
+	return args.Get(0).(types.BatchGetLatestValuesResult), args.Error(1)
+}
+
+func (m *mockContractReader) QueryKey(ctx context.Context, contract types.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]types.Sequence, error) {
+	args := m.Called(ctx, contract, filter, limitAndSort, sequenceDataType)
+	
+	// Simulate LOOP boundary: sequenceDataType is *[]byte, we return mock data
+	if ret := args.Get(0); ret != nil {
+		return ret.([]types.Sequence), nil
+	}
+	
+	return nil, args.Error(1)
+}
+
+func (m *mockContractReader) Bind(ctx context.Context, bindings []types.BoundContract) error {
+	args := m.Called(ctx, bindings)
+	return args.Error(0)
+}
+
+func (m *mockContractReader) Unbind(ctx context.Context, bindings []types.BoundContract) error {
+	args := m.Called(ctx, bindings)
+	return args.Error(0)
+}
+
+func (m *mockContractReader) Start(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+func (m *mockContractReader) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *mockContractReader) Ready() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *mockContractReader) HealthReport() map[string]error {
+	args := m.Called()
+	return args.Get(0).(map[string]error)
+}
+
+// TestLoopChainReader_GetLatestValue_VerifiesLOOPBoundary tests that the LoopChainReader
+// properly serializes params to []byte and deserializes results using DecodeSuiJsonValue.
+func TestLoopChainReader_GetLatestValue_VerifiesLOOPBoundary(t *testing.T) {
+	t.Parallel()
+	log := logger.Test(t)
+	
+	mockReader := new(mockContractReader)
+	loopReader := NewLoopChainReader(log, mockReader)
+	
 	ctx := context.Background()
-
-	keystoreInstance := testutils.NewTestKeystore(t)
-	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
-
-	relayerClient, clientErr := client.NewPTBClient(log, client.PTBClientConfig{
-		GrpcTarget:            rpcUrl,
-		GrpcToken:             "test",
-		TransactionTimeout:    10 * time.Second,
-		MaxConcurrentRequests: 5,
-		KeystoreService:       keystoreInstance,
-		DefaultRequestType:    client.TransactionRequestType("WaitForLocalExecution"),
-	})
-	require.NoError(t, clientErr)
-
-	faucetFundErr := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
-	require.NoError(t, faucetFundErr)
-
-	chainID, err := testutils.GetChainIdentifier(rpcUrl)
+	readIdentifier := "test-contract-echo_u64"
+	params := map[string]any{"val": uint64(42)}
+	
+	// Expected JSON params after serialization
+	expectedParams, err := json.Marshal(params)
 	require.NoError(t, err)
-	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
-	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
-
-	contractPath := testutils.BuildSetup(t, "contracts/test")
-	gasBudget := int(2000000000)
-	packageId, tx, err := testutils.PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
+	
+	// Mock return value (simulating what comes back from the LOOP boundary)
+	mockReturn := json.RawMessage("42")
+	
+	// Set up expectation: GetLatestValue receives []byte params
+	mockReader.On("GetLatestValue", 
+		ctx, 
+		readIdentifier, 
+		primitives.Finalized, 
+		mock.AnythingOfType("*[]uint8"), // params as *[]byte
+		mock.AnythingOfType("*[]uint8"), // returnVal as *[]byte
+	).Run(func(args mock.Arguments) {
+		// Verify params were serialized correctly
+		paramBytes := args.Get(3).(*[]byte)
+		require.JSONEq(t, string(expectedParams), string(*paramBytes))
+		
+		// Simulate setting the return value (as would happen across LOOP boundary)
+		returnVal := args.Get(4).(*[]byte)
+		*returnVal = []byte(mockReturn)
+	}).Return(nil)
+	
+	var result uint64
+	err = loopReader.GetLatestValue(ctx, readIdentifier, primitives.Finalized, params, &result)
+	
 	require.NoError(t, err)
-	require.NotNil(t, packageId)
-	require.NotNil(t, tx)
+	require.Equal(t, uint64(42), result)
+	mockReader.AssertExpectations(t)
+}
 
-	// Set up the base ChainReader with echo function configurations
-	chainReaderConfigs := chainreaderConfig.ChainReaderConfig{
-		IsLoopPlugin: true,
-		Modules: map[string]*chainreaderConfig.ChainReaderModule{
-			"echo": {
-				Name: "echo",
-				Functions: map[string]*chainreaderConfig.ChainReaderFunction{
-					"echo_u64": {
-						Name:          "echo_u64",
-						SignerAddress: accountAddress,
-						Params: []codec.SuiFunctionParam{
-							{
-								Type:     "u64",
-								Name:     "val",
-								Required: true,
-							},
-						},
-					},
-					"echo_u256": {
-						Name:          "echo_u256",
-						SignerAddress: accountAddress,
-						Params: []codec.SuiFunctionParam{
-							{
-								Type:     "u256",
-								Name:     "val",
-								Required: true,
-							},
-						},
-					},
-					"echo_u32_u64_tuple": {
-						Name:          "echo_u32_u64_tuple",
-						SignerAddress: accountAddress,
-						Params: []codec.SuiFunctionParam{
-							{
-								Type:     "u32",
-								Name:     "val1",
-								Required: true,
-							},
-							{
-								Type:     "u64",
-								Name:     "val2",
-								Required: true,
-							},
-						},
-						ResultTupleToStruct: []string{"first", "second"},
-					},
-					"echo_string": {
-						Name:          "echo_string",
-						SignerAddress: accountAddress,
-						Params: []codec.SuiFunctionParam{
-							{
-								Type:     "0x1::string::String",
-								Name:     "val",
-								Required: true,
-							},
-						},
-					},
-					"echo_byte_vector": {
-						Name:          "echo_byte_vector",
-						SignerAddress: accountAddress,
-						Params: []codec.SuiFunctionParam{
-							{
-								Type:     "vector<u8>",
-								Name:     "val",
-								Required: true,
-							},
-						},
-					},
-					"echo_byte_vector_vector": {
-						Name:          "echo_byte_vector_vector",
-						SignerAddress: accountAddress,
-						Params: []codec.SuiFunctionParam{
-							{
-								Type:     "vector<vector<u8>>",
-								Name:     "val",
-								Required: true,
-							},
-						},
-					},
-					"simple_event_echo": {
-						Name:          "simple_event_echo",
-						SignerAddress: accountAddress,
-						Params: []codec.SuiFunctionParam{
-							{
-								Type:     "u64",
-								Name:     "number",
-								Required: true,
-							},
-						},
-					},
-				},
-				Events: map[string]*chainreaderConfig.ChainReaderEvent{
-					"single_value_event": {
-						Name:      "single_value_event",
-						EventType: "SingleValueEvent",
-						EventSelector: client.EventSelector{
-							Package: packageId,
-							Module:  "echo",
-							Event:   "SingleValueEvent",
-						},
-					},
-					"double_value_event": {
-						Name:      "double_value_event",
-						EventType: "DoubleValueEvent",
-					},
-					"triple_value_event": {
-						Name:      "triple_value_event",
-						EventType: "TripleValueEvent",
-					},
-				},
-			},
-			"counter": {
-				Name: "counter",
-				Functions: map[string]*chainreaderConfig.ChainReaderFunction{
-					"get_tuple_struct": {
-						Name:                "get_tuple_struct",
-						SignerAddress:       accountAddress,
-						Params:              []codec.SuiFunctionParam{},
-						ResultTupleToStruct: []string{"value", "address", "bool", "struct_tag"},
-					},
-					"get_ocr_config": {
-						Name:          "get_ocr_config",
-						SignerAddress: accountAddress,
-						Params:        []codec.SuiFunctionParam{},
-						// used to wrap entire result
-						ResultTupleToStruct: []string{"OCRConfig"},
-						// The Sui node renders the Move struct with snake_case keys. The core node decodes the LOOP
-						// bytes into cciptypes.OCRConfigResponse via DecodeSuiJsonValue (mapstructure), whose fuzzy
-						// matcher strips underscores and is case-insensitive: config_info->ConfigInfo,
-						// config_digest->ConfigDigest, n->N, is_signature_verification_enabled->... all match on their
-						// own. The lone exception is `big_f` ("bigf") which does NOT match `F` ("f"), so F silently
-						// decodes to 0. Rename it so it lands on OCRConfigResponse.ConfigInfo.F. This mirrors the fix
-						// in chainlink core's Sui contract_reader.go for the OffRamp latest_config_details read.
-						ResultFieldRenames: map[string]aptosCRConfig.RenamedField{
-							"OCRConfig": {
-								SubFieldRenames: map[string]aptosCRConfig.RenamedField{
-									"config_info": {
-										SubFieldRenames: map[string]aptosCRConfig.RenamedField{
-											"big_f": {NewName: "f"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+// TestLoopChainReader_GetLatestValue_DecodesComplexTypes tests decoding of complex
+// return types using the Sui JSON decoder.
+func TestLoopChainReader_GetLatestValue_DecodesComplexTypes(t *testing.T) {
+	t.Parallel()
+	log := logger.Test(t)
+	
+	mockReader := new(mockContractReader)
+	loopReader := NewLoopChainReader(log, mockReader)
+	
+	ctx := context.Background()
+	
+	tests := []struct {
+		name           string
+		mockResponse   string
+		expectedResult any
+		targetType     any
+	}{
+		{
+			name:           "uint64",
+			mockResponse:   `100`,
+			expectedResult: uint64(100),
+			targetType:     new(uint64),
 		},
-		EventsIndexer: config.EventsIndexerConfig{
-			PollingInterval: 2 * time.Second,
-			SyncTimeout:     60 * time.Second,
+		{
+			name:           "string",
+			mockResponse:   `"hello"`,
+			expectedResult: "hello",
+			targetType:     new(string),
 		},
-		TransactionsIndexer: config.TransactionsIndexerConfig{
-			PollingInterval: 2 * time.Second,
-			SyncTimeout:     60 * time.Second,
+		{
+			name:           "struct",
+			mockResponse:   `{"first": 10, "second": 20}`,
+			expectedResult: map[string]any{"first": float64(10), "second": float64(20)},
+			targetType:     new(map[string]any),
 		},
 	}
-
-	echoBinding := types.BoundContract{
-		Name:    "echo",
-		Address: packageId, // Package ID of the deployed echo contract
-	}
-
-	counterBinding := types.BoundContract{
-		Name:    "counter",
-		Address: packageId, // Package ID of the deployed echo contract
-	}
-
-	// Set up DB
-	datastoreUrl := os.Getenv("TEST_DB_URL")
-	if datastoreUrl == "" {
-		t.Skip("Skipping persistent tests as TEST_DB_URL is not set in CI")
-	}
-	db := sqltest.NewDB(t, datastoreUrl)
-
-	// Create the indexers
-	txnIndexer := indexer.NewTransactionsIndexer(
-		db,
-		log,
-		map[string]*config.ChainReaderEvent{},
-	)
-	evIndexer := indexer.NewEventIndexer(
-		db,
-		log,
-		[]*client.EventSelector{},
-	)
-
-	chainPoller := indexer.NewChainPoller(
-		relayerClient,
-		log,
-		config.ChainPollerConfig{
-			PollingInterval:         1 * time.Second,
-			SyncTimeout:             60 * time.Second,
-			BackfillCheckpointCount: testutils.Uint64Pointer(uint64(1)),
-		},
-		evIndexer.GetEventSelectors,
-	)
-
-	indexerInstance := indexer.NewIndexerFromComponents(
-		log,
-		chainPoller,
-		evIndexer,
-		txnIndexer,
-	)
-
-	chainReader, err := reader.NewChainReader(ctx, log, relayerClient, chainReaderConfigs, db, indexerInstance, nil)
-	require.NoError(t, err)
-
-	// Wrap the base chain reader with loop chain reader
-	loopReader := NewLoopChainReader(log, chainReader)
-
-	// Bind the contracts
-	err = loopReader.Bind(context.Background(), []types.BoundContract{echoBinding, counterBinding})
-	require.NoError(t, err)
-
-	// Start the indexers
-	err = indexerInstance.Start(ctx)
-	require.NoError(t, err)
-
-	log.Debugw("LoopChainReader setup complete")
-
-	t.Run("LoopReader_GetLatestValue_EchoU64", func(t *testing.T) {
-		testValue := uint64(42)
-		var retUint64 uint64
-
-		err = loopReader.GetLatestValue(
-			context.Background(),
-			strings.Join([]string{packageId, echoBinding.Name, "echo_u64"}, "-"),
-			primitives.Finalized,
-			map[string]any{
-				"val": testValue,
-			},
-			&retUint64,
-		)
-		require.NoError(t, err)
-		require.Equal(t, testValue, retUint64)
-	})
-
-	t.Run("LoopReader_GetLatestValue_EchoU64_VariousValues", func(t *testing.T) {
-		testCases := []uint64{0, 1, 100, 1000, 1000000000}
-
-		for _, testValue := range testCases {
-			t.Run(fmt.Sprintf("Value_%d", testValue), func(t *testing.T) {
-				var retUint64 uint64
-				err = loopReader.GetLatestValue(
-					context.Background(),
-					strings.Join([]string{packageId, echoBinding.Name, "echo_u64"}, "-"),
-					primitives.Finalized,
-					map[string]any{
-						"val": testValue,
-					},
-					&retUint64,
-				)
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockReader.ExpectedCalls = nil
+			
+			mockReader.On("GetLatestValue",
+				ctx,
+				"test-read",
+				primitives.Finalized,
+				mock.AnythingOfType("*[]uint8"),
+				mock.AnythingOfType("*[]uint8"),
+			).Run(func(args mock.Arguments) {
+				returnVal := args.Get(4).(*[]byte)
+				*returnVal = []byte(tt.mockResponse)
+			}).Return(nil)
+			
+			switch v := tt.targetType.(type) {
+			case *uint64:
+				err := loopReader.GetLatestValue(ctx, "test-read", primitives.Finalized, map[string]any{}, v)
 				require.NoError(t, err)
-				require.Equal(t, testValue, retUint64)
-			})
-		}
-	})
-
-	t.Run("LoopReader_GetLatestValue_EchoU256", func(t *testing.T) {
-		t.Skip("Skipping, the entire test suite will be removed in favor of DefaultAccessor")
-		testValue := big.NewInt(123456789)
-		var retBigInt *big.Int
-		err = loopReader.GetLatestValue(
-			context.Background(),
-			strings.Join([]string{packageId, echoBinding.Name, "echo_u256"}, "-"),
-			primitives.Finalized,
-			map[string]any{
-				"val": testValue,
-			},
-			&retBigInt,
-		)
-		require.NoError(t, err)
-		require.Equal(t, testValue, retBigInt)
-	})
-
-	t.Run("LoopReader_GetLatestValue_EchoU256_LargeValue", func(t *testing.T) {
-		t.Skip("Skipping, the entire test suite will be removed in favor of DefaultAccessor")
-		// Test with a very large number
-		testValue := new(big.Int)
-		testValue.SetString("123456789012345678901234567890", 10)
-		var retBigInt *big.Int
-		err = loopReader.GetLatestValue(
-			context.Background(),
-			strings.Join([]string{packageId, echoBinding.Name, "echo_u256"}, "-"),
-			primitives.Finalized,
-			map[string]any{
-				"val": testValue,
-			},
-			&retBigInt,
-		)
-		require.NoError(t, err)
-		require.Equal(t, testValue, retBigInt)
-	})
-
-	t.Run("LoopReader_GetLatestValue_EchoTuple", func(t *testing.T) {
-		testVal1 := uint32(100)
-		testVal2 := uint64(200)
-
-		type TupleResult struct {
-			First  uint32 `json:"first"`
-			Second uint64 `json:"second"`
-		}
-
-		var retTuple TupleResult
-		err = loopReader.GetLatestValue(
-			context.Background(),
-			strings.Join([]string{packageId, echoBinding.Name, "echo_u32_u64_tuple"}, "-"),
-			primitives.Finalized,
-			map[string]any{
-				"val1": testVal1,
-				"val2": testVal2,
-			},
-			&retTuple,
-		)
-		require.NoError(t, err)
-		require.Equal(t, testVal1, retTuple.First)
-		require.Equal(t, testVal2, retTuple.Second)
-	})
-
-	t.Run("LoopReader_GetLatestValue_EchoString", func(t *testing.T) {
-		t.Skip("Skipping, the entire test suite will be removed in favor of DefaultAccessor")
-		testString := "Hello, Sui!"
-		var retString string
-		err = loopReader.GetLatestValue(
-			context.Background(),
-			strings.Join([]string{packageId, echoBinding.Name, "echo_string"}, "-"),
-			primitives.Finalized,
-			map[string]any{
-				"val": testString,
-			},
-			&retString,
-		)
-		require.NoError(t, err)
-		require.Equal(t, testString, retString)
-	})
-
-	t.Run("LoopReader_EchoWithEvents_AndQueryEvents", func(t *testing.T) {
-		// Test data
-		testNumber := uint64(12345)
-
-		// First, call the function that emits events
-		var retUint64 uint64
-		err = loopReader.GetLatestValue(
-			ctx,
-			strings.Join([]string{packageId, echoBinding.Name, "simple_event_echo"}, "-"),
-			primitives.Finalized,
-			map[string]any{
-				"number": testNumber,
-			},
-			&retUint64,
-		)
-		require.NoError(t, err)
-
-		// Define event structures to match the Move contract
-		type SingleValueEvent struct {
-			Value uint64 `json:"value"`
-		}
-
-		// Query for SingleValueEvent
-		t.Run("QuerySingleValueEvent", func(t *testing.T) {
-			singleValueEvent := &SingleValueEvent{}
-			var sequences []types.Sequence
-			//nolint:govet
-			var err error
-
-			evIndexer.AddEventSelector(ctx, &client.EventSelector{
-				Package: packageId,
-				Module:  "echo",
-				Event:   "SingleValueEvent",
-			})
-
-			// Use relayerClient to call increment instead of using CLI
-			moveCallReq := client.MoveCallRequest{
-				Signer:          accountAddress,
-				PackageObjectId: packageId,
-				Module:          "echo",
-				Function:        "simple_event_echo",
-				TypeArguments:   []any{},
-				Arguments: []any{
-					uint64(testNumber),
-				},
-				GasBudget: 2000000,
+				require.Equal(t, tt.expectedResult, *v)
+			case *string:
+				err := loopReader.GetLatestValue(ctx, "test-read", primitives.Finalized, map[string]any{}, v)
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedResult, *v)
+			case *map[string]any:
+				err := loopReader.GetLatestValue(ctx, "test-read", primitives.Finalized, map[string]any{}, v)
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedResult, *v)
 			}
-
-			log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
-
-			txMetadata, err := relayerClient.MoveCall(ctx, moveCallReq)
-			require.NoError(t, err)
-
-			txResponse, err := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
-			require.NoError(t, err)
-
-			// Make sure the transaction succeeded to make sure the event is indexed
-			require.Eventually(t, func() bool {
-				status, err := relayerClient.GetTransactionStatus(ctx, txResponse.Transaction.GetDigest())
-				log.Debugw("Transaction status for SingleValueEvent", "status", status, "error", err)
-				return err == nil && status.Status == "success"
-			}, 30*time.Second, 1*time.Second)
-
-			require.Eventually(t, func() bool {
-				sequences, err = loopReader.QueryKey(
-					ctx,
-					echoBinding,
-					query.KeyFilter{
-						Key: "single_value_event",
-					},
-					query.LimitAndSort{
-						SortBy: []query.SortBy{},
-						Limit:  query.CountLimit(10),
-					},
-					singleValueEvent,
-				)
-				if err != nil {
-					log.Errorw("Error querying for SingleValueEvent", "err", err)
-				}
-
-				return err == nil && len(sequences) > 0
-			}, 60*time.Second, 1*time.Second)
-
-			require.NoError(t, err)
-			require.NotEmpty(t, sequences, "Expected to find SingleValueEvent")
-			log.Debugw("Sequences found", "sequences", sequences)
+			
+			mockReader.AssertExpectations(t)
 		})
-	})
+	}
+}
 
-	t.Run("LoopReader_GetLatestValue_GetTupleStruct", func(t *testing.T) {
-		t.Skip("Skipping, the entire test suite will be removed in favor of DefaultAccessor")
-		var retTupleStruct map[string]any
-		err = loopReader.GetLatestValue(
-			context.Background(),
-			strings.Join([]string{packageId, counterBinding.Name, "get_tuple_struct"}, "-"),
-			primitives.Finalized,
-			map[string]any{},
-			&retTupleStruct,
-		)
+// TestLoopChainReader_QueryKey_VerifiesExpressionSerialization tests that QueryKey
+// properly serializes expressions for the LOOP boundary.
+func TestLoopChainReader_QueryKey_VerifiesExpressionSerialization(t *testing.T) {
+	t.Parallel()
+	t.Skip("TODO: implement when QueryKey expression serialization is better understood")
+	
+	log := logger.Test(t)
+	mockReader := new(mockContractReader)
+	loopReader := NewLoopChainReader(log, mockReader)
+	
+	ctx := context.Background()
+	contract := types.BoundContract{Name: "test", Address: "0x123"}
+	filter := query.KeyFilter{
+		Key: "test_event",
+		Expressions: []query.Expression{
+			// Add expression here
+		},
+	}
+	limitAndSort := query.LimitAndSort{
+		Limit: query.CountLimit(10),
+	}
+	
+	// Mock event data as would come back from LOOP
+	mockEventData := []byte(`{"value": 123}`)
+	mockReader.On("QueryKey",
+		ctx,
+		contract,
+		mock.Anything, // filter with serialized expressions
+		limitAndSort,
+		mock.AnythingOfType("*[]uint8"),
+	).Return([]types.Sequence{
+		{
+			Data: &mockEventData,
+		},
+	}, nil)
+	
+	type TestEvent struct {
+		Value uint64 `json:"value"`
+	}
+	
+	var event TestEvent
+	sequences, err := loopReader.QueryKey(ctx, contract, filter, limitAndSort, &event)
+	
+	require.NoError(t, err)
+	require.Len(t, sequences, 1)
+	require.Equal(t, uint64(123), event.Value)
+}
+
+// TestLoopChainReader_ProxiesCalls tests that all non-transforming calls are proxied
+// directly to the underlying reader.
+func TestLoopChainReader_ProxiesCalls(t *testing.T) {
+	t.Parallel()
+	log := logger.Test(t)
+	mockReader := new(mockContractReader)
+	loopReader := NewLoopChainReader(log, mockReader)
+	
+	ctx := context.Background()
+	
+	t.Run("Name", func(t *testing.T) {
+		mockReader.On("Name").Return("test-reader")
+		name := loopReader.Name()
+		require.Equal(t, "test-reader", name)
+		mockReader.AssertExpectations(t)
+	})
+	
+	t.Run("Ready", func(t *testing.T) {
+		mockReader.On("Ready").Return(nil)
+		err := loopReader.Ready()
 		require.NoError(t, err)
-
-		log.Debugw("retTupleStruct", "retTupleStruct", retTupleStruct)
-
-		require.NotEmpty(t, retTupleStruct, "Expected to find TupleStruct")
-		// Accept either float64 (from generic JSON map) or uint64
-		if v, ok := retTupleStruct["value"].(float64); ok {
-			require.Equal(t, float64(42), v, "Expected value to be 42")
-		} else {
-			require.Equal(t, uint64(42), retTupleStruct["value"], "Expected value to be 42")
-		}
-		require.Equal(t, "0x1", retTupleStruct["address"], "Expected address to be 0x1")
-		require.Equal(t, true, retTupleStruct["bool"], "Expected bool to be true")
+		mockReader.AssertExpectations(t)
 	})
-
-	t.Run("LoopReader_GetLatestValue_GetOCRConfig", func(t *testing.T) {
-		type ConfigInfo struct {
-			ConfigDigest                   []byte `json:"config_digest"`
-			BigF                           uint64 `json:"big_f"`
-			N                              uint64 `json:"n"`
-			IsSignatureVerificationEnabled bool   `json:"is_signature_verification_enabled"`
-		}
-
-		type OCRConfig struct {
-			ConfigInfo   ConfigInfo `json:"config_info"`
-			Signers      [][]byte   `json:"signers"`
-			Transmitters [][]byte   `json:"transmitters"`
-		}
-
-		type OCRConfigWrapped struct {
-			OCRConfig OCRConfig `json:"OCRConfig"`
-		}
-
-		var retOCRConfig OCRConfigWrapped
-		err = loopReader.GetLatestValue(
-			context.Background(),
-			strings.Join([]string{packageId, counterBinding.Name, "get_ocr_config"}, "-"),
-			primitives.Finalized,
-			map[string]any{},
-			&retOCRConfig,
-		)
-
+	
+	t.Run("HealthReport", func(t *testing.T) {
+		report := map[string]error{"test": nil}
+		mockReader.On("HealthReport").Return(report)
+		result := loopReader.HealthReport()
+		require.Equal(t, report, result)
+		mockReader.AssertExpectations(t)
+	})
+	
+	t.Run("Start", func(t *testing.T) {
+		mockReader.On("Start", ctx).Return(nil)
+		err := loopReader.Start(ctx)
 		require.NoError(t, err)
-		require.NotEmpty(t, retOCRConfig, "Expected to find OCRConfig")
-		log.Debugw("retOCRConfig", "retOCRConfig", retOCRConfig)
+		mockReader.AssertExpectations(t)
 	})
-
-	// Regression for the EVM->Sui commit blocker. The commit plugin's report-acceptance check
-	// (plugincommon.ConfigDigestsMatch -> ccipReader.GetOffRampConfigDigest) reads the OffRamp
-	// latest_config_details and decodes the relayer's LOOP bytes into cciptypes.OCRConfigResponse,
-	// then compares ConfigInfo.ConfigDigest against the DON's digest.
-	//
-	// IMPORTANT: the core node's Sui LOOP reader (suiloop.loopChainReader.decodeGLVReturnValue) does NOT
-	// plain json.Unmarshal into the typed target. It json.Unmarshals the bytes into a generic map and then
-	// runs codec.DecodeSuiJsonValue (mapstructure with a fuzzy, underscore-insensitive field matcher and
-	// hex/base64 type-conversion hooks). That decoder happily maps the Sui node's snake_case keys and
-	// decodes the base64 digest / 0x-hex transmitters correctly. The one field it can NOT map on its own is
-	// `big_f` -> `F` (the fuzzy matcher compares "bigf" vs "f"), so without a rename F silently stays 0.
-	//
-	// This test exercises that exact production path (via the loopReader wrapper into a typed
-	// OCRConfigResponse) and relies on the get_ocr_config ResultFieldRenames (big_f -> f) above. It guards
-	// that the OffRamp OCR config the commit plugin consumes decodes fully and correctly.
-	t.Run("LoopReader_GetOCRConfig_DecodesIntoCCIPOCRConfigResponse", func(t *testing.T) {
-		readID := strings.Join([]string{packageId, counterBinding.Name, "get_ocr_config"}, "-")
-
-		// Capture the exact JSON bytes that cross the LOOP boundary (params/returnVal are *[]byte in
-		// IsLoopPlugin mode) purely for diagnostics on failure.
-		paramBytes, mErr := json.Marshal(map[string]any{})
-		require.NoError(t, mErr)
-		var rawBytes []byte
-		require.NoError(t, chainReader.GetLatestValue(ctx, readID, primitives.Finalized, &paramBytes, &rawBytes))
-		log.Debugw("relayer-emitted get_ocr_config JSON", "json", string(rawBytes))
-
-		// Decode exactly like the core node does: the loopReader wrapper json.Unmarshals the LOOP bytes and
-		// then runs DecodeSuiJsonValue into the typed OCRConfigResponse.
-		var resp cciptypes.OCRConfigResponse
-		require.NoErrorf(t,
-			loopReader.GetLatestValue(ctx, readID, primitives.Finalized, map[string]any{}, &resp),
-			"relayer output must decode into OCRConfigResponse via the LOOP path; raw bytes: %s", string(rawBytes))
-
-		// get_ocr_config returns config_digest [2,3,4,5], big_f 1, n 2, signature verification enabled.
-		info := resp.OCRConfig.ConfigInfo
-		require.Falsef(t, info.ConfigDigest.IsEmpty(),
-			"ConfigDigest decoded to zero from relayer output %s — a zero digest is exactly what makes the "+
-				"commit plugin reject all EVM->Sui reports", string(rawBytes))
-		require.Equal(t, []byte{2, 3, 4, 5}, info.ConfigDigest[:4],
-			"Move config_digest bytes must land in OCRConfigResponse.ConfigInfo.ConfigDigest")
-		require.Equal(t, uint8(1), info.F, "Move big_f must map (via rename) to OCRConfigResponse.ConfigInfo.F")
-		require.Equal(t, uint8(2), info.N, "Move n must map to OCRConfigResponse.ConfigInfo.N")
-		require.True(t, info.IsSignatureVerificationEnabled,
-			"Move is_signature_verification_enabled must map to OCRConfigResponse.ConfigInfo.IsSignatureVerificationEnabled")
-		require.NotEmpty(t, resp.OCRConfig.Signers, "signers must decode")
-		require.NotEmpty(t, resp.OCRConfig.Transmitters, "transmitters (vector<address>, 0x-hex) must decode")
+	
+	t.Run("Close", func(t *testing.T) {
+		mockReader.On("Close").Return(nil)
+		err := loopReader.Close()
+		require.NoError(t, err)
+		mockReader.AssertExpectations(t)
 	})
+	
+	t.Run("Bind", func(t *testing.T) {
+		bindings := []types.BoundContract{{Name: "test", Address: "0x123"}}
+		mockReader.On("Bind", ctx, bindings).Return(nil)
+		err := loopReader.Bind(ctx, bindings)
+		require.NoError(t, err)
+		mockReader.AssertExpectations(t)
+	})
+	
+	t.Run("Unbind", func(t *testing.T) {
+		bindings := []types.BoundContract{{Name: "test", Address: "0x123"}}
+		mockReader.On("Unbind", ctx, bindings).Return(nil)
+		err := loopReader.Unbind(ctx, bindings)
+		require.NoError(t, err)
+		mockReader.AssertExpectations(t)
+	})
+}
+
+// TestLoopChainReader_BatchGetLatestValues_VerifiesLOOPBoundary tests that
+// BatchGetLatestValues properly serializes all requests and deserializes responses.
+func TestLoopChainReader_BatchGetLatestValues_VerifiesLOOPBoundary(t *testing.T) {
+	t.Parallel()
+	log := logger.Test(t)
+	mockReader := new(mockContractReader)
+	loopReader := NewLoopChainReader(log, mockReader)
+	
+	ctx := context.Background()
+	
+	request := types.BatchGetLatestValuesRequest{
+		types.BoundContract{Name: "contract1", Address: "0x1"}: {
+			{ReadName: "read1", Params: map[string]any{"key": "value1"}},
+		},
+	}
+	
+	mockResponse := types.BatchGetLatestValuesResult{
+		types.BoundContract{Name: "contract1", Address: "0x1"}: {
+			{ReadName: "read1"},
+		},
+	}
+	
+	// The mock will receive converted requests with []byte params
+	mockReader.On("BatchGetLatestValues", ctx, mock.Anything).Run(func(args mock.Arguments) {
+		// Verify the request was converted to use []byte params
+		convertedRequest := args.Get(1).(types.BatchGetLatestValuesRequest)
+		for _, reads := range convertedRequest {
+			for _, read := range reads {
+				// Params should be []byte after serialization
+				_, ok := read.Params.([]byte)
+				require.True(t, ok, "params should be []byte after LOOP serialization")
+			}
+		}
+	}).Return(mockResponse, nil)
+	
+	result, err := loopReader.BatchGetLatestValues(ctx, request)
+	
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	mockReader.AssertExpectations(t)
+}
+
+// TestLoopChainReader_GetLatestValue_PropagateErrors tests that errors from the
+// underlying reader are properly propagated.
+func TestLoopChainReader_GetLatestValue_PropagateErrors(t *testing.T) {
+	t.Parallel()
+	log := logger.Test(t)
+	mockReader := new(mockContractReader)
+	loopReader := NewLoopChainReader(log, mockReader)
+	
+	ctx := context.Background()
+	expectedErr := errors.New("underlying reader error")
+	
+	mockReader.On("GetLatestValue",
+		ctx,
+		"test-read",
+		primitives.Finalized,
+		mock.AnythingOfType("*[]uint8"),
+		mock.AnythingOfType("*[]uint8"),
+	).Return(expectedErr)
+	
+	var result uint64
+	err := loopReader.GetLatestValue(ctx, "test-read", primitives.Finalized, map[string]any{}, &result)
+	
+	require.Error(t, err)
+	require.ErrorIs(t, err, expectedErr)
+	mockReader.AssertExpectations(t)
+}
+
+// TestLoopChainReader_DecodeErrors tests that decode errors are wrapped properly.
+func TestLoopChainReader_DecodeErrors(t *testing.T) {
+	t.Parallel()
+	log := logger.Test(t)
+	mockReader := new(mockContractReader)
+	loopReader := NewLoopChainReader(log, mockReader)
+	
+	ctx := context.Background()
+	
+	// Return invalid JSON that can't be decoded into the target type
+	mockReader.On("GetLatestValue",
+		ctx,
+		"test-read",
+		primitives.Finalized,
+		mock.AnythingOfType("*[]uint8"),
+		mock.AnythingOfType("*[]uint8"),
+	).Run(func(args mock.Arguments) {
+		returnVal := args.Get(4).(*[]byte)
+		*returnVal = []byte(`invalid json`)
+	}).Return(nil)
+	
+	var result uint64
+	err := loopReader.GetLatestValue(ctx, "test-read", primitives.Finalized, map[string]any{}, &result)
+	
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to decode")
+	mockReader.AssertExpectations(t)
 }

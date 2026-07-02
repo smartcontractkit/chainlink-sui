@@ -34,6 +34,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+replace github.com/smartcontractkit/chainlink-sui/codec => ./codec
+
 require (
 	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
