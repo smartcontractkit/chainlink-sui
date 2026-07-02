@@ -8,6 +8,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
+	cciputils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -27,8 +28,8 @@ var (
 
 // CurseAdapter implements fastcurse.CurseAdapter and fastcurse.CurseSubjectAdapter for Sui.
 //
-// Curse() routes through FastCurseCurseSequence and requires a registered CurserCap.
-// Uncurse uses CCIP OwnerCap via UncurseSequence for slow MCMS proposals.
+// Curse() uses fast MCMS via CurserCap when MCMSQualifier is RMNMCMS, otherwise slow MCMS via OwnerCap.
+// Uncurse always uses OwnerCap via slow MCMS.
 type CurseAdapter struct {
 	CCIPAddress          string
 	LatestCCIPPackageID  string
@@ -140,30 +141,46 @@ func (c *CurseAdapter) DeriveCurseAdapterVersion(cldf.Environment, uint64) (*sem
 	return semver.MustParse("1.6.0"), nil
 }
 
-// Curse returns a sequence that curses the given subjects via CurserCap on the fast MCMS path.
+// Curse returns a sequence that curses subjects on Sui via fast or slow MCMS based on MCMSQualifier.
 func (c *CurseAdapter) Curse() *cldf_ops.Sequence[fastcurse.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
-		rmnops.FastCurseCurseSequence.ID(),
+		rmnops.CurseSequence.ID(),
 		semver.MustParse("1.0.0"),
-		rmnops.FastCurseCurseSequence.Description(),
+		rmnops.CurseSequence.Description(),
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in fastcurse.CurseInput) (sequences.OnChainOutput, error) {
-			if c.CurserCapObjectID == "" {
-				return sequences.OnChainOutput{}, fmt.Errorf(
-					"registered CurserCap is required to curse on Sui chain %d; run sui_register_curser_cap and sui_record_curser_cap first",
-					in.ChainSelector,
-				)
+			if in.MCMSQualifier == cciputils.RMNTimelockQualifier {
+				if c.CurserCapObjectID == "" {
+					return sequences.OnChainOutput{}, fmt.Errorf(
+						"registered CurserCap is required to curse on Sui chain %d; run sui_register_curser_cap and sui_record_curser_cap first",
+						in.ChainSelector,
+					)
+				}
+				seqInput := rmnops.FastCurseSeqInput{
+					CCIPAddress:         c.CCIPAddress,
+					LatestCCIPPackageID: c.LatestCCIPPackageID,
+					CCIPObjectRef:       c.CCIPObjectRef,
+					CurserCapObjectID:   c.CurserCapObjectID,
+					ChainSelector:       in.ChainSelector,
+					Subjects:            in.Subjects,
+				}
+				seqReport, err := cldf_ops.ExecuteSequence(b, rmnops.FastCurseCurseSequence, chains, seqInput)
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to execute fast curse sequence on Sui chain %d: %w", in.ChainSelector, err)
+				}
+				return seqReport.Output, nil
 			}
-			seqInput := rmnops.FastCurseSeqInput{
-				CCIPAddress:         c.CCIPAddress,
-				LatestCCIPPackageID: c.LatestCCIPPackageID,
-				CCIPObjectRef:       c.CCIPObjectRef,
-				CurserCapObjectID:   c.CurserCapObjectID,
-				ChainSelector:       in.ChainSelector,
-				Subjects:            in.Subjects,
+
+			seqInput := rmnops.CurseUncurseSeqInput{
+				CCIPAddress:          c.CCIPAddress,
+				LatestCCIPPackageID:  c.LatestCCIPPackageID,
+				CCIPObjectRef:        c.CCIPObjectRef,
+				CCIPOwnerCapObjectID: c.CCIPOwnerCapObjectID,
+				ChainSelector:        in.ChainSelector,
+				Subjects:             in.Subjects,
 			}
-			seqReport, err := cldf_ops.ExecuteSequence(b, rmnops.FastCurseCurseSequence, chains, seqInput)
+			seqReport, err := cldf_ops.ExecuteSequence(b, rmnops.CurseSequence, chains, seqInput)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute fast curse sequence on Sui chain %d: %w", in.ChainSelector, err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute slow curse sequence on Sui chain %d: %w", in.ChainSelector, err)
 			}
 			return seqReport.Output, nil
 		},

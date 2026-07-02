@@ -20,6 +20,14 @@ const (
 	testMcmsReaderCCIPPackageID = "0x1111111111111111111111111111111111111111111111111111111111111111"
 	testMcmsReaderCCIPObjectRef = "0x2222222222222222222222222222222222222222222222222222222222222222"
 
+	testSlowMcmsPackageID = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	testSlowMcmsState     = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	testSlowMcmsRegistry  = "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	testSlowMcmsAccount   = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	testSlowMcmsOwnerCap  = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	testSlowMcmsTimelock  = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	testSlowMcmsDeployer  = "0x9090909090909090909090909090909090909090909090909090909090909090"
+
 	testFastMcmsPackageID = "0x1212121212121212121212121212121212121212121212121212121212121212"
 	testFastMcmsState     = "0x2323232323232323232323232323232323232323232323232323232323232323"
 	testFastMcmsRegistry  = "0x3434343434343434343434343434343434343434343434343434343434343434"
@@ -70,4 +78,53 @@ func TestMCMSReader_RMNMCMSQualifier_SelectsFastMCMS(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, testFastMcmsState, mcmsRef.Address)
 	require.Equal(t, selector, mcmsRef.ChainSelector)
+}
+
+func TestMCMSReader_ChainQualifiersOverrideGlobalRMNMCMS(t *testing.T) {
+	t.Parallel()
+
+	selector := cselectors.SUI_TESTNET.Selector
+	ab := cldf.NewMemoryAddressBook()
+	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPPackageID, cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
+	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPObjectRef, cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)))
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+		PackageId: testSlowMcmsPackageID,
+		Objects: mcmsops.DeployMCMSObjects{
+			McmsMultisigStateObjectId:   testSlowMcmsState,
+			McmsRegistryObjectId:        testSlowMcmsRegistry,
+			McmsAccountStateObjectId:    testSlowMcmsAccount,
+			McmsAccountOwnerCapObjectId: testSlowMcmsOwnerCap,
+			TimelockObjectId:            testSlowMcmsTimelock,
+			McmsDeployerStateObjectId:   testSlowMcmsDeployer,
+		},
+	}, deployment.MCMSInstanceSlow))
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+		PackageId: testFastMcmsPackageID,
+		Objects: mcmsops.DeployMCMSObjects{
+			McmsMultisigStateObjectId:   testFastMcmsState,
+			McmsRegistryObjectId:        testFastMcmsRegistry,
+			McmsAccountStateObjectId:    testFastMcmsAccount,
+			McmsAccountOwnerCapObjectId: testFastMcmsOwnerCap,
+			TimelockObjectId:            testFastMcmsTimelock,
+			McmsDeployerStateObjectId:   testFastMcmsDeployer,
+		},
+	}, deployment.MCMSInstanceFastCurse))
+
+	env := cldf.Environment{
+		ExistingAddresses: ab,
+		BlockChains: cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
+			selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
+		}),
+	}
+
+	reader := &adapters.MCMSReader{}
+	input := ccipmcms.Input{
+		Qualifier:       "RMNMCMS",
+		TimelockAction:  mcmstypes.TimelockActionBypass,
+		ChainQualifiers: map[uint64]string{selector: ""},
+	}
+
+	mcmsRef, err := reader.GetMCMSRef(env, selector, input)
+	require.NoError(t, err)
+	require.Equal(t, testSlowMcmsState, mcmsRef.Address)
 }

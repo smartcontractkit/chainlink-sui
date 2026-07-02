@@ -6,6 +6,7 @@ import (
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 
+	cciputils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	mcms_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -13,13 +14,19 @@ import (
 	suideploy "github.com/smartcontractkit/chainlink-sui/deployment"
 )
 
-const fastCurseQualifier = "RMNMCMS"
-
 type MCMSReader struct{}
 
+func effectiveQualifier(chainSelector uint64, input mcms_utils.Input) string {
+	if input.ChainQualifiers != nil {
+		if qualifier, ok := input.ChainQualifiers[chainSelector]; ok {
+			return qualifier
+		}
+	}
+	return input.Qualifier
+}
+
 // mcmsFieldsFromInput loads the on-chain state and selects the correct
-// MCMSStateFields (normal or fastcurse) based on the Qualifier in the input.
-// A Qualifier value of "RMNMCMS" (fastCurseQualifier) selects the fastcurse MCMS instance.
+// MCMSStateFields based on the effective qualifier for the chain.
 func mcmsFieldsFromInput(e cldf.Environment, chainSelector uint64, input mcms_utils.Input) (suideploy.MCMSStateFields, error) {
 	stateMap, err := suideploy.LoadOnchainStatesui(e)
 	if err != nil {
@@ -29,7 +36,7 @@ func mcmsFieldsFromInput(e cldf.Environment, chainSelector uint64, input mcms_ut
 	if !ok {
 		return suideploy.MCMSStateFields{}, fmt.Errorf("sui chain %d not found in state", chainSelector)
 	}
-	return state.MCMSState(input.Qualifier == fastCurseQualifier), nil
+	return state.MCMSState(effectiveQualifier(chainSelector, input) == cciputils.RMNTimelockQualifier), nil
 }
 
 func (r *MCMSReader) GetChainMetadata(e cldf.Environment, chainSelector uint64, input mcms_utils.Input) (mcmstypes.ChainMetadata, error) {
