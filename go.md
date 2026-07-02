@@ -41,7 +41,6 @@ flowchart LR
 	chainlink-sui --> chainlink-sui/codec
 	click chainlink-sui href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/codec --> chainlink-aptos
-	chainlink-sui/codec --> chainlink-sui
 	click chainlink-sui/codec href "https://github.com/smartcontractkit/chainlink-sui"
 	freeport
 	click freeport href "https://github.com/smartcontractkit/freeport"
@@ -202,7 +201,6 @@ flowchart LR
 	chainlink-sui --> chainlink-sui/codec
 	click chainlink-sui href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/codec --> chainlink-aptos
-	chainlink-sui/codec --> chainlink-sui
 	click chainlink-sui/codec href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/deployment --> chainlink-ccip/deployment
 	click chainlink-sui/deployment href "https://github.com/smartcontractkit/chainlink-sui"
@@ -237,7 +235,6 @@ flowchart LR
 	click grpc-proxy href "https://github.com/smartcontractkit/grpc-proxy"
 	libocr --> go-sumtype2
 	click libocr href "https://github.com/smartcontractkit/libocr"
-	mcms --> chainlink-aptos
 	mcms --> chainlink-canton
 	mcms --> chainlink-ccip/chains/solana
 	mcms --> chainlink-deployments-framework
