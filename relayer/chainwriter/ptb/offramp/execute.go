@@ -12,7 +12,6 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/mitchellh/mapstructure"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
@@ -227,12 +226,6 @@ func ProcessTokenPools(
 
 		lggr.Debugw("fetched token configs via dev inspect call", "tokenConfig", tokenConfig)
 
-		// Get the move normalized module to dynamically construct the parameters for the token pool call
-		tokenPoolNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, tokenConfig.TokenPoolPackageId, tokenConfig.TokenPoolModule)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get normalized module for token pool: %w", err)
-		}
-
 		tokenPoolCommandResult, err := AppendPTBCommandForTokenPool(
 			ctx,
 			lggr,
@@ -241,7 +234,6 @@ func ProcessTokenPools(
 			callOpts,
 			addressMappings,
 			&tokenConfig,
-			&tokenPoolNormalizedModule,
 			receiverParams,
 		)
 		if err != nil {
@@ -257,12 +249,11 @@ func ProcessTokenPools(
 func AppendPTBCommandForTokenPool(
 	ctx context.Context,
 	lggr logger.Logger,
-	chainClient client.BindingsClient,
+	chainClient client.SuiPTBClient,
 	ptb *transaction.Transaction,
 	callOpts *bind.CallOpts,
 	addressMappings *OffRampAddressMappings,
 	tokenPoolConfigs *module_token_admin_registry.TokenConfig,
-	normalizedModule *models.GetNormalizedMoveModuleResponse,
 	receiverParams *transaction.Argument,
 ) (*transaction.Argument, error) {
 	poolBoundContract, err := bind.NewBoundContract(
@@ -295,16 +286,11 @@ func AppendPTBCommandForTokenPool(
 	}
 
 	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
-	functionSignature, ok := normalizedModule.ExposedFunctions[OfframpTokenPoolFunctionName]
-	if !ok {
-		return nil, fmt.Errorf("missing function signature for token pool function not found in module (%s)", OfframpTokenPoolFunctionName)
+	functionDescriptor, err := chainClient.GetMoveModuleFunction(ctx, tokenPoolConfigs.TokenPoolPackageId, tokenPoolConfigs.TokenPoolModule, OfframpTokenPoolFunctionName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get function descriptor for token pool function: %w", err)
 	}
-
-	funcMap, ok := functionSignature.(map[string]any)
-	if !ok || funcMap == nil {
-		return nil, fmt.Errorf("invalid function signature shape for %q (%T)", OfframpTokenPoolFunctionName, functionSignature)
-	}
-	paramTypes, err := DecodeParameters(lggr, funcMap, "parameters")
+	paramTypes, err := DecodeParametersFromFunctionDescriptor(lggr, functionDescriptor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
 	}
@@ -387,12 +373,6 @@ func ProcessReceivers(
 			return nil, fmt.Errorf("failed to get receiver config in offramp execution: %w", err)
 		}
 
-		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverConfig.ModuleName)
-		if err != nil {
-			// RPC/network error — propagate so the caller can retry later.
-			return nil, fmt.Errorf("failed to get normalized module for receiver: %w", err)
-		}
-
 		receiverCommandResult, err := AppendPTBCommandForReceiver(
 			ctx,
 			lggr,
@@ -404,7 +384,6 @@ func ProcessReceivers(
 			"ccip_receive",
 			addressMappings,
 			message.Header.MessageID,
-			&receiverNormalizedModule,
 			receiverParams,
 			extraArgs,
 		)
@@ -450,7 +429,7 @@ func needsAppDelivery(message ccipocr3.Message, extraArgs map[string]any) bool {
 func AppendPTBCommandForReceiver(
 	ctx context.Context,
 	lggr logger.Logger,
-	chainClient client.BindingsClient,
+	chainClient client.SuiPTBClient,
 	ptb *transaction.Transaction,
 	callOpts *bind.CallOpts,
 	packageId string,
@@ -458,7 +437,6 @@ func AppendPTBCommandForReceiver(
 	functionName string,
 	addressMappings *OffRampAddressMappings,
 	messageID [32]byte,
-	normalizedModule *models.GetNormalizedMoveModuleResponse,
 	receiverParams *transaction.Argument,
 	extraArgs map[string]any,
 ) (*transaction.Argument, error) {
@@ -514,18 +492,13 @@ func AppendPTBCommandForReceiver(
 	}
 
 	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
-	functionSignature, ok := normalizedModule.ExposedFunctions[functionName]
-	if !ok {
-		return nil, fmt.Errorf("%w: function %q not found in module", ErrUnsupportedReceiverABI, functionName)
-	}
-
-	funcMap, err := exposedFunctionSignature(functionName, functionSignature)
+	functionDescriptor, err := chainClient.GetMoveModuleFunction(ctx, packageId, moduleId, functionName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get function descriptor for receiver: %w", err)
 	}
-	paramTypes, err = DecodeParameters(lggr, funcMap, "parameters")
+	paramTypes, err = DecodeParametersFromFunctionDescriptor(lggr, functionDescriptor)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to decode receiver parameters: %w", ErrUnsupportedReceiverABI, err)
+		return nil, fmt.Errorf("failed to decode parameters for receiver: %w", err)
 	}
 
 	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)

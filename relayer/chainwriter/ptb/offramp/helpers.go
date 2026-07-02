@@ -8,6 +8,8 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
@@ -457,6 +459,152 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 
 		paramTypes = append(paramTypes, formatValueParamType(param.Type))
 	}
+
+	return paramTypes, nil
+}
+
+// datatypeName returns the unqualified name portion (e.g. "TxContext") of a fully qualified
+// datatype name of the form "<address>::<module>::<name>", as returned by
+// OpenSignatureBody.GetTypeName(). If typeName isn't qualified, it is returned unchanged.
+func datatypeName(typeName string) string {
+	idx := strings.LastIndex(typeName, "::")
+	if idx == -1 {
+		return typeName
+	}
+	return typeName[idx+2:]
+}
+
+// datatypeMoveType maps a fully qualified datatype name to the Move type string used by
+// EncodeCallArgsWithGenerics, mirroring structMapToMoveType for the JSON-RPC based decoder.
+func datatypeMoveType(typeName string) string {
+	parts := strings.Split(typeName, "::")
+	if len(parts) != 3 {
+		return "object_id"
+	}
+	address, module, name := parts[0], parts[1], parts[2]
+	return structFieldsToMoveType(address, module, name)
+}
+
+// parseSignatureBodyType computes the Move type string for a single OpenSignatureBody, recursing
+// into vector element types. It mirrors ParseParamType for the gRPC FunctionDescriptor shape.
+func parseSignatureBodyType(body *suirpcv2.OpenSignatureBody) (string, error) {
+	if body == nil {
+		return "", errors.New("nil signature body")
+	}
+
+	switch body.GetType() {
+	case suirpcv2.OpenSignatureBody_ADDRESS:
+		return "object_id", nil
+	case suirpcv2.OpenSignatureBody_BOOL:
+		return "bool", nil
+	case suirpcv2.OpenSignatureBody_U8:
+		return "u8", nil
+	case suirpcv2.OpenSignatureBody_U16:
+		return "u16", nil
+	case suirpcv2.OpenSignatureBody_U32:
+		return "u32", nil
+	case suirpcv2.OpenSignatureBody_U64:
+		return "u64", nil
+	case suirpcv2.OpenSignatureBody_U128:
+		return "u128", nil
+	case suirpcv2.OpenSignatureBody_U256:
+		return "u256", nil
+	case suirpcv2.OpenSignatureBody_VECTOR:
+		elementTypes := body.GetTypeParameterInstantiation()
+		if len(elementTypes) != 1 {
+			return "", fmt.Errorf("vector signature has %d type parameters, expected 1", len(elementTypes))
+		}
+		elementType, err := parseSignatureBodyType(elementTypes[0])
+		if err != nil {
+			return "", err
+		}
+		return "vector<" + elementType + ">", nil
+	case suirpcv2.OpenSignatureBody_DATATYPE:
+		return datatypeMoveType(body.GetTypeName()), nil
+	case suirpcv2.OpenSignatureBody_TYPE_PARAMETER:
+		return "", fmt.Errorf("%w: TypeParameter (generic parameters are not supported)", ErrUnsupportedReceiverABI)
+	default:
+		return "unknown", nil
+	}
+}
+
+// decodeOpenSignature classifies a single function parameter/return signature into the name
+// (used to detect and skip TxContext), the reference kind ("Reference", "MutableReference", or
+// "Vector"), and the underlying Move type string. It mirrors decodeParam for the gRPC
+// FunctionDescriptor shape: a Vector body always takes precedence over the outer reference
+// (matching the JSON-RPC decoder, where a Vector's own wrapper key overrides any enclosing
+// Reference/MutableReference), and a bare (non-Vector) body defaults to "Reference" unless
+// explicitly marked MUTABLE.
+func decodeOpenSignature(sig *suirpcv2.OpenSignature) (name string, reference string, moveType string, err error) {
+	body := sig.GetBody()
+	if body == nil {
+		return "", "", "", errors.New("nil parameter body")
+	}
+
+	if body.GetType() == suirpcv2.OpenSignatureBody_VECTOR {
+		elementTypes := body.GetTypeParameterInstantiation()
+		if len(elementTypes) != 1 {
+			return "", "", "", fmt.Errorf("vector signature has %d type parameters, expected 1", len(elementTypes))
+		}
+		elementType, elmErr := parseSignatureBodyType(elementTypes[0])
+		if elmErr != nil {
+			return "", "", "", elmErr
+		}
+		return datatypeName(elementTypes[0].GetTypeName()), "Vector", elementType, nil
+	}
+
+	moveType, err = parseSignatureBodyType(body)
+	if err != nil {
+		return "", "", "", err
+	}
+	name = datatypeName(body.GetTypeName())
+
+	if sig.GetReference() == suirpcv2.OpenSignature_MUTABLE {
+		return name, "MutableReference", moveType, nil
+	}
+
+	return name, "Reference", moveType, nil
+}
+
+// DecodeParametersFromFunctionDescriptor computes the PTB argument type strings for a Move
+// function's parameters, given its gRPC FunctionDescriptor. It achieves the same purpose as
+// DecodeParameters, but reads from the typed sui.rpc.v2.FunctionDescriptor returned by
+// MovePackageService.GetFunction rather than the untyped JSON-RPC normalized function map.
+func DecodeParametersFromFunctionDescriptor(lggr logger.Logger, functionDescriptor *suirpcv2.FunctionDescriptor) ([]string, error) {
+	if functionDescriptor == nil {
+		lggr.Errorw("function descriptor is nil")
+		return nil, errors.New("function descriptor is nil")
+	}
+
+	parameters := functionDescriptor.GetParameters()
+	lggr.Debugw("Raw parameters", "parameters", parameters)
+
+	paramTypes := make([]string, 0, len(parameters))
+	for i, parameter := range parameters {
+		name, reference, moveType, err := decodeOpenSignature(parameter)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode parameter %d: %w", i, err)
+		}
+
+		if name == "TxContext" {
+			continue
+		}
+
+		switch reference {
+		case "MutableReference":
+			paramTypes = append(paramTypes, "&mut object")
+		case "Vector":
+			paramTypes = append(paramTypes, "vector<"+moveType+">")
+		default:
+			if isPureParamType(moveType) {
+				paramTypes = append(paramTypes, moveType)
+			} else {
+				paramTypes = append(paramTypes, "&object")
+			}
+		}
+	}
+
+	lggr.Debugw("decoded parameter types", "paramTypes", paramTypes)
 
 	return paramTypes, nil
 }

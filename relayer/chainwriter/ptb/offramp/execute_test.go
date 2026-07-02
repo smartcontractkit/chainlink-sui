@@ -92,6 +92,9 @@ func (s *stubPTBClient) GetLatestCheckpoint(context.Context) (*suirpcv2.Checkpoi
 func (s *stubPTBClient) GetCheckpointData(context.Context, uint64) (*client.CheckpointData, error) {
 	return nil, nil
 }
+func (s *stubPTBClient) GetMoveModuleFunction(context.Context, string, string, string) (*suirpcv2.FunctionDescriptor, error) {
+	return nil, nil
+}
 func (s *stubPTBClient) GetNormalizedModule(context.Context, string, string) (models.GetNormalizedMoveModuleResponse, error) {
 	return models.GetNormalizedMoveModuleResponse{}, nil
 }
