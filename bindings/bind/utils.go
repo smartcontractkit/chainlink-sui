@@ -2,7 +2,6 @@ package bind
 
 import (
 	"fmt"
-	"unicode"
 
 	"github.com/block-vision/sui-go-sdk/models"
 
@@ -29,10 +28,4 @@ func GetFailedTxError(tx *models.SuiTransactionBlockResponse) error {
 	}
 
 	return fmt.Errorf("transaction failed with error: %s", tx.Effects.Status.Error)
-}
-
-func isHexRune(r rune) bool {
-	return unicode.IsDigit(r) ||
-		('a' <= r && r <= 'f') ||
-		('A' <= r && r <= 'F')
 }

@@ -118,7 +118,7 @@ func (p PointerTag) Validate() error {
 		return errors.New("PointerTag.Module is required")
 	}
 	if p.PointerName == "" {
-		return errors.New("PointerTag.Pointer is required")
+		return errors.New("PointerTag.PointerName is required")
 	}
 	// FieldName is optional - it's looked up from common.PointerConfigs
 	if p.DerivationKey == "" {
