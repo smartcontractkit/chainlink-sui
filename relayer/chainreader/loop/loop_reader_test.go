@@ -1,6 +1,6 @@
 //go:build integration
 
-package loop
+package loop_test
 
 import (
 	"context"
@@ -30,6 +30,8 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
+
+	codecLoop "github.com/smartcontractkit/chainlink-sui/codec/loop"
 )
 
 //nolint:paralleltest
@@ -299,7 +301,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	require.NoError(t, err)
 
 	// Wrap the base chain reader with loop chain reader
-	loopReader := NewLoopChainReader(log, chainReader)
+	loopReader := codecLoop.NewLoopChainReader(log, chainReader)
 
 	// Bind the contracts
 	err = loopReader.Bind(context.Background(), []types.BoundContract{echoBinding, counterBinding})
@@ -579,7 +581,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	// then compares ConfigInfo.ConfigDigest against the DON's digest.
 	//
 	// IMPORTANT: the core node's Sui LOOP reader (suiloop.loopChainReader.decodeGLVReturnValue) does NOT
-	// plain json.Unmarshal into the typed target. It json.Unmarshals the bytes into a generic map and then
+	// plain json.Unmarshal into the typed target. It json.Unmarshals the LOOP bytes into a generic map and then
 	// runs codec.DecodeSuiJsonValue (mapstructure with a fuzzy, underscore-insensitive field matcher and
 	// hex/base64 type-conversion hooks). That decoder happily maps the Sui node's snake_case keys and
 	// decodes the base64 digest / 0x-hex transmitters correctly. The one field it can NOT map on its own is

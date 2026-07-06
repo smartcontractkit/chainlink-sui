@@ -12,6 +12,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/transaction"
 
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
+	"github.com/smartcontractkit/chainlink-sui/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -32,10 +33,10 @@ type transactionObjectChangesClient interface {
 	GetTransactionChangedObjects(ctx context.Context, digest string) ([]*suirpcv2.ChangedObject, error)
 }
 
-type Object struct {
-	Id                   string
-	InitialSharedVersion *uint64
-}
+// Object is an alias for codec.Object for backward compatibility.
+//
+// Deprecated: use codec.Object directly.
+type Object = codec.Object
 
 type EmptyMoveStructWitness struct{}
 
