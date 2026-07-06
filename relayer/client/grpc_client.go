@@ -167,6 +167,17 @@ type ObjectMetadataCache interface {
 
 var _ SuiPTBClient = (*PTBClient)(nil)
 
+// ExtendedPTBClient augments SuiPTBClient with additional methods that are not part
+// of the stable SuiPTBClient contract. Consumers that need transaction details by
+// digest can depend on this interface without forcing every SuiPTBClient
+// implementer to change.
+type ExtendedPTBClient interface {
+	SuiPTBClient
+	GetTransaction(ctx context.Context, digest string) (TransactionDetails, error)
+}
+
+var _ ExtendedPTBClient = (*PTBClient)(nil)
+
 func NewPTBClient(log logger.Logger, cfg PTBClientConfig) (*PTBClient, error) {
 	return NewPTBClientFromConfig(log, cfg)
 }
@@ -574,14 +585,29 @@ func (c *PTBClient) ReadFunction(ctx context.Context, packageId string, module s
 	var results []any
 	err := c.WithRateLimit(ctx, "ReadFunction", func(ctx context.Context) error {
 		var err error
-		results, err = c.readFunctionInternal(ctx, packageId, module, function, args, argTypes, typeArgs)
+		results, err = c.readFunctionInternal(ctx, packageId, module, function, args, argTypes, nil, typeArgs)
+		return err
+	})
+	return results, err
+}
+
+// ReadFunctionWithMutability behaves like ReadFunction but lets callers control, per argument,
+// whether an object argument is passed as a mutable shared-object reference. This is required for
+// Move view functions that take immutable references (&T): passing such an object as mutable causes
+// the node to reject the simulation ("Mutable parameter provided, immutable parameter expected").
+// mutabilities is index-aligned with args; a nil or short slice defaults an argument to mutable.
+func (c *PTBClient) ReadFunctionWithMutability(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, mutabilities []bool, typeArgs []string) ([]any, error) {
+	var results []any
+	err := c.WithRateLimit(ctx, "ReadFunction", func(ctx context.Context) error {
+		var err error
+		results, err = c.readFunctionInternal(ctx, packageId, module, function, args, argTypes, mutabilities, typeArgs)
 		return err
 	})
 	return results, err
 }
 
 // readFunctionInternal is the internal implementation without rate limiting
-func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, mutabilities []bool, typeArgs []string) ([]any, error) {
 	readCtx := ctx
 	cancel := func() {}
 	timeout := DefaultReadOpTimeout
@@ -632,7 +658,14 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 			argType = common.InferArgumentType(arg)
 		}
 
-		txArg, transformErr := c.TransformTransactionArg(readCtx, txn, arg, argType, true)
+		// Default object arguments to mutable to preserve prior behavior; honor an explicit
+		// per-argument mutability when provided (needed for immutable-reference view functions).
+		mutable := true
+		if i < len(mutabilities) {
+			mutable = mutabilities[i]
+		}
+
+		txArg, transformErr := c.TransformTransactionArg(readCtx, txn, arg, argType, mutable)
 		if transformErr != nil {
 			return nil, fmt.Errorf("failed to transform transaction arg: %w", transformErr)
 		}
@@ -849,6 +882,66 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 			Status:     status,
 			Error:      tx.GetEffects().GetStatus().GetError().String(),
 			Checkpoint: tx.GetCheckpoint(),
+		}
+
+		return nil
+	})
+
+	return result, err
+}
+
+// GetTransaction fetches transaction details by digest, including the sender
+// address, in a single gRPC call. It avoids the checkpoint scan required to
+// recover the sender when only GetTransactionStatus is available.
+func (c *PTBClient) GetTransaction(ctx context.Context, digest string) (TransactionDetails, error) {
+	ledgerService, err := c.getLedgerService(ctx)
+	if err != nil {
+		return TransactionDetails{}, fmt.Errorf("failed to get ledger service: %w", err)
+	}
+
+	var result TransactionDetails
+
+	err = c.WithRateLimit(ctx, "GetTransaction", func(ctx context.Context) error {
+		response, txErr := ledgerService.GetTransaction(ctx, &suirpcv2.GetTransactionRequest{
+			Digest: &digest,
+			ReadMask: &fieldmaskpb.FieldMask{
+				Paths: []string{
+					"digest",
+					"transaction.sender",
+					"effects.status",
+					"effects.status.success",
+					"effects.status.error",
+					"checkpoint",
+					"timestamp",
+				},
+			},
+		})
+		if txErr != nil {
+			return txErr
+		}
+
+		tx := response.GetTransaction()
+		if tx == nil || tx.GetEffects() == nil || tx.GetEffects().GetStatus() == nil {
+			return fmt.Errorf("transaction %s missing status", digest)
+		}
+
+		status := "failure"
+		if tx.GetEffects().GetStatus().GetSuccess() {
+			status = "success"
+		}
+
+		var timestampSeconds uint64
+		if ts := tx.GetTimestamp(); ts != nil {
+			timestampSeconds = uint64(ts.GetSeconds())
+		}
+
+		result = TransactionDetails{
+			Digest:     tx.GetDigest(),
+			Status:     status,
+			Error:      tx.GetEffects().GetStatus().GetError().String(),
+			Checkpoint: tx.GetCheckpoint(),
+			Sender:     tx.GetTransaction().GetSender(),
+			Timestamp:  timestampSeconds,
 		}
 
 		return nil
