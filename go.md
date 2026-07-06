@@ -37,9 +37,11 @@ flowchart LR
 	click chainlink-protos/storage-service href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/workflows/go
 	click chainlink-protos/workflows/go href "https://github.com/smartcontractkit/chainlink-protos"
-	chainlink-sui --> chainlink-aptos
 	chainlink-sui --> chainlink-ccip
+	chainlink-sui --> chainlink-sui/codec
 	click chainlink-sui href "https://github.com/smartcontractkit/chainlink-sui"
+	chainlink-sui/codec --> chainlink-aptos
+	click chainlink-sui/codec href "https://github.com/smartcontractkit/chainlink-sui"
 	freeport
 	click freeport href "https://github.com/smartcontractkit/freeport"
 	go-sumtype2
@@ -66,8 +68,14 @@ flowchart LR
 	end
 	click chainlink-protos-repo href "https://github.com/smartcontractkit/chainlink-protos"
 
+	subgraph chainlink-sui-repo[chainlink-sui]
+		 chainlink-sui
+		 chainlink-sui/codec
+	end
+	click chainlink-sui-repo href "https://github.com/smartcontractkit/chainlink-sui"
+
 	classDef outline stroke-dasharray:6,fill:none;
-	class chainlink-common-repo,chainlink-protos-repo outline
+	class chainlink-common-repo,chainlink-protos-repo,chainlink-sui-repo outline
 ```
 ## All modules
 ```mermaid
@@ -189,9 +197,11 @@ flowchart LR
 	click chainlink-protos/svr href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/workflows/go
 	click chainlink-protos/workflows/go href "https://github.com/smartcontractkit/chainlink-protos"
-	chainlink-sui --> chainlink-aptos
 	chainlink-sui --> chainlink-ccip
+	chainlink-sui --> chainlink-sui/codec
 	click chainlink-sui href "https://github.com/smartcontractkit/chainlink-sui"
+	chainlink-sui/codec --> chainlink-aptos
+	click chainlink-sui/codec href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/deployment --> chainlink-ccip/deployment
 	click chainlink-sui/deployment href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/integration-tests --> chainlink-sui/deployment
@@ -304,6 +314,7 @@ flowchart LR
 
 	subgraph chainlink-sui-repo[chainlink-sui]
 		 chainlink-sui
+		 chainlink-sui/codec
 		 chainlink-sui/deployment
 		 chainlink-sui/integration-tests
 	end

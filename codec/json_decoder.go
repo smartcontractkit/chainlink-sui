@@ -1,24 +1,47 @@
-package bind
+package codec
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
-
-	"github.com/smartcontractkit/chainlink-sui/codec"
 )
 
 // DecodeJSONReturn decodes gRPC/JSON Move return values into the provided target.
-//
-// Deprecated: use codec.DecodeJSONReturn directly.
 func DecodeJSONReturn(data any, target any) error {
-	return codec.DecodeJSONReturn(data, target)
+	if target == nil {
+		return errors.New("target cannot be nil")
+	}
+
+	if raw, ok := data.(json.RawMessage); ok {
+		var intermediate any
+		if err := json.Unmarshal(raw, &intermediate); err != nil {
+			return fmt.Errorf("json unmarshal failed: %w", err)
+		}
+
+		return DecodeJSONReturn(intermediate, target)
+	}
+
+	if reflect.TypeOf(data) == reflect.TypeOf(target).Elem() {
+		reflect.ValueOf(target).Elem().Set(reflect.ValueOf(data))
+		return nil
+	}
+
+	targetType := reflect.TypeOf(target).Elem()
+
+	bigPtrT := reflect.TypeOf((*big.Int)(nil))
+	bigValT := bigPtrT.Elem()
+	if targetType == bigValT || targetType == bigPtrT {
+		return decodeBigInt(data, target)
+	}
+
+	return decodeWithMapstructure(data, target)
 }
 
-// decodeBigInt decodes a string into a big.Int target.
 func decodeBigInt(data any, target any) error {
 	str, ok := data.(string)
 	if !ok {
@@ -44,7 +67,6 @@ func decodeBigInt(data any, target any) error {
 	return nil
 }
 
-// decodeWithMapstructure decodes using mapstructure with custom hooks.
 func decodeWithMapstructure(data any, target any) error {
 	config := &mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
@@ -69,17 +91,4 @@ func fuzzyFieldMatcher(mapKey, fieldName string) bool {
 	mk := strings.ReplaceAll(mapKey, "_", "")
 	fn := strings.ReplaceAll(fieldName, "_", "")
 	return strings.EqualFold(mk, fn)
-}
-
-func handleSingleFieldStruct(t reflect.Type, data any, decodeFn func(any, any) error) (any, error) {
-	field := t.Field(0)
-	newStructVal := reflect.New(t).Elem()
-	fieldPtr := newStructVal.Field(0).Addr().Interface()
-
-	if err := decodeFn(data, fieldPtr); err != nil {
-		return nil, fmt.Errorf("failed decoding for single-field struct %v field %s (%v): %w",
-			t, field.Name, field.Type, err)
-	}
-
-	return newStructVal.Interface(), nil
 }
