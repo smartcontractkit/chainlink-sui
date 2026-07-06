@@ -27,6 +27,14 @@ const (
 	testFastMcmsOwnerCap  = "0x5656565656565656565656565656565656565656565656565656565656565656"
 	testFastMcmsTimelock  = "0x6767676767676767676767676767676767676767676767676767676767676767"
 	testFastMcmsDeployer  = "0x7878787878787878787878787878787878787878787878787878787878787878"
+
+	testSlowMcmsPackageID = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	testSlowMcmsState     = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	testSlowMcmsRegistry  = "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	testSlowMcmsAccount   = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	testSlowMcmsOwnerCap  = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	testSlowMcmsTimelock  = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	testSlowMcmsDeployer  = "0x0909090909090909090909090909090909090909090909090909090909090909"
 )
 
 func TestMCMSReader_RMNMCMSQualifier_SelectsFastMCMS(t *testing.T) {
@@ -70,4 +78,62 @@ func TestMCMSReader_RMNMCMSQualifier_SelectsFastMCMS(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, testFastMcmsState, mcmsRef.Address)
 	require.Equal(t, selector, mcmsRef.ChainSelector)
+}
+
+func TestMCMSReader_EmptyQualifier_SelectsSlowMCMS(t *testing.T) {
+	t.Parallel()
+
+	selector := cselectors.SUI_TESTNET.Selector
+	ab := cldf.NewMemoryAddressBook()
+	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPPackageID, cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
+	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPObjectRef, cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)))
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+		PackageId: testSlowMcmsPackageID,
+		Objects: mcmsops.DeployMCMSObjects{
+			McmsMultisigStateObjectId:   testSlowMcmsState,
+			McmsRegistryObjectId:        testSlowMcmsRegistry,
+			McmsAccountStateObjectId:    testSlowMcmsAccount,
+			McmsAccountOwnerCapObjectId: testSlowMcmsOwnerCap,
+			TimelockObjectId:            testSlowMcmsTimelock,
+			McmsDeployerStateObjectId:   testSlowMcmsDeployer,
+		},
+	}, deployment.MCMSInstanceSlow))
+
+	env := cldf.Environment{
+		ExistingAddresses: ab,
+		BlockChains: cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
+			selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
+		}),
+	}
+
+	reader := &adapters.MCMSReader{}
+
+	tests := []struct {
+		name      string
+		qualifier string
+	}{
+		{"empty qualifier", ""},
+		{"CLLCCIP qualifier", "CLLCCIP"},
+		{"any non-RMNMCMS qualifier", "SomeOtherQualifier"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			input := ccipmcms.Input{
+				Qualifier:      tt.qualifier,
+				TimelockAction: mcmstypes.TimelockActionBypass,
+			}
+
+			timelockRef, err := reader.GetTimelockRef(env, selector, input)
+			require.NoError(t, err)
+			require.Equal(t, testSlowMcmsTimelock, timelockRef.Address)
+			require.Equal(t, selector, timelockRef.ChainSelector)
+
+			mcmsRef, err := reader.GetMCMSRef(env, selector, input)
+			require.NoError(t, err)
+			require.Equal(t, testSlowMcmsState, mcmsRef.Address)
+			require.Equal(t, selector, mcmsRef.ChainSelector)
+		})
+	}
 }

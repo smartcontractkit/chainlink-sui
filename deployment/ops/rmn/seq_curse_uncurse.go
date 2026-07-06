@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	suideployutils "github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 // CurseUncurseSeqInput holds the context required by CurseSequence and UncurseSequence.
@@ -21,6 +21,7 @@ import (
 // interface and the RMN Remote contract's [][]byte representation.
 type CurseUncurseSeqInput struct {
 	CCIPAddress          string
+	LatestCCIPPackageID  string
 	CCIPObjectRef        string
 	CCIPOwnerCapObjectID string
 	ChainSelector        uint64
@@ -29,11 +30,12 @@ type CurseUncurseSeqInput struct {
 
 // FastCurseSeqInput holds the context required by FastCurseCurseSequence.
 type FastCurseSeqInput struct {
-	CCIPAddress       string
-	CCIPObjectRef     string
-	CurserCapObjectID string
-	ChainSelector     uint64
-	Subjects          []fastcurse.Subject
+	CCIPAddress         string
+	LatestCCIPPackageID string
+	CCIPObjectRef       string
+	CurserCapObjectID   string
+	ChainSelector       uint64
+	Subjects            []fastcurse.Subject
 }
 
 func subjectsToBytes(subjects []fastcurse.Subject) [][]byte {
@@ -42,6 +44,19 @@ func subjectsToBytes(subjects []fastcurse.Subject) [][]byte {
 		out[i] = append([]byte(nil), subject[:]...)
 	}
 	return out
+}
+
+func batchOpFromCall(chainSelector uint64, call sui_ops.TransactionCall) (sequences.OnChainOutput, error) {
+	tx, err := suideployutils.TransactionCallToMCMSTransaction(call)
+	if err != nil {
+		return sequences.OnChainOutput{}, fmt.Errorf("failed to create MCMS transaction: %w", err)
+	}
+	return sequences.OnChainOutput{
+		BatchOps: []mcmstypes.BatchOperation{{
+			ChainSelector: mcmstypes.ChainSelector(chainSelector),
+			Transactions:  []mcmstypes.Transaction{tx},
+		}},
+	}, nil
 }
 
 func executeCurseUncurse(
@@ -67,10 +82,11 @@ func executeCurseUncurse(
 	}
 
 	opInput := CurseUncurseChainInput{
-		CCIPPackageId:    in.CCIPAddress,
-		StateObjectId:    in.CCIPObjectRef,
-		OwnerCapObjectId: in.CCIPOwnerCapObjectID,
-		Subjects:         subjectsToBytes(in.Subjects),
+		CCIPPackageId:       in.CCIPAddress,
+		LatestCCIPPackageId: in.LatestCCIPPackageID,
+		StateObjectId:       in.CCIPObjectRef,
+		OwnerCapObjectId:    in.CCIPOwnerCapObjectID,
+		Subjects:            subjectsToBytes(in.Subjects),
 	}
 
 	report, err := cldf_ops.ExecuteOperation(b, op, deps, opInput)
@@ -78,25 +94,8 @@ func executeCurseUncurse(
 		return sequences.OnChainOutput{}, fmt.Errorf("failed to execute %s operation on Sui chain %d: %w", opName, in.ChainSelector, err)
 	}
 
-	call := report.Output.Call
-	tx, err := suisdk.NewTransactionWithStateObj(
-		call.Module, call.Function, call.PackageID,
-		call.Data, call.Module, []string{},
-		call.StateObjID, call.TypeArgs,
-	)
-	if err != nil {
-		return sequences.OnChainOutput{}, fmt.Errorf("failed to create MCMS transaction: %w", err)
-	}
-
-	return sequences.OnChainOutput{
-		BatchOps: []mcmstypes.BatchOperation{{
-			ChainSelector: mcmstypes.ChainSelector(in.ChainSelector),
-			Transactions:  []mcmstypes.Transaction{tx},
-		}},
-	}, nil
+	return batchOpFromCall(in.ChainSelector, report.Output.Call)
 }
-
-// CurseSequence curses the given subjects via RMN Remote on the specified Sui chain.
 var CurseSequence = cldf_ops.NewSequence(
 	"sui-curse-sequence",
 	semver.MustParse("1.0.0"),
@@ -140,31 +139,17 @@ func executeFastCurse(
 	}
 
 	report, err := cldf_ops.ExecuteOperation(b, CurseWithCurserCapOp, deps, CurseWithCurserCapInput{
-		CCIPPackageId:     in.CCIPAddress,
-		StateObjectId:     in.CCIPObjectRef,
-		CurserCapObjectId: in.CurserCapObjectID,
-		Subjects:          subjectsToBytes(in.Subjects),
+		CCIPPackageId:       in.CCIPAddress,
+		LatestCCIPPackageId: in.LatestCCIPPackageID,
+		StateObjectId:       in.CCIPObjectRef,
+		CurserCapObjectId:   in.CurserCapObjectID,
+		Subjects:            subjectsToBytes(in.Subjects),
 	})
 	if err != nil {
 		return sequences.OnChainOutput{}, fmt.Errorf("failed to execute fast curse on Sui chain %d: %w", in.ChainSelector, err)
 	}
 
-	call := report.Output.Call
-	tx, err := suisdk.NewTransactionWithStateObj(
-		call.Module, call.Function, call.PackageID,
-		call.Data, call.Module, []string{},
-		call.StateObjID, call.TypeArgs,
-	)
-	if err != nil {
-		return sequences.OnChainOutput{}, fmt.Errorf("failed to create MCMS transaction: %w", err)
-	}
-
-	return sequences.OnChainOutput{
-		BatchOps: []mcmstypes.BatchOperation{{
-			ChainSelector: mcmstypes.ChainSelector(in.ChainSelector),
-			Transactions:  []mcmstypes.Transaction{tx},
-		}},
-	}, nil
+	return batchOpFromCall(in.ChainSelector, report.Output.Call)
 }
 
 // FastCurseCurseSequence curses subjects via CurserCap held in the fast MCMS Registry.
