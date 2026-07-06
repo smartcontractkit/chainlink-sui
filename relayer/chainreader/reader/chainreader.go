@@ -22,12 +22,12 @@ import (
 	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	aptosCRUtils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
 
+	"github.com/smartcontractkit/chainlink-sui/codec"
 	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
