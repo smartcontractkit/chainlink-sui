@@ -15,15 +15,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-sui/deployment/adapters"
-	suideployutils "github.com/smartcontractkit/chainlink-sui/deployment/utils"
 	rmnops "github.com/smartcontractkit/chainlink-sui/deployment/ops/rmn"
+	suideployutils "github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 const (
-	testCCIPPackageID        = "0x1111111111111111111111111111111111111111111111111111111111111111"
-	testLatestCCIPPackageID  = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	testCCIPObjectRef        = "0x2222222222222222222222222222222222222222222222222222222222222222"
-	testCurserCapID          = "0x4444444444444444444444444444444444444444444444444444444444444444"
+	testCCIPPackageID       = "0x1111111111111111111111111111111111111111111111111111111111111111"
+	testLatestCCIPPackageID = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	testCCIPObjectRef       = "0x2222222222222222222222222222222222222222222222222222222222222222"
+	testCurserCapID         = "0x4444444444444444444444444444444444444444444444444444444444444444"
 )
 
 func fastCurseTestBundle(t *testing.T) cld_ops.Bundle {

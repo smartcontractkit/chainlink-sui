@@ -932,6 +932,7 @@ func (c *PTBClient) GetTransaction(ctx context.Context, digest string) (Transact
 
 		var timestampSeconds uint64
 		if ts := tx.GetTimestamp(); ts != nil {
+			//nolint:gosec // timestampSeconds is a positive value that is safe to convert to uint64
 			timestampSeconds = uint64(ts.GetSeconds())
 		}
 
