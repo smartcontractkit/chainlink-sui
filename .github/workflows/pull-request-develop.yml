@@ -170,6 +170,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Nix
         uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
@@ -189,3 +191,7 @@ jobs:
           nix develop -c ./scripts/modgraph.sh > go.md
           git add --all
           git diff --minimal --cached --exit-code
+
+      - name: Check intra-repo pseudo-versions are resolvable
+        run: |
+          ./scripts/check-module-versions.sh
