@@ -340,15 +340,19 @@ func TestLoopChainReader_BatchGetLatestValues_VerifiesLOOPBoundary(t *testing.T)
 
 	ctx := context.Background()
 
+	var returnTarget string
 	request := types.BatchGetLatestValuesRequest{
 		types.BoundContract{Name: "contract1", Address: "0x1"}: {
-			{ReadName: "read1", Params: map[string]any{"key": "value1"}},
+			{ReadName: "read1", Params: map[string]any{"key": "value1"}, ReturnVal: &returnTarget},
 		},
 	}
 
+	mockReturnBytes := []byte(`"value1"`)
+	mockResult := types.BatchReadResult{ReadName: "read1"}
+	mockResult.SetResult(&mockReturnBytes, nil)
 	mockResponse := types.BatchGetLatestValuesResult{
 		types.BoundContract{Name: "contract1", Address: "0x1"}: {
-			{ReadName: "read1"},
+			mockResult,
 		},
 	}
 
