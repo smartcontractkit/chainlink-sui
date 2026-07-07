@@ -96,6 +96,7 @@ func executeCurseUncurse(
 
 	return batchOpFromCall(in.ChainSelector, report.Output.Call)
 }
+
 var CurseSequence = cldf_ops.NewSequence(
 	"sui-curse-sequence",
 	semver.MustParse("1.0.0"),

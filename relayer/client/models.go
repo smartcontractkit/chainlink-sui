@@ -122,6 +122,17 @@ type TransactionResult struct {
 	Checkpoint uint64 `json:"checkpoint"`
 }
 
+// TransactionDetails contains transaction information retrievable by digest,
+// including the sender address, without requiring a full checkpoint scan.
+type TransactionDetails struct {
+	Digest     string `json:"digest"`
+	Status     string `json:"status"`
+	Error      string `json:"error"`
+	Checkpoint uint64 `json:"checkpoint"`
+	Sender     string `json:"sender"`
+	Timestamp  uint64 `json:"timestamp"`
+}
+
 type FunctionReadResponse struct {
 	ReturnValues []any `json:"returnValues"`
 }

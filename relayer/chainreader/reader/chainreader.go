@@ -22,12 +22,12 @@ import (
 	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	aptosCRUtils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
 
+	"github.com/smartcontractkit/chainlink-sui/codec"
 	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -468,6 +468,10 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		return err
 	}
 
+	if s.config.NormalizeReturnValuesToHex {
+		prepared = codec.ConvertBase64StringsToHex(prepared)
+	}
+
 	if s.config.IsLoopPlugin {
 		return s.encodeLoopResult(prepared, returnVal)
 	}
@@ -732,7 +736,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	args, argTypes, err := s.prepareArguments(ctx, argMap, functionConfig, parsed)
+	args, argTypes, mutabilities, err := s.prepareArguments(ctx, argMap, functionConfig, parsed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare arguments: %w", err)
 	}
@@ -743,7 +747,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 		return nil, fmt.Errorf("failed to extract generic type tags: %w", err)
 	}
 
-	responseValues, err := s.executeFunction(ctx, parsed, functionConfig, args, argTypes, typeArgs)
+	responseValues, err := s.executeFunction(ctx, parsed, functionConfig, args, argTypes, mutabilities, typeArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -886,9 +890,9 @@ type pointerMapEntry struct {
 // prepareArguments prepares function arguments and types for the call.
 // For pointer tags, it looks up cached parent object IDs (pre-loaded during Bind) and derives
 // child object IDs using the derivation keys specified in the pointer tags.
-func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *config.ChainReaderFunction, identifier *readIdentifier) ([]any, []string, error) {
+func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *config.ChainReaderFunction, identifier *readIdentifier) ([]any, []string, []bool, error) {
 	if functionConfig.Params == nil {
-		return []any{}, []string{}, nil
+		return []any{}, []string{}, []bool{}, nil
 	}
 
 	// a map of object selector "module::object" to array of fields
@@ -904,7 +908,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 		}
 
 		if err := paramConfig.PointerTag.Validate(); err != nil {
-			return nil, nil, fmt.Errorf("invalid pointer tag for parameter %s: %w", paramConfig.Name, err)
+			return nil, nil, nil, fmt.Errorf("invalid pointer tag for parameter %s: %w", paramConfig.Name, err)
 		}
 
 		pointerTag := paramConfig.PointerTag
@@ -934,7 +938,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 				// Only handle offRamp case because other modules are within ccip package
 				ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address)
 				if err != nil {
-					return nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
+					return nil, nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
 				}
 				readIdentifierForPointer.address = ccipPackageID
 			}
@@ -968,7 +972,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 				ctx, selector.address, selector.contractName, selector.readName,
 			)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to get parent object ID: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to get parent object ID: %w", err)
 			}
 
 			// Cache it for next time
@@ -983,7 +987,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 		for _, pointerVal := range pointerVals {
 			derivedID, err := client.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(pointerVal.derivationKey))
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to derive object ID for %s using key %s: %w", pointerVal.paramName, pointerVal.derivationKey, err)
+				return nil, nil, nil, fmt.Errorf("failed to derive object ID for %s using key %s: %w", pointerVal.paramName, pointerVal.derivationKey, err)
 			}
 			argMap[pointerVal.paramName] = derivedID
 		}
@@ -991,26 +995,35 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 	args := make([]any, 0, len(functionConfig.Params))
 	argTypes := make([]string, 0, len(functionConfig.Params))
+	mutabilities := make([]bool, 0, len(functionConfig.Params))
 
 	// ensure that all the required arguments are present
 	for _, paramConfig := range functionConfig.Params {
 		argValue, ok := argMap[paramConfig.Name]
 		if !ok {
 			if paramConfig.Required {
-				return nil, nil, fmt.Errorf("missing required argument: %s", paramConfig.Name)
+				return nil, nil, nil, fmt.Errorf("missing required argument: %s", paramConfig.Name)
 			}
 			argValue = paramConfig.DefaultValue
 		}
 
+		// Object arguments default to mutable unless the param explicitly opts out (e.g. view
+		// functions taking immutable references). Non-object args ignore this downstream.
+		mutable := true
+		if paramConfig.IsMutable != nil {
+			mutable = *paramConfig.IsMutable
+		}
+
 		args = append(args, argValue)
 		argTypes = append(argTypes, paramConfig.Type)
+		mutabilities = append(mutabilities, mutable)
 	}
 
-	return args, argTypes, nil
+	return args, argTypes, mutabilities, nil
 }
 
 // executeFunction executes the actual function call
-func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction, args []any, argTypes []string, mutabilities []bool, typeArgs []string) ([]any, error) {
 	s.logger.Debugw("Calling ReadFunction",
 		"address", parsed.address,
 		"module", parsed.contractName,
@@ -1062,7 +1075,7 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 		return response, nil
 	}
 
-	values, err := s.client.ReadFunction(ctx, parsed.address, parsed.contractName, parsed.readName, args, argTypes, typeArgs)
+	values, err := s.client.ReadFunctionWithMutability(ctx, parsed.address, parsed.contractName, parsed.readName, args, argTypes, mutabilities, typeArgs)
 
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",

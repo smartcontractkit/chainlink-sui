@@ -11,10 +11,15 @@ import (
 )
 
 type ChainReaderConfig struct {
-	IsLoopPlugin        bool
-	EventsIndexer       EventsIndexerConfig
-	TransactionsIndexer TransactionsIndexerConfig
-	Modules             map[string]*ChainReaderModule
+	IsLoopPlugin bool
+	// NormalizeReturnValuesToHex, when set, converts base64-encoded byte/address
+	// return values into 0x-prefixed hex strings. Defaults to false to preserve
+	// behavior for consumers that decode return values into typed structs.
+	// This is used by ccip-o11y and can be ignore otherwise.
+	NormalizeReturnValuesToHex bool
+	EventsIndexer              EventsIndexerConfig
+	TransactionsIndexer        TransactionsIndexerConfig
+	Modules                    map[string]*ChainReaderModule
 }
 
 type ChainReaderModule struct {
