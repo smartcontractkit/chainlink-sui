@@ -70,6 +70,7 @@ func (c ConfigureMCMS) Apply(e cldf.Environment, config ConfigureMCMSConfig) (cl
 		seqInput.McmsAccountOwnerCapObjectId = mcmsState.AccountOwnerCapObjectID
 		seqInput.McmsAccountStateObjectId = mcmsState.AccountStateObjectID
 		seqInput.McmsMultisigStateObjectId = mcmsState.StateObjectID
+		seqInput.McmsTimelockObjectId = mcmsState.TimelockObjectID
 	}
 
 	// Run ConfigureMCMS Sequence

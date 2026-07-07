@@ -17,13 +17,20 @@ import (
 
 var DefaultTimelockExpirationInHours = 72
 
-// MaxTimelockScheduleDelay caps the per-op scheduling delay accepted by
-// GenerateProposal. This is a deploy-side belt against the Move-side overflow
-// in `timelock_schedule` (`get_timestamp_seconds(clock) + delay` aborts on
-// u64 overflow), which is the mechanism the compound F8 finding exploits to
-// brick the timelock permanently. The Move source has no upper bound on the
-// delay itself; this cap prevents tooling-generated proposals from ever
-// carrying a value large enough to trip the overflow.
+// MaxTimelockScheduleDelay caps every timelock delay value produced by
+// tooling in this package. It applies in two places:
+//
+//  1. The per-op scheduling delay carried in a Schedule proposal
+//     (TimelockConfig.MinDelay), enforced by TimelockConfig.Validate.
+//  2. The new_min_delay payload of any mcms::mcms_timelock_update_min_delay
+//     batch entry, enforced by assertUpdateMinDelayWithinCap in
+//     op_proposal_generate.
+//
+// The Move source has no upper bound on either value. This cap is the
+// deploy-side belt against the compound F8 finding: values large enough to
+// trip the u64 overflow in `get_timestamp_seconds(clock) + delay` (in
+// timelock_schedule), or to make min_delay > any u64 the schedule cap would
+// allow, permanently brick the timelock.
 const MaxTimelockScheduleDelay = 30 * 24 * time.Hour
 
 // TimelockConfig is based on chainlink/deployment proposal utils
@@ -48,6 +55,24 @@ func (c TimelockConfig) Validate() error {
 		return fmt.Errorf(
 			"timelock MinDelay %s exceeds MaxTimelockScheduleDelay %s (F8 defense: larger values risk overflowing get_timestamp_seconds(clock) + delay in timelock_schedule)",
 			c.MinDelay, MaxTimelockScheduleDelay,
+		)
+	}
+	return nil
+}
+
+// AssertMinDelayWithinCap rejects any candidate on-chain min_delay value above
+// MaxTimelockScheduleDelay. It is the single source of truth for the numeric
+// bound so both the preventative payload check (in
+// op_proposal_generate.assertUpdateMinDelayWithinCap) and the defensive
+// state-read check (in op_set_config, Interpretation B) share the same
+// definition of "too large". See finding F8 in findings-deduped.md.
+func AssertMinDelayWithinCap(newMinDelaySeconds uint64) error {
+	maxSeconds := uint64(MaxTimelockScheduleDelay / time.Second)
+	if newMinDelaySeconds > maxSeconds {
+		return fmt.Errorf(
+			"F8 defense: min_delay %ds (~%s) exceeds MaxTimelockScheduleDelay %ds (%s); larger values risk bricking the timelock",
+			newMinDelaySeconds, time.Duration(newMinDelaySeconds)*time.Second,
+			maxSeconds, MaxTimelockScheduleDelay,
 		)
 	}
 	return nil

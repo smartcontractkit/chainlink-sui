@@ -1,6 +1,7 @@
 package mcmsops
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -15,6 +16,16 @@ import (
 
 // mcmsModuleName is the on-chain module that owns the timelock admin surface.
 const mcmsModuleName = "mcms"
+
+// updateMinDelayFunctionName is the mcms-module callback that mutates the
+// timelock's global min_delay. Kept as a named constant because it is
+// referenced by both the F30 forbidden-in-bypass set and the F8 payload cap.
+const updateMinDelayFunctionName = "mcms_timelock_update_min_delay"
+
+// updateMinDelayPayloadLen is the exact BCS payload size the Move callback
+// expects: 32-byte timelock object address + 8-byte little-endian u64
+// new_min_delay (see mcms::mcms_timelock_update_min_delay in mcms.move).
+const updateMinDelayPayloadLen = 32 + 8
 
 // bypassForbiddenMcmsFunctions is the set of mcms-module functions that MUST
 // NOT be reachable through the BYPASSER-signed execute path. They mutate the
@@ -49,6 +60,36 @@ func assertBypassAllowsCall(action mcmstypes.TimelockAction, call sui_ops.Transa
 		"F30 defense: refusing to build bypass proposal that calls mcms::%s; timelock-admin functions must be routed through the schedule path",
 		call.Function,
 	)
+}
+
+// assertUpdateMinDelayWithinCap decodes the BCS payload carried in a batch
+// entry that targets mcms::mcms_timelock_update_min_delay and rejects any
+// value above utils.MaxTimelockScheduleDelay. This closes the F8 attack
+// vector where a Schedule-path proposal sets min_delay to a value large
+// enough to make future scheduling either fail the `delay >= min_delay`
+// check or overflow `get_timestamp_seconds(clock) + delay`, permanently
+// bricking the timelock. No-op for any other target.
+//
+// Payload format (mirrors mcms::deserialize_timelock_update_min_delay):
+//
+//	bytes[0:32]  = timelock object address (validated on-chain against
+//	               object::id_address(timelock); not re-validated here)
+//	bytes[32:40] = u64 little-endian new_min_delay in seconds
+func assertUpdateMinDelayWithinCap(call sui_ops.TransactionCall) error {
+	if call.Module != mcmsModuleName || call.Function != updateMinDelayFunctionName {
+		return nil
+	}
+	if len(call.Data) != updateMinDelayPayloadLen {
+		return fmt.Errorf(
+			"F8 defense: mcms::%s payload must be %d bytes (32-byte timelock addr + 8-byte u64), got %d",
+			updateMinDelayFunctionName, updateMinDelayPayloadLen, len(call.Data),
+		)
+	}
+	newMinDelaySeconds := binary.LittleEndian.Uint64(call.Data[32:updateMinDelayPayloadLen])
+	if err := utils.AssertMinDelayWithinCap(newMinDelaySeconds); err != nil {
+		return fmt.Errorf("mcms::%s payload: %w", updateMinDelayFunctionName, err)
+	}
+	return nil
 }
 
 type ProposalGenerateInput struct {
@@ -104,6 +145,9 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		}
 
 		if err := assertBypassAllowsCall(input.TimelockConfig.MCMSAction, call); err != nil {
+			return mcms.TimelockProposal{}, fmt.Errorf("operation %s: %w", def.ID, err)
+		}
+		if err := assertUpdateMinDelayWithinCap(call); err != nil {
 			return mcms.TimelockProposal{}, fmt.Errorf("operation %s: %w", def.ID, err)
 		}
 

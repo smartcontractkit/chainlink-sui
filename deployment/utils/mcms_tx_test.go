@@ -103,3 +103,51 @@ func TestTimelockConfig_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestAssertMinDelayWithinCap(t *testing.T) {
+	t.Parallel()
+
+	maxSeconds := uint64(utils.MaxTimelockScheduleDelay / time.Second)
+
+	tests := []struct {
+		name             string
+		newMinDelayInSec uint64
+		wantErr          string
+	}{
+		{
+			name:             "zero is accepted (bootstrap window; F5 warned elsewhere)",
+			newMinDelayInSec: 0,
+		},
+		{
+			name:             "value under the cap is accepted",
+			newMinDelayInSec: uint64(24 * time.Hour / time.Second),
+		},
+		{
+			name:             "value at the cap is accepted",
+			newMinDelayInSec: maxSeconds,
+		},
+		{
+			name:             "value one second over the cap is rejected",
+			newMinDelayInSec: maxSeconds + 1,
+			wantErr:          "F8 defense",
+		},
+		{
+			name:             "u64 max (the F8 attack value) is rejected",
+			newMinDelayInSec: ^uint64(0),
+			wantErr:          "exceeds MaxTimelockScheduleDelay",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := utils.AssertMinDelayWithinCap(tt.newMinDelayInSec)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
