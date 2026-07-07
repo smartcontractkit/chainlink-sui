@@ -13,6 +13,44 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
+// mcmsModuleName is the on-chain module that owns the timelock admin surface.
+const mcmsModuleName = "mcms"
+
+// bypassForbiddenMcmsFunctions is the set of mcms-module functions that MUST
+// NOT be reachable through the BYPASSER-signed execute path. They mutate the
+// timelock's own scheduling / blocklist / signer state and are semantically
+// "timelock administering itself"; the BYPASSER role is meant to fast-execute
+// external application calls, not to reconfigure the timelock. The Move
+// wrappers currently hardcode TIMELOCK_ROLE and cannot distinguish the
+// originating role from the ExecutingCallbackParams they consume, so the
+// deploy-side belt is to refuse to build such a proposal in the first place.
+// See finding F30 in findings-deduped.md.
+var bypassForbiddenMcmsFunctions = map[string]struct{}{
+	"mcms_timelock_update_min_delay": {},
+	"mcms_timelock_block_function":   {},
+	"mcms_timelock_unblock_function": {},
+	"mcms_timelock_cancel":           {},
+	"mcms_set_config":                {},
+}
+
+// assertBypassAllowsCall rejects calls that must not flow through the
+// BYPASSER path. It is a no-op for any other timelock action.
+func assertBypassAllowsCall(action mcmstypes.TimelockAction, call sui_ops.TransactionCall) error {
+	if action != mcmstypes.TimelockActionBypass {
+		return nil
+	}
+	if call.Module != mcmsModuleName {
+		return nil
+	}
+	if _, forbidden := bypassForbiddenMcmsFunctions[call.Function]; !forbidden {
+		return nil
+	}
+	return fmt.Errorf(
+		"F30 defense: refusing to build bypass proposal that calls mcms::%s; timelock-admin functions must be routed through the schedule path",
+		call.Function,
+	)
+}
+
 type ProposalGenerateInput struct {
 	// Ops Related
 	// Order matters, each definition should correspond to the input at the same index
@@ -63,6 +101,10 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		call, err := utils.ExtractTransactionCall(res.Output, def.ID)
 		if err != nil {
 			return mcms.TimelockProposal{}, err
+		}
+
+		if err := assertBypassAllowsCall(input.TimelockConfig.MCMSAction, call); err != nil {
+			return mcms.TimelockProposal{}, fmt.Errorf("operation %s: %w", def.ID, err)
 		}
 
 		tx, err := suisdk.NewTransactionWithStateObj(

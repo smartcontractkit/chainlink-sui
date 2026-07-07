@@ -17,11 +17,40 @@ import (
 
 var DefaultTimelockExpirationInHours = 72
 
+// MaxTimelockScheduleDelay caps the per-op scheduling delay accepted by
+// GenerateProposal. This is a deploy-side belt against the Move-side overflow
+// in `timelock_schedule` (`get_timestamp_seconds(clock) + delay` aborts on
+// u64 overflow), which is the mechanism the compound F8 finding exploits to
+// brick the timelock permanently. The Move source has no upper bound on the
+// delay itself; this cap prevents tooling-generated proposals from ever
+// carrying a value large enough to trip the overflow.
+const MaxTimelockScheduleDelay = 30 * 24 * time.Hour
+
 // TimelockConfig is based on chainlink/deployment proposal utils
 type TimelockConfig struct {
 	MCMSAction   types.TimelockAction `json:"mcmsAction"`
 	MinDelay     time.Duration        `json:"minDelay"`     // delay for timelock worker to execute the transfers.
 	OverrideRoot bool                 `json:"overrideRoot"` // if true, override the previous root with the new one.
+}
+
+// Validate rejects configurations that would produce a proposal the Sui MCMS
+// timelock cannot safely execute. Currently enforces the F8 scheduling-delay
+// ceiling; a negative delay is also rejected since time.Duration is signed and
+// would silently underflow when converted to u64 seconds on chain.
+func (c TimelockConfig) Validate() error {
+	if c.MCMSAction != types.TimelockActionSchedule {
+		return nil
+	}
+	if c.MinDelay < 0 {
+		return fmt.Errorf("timelock MinDelay must be non-negative, got %s", c.MinDelay)
+	}
+	if c.MinDelay > MaxTimelockScheduleDelay {
+		return fmt.Errorf(
+			"timelock MinDelay %s exceeds MaxTimelockScheduleDelay %s (F8 defense: larger values risk overflowing get_timestamp_seconds(clock) + delay in timelock_schedule)",
+			c.MinDelay, MaxTimelockScheduleDelay,
+		)
+	}
+	return nil
 }
 
 type GenerateProposalInput struct {
@@ -39,6 +68,10 @@ type GenerateProposalInput struct {
 }
 
 func GenerateProposal(ctx context.Context, input GenerateProposalInput) (*mcms.TimelockProposal, error) {
+	if err := input.TimelockConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid timelock config: %w", err)
+	}
+
 	// Get action and delay from role
 	var delay *types.Duration
 	if input.TimelockConfig.MCMSAction == types.TimelockActionSchedule {

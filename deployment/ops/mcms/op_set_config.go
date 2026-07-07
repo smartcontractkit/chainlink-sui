@@ -61,6 +61,15 @@ var setConfigMcmsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input M
 		signers[i] = addr.Bytes()
 	}
 
+	if !input.ClearRoot {
+		b.Logger.Warnw(
+			"F7: set_config invoked with ClearRoot=false; if this changes the signer set, the previous root and its remaining [pre_op_count, post_op_count) window survive and the old (or newly-installed) signers can still consume it",
+			"role", input.Role,
+			"chainSelector", input.ChainSelector,
+			"newSignerCount", len(signers),
+		)
+	}
+
 	encodedCall, err := mcms.Encoder().SetConfig(
 		bind.Object{Id: input.OwnerCap},
 		bind.Object{Id: input.McmsObjectID},
