@@ -115,14 +115,16 @@ func bcsDeserializeSlice(reader io.Reader, deserializer *mystenbcs.Decoder, move
 		return nil, nil, fmt.Errorf("resolve element type %q: %w", innerType, err)
 	}
 
+	// length has been range-checked against maxInt above, so the narrowing is safe.
+	n := int(length)
 	sliceType := reflect.SliceOf(elemType)
-	slice := reflect.MakeSlice(sliceType, int(length), int(length))
-	for i := uint64(0); i < length; i++ {
+	slice := reflect.MakeSlice(sliceType, n, n)
+	for i := 0; i < n; i++ {
 		dec, _, err := bcsDeserializeType(reader, deserializer, innerType)
 		if err != nil {
 			return nil, nil, err
 		}
-		slice.Index(int(i)).Set(reflect.ValueOf(dec))
+		slice.Index(i).Set(reflect.ValueOf(dec))
 	}
 
 	return slice.Interface(), sliceType, nil
