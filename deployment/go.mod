@@ -7,8 +7,6 @@ replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlin
 
 replace github.com/smartcontractkit/chainlink-sui => ../
 
-replace github.com/smartcontractkit/chainlink-sui/codec => ../codec
-
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/aptos-labs/aptos-go-sdk v1.13.0
