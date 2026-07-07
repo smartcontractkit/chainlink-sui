@@ -107,24 +107,63 @@ func bcsDeserializeSlice(reader io.Reader, deserializer *mystenbcs.Decoder, move
 		return nil, nil, fmt.Errorf("vector length %d out of range", length)
 	}
 
-	elements := make([]any, length)
-	var elemType reflect.Type
-	for i := uint64(0); i < length; i++ {
-		dec, refT, err := bcsDeserializeType(reader, deserializer, innerType)
-		if err != nil {
-			return nil, nil, err
-		}
-		elements[i] = dec
-		elemType = refT
+	// Resolve element reflect.Type from the move type string up front so length == 0
+	// still yields a well-typed empty slice. Deriving the type only from decoded
+	// elements would make reflect.SliceOf(nil) panic on an empty vector.
+	elemType, err := reflectTypeForMoveType(innerType)
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolve element type %q: %w", innerType, err)
 	}
 
 	sliceType := reflect.SliceOf(elemType)
 	slice := reflect.MakeSlice(sliceType, int(length), int(length))
-	for i, elem := range elements {
-		slice.Index(i).Set(reflect.ValueOf(elem))
+	for i := uint64(0); i < length; i++ {
+		dec, _, err := bcsDeserializeType(reader, deserializer, innerType)
+		if err != nil {
+			return nil, nil, err
+		}
+		slice.Index(int(i)).Set(reflect.ValueOf(dec))
 	}
 
 	return slice.Interface(), sliceType, nil
+}
+
+// reflectTypeForMoveType returns the Go reflect.Type produced by bcsDeserializeType
+// for the given moveType string, without decoding any bytes. Kept in lockstep with
+// bcsDeserializeType so slices can be typed up front (needed for empty vectors).
+func reflectTypeForMoveType(moveType string) (reflect.Type, error) {
+	switch {
+	case moveType == "bool":
+		return reflect.TypeOf(false), nil
+	case moveType == "u8":
+		return reflect.TypeOf(uint8(0)), nil
+	case moveType == "u16":
+		return reflect.TypeOf(uint16(0)), nil
+	case moveType == "u32":
+		return reflect.TypeOf(uint32(0)), nil
+	case moveType == "u64":
+		return reflect.TypeOf(uint64(0)), nil
+	case moveType == "0x1::string::String":
+		return reflect.TypeOf(""), nil
+	case strings.HasPrefix(moveType, "vector<") && strings.HasSuffix(moveType, ">"):
+		inner := moveType[len("vector<") : len(moveType)-1]
+		if inner == "u8" {
+			return reflect.TypeOf([]byte(nil)), nil
+		}
+		elem, err := reflectTypeForMoveType(inner)
+		if err != nil {
+			return nil, err
+		}
+
+		return reflect.SliceOf(elem), nil
+	case moveType == "address":
+		return reflect.TypeOf(models.SuiAddress("")), nil
+	case moveType == "u128", moveType == "u256":
+		return reflect.TypeOf((*big.Int)(nil)), nil
+	default:
+		// Custom Move structs fall through to bcsDeserializeAddress in decoding.
+		return reflect.TypeOf(models.SuiAddress("")), nil
+	}
 }
 
 func bcsDeserializeAddress(deserializer *mystenbcs.Decoder) (models.SuiAddress, reflect.Type, error) {
