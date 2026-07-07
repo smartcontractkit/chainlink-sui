@@ -19,7 +19,7 @@ require (
 	github.com/smartcontractkit/chainlink-aptos v0.0.0-20260428085939-5c70de12dbfc
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260624154507-ea7ff77a0ddb
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260506120607-7f10be016c89
-	github.com/smartcontractkit/chainlink-sui/codec v0.0.0-20260702152904-78d359a411ad
+	github.com/smartcontractkit/chainlink-sui/codec v0.0.0-20260706170510-94f3a0409ea5
 	github.com/stretchr/testify v1.11.1
 	github.com/test-go/testify v1.1.4
 	go.opentelemetry.io/otel v1.44.0
@@ -33,8 +33,6 @@ require (
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-replace github.com/smartcontractkit/chainlink-sui/codec => ./codec
 
 require (
 	filippo.io/edwards25519 v1.1.1 // indirect
