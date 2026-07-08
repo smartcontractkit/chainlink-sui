@@ -1531,10 +1531,11 @@ func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId 
 }
 
 func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error) {
-	// attempt reading the value from cache first
+	// attempt reading the value from cache first. Only non-empty entries are ever cached, so a
+	// cache hit is always a valid package ID.
 	cacheKey := "latest_pkg_id_fetch:" + packageId + ":" + module
 	if cachedID, found := c.cache.Get(cacheKey); found {
-		if id, ok := cachedID.(string); ok {
+		if id, ok := cachedID.(string); ok && id != "" {
 			return id, nil
 		}
 	}
@@ -1545,9 +1546,14 @@ func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, mo
 		var err error
 		result, err = c.getLatestPackageIdInternal(ctx, packageId, module)
 
-		// Package IDs are stable for the duration of a CCIP deployment; a longer TTL avoids
-		// repeated GetFunction/GetPackage/ListOwnedObjects storms during config polling.
-		c.cache.Set(cacheKey, result, DefaultPackageIdCacheTTL)
+		// Only cache successful, non-empty resolutions. Caching an empty result on error would
+		// poison the cache: subsequent calls would return ("", nil) for the TTL window, causing
+		// reads to target the zero package address (0x0). Package IDs are stable for the duration
+		// of a CCIP deployment, so a longer TTL on success avoids repeated
+		// GetFunction/GetPackage/ListOwnedObjects storms during config polling.
+		if err == nil && result != "" {
+			c.cache.Set(cacheKey, result, DefaultPackageIdCacheTTL)
+		}
 
 		return err
 	})
