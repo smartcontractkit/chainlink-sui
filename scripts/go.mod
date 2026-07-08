@@ -6,8 +6,6 @@ replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlin
 
 replace github.com/smartcontractkit/chainlink-sui => ../
 
-replace github.com/smartcontractkit/chainlink-sui/codec => ../codec
-
 replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
 
 require github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-00010101000000-000000000000
