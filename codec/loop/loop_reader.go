@@ -12,7 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
-	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/loop"
+	"github.com/smartcontractkit/chainlink-aptos/codec/loop"
 
 	"github.com/smartcontractkit/chainlink-sui/codec"
 )
