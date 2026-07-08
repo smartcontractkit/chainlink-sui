@@ -5,8 +5,11 @@ flowchart LR
 
 	chain-selectors
 	click chain-selectors href "https://github.com/smartcontractkit/chain-selectors"
-	chainlink-aptos --> chainlink-common
+	chainlink-aptos --> chainlink-aptos/codec
+	chainlink-aptos --> chainlink-framework/metrics
 	click chainlink-aptos href "https://github.com/smartcontractkit/chainlink-aptos"
+	chainlink-aptos/codec --> chainlink-common
+	click chainlink-aptos/codec href "https://github.com/smartcontractkit/chainlink-aptos"
 	chainlink-ccip --> chainlink-common
 	chainlink-ccip --> chainlink-protos/rmn/v1.6/go
 	click chainlink-ccip href "https://github.com/smartcontractkit/chainlink-ccip"
@@ -23,6 +26,8 @@ flowchart LR
 	click chainlink-common href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-common/pkg/chipingress
 	click chainlink-common/pkg/chipingress href "https://github.com/smartcontractkit/chainlink-common"
+	chainlink-framework/metrics --> chainlink-common
+	click chainlink-framework/metrics href "https://github.com/smartcontractkit/chainlink-framework"
 	chainlink-protos/billing/go
 	click chainlink-protos/billing/go href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/cre/go --> chain-selectors
@@ -51,6 +56,12 @@ flowchart LR
 	libocr --> go-sumtype2
 	click libocr href "https://github.com/smartcontractkit/libocr"
 
+	subgraph chainlink-aptos-repo[chainlink-aptos]
+		 chainlink-aptos
+		 chainlink-aptos/codec
+	end
+	click chainlink-aptos-repo href "https://github.com/smartcontractkit/chainlink-aptos"
+
 	subgraph chainlink-common-repo[chainlink-common]
 		 chainlink-common
 		 chainlink-common/pkg/chipingress
@@ -75,7 +86,7 @@ flowchart LR
 	click chainlink-sui-repo href "https://github.com/smartcontractkit/chainlink-sui"
 
 	classDef outline stroke-dasharray:6,fill:none;
-	class chainlink-common-repo,chainlink-protos-repo,chainlink-sui-repo outline
+	class chainlink-aptos-repo,chainlink-common-repo,chainlink-protos-repo,chainlink-sui-repo outline
 ```
 ## All modules
 ```mermaid
@@ -87,8 +98,11 @@ flowchart LR
 	click ccip-owner-contracts href "https://github.com/smartcontractkit/ccip-owner-contracts"
 	chain-selectors
 	click chain-selectors href "https://github.com/smartcontractkit/chain-selectors"
-	chainlink-aptos --> chainlink-common
+	chainlink-aptos --> chainlink-aptos/codec
+	chainlink-aptos --> chainlink-framework/metrics
 	click chainlink-aptos href "https://github.com/smartcontractkit/chainlink-aptos"
+	chainlink-aptos/codec --> chainlink-common
+	click chainlink-aptos/codec href "https://github.com/smartcontractkit/chainlink-aptos"
 	chainlink-canton --> ccip-contract-examples/chains/evm
 	chainlink-canton --> chainlink-ccip/deployment
 	chainlink-canton --> chainlink-ccv
@@ -161,7 +175,7 @@ flowchart LR
 	click chainlink-evm/gethwrappers href "https://github.com/smartcontractkit/chainlink-evm"
 	chainlink-framework/chains
 	click chainlink-framework/chains href "https://github.com/smartcontractkit/chainlink-framework"
-	chainlink-framework/metrics
+	chainlink-framework/metrics --> chainlink-common
 	click chainlink-framework/metrics href "https://github.com/smartcontractkit/chainlink-framework"
 	chainlink-framework/multinode
 	click chainlink-framework/multinode href "https://github.com/smartcontractkit/chainlink-framework"
@@ -254,6 +268,12 @@ flowchart LR
 	end
 	click chainlink-repo href "https://github.com/smartcontractkit/chainlink"
 
+	subgraph chainlink-aptos-repo[chainlink-aptos]
+		 chainlink-aptos
+		 chainlink-aptos/codec
+	end
+	click chainlink-aptos-repo href "https://github.com/smartcontractkit/chainlink-aptos"
+
 	subgraph chainlink-ccip-repo[chainlink-ccip]
 		 chainlink-ccip
 		 chainlink-ccip/chains/evm
@@ -329,5 +349,5 @@ flowchart LR
 	click chainlink-testing-framework-repo href "https://github.com/smartcontractkit/chainlink-testing-framework"
 
 	classDef outline stroke-dasharray:6,fill:none;
-	class chainlink-repo,chainlink-ccip-repo,chainlink-ccv-repo,chainlink-common-repo,chainlink-evm-repo,chainlink-framework-repo,chainlink-protos-repo,chainlink-sui-repo,chainlink-testing-framework-repo outline
+	class chainlink-repo,chainlink-aptos-repo,chainlink-ccip-repo,chainlink-ccv-repo,chainlink-common-repo,chainlink-evm-repo,chainlink-framework-repo,chainlink-protos-repo,chainlink-sui-repo,chainlink-testing-framework-repo outline
 ```
