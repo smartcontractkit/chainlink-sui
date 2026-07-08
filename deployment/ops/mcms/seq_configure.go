@@ -19,6 +19,10 @@ type ConfigureMCMSSeqInput struct {
 	McmsAccountOwnerCapObjectId string `yaml:"mcmsAccountOwnerCapObjectId"`
 	McmsAccountStateObjectId    string `yaml:"mcmsAccountStateObjectId"`
 	McmsMultisigStateObjectId   string `yaml:"mcmsMultisigStateObjectId"`
+	// McmsTimelockObjectId opts each SetConfigMCMSOp invocation into the
+	// defensive on-chain min_delay check (see MCMSSetConfigInput.TimelockObjectID
+	// for details on F5/F8 Interpretation B). Optional — leave empty to skip.
+	McmsTimelockObjectId string `yaml:"mcmsTimelockObjectId,omitempty"`
 
 	// Optional configs for each timelock role
 	// If nil, the role will not be configured
@@ -57,12 +61,13 @@ func configureMCMS(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input ConfigureMCM
 		}
 
 		setConfigInput := MCMSSetConfigInput{
-			ChainSelector: input.ChainSelector,
-			McmsPackageID: input.PackageId,
-			OwnerCap:      input.McmsAccountOwnerCapObjectId,
-			McmsObjectID:  input.McmsMultisigStateObjectId,
-			Role:          roleConfig.role,
-			Config:        *roleConfig.config,
+			ChainSelector:    input.ChainSelector,
+			McmsPackageID:    input.PackageId,
+			OwnerCap:         input.McmsAccountOwnerCapObjectId,
+			McmsObjectID:     input.McmsMultisigStateObjectId,
+			TimelockObjectID: input.McmsTimelockObjectId,
+			Role:             roleConfig.role,
+			Config:           *roleConfig.config,
 		}
 
 		report, err := cld_ops.ExecuteOperation(env, SetConfigMCMSOp, deps, setConfigInput)
