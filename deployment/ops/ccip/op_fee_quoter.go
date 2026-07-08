@@ -471,8 +471,9 @@ type FeeQuoterUpdateTokenPricesInput struct {
 	GasDestChainSelectors []uint64
 	GasUsdPerUnitGas      []*big.Int
 
-	FeeQuoterCapId string // optional: only provide if you're running direct UpdateTokenPrice
-	OwnerCapId     string // optional: only provide if you're running UpdateTokenPricesWithOwnerCap
+	// FeeQuoterCap object ID required for the direct `update_prices` variant.
+	// For the owner-cap variant use FeeQuoterUpdatePricesWithOwnerCapInput instead.
+	FeeQuoterCapId string
 }
 
 var updateTokenPrices = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterUpdateTokenPricesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
@@ -512,43 +513,13 @@ var FeeQuoterUpdateTokenPricesOp = cld_ops.NewOperation(
 	updateTokenPrices,
 )
 
-var updateTokenPricesWithOwnerCap = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterUpdateTokenPricesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
-	}
-
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	fmt.Println("INPUTSS: ", input)
-	tx, err := contract.UpdatePricesWithOwnerCap(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.CCIPObjectRef},
-		bind.Object{Id: input.OwnerCapId},
-		bind.Object{Id: "0x6"}, // Clock object
-		input.SourceTokens,
-		input.SourceUsdPerToken,
-		input.GasDestChainSelectors,
-		input.GasUsdPerUnitGas,
-	)
-
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute updateTokenPrices  on SUI: %w", err)
-	}
-
-	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
-	}, err
-}
-
-var FeeQuoterUpdateTokenPricesWithOwnerCapOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "fee_quoter", "update_prices_with_owner_cap"),
-	semver.MustParse("0.1.0"),
-	"Apply update prices with ownerCap in CCIP Fee Quoter contract",
-	updateTokenPricesWithOwnerCap,
-)
+// NOTE: the previous `FeeQuoterUpdateTokenPricesWithOwnerCapOp` was a duplicate
+// of `FeeQuoterUpdatePricesWithOwnerCapOp` (defined below in this file) — both
+// registered under the same on-chain operation name
+// "ccip.fee_quoter.update_prices_with_owner_cap". They have been merged onto
+// the survivor below, which uses the cleaner `FeeQuoterUpdatePricesWithOwnerCapInput`
+// struct (dedicated `OwnerCapObjectId` field, no dead `FeeQuoterCapId` field)
+// and supports MCMS + LatestPackageId.
 
 // FEE QUOTER -- new_fee_quoter_cap
 type NewFeeQuoterCapObjects struct {
@@ -705,19 +676,61 @@ var FeeQuoterDestroyFeeQuoterCapOp = cld_ops.NewOperation(
 
 // FEE QUOTER -- update_prices_with_owner_cap
 type FeeQuoterUpdatePricesWithOwnerCapInput struct {
-	CCIPPackageId         string
-	CCIPObjectRef         string
-	OwnerCapObjectId      string
-	SourceTokens          []string
-	SourceUsdPerToken     []*big.Int
+	CCIPPackageId    string
+	LatestPackageId  string // optional: upgraded package ID for PTB execution when CCIPPackageId is the MCMS registry identity
+	CCIPObjectRef    string
+	OwnerCapObjectId string
+
+	// Source token prices — per-token USD (18 decimals). May be nil / empty when
+	// only refreshing gas prices.
+	SourceTokens      []string
+	SourceUsdPerToken []*big.Int
+
+	// Destination gas prices — per-chain USD per unit gas (18 decimals). Used to
+	// populate FeeQuoter.usd_per_unit_gas_by_dest_chain so get_fee for those
+	// dest chains stops aborting with EUnknownDestChainSelector (code 3).
 	GasDestChainSelectors []uint64
 	GasUsdPerUnitGas      []*big.Int
 }
 
 var updatePricesWithOwnerCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterUpdatePricesWithOwnerCapInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	binaryPkgId := input.CCIPPackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	contract, err := module_fee_quoter.NewFeeQuoter(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
+	}
+
+	encodedCall, err := contract.Encoder().UpdatePricesWithOwnerCap(
+		bind.Object{Id: input.CCIPObjectRef},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: "0x6"}, // Clock object
+		input.SourceTokens,
+		input.SourceUsdPerToken,
+		input.GasDestChainSelectors,
+		input.GasUsdPerUnitGas,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode UpdatePricesWithOwnerCap call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRef)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID
+		call.PackageID = input.CCIPPackageId
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of UpdatePricesWithOwnerCap on FeeQuoter as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
 	}
 
 	opts := deps.GetCallOpts()
@@ -733,15 +746,21 @@ var updatePricesWithOwnerCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDe
 		input.GasDestChainSelectors,
 		input.GasUsdPerUnitGas,
 	)
-
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute updatePricesWithOwnerCap on SUI: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute UpdatePricesWithOwnerCap on FeeQuoter: %w", err)
 	}
+
+	b.Logger.Infow("Prices updated on CCIP FeeQuoter",
+		"gasDestChainSelectors", input.GasDestChainSelectors,
+		"sourceTokens", input.SourceTokens,
+	)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
-	}, err
+		Objects:   NoObjects{},
+		Call:      call,
+	}, nil
 }
 
 var FeeQuoterUpdatePricesWithOwnerCapOp = cld_ops.NewOperation(
