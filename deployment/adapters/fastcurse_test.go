@@ -26,6 +26,15 @@ const (
 	testCurserCapID         = "0x4444444444444444444444444444444444444444444444444444444444444444"
 )
 
+// stubSuiSigner is a minimal signer stub used to prove the adapter never routes
+// operations through the direct-execution path (which would try to submit a real
+// transaction when a signer is present).
+type stubSuiSigner struct{}
+
+func (stubSuiSigner) Sign(_ []byte) ([]string, error) { return nil, nil }
+
+func (stubSuiSigner) GetAddress() (string, error) { return "0x1", nil }
+
 func fastCurseTestBundle(t *testing.T) cld_ops.Bundle {
 	t.Helper()
 
@@ -252,4 +261,86 @@ func TestCurseAdapter_Uncurse_MultipleSubjects(t *testing.T) {
 	require.Len(t, report.Output.BatchOps, 1)
 	require.Equal(t, mcmstypes.ChainSelector(selector), report.Output.BatchOps[0].ChainSelector)
 	require.Len(t, report.Output.BatchOps[0].Transactions, 1)
+}
+
+// TestCurseAdapter_Curse_ForcesProposalOnly_WhenChainHasSigner is a regression test for
+// the "Object not found" failure that occurs when a Sui deployer key is loaded (chain.Signer
+// non-nil) and the CurserCap is stored inside the fast MCMS Registry.
+//
+// The adapter is only used by the generic fastcurse framework, which always builds an MCMS
+// proposal. It must therefore force ProposalOnly on the sequence input so the underlying
+// operation encodes a leaf instead of attempting direct PTB assembly + submission against
+// a CurserCap that has no top-level object owner.
+func TestCurseAdapter_Curse_ForcesProposalOnly_WhenChainHasSigner(t *testing.T) {
+	t.Parallel()
+
+	selector := cselectors.SUI_TESTNET.Selector
+	adapter := adapters.NewCurseAdapter()
+	adapter.CCIPAddress = testCCIPPackageID
+	adapter.CCIPObjectRef = testCCIPObjectRef
+	adapter.CurserCapObjectID = testCurserCapID
+
+	chains := cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
+		selector: cldfsui.Chain{
+			ChainMetadata: cldfsui.ChainMetadata{Selector: selector},
+			Signer:        stubSuiSigner{},
+		},
+	})
+
+	report, err := cld_ops.ExecuteSequence(
+		fastCurseTestBundle(t),
+		adapter.Curse(),
+		chains,
+		fastcurse.CurseInput{
+			ChainSelector: selector,
+			Subjects:      []fastcurse.Subject{fastcurse.GlobalCurseSubject()},
+		},
+	)
+	require.NoError(t, err, "adapter.Curse() must produce a proposal leaf even when the chain has a signer")
+	require.Len(t, report.Output.BatchOps, 1)
+	require.Len(t, report.Output.BatchOps[0].Transactions, 1)
+
+	tx := report.Output.BatchOps[0].Transactions[0]
+	fields := txAdditionalFields(t, tx)
+	require.Equal(t, "rmn_remote", fields.ModuleName)
+	require.Equal(t, "curse_multiple_with_curser_cap", fields.Function)
+}
+
+// TestCurseAdapter_Uncurse_ForcesProposalOnly_WhenChainHasSigner is the uncurse counterpart
+// of TestCurseAdapter_Curse_ForcesProposalOnly_WhenChainHasSigner. In production the OwnerCap
+// is owned by the slow MCMS timelock; the loaded Sui deployer signer cannot authorize direct
+// execution, so the adapter must always produce an MCMS proposal leaf.
+func TestCurseAdapter_Uncurse_ForcesProposalOnly_WhenChainHasSigner(t *testing.T) {
+	t.Parallel()
+
+	selector := cselectors.SUI_TESTNET.Selector
+	adapter := adapters.NewCurseAdapter()
+	adapter.CCIPAddress = testCCIPPackageID
+	adapter.CCIPObjectRef = testCCIPObjectRef
+	adapter.CCIPOwnerCapObjectID = "0x3333333333333333333333333333333333333333333333333333333333333333"
+
+	chains := cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
+		selector: cldfsui.Chain{
+			ChainMetadata: cldfsui.ChainMetadata{Selector: selector},
+			Signer:        stubSuiSigner{},
+		},
+	})
+
+	report, err := cld_ops.ExecuteSequence(
+		uncurseTestBundle(t),
+		adapter.Uncurse(),
+		chains,
+		fastcurse.CurseInput{
+			ChainSelector: selector,
+			Subjects:      []fastcurse.Subject{fastcurse.GlobalCurseSubject()},
+		},
+	)
+	require.NoError(t, err, "adapter.Uncurse() must produce a proposal leaf even when the chain has a signer")
+	require.Len(t, report.Output.BatchOps, 1)
+	require.Len(t, report.Output.BatchOps[0].Transactions, 1)
+
+	tx := report.Output.BatchOps[0].Transactions[0]
+	fields := txAdditionalFields(t, tx)
+	require.Equal(t, "rmn_remote", fields.ModuleName)
+	require.Equal(t, "uncurse_multiple", fields.Function)
 }
