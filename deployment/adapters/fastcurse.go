@@ -141,6 +141,13 @@ func (c *CurseAdapter) DeriveCurseAdapterVersion(cldf.Environment, uint64) (*sem
 }
 
 // Curse returns a sequence that curses the given subjects via CurserCap on the fast MCMS path.
+//
+// The adapter is only invoked by the generic fastcurse framework (fastcurse.CurseChangeset /
+// fastcurse.GloballyCurseChainChangeset), which always builds an MCMS proposal via
+// OutputBuilder.Build(cfg.MCMS). We therefore force ProposalOnly: true so the underlying
+// operation never attempts direct execution — the CurserCap lives inside the fast MCMS
+// Registry (registered via mint_and_register_curser_cap) and has no top-level owner, so
+// direct PTB assembly against its object ID would fail with "Object not found".
 func (c *CurseAdapter) Curse() *cldf_ops.Sequence[fastcurse.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		rmnops.FastCurseCurseSequence.ID(),
@@ -160,6 +167,7 @@ func (c *CurseAdapter) Curse() *cldf_ops.Sequence[fastcurse.CurseInput, sequence
 				CurserCapObjectID:   c.CurserCapObjectID,
 				ChainSelector:       in.ChainSelector,
 				Subjects:            in.Subjects,
+				ProposalOnly:        true,
 			}
 			seqReport, err := cldf_ops.ExecuteSequence(b, rmnops.FastCurseCurseSequence, chains, seqInput)
 			if err != nil {
@@ -172,6 +180,11 @@ func (c *CurseAdapter) Curse() *cldf_ops.Sequence[fastcurse.CurseInput, sequence
 
 // Uncurse returns a sequence that lifts the curse on given subjects on the specified Sui chain.
 // Uncurse always uses OwnerCap via slow MCMS; fast MCMS cannot uncurse.
+//
+// Like Curse, this adapter is only invoked by the generic fastcurse framework in MCMS-proposal
+// mode, so we set ProposalOnly: true. In production the OwnerCap is owned by the slow MCMS
+// timelock — the loaded Sui deployer signer cannot authorize direct execution anyway, so the
+// only useful output here is an MCMS proposal leaf.
 func (c *CurseAdapter) Uncurse() *cldf_ops.Sequence[fastcurse.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		rmnops.UncurseSequence.ID(),
@@ -185,6 +198,7 @@ func (c *CurseAdapter) Uncurse() *cldf_ops.Sequence[fastcurse.CurseInput, sequen
 				CCIPOwnerCapObjectID: c.CCIPOwnerCapObjectID,
 				ChainSelector:        in.ChainSelector,
 				Subjects:             in.Subjects,
+				ProposalOnly:         true,
 			}
 			seqReport, err := cldf_ops.ExecuteSequence(b, rmnops.UncurseSequence, chains, seqInput)
 			if err != nil {

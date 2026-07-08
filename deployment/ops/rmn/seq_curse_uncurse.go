@@ -19,6 +19,11 @@ import (
 // CurseUncurseSeqInput holds the context required by CurseSequence and UncurseSequence.
 // It uses fastcurse.Subject (a [16]byte type alias) to bridge between the generic fastcurse
 // interface and the RMN Remote contract's [][]byte representation.
+//
+// When ProposalOnly is true, the underlying operation encodes an MCMS proposal leaf and
+// skips direct execution even if the loaded Sui chain has a signer. This is required by
+// callers whose OwnerCap has already been transferred to the slow MCMS timelock (production
+// deployments), because direct execution would fail authorization or PTB resolution.
 type CurseUncurseSeqInput struct {
 	CCIPAddress          string
 	LatestCCIPPackageID  string
@@ -26,9 +31,16 @@ type CurseUncurseSeqInput struct {
 	CCIPOwnerCapObjectID string
 	ChainSelector        uint64
 	Subjects             []fastcurse.Subject
+	ProposalOnly         bool
 }
 
 // FastCurseSeqInput holds the context required by FastCurseCurseSequence.
+//
+// When ProposalOnly is true, the underlying operation encodes an MCMS proposal leaf and
+// skips direct execution even if the loaded Sui chain has a signer. Fast curse callers
+// should always set this because the CurserCap lives inside the fast MCMS Registry
+// (registered via mint_and_register_curser_cap / register_entrypoint) and has no top-level
+// object owner — direct PTB assembly against its ID would fail with "Object not found".
 type FastCurseSeqInput struct {
 	CCIPAddress         string
 	LatestCCIPPackageID string
@@ -36,6 +48,7 @@ type FastCurseSeqInput struct {
 	CurserCapObjectID   string
 	ChainSelector       uint64
 	Subjects            []fastcurse.Subject
+	ProposalOnly        bool
 }
 
 func subjectsToBytes(subjects []fastcurse.Subject) [][]byte {
@@ -71,9 +84,13 @@ func executeCurseUncurse(
 		return sequences.OnChainOutput{}, fmt.Errorf("Sui chain with selector %d not found in environment", in.ChainSelector)
 	}
 
+	signer := chain.Signer
+	if in.ProposalOnly {
+		signer = nil
+	}
 	deps := sui_ops.OpTxDeps{
 		Client: chain.Client,
-		Signer: chain.Signer,
+		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
 			gasBudget := uint64(400_000_000)
 			return &bind.CallOpts{WaitForExecution: true, GasBudget: &gasBudget}
@@ -129,9 +146,13 @@ func executeFastCurse(
 		return sequences.OnChainOutput{}, fmt.Errorf("curser cap object id is required for fast curse sequence")
 	}
 
+	signer := chain.Signer
+	if in.ProposalOnly {
+		signer = nil
+	}
 	deps := sui_ops.OpTxDeps{
 		Client: chain.Client,
-		Signer: chain.Signer,
+		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
 			gasBudget := uint64(400_000_000)
 			return &bind.CallOpts{WaitForExecution: true, GasBudget: &gasBudget}
