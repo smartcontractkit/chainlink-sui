@@ -22,7 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 	"github.com/stretchr/testify/require"
 
-	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
+	aptosCRConfig "github.com/smartcontractkit/chainlink-common/pkg/types/aptos"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	chainreaderConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"

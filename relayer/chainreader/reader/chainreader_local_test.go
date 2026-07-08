@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader"
-	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
+	aptosCRConfig "github.com/smartcontractkit/chainlink-common/pkg/types/aptos"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
