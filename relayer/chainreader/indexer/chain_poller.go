@@ -494,6 +494,8 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 
 			// Check if event matches any selector
 			for _, sel := range selectors {
+				cp.logger.Debugw("Checking if event matches selector", "event", event.GetEventType())
+
 				if eventMatchesSelector(event, sel) {
 					item := CheckpointEventItem{
 						Event:      event,

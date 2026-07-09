@@ -252,6 +252,8 @@ func (eIndexer *EventsIndexer) processEventsForHandle(
 			IsSynthetic:         false,
 		}
 		records = append(records, record)
+
+		eIndexer.logger.Debugw("Prepared event record to insert", "event", record)
 	}
 
 	// Batch insert with fallback
