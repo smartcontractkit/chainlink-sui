@@ -2,6 +2,7 @@ package lanes
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -132,6 +133,30 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 		}
 		if err := appendMCMSBatchOpFromCall(&out, input.Source.Selector, routerReport.Output.Call, deps); err != nil {
 			return sequences.OnChainOutput{}, err
+		}
+
+		// Seed the FeeQuoter's usd_per_unit_gas_by_dest_chain map for the new
+		// dest chain. Without this the very next `get_fee` call for this dest
+		// chain aborts with fee_quoter::EUnknownDestChainSelector (code 3) —
+		// the DON's price pusher only starts publishing after a dest chain has
+		// an initial entry. See connect_chains.go: input.Dest.GasPrice is
+		// pre-populated by the framework (falls back to
+		// adapter.GetDefaultGasPrice() if the caller didn't supply one).
+		if input.Dest.GasPrice != nil {
+			pricesReport, err := cldf_ops.ExecuteOperation(b, ccip_ops.FeeQuoterUpdatePricesWithOwnerCapOp, deps, ccip_ops.FeeQuoterUpdatePricesWithOwnerCapInput{
+				CCIPPackageId:         state.CCIPAddress,
+				LatestPackageId:       latestIDs.CCIP,
+				CCIPObjectRef:         state.CCIPObjectRef,
+				OwnerCapObjectId:      state.CCIPOwnerCapObjectId,
+				GasDestChainSelectors: []uint64{input.Dest.Selector},
+				GasUsdPerUnitGas:      []*big.Int{input.Dest.GasPrice},
+			})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("seed initial gas price on Sui FeeQuoter for dest %d: %w", input.Dest.Selector, err)
+			}
+			if err := appendMCMSBatchOpFromCall(&out, input.Source.Selector, pricesReport.Output.Call, deps); err != nil {
+				return sequences.OnChainOutput{}, err
+			}
 		}
 
 		return out, nil
