@@ -170,7 +170,7 @@ func TestReaderCache_ReadResults_HitReturnsIndependentCopy(t *testing.T) {
 	require.Equal(t, int32(1), atomic.LoadInt32(&calls), "second read must be served from cache")
 
 	ci2 := second[0].(map[string]any)["config_info"].(map[string]any)
-	require.Equal(t, float64(1), ci2["big_f"], "cached big_f must survive a prior caller's rename")
+	require.InEpsilon(t, float64(1), ci2["big_f"], 0.0000000000000001, "cached big_f must survive a prior caller's rename")
 	_, renamed := ci2["f"]
 	require.False(t, renamed, "prior caller's rename must not leak into the cached value")
 	require.Equal(t, "a", second[0].(map[string]any)["signers"].([]any)[0],

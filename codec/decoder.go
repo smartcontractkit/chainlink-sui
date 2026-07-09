@@ -13,7 +13,6 @@ import (
 
 	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/block-vision/sui-go-sdk/models"
-
 )
 
 const (

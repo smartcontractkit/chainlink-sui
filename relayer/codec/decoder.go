@@ -6,7 +6,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/codec"
 )
 
-
 // Deprecated: use codec.DecodeSuiJsonValue
 //
 //go:fix inline
