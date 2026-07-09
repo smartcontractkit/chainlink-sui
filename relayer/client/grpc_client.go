@@ -1688,10 +1688,22 @@ func (c *PTBClient) getValuesFromPackageOwnedObjectFieldInternal(ctx context.Con
 // With derived objects, pointers now store a reference to the parent "Object" struct (e.g., OffRampObject, CCIPObject).
 // e.g. OffRampStatePointer contains "off_ramp_object_id" field pointing to OffRampObject.
 func (c *PTBClient) GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error) {
+	cacheKey := "parent_object_id_fetch:" + packageID + ":" + moduleID + ":" + pointerObjectName
+	if cachedID, found := c.GetCachedValue(cacheKey); found {
+		if id, ok := cachedID.(string); ok && id != "" {
+			return id, nil
+		}
+	}
+
 	var result string
 	err := c.WithRateLimit(ctx, "GetParentObjectID", func(ctx context.Context) error {
 		var err error
 		result, err = c.getParentObjectIDInternal(ctx, packageID, moduleID, pointerObjectName)
+
+		if err == nil && result != "" {
+			c.SetCachedValue(cacheKey, result)
+		}
+
 		return err
 	})
 	return result, err
