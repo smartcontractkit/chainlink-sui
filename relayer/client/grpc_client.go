@@ -1609,6 +1609,13 @@ func (c *PTBClient) SetCachedValues(keyValues map[string]any) {
 // GetCCIPPackageId gets the CCIP package ID from the offramp package ID.
 // IMPORTANT: This function expects to call the original (un-upgraded / first version) offramp package ID.
 func (c *PTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string) (string, error) {
+	cacheKey := "ccip_package_id_fetch:" + offRampPackageID
+	if cachedID, found := c.GetCachedValue(cacheKey); found {
+		if id, ok := cachedID.(string); ok && id != "" {
+			return id, nil
+		}
+	}
+
 	response, err := c.ReadFunction(
 		ctx,
 		offRampPackageID,
@@ -1622,7 +1629,17 @@ func (c *PTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID strin
 		return "", err
 	}
 
-	return response[0].(string), nil
+	ccipPackageID := response[0].(string)
+	if ccipPackageID == "" {
+		return "", fmt.Errorf("no CCIP package ID found for offramp package %s", offRampPackageID)
+	}
+
+	// Since the original CCIP package ID is the value we require here, we can cache it
+	// without a specific TTL. Upgrades that change the latest package ID will be resolved
+	// using `GetLatestPackageId` which will re-read the value from the chain and applies
+	// a TTL if it uses a cache.
+	c.SetCachedValue(cacheKey, ccipPackageID)
+	return ccipPackageID, nil
 }
 
 // GetValueFromPackageOwnedObjectField gets the value of a field from a package owned object.
