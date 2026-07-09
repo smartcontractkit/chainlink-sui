@@ -40,6 +40,7 @@ type SelectorProvider func() []*client.EventSelector
 // to the indexers.
 type ChainPoller struct {
 	client           client.SuiPTBClient
+	extendedClient   client.ExtendedPTBClient
 	logger           logger.Logger
 	config           config.ChainPollerConfig
 	eventsCh         chan CheckpointEventsBatch
@@ -67,6 +68,7 @@ func NewChainPoller(
 
 	return &ChainPoller{
 		client:           client,
+		extendedClient:   asExtendedPTBClient(client),
 		logger:           logger.Named(log, "ChainPoller"),
 		config:           cfg,
 		eventsCh:         make(chan CheckpointEventsBatch, bufferSize),
@@ -178,31 +180,65 @@ func (cp *ChainPoller) run(ctx context.Context) {
 
 // computeStartSequence calculates the starting checkpoint sequence number.
 func (cp *ChainPoller) computeStartSequence(ctx context.Context) (uint64, error) {
+	var startSeq uint64
+
 	// If StartCheckpointSequence is configured, use it directly
 	if cp.config.StartCheckpointSequence != nil {
-		return *cp.config.StartCheckpointSequence, nil
-	}
-
-	// Get the latest checkpoint
-	latestSeq, err := cp.getLatestCheckpointSequence(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get latest checkpoint: %w", err)
-	}
-
-	cp.logger.Infow("Latest checkpoint fetched in chain poller", "sequence", latestSeq)
-
-	// If BackfillCheckpointCount is configured, start from latest - N
-	if cp.config.BackfillCheckpointCount != nil {
-		count := *cp.config.BackfillCheckpointCount
-		if latestSeq > count {
-			return latestSeq - count, nil
+		startSeq = *cp.config.StartCheckpointSequence
+	} else {
+		// Get the latest checkpoint
+		latestSeq, err := cp.getLatestCheckpointSequence(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get latest checkpoint: %w", err)
 		}
-		// If latest < count, start from 0
-		return 0, nil
+
+		cp.logger.Infow("Latest checkpoint fetched in chain poller", "sequence", latestSeq)
+
+		// If BackfillCheckpointCount is configured, start from latest - N
+		if cp.config.BackfillCheckpointCount != nil {
+			count := *cp.config.BackfillCheckpointCount
+			if latestSeq > count {
+				startSeq = latestSeq - count
+			}
+		} else {
+			// Default: start from latest (no backfill)
+			startSeq = latestSeq
+		}
 	}
 
-	// Default: start from latest (no backfill)
-	return latestSeq, nil
+	return cp.clampToProviderFloor(ctx, startSeq), nil
+}
+
+// clampToProviderFloor raises startSeq to the provider's lowest available checkpoint when history
+// has been pruned below the configured backfill/start point.
+func (cp *ChainPoller) clampToProviderFloor(ctx context.Context, startSeq uint64) uint64 {
+	if cp.extendedClient == nil {
+		cp.logger.Warnw("Failed to get provider checkpoint availability, using requested start sequence",
+			"startSequence", startSeq,
+			"error", errors.New("client does not implement ExtendedPTBClient"),
+		)
+		return startSeq
+	}
+
+	info, err := cp.extendedClient.GetCheckpointAvailability(ctx)
+	if err != nil {
+		cp.logger.Warnw("Failed to get provider checkpoint availability, using requested start sequence",
+			"startSequence", startSeq,
+			"error", err,
+		)
+		return startSeq
+	}
+
+	lowest := info.GetLowestAvailableCheckpoint()
+	if lowest > 0 && startSeq < lowest {
+		cp.logger.Warnw("Start sequence below provider history floor, clamping",
+			"requested", startSeq,
+			"lowestAvailable", lowest,
+		)
+		return lowest
+	}
+
+	return startSeq
 }
 
 // getLatestCheckpointSequence fetches the latest checkpoint and returns its sequence number.
@@ -249,6 +285,11 @@ func (cp *ChainPoller) RescanRecent() {
 
 // catchUp processes checkpoints from startSeq to endSeq (inclusive).
 func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
+	startSeq = cp.clampToProviderFloor(ctx, startSeq)
+	if startSeq > endSeq {
+		return
+	}
+
 	for seq := startSeq; seq <= endSeq; seq++ {
 		select {
 		case <-ctx.Done():
@@ -264,11 +305,22 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 						)
 						return
 					}
-					cp.logger.Warnw("Checkpoint not found during catch-up, skipping",
+
+					if lowest := cp.providerLowestAvailable(ctx); lowest > 0 && seq < lowest {
+						cp.logger.Errorw("Checkpoint below provider history floor during catch-up, jumping to lowest available",
+							"sequence", seq,
+							"lowestAvailable", lowest,
+							"error", err,
+						)
+						seq = lowest - 1
+						continue
+					}
+
+					cp.logger.Warnw("Checkpoint not found during catch-up, will retry on next poll",
 						"sequence", seq,
 						"error", err,
 					)
-					continue
+					return
 				}
 				cp.logger.Errorw("Failed to process checkpoint, will retry on next poll",
 					"sequence", seq,
@@ -279,6 +331,30 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 			}
 		}
 	}
+}
+
+func (cp *ChainPoller) providerLowestAvailable(ctx context.Context) uint64 {
+	if cp.extendedClient == nil {
+		cp.logger.Warnw("Failed to get provider checkpoint availability",
+			"error", errors.New("client does not implement ExtendedPTBClient"),
+		)
+		return 0
+	}
+
+	info, err := cp.extendedClient.GetCheckpointAvailability(ctx)
+	if err != nil {
+		cp.logger.Warnw("Failed to get provider checkpoint availability", "error", err)
+		return 0
+	}
+	return info.GetLowestAvailableCheckpoint()
+}
+
+func asExtendedPTBClient(suiClient client.SuiPTBClient) client.ExtendedPTBClient {
+	ext, ok := suiClient.(client.ExtendedPTBClient)
+	if !ok {
+		return nil
+	}
+	return ext
 }
 
 func isCheckpointNotFound(err error) bool {

@@ -49,7 +49,7 @@ func DefaultCacheConfig() CacheConfig {
 	return CacheConfig{
 		ObjectCacheEnabled: true,
 		ObjectTTL:          5 * time.Minute,
-		ReadCacheEnabled:   true,
+		ReadCacheEnabled:   false,
 		ReadTTL:            10 * time.Second,
 		StaleReadTTL:       5 * time.Minute,
 		CleanupInterval:    1 * time.Minute,

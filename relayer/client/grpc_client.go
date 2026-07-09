@@ -74,6 +74,7 @@ var RateLimitWeights = map[string]int64{
 	"GetTransactionsByCheckpoint":          0,
 	"GetLatestCheckpoint":                  0,
 	"GetCheckpointData":                    0,
+	"GetCheckpointAvailability":            0,
 	"SimulatePTB":                          0,
 	"GetCoinMetadata":                      0,
 }
@@ -174,6 +175,7 @@ var _ SuiPTBClient = (*PTBClient)(nil)
 type ExtendedPTBClient interface {
 	SuiPTBClient
 	GetTransaction(ctx context.Context, digest string) (TransactionDetails, error)
+	GetCheckpointAvailability(ctx context.Context) (*suirpcv2.GetServiceInfoResponse, error)
 }
 
 var _ ExtendedPTBClient = (*PTBClient)(nil)
@@ -1734,4 +1736,26 @@ func (c *PTBClient) getParentObjectIDInternal(ctx context.Context, packageID str
 	}
 
 	return parentObjectID, nil
+}
+
+// GetCheckpointAvailability returns the provider's checkpoint history bounds from GetServiceInfo.
+func (c *PTBClient) GetCheckpointAvailability(ctx context.Context) (*suirpcv2.GetServiceInfoResponse, error) {
+	var result *suirpcv2.GetServiceInfoResponse
+
+	err := c.WithRateLimit(ctx, "GetCheckpointAvailability", func(ctx context.Context) error {
+		service, err := c.getLedgerService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get ledger service: %w", err)
+		}
+
+		resp, err := service.GetServiceInfo(ctx, &suirpcv2.GetServiceInfoRequest{})
+		if err != nil {
+			return fmt.Errorf("GetServiceInfo failed: %w", err)
+		}
+
+		result = resp
+		return nil
+	})
+
+	return result, err
 }
