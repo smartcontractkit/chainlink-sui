@@ -23,23 +23,35 @@ type CacheConfig struct {
 	// refs are version-stable), so this can be minutes without serving a stale ref.
 	ObjectTTL time.Duration
 	// ReadCacheEnabled caches decoded read-call (devInspect) results keyed by read identifier + params.
-	// It is OFF by default: config reads change rarely, but caching them trades a little staleness for
-	// fewer node round-trips, so it is opt-in and should be enabled only with a short ReadTTL.
+	// Config reads (OffRamp OCR config, source-chain configs, static/dynamic config, price seq number)
+	// change rarely, so caching them for a short ReadTTL cuts the redundant devInspect fan-out that
+	// otherwise floods the node every config-poll cycle. Combined with StaleReadTTL below, it also makes
+	// reads resilient to transient RPC cancellation (the EVM->Sui commit blocker).
 	ReadCacheEnabled bool
-	// ReadTTL bounds how long a cached read result may be served before it is re-fetched.
+	// ReadTTL bounds how long a cached read result is served as fresh before it is re-fetched.
 	ReadTTL time.Duration
-	// CleanupInterval is how often expired entries are purged from both underlying caches.
+	// StaleReadTTL bounds how long the last successfully-read value may be served as a fallback when a
+	// fresh read fails (see GetReadResults). This turns a transient read failure — e.g. a context
+	// cancellation while a slow config poll is in flight — into "serve the last known-good config"
+	// instead of "return a zero/empty config", which is what makes the Sui commit plugin reject every
+	// EVM->Sui report. Only consulted when ReadCacheEnabled is true; a zero value falls back to the
+	// default via withDefaults.
+	StaleReadTTL time.Duration
+	// CleanupInterval is how often expired entries are purged from the underlying caches.
 	CleanupInterval time.Duration
 }
 
 // DefaultCacheConfig returns safe defaults: object caching ON (high value, no staleness risk for
-// version-stable objects) and read-call caching OFF (opt-in, since it can briefly mask config changes).
+// version-stable objects) and read-call caching ON with a short freshness TTL plus a bounded
+// serve-stale fallback (config reads change rarely, and serving a slightly-stale config is far safer
+// than serving a zero config on a transient read failure).
 func DefaultCacheConfig() CacheConfig {
 	return CacheConfig{
 		ObjectCacheEnabled: true,
 		ObjectTTL:          5 * time.Minute,
-		ReadCacheEnabled:   false,
-		ReadTTL:            2 * time.Second,
+		ReadCacheEnabled:   true,
+		ReadTTL:            10 * time.Second,
+		StaleReadTTL:       5 * time.Minute,
 		CleanupInterval:    1 * time.Minute,
 	}
 }
@@ -51,6 +63,9 @@ func (c CacheConfig) withDefaults() CacheConfig {
 	}
 	if c.ReadTTL <= 0 {
 		c.ReadTTL = d.ReadTTL
+	}
+	if c.StaleReadTTL <= 0 {
+		c.StaleReadTTL = d.StaleReadTTL
 	}
 	if c.CleanupInterval <= 0 {
 		c.CleanupInterval = d.CleanupInterval
@@ -79,16 +94,20 @@ type Cache struct {
 
 	readCache *cache.Cache
 	readGroup singleflight.Group
+	// staleReadCache retains the last successfully-read value per key for StaleReadTTL, so it can be
+	// served as a fallback when a fresh read fails. It intentionally outlives readCache entries.
+	staleReadCache *cache.Cache
 }
 
 // NewCache builds a Cache from cfg (missing durations are defaulted).
 func NewCache(lggr logger.Logger, cfg CacheConfig) *Cache {
 	cfg = cfg.withDefaults()
 	return &Cache{
-		lggr:        logger.Named(lggr, "ReaderCache"),
-		cfg:         cfg,
-		objectCache: cache.New(cfg.ObjectTTL, cfg.CleanupInterval),
-		readCache:   cache.New(cfg.ReadTTL, cfg.CleanupInterval),
+		lggr:           logger.Named(lggr, "ReaderCache"),
+		cfg:            cfg,
+		objectCache:    cache.New(cfg.ObjectTTL, cfg.CleanupInterval),
+		readCache:      cache.New(cfg.ReadTTL, cfg.CleanupInterval),
+		staleReadCache: cache.New(cfg.StaleReadTTL, cfg.CleanupInterval),
 	}
 }
 
@@ -133,9 +152,15 @@ func (rc *Cache) GetObjectMetadata(
 }
 
 // GetReadResults returns the decoded results of a read call, serving them from cache when enabled and
-// otherwise invoking loader exactly once across concurrent callers for the same key. The cached value is
-// the raw []any decoded result; callers decode it into their own return value on each call, so no shared
-// mutable state escapes. Disabled by default — see CacheConfig.ReadCacheEnabled.
+// otherwise invoking loader exactly once across concurrent callers for the same key. Disabled by
+// default — see CacheConfig.ReadCacheEnabled.
+//
+// Every cache hit returns a deep copy of the cached value. This is required for correctness: callers
+// (GetLatestValue -> prepareFunctionReadResult -> applyResultFieldRenames/MaybeRenameFields, and the
+// NormalizeReturnValuesToHex path) mutate the decoded result in place — e.g. renaming the OffRamp OCR
+// config's `big_f` field to `f`. Handing out the cached reference would let the first read mutate the
+// shared value, so a later cache hit would see an already-transformed object (e.g. `big_f` missing) and
+// fail. Copying on the way out keeps the cached value pristine and each caller's result independent.
 func (rc *Cache) GetReadResults(
 	ctx context.Context,
 	key string,
@@ -146,18 +171,27 @@ func (rc *Cache) GetReadResults(
 	}
 
 	if res, ok := getTyped[[]any](rc.readCache, key); ok {
-		return res, nil
+		return deepCopyAnySlice(res), nil
 	}
 
 	v, err, _ := rc.readGroup.Do(key, func() (any, error) {
 		if res, ok := getTyped[[]any](rc.readCache, key); ok {
 			return res, nil
 		}
-		res, err := loader(ctx)
-		if err != nil {
-			return nil, err
+		res, lErr := loader(ctx)
+		if lErr != nil {
+			// Serve-stale: a fresh read failed (commonly a context cancellation while a slow config
+			// poll is in flight). Rather than surfacing a zero/empty result — which upstream turns into
+			// a zero OCR config that blocks EVM->Sui commits — fall back to the last successfully-read
+			// value if one is still within StaleReadTTL.
+			if stale, ok := getTyped[[]any](rc.staleReadCache, key); ok {
+				rc.lggr.Warnw("read failed; serving last-known-good cached result", "key", key, "err", lErr)
+				return stale, nil
+			}
+			return nil, lErr
 		}
 		rc.readCache.Set(key, res, cache.DefaultExpiration)
+		rc.staleReadCache.Set(key, res, cache.DefaultExpiration)
 		return res, nil
 	})
 	if err != nil {
@@ -165,7 +199,43 @@ func (rc *Cache) GetReadResults(
 	}
 
 	res, _ := v.([]any)
-	return res, nil
+	// Copy on the way out so concurrent singleflight sharers and later cache hits never mutate the
+	// cached value (see doc comment).
+	return deepCopyAnySlice(res), nil
+}
+
+// deepCopyAnySlice returns a structural deep copy of a decoded read result. The values originate from
+// protobuf Struct.AsInterface, so they are only ever composed of map[string]any, []any and immutable
+// scalars (string, float64, bool, nil); those containers are the ones downstream transforms mutate.
+func deepCopyAnySlice(in []any) []any {
+	if in == nil {
+		return nil
+	}
+	out := make([]any, len(in))
+	for i, v := range in {
+		out[i] = deepCopyAny(v)
+	}
+	return out
+}
+
+func deepCopyAny(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		m := make(map[string]any, len(t))
+		for k, val := range t {
+			m[k] = deepCopyAny(val)
+		}
+		return m
+	case []any:
+		return deepCopyAnySlice(t)
+	case []byte:
+		cp := make([]byte, len(t))
+		copy(cp, t)
+		return cp
+	default:
+		// Scalars (string, float64, bool, nil, ...) are immutable; safe to share.
+		return v
+	}
 }
 
 // getTyped fetches key from c and asserts it to T, returning ok=false on miss or type mismatch.
