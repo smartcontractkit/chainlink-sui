@@ -690,7 +690,7 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 	buildDur = time.Since(buildStart)
 	simStart := time.Now()
 
-	results, err = c.simulatePTBInternal(readCtx, txExecService, bcsBytes)
+	results, err = c.simulatePTBInternal(readCtx, txExecService, bcsBytes, false)
 	simDur = time.Since(simStart)
 	totalDur := time.Since(rfStart)
 	if totalDur > 3*time.Second {
@@ -715,14 +715,18 @@ func (c *PTBClient) SimulatePTB(ctx context.Context, bcsBytes []byte) ([]any, er
 		}
 
 		var simErr error
-		results, simErr = c.simulatePTBInternal(ctx, txExecService, bcsBytes)
+		results, simErr = c.simulatePTBInternal(ctx, txExecService, bcsBytes, true)
 		return simErr
 	})
 	return results, err
 }
 
-func (c *PTBClient) simulatePTBInternal(ctx context.Context, txExecService suirpcv2.TransactionExecutionServiceClient, bcsBytes []byte) ([]any, error) {
+func (c *PTBClient) simulatePTBInternal(ctx context.Context, txExecService suirpcv2.TransactionExecutionServiceClient, bcsBytes []byte, checks bool) ([]any, error) {
 	doGasSelection := false
+	checksEnum := suirpcv2.SimulateTransactionRequest_DISABLED.Enum()
+	if checks {
+		checksEnum = suirpcv2.SimulateTransactionRequest_ENABLED.Enum()
+	}
 
 	// measure the raw SimulateTransaction RPC latency and the number of simulate calls
 	// concurrently hitting the single gRPC connection / local Sui node.
@@ -730,6 +734,7 @@ func (c *PTBClient) simulatePTBInternal(ctx context.Context, txExecService suirp
 	response, err := txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
 		Transaction:    &suirpcv2.Transaction{Bcs: &suirpcv2.Bcs{Value: bcsBytes}},
 		DoGasSelection: &doGasSelection,
+		Checks:         checksEnum,
 	})
 	simDur := time.Since(simStart)
 	if simDur > time.Second {
