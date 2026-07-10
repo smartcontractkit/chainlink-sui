@@ -1226,15 +1226,8 @@ public fun mcms_execute_ownership_transfer<T>(
     let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let McmsCap<T> { id, owner_cap, rebalancer_cap } = mcms_registry::release_cap(
-        registry,
-        McmsCallback<T> {},
-    );
-    assert!(rebalancer_cap.is_none(), ERebalancerCapNotTransferredOut);
-
-    rebalancer_cap.destroy_none();
-    object::delete(id);
-
+    // Release the upgrade cap before `release_cap`, which removes the registry proof state
+    // that `release_upgrade_cap` depends on.
     if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
@@ -1243,6 +1236,15 @@ public fun mcms_execute_ownership_transfer<T>(
         );
         transfer::public_transfer(upgrade_cap, to);
     };
+
+    let McmsCap<T> { id, owner_cap, rebalancer_cap } = mcms_registry::release_cap(
+        registry,
+        McmsCallback<T> {},
+    );
+    assert!(rebalancer_cap.is_none(), ERebalancerCapNotTransferredOut);
+
+    rebalancer_cap.destroy_none();
+    object::delete(id);
 
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }

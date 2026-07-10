@@ -9,6 +9,7 @@ use mcms::mcms_registry::{Self, Registry};
 use std::string;
 use sui::address;
 use sui::bcs;
+use sui::package;
 use sui::test_scenario::{Self, Scenario};
 
 const SENDER_1: address = @0x1;
@@ -671,6 +672,111 @@ fun test_mcms_three_step_ownership_transfer() {
         assert!(state_object::contains<TestObject>(&ref));
 
         scenario.return_to_sender(owner_cap);
+    };
+
+    test_scenario::return_shared(registry);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+// RR-02: transferring ownership out of MCMS while an upgrade cap is registered must
+// release both the owner cap and the upgrade cap. Before the fix this aborted because
+// `release_cap` removed the registry proof state that `release_upgrade_cap` then needed.
+fun test_mcms_execute_ownership_transfer_releases_upgrade_cap() {
+    let (mut scenario, mut registry, mut ref) = setup_with_mcms_ownership();
+
+    let new_owner = SENDER_2;
+
+    // Register an upgrade cap for @ccip under MCMS custody.
+    let ccip_addr = @ccip;
+    scenario.next_tx(OWNER);
+    {
+        let mut deployer_state = test_scenario::take_shared<mcms_deployer::DeployerState>(&scenario);
+        let upgrade_cap = package::test_publish(ccip_addr.to_id(), scenario.ctx());
+        mcms_deployer::test_register_upgrade_cap(&mut deployer_state, upgrade_cap, scenario.ctx());
+        assert!(mcms_deployer::has_upgrade_cap(&deployer_state, ccip_addr));
+        test_scenario::return_shared(deployer_state);
+    };
+
+    // Step 1: initiate transfer out of MCMS to SENDER_2.
+    scenario.next_tx(OWNER);
+    {
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(
+            &registry,
+            @ccip.to_ascii_string(),
+        );
+
+        let mut data = vector[];
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&owner_cap_address));
+        data.append(bcs::to_bytes(&new_owner));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"state_object"),
+            string::utf8(b"transfer_ownership"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000001",
+            0,
+            1,
+        );
+
+        state_object::mcms_transfer_ownership(&mut ref, &mut registry, params, scenario.ctx());
+    };
+
+    // Step 2: new owner accepts.
+    scenario.next_tx(new_owner);
+    state_object::accept_ownership(&mut ref, scenario.ctx());
+
+    // Step 3: execute the transfer; this must release the upgrade cap first, then the owner cap.
+    scenario.next_tx(OWNER);
+    {
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(
+            &registry,
+            @ccip.to_ascii_string(),
+        );
+        let mut deployer_state = test_scenario::take_shared<mcms_deployer::DeployerState>(&scenario);
+
+        let mut data = vector[];
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&owner_cap_address));
+        data.append(bcs::to_bytes(&new_owner));
+        data.append(bcs::to_bytes(&@ccip));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"state_object"),
+            string::utf8(b"execute_ownership_transfer"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000002",
+            0,
+            1,
+        );
+
+        state_object::mcms_execute_ownership_transfer(
+            &mut ref,
+            &mut registry,
+            &mut deployer_state,
+            params,
+            scenario.ctx(),
+        );
+
+        // The upgrade cap is no longer held by the deployer.
+        assert!(!mcms_deployer::has_upgrade_cap(&deployer_state, ccip_addr));
+        test_scenario::return_shared(deployer_state);
+    };
+
+    // Ownership moved to the new owner.
+    assert!(state_object::owner(&ref) == new_owner);
+
+    // The new owner received both the owner cap and the upgrade cap.
+    scenario.next_tx(new_owner);
+    {
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let upgrade_cap = scenario.take_from_sender<package::UpgradeCap>();
+        scenario.return_to_sender(owner_cap);
+        scenario.return_to_sender(upgrade_cap);
     };
 
     test_scenario::return_shared(registry);
