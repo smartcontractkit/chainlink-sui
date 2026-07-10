@@ -534,6 +534,58 @@ public fun mcms_destroy_token_pool<T>(
     transfer::public_transfer(treasury_cap, to);
 }
 
+/// Same as `mcms_destroy_token_pool`, but also releases this package's upgrade cap
+/// (when one is registered) to the destroy recipient, so it is not stranded in MCMS.
+public fun mcms_destroy_token_pool_and_release_upgrade_cap<T>(
+    ref: &mut CCIPObjectRef,
+    state: BurnMintTokenPoolState<T>,
+    registry: &mut Registry,
+    deployer_state: &mut DeployerState,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback<T>,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"destroy_token_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(&state)],
+        &mut stream,
+    );
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    // Release the package upgrade cap (if registered) before `release_cap` removes the
+    // registry proof state it depends on. The package is identified by the proof, not by
+    // any caller-supplied address.
+    let tn = type_name::with_original_ids<McmsCallback<T>>();
+    let package_address = address::from_ascii_bytes(&ascii::into_bytes(tn.address_string()));
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback<T> {},
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
+
+    let owner_cap = mcms_registry::release_cap<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+    );
+
+    let treasury_cap = destroy_token_pool(ref, state, owner_cap, ctx);
+    transfer::public_transfer(treasury_cap, to);
+}
+
 // ================================================================
 // |                      Ownable Functions                       |
 // ================================================================

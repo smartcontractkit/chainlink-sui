@@ -15,10 +15,12 @@ use lock_release_token_pool::lock_release_token_pool::{
     McmsCap
 };
 use lock_release_token_pool::ownable::{Self, OwnerCap};
+use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::bcs;
 use std::string;
 use sui::coin::{Self, Coin};
+use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 
 const OWNER: address = @0x123;
@@ -1307,6 +1309,82 @@ public fun test_mcms_destroy_token_pool() {
     scenario.next_tx(NEW_OWNER);
     let reserve = ts::take_from_sender<Coin<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(&scenario);
     coin::destroy_zero(reserve);
+
+    ts::return_shared(ccip_ref);
+    ts::return_shared(registry);
+    ts::end(scenario);
+}
+
+#[test]
+// RR-06: the upgrade-cap-aware destroy callback releases this package's upgrade cap to the
+// recipient instead of stranding it in MCMS.
+fun test_mcms_destroy_token_pool_releases_upgrade_cap() {
+    let (mut env, owner_cap, rebalancer_cap) = setup();
+
+    // The EOA rebalancer cap from setup is unrelated to this test.
+    transfer::public_transfer(rebalancer_cap, EOA_REBALANCER);
+
+    // Move pool ownership into MCMS custody (registers this package with the registry).
+    setup_mcms_ownership(&mut env, owner_cap);
+
+    // Stand up the deployer and register this package's upgrade cap under MCMS.
+    let pkg_addr = @lock_release_token_pool;
+    env.scenario.next_tx(OWNER);
+    mcms_deployer::test_init(env.scenario.ctx());
+
+    env.scenario.next_tx(OWNER);
+    {
+        let mut deployer_state = ts::take_shared<mcms_deployer::DeployerState>(&env.scenario);
+        let upgrade_cap = package::test_publish(pkg_addr.to_id(), env.scenario.ctx());
+        mcms_deployer::test_register_upgrade_cap(&mut deployer_state, upgrade_cap, env.scenario.ctx());
+        assert!(mcms_deployer::has_upgrade_cap(&deployer_state, pkg_addr));
+        ts::return_shared(deployer_state);
+    };
+
+    // destroy_token_pool consumes `state` by value, so unpack the env manually.
+    let TestEnv { mut scenario, state, mut ccip_ref, mcms_registry: mut registry } = env;
+
+    // The pool must be unregistered from the token admin registry before it can be destroyed.
+    scenario.next_tx(TOKEN_ADMIN);
+    token_admin_registry::unregister_pool(
+        &mut ccip_ref,
+        lock_release_token_pool::get_token(&state),
+        scenario.ctx(),
+    );
+
+    // Execute the upgrade-cap-aware destroy callback.
+    scenario.next_tx(mcms_registry::get_multisig_address());
+    let to = NEW_OWNER;
+    let mut data = vector[];
+    vector::append(&mut data, bcs::to_bytes(&object::id_address(&ccip_ref)));
+    vector::append(&mut data, bcs::to_bytes(&object::id_address(&state)));
+    vector::append(&mut data, bcs::to_bytes(&to));
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"destroy_token_pool",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000002",
+        0,
+    );
+    let mut deployer_state = ts::take_shared<mcms_deployer::DeployerState>(&scenario);
+    lock_release_token_pool::mcms_destroy_token_pool_and_release_upgrade_cap(
+        &mut ccip_ref,
+        state,
+        &mut registry,
+        &mut deployer_state,
+        params,
+        scenario.ctx(),
+    );
+    // The upgrade cap is no longer stranded in the deployer.
+    assert!(!mcms_deployer::has_upgrade_cap(&deployer_state, pkg_addr));
+    ts::return_shared(deployer_state);
+
+    // The recipient received both the reserve coin and the upgrade cap.
+    scenario.next_tx(to);
+    let reserve = ts::take_from_sender<Coin<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(&scenario);
+    coin::destroy_zero(reserve);
+    let upgrade_cap = ts::take_from_sender<package::UpgradeCap>(&scenario);
+    ts::return_to_sender(&scenario, upgrade_cap);
 
     ts::return_shared(ccip_ref);
     ts::return_shared(registry);

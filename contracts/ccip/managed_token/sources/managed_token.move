@@ -15,7 +15,10 @@ use managed_token::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+use std::ascii;
 use std::string::{Self, String};
+use std::type_name;
+use sui::address;
 use sui::coin::{
     Self,
     Coin,
@@ -522,6 +525,59 @@ public fun mcms_destroy_managed_token<T>(
 
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap = mcms_registry::release_cap<McmsCallback, OwnerCap<T>>(
+        registry,
+        McmsCallback {},
+    );
+
+    let (treasury_cap, deny_cap) = destroy_managed_token(owner_cap, state, ctx);
+    transfer::public_transfer(treasury_cap, to);
+    if (deny_cap.is_some()) {
+        transfer::public_transfer(deny_cap.destroy_some(), to);
+    } else {
+        deny_cap.destroy_none();
+    }
+}
+
+/// Same as `mcms_destroy_managed_token`, but also releases this package's upgrade cap
+/// (when one is registered) to the destroy recipient, so it is not stranded in MCMS.
+public fun mcms_destroy_managed_token_and_release_upgrade_cap<T>(
+    state: TokenState<T>,
+    registry: &mut Registry,
+    deployer_state: &mut DeployerState,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap<T>,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"destroy_managed_token"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(&state), &mut stream);
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    // Release the package upgrade cap (if registered) before `release_cap` removes the
+    // registry proof state it depends on. The package is identified by the proof, not by
+    // any caller-supplied address.
+    let tn = type_name::with_original_ids<McmsCallback>();
+    let package_address = address::from_ascii_bytes(&ascii::into_bytes(tn.address_string()));
+    if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
+        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+            deployer_state,
+            registry,
+            McmsCallback {},
+        );
+        transfer::public_transfer(upgrade_cap, to);
+    };
 
     let owner_cap = mcms_registry::release_cap<McmsCallback, OwnerCap<T>>(
         registry,
