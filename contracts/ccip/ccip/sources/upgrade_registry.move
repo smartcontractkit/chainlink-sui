@@ -34,6 +34,7 @@ const EFunctionNotAllowed: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 const EAlreadyInitialized: u64 = 3;
 const EInvalidFunction: u64 = 4;
+const EEmptyFunctionName: u64 = 5;
 
 public struct UpgradeRegistry has key, store {
     id: UID,
@@ -94,10 +95,12 @@ public fun unblock_version(
         return
     };
     let blocked_versions = registry.function_restrictions.borrow_mut(module_name);
+    // A version-level block is encoded as exactly `vector[version]`. Match the full
+    // encoding so a function-specific entry `vector[version, ..name]` is never removed here.
+    let version_block = vector[version];
     let mut i = 0;
     while (i < blocked_versions.length()) {
-        let blocked_version = &blocked_versions[i];
-        if (blocked_version[0] == version) {
+        if (blocked_versions[i] == version_block) {
             blocked_versions.swap_remove(i);
             event::emit(VersionUnblocked {
                 module_name,
@@ -118,6 +121,8 @@ public fun block_function(
     _: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    // An empty function name would encode as `vector[version]`, colliding with a version block.
+    assert!(!function_name.as_bytes().is_empty(), EEmptyFunctionName);
 
     let registry = state_object::borrow_mut<UpgradeRegistry>(ref);
     if (!registry.function_restrictions.contains(module_name)) {
@@ -142,6 +147,8 @@ public fun unblock_function(
     _: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    // Mirror `block_function`: an empty name would target the version-block encoding.
+    assert!(!function_name.as_bytes().is_empty(), EEmptyFunctionName);
 
     let registry = state_object::borrow_mut<UpgradeRegistry>(ref);
     if (!registry.function_restrictions.contains(module_name)) {
