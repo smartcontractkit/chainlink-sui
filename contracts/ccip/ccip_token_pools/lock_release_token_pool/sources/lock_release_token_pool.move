@@ -1341,9 +1341,9 @@ public fun mcms_destroy_token_pool<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (_mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -1360,10 +1360,16 @@ public fun mcms_destroy_token_pool<T>(
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let owner_cap = mcms_registry::release_cap<McmsCallback<T>, OwnerCap>(
+    let McmsCap<T> { id, owner_cap, rebalancer_cap } = mcms_registry::release_cap<
+        McmsCallback<T>,
+        McmsCap<T>,
+    >(
         registry,
         McmsCallback<T> {},
     );
+    assert!(rebalancer_cap.is_none(), ERebalancerCapNotTransferredOut);
+    rebalancer_cap.destroy_none();
+    object::delete(id);
 
     let reserve = destroy_token_pool(ref, state, owner_cap, ctx);
     transfer::public_transfer(reserve, to);
