@@ -2,13 +2,14 @@ package codec
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
 	"unicode"
 
 	"github.com/block-vision/sui-go-sdk/models"
+
+	common "github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 )
 
 var AccountZero = make([]byte, 32)
@@ -89,73 +90,17 @@ func isHexRune(r rune) bool {
 	return unicode.IsDigit(r) || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')
 }
 
-type PTBCommandDependency struct {
-	CommandIndex uint16
-	ResultIndex  *uint16
-}
+//go:fix inline
+type PTBCommandDependency = common.PTBCommandDependency
 
-// PointerTag defines the structured format for pointer tags used in chain reader.
-// Pointer tags specify how to derive object IDs from pointer objects stored on-chain.
-type PointerTag struct {
-	// Module name containing the pointer object (e.g. "state_object", "offramp", "counter")
-	Module string `json:"module"`
-	// PointerName is the object type to search for (e.g. "CCIPObjectRefPointer", "OffRampStatePointer")
-	PointerName string `json:"pointerName"`
-	// FieldName is OPTIONAL and NOT USED by the implementation. The parent field name is automatically
-	// looked up from the global common.PointerConfigs registry based on the PointerName.
-	// This field exists for backward compatibility or future implementations to override static code but is currently ignored.
-	FieldName string `json:"fieldName,omitempty"`
-	// DerivationKey is the key used to derive the child object ID from the parent object ID (e.g. "CCIPObjectRef", "CCIP_OWNABLE")
-	DerivationKey string `json:"derivationKey"`
-	// PackageID is the package ID for the Pointer object if it differs from the calling contract's package ID
-	// This is used for cross-package pointer dependencies (e.g. offramp package depending on CCIP package CCIPObjectRef)
-	// If empty, the calling contract's package ID is used
-	PackageID string `json:"packageId,omitempty"`
-}
+//go:fix inline
+type PointerTag = common.PointerTag
 
-func (p PointerTag) Validate() error {
-	if p.Module == "" {
-		return errors.New("PointerTag.Module is required")
-	}
-	if p.PointerName == "" {
-		return errors.New("PointerTag.PointerName is required")
-	}
-	// FieldName is optional - it's looked up from common.PointerConfigs
-	if p.DerivationKey == "" {
-		return errors.New("PointerTag.DerivationKey is required")
-	}
-	return nil
-}
+//go:fix inline
+type SuiFunctionParam = common.SuiFunctionParam
 
-// SuiFunctionParam defines a parameter for a Sui function call
-type SuiFunctionParam struct {
-	// Name of the parameter
-	Name string
-	// PointerTag (optional) specify how to derive object IDs from pointer objects stored on-chain.
-	PointerTag *PointerTag
-	// Type of the parameter (e.g., "u64", "String", "vector<u8>", "ptb_dependency")
-	Type string
-	// IsMutable specifies if the object is mutable or not (optional - defaults to true)
-	IsMutable *bool
-	// IsGeneric specifies if the parameter is a generic argument
-	GenericType *string
-	// Whether the parameter is required
-	Required bool
-	// Default value to use if not provided
-	DefaultValue any
-	// Result from a previous PTB Command (optional). It is used for expressive construction of PTB commands
-	PTBDependency *PTBCommandDependency
-	// GenericDependency maps to internal helpers for fetching an unknown generic type required by the parameter
-	GenericDependency *string
-}
-
-type SuiPTBCommandType string
-
-const (
-	SuiPTBCommandMoveCall SuiPTBCommandType = "move_call"
-	SuiPTBCommandPublish  SuiPTBCommandType = "publish"
-	SuiPTBCommandTransfer SuiPTBCommandType = "transfer"
-)
+//go:fix inline
+type SuiPTBCommandType = common.SuiPTBCommandType
 
 // OCRConfigSet event data
 type ConfigSet struct {
