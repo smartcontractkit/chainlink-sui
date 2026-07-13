@@ -74,6 +74,7 @@ var RateLimitWeights = map[string]int64{
 	"GetTransactionsByCheckpoint":          0,
 	"GetLatestCheckpoint":                  0,
 	"GetCheckpointData":                    0,
+	"GetCheckpointAvailability":            0,
 	"SimulatePTB":                          0,
 	"GetCoinMetadata":                      0,
 }
@@ -174,6 +175,7 @@ var _ SuiPTBClient = (*PTBClient)(nil)
 type ExtendedPTBClient interface {
 	SuiPTBClient
 	GetTransaction(ctx context.Context, digest string) (TransactionDetails, error)
+	GetCheckpointAvailability(ctx context.Context) (*suirpcv2.GetServiceInfoResponse, error)
 }
 
 var _ ExtendedPTBClient = (*PTBClient)(nil)
@@ -690,7 +692,7 @@ func (c *PTBClient) readFunctionInternal(ctx context.Context, packageId string, 
 	buildDur = time.Since(buildStart)
 	simStart := time.Now()
 
-	results, err = c.simulatePTBInternal(readCtx, txExecService, bcsBytes)
+	results, err = c.simulatePTBInternal(readCtx, txExecService, bcsBytes, false)
 	simDur = time.Since(simStart)
 	totalDur := time.Since(rfStart)
 	if totalDur > 3*time.Second {
@@ -715,14 +717,18 @@ func (c *PTBClient) SimulatePTB(ctx context.Context, bcsBytes []byte) ([]any, er
 		}
 
 		var simErr error
-		results, simErr = c.simulatePTBInternal(ctx, txExecService, bcsBytes)
+		results, simErr = c.simulatePTBInternal(ctx, txExecService, bcsBytes, true)
 		return simErr
 	})
 	return results, err
 }
 
-func (c *PTBClient) simulatePTBInternal(ctx context.Context, txExecService suirpcv2.TransactionExecutionServiceClient, bcsBytes []byte) ([]any, error) {
+func (c *PTBClient) simulatePTBInternal(ctx context.Context, txExecService suirpcv2.TransactionExecutionServiceClient, bcsBytes []byte, checks bool) ([]any, error) {
 	doGasSelection := false
+	checksEnum := suirpcv2.SimulateTransactionRequest_DISABLED.Enum()
+	if checks {
+		checksEnum = suirpcv2.SimulateTransactionRequest_ENABLED.Enum()
+	}
 
 	// measure the raw SimulateTransaction RPC latency and the number of simulate calls
 	// concurrently hitting the single gRPC connection / local Sui node.
@@ -730,6 +736,7 @@ func (c *PTBClient) simulatePTBInternal(ctx context.Context, txExecService suirp
 	response, err := txExecService.SimulateTransaction(ctx, &suirpcv2.SimulateTransactionRequest{
 		Transaction:    &suirpcv2.Transaction{Bcs: &suirpcv2.Bcs{Value: bcsBytes}},
 		DoGasSelection: &doGasSelection,
+		Checks:         checksEnum,
 	})
 	simDur := time.Since(simStart)
 	if simDur > time.Second {
@@ -1531,10 +1538,11 @@ func (c *PTBClient) loadModulePackageIdsInternal(ctx context.Context, packageId 
 }
 
 func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string) (string, error) {
-	// attempt reading the value from cache first
+	// attempt reading the value from cache first. Only non-empty entries are ever cached, so a
+	// cache hit is always a valid package ID.
 	cacheKey := "latest_pkg_id_fetch:" + packageId + ":" + module
 	if cachedID, found := c.cache.Get(cacheKey); found {
-		if id, ok := cachedID.(string); ok {
+		if id, ok := cachedID.(string); ok && id != "" {
 			return id, nil
 		}
 	}
@@ -1545,9 +1553,14 @@ func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, mo
 		var err error
 		result, err = c.getLatestPackageIdInternal(ctx, packageId, module)
 
-		// Package IDs are stable for the duration of a CCIP deployment; a longer TTL avoids
-		// repeated GetFunction/GetPackage/ListOwnedObjects storms during config polling.
-		c.cache.Set(cacheKey, result, DefaultPackageIdCacheTTL)
+		// Only cache successful, non-empty resolutions. Caching an empty result on error would
+		// poison the cache: subsequent calls would return ("", nil) for the TTL window, causing
+		// reads to target the zero package address (0x0). Package IDs are stable for the duration
+		// of a CCIP deployment, so a longer TTL on success avoids repeated
+		// GetFunction/GetPackage/ListOwnedObjects storms during config polling.
+		if err == nil && result != "" {
+			c.cache.Set(cacheKey, result, DefaultPackageIdCacheTTL)
+		}
 
 		return err
 	})
@@ -1603,6 +1616,13 @@ func (c *PTBClient) SetCachedValues(keyValues map[string]any) {
 // GetCCIPPackageId gets the CCIP package ID from the offramp package ID.
 // IMPORTANT: This function expects to call the original (un-upgraded / first version) offramp package ID.
 func (c *PTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string) (string, error) {
+	cacheKey := "ccip_package_id_fetch:" + offRampPackageID
+	if cachedID, found := c.GetCachedValue(cacheKey); found {
+		if id, ok := cachedID.(string); ok && id != "" {
+			return id, nil
+		}
+	}
+
 	response, err := c.ReadFunction(
 		ctx,
 		offRampPackageID,
@@ -1616,7 +1636,17 @@ func (c *PTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID strin
 		return "", err
 	}
 
-	return response[0].(string), nil
+	ccipPackageID := response[0].(string)
+	if ccipPackageID == "" {
+		return "", fmt.Errorf("no CCIP package ID found for offramp package %s", offRampPackageID)
+	}
+
+	// Since the original CCIP package ID is the value we require here, we can cache it
+	// without a specific TTL. Upgrades that change the latest package ID will be resolved
+	// using `GetLatestPackageId` which will re-read the value from the chain and applies
+	// a TTL if it uses a cache.
+	c.SetCachedValue(cacheKey, ccipPackageID)
+	return ccipPackageID, nil
 }
 
 // GetValueFromPackageOwnedObjectField gets the value of a field from a package owned object.
@@ -1658,10 +1688,22 @@ func (c *PTBClient) getValuesFromPackageOwnedObjectFieldInternal(ctx context.Con
 // With derived objects, pointers now store a reference to the parent "Object" struct (e.g., OffRampObject, CCIPObject).
 // e.g. OffRampStatePointer contains "off_ramp_object_id" field pointing to OffRampObject.
 func (c *PTBClient) GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error) {
+	cacheKey := "parent_object_id_fetch:" + packageID + ":" + moduleID + ":" + pointerObjectName
+	if cachedID, found := c.GetCachedValue(cacheKey); found {
+		if id, ok := cachedID.(string); ok && id != "" {
+			return id, nil
+		}
+	}
+
 	var result string
 	err := c.WithRateLimit(ctx, "GetParentObjectID", func(ctx context.Context) error {
 		var err error
 		result, err = c.getParentObjectIDInternal(ctx, packageID, moduleID, pointerObjectName)
+
+		if err == nil && result != "" {
+			c.SetCachedValue(cacheKey, result)
+		}
+
 		return err
 	})
 	return result, err
@@ -1706,4 +1748,26 @@ func (c *PTBClient) getParentObjectIDInternal(ctx context.Context, packageID str
 	}
 
 	return parentObjectID, nil
+}
+
+// GetCheckpointAvailability returns the provider's checkpoint history bounds from GetServiceInfo.
+func (c *PTBClient) GetCheckpointAvailability(ctx context.Context) (*suirpcv2.GetServiceInfoResponse, error) {
+	var result *suirpcv2.GetServiceInfoResponse
+
+	err := c.WithRateLimit(ctx, "GetCheckpointAvailability", func(ctx context.Context) error {
+		service, err := c.getLedgerService(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get ledger service: %w", err)
+		}
+
+		resp, err := service.GetServiceInfo(ctx, &suirpcv2.GetServiceInfoRequest{})
+		if err != nil {
+			return fmt.Errorf("GetServiceInfo failed: %w", err)
+		}
+
+		result = resp
+		return nil
+	})
+
+	return result, err
 }

@@ -1039,6 +1039,12 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 	if err != nil {
 		return []any{}, err
 	}
+	// Guard against an empty package ID: simulating against it would resolve to the zero package
+	// (0x0) and fail with a confusing "Dependent package not found on-chain" error. Fail loudly
+	// so the read is retried instead of silently targeting 0x0.
+	if latestPackageId == "" {
+		return []any{}, fmt.Errorf("resolved empty latest package id for contract %s (module %s)", parsed.contractName, common.GetModuleForContract(parsed.contractName))
+	}
 
 	// this is the upgraded pkgID
 	parsed.address = latestPackageId

@@ -205,14 +205,9 @@ func (eIndexer *EventsIndexer) processEventsForHandle(
 	}
 	packageID := parts[0]
 
-	totalCount, err := eIndexer.db.GetTotalCount(ctx, packageID, handle)
-	if err != nil {
-		return fmt.Errorf("failed to get total count: %w", err)
-	}
-
 	// Build event records
 	records := make([]database.EventRecord, 0, len(items))
-	for i, item := range items {
+	for _, item := range items {
 		// Convert event JSON data using SDK's AsInterface()
 		data := make(map[string]any)
 		if jsonVal := item.Event.GetJson(); jsonVal != nil {
@@ -238,9 +233,6 @@ func (eIndexer *EventsIndexer) processEventsForHandle(
 			}
 		}
 
-		// Calculate offset (totalCount + i + 1)
-		offset := totalCount + uint64(i) + 1
-
 		// Convert block hash to bytes
 		blockHashBytes := []byte(meta.Digest)
 		if decoded, err := base58.Decode(meta.Digest); err == nil {
@@ -250,7 +242,7 @@ func (eIndexer *EventsIndexer) processEventsForHandle(
 		record := database.EventRecord{
 			EventAccountAddress: packageID,
 			EventHandle:         handle,
-			EventOffset:         offset,
+			EventOffset:         uint64(item.EventIndex),
 			TxDigest:            txDigestHex,
 			BlockVersion:        0,
 			BlockHeight:         strconv.FormatUint(meta.SequenceNumber, 10),
@@ -260,6 +252,8 @@ func (eIndexer *EventsIndexer) processEventsForHandle(
 			IsSynthetic:         false,
 		}
 		records = append(records, record)
+
+		eIndexer.logger.Debugw("Prepared event record to insert", "event", record)
 	}
 
 	// Batch insert with fallback

@@ -135,3 +135,80 @@ func TestReaderCache_ReadResults(t *testing.T) {
 	}
 	require.Equal(t, int32(3), atomic.LoadInt32(&dCalls), "disabled read cache should pass through")
 }
+
+// A cache hit must return an independent deep copy: callers mutate the decoded result in place (e.g.
+// GetLatestValue renames the OffRamp OCR config's `big_f` field), so handing out the shared cached
+// reference would corrupt the cached value and break every subsequent read of the same key. This is the
+// regression that made the EVM->Sui config read return a broken/zero OCR config once caching was on.
+func TestReaderCache_ReadResults_HitReturnsIndependentCopy(t *testing.T) {
+	t.Parallel()
+
+	rc := NewCache(logger.Test(t), CacheConfig{ReadCacheEnabled: true, ReadTTL: time.Minute})
+	var calls int32
+	loader := func(context.Context) ([]any, error) {
+		atomic.AddInt32(&calls, 1)
+		// Mirrors the shape of a Sui OCR config read (nested map with the big_f field).
+		return []any{map[string]any{
+			"config_info": map[string]any{"big_f": float64(1), "n": float64(2)},
+			"signers":     []any{"a", "b"},
+		}}, nil
+	}
+
+	// First read populates the cache, then mutates its own copy the way GetLatestValue does (rename
+	// big_f -> f in place).
+	first, err := rc.GetReadResults(context.Background(), "k", loader)
+	require.NoError(t, err)
+	ci := first[0].(map[string]any)["config_info"].(map[string]any)
+	ci["f"] = ci["big_f"]
+	delete(ci, "big_f")
+	first[0].(map[string]any)["signers"].([]any)[0] = "MUTATED"
+
+	// Second read is a cache hit (loader not called again) and must see the pristine original value,
+	// unaffected by the first caller's in-place mutation.
+	second, err := rc.GetReadResults(context.Background(), "k", loader)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), atomic.LoadInt32(&calls), "second read must be served from cache")
+
+	ci2 := second[0].(map[string]any)["config_info"].(map[string]any)
+	require.InEpsilon(t, float64(1), ci2["big_f"], 0.0000000000000001, "cached big_f must survive a prior caller's rename")
+	_, renamed := ci2["f"]
+	require.False(t, renamed, "prior caller's rename must not leak into the cached value")
+	require.Equal(t, "a", second[0].(map[string]any)["signers"].([]any)[0],
+		"prior caller's slice mutation must not leak into the cached value")
+}
+
+// A transient read failure after the fresh TTL has expired must be served from the last known-good
+// value (serve-stale), not surfaced as an error/zero result. This is the direct fix for the EVM->Sui
+// commit blocker where a cancelled config read produced a zero OCR config.
+func TestReaderCache_ReadResults_ServesStaleOnTransientFailure(t *testing.T) {
+	t.Parallel()
+
+	rc := NewCache(logger.Test(t), CacheConfig{
+		ReadCacheEnabled: true,
+		ReadTTL:          20 * time.Millisecond, // short fresh window so we can force a re-fetch
+		StaleReadTTL:     time.Minute,
+	})
+
+	good := []any{map[string]any{"config_digest": "digest-1"}}
+	_, err := rc.GetReadResults(context.Background(), "k", func(context.Context) ([]any, error) {
+		return good, nil
+	})
+	require.NoError(t, err)
+
+	// Let the fresh entry expire so the next read must call the loader.
+	time.Sleep(40 * time.Millisecond)
+
+	// Loader now fails (simulating a context cancellation during a slow poll). Serve-stale must return
+	// the last good value instead of the error.
+	res, err := rc.GetReadResults(context.Background(), "k", func(context.Context) ([]any, error) {
+		return nil, context.Canceled
+	})
+	require.NoError(t, err, "transient failure after TTL expiry must be served from the stale cache")
+	require.Equal(t, "digest-1", res[0].(map[string]any)["config_digest"])
+
+	// With no prior success there is nothing to serve stale, so the error propagates.
+	_, err = rc.GetReadResults(context.Background(), "never-loaded", func(context.Context) ([]any, error) {
+		return nil, context.Canceled
+	})
+	require.ErrorIs(t, err, context.Canceled, "a cold key with no stale entry must surface the read error")
+}

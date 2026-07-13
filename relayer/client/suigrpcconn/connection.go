@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	defaultKeepAlive        = 30 * time.Second
-	defaultKeepaliveTimeout = 5 * time.Second
+	defaultKeepAlive        = 60 * time.Second
+	defaultKeepaliveTimeout = 20 * time.Second
 	defaultMaxRecvMsgSize   = 20 * 1024 * 1024
 )
 
