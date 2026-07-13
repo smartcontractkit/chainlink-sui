@@ -41,6 +41,7 @@ type IManagedToken interface {
 	Unpause(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, denyList bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DestroyManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsDestroyManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsDestroyManagedTokenAndReleaseUpgradeCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	BorrowTreasuryCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -128,6 +129,8 @@ type ManagedTokenEncoder interface {
 	DestroyManagedTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsDestroyManagedToken(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsDestroyManagedTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsDestroyManagedTokenAndReleaseUpgradeCap(typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsDestroyManagedTokenAndReleaseUpgradeCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	BorrowTreasuryCap(typeArgs []string, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	BorrowTreasuryCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	Owner(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
@@ -480,6 +483,16 @@ func (c *ManagedTokenContract) DestroyManagedToken(ctx context.Context, opts *bi
 // McmsDestroyManagedToken executes the mcms_destroy_managed_token Move function.
 func (c *ManagedTokenContract) McmsDestroyManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.managedTokenEncoder.McmsDestroyManagedToken(typeArgs, state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsDestroyManagedTokenAndReleaseUpgradeCap executes the mcms_destroy_managed_token_and_release_upgrade_cap Move function.
+func (c *ManagedTokenContract) McmsDestroyManagedTokenAndReleaseUpgradeCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.McmsDestroyManagedTokenAndReleaseUpgradeCap(typeArgs, state, registry, deployerState, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1809,6 +1822,45 @@ func (c managedTokenEncoder) McmsDestroyManagedTokenWithArgs(typeArgs []string, 
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("mcms_destroy_managed_token", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsDestroyManagedTokenAndReleaseUpgradeCap encodes a call to the mcms_destroy_managed_token_and_release_upgrade_cap Move function.
+func (c managedTokenEncoder) McmsDestroyManagedTokenAndReleaseUpgradeCap(typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_managed_token_and_release_upgrade_cap", typeArgsList, typeParamsList, []string{
+		"TokenState<T>",
+		"&mut Registry",
+		"&mut DeployerState",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		deployerState,
+		params,
+	}, nil)
+}
+
+// McmsDestroyManagedTokenAndReleaseUpgradeCapWithArgs encodes a call to the mcms_destroy_managed_token_and_release_upgrade_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c managedTokenEncoder) McmsDestroyManagedTokenAndReleaseUpgradeCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"TokenState<T>",
+		"&mut Registry",
+		"&mut DeployerState",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_managed_token_and_release_upgrade_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // BorrowTreasuryCap encodes a call to the borrow_treasury_cap Move function.

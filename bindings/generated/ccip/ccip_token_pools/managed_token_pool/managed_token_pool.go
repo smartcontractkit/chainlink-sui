@@ -65,6 +65,7 @@ type IManagedTokenPool interface {
 	McmsSetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsDestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsDestroyTokenPoolAndReleaseUpgradeCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -185,6 +186,8 @@ type ManagedTokenPoolEncoder interface {
 	DestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsDestroyTokenPool(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsDestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsDestroyTokenPoolAndReleaseUpgradeCap(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsDestroyTokenPoolAndReleaseUpgradeCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsTransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -703,6 +706,16 @@ func (c *ManagedTokenPoolContract) DestroyTokenPool(ctx context.Context, opts *b
 // McmsDestroyTokenPool executes the mcms_destroy_token_pool Move function.
 func (c *ManagedTokenPoolContract) McmsDestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.managedTokenPoolEncoder.McmsDestroyTokenPool(typeArgs, ref, state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsDestroyTokenPoolAndReleaseUpgradeCap executes the mcms_destroy_token_pool_and_release_upgrade_cap Move function.
+func (c *ManagedTokenPoolContract) McmsDestroyTokenPoolAndReleaseUpgradeCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenPoolEncoder.McmsDestroyTokenPoolAndReleaseUpgradeCap(typeArgs, ref, state, registry, deployerState, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2830,6 +2843,48 @@ func (c managedTokenPoolEncoder) McmsDestroyTokenPoolWithArgs(typeArgs []string,
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("mcms_destroy_token_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsDestroyTokenPoolAndReleaseUpgradeCap encodes a call to the mcms_destroy_token_pool_and_release_upgrade_cap Move function.
+func (c managedTokenPoolEncoder) McmsDestroyTokenPoolAndReleaseUpgradeCap(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_token_pool_and_release_upgrade_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"ManagedTokenPoolState<T>",
+		"&mut Registry",
+		"&mut DeployerState",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		state,
+		registry,
+		deployerState,
+		params,
+	}, nil)
+}
+
+// McmsDestroyTokenPoolAndReleaseUpgradeCapWithArgs encodes a call to the mcms_destroy_token_pool_and_release_upgrade_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c managedTokenPoolEncoder) McmsDestroyTokenPoolAndReleaseUpgradeCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"ManagedTokenPoolState<T>",
+		"&mut Registry",
+		"&mut DeployerState",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_token_pool_and_release_upgrade_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.

@@ -79,6 +79,7 @@ type ILockReleaseTokenPool interface {
 	McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsDestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsDestroyTokenPoolAndReleaseUpgradeCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() ILockReleaseTokenPoolDevInspect
 	Encoder() LockReleaseTokenPoolEncoder
 	Bound() bind.IBoundContract
@@ -226,6 +227,8 @@ type LockReleaseTokenPoolEncoder interface {
 	DestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsDestroyTokenPool(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsDestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsDestroyTokenPoolAndReleaseUpgradeCap(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsDestroyTokenPoolAndReleaseUpgradeCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 }
 
 type LockReleaseTokenPoolContract struct {
@@ -892,6 +895,16 @@ func (c *LockReleaseTokenPoolContract) DestroyTokenPool(ctx context.Context, opt
 // McmsDestroyTokenPool executes the mcms_destroy_token_pool Move function.
 func (c *LockReleaseTokenPoolContract) McmsDestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.lockReleaseTokenPoolEncoder.McmsDestroyTokenPool(typeArgs, ref, state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsDestroyTokenPoolAndReleaseUpgradeCap executes the mcms_destroy_token_pool_and_release_upgrade_cap Move function.
+func (c *LockReleaseTokenPoolContract) McmsDestroyTokenPoolAndReleaseUpgradeCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.McmsDestroyTokenPoolAndReleaseUpgradeCap(typeArgs, ref, state, registry, deployerState, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -3527,4 +3540,46 @@ func (c lockReleaseTokenPoolEncoder) McmsDestroyTokenPoolWithArgs(typeArgs []str
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("mcms_destroy_token_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsDestroyTokenPoolAndReleaseUpgradeCap encodes a call to the mcms_destroy_token_pool_and_release_upgrade_cap Move function.
+func (c lockReleaseTokenPoolEncoder) McmsDestroyTokenPoolAndReleaseUpgradeCap(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_token_pool_and_release_upgrade_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"LockReleaseTokenPoolState<T>",
+		"&mut Registry",
+		"&mut DeployerState",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		state,
+		registry,
+		deployerState,
+		params,
+	}, nil)
+}
+
+// McmsDestroyTokenPoolAndReleaseUpgradeCapWithArgs encodes a call to the mcms_destroy_token_pool_and_release_upgrade_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c lockReleaseTokenPoolEncoder) McmsDestroyTokenPoolAndReleaseUpgradeCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"LockReleaseTokenPoolState<T>",
+		"&mut Registry",
+		"&mut DeployerState",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_destroy_token_pool_and_release_upgrade_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
