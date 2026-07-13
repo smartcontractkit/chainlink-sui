@@ -2,6 +2,8 @@ package client
 
 import (
 	"github.com/block-vision/sui-go-sdk/models"
+
+	common "github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 )
 
 type TransactionBlockOptions struct {
@@ -69,13 +71,12 @@ type SuiTransactionBlockResponse struct {
 	ObjectChanges []models.ObjectChange     `json:"objectChanges,omitempty"`
 }
 
-type EventFilterByMoveEventModule struct {
-	Package string `json:"package"`
-	Module  string `json:"module"`
-	Event   string `json:"event"`
-}
+//go:fix inline
+type EventFilterByMoveEventModule = common.EventFilterByMoveEventModule
 
 // EventSelector is an alias for EventFilterByMoveEventModule
+//
+//go:fix inline
 type EventSelector = EventFilterByMoveEventModule
 
 type EventData struct {
@@ -102,10 +103,8 @@ type PaginatedEventsResponse struct {
 	HasNextPage bool        `json:"hasNextPage"`
 }
 
-type EventId struct {
-	TxDigest string `json:"txDigest"`
-	EventSeq string `json:"eventSeq"`
-}
+//go:fix inline
+type EventId = common.EventId //nolint:revive // preserving name for compatibility
 
 type SuiExecutionStatus struct {
 	Status string `json:"status"`
