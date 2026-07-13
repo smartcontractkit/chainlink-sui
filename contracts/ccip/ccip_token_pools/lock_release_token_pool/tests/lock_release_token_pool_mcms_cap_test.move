@@ -1257,3 +1257,58 @@ public fun test_mcms_provide_liquidity_fails_wrong_coin_id() {
     ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
     tear_down(env);
 }
+
+#[test]
+public fun test_mcms_destroy_token_pool() {
+    let (mut env, owner_cap, rebalancer_cap) = setup();
+
+    // The EOA rebalancer cap from setup is unrelated to this test.
+    transfer::public_transfer(rebalancer_cap, EOA_REBALANCER);
+
+    // Move pool ownership into MCMS custody: this stores a McmsCap<T>, not a raw OwnerCap.
+    setup_mcms_ownership(&mut env, owner_cap);
+
+    // destroy_token_pool consumes `state` by value, so unpack the env manually.
+    // Rebind the registry field to `registry` so the `mcms_registry` module path stays usable.
+    let TestEnv { mut scenario, state, mut ccip_ref, mcms_registry: mut registry } = env;
+
+    // The pool must be unregistered from the token admin registry before it can be destroyed.
+    scenario.next_tx(TOKEN_ADMIN);
+    token_admin_registry::unregister_pool(
+        &mut ccip_ref,
+        lock_release_token_pool::get_token(&state),
+        scenario.ctx(),
+    );
+
+    // Execute the MCMS destroy callback. Before the fix this aborted because the callback
+    // requested a raw OwnerCap while MCMS custody stores McmsCap<T>.
+    scenario.next_tx(mcms_registry::get_multisig_address());
+    let to = NEW_OWNER;
+    let mut data = vector[];
+    vector::append(&mut data, bcs::to_bytes(&object::id_address(&ccip_ref)));
+    vector::append(&mut data, bcs::to_bytes(&object::id_address(&state)));
+    vector::append(&mut data, bcs::to_bytes(&to));
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"destroy_token_pool",
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000002",
+        0,
+    );
+    lock_release_token_pool::mcms_destroy_token_pool(
+        &mut ccip_ref,
+        state,
+        &mut registry,
+        params,
+        scenario.ctx(),
+    );
+
+    // The pool reserve is forwarded to `to` (NEW_OWNER); it is empty here.
+    scenario.next_tx(NEW_OWNER);
+    let reserve = ts::take_from_sender<Coin<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(&scenario);
+    coin::destroy_zero(reserve);
+
+    ts::return_shared(ccip_ref);
+    ts::return_shared(registry);
+    ts::end(scenario);
+}

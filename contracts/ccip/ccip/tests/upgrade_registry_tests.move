@@ -1162,3 +1162,75 @@ public fun test_unblock_function_with_version_and_function_blocks() {
 
     tear_down_test(scenario, owner_cap, ref);
 }
+
+#[test]
+public fun test_unblock_version_preserves_function_block_stored_first() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+
+    let module_name = string::utf8(b"test_module");
+    let function_name = string::utf8(b"test_function");
+    let other_function = string::utf8(b"other_function");
+    let version = 1u8;
+
+    // Block the specific function FIRST so its entry precedes the version entry.
+    upgrade_registry::block_function(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        function_name,
+        version,
+        scenario.ctx(),
+    );
+    // Then block the entire version.
+    upgrade_registry::block_version(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        version,
+        scenario.ctx(),
+    );
+
+    // Unblocking the version must remove the version entry, not the function entry.
+    upgrade_registry::unblock_version(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        version,
+        scenario.ctx(),
+    );
+
+    // The version-level block is gone: an unrelated function at this version is now allowed.
+    assert!(
+        upgrade_registry::is_function_allowed(&ref, module_name, other_function, version),
+    );
+    // The function-specific block is preserved.
+    assert!(
+        !upgrade_registry::is_function_allowed(&ref, module_name, function_name, version),
+    );
+
+    // Exactly the function-specific entry remains.
+    let restrictions = upgrade_registry::get_module_restrictions(&ref, module_name);
+    assert!(restrictions.length() == 1);
+    let mut expected = vector[version];
+    expected.append(b"test_function");
+    assert!(restrictions[0] == expected);
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+#[test]
+#[expected_failure(abort_code = upgrade_registry::EEmptyFunctionName)]
+public fun test_block_function_rejects_empty_name() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+
+    upgrade_registry::block_function(
+        &mut ref,
+        &owner_cap,
+        string::utf8(b"test_module"),
+        string::utf8(b""),
+        1u8,
+        scenario.ctx(),
+    );
+
+    tear_down_test(scenario, owner_cap, ref);
+}
