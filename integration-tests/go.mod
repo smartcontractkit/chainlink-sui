@@ -13,8 +13,8 @@ require (
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260625091148-e5618f5682ee
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260713194119-2689c5708c8b
 	github.com/smartcontractkit/chainlink-deployments-framework v0.111.1-0.20260612191326-e31c0ae4cd54
-	github.com/smartcontractkit/chainlink-sui v0.0.0
-	github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-00010101000000-000000000000
+	github.com/smartcontractkit/chainlink-sui v0.0.0-20260713213943-b588203d6679
+	github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-20260713213943-b588203d6679
 	github.com/smartcontractkit/mcms v0.48.0
 	github.com/stretchr/testify v1.11.1
 )

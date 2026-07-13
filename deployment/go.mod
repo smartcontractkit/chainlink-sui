@@ -17,7 +17,7 @@ require (
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260624154507-ea7ff77a0ddb
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260713194119-2689c5708c8b
 	github.com/smartcontractkit/chainlink-deployments-framework v0.109.1-0.20260604174622-e26b8cddfa0a
-	github.com/smartcontractkit/chainlink-sui v0.0.0
+	github.com/smartcontractkit/chainlink-sui v0.0.0-20260713213943-b588203d6679
 	github.com/smartcontractkit/mcms v0.45.2-0.20260604181544-da0bd7da623d
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.53.0
