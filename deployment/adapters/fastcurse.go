@@ -45,6 +45,8 @@ func NewCurseAdapter() *CurseAdapter {
 }
 
 // Initialize populates the adapter's state fields from the on-chain state for the given selector.
+// Chain metadata is resolved via LoadOnchainStatesui, which prefers datastore address refs
+// (address_refs.json) and falls back to the legacy address book (addresses.json).
 func (c *CurseAdapter) Initialize(e cldf.Environment, selector uint64) error {
 	stateMap, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {

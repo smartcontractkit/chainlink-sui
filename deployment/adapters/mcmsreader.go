@@ -2,10 +2,12 @@ package adapters
 
 import (
 	"fmt"
+	"strings"
 
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 
+	cciputils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	mcms_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -13,13 +15,17 @@ import (
 	suideploy "github.com/smartcontractkit/chainlink-sui/deployment"
 )
 
-const fastCurseQualifier = "RMNMCMS"
+const (
+	fastCurseQualifier       = "RMNMCMS"
+	devenvFastCurseQualifier = "fastcurse-devenv-curse"
+)
 
 type MCMSReader struct{}
 
 // mcmsFieldsFromInput loads the on-chain state and selects the correct
 // MCMSStateFields (normal or fastcurse) based on the Qualifier in the input.
-// A Qualifier value of "RMNMCMS" (fastCurseQualifier) selects the fastcurse MCMS instance.
+// Fast-curse qualifiers (RMNMCMS, UltraFastCurse, fastcurse-devenv-curse) select
+// the fastcurse MCMS instance used for CurserCap curse execution.
 func mcmsFieldsFromInput(e cldf.Environment, chainSelector uint64, input mcms_utils.Input) (suideploy.MCMSStateFields, error) {
 	stateMap, err := suideploy.LoadOnchainStatesui(e)
 	if err != nil {
@@ -29,7 +35,16 @@ func mcmsFieldsFromInput(e cldf.Environment, chainSelector uint64, input mcms_ut
 	if !ok {
 		return suideploy.MCMSStateFields{}, fmt.Errorf("sui chain %d not found in state", chainSelector)
 	}
-	return state.MCMSState(input.Qualifier == fastCurseQualifier), nil
+	return state.MCMSState(isFastCurseMCMSQualifier(input.Qualifier)), nil
+}
+
+func isFastCurseMCMSQualifier(qualifier string) bool {
+	switch strings.TrimSpace(qualifier) {
+	case fastCurseQualifier, cciputils.UltraFastCurseMCMSQualifier, devenvFastCurseQualifier:
+		return true
+	default:
+		return false
+	}
 }
 
 func (r *MCMSReader) GetChainMetadata(e cldf.Environment, chainSelector uint64, input mcms_utils.Input) (mcmstypes.ChainMetadata, error) {

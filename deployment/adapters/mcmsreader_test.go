@@ -37,6 +37,52 @@ const (
 	testSlowMcmsDeployer  = "0x0909090909090909090909090909090909090909090909090909090909090909"
 )
 
+func TestMCMSReader_FastCurseQualifiers_SelectFastMCMS(t *testing.T) {
+	t.Parallel()
+
+	selector := cselectors.SUI_TESTNET.Selector
+	ab := cldf.NewMemoryAddressBook()
+	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPPackageID, cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
+	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPObjectRef, cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)))
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+		PackageId: testFastMcmsPackageID,
+		Objects: mcmsops.DeployMCMSObjects{
+			McmsMultisigStateObjectId:   testFastMcmsState,
+			McmsRegistryObjectId:        testFastMcmsRegistry,
+			McmsAccountStateObjectId:    testFastMcmsAccount,
+			McmsAccountOwnerCapObjectId: testFastMcmsOwnerCap,
+			TimelockObjectId:            testFastMcmsTimelock,
+			McmsDeployerStateObjectId:   testFastMcmsDeployer,
+		},
+	}, deployment.MCMSInstanceFastCurse))
+
+	env := cldf.Environment{
+		ExistingAddresses: ab,
+		BlockChains: cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
+			selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
+		}),
+	}
+
+	reader := &adapters.MCMSReader{}
+	for _, qualifier := range []string{"RMNMCMS", "UltraFastCurse", "fastcurse-devenv-curse"} {
+		t.Run(qualifier, func(t *testing.T) {
+			t.Parallel()
+			input := ccipmcms.Input{
+				Qualifier:      qualifier,
+				TimelockAction: mcmstypes.TimelockActionBypass,
+			}
+
+			timelockRef, err := reader.GetTimelockRef(env, selector, input)
+			require.NoError(t, err)
+			require.Equal(t, testFastMcmsTimelock, timelockRef.Address)
+
+			mcmsRef, err := reader.GetMCMSRef(env, selector, input)
+			require.NoError(t, err)
+			require.Equal(t, testFastMcmsState, mcmsRef.Address)
+		})
+	}
+}
+
 func TestMCMSReader_RMNMCMSQualifier_SelectsFastMCMS(t *testing.T) {
 	t.Parallel()
 

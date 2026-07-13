@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -413,19 +412,17 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	return chainView, g.Wait()
 }
 
-// LoadOnchainStatesui loads chain state for sui chains from env
+// LoadOnchainStatesui loads chain state for Sui chains from env.
+// Address metadata is read from env.DataStore (address_refs.json) when refs exist
+// for a chain; otherwise it falls back to env.ExistingAddresses (addresses.json).
 func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error) {
 	rawChains := env.BlockChains.SuiChains()
 	suiChains := make(map[uint64]CCIPChainState)
 
 	for chainSelector := range rawChains {
-		addresses, err := env.ExistingAddresses.AddressesForChain(chainSelector)
+		addresses, err := addressesForSuiChain(env, chainSelector)
 		if err != nil {
-			// Chain not found in address book, initialize empty state
-			if !errors.Is(err, cldf.ErrChainNotFound) {
-				return nil, fmt.Errorf("failed to get addresses for chain %d: %w", chainSelector, err)
-			}
-			addresses = make(map[string]cldf.TypeAndVersion)
+			return nil, err
 		}
 
 		chainState, err := loadsuiChainStateFromAddresses(addresses)
