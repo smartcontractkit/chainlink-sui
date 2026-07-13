@@ -17,6 +17,7 @@ flowchart LR
 	chainlink-common --> chainlink-protos/billing/go
 	chainlink-common --> chainlink-protos/cre/go
 	chainlink-common --> chainlink-protos/linking-service/go
+	chainlink-common --> chainlink-protos/metering/go
 	chainlink-common --> chainlink-protos/node-platform
 	chainlink-common --> chainlink-protos/storage-service
 	chainlink-common --> chainlink-protos/workflows/go
@@ -34,6 +35,8 @@ flowchart LR
 	click chainlink-protos/cre/go href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/linking-service/go
 	click chainlink-protos/linking-service/go href "https://github.com/smartcontractkit/chainlink-protos"
+	chainlink-protos/metering/go
+	click chainlink-protos/metering/go href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/node-platform
 	click chainlink-protos/node-platform href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/rmn/v1.6/go
@@ -42,10 +45,11 @@ flowchart LR
 	click chainlink-protos/storage-service href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/workflows/go
 	click chainlink-protos/workflows/go href "https://github.com/smartcontractkit/chainlink-protos"
+	chainlink-sui --> chainlink-aptos
 	chainlink-sui --> chainlink-ccip
 	chainlink-sui --> chainlink-sui/codec
 	click chainlink-sui href "https://github.com/smartcontractkit/chainlink-sui"
-	chainlink-sui/codec --> chainlink-aptos
+	chainlink-sui/codec --> chainlink-aptos/codec
 	click chainlink-sui/codec href "https://github.com/smartcontractkit/chainlink-sui"
 	freeport
 	click freeport href "https://github.com/smartcontractkit/freeport"
@@ -72,6 +76,7 @@ flowchart LR
 		 chainlink-protos/billing/go
 		 chainlink-protos/cre/go
 		 chainlink-protos/linking-service/go
+		 chainlink-protos/metering/go
 		 chainlink-protos/node-platform
 		 chainlink-protos/rmn/v1.6/go
 		 chainlink-protos/storage-service
@@ -214,10 +219,11 @@ flowchart LR
 	click chainlink-protos/svr href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/workflows/go
 	click chainlink-protos/workflows/go href "https://github.com/smartcontractkit/chainlink-protos"
+	chainlink-sui --> chainlink-aptos
 	chainlink-sui --> chainlink-ccip
 	chainlink-sui --> chainlink-sui/codec
 	click chainlink-sui href "https://github.com/smartcontractkit/chainlink-sui"
-	chainlink-sui/codec --> chainlink-aptos
+	chainlink-sui/codec --> chainlink-aptos/codec
 	click chainlink-sui/codec href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/deployment --> chainlink-ccip/deployment
 	click chainlink-sui/deployment href "https://github.com/smartcontractkit/chainlink-sui"

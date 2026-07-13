@@ -1,26 +1,29 @@
 package codec
 
-import "github.com/smartcontractkit/chainlink-sui/codec"
+import (
+	common "github.com/smartcontractkit/chainlink-common/pkg/types/sui"
+	"github.com/smartcontractkit/chainlink-sui/codec"
+)
 
 //go:fix inline
 var AccountZero = codec.AccountZero
 
 //go:fix inline
-type PTBCommandDependency = codec.PTBCommandDependency
+type PTBCommandDependency = common.PTBCommandDependency
 
 //go:fix inline
-type PointerTag = codec.PointerTag
+type PointerTag = common.PointerTag
 
 //go:fix inline
-type SuiFunctionParam = codec.SuiFunctionParam
+type SuiFunctionParam = common.SuiFunctionParam
 
 //go:fix inline
-type SuiPTBCommandType = codec.SuiPTBCommandType
+type SuiPTBCommandType = common.SuiPTBCommandType
 
 const (
-	SuiPTBCommandMoveCall = codec.SuiPTBCommandMoveCall
-	SuiPTBCommandPublish  = codec.SuiPTBCommandPublish
-	SuiPTBCommandTransfer = codec.SuiPTBCommandTransfer
+	SuiPTBCommandMoveCall = common.SuiPTBCommandMoveCall
+	SuiPTBCommandPublish  = common.SuiPTBCommandPublish
+	SuiPTBCommandTransfer = common.SuiPTBCommandTransfer
 )
 
 //go:fix inline
