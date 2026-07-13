@@ -8,7 +8,7 @@ replace github.com/smartcontractkit/chainlink-sui => ../
 
 replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
 
-require github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-00010101000000-000000000000
+require github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-20260713213943-b588203d6679
 
 require (
 	filippo.io/edwards25519 v1.1.1 // indirect
