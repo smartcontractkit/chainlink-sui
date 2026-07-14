@@ -22,9 +22,16 @@ const (
 
 type GasCoinManager interface {
 	TryReserveCoins(ctx context.Context, txID string, paymentCoins []transaction.SuiObjectRef, expiry *time.Duration) error
+	ReserveLockedCoin(coinID models.SuiAddressBytes, ttl time.Duration)
 	ReleaseCoins(txID string) error
 	IsCoinReserved(coinID models.SuiAddressBytes) bool
 }
+
+// lockedCoinKeyPrefix namespaces the cache entries used to exclude coins that the
+// chain reported as locked. These entries are deliberately kept separate from the
+// txID-associated reservations so that ReleaseCoins (which only unwinds a txID's
+// reservation) can never remove a locked-coin exclusion before its TTL expires.
+const lockedCoinKeyPrefix = "locked:"
 
 // SuiGasCoinManager is the concrete implementation of GasCoinManager.
 type SuiGasCoinManager struct {
@@ -83,6 +90,25 @@ func (m *SuiGasCoinManager) TryReserveCoins(
 	return nil
 }
 
+// ReserveLockedCoin marks a single coin object as excluded for the given TTL,
+// independently of any transaction ID. Unlike TryReserveCoins, the exclusion is
+// not associated with a txID and therefore is never removed by ReleaseCoins; it
+// persists until the TTL expires. This is used to exclude a coin that the chain
+// reported as locked so it is not re-selected while the on-chain lock persists,
+// even if that same coin was previously reserved as a payment coin (whose
+// reservation is released during the coin-refresh retry).
+func (m *SuiGasCoinManager) ReserveLockedCoin(coinID models.SuiAddressBytes, ttl time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.coinsCache.Set(lockedCoinCacheKey(coinID), true, ttl)
+}
+
+// lockedCoinCacheKey returns the namespaced cache key for a locked-coin exclusion.
+func lockedCoinCacheKey(coinID models.SuiAddressBytes) string {
+	return lockedCoinKeyPrefix + hex.EncodeToString(coinID[:])
+}
+
 // ReleaseCoins only releases reservations stored under a txID key (txID -> []SuiObjectRef).
 // It does not work with coinID keys (coinID -> bool) and cannot unlock those entries directly.
 func (m *SuiGasCoinManager) ReleaseCoins(txID string) error {
@@ -110,9 +136,21 @@ func (m *SuiGasCoinManager) IsCoinReserved(coinID models.SuiAddressBytes) bool {
 }
 
 // isCoinReserved is the lock-free implementation of IsCoinReserved. Callers must
-// already hold m.mu.
+// already hold m.mu. A coin is considered reserved if it has either a txID-scoped
+// reservation (TryReserveCoins) or a standalone locked-coin exclusion
+// (ReserveLockedCoin).
 func (m *SuiGasCoinManager) isCoinReserved(coinID models.SuiAddressBytes) bool {
-	coinIDStr := hex.EncodeToString(coinID[:])
-	isReserved, found := m.coinsCache.Get(coinIDStr)
-	return found && isReserved.(bool)
+	if isReserved, found := m.coinsCache.Get(hex.EncodeToString(coinID[:])); found {
+		if reserved, ok := isReserved.(bool); ok && reserved {
+			return true
+		}
+	}
+
+	if locked, found := m.coinsCache.Get(lockedCoinCacheKey(coinID)); found {
+		if isLocked, ok := locked.(bool); ok && isLocked {
+			return true
+		}
+	}
+
+	return false
 }

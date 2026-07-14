@@ -237,3 +237,47 @@ func TestSuiGasCoinManager_AtomicReservation(t *testing.T) {
 		assert.Equal(t, int32(numGoroutines), successes.Load(), "all disjoint reservations should succeed")
 	})
 }
+
+// TestSuiGasCoinManager_ReserveLockedCoin verifies that a locked-coin exclusion is
+// independent of any txID reservation and survives ReleaseCoins, which is what keeps
+// a chain-locked coin out of re-selection during the coin-refresh retry.
+func TestSuiGasCoinManager_ReserveLockedCoin(t *testing.T) {
+	lggr := logger.Test(t)
+	mockClient := &testutils.FakeSuiPTBClient{}
+	ctx := context.Background()
+
+	t.Run("exclusion survives ReleaseCoins of the payment reservation", func(t *testing.T) {
+		gcm := txm.NewGasCoinManager(lggr, mockClient)
+		coin := mustCoinRef(t, fmt.Sprintf("0x%064x", 0xCC))
+
+		// The coin was reserved as a normal payment coin under the transaction's ID.
+		require.NoError(t, gcm.TryReserveCoins(ctx, "tx-locked", []transaction.SuiObjectRef{coin}, nil))
+		assert.True(t, gcm.IsCoinReserved(coin.ObjectId))
+
+		// The chain reports it as locked; add a standalone exclusion (as handleTransactionError does).
+		gcm.ReserveLockedCoin(coin.ObjectId, txm.DefaultLockedCoinTTL)
+
+		// The coin-refresh retry releases the payment reservation for this txID.
+		require.NoError(t, gcm.ReleaseCoins("tx-locked"))
+
+		// The standalone exclusion must survive, so the coin is still excluded and
+		// cannot be re-selected or re-reserved by any transaction.
+		assert.True(t, gcm.IsCoinReserved(coin.ObjectId), "locked coin exclusion must survive ReleaseCoins")
+		err := gcm.TryReserveCoins(ctx, "tx-other", []transaction.SuiObjectRef{coin}, nil)
+		assert.Error(t, err, "a locked coin must not be reservable by another transaction")
+	})
+
+	t.Run("exclusion is created even when the coin was never a payment reservation", func(t *testing.T) {
+		gcm := txm.NewGasCoinManager(lggr, mockClient)
+		coin := mustCoinRef(t, fmt.Sprintf("0x%064x", 0xDD))
+
+		assert.False(t, gcm.IsCoinReserved(coin.ObjectId))
+		gcm.ReserveLockedCoin(coin.ObjectId, txm.DefaultLockedCoinTTL)
+		assert.True(t, gcm.IsCoinReserved(coin.ObjectId))
+
+		// There is no txID mapping for a locked-only exclusion, so ReleaseCoins keyed
+		// by the coin's own hex finds nothing and the exclusion remains.
+		assert.Error(t, gcm.ReleaseCoins(fmt.Sprintf("0x%064x", 0xDD)))
+		assert.True(t, gcm.IsCoinReserved(coin.ObjectId))
+	})
+}
