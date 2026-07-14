@@ -94,7 +94,7 @@ func (tx *SuiTx) UpdateBSCPayload(
 		return fmt.Errorf("failed to get address from public key: %w", err)
 	}
 
-	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, tx.Ptb, tx.GasBudget, lggr, tx.CoinManager)
+	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, tx.Ptb, tx.GasBudget, lggr, tx.CoinManager, tx.TransactionID)
 	if err != nil {
 		return fmt.Errorf("failed to prepare PTB transaction: %w", err)
 	}
@@ -199,7 +199,7 @@ func GeneratePTBTransactionWithGasEstimation(
 
 	preliminaryTx, err := buildPreliminaryTransaction(
 		ctx, signerAddress, suiClient, ptb,
-		preliminaryGasBudget, lggr, coinManager,
+		preliminaryGasBudget, lggr, coinManager, transactionID,
 	)
 	if err != nil {
 		lggr.Errorf("failed to build preliminary transaction: %v", err)
@@ -324,6 +324,7 @@ func preparePTBTransaction(
 	gasBudget uint64,
 	lggr logger.Logger,
 	coinManager GasCoinManager,
+	txID string,
 ) (txBytes string, paymentCoins []transaction.SuiObjectRef, err error) {
 	// Get available sui coins for gas
 	coinData, err := suiClient.QueryCoinsByAddress(ctx, signerAddress, suiCoinType)
@@ -375,6 +376,14 @@ func preparePTBTransaction(
 		})
 	}
 
+	// Reserve the selected coins atomically before they are baked into the signed
+	// payload. Selection above only filters against the current reservation view;
+	// claiming the set here (under the coin manager's lock) prevents two concurrent
+	// transactions from selecting and signing against the same gas coin.
+	if err = coinManager.TryReserveCoins(ctx, txID, paymentCoins, nil); err != nil {
+		return "", nil, fmt.Errorf("failed to reserve selected coins: %w", err)
+	}
+
 	// Set transaction parameters
 	ptb.SetGasBudget(gasBudget)
 	ptb.SetSender(models.SuiAddress(signerAddress))
@@ -408,9 +417,10 @@ func buildPreliminaryTransaction(
 	gasBudget uint64,
 	lggr logger.Logger,
 	coinManager GasCoinManager,
+	txID string,
 ) (*SuiTx, error) {
 	// Use common preparation logic
-	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, ptb, gasBudget, lggr, coinManager)
+	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, ptb, gasBudget, lggr, coinManager, txID)
 	if err != nil {
 		return nil, err
 	}

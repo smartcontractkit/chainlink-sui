@@ -94,6 +94,12 @@ func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetad
 	)
 	if err != nil {
 		txm.lggr.Errorw("Failed to generate PTB txn", "error", err)
+		// Coins may have been reserved during generation before the failure; release
+		// them so they don't stay locked until their TTL for a transaction that will
+		// never be enqueued. Safe to call even if nothing was reserved.
+		if releaseErr := txm.coinManager.ReleaseCoins(transactionID); releaseErr != nil {
+			txm.lggr.Debugw("Failed to release coins after generation failure", "transactionID", transactionID, "error", releaseErr)
+		}
 		return nil, err
 	}
 
@@ -102,18 +108,18 @@ func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetad
 	err = txm.transactionRepository.AddTransaction(*txn)
 	if err != nil {
 		txm.lggr.Errorw("Failed to add txn to repository", "error", err)
+		// The payment coins were reserved during transaction generation; release them
+		// so they don't stay locked until their TTL expires for a transaction that
+		// was never enqueued.
+		if releaseErr := txm.coinManager.ReleaseCoins(transactionID); releaseErr != nil {
+			txm.lggr.Debugw("Failed to release coins after add failure", "transactionID", transactionID, "error", releaseErr)
+		}
 		return nil, err
 	}
 
 	txm.broadcastChannel <- transactionID
 	txm.lggr.Infow("PTB Transaction added to broadcast channel", "transactionID", transactionID)
 	txm.lggr.Infow("PTB Transaction enqueued", "transactionID", transactionID)
-
-	err = txm.coinManager.TryReserveCoins(ctx, transactionID, txn.PaymentCoinsObjectRef, nil)
-	if err != nil {
-		txm.lggr.Errorw("Failed to reserve coins", "error", err)
-		return nil, err
-	}
 
 	return txn, nil
 }

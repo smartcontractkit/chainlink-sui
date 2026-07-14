@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -30,6 +31,9 @@ type SuiGasCoinManager struct {
 	lggr       logger.Logger
 	client     client.SuiPTBClient
 	coinsCache *cache.Cache
+	// mu guards the whole check-then-reserve sequence so that reservations are
+	// atomic and all-or-nothing across the full coin set.
+	mu sync.Mutex
 }
 
 // NewGasCoinManager creates a new SuiGasCoinManager.
@@ -48,22 +52,33 @@ func (m *SuiGasCoinManager) TryReserveCoins(
 	coinIDs []transaction.SuiObjectRef,
 	expiry *time.Duration,
 ) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// First pass: verify the entire set is available before writing anything.
+	// Holding the lock across the check and the writes closes the check-then-set
+	// race between concurrent callers, and validating upfront makes the
+	// reservation all-or-nothing (no partial reservations leaked on failure).
 	for _, coin := range coinIDs {
-		if m.IsCoinReserved(coin.ObjectId) {
+		if m.isCoinReserved(coin.ObjectId) {
 			return fmt.Errorf("coin %s is already reserved", hex.EncodeToString(coin.ObjectId[:]))
 		}
+	}
 
+	expiresAt := DefaultAllocationTimeout
+	if expiry != nil {
+		expiresAt = *expiry
+	}
+
+	// Second pass: reserve the full set now that every coin is known to be free.
+	for _, coin := range coinIDs {
 		coinID := hex.EncodeToString(coin.ObjectId[:])
-		expiresAt := DefaultAllocationTimeout
-
-		if expiry != nil {
-			expiresAt = *expiry
-		}
-
 		m.coinsCache.Set(coinID, true, expiresAt)
 	}
 
-	m.coinsCache.Set(txID, coinIDs, DefaultAllocationTimeout)
+	// Track the reserved set under the txID using the same TTL so ReleaseCoins can
+	// always unwind the individual coin entries for the reservation's lifetime.
+	m.coinsCache.Set(txID, coinIDs, expiresAt)
 
 	return nil
 }
@@ -71,6 +86,9 @@ func (m *SuiGasCoinManager) TryReserveCoins(
 // ReleaseCoins only releases reservations stored under a txID key (txID -> []SuiObjectRef).
 // It does not work with coinID keys (coinID -> bool) and cannot unlock those entries directly.
 func (m *SuiGasCoinManager) ReleaseCoins(txID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	coinIDs, ok := m.coinsCache.Get(txID)
 	if !ok {
 		return fmt.Errorf("no coins reserved for transaction %s", txID)
@@ -86,6 +104,14 @@ func (m *SuiGasCoinManager) ReleaseCoins(txID string) error {
 }
 
 func (m *SuiGasCoinManager) IsCoinReserved(coinID models.SuiAddressBytes) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.isCoinReserved(coinID)
+}
+
+// isCoinReserved is the lock-free implementation of IsCoinReserved. Callers must
+// already hold m.mu.
+func (m *SuiGasCoinManager) isCoinReserved(coinID models.SuiAddressBytes) bool {
 	coinIDStr := hex.EncodeToString(coinID[:])
 	isReserved, found := m.coinsCache.Get(coinIDStr)
 	return found && isReserved.(bool)
