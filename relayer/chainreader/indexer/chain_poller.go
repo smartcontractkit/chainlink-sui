@@ -475,7 +475,7 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 		selectorMap[key] = sel
 	}
 
-	for _, tx := range transactions {
+	for txIdx, tx := range transactions {
 		txDigest := tx.GetDigest()
 		if txDigest == "" {
 			continue
@@ -500,6 +500,7 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 					item := CheckpointEventItem{
 						Event:      event,
 						TxDigest:   txDigest,
+						TxIndex:    uint32(txIdx),
 						EventIndex: uint32(eventIdx),
 					}
 					batch.Events = append(batch.Events, item)

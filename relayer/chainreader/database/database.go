@@ -60,8 +60,11 @@ func (store *DBStore) EnsureSchema(ctx context.Context) error {
 type EventRecord struct {
 	EventAccountAddress string
 	EventHandle         string
-	EventOffset         uint64
-	TxDigest            string
+	// TxIndex is the position of the transaction within its checkpoint, as returned by the node.
+	// Together with (block_height, event_offset) it provides a total order across all events.
+	TxIndex     uint64
+	EventOffset uint64
+	TxDigest    string
 	BlockVersion        uint64
 	BlockHeight         string
 	BlockHash           []byte
@@ -92,6 +95,7 @@ func (store *DBStore) InsertEvents(ctx context.Context, records []EventRecord) e
 			record.BlockTimestamp,
 			data,
 			record.IsSynthetic,
+			record.TxIndex,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to insert event (handle: %s, offset: %d): %w", record.EventHandle, record.EventOffset, err)
@@ -122,16 +126,16 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 		}
 	}
 
+	direction := "DESC" // default to descending order if no sort is provided
 	if len(limitAndSort.SortBy) > 0 {
-		direction := "ASC"
+		direction = "ASC"
 		if sortDir, ok := limitAndSort.SortBy[0].(query.SortBySequence); ok && sortDir.GetDirection() == query.Desc {
 			direction = "DESC"
 		}
-		baseSQL += " ORDER BY (block_height::BIGINT, event_offset) " + direction
-	} else {
-		// default to descending order if no sort is provided
-		baseSQL += " ORDER BY (block_height::BIGINT, event_offset) DESC"
 	}
+	// (block_height, tx_idx, event_offset) totally orders events as returned by the node:
+	// checkpoint, then transaction position within the checkpoint, then event position within the tx.
+	baseSQL += fmt.Sprintf(" ORDER BY block_height::BIGINT %s, tx_idx %s, event_offset %s", direction, direction, direction)
 
 	limit := limitAndSort.Limit.Count
 	if limit > MaxEventsQueryLimit {
@@ -155,7 +159,7 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 	for rows.Next() {
 		var record EventRecord
 		var dataBytes []byte
-		err := rows.Scan(&record.EventAccountAddress, &record.EventHandle, &record.EventOffset, &record.BlockVersion, &record.BlockHeight, &record.BlockHash, &record.BlockTimestamp, &record.TxDigest, &dataBytes)
+		err := rows.Scan(&record.EventAccountAddress, &record.EventHandle, &record.TxIndex, &record.EventOffset, &record.BlockVersion, &record.BlockHeight, &record.BlockHash, &record.BlockTimestamp, &record.TxDigest, &dataBytes)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan event record: %w", err)
 		}

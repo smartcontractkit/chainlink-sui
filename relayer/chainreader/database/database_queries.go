@@ -20,6 +20,7 @@ const (
 		UNIQUE (event_account_address, event_handle, tx_digest, event_offset)
 	);
     ALTER TABLE sui.events ADD COLUMN IF NOT EXISTS is_synthetic BOOLEAN DEFAULT FALSE;
+    ALTER TABLE sui.events ADD COLUMN IF NOT EXISTS tx_idx BIGINT NOT NULL DEFAULT 0;
     `
 
 	CreateTransmitterCursorsTable = `
@@ -34,6 +35,7 @@ const (
 	CREATE INDEX IF NOT EXISTS idx_events_offset ON sui.events(event_account_address, event_handle, event_offset);
 	CREATE INDEX IF NOT EXISTS idx_events_data_gin ON sui.events USING gin(data);
 	CREATE INDEX IF NOT EXISTS idx_events_account_handle_id ON sui.events(event_account_address, event_handle, id DESC);
+	CREATE INDEX IF NOT EXISTS idx_events_order ON sui.events(event_account_address, event_handle, (block_height::BIGINT), tx_idx, event_offset);
 	`
 
 	InsertEvent = `
@@ -47,13 +49,14 @@ const (
 		block_hash,
 		block_timestamp,
 		data,
-		is_synthetic
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		is_synthetic,
+		tx_idx
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	ON CONFLICT DO NOTHING;
     `
 
 	QueryEventsBase = `
-	SELECT event_account_address, event_handle, event_offset, block_version, block_height, block_hash, block_timestamp, tx_digest, data
+	SELECT event_account_address, event_handle, tx_idx, event_offset, block_version, block_height, block_hash, block_timestamp, tx_digest, data
 	FROM sui.events
 	WHERE event_account_address = $1 AND event_handle = $2
     `
