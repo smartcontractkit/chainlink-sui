@@ -17,6 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -53,7 +54,7 @@ func (s *stubPTBClient) SimulatePTB(context.Context, []byte) ([]any, error) {
 func (s *stubPTBClient) SignAndSendTransaction(context.Context, string, []byte) (*suirpcv2.ExecuteTransactionResponse, error) {
 	return nil, nil
 }
-func (s *stubPTBClient) QueryEvents(context.Context, client.EventFilterByMoveEventModule, *uint, *client.EventId, *client.QuerySortOptions) (*models.PaginatedEventsResponse, error) {
+func (s *stubPTBClient) QueryEvents(context.Context, sui.EventFilterByMoveEventModule, *uint, *sui.EventId, *client.QuerySortOptions) (*models.PaginatedEventsResponse, error) {
 	return nil, nil
 }
 func (s *stubPTBClient) QueryTransactions(context.Context, string, *suirpcv2.Checkpoint, *uint64) ([]*suirpcv2.ExecutedTransaction, error) {

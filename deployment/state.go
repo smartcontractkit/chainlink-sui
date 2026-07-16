@@ -28,12 +28,12 @@ type SuiChainView struct {
 	ChainID       string `json:"chainID,omitempty"`
 
 	MCMSWithTimelock          view.MCMSWithTimelockView `json:"mcmsWithTimelock"`
-	FastCurseMCMSWithTimelock view.MCMSWithTimelockView `json:"fastcurseMcmsWithTimelock,omitempty"`
+	FastCurseMCMSWithTimelock view.MCMSWithTimelockView `json:"fastcurseMcmsWithTimelock"`
 
-	CCIP    view.CCIPView               `json:"ccip,omitempty"`
+	CCIP    view.CCIPView               `json:"ccip"`
 	OnRamp  map[string]view.OnRampView  `json:"onRamp,omitempty"`
 	OffRamp map[string]view.OffRampView `json:"offRamp,omitempty"`
-	Router  view.RouterView             `json:"router,omitempty"`
+	Router  view.RouterView             `json:"router"`
 
 	TokenPools map[string]map[string]view.TokenPoolView `json:"tokenPools,omitempty"` // TokenSymbol => TokenPool Address => PoolView
 }

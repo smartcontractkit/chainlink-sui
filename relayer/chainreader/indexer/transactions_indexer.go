@@ -20,10 +20,10 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
+	codec0 "github.com/smartcontractkit/chainlink-sui/codec"
 	chainreader_util "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
 
@@ -36,7 +36,7 @@ type TransactionsIndexer struct {
 	wg     sync.WaitGroup
 
 	// Event configs for reading source chain config
-	eventConfigs map[string]*config.ChainReaderEvent
+	eventConfigs map[string]*sui.ChainReaderEvent
 
 	// Offramp package tracking
 	offrampPackageID       string
@@ -72,7 +72,7 @@ type TransactionsIndexerApi interface {
 func NewTransactionsIndexer(
 	db sqlutil.DataSource,
 	lggr logger.Logger,
-	eventConfigs map[string]*config.ChainReaderEvent,
+	eventConfigs map[string]*sui.ChainReaderEvent,
 ) TransactionsIndexerApi {
 	logInstance := logger.Named(lggr, "SuiTransactionsIndexer")
 	dataStore := database.NewDBStore(db, logInstance)
@@ -95,11 +95,9 @@ func NewTransactionsIndexer(
 // while waiting for the initial ConfigSet event to identify transmitters.
 func (tIndexer *TransactionsIndexer) Start(ctx context.Context, transactionsCh <-chan CheckpointTransactionsBatch) error {
 	return tIndexer.starter.StartOnce("TransactionsIndexer", func() error {
-		tIndexer.wg.Add(1)
-		go func() {
-			defer tIndexer.wg.Done()
+		tIndexer.wg.Go(func() {
 			tIndexer.run(ctx, transactionsCh)
-		}()
+		})
 
 		return nil
 	})
@@ -447,7 +445,7 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 	}
 
 	// Deserialize execution report
-	execReport, err := codec.DeserializeExecutionReportFromPure(reportBytes)
+	execReport, err := codec0.DeserializeExecutionReportFromPure(reportBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
 	}
@@ -474,8 +472,8 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 	executionStateChanged := map[string]any{
 		"source_chain_selector": strconv.FormatUint(sourceChainSelector, 10),
 		"sequence_number":       strconv.FormatUint(execReport.Message.Header.SequenceNumber, 10),
-		"message_id":            codec.BytesToAnySlice(execReport.Message.Header.MessageID),
-		"message_hash":          codec.BytesToAnySlice(messageHash[:]),
+		"message_id":            codec0.BytesToAnySlice(execReport.Message.Header.MessageID),
+		"message_hash":          codec0.BytesToAnySlice(messageHash[:]),
 		"state":                 uint8(3), // 3 = FAILURE
 	}
 
@@ -552,8 +550,8 @@ func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]str
 		return nil, nil
 	}
 
-	var configSet codec.ConfigSet
-	if err := codec.DecodeSuiJsonValue(events[0].Data, &configSet); err != nil {
+	var configSet codec0.ConfigSet
+	if err := codec0.DecodeSuiJsonValue(events[0].Data, &configSet); err != nil {
 		tIndexer.logger.Errorw("Failed to decode ConfigSet event", "error", err)
 		return nil, fmt.Errorf("failed to decode ConfigSet event: %w", err)
 	}
@@ -571,7 +569,7 @@ func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]str
 	return transmitters, nil
 }
 
-func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, sourceChainSelector uint64) (*codec.SourceChainConfig, error) {
+func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, sourceChainSelector uint64) (*codec0.SourceChainConfig, error) {
 	const (
 		moduleKey = "offramp"
 		eventKey  = "SourceChainConfigSet"
@@ -611,8 +609,8 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 		return nil, nil
 	}
 
-	var configEvent codec.SourceChainConfigSet
-	if err := codec.DecodeSuiJsonValue(events[0].Data, &configEvent); err != nil {
+	var configEvent codec0.SourceChainConfigSet
+	if err := codec0.DecodeSuiJsonValue(events[0].Data, &configEvent); err != nil {
 		return nil, fmt.Errorf("failed to decode SourceChainConfigSet event: %w", err)
 	}
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"strconv"
 	"strings"
@@ -24,7 +25,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/codec"
 	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -34,6 +34,7 @@ import (
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 )
 
 const (
@@ -58,7 +59,7 @@ type suiChainReader struct {
 	pkgtypes.UnimplementedContractReader
 
 	logger          logger.Logger
-	config          config.ChainReaderConfig
+	config          sui.ChainReaderConfig
 	starter         services.StateMachine
 	packageResolver *crUtil.PackageResolver
 	client          *client.PTBClient
@@ -91,7 +92,7 @@ func NewChainReader(
 	ctx context.Context,
 	lgr logger.Logger,
 	ptbClient *client.PTBClient,
-	configs config.ChainReaderConfig,
+	configs sui.ChainReaderConfig,
 	db sqlutil.DataSource,
 	indexer indexer.IndexerApi,
 	readerCache *Cache,
@@ -133,9 +134,7 @@ func (s *suiChainReader) HealthReport() map[string]error {
 
 	// Include indexer health status
 	if s.indexer != nil {
-		for k, v := range s.indexer.HealthReport() {
-			report[k] = v
-		}
+		maps.Copy(report, s.indexer.HealthReport())
 	}
 
 	return report
@@ -144,7 +143,7 @@ func (s *suiChainReader) HealthReport() map[string]error {
 func (s *suiChainReader) Start(ctx context.Context) error {
 	return s.starter.StartOnce(s.Name(), func() error {
 		// set the event offset overrides for the event indexer if any
-		offsetOverrides := make(map[string]client.EventId)
+		offsetOverrides := make(map[string]sui.EventId)
 
 		for _, moduleConfig := range s.config.Modules {
 			for _, eventConfig := range moduleConfig.Events {
@@ -210,7 +209,7 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 
 		// Ensure that the event indexer has the SourceChainConfigSet event selector, this is needed to make sure
 		// transaction indexer can find the relevant data when inserting synthetic events.
-		err = s.indexer.GetEventIndexer().AddEventSelector(ctx, &client.EventSelector{
+		err = s.indexer.GetEventIndexer().AddEventSelector(ctx, &sui.EventFilterByMoveEventModule{
 			Package: offrampPackageAddress,
 			Module:  "offramp",
 			Event:   "SourceChainConfigSet",
@@ -218,7 +217,7 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 		if err != nil {
 			s.logger.Errorw("Failed to update offramp::SourceChainConfigSet event selector when binding OffRamp", "error", err)
 		}
-		err = s.indexer.GetEventIndexer().AddEventSelector(ctx, &client.EventSelector{
+		err = s.indexer.GetEventIndexer().AddEventSelector(ctx, &sui.EventFilterByMoveEventModule{
 			Package: offrampPackageAddress,
 			Module:  "ocr3_base",
 			Event:   "ConfigSet",
@@ -287,7 +286,7 @@ func (s *suiChainReader) registerConfiguredEventSelectors(ctx context.Context, b
 			event = eventKey
 		}
 
-		selector := &client.EventSelector{
+		selector := &sui.EventFilterByMoveEventModule{
 			Package: binding.Address,
 			Module:  module,
 			Event:   event,
@@ -658,7 +657,7 @@ func (s *suiChainReader) parseReadIdentifier(identifier string) (*readIdentifier
 	}, nil
 }
 
-func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter) (*config.ChainReaderEvent, error) {
+func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter) (*sui.ChainReaderEvent, error) {
 	// Validate contract binding
 	if err := s.validateContractBindingAndConfig(contract.Name, contract.Address); err != nil {
 		return nil, err
@@ -671,10 +670,10 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	// No event config found, construct a config
 	if err == nil && eventConfig == nil {
 		// construct a new config ad-hoc
-		eventConfig = &config.ChainReaderEvent{
+		eventConfig = &sui.ChainReaderEvent{
 			Name:      filter.Key,
 			EventType: filter.Key,
-			EventSelector: client.EventSelector{
+			EventSelector: sui.EventFilterByMoveEventModule{
 				Package: contract.Address,
 				Module:  contract.Name,
 				Event:   filter.Key,
@@ -700,7 +699,7 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 
 	evIndexer := s.indexer.GetEventIndexer()
 	// create a selector for the initial package ID
-	selector := client.EventSelector{
+	selector := sui.EventFilterByMoveEventModule{
 		Package: contract.Address,
 		Module:  eventConfig.EventSelector.Module,
 		Event:   eventConfig.EventType,
@@ -730,7 +729,7 @@ func (s *suiChainReader) validateContractBindingAndConfig(name string, address s
 }
 
 // callFunction calls a contract function and returns the result
-func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifier, params any, functionConfig *config.ChainReaderFunction) ([]any, error) {
+func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifier, params any, functionConfig *sui.ChainReaderFunction) ([]any, error) {
 	argMap, err := s.parseParams(params, functionConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
@@ -756,7 +755,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 }
 
 // Helper function to extract generic type tags
-func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction, args []any) ([]string, error) {
+func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *readIdentifier, functionConfig *sui.ChainReaderFunction, args []any) ([]string, error) {
 	if functionConfig.Params == nil {
 		return []string{}, nil
 	}
@@ -790,7 +789,7 @@ func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *rea
 
 func (s *suiChainReader) fetchGenericDependency(
 	ctx context.Context,
-	param *codec.SuiFunctionParam,
+	param *sui.SuiFunctionParam,
 	paramValue any,
 ) (string, error) {
 	if param == nil || param.GenericDependency == nil || *param.GenericDependency == "" {
@@ -823,7 +822,7 @@ func (s *suiChainReader) fetchGenericDependency(
 }
 
 // parseParams parses input parameters based on whether we're running as a LOOP plugin
-func (s *suiChainReader) parseParams(params any, functionConfig *config.ChainReaderFunction) (map[string]any, error) {
+func (s *suiChainReader) parseParams(params any, functionConfig *sui.ChainReaderFunction) (map[string]any, error) {
 	argMap := make(map[string]any)
 
 	if params == nil {
@@ -847,7 +846,7 @@ func (s *suiChainReader) parseParams(params any, functionConfig *config.ChainRea
 }
 
 // parseLoopParams handles parameter parsing for LOOP plugin mode
-func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.ChainReaderFunction) (map[string]any, error) {
+func (s *suiChainReader) parseLoopParams(params any, functionConfig *sui.ChainReaderFunction) (map[string]any, error) {
 	paramBytes, ok := params.(*[]byte)
 	if !ok {
 		return nil, fmt.Errorf("expected *[]byte for LOOP plugin params, got %T", params)
@@ -890,7 +889,7 @@ type pointerMapEntry struct {
 // prepareArguments prepares function arguments and types for the call.
 // For pointer tags, it looks up cached parent object IDs (pre-loaded during Bind) and derives
 // child object IDs using the derivation keys specified in the pointer tags.
-func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *config.ChainReaderFunction, identifier *readIdentifier) ([]any, []string, []bool, error) {
+func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *sui.ChainReaderFunction, identifier *readIdentifier) ([]any, []string, []bool, error) {
 	if functionConfig.Params == nil {
 		return []any{}, []string{}, []bool{}, nil
 	}
@@ -1023,7 +1022,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 }
 
 // executeFunction executes the actual function call
-func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction, args []any, argTypes []string, mutabilities []bool, typeArgs []string) ([]any, error) {
+func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, functionConfig *sui.ChainReaderFunction, args []any, argTypes []string, mutabilities []bool, typeArgs []string) ([]any, error) {
 	s.logger.Debugw("Calling ReadFunction",
 		"address", parsed.address,
 		"module", parsed.contractName,
@@ -1116,7 +1115,7 @@ func (s *suiChainReader) applyResultFieldRenames(value any, renames map[string]a
 
 // prepareFunctionReadResult shapes JSON-native ReadFunction results (from Json.AsInterface)
 // for LOOP encoding or native typed decoding.
-func (s *suiChainReader) prepareFunctionReadResult(results []any, cfg *config.ChainReaderFunction, forLoop bool) (any, error) {
+func (s *suiChainReader) prepareFunctionReadResult(results []any, cfg *sui.ChainReaderFunction, forLoop bool) (any, error) {
 	if cfg.ResultTupleToStruct != nil {
 		if len(results) < len(cfg.ResultTupleToStruct) {
 			return nil, fmt.Errorf("expected %d results, got %d", len(cfg.ResultTupleToStruct), len(results))
@@ -1195,7 +1194,7 @@ func (s *suiChainReader) encodeLoopResult(valueField any, returnVal any) error {
 }
 
 // getEventConfig retrieves event configuration for the given key
-func (s *suiChainReader) getEventConfig(moduleConfig *config.ChainReaderModule, eventKey string) (*config.ChainReaderEvent, error) {
+func (s *suiChainReader) getEventConfig(moduleConfig *sui.ChainReaderModule, eventKey string) (*sui.ChainReaderEvent, error) {
 	if moduleConfig.Events == nil {
 		return nil, fmt.Errorf("no events configured for contract")
 	}
@@ -1210,7 +1209,7 @@ func (s *suiChainReader) getEventConfig(moduleConfig *config.ChainReaderModule, 
 }
 
 // queryEvents queries events from the database instead of the Sui blockchain
-func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.ChainReaderEvent, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
+func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *sui.ChainReaderEvent, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
 	// Create the event handle for database lookup
 	eventHandle := fmt.Sprintf("%s::%s::%s", eventConfig.Package, eventConfig.EventSelector.Module, eventConfig.EventType)
 
@@ -1294,7 +1293,7 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 
 	for _, record := range eventRecords {
 		t := reflect.TypeOf(expectedEventType)
-		if t == nil || t.Kind() != reflect.Ptr {
+		if t == nil || t.Kind() != reflect.Pointer {
 			return nil, fmt.Errorf("sequenceDataType must be a non-nil pointer type")
 		}
 		eventData := reflect.New(t.Elem()).Interface()

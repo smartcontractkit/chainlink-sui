@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
@@ -73,9 +73,9 @@ func TestCatchUpJumpsOverPrunedCheckpoints(t *testing.T) {
 		notFoundBelow:   500,
 	}
 
-	cp := NewChainPoller(mockClient, logger.Test(t), config.ChainPollerConfig{
+	cp := NewChainPoller(mockClient, logger.Test(t), sui.ChainPollerConfig{
 		SyncTimeout: time.Minute,
-	}, func() []*client.EventSelector {
+	}, func() []*sui.EventFilterByMoveEventModule {
 		return nil
 	})
 
@@ -93,9 +93,9 @@ func TestCatchUpRetriesInRangeNotFound(t *testing.T) {
 		notFoundBelow:   501,
 	}
 
-	cp := NewChainPoller(mockClient, logger.Test(t), config.ChainPollerConfig{
+	cp := NewChainPoller(mockClient, logger.Test(t), sui.ChainPollerConfig{
 		SyncTimeout: time.Minute,
-	}, func() []*client.EventSelector {
+	}, func() []*sui.EventFilterByMoveEventModule {
 		return nil
 	})
 

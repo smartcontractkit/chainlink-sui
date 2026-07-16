@@ -16,8 +16,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
 
@@ -29,7 +29,7 @@ type EventsIndexer struct {
 	wg     sync.WaitGroup
 
 	// Protected by configMutex
-	eventConfigurations []*client.EventSelector
+	eventConfigurations []*sui.EventFilterByMoveEventModule
 	configMutex         sync.RWMutex
 
 	starter services.StateMachine
@@ -43,13 +43,13 @@ type EventsIndexerApi interface {
 	// ProcessCheckpointEvents processes a batch of events from a single checkpoint.
 	ProcessCheckpointEvents(ctx context.Context, batch CheckpointEventsBatch) error
 	// AddEventSelector registers a new event selector to be matched against incoming events.
-	AddEventSelector(ctx context.Context, selector *client.EventSelector) error
+	AddEventSelector(ctx context.Context, selector *sui.EventFilterByMoveEventModule) error
 	// GetEventSelectors returns a snapshot of all registered event selectors.
 	// Used by ChainPoller to filter events.
-	GetEventSelectors() []*client.EventSelector
+	GetEventSelectors() []*sui.EventFilterByMoveEventModule
 	// SetEventOffsetOverrides is deprecated; kept for backward compatibility.
 	// Events are now checkpoint-ordered; this method logs a warning.
-	SetEventOffsetOverrides(ctx context.Context, overrides map[string]client.EventId) error
+	SetEventOffsetOverrides(ctx context.Context, overrides map[string]sui.EventId) error
 	Ready() error
 	Close() error
 }
@@ -58,7 +58,7 @@ type EventsIndexerApi interface {
 func NewEventIndexer(
 	db sqlutil.DataSource,
 	log logger.Logger,
-	eventConfigurations []*client.EventSelector,
+	eventConfigurations []*sui.EventFilterByMoveEventModule,
 ) EventsIndexerApi {
 	dataStore := database.NewDBStore(db, log)
 	namedLogger := logger.Named(log, "EventsIndexer")
@@ -80,11 +80,9 @@ func (eIndexer *EventsIndexer) Start(ctx context.Context, eventsCh <-chan Checkp
 			return fmt.Errorf("failed to ensure schema: %w", err)
 		}
 
-		eIndexer.wg.Add(1)
-		go func() {
-			defer eIndexer.wg.Done()
+		eIndexer.wg.Go(func() {
 			eIndexer.run(ctx, eventsCh)
-		}()
+		})
 
 		return nil
 	})
@@ -151,14 +149,14 @@ func (eIndexer *EventsIndexer) ProcessCheckpointEvents(ctx context.Context, batc
 }
 
 // findMatchingSelector returns the first selector that matches the given event.
-func (eIndexer *EventsIndexer) findMatchingSelector(event *suirpcv2.Event) *client.EventSelector {
+func (eIndexer *EventsIndexer) findMatchingSelector(event *suirpcv2.Event) *sui.EventFilterByMoveEventModule {
 	if event == nil {
 		eIndexer.logger.Warnw("Event is nil, skipping", "event", event)
 		return nil
 	}
 
 	eIndexer.configMutex.RLock()
-	selectors := make([]*client.EventSelector, len(eIndexer.eventConfigurations))
+	selectors := make([]*sui.EventFilterByMoveEventModule, len(eIndexer.eventConfigurations))
 	copy(selectors, eIndexer.eventConfigurations)
 	eIndexer.configMutex.RUnlock()
 
@@ -283,7 +281,7 @@ func (eIndexer *EventsIndexer) processEventsForHandle(
 }
 
 // AddEventSelector registers a new event selector to be matched against incoming events.
-func (eIndexer *EventsIndexer) AddEventSelector(ctx context.Context, selector *client.EventSelector) error {
+func (eIndexer *EventsIndexer) AddEventSelector(ctx context.Context, selector *sui.EventFilterByMoveEventModule) error {
 	if selector == nil {
 		return fmt.Errorf("unspecified selector for AddEventSelector call")
 	}
@@ -318,30 +316,30 @@ func (eIndexer *EventsIndexer) AddEventSelector(ctx context.Context, selector *c
 }
 
 // GetEventSelectors returns a snapshot of all registered event selectors.
-func (eIndexer *EventsIndexer) GetEventSelectors() []*client.EventSelector {
+func (eIndexer *EventsIndexer) GetEventSelectors() []*sui.EventFilterByMoveEventModule {
 	eIndexer.configMutex.RLock()
 	defer eIndexer.configMutex.RUnlock()
 
-	selectors := make([]*client.EventSelector, len(eIndexer.eventConfigurations))
+	selectors := make([]*sui.EventFilterByMoveEventModule, len(eIndexer.eventConfigurations))
 	copy(selectors, eIndexer.eventConfigurations)
 	return selectors
 }
 
 // SetEventOffsetOverrides is deprecated; events are now checkpoint-ordered.
-func (eIndexer *EventsIndexer) SetEventOffsetOverrides(ctx context.Context, overrides map[string]client.EventId) error {
+func (eIndexer *EventsIndexer) SetEventOffsetOverrides(ctx context.Context, overrides map[string]sui.EventId) error {
 	eIndexer.logger.Warn("SetEventOffsetOverrides is deprecated; events are now checkpoint-ordered")
 	return nil
 }
 
 // isEventSelectorAdded checks if a specific event selector has already been added.
-func (eIndexer *EventsIndexer) isEventSelectorAdded(eConfig client.EventSelector) bool {
+func (eIndexer *EventsIndexer) isEventSelectorAdded(eConfig sui.EventFilterByMoveEventModule) bool {
 	eIndexer.configMutex.RLock()
 	defer eIndexer.configMutex.RUnlock()
 	return eIndexer.isEventSelectorAddedLocked(eConfig)
 }
 
 // isEventSelectorAddedLocked assumes the lock is already held.
-func (eIndexer *EventsIndexer) isEventSelectorAddedLocked(eConfig client.EventSelector) bool {
+func (eIndexer *EventsIndexer) isEventSelectorAddedLocked(eConfig sui.EventFilterByMoveEventModule) bool {
 	for _, selector := range eIndexer.eventConfigurations {
 		if selector.Package == eConfig.Package && selector.Module == eConfig.Module && selector.Event == eConfig.Event {
 			return true

@@ -24,7 +24,7 @@ type BCSTypeConverter = codec.BCSTypeConverter
 // Deprecated: use codec.NewBCSTypeConverter
 //
 //go:fix inline
-func NewBCSTypeConverter() *BCSTypeConverter {
+func NewBCSTypeConverter() *codec.BCSTypeConverter {
 	return codec.NewBCSTypeConverter()
 }
 

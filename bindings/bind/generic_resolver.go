@@ -35,12 +35,12 @@ func (r *GenericTypeResolver) ResolveType(typeName string) string {
 	}
 
 	// handle references
-	if strings.HasPrefix(typeName, "&mut ") {
-		inner := strings.TrimPrefix(typeName, "&mut ")
+	if after, ok := strings.CutPrefix(typeName, "&mut "); ok {
+		inner := after
 		return "&mut " + r.ResolveType(inner)
 	}
-	if strings.HasPrefix(typeName, "&") {
-		inner := strings.TrimPrefix(typeName, "&")
+	if after, ok := strings.CutPrefix(typeName, "&"); ok {
+		inner := after
 		return "&" + r.ResolveType(inner)
 	}
 

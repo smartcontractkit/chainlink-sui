@@ -37,7 +37,6 @@ func TestAssertBypassAllowsCall(t *testing.T) {
 	t.Run("bypass rejects each forbidden mcms admin function", func(t *testing.T) {
 		t.Parallel()
 		for _, fn := range forbidden {
-			fn := fn
 			t.Run(fn, func(t *testing.T) {
 				t.Parallel()
 				err := assertBypassAllowsCall(types.TimelockActionBypass, sui_ops.TransactionCall{

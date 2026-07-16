@@ -15,7 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -33,7 +33,7 @@ type ChainPollerAPI interface {
 
 // SelectorProvider is a function that returns the current list of event selectors.
 // This allows dynamic selector registration via AddEventSelector.
-type SelectorProvider func() []*client.EventSelector
+type SelectorProvider func() []*sui.EventFilterByMoveEventModule
 
 // ChainPoller implements checkpoint-based polling for the Sui chain.
 // It fetches checkpoints, extracts events and transactions, and sends them over channels
@@ -42,7 +42,7 @@ type ChainPoller struct {
 	client           client.SuiPTBClient
 	extendedClient   client.ExtendedPTBClient
 	logger           logger.Logger
-	config           config.ChainPollerConfig
+	config           sui.ChainPollerConfig
 	eventsCh         chan CheckpointEventsBatch
 	transactionsCh   chan CheckpointTransactionsBatch
 	selectorProvider SelectorProvider
@@ -58,7 +58,7 @@ type ChainPoller struct {
 func NewChainPoller(
 	client client.SuiPTBClient,
 	log logger.Logger,
-	cfg config.ChainPollerConfig,
+	cfg sui.ChainPollerConfig,
 	selectorProvider SelectorProvider,
 ) *ChainPoller {
 	bufferSize := cfg.ChannelBufferSize
@@ -84,12 +84,10 @@ func (cp *ChainPoller) Start(ctx context.Context) error {
 		pollerCtx, cancel := context.WithCancel(ctx)
 		cp.cancel = cancel
 
-		cp.wg.Add(1)
-		go func() {
-			defer cp.wg.Done()
+		cp.wg.Go(func() {
 			defer cp.closeChannels()
 			cp.run(pollerCtx)
-		}()
+		})
 
 		return nil
 	})
@@ -458,7 +456,7 @@ func (cp *ChainPoller) processCheckpoint(ctx context.Context, seq uint64) error 
 }
 
 // filterEvents extracts events matching the registered selectors from all transactions.
-func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv2.ExecutedTransaction, selectors []*client.EventSelector) CheckpointEventsBatch {
+func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv2.ExecutedTransaction, selectors []*sui.EventFilterByMoveEventModule) CheckpointEventsBatch {
 	batch := CheckpointEventsBatch{
 		Checkpoint: meta,
 		Events:     make([]CheckpointEventItem, 0),
@@ -469,7 +467,7 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 	}
 
 	// Build a map for faster lookup (key: "package::module::event")
-	selectorMap := make(map[string]*client.EventSelector)
+	selectorMap := make(map[string]*sui.EventFilterByMoveEventModule)
 	for _, sel := range selectors {
 		key := fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event)
 		selectorMap[key] = sel
@@ -513,7 +511,7 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 }
 
 // eventMatchesSelector checks if an event matches a given selector.
-func eventMatchesSelector(event *suirpcv2.Event, sel *client.EventSelector) bool {
+func eventMatchesSelector(event *suirpcv2.Event, sel *sui.EventFilterByMoveEventModule) bool {
 	if event == nil || sel == nil {
 		return false
 	}
