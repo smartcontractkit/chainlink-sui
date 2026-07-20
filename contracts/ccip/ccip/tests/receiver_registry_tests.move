@@ -22,7 +22,7 @@ const OWNER: address = @0x1000;
 
 // Helper function to get the package ID from a proof type
 fun get_package_id_from_proof<ProofType>(): address {
-    let proof_tn = type_name::with_defining_ids<ProofType>();
+    let proof_tn = type_name::with_original_ids<ProofType>();
     let address_str = type_name::address_string(&proof_tn);
     address::from_ascii_bytes(&std::ascii::into_bytes(address_str))
 }
@@ -118,7 +118,7 @@ public fun test_register_receiver() {
 
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
     assert!(
-        proof_typename == type_name::into_string(type_name::with_defining_ids<TestReceiverProof>()),
+        proof_typename == type_name::into_string(type_name::with_original_ids<TestReceiverProof>()),
     );
 
     cleanup_test(scenario, ref, owner_cap);
@@ -181,7 +181,7 @@ public fun test_register_multiple_receivers_same_package() {
     let (_, proof_type) = receiver_registry::get_receiver_config_fields(config);
 
     assert!(
-        proof_type == type_name::into_string(type_name::with_defining_ids<TestReceiverProof>()),
+        proof_type == type_name::into_string(type_name::with_original_ids<TestReceiverProof>()),
     );
 
     cleanup_test(scenario, ref, owner_cap);
@@ -283,7 +283,7 @@ public fun test_get_receiver_config() {
     // Verify all fields
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
     assert!(
-        proof_typename == type_name::into_string(type_name::with_defining_ids<TestReceiverProof>()),
+        proof_typename == type_name::into_string(type_name::with_original_ids<TestReceiverProof>()),
     );
 
     cleanup_test(scenario, ref, owner_cap);
@@ -316,7 +316,7 @@ public fun test_get_receiver_module_and_state() {
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
     // The proof typename string should contain the test receiver proof type
     assert!(
-        proof_typename_str == type_name::into_string(type_name::with_defining_ids<TestReceiverProof>()),
+        proof_typename_str == type_name::into_string(type_name::with_original_ids<TestReceiverProof>()),
     );
 
     cleanup_test(scenario, ref, owner_cap);
@@ -344,7 +344,7 @@ public fun test_register_receiver_with_zero_state_id() {
     );
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
     assert!(
-        proof_typename_str == type_name::into_string(type_name::with_defining_ids<TestReceiverProof>()),
+        proof_typename_str == type_name::into_string(type_name::with_original_ids<TestReceiverProof>()),
     );
 
     cleanup_test(scenario, ref, owner_cap);
@@ -371,7 +371,7 @@ public fun test_complete_receiver_lifecycle() {
 
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
     assert!(
-        proof_typename == type_name::into_string(type_name::with_defining_ids<TestReceiverProof>()),
+        proof_typename == type_name::into_string(type_name::with_original_ids<TestReceiverProof>()),
     );
 
     // 4. Verify module and proof typename lookup
