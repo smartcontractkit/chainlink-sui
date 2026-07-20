@@ -62,15 +62,15 @@ type EventRecord struct {
 	EventHandle         string
 	// TxIndex is the position of the transaction within its checkpoint, as returned by the node.
 	// Together with (block_height, event_offset) it provides a total order across all events.
-	TxIndex     uint64
-	EventOffset uint64
-	TxDigest    string
-	BlockVersion        uint64
-	BlockHeight         string
-	BlockHash           []byte
-	BlockTimestamp      uint64
-	Data                map[string]any
-	IsSynthetic         bool
+	TxIndex        uint64
+	EventOffset    uint64
+	TxDigest       string
+	BlockVersion   uint64
+	BlockHeight    string
+	BlockHash      []byte
+	BlockTimestamp uint64
+	Data           map[string]any
+	IsSynthetic    bool
 }
 
 func (store *DBStore) InsertEvents(ctx context.Context, records []EventRecord) error {
