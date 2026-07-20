@@ -3,6 +3,7 @@ package mcmsops
 import (
 	"encoding/binary"
 	"fmt"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -179,12 +180,13 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		Transactions:  mcmsTxs,
 	}
 
-	var description string = "Invokes the following set of operations: "
+	var description strings.Builder
+	description.WriteString("Invokes the following set of operations: ")
 	for i, def := range input.Defs {
 		if i > 0 {
-			description += ", "
+			description.WriteString(", ")
 		}
-		description += def.ID
+		description.WriteString(def.ID)
 	}
 
 	proposalInput := utils.GenerateProposalInput{
@@ -197,7 +199,7 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		DeployerStateObjID: input.DeployerStateObjID,
 		ChainSelector:      input.ChainSelector,
 		TimelockConfig:     input.TimelockConfig,
-		Description:        description,
+		Description:        description.String(),
 		BatchOp:            op,
 	}
 	timelockProposal, err := utils.GenerateProposal(b.GetContext(), proposalInput)

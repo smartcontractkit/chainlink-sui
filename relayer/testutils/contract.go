@@ -25,7 +25,7 @@ import (
 type ObjectChange struct {
 	Type            string   `json:"type"` // "published", "created", etc.
 	Sender          string   `json:"sender,omitempty"`
-	Owner           Owner    `json:"owner,omitempty"`
+	Owner           Owner    `json:"owner"`
 	ObjectType      string   `json:"objectType,omitempty"`
 	ObjectTypeSnake string   `json:"object_type,omitempty"`
 	ObjectID        string   `json:"objectId,omitempty"`
@@ -201,17 +201,17 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	// and any local dependencies declared in Move.toml (e.g. test_secondary).
 	dirsToClean := []string{contractPath}
 	if moveToml, err := os.ReadFile(filepath.Join(contractPath, "Move.toml")); err == nil {
-		for _, line := range strings.Split(string(moveToml), "\n") {
+		for line := range strings.SplitSeq(string(moveToml), "\n") {
 			line = strings.TrimSpace(line)
 			if !strings.HasPrefix(line, "local") {
 				continue
 			}
 			for _, q := range []string{`"`, `'`} {
 				prefix := "local = " + q
-				if idx := strings.Index(line, prefix); idx != -1 {
-					relPath := line[idx+len(prefix):]
-					if end := strings.Index(relPath, q); end != -1 {
-						p := relPath[:end]
+				if _, after, ok := strings.Cut(line, prefix); ok {
+					relPath := after
+					if before, _, ok := strings.Cut(relPath, q); ok {
+						p := before
 						if strings.HasPrefix(p, ".") || strings.HasPrefix(p, "/") {
 							dirsToClean = append(dirsToClean, filepath.Join(contractPath, p))
 						}
@@ -637,13 +637,13 @@ func removeLocalPublishedEntry(contractPath string) {
 	}
 
 	// Parse TOML
-	var doc map[string]interface{}
+	var doc map[string]any
 	if err := toml.Unmarshal(content, &doc); err != nil {
 		return
 	}
 
 	// Check if there's a published section
-	published, ok := doc["published"].(map[string]interface{})
+	published, ok := doc["published"].(map[string]any)
 	if !ok {
 		return
 	}

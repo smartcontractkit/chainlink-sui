@@ -63,7 +63,7 @@ func generateYAMLTemplate(t reflect.Type, indent string, depth int, visited map[
 	}
 
 	// Handle pointers
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 
@@ -78,9 +78,7 @@ func generateYAMLTemplate(t reflect.Type, indent string, depth int, visited map[
 		defer func() { delete(visited, t) }()
 
 		var result strings.Builder
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-
+		for field := range t.Fields() {
 			// Skip unexported fields
 			if !field.IsExported() {
 				continue
@@ -117,7 +115,7 @@ func generateFieldValue(t reflect.Type, indent string, depth int, visited map[re
 	}
 
 	// Handle pointers
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 

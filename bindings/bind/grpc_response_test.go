@@ -13,7 +13,7 @@ func TestMapChangedObjectsToModels_PublishedPackageWithCreatedIdOperation(t *tes
 	changed := []*suirpcv2.ChangedObject{
 		{
 			ObjectId:    &objectID,
-			ObjectType:  strPtr("package"),
+			ObjectType:  new("package"),
 			IdOperation: suirpcv2.ChangedObject_CREATED.Enum(),
 			OutputState: suirpcv2.ChangedObject_OUTPUT_OBJECT_STATE_PACKAGE_WRITE.Enum(),
 		},
@@ -25,6 +25,3 @@ func TestMapChangedObjectsToModels_PublishedPackageWithCreatedIdOperation(t *tes
 	require.Equal(t, objectID, out[0].PackageId)
 }
 
-func strPtr(s string) *string {
-	return &s
-}

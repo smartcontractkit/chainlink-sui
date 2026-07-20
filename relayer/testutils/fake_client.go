@@ -12,6 +12,7 @@ import (
 
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
@@ -58,7 +59,7 @@ func (c *FakeSuiPTBClient) SignAndSendTransaction(ctx context.Context, txBytesRa
 	return nil, nil
 }
 
-func (c *FakeSuiPTBClient) QueryEvents(ctx context.Context, filter client.EventFilterByMoveEventModule, limit *uint, cursor *client.EventId, sortOptions *client.QuerySortOptions) (*models.PaginatedEventsResponse, error) {
+func (c *FakeSuiPTBClient) QueryEvents(ctx context.Context, filter sui.EventFilterByMoveEventModule, limit *uint, cursor *sui.EventId, sortOptions *client.QuerySortOptions) (*models.PaginatedEventsResponse, error) {
 	return &models.PaginatedEventsResponse{}, nil
 }
 

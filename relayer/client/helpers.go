@@ -72,7 +72,7 @@ func (c *PTBClient) transformVectorAddressArg(tx *transaction.Transaction, arg a
 	switch v := arg.(type) {
 	case []string:
 		return convertAddresses(tx, v)
-	case []interface{}:
+	case []any:
 		addresses := make([]models.SuiAddressBytes, len(v))
 		for i, raw := range v {
 			s, ok := raw.(string)

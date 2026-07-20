@@ -21,7 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"sort"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -354,7 +354,7 @@ func runLoadScenario(t *testing.T, s loadScenario) loadResult {
 	wg.Wait()
 	wall := time.Since(start)
 
-	sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
+	slices.Sort(latencies)
 
 	return loadResult{
 		WallTime:   wall,
@@ -398,17 +398,15 @@ func runBatchGetLatestValuesWorkload(
 	var wg sync.WaitGroup
 	var errCount int64
 
-	for i := 0; i < readsPerBatch; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range readsPerBatch {
+		wg.Go(func() {
 			readSem <- struct{}{}
 			defer func() { <-readSem }()
 
 			if err := simulateConfigRead(ctx, c, objectIDs, simBCS); err != nil {
 				atomic.AddInt64(&errCount, 1)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -509,7 +507,7 @@ func runCCIPMixedLoadScenario(t *testing.T, s ccipLoadScenario) ccipLoadResult {
 	wg.Wait()
 	wall := time.Since(start)
 
-	sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
+	slices.Sort(latencies)
 
 	return ccipLoadResult{
 		loadResult: loadResult{
@@ -672,7 +670,7 @@ func TestMixedCCIPReadLoadOnReadNodeConnection(t *testing.T) {
 
 	countBackgroundByKind := func(workers, kind int) int {
 		count := 0
-		for i := 0; i < workers; i++ {
+		for i := range workers {
 			if i%3 == kind {
 				count++
 			}

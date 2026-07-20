@@ -13,10 +13,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
-func ownerKindPtr(k suirpcv2.Owner_OwnerKind) *suirpcv2.Owner_OwnerKind { return &k }
-
 func objWithOwner(kind suirpcv2.Owner_OwnerKind) *suirpcv2.Object {
-	return &suirpcv2.Object{Owner: &suirpcv2.Owner{Kind: ownerKindPtr(kind)}}
+	return &suirpcv2.Object{Owner: &suirpcv2.Owner{Kind: new(kind)}}
 }
 
 // shared/immutable objects have version-stable refs and should be fetched once then served from cache.
@@ -29,7 +27,7 @@ func TestReaderCache_ObjectMetadata_CachesVersionStable(t *testing.T) {
 			atomic.AddInt32(&calls, 1)
 			return objWithOwner(kind), nil
 		}
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			obj, err := rc.GetObjectMetadata(context.Background(), "0xabc", loader)
 			require.NoError(t, err)
 			require.NotNil(t, obj)
@@ -47,7 +45,7 @@ func TestReaderCache_ObjectMetadata_DoesNotCacheAddressOwned(t *testing.T) {
 		atomic.AddInt32(&calls, 1)
 		return objWithOwner(suirpcv2.Owner_ADDRESS), nil
 	}
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err := rc.GetObjectMetadata(context.Background(), "0xowned", loader)
 		require.NoError(t, err)
 	}
@@ -69,7 +67,7 @@ func TestReaderCache_ObjectMetadata_SingleflightCollapsesConcurrent(t *testing.T
 	var wg sync.WaitGroup
 	const n = 20
 	wg.Add(n)
-	for i := 0; i < n; i++ {
+	for range n {
 		go func() {
 			defer wg.Done()
 			_, _ = rc.GetObjectMetadata(context.Background(), "0xshared", loader)
@@ -94,7 +92,7 @@ func TestReaderCache_ObjectMetadata_DisabledAndNilPassthrough(t *testing.T) {
 
 	disabled := NewCache(logger.Test(t), CacheConfig{ObjectCacheEnabled: false})
 	var dCalls int32
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err := disabled.GetObjectMetadata(context.Background(), "0xabc", loader(&dCalls))
 		require.NoError(t, err)
 	}
@@ -114,7 +112,7 @@ func TestReaderCache_ReadResults(t *testing.T) {
 
 	enabled := NewCache(logger.Test(t), CacheConfig{ReadCacheEnabled: true, ReadTTL: time.Minute})
 	var eCalls int32
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		res, err := enabled.GetReadResults(context.Background(), "key", func(context.Context) ([]any, error) {
 			atomic.AddInt32(&eCalls, 1)
 			return []any{"v"}, nil
@@ -126,7 +124,7 @@ func TestReaderCache_ReadResults(t *testing.T) {
 
 	disabled := NewCache(logger.Test(t), CacheConfig{ReadCacheEnabled: false})
 	var dCalls int32
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err := disabled.GetReadResults(context.Background(), "key", func(context.Context) ([]any, error) {
 			atomic.AddInt32(&dCalls, 1)
 			return []any{"v"}, nil

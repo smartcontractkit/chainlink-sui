@@ -31,9 +31,9 @@ func objectIDTo32Bytes(id string) ([32]byte, error) {
 	if len(id) != 66 {
 		return out, fmt.Errorf("invalid object id length %q", id)
 	}
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		var b byte
-		for j := 0; j < 2; j++ {
+		for j := range 2 {
 			c := id[2+i*2+j]
 			switch {
 			case c >= '0' && c <= '9':
