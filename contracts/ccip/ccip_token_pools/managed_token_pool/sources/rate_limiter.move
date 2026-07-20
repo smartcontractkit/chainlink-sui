@@ -41,8 +41,8 @@ public(package) fun get_current_token_bucket_state(
     }
 }
 
-public(package) fun consume(clock: &Clock, bucket: &mut TokenBucket, requested_tokens: u64) {
-    if (!bucket.is_enabled || requested_tokens == 0) { return };
+public(package) fun consume(clock: &Clock, bucket: &mut TokenBucket, requested_tokens: u64): u64 {
+    if (!bucket.is_enabled || requested_tokens == 0) { return 0 };
 
     update_bucket(clock, bucket);
 
@@ -51,6 +51,7 @@ public(package) fun consume(clock: &Clock, bucket: &mut TokenBucket, requested_t
     assert!(requested_tokens <= bucket.tokens, ETokenRateLimitReached);
 
     bucket.tokens = bucket.tokens - requested_tokens;
+    requested_tokens
 }
 
 /// We allow 0 rate and/or 0 capacity rate limits to effectively disable value transfer.

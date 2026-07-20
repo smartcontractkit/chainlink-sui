@@ -72,11 +72,11 @@ fun consume_from_bucket(
     assert!(rate_limiter.contains(dest_chain_selector), EBucketNotFound);
 
     let bucket = rate_limiter.borrow_mut(dest_chain_selector);
-    rate_limiter::consume(clock, bucket, requested_tokens);
+    let consumed = rate_limiter::consume(clock, bucket, requested_tokens);
 
     event::emit(TokensConsumed {
         remote_chain_selector: dest_chain_selector,
-        tokens: requested_tokens,
+        tokens: consumed,
     });
 }
 
