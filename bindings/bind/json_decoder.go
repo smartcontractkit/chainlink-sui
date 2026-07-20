@@ -32,7 +32,7 @@ func decodeBigInt(data any, target any) error {
 
 	targetValue := reflect.ValueOf(target).Elem()
 	targetType := targetValue.Type()
-	bigPtrT := reflect.TypeOf((*big.Int)(nil))
+	bigPtrT := reflect.TypeFor[*big.Int]()
 	bigValT := bigPtrT.Elem()
 
 	if targetType == bigValT {

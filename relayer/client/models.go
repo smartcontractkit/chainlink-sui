@@ -77,7 +77,7 @@ type EventFilterByMoveEventModule = common.EventFilterByMoveEventModule
 // EventSelector is an alias for EventFilterByMoveEventModule
 //
 //go:fix inline
-type EventSelector = EventFilterByMoveEventModule
+type EventSelector = common.EventFilterByMoveEventModule
 
 type EventData struct {
 	Id struct {

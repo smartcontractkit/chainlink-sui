@@ -2,6 +2,7 @@ package mcmsops
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -49,9 +50,7 @@ var upgradeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Upgrade
 	}
 
 	namedAddresses := make(map[string]string)
-	for k, v := range input.NamedAddresses {
-		namedAddresses[k] = v
-	}
+	maps.Copy(namedAddresses, input.NamedAddresses)
 	namedAddresses["signer"] = signerAddress
 
 	artifact, err := bind.CompilePackage(input.PackageName, namedAddresses, true, deps.SuiRPC)

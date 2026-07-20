@@ -631,7 +631,7 @@ func normalizeValue(value any) (any, error) {
 	case [][32]byte:
 		// Single-level vector<address>
 		return convertToSliceSuiAddressBytes(v), nil
-	case []interface{}:
+	case []any:
 		// Possible nested address vectors: [][][32]byte (wrapped as []interface{}) (vector<vector<address>>)
 		if len(v) == 0 {
 			return v, nil

@@ -51,7 +51,7 @@ func AnySliceToBytes(src []any) ([]byte, error) {
 // Deprecated: use codec.DeserializeExecutionReport
 //
 //go:fix inline
-func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
+func DeserializeExecutionReport(data []byte) (*codec.ExecutionReport, error) {
 	return codec.DeserializeExecutionReport(data)
 }
 
@@ -65,6 +65,6 @@ func UnwrapBCSPureBytes(pure []byte) ([]byte, error) {
 // Deprecated: use DeserializeExecutionReportFromPure
 //
 //go:fix inline
-func DeserializeExecutionReportFromPure(pure []byte) (*ExecutionReport, error) {
+func DeserializeExecutionReportFromPure(pure []byte) (*codec.ExecutionReport, error) {
 	return codec.DeserializeExecutionReportFromPure(pure)
 }

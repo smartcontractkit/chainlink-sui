@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commonTypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
@@ -25,13 +26,13 @@ const defaultGas = 200000000 // 0.2 sui
 type SuiChainWriter struct {
 	lggr       logger.Logger
 	txm        txm.TxManager
-	config     cwConfig.ChainWriterConfig
+	config     sui.ChainWriterConfig
 	simulate   bool
 	ptbFactory *ptb.PTBConstructor
 	services.StateMachine
 }
 
-func NewSuiChainWriter(lggr logger.Logger, txManager txm.TxManager, config cwConfig.ChainWriterConfig, simulate bool) (*SuiChainWriter, error) {
+func NewSuiChainWriter(lggr logger.Logger, txManager txm.TxManager, config sui.ChainWriterConfig, simulate bool) (*SuiChainWriter, error) {
 	suiClient := txManager.GetClient()
 	return &SuiChainWriter{
 		lggr:       logger.Named(lggr, ServiceName),
@@ -84,7 +85,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		return commonTypes.ErrNotFound
 	}
 
-	var arguments cwConfig.Arguments
+	var arguments sui.Arguments
 	if err := mapstructure.Decode(args, &arguments.Args); err != nil {
 		return fmt.Errorf("failed to decode args: %w", err)
 	}

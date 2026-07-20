@@ -19,7 +19,7 @@ type TypeConverter = codec.TypeConverter
 // Deprecated: use codec.NewTypeConverter
 //
 //go:fix inline
-func NewTypeConverter() *TypeConverter {
+func NewTypeConverter() *codec.TypeConverter {
 	return codec.NewTypeConverter()
 }
 

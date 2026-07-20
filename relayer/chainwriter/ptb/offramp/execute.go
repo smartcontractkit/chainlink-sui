@@ -26,7 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -62,7 +62,7 @@ func BuildOffRampExecutePTB(
 	lggr logger.Logger,
 	ptbClient client.SuiPTBClient,
 	ptb *transaction.Transaction,
-	args config.Arguments,
+	args sui.Arguments,
 	signerAddress string,
 	addressMappings OffRampAddressMappings,
 ) (err error) {

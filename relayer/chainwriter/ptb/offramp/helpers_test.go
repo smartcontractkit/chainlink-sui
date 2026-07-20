@@ -114,7 +114,7 @@ func TestDecodeParam_MultiKeyWrapperMap_RejectsDeterministically(t *testing.T) {
 		"TypeParameter": float64(0),
 	}
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		result, err := decodeParam(lggr, poison, "Reference")
 		require.Error(t, err, "iteration %d", i)
 		assert.Contains(t, err.Error(), "exactly one ABI wrapper key")
@@ -613,11 +613,11 @@ func openSig(reference *suirpcv2.OpenSignature_Reference, body *suirpcv2.OpenSig
 }
 
 func primitiveBody(t suirpcv2.OpenSignatureBody_Type) *suirpcv2.OpenSignatureBody {
-	return &suirpcv2.OpenSignatureBody{Type: AnyPointer(t)}
+	return &suirpcv2.OpenSignatureBody{Type: new(t)}
 }
 
 func datatypeBody(typeName string) *suirpcv2.OpenSignatureBody {
-	return &suirpcv2.OpenSignatureBody{Type: AnyPointer(suirpcv2.OpenSignatureBody_DATATYPE), TypeName: AnyPointer(typeName)}
+	return &suirpcv2.OpenSignatureBody{Type: AnyPointer(suirpcv2.OpenSignatureBody_DATATYPE), TypeName: new(typeName)}
 }
 
 func vectorBody(element *suirpcv2.OpenSignatureBody) *suirpcv2.OpenSignatureBody {
@@ -628,7 +628,7 @@ func vectorBody(element *suirpcv2.OpenSignatureBody) *suirpcv2.OpenSignatureBody
 }
 
 func typeParameterBody(position uint32) *suirpcv2.OpenSignatureBody {
-	return &suirpcv2.OpenSignatureBody{Type: AnyPointer(suirpcv2.OpenSignatureBody_TYPE_PARAMETER), TypeParameter: AnyPointer(position)}
+	return &suirpcv2.OpenSignatureBody{Type: AnyPointer(suirpcv2.OpenSignatureBody_TYPE_PARAMETER), TypeParameter: new(position)}
 }
 
 func TestDecodeParametersFromFunctionDescriptor_NilDescriptor(t *testing.T) {

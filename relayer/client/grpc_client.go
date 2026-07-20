@@ -24,6 +24,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 
+	sui0 "github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
 
@@ -101,7 +102,7 @@ type SuiPTBClient interface {
 	ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error)
 	SimulatePTB(ctx context.Context, bcsBytes []byte) ([]any, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte) (*suirpcv2.ExecuteTransactionResponse, error)
-	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error)
+	QueryEvents(ctx context.Context, filter sui0.EventFilterByMoveEventModule, limit *uint, cursor *sui0.EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error)
 	QueryTransactions(ctx context.Context, fromAddress string, cursor *suirpcv2.Checkpoint, limit *uint64) ([]*suirpcv2.ExecutedTransaction, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]*suirpcv2.Object, error)
@@ -820,7 +821,7 @@ func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw strin
 	return resp, err
 }
 
-func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error) {
+func (c *PTBClient) QueryEvents(ctx context.Context, filter sui0.EventFilterByMoveEventModule, limit *uint, cursor *sui0.EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error) {
 	return nil, errors.New("method implementation pending gRPC migration")
 }
 

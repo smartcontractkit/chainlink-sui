@@ -35,7 +35,7 @@ func CamelToSnake(s string) string {
 
 	out := make([]rune, 0, n*2)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		cur := r[i]
 		var prev, next rune
 		if i > 0 {

@@ -19,8 +19,9 @@ import (
 // This is a permanent failure: retrying with the same receiver will always fail.
 var ErrUnsupportedReceiverABI = errors.New("unsupported receiver ABI")
 
+//go:fix inline
 func AnyPointer[T any](v T) *T {
-	return &v
+	return new(v)
 }
 
 type OffRampAddressMappings struct {
@@ -346,7 +347,7 @@ func formatValueParamType(paramType string) string {
 	return strings.ToLower(paramType)
 }
 
-func ParseParamType(lggr logger.Logger, param interface{}) string {
+func ParseParamType(lggr logger.Logger, param any) string {
 	// Case 1: string primitive
 	if str, ok := param.(string); ok {
 		switch str {
