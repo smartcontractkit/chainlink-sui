@@ -68,7 +68,7 @@ public fun register_receiver<ProofType: drop>(
         VERSION,
     );
     let registry = state_object::borrow_mut<ReceiverRegistry>(ref);
-    let proof_typename = type_name::with_defining_ids<ProofType>();
+    let proof_typename = type_name::with_original_ids<ProofType>();
     let receiver_module_name = std::string::from_ascii(type_name::module_string(&proof_typename));
     let receiver_package_id = publisher_wrapper::get_package_address(publisher_wrapper);
     assert!(!registry.receiver_configs.contains(receiver_package_id), EAlreadyRegistered);

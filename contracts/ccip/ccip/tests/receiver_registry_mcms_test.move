@@ -30,7 +30,7 @@ public struct Env {
 }
 
 fun get_package_id_from_proof<ProofType>(): address {
-    let proof_tn = type_name::with_defining_ids<ProofType>();
+    let proof_tn = type_name::with_original_ids<ProofType>();
     let address_str = type_name::address_string(&proof_tn);
     address::from_ascii_bytes(&std::ascii::into_bytes(address_str))
 }
