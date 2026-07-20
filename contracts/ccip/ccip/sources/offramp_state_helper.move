@@ -6,9 +6,13 @@ use ccip::ownable::OwnerCap;
 use ccip::receiver_registry;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
+use ccip::upgrade_registry::verify_function_allowed;
 use std::ascii;
+use std::string;
 use std::type_name;
 use sui::address;
+
+const VERSION: u8 = 2;
 
 const ENoMessageToExtract: u64 = 1;
 const ETypeProofMismatch: u64 = 2;
@@ -79,6 +83,12 @@ public fun new_dest_transfer_cap(
     owner_cap: &OwnerCap,
     ctx: &mut TxContext,
 ): DestTransferCap {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp_state_helper"),
+        string::utf8(b"new_dest_transfer_cap"),
+        VERSION,
+    );
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     DestTransferCap {
