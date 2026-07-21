@@ -481,7 +481,7 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 	}
 
 	for _, tx := range transactions {
-		cp.logger.Debugw("Processing transaction for event filtering", "transaction", tx)
+		cp.logger.Debugw("Processing transaction for event filtering", "transaction", tx.GetDigest())
 
 		txDigest := tx.GetDigest()
 		if txDigest == "" {
@@ -511,6 +511,13 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 				)
 
 				if eventMatchesSelector(event, sel) {
+					cp.logger.Debugw(
+						"Event does match selector",
+						"event", event.GetEventType(),
+						"rpcPackageId", event.GetPackageId(),
+						"selector", fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event),
+					)
+
 					item := CheckpointEventItem{
 						Event:      event,
 						TxDigest:   txDigest,

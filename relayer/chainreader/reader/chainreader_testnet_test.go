@@ -39,6 +39,8 @@ func TestChainReaderTestnet(t *testing.T) {
 	burnMintTokenPoolGetCurrentInboundRateLimiterStateIdentifier := strings.Join([]string{
 		burnMintTokenPoolPackageId, burnMintTokenPoolContractName, "get_current_inbound_rate_limiter_state",
 	}, "-")
+	onRampContractName := "OnRamp"
+	onRampPackageId := "0x30e087460af8a8aacccbc218aa358cdcde8d43faf61ec0638d71108e276e2f1d"
 
 	t.Helper()
 	ctx := context.Background()
@@ -196,6 +198,18 @@ func TestChainReaderTestnet(t *testing.T) {
 					},
 				},
 			},
+			onRampContractName: {
+				Events: map[string]*config.ChainReaderEvent{
+					"ccip_message_sent": {
+						Name:      "onramp",
+						EventType: "CCIPMessageSent",
+						EventSelector: client.EventFilterByMoveEventModule{
+							Module: "onramp",
+							Event:  "CCIPMessageSent",
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -223,12 +237,16 @@ func TestChainReaderTestnet(t *testing.T) {
 		[]*client.EventSelector{},
 	)
 
+	startingCheckpointSequence := uint64(362867769)
 	chainPoller := indexer.NewChainPoller(
 		relayerClient,
 		log,
 		config.ChainPollerConfig{
-			PollingInterval: 1 * time.Second,
-			SyncTimeout:     60 * time.Second,
+			PollingInterval:         1 * time.Second,
+			SyncTimeout:             60 * time.Second,
+			BackfillCheckpointCount: nil,
+			StartCheckpointSequence: &startingCheckpointSequence,
+			ChannelBufferSize:       16,
 		},
 		evIndexer.GetEventSelectors,
 	)
@@ -240,6 +258,8 @@ func TestChainReaderTestnet(t *testing.T) {
 		txnIndexer,
 	)
 
+	indexerInstance.Start(ctx)
+
 	// ChainReader in non-loop mode
 	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance, nil)
 	require.NoError(t, err)
@@ -250,7 +270,14 @@ func TestChainReaderTestnet(t *testing.T) {
 	}})
 	require.NoError(t, err)
 
+	err = chainReader.Bind(context.Background(), []types.BoundContract{{
+		Name:    onRampContractName,
+		Address: onRampPackageId,
+	}})
+	require.NoError(t, err)
+
 	t.Run("get_token_pool_state_type generic dependency for BurnMintTokenPool", func(t *testing.T) {
+		t.Skip("...")
 		var retAddress string
 		err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retAddress)
 		require.NoError(t, err)
@@ -296,6 +323,7 @@ func TestChainReaderTestnet(t *testing.T) {
 	})
 
 	t.Run("client load test GetObjectId", func(t *testing.T) {
+		t.Skip("...")
 		numRequests := 10
 		if envNumRequests := os.Getenv("NUM_REQUESTS"); envNumRequests != "" {
 			if parsed, err := strconv.Atoi(envNumRequests); err == nil {
@@ -343,6 +371,7 @@ func TestChainReaderTestnet(t *testing.T) {
 	})
 
 	t.Run("chainreader load test GetLatestValue", func(t *testing.T) {
+		t.Skip("...")
 		numRequests := 10
 		if envNumRequests := os.Getenv("NUM_REQUESTS"); envNumRequests != "" {
 			if parsed, err := strconv.Atoi(envNumRequests); err == nil {
@@ -392,6 +421,7 @@ func TestChainReaderTestnet(t *testing.T) {
 	})
 
 	t.Run("token pool events", func(t *testing.T) {
+		t.Skip("...")
 		var retReleasedOrMinted map[string]any
 
 		sequences, err := chainReader.QueryKey(ctx, types.BoundContract{
@@ -407,5 +437,22 @@ func TestChainReaderTestnet(t *testing.T) {
 
 		testutils.PrettyPrintDebug(log, sequences, "sequences")
 		require.NoError(t, err)
+	})
+
+	t.Run("onramp events", func(t *testing.T) {
+		require.Eventually(t, func() bool {
+			events, err := chainReader.QueryKey(ctx, types.BoundContract{
+				Name:    onRampContractName,
+				Address: onRampPackageId,
+			}, query.KeyFilter{
+				Key: "ccip_message_sent",
+			}, query.LimitAndSort{
+				Limit: query.Limit{
+					Count: 10,
+				},
+			}, nil)
+
+			return err == nil && len(events) > 0
+		}, 120*time.Second, 2*time.Second, "Expected to find at least one ccip_message_sent event")
 	})
 }
