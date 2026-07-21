@@ -516,10 +516,17 @@ func eventMatchesSelector(event *suirpcv2.Event, sel *sui.EventFilterByMoveEvent
 		return false
 	}
 
-	// Check package ID (handle potential 0x prefix differences)
-	eventPackage := strings.TrimPrefix(event.GetPackageId(), "0x")
-	selectorPackage := strings.TrimPrefix(sel.Package, "0x")
-	if eventPackage != selectorPackage {
+	// EventType is fully qualified like "0x123::module::EventName". Its package segment is the
+	// original/defining package id, which is what the contract is bound with. Match against that
+	// rather than event.GetPackageId(): that field is the *emitting* package, which becomes the
+	// latest id after a package upgrade and would no longer equal the bound original id, causing
+	// events emitted by upgraded packages to be silently dropped.
+	parts := strings.Split(event.GetEventType(), "::")
+	if len(parts) < 3 {
+		return false
+	}
+
+	if strings.TrimPrefix(parts[0], "0x") != strings.TrimPrefix(sel.Package, "0x") {
 		return false
 	}
 
@@ -528,13 +535,8 @@ func eventMatchesSelector(event *suirpcv2.Event, sel *sui.EventFilterByMoveEvent
 		return false
 	}
 
-	// Check event type - EventType in v2 is fully qualified like "0x123::module::EventName"
-	// We extract just the event name for comparison
-	eventTypeName := event.GetEventType()
-	if parts := strings.Split(eventTypeName, "::"); len(parts) >= 3 {
-		eventTypeName = parts[2]
-	}
-	if eventTypeName != sel.Event {
+	// Check event name (the third segment of the fully qualified type)
+	if parts[2] != sel.Event {
 		return false
 	}
 
