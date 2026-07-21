@@ -743,7 +743,7 @@ public fun get_validated_fee(
     let tokens_len = local_token_addresses.length();
     validate_message(dest_chain_config, data_len, tokens_len);
 
-    let mut svm_payload_overhead: u64 = 0;
+    let mut dest_payload_overhead: u64 = 0;
     let gas_limit = if (
         chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
             || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
@@ -760,7 +760,7 @@ public fun get_validated_fee(
             tokens_len,
             local_token_addresses,
         );
-        svm_payload_overhead = overhead;
+        dest_payload_overhead = overhead;
         gas
     } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
         let (gas, overhead) = resolve_svm_gas_limit(
@@ -773,7 +773,7 @@ public fun get_validated_fee(
             tokens_len,
             local_token_addresses,
         );
-        svm_payload_overhead = overhead;
+        dest_payload_overhead = overhead;
         gas
     } else {
         abort EUnknownChainFamilySelector
@@ -817,13 +817,13 @@ public fun get_validated_fee(
         get_data_availability_cost(
             dest_chain_config,
             data_availability_gas_price,
-            data_len + svm_payload_overhead,
+            data_len + dest_payload_overhead,
             tokens_len,
             token_transfer_bytes_overhead,
         )
     } else { 0 };
 
-    let billing_data_len = (data_len + svm_payload_overhead) as u256;
+    let billing_data_len = (data_len + dest_payload_overhead) as u256;
     let call_data_length: u256 = billing_data_len + (token_transfer_bytes_overhead as u256);
     let mut dest_call_data_cost =
         call_data_length * (dest_chain_config.dest_gas_per_payload_byte_base as u256);
