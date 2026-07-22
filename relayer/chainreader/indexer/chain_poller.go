@@ -285,56 +285,134 @@ func (cp *ChainPoller) RescanRecent() {
 	}
 }
 
-// catchUp processes checkpoints from startSeq to endSeq (inclusive).
+// catchUpConcurrency bounds the number of checkpoints fetched in parallel during
+// catch-up. The per-checkpoint gRPC fetch is the bottleneck, so issuing several at
+// once closes the gap to the tip faster. Commits stay in sequence order, so
+// lastProcessed never advances past an unprocessed checkpoint. Conservative to
+// avoid overloading the RPC node.
+const catchUpConcurrency = 8
+
+// catchUp processes checkpoints from startSeq to endSeq (inclusive). Checkpoints
+// are fetched concurrently up to catchUpConcurrency at a time, then committed in
+// sequence order. In-order commits preserve the guarantee that lastProcessed only
+// advances past fully-processed checkpoints, so a failed checkpoint is retried on
+// the next poll rather than skipped.
 func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 	startSeq = cp.clampToProviderFloor(ctx, startSeq)
 	if startSeq > endSeq {
 		return
 	}
 
-	for seq := startSeq; seq <= endSeq; seq++ {
-		select {
-		case <-ctx.Done():
-			cp.logger.Infow("Catch-up interrupted", "atSequence", seq)
-			return
-		default:
-			if err := cp.processCheckpoint(ctx, seq); err != nil {
-				if isCheckpointNotFound(err) {
-					if seq == endSeq {
+	// Canceling catchUpCtx on return stops the fetch stage so fetch goroutines
+	// never outlive this call.
+	catchUpCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	type fetchResult struct {
+		seq  uint64
+		data *client.CheckpointData
+		err  error
+	}
+
+	results := make(chan fetchResult, catchUpConcurrency)
+
+	// Fetch stage: issues GetCheckpointData calls in increasing sequence order,
+	// up to catchUpConcurrency in flight. gRPC clients are safe for concurrent use.
+	go func() {
+		sem := make(chan struct{}, catchUpConcurrency)
+		var wg sync.WaitGroup
+
+		for seq := startSeq; seq <= endSeq; seq++ {
+			select {
+			case <-catchUpCtx.Done():
+				wg.Wait()
+				close(results)
+				return
+			case sem <- struct{}{}:
+			}
+
+			wg.Add(1)
+			go func(seq uint64) {
+				defer wg.Done()
+				defer func() { <-sem }()
+
+				data, err := cp.fetchCheckpoint(catchUpCtx, seq)
+				select {
+				case results <- fetchResult{seq: seq, data: data, err: err}:
+				case <-catchUpCtx.Done():
+				}
+			}(seq)
+		}
+
+		wg.Wait()
+		close(results)
+	}()
+
+	// Commit stage: drains fetch results and commits in sequence order, buffering
+	// out-of-order results in pending until the next expected sequence arrives.
+	pending := make(map[uint64]fetchResult, catchUpConcurrency)
+	nextSeq := startSeq
+
+	for r := range results {
+		pending[r.seq] = r
+
+		for {
+			pr, ok := pending[nextSeq]
+			if !ok {
+				break
+			}
+			delete(pending, nextSeq)
+
+			if pr.err != nil {
+				if isCheckpointNotFound(pr.err) {
+					if nextSeq == endSeq {
 						cp.logger.Debugw(
 							"Latest checkpoint not yet available",
-							"sequence", seq,
-							"error", err,
+							"sequence", nextSeq,
+							"error", pr.err,
 						)
 						return
 					}
 
-					if lowest := cp.providerLowestAvailable(ctx); lowest > 0 && seq < lowest {
+					if lowest := cp.providerLowestAvailable(ctx); lowest > 0 && nextSeq < lowest {
 						cp.logger.Errorw(
 							"Checkpoint below provider history floor during catch-up, jumping to lowest available",
-							"sequence", seq,
+							"sequence", nextSeq,
 							"lowestAvailable", lowest,
-							"error", err,
+							"error", pr.err,
 						)
-						seq = lowest - 1
+						nextSeq = lowest
 						continue
 					}
 
 					cp.logger.Warnw(
 						"Checkpoint not found during catch-up, will retry on next poll",
-						"sequence", seq,
-						"error", err,
+						"sequence", nextSeq,
+						"error", pr.err,
 					)
+					// Don't advance lastProcessed - will retry on next poll
 					return
 				}
+
 				cp.logger.Errorw(
 					"Failed to process checkpoint, will retry on next poll",
-					"sequence", seq,
+					"sequence", nextSeq,
+					"error", pr.err,
+				)
+				// Don't advance lastProcessed - will retry on next poll
+				return
+			}
+
+			if err := cp.commitCheckpoint(ctx, nextSeq, pr.data); err != nil {
+				cp.logger.Errorw(
+					"Failed to process checkpoint, will retry on next poll",
+					"sequence", nextSeq,
 					"error", err,
 				)
 				// Don't advance lastProcessed - will retry on next poll
 				return
 			}
+			nextSeq++
 		}
 	}
 }
@@ -377,24 +455,35 @@ func isCheckpointNotFound(err error) bool {
 	return false
 }
 
-// processCheckpoint fetches and processes a single checkpoint.
-func (cp *ChainPoller) processCheckpoint(ctx context.Context, seq uint64) error {
+// fetchCheckpoint fetches a single checkpoint's data. Safe to call concurrently:
+// only the gRPC client is touched, which supports parallel calls.
+func (cp *ChainPoller) fetchCheckpoint(ctx context.Context, seq uint64) (*client.CheckpointData, error) {
 	ctx, cancel := context.WithTimeout(ctx, cp.config.SyncTimeout)
 	defer cancel()
 
-	cp.logger.Debugw("Processing checkpoint", "sequence", seq)
+	cp.logger.Debugw("Fetching checkpoint", "sequence", seq)
 
-	start := time.Now()
-
-	// Fetch checkpoint data
 	data, err := cp.client.GetCheckpointData(ctx, seq)
 	if err != nil {
-		return fmt.Errorf("failed to fetch checkpoint %d: %w", seq, err)
+		return nil, fmt.Errorf("failed to fetch checkpoint %d: %w", seq, err)
 	}
 
 	if data.Checkpoint == nil {
-		return fmt.Errorf("checkpoint %d is nil", seq)
+		return nil, fmt.Errorf("checkpoint %d is nil", seq)
 	}
+
+	return data, nil
+}
+
+// commitCheckpoint builds event and transaction batches for an already-fetched
+// checkpoint, sends them to the indexers, and advances lastProcessed. Called in
+// sequence order from catchUp so lastProcessed only advances past committed
+// checkpoints.
+func (cp *ChainPoller) commitCheckpoint(ctx context.Context, seq uint64, data *client.CheckpointData) error {
+	ctx, cancel := context.WithTimeout(ctx, cp.config.SyncTimeout)
+	defer cancel()
+
+	start := time.Now()
 
 	checkpoint := data.Checkpoint
 	// Convert protobuf timestamp (seconds) to milliseconds

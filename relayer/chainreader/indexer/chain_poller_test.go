@@ -3,6 +3,8 @@ package indexer
 import (
 	"context"
 	"errors"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +23,7 @@ type checkpointTestClient struct {
 	testutils.FakeSuiPTBClient
 	lowestAvailable uint64
 	notFoundBelow   uint64
+	mu              sync.Mutex
 	processed       []uint64
 }
 
@@ -40,13 +43,27 @@ func (c *checkpointTestClient) GetCheckpointData(ctx context.Context, checkpoint
 		return nil, status.Error(codes.NotFound, "checkpoint not found")
 	}
 
+	c.mu.Lock()
 	c.processed = append(c.processed, checkpointSequenceNumber)
+	c.mu.Unlock()
+
 	seq := checkpointSequenceNumber
 	return &client.CheckpointData{
 		Checkpoint: &suirpcv2.Checkpoint{
 			SequenceNumber: &seq,
 		},
 	}, nil
+}
+
+// getProcessed returns a copy of the fetched sequence numbers. catchUp fetches
+// concurrently, so the order is non-deterministic; callers should sort before
+// comparing.
+func (c *checkpointTestClient) getProcessed() []uint64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := make([]uint64, len(c.processed))
+	copy(out, c.processed)
+	return out
 }
 
 func TestClampToProviderFloor(t *testing.T) {
@@ -81,7 +98,10 @@ func TestCatchUpJumpsOverPrunedCheckpoints(t *testing.T) {
 
 	cp.catchUp(context.Background(), 400, 502)
 
-	require.Equal(t, []uint64{500, 501, 502}, mockClient.processed)
+	// Fetches run concurrently, so compare the set rather than the order.
+	processed := mockClient.getProcessed()
+	slices.Sort(processed)
+	require.Equal(t, []uint64{500, 501, 502}, processed)
 	require.Equal(t, uint64(502), cp.lastProcessed)
 }
 
@@ -101,7 +121,12 @@ func TestCatchUpRetriesInRangeNotFound(t *testing.T) {
 
 	cp.catchUp(context.Background(), 500, 502)
 
-	require.Empty(t, mockClient.processed)
+	// 500 is not found (and not pruned, not the tip), so catchUp stops without
+	// advancing lastProcessed. With concurrent fetches, checkpoints ahead of 500
+	// may be fetched before the commit stage stops, but none are committed past
+	// the gap; the safety property is that lastProcessed stays put and 500 is
+	// retried on the next poll.
+	require.NotContains(t, mockClient.getProcessed(), uint64(500))
 	require.Equal(t, uint64(0), cp.lastProcessed)
 }
 
