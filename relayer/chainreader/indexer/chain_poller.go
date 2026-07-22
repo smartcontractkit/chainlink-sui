@@ -480,6 +480,17 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 		return batch
 	}
 
+	// Precompute each selector's normalized type string once. Event types from the
+	// chain are 0x-prefixed, so compare on the trimmed form instead of rebuilding
+	// and trimming the selector string for every event/selector pair.
+	selectorTypes := make([]string, len(selectors))
+	for i, sel := range selectors {
+		if sel == nil {
+			continue
+		}
+		selectorTypes[i] = strings.TrimPrefix(fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event), "0x")
+	}
+
 	for _, tx := range transactions {
 		cp.logger.Debugw("Processing transaction for event filtering", "transaction", tx)
 
@@ -503,14 +514,19 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 			}
 
 			// Check if event matches any selector
-			for _, sel := range selectors {
+			eventType := strings.TrimPrefix(event.GetEventType(), "0x")
+			for i, sel := range selectors {
+				if sel == nil {
+					continue
+				}
+
 				cp.logger.Debugw(
 					"Checking if event matches selector",
 					"event", event.GetEventType(),
-					"selector", fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event),
+					"selector", selectorTypes[i],
 				)
 
-				if eventMatchesSelector(event, sel) {
+				if eventType == selectorTypes[i] {
 					item := CheckpointEventItem{
 						Event:      event,
 						TxDigest:   txDigest,
