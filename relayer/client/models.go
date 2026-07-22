@@ -102,7 +102,7 @@ type PaginatedEventsResponse struct {
 	HasNextPage bool        `json:"hasNextPage"`
 }
 
-type EventId struct {
+type EventId struct { //nolint:revive // preserving name for compatibility
 	TxDigest string `json:"txDigest"`
 	EventSeq string `json:"eventSeq"`
 }

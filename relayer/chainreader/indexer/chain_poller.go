@@ -339,6 +339,8 @@ func (cp *ChainPoller) processCheckpoint(ctx context.Context, seq uint64) error 
 
 	// Build events batch by filtering against selectors
 	selectors := cp.selectorProvider()
+	cp.logger.Debugw("current event selectors", "selectors", selectors)
+
 	eventsBatch := cp.filterEvents(meta, data.Transactions, selectors)
 
 	// Send events before transactions so event indexing is not blocked when the
@@ -392,32 +394,36 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 		return batch
 	}
 
-	// Build a map for faster lookup (key: "package::module::event")
-	selectorMap := make(map[string]*client.EventSelector)
-	for _, sel := range selectors {
-		key := fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event)
-		selectorMap[key] = sel
-	}
-
 	for _, tx := range transactions {
+		cp.logger.Debugw("Processing transaction for event filtering", "transaction", tx)
+
 		txDigest := tx.GetDigest()
 		if txDigest == "" {
+			cp.logger.Warnf("Transaction digest is empty, skipping")
 			continue
 		}
 
 		// Get events from transaction
 		txEvents := tx.GetEvents()
 		if txEvents == nil {
+			cp.logger.Debugw("Transaction has no events, skipping", "transaction", txDigest)
 			continue
 		}
 
 		for eventIdx, event := range txEvents.GetEvents() {
 			if event == nil {
+				cp.logger.Warnf("Event is nil in transaction %s, skipping", txDigest)
 				continue
 			}
 
 			// Check if event matches any selector
 			for _, sel := range selectors {
+				cp.logger.Debugw(
+					"Checking if event matches selector",
+					"event", event.GetEventType(),
+					"selector", fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event),
+				)
+
 				if eventMatchesSelector(event, sel) {
 					item := CheckpointEventItem{
 						Event:      event,
@@ -440,29 +446,11 @@ func eventMatchesSelector(event *suirpcv2.Event, sel *client.EventSelector) bool
 		return false
 	}
 
-	// Check package ID (handle potential 0x prefix differences)
-	eventPackage := strings.TrimPrefix(event.GetPackageId(), "0x")
-	selectorPackage := strings.TrimPrefix(sel.Package, "0x")
-	if eventPackage != selectorPackage {
-		return false
-	}
+	expectedEventType := fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event)
+	expectedEventType = strings.TrimPrefix(expectedEventType, "0x")
+	eventType := strings.TrimPrefix(event.GetEventType(), "0x")
 
-	// Check module
-	if event.GetModule() != sel.Module {
-		return false
-	}
-
-	// Check event type - EventType in v2 is fully qualified like "0x123::module::EventName"
-	// We extract just the event name for comparison
-	eventTypeName := event.GetEventType()
-	if parts := strings.Split(eventTypeName, "::"); len(parts) >= 3 {
-		eventTypeName = parts[2]
-	}
-	if eventTypeName != sel.Event {
-		return false
-	}
-
-	return true
+	return expectedEventType == eventType
 }
 
 // Ready returns nil if the poller has started successfully.

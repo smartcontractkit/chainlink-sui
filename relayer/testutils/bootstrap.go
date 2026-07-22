@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -11,7 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/test-go/testify/require"
-	"golang.org/x/net/context"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
@@ -94,7 +94,7 @@ func SetupClients(
 
 func SetupTestEnv(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //nolint:revive // ctx after *testing.T is the conventional order for test helpers
 	lgr logger.Logger,
 	gasLimit int64,
 ) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore, string, *TestKeystore, []byte, string, string) {
@@ -155,7 +155,7 @@ func SetupTestEnv(
 
 func SetupTestSigner(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //nolint:revive // ctx after *testing.T is the conventional order for test helpers
 	lgr logger.Logger,
 	gasLimit int64,
 ) (*TestKeystore, string, []byte) {

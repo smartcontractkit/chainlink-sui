@@ -28,8 +28,8 @@ type ChainWriterPTBCommand struct {
 	Type codec.SuiPTBCommandType
 	// The package ID to call (optional). This may not be needed in the case
 	// that the type of PTB command does not require it (e.g. Publish).
-	PackageId *string                  `json:"package_id,omitempty"`
-	ModuleId  *string                  `json:"module_id,omitempty"`
+	PackageId *string                  `json:"package_id,omitempty"` //nolint:revive // preserving name for compatibility
+	ModuleId  *string                  `json:"module_id,omitempty"`  //nolint:revive // preserving name for compatibility
 	Function  *string                  `json:"function,omitempty"`
 	TypeArgs  []string                 `json:"type_args,omitempty"`
 	Params    []codec.SuiFunctionParam `json:"params,omitempty"`
@@ -52,8 +52,8 @@ func (c ChainWriterPTBCommand) GetParamKey(paramName string) string {
 // The usage flow is that a request is made to get all the owned objects by "OwnerId" and then picking the one
 // that matches the Tag
 type PrerequisiteObject struct {
-	OwnerId *string
-	Name    string // the key under which the value is inserted in the args, must match one of the arg names used in the PTB commands
+	OwnerId *string //nolint:revive // preserving name for compatibility
+	Name    string  // the key under which the value is inserted in the args, must match one of the arg names used in the PTB commands
 	Tag     string
 	SetKeys bool // optionally set the keys of the object in the arg map instead of name
 }

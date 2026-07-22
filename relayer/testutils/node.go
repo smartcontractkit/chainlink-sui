@@ -151,7 +151,7 @@ func FundWithFaucet(log logger.Logger, network string, recipient string) error {
 
 		if attempt < maxAttempts {
 			time.Sleep(backoff)
-			backoff = backoff * 2
+			backoff *= 2
 			if backoff > maxBackoff {
 				backoff = maxBackoff
 			}

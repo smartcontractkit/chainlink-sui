@@ -447,7 +447,7 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 	}
 
 	// Deserialize execution report
-	execReport, err := codec.DeserializeExecutionReportFromPure(reportBytes)
+	execReport, err := codec.DeserializeExecutionReportFromPure(reportBytes) //nolint:staticcheck // deprecated relayer/codec wrapper; common pinned on release branch
 	if err != nil {
 		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
 	}
@@ -474,9 +474,9 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 	executionStateChanged := map[string]any{
 		"source_chain_selector": strconv.FormatUint(sourceChainSelector, 10),
 		"sequence_number":       strconv.FormatUint(execReport.Message.Header.SequenceNumber, 10),
-		"message_id":            codec.BytesToAnySlice(execReport.Message.Header.MessageID),
-		"message_hash":          codec.BytesToAnySlice(messageHash[:]),
-		"state":                 uint8(3), // 3 = FAILURE
+		"message_id":            codec.BytesToAnySlice(execReport.Message.Header.MessageID), //nolint:staticcheck // deprecated wrapper
+		"message_hash":          codec.BytesToAnySlice(messageHash[:]),                      //nolint:staticcheck // deprecated wrapper
+		"state":                 uint8(3),                                                   // 3 = FAILURE
 	}
 
 	// Normalize keys to camelCase
@@ -553,7 +553,7 @@ func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]str
 	}
 
 	var configSet codec.ConfigSet
-	if err := codec.DecodeSuiJsonValue(events[0].Data, &configSet); err != nil {
+	if err := codec.DecodeSuiJsonValue(events[0].Data, &configSet); err != nil { //nolint:staticcheck // deprecated wrapper
 		tIndexer.logger.Errorw("Failed to decode ConfigSet event", "error", err)
 		return nil, fmt.Errorf("failed to decode ConfigSet event: %w", err)
 	}
@@ -612,7 +612,7 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 	}
 
 	var configEvent codec.SourceChainConfigSet
-	if err := codec.DecodeSuiJsonValue(events[0].Data, &configEvent); err != nil {
+	if err := codec.DecodeSuiJsonValue(events[0].Data, &configEvent); err != nil { //nolint:staticcheck // deprecated wrapper
 		return nil, fmt.Errorf("failed to decode SourceChainConfigSet event: %w", err)
 	}
 
