@@ -46,13 +46,11 @@ type TransactionsIndexer struct {
 	offrampPackageOnce     sync.Once
 
 	// Transmitter cache: avoids re-querying and re-decoding the latest ConfigSet
-	// event on every checkpoint. A ConfigSet event observed in a batch triggers a
-	// short re-fetch window so the DB has time to surface it; otherwise the cache
-	// is refreshed on a transmitterCacheTTL interval. Guarded by mu.
-	transmitters                []string
-	transmittersCached          bool
-	transmittersCachedAt        time.Time
-	transmittersRefreshDeadline time.Time
+	// event on every checkpoint. Refreshed on a transmitterCacheTTL interval.
+	// Guarded by mu.
+	transmitters         []string
+	transmittersCached   bool
+	transmittersCachedAt time.Time
 
 	// Constants for event/module identification
 	executionEventModuleKey string
@@ -250,18 +248,6 @@ func (tIndexer *TransactionsIndexer) waitForInitialEvent(ctx context.Context) er
 
 // ProcessCheckpointTransactions processes a batch of transactions from a single checkpoint.
 func (tIndexer *TransactionsIndexer) ProcessCheckpointTransactions(ctx context.Context, batch CheckpointTransactionsBatch) error {
-	eventAccountAddress, latestOfframpPackageId, err := tIndexer.getEventPackageIdFromConfig()
-	if err != nil {
-		return fmt.Errorf("failed to get event package: %w", err)
-	}
-
-	// A ConfigSet event in this checkpoint changes the transmitter set. Trigger a
-	// short re-fetch window so the cache picks up the new transmitters once the
-	// EventsIndexer has persisted them, rather than waiting for the TTL.
-	if batchContainsConfigSet(batch.Transactions, eventAccountAddress, tIndexer.configEventModuleKey, tIndexer.configEventKey) {
-		tIndexer.invalidateTransmitters()
-	}
-
 	transmitters, err := tIndexer.getTransmitters(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get transmitters: %w", err)
@@ -282,6 +268,10 @@ func (tIndexer *TransactionsIndexer) ProcessCheckpointTransactions(ctx context.C
 		"transactions", len(batch.Transactions),
 		"transmitters", len(transmitters))
 
+	eventAccountAddress, latestOfframpPackageID, err := tIndexer.getEventPackageIdFromConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get event package: %w", err)
+	}
 	eventHandle := fmt.Sprintf("%s::%s::%s", eventAccountAddress, tIndexer.executionEventModuleKey, tIndexer.executionEventKey)
 
 	var records []database.EventRecord
@@ -291,7 +281,7 @@ func (tIndexer *TransactionsIndexer) ProcessCheckpointTransactions(ctx context.C
 			continue
 		}
 
-		record, err := tIndexer.processFailedTransaction(ctx, tx, eventHandle, eventAccountAddress, latestOfframpPackageId, batch.Checkpoint)
+		record, err := tIndexer.processFailedTransaction(ctx, tx, eventHandle, eventAccountAddress, latestOfframpPackageID, batch.Checkpoint)
 		if err != nil {
 			tIndexer.logger.Errorw("Failed to process failed transaction",
 				"txDigest", tx.GetDigest(),
@@ -535,28 +525,22 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 
 // transmitterCacheTTL is how long the cached transmitter set is reused before being
 // refreshed from the latest ConfigSet event.
-const transmitterCacheTTL = 5 * time.Minute
+const transmitterCacheTTL = 3 * time.Minute
 
-// transmitterRefreshGrace is the window after a ConfigSet event is observed during
-// which the cache is re-fetched on every checkpoint, giving the EventsIndexer time
-// to persist the new ConfigSet before the cache is trusted again.
-const transmitterRefreshGrace = 30 * time.Second
-
-// getTransmitters returns the current transmitter set, served from cache when fresh.
-// The cache is refreshed when a ConfigSet event is observed in a checkpoint batch
-// (see invalidateTransmitters) or when transmitterCacheTTL elapses.
+// getTransmitters returns the current transmitter set, served from cache when fresh
+// and refetched from the latest ConfigSet event when transmitterCacheTTL elapses.
+// The cache stores a copy and cache hits return a copy, so callers cannot mutate the
+// shared cache.
 func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]string, error) {
 	now := time.Now()
 
 	tIndexer.mu.RLock()
-	fresh := tIndexer.transmittersCached &&
-		now.After(tIndexer.transmittersRefreshDeadline) &&
-		now.Sub(tIndexer.transmittersCachedAt) < transmitterCacheTTL
+	fresh := tIndexer.transmittersCached && now.Sub(tIndexer.transmittersCachedAt) < transmitterCacheTTL
 	cached := tIndexer.transmitters
 	tIndexer.mu.RUnlock()
 
 	if fresh {
-		return cached, nil
+		return copyStrings(cached), nil
 	}
 
 	transmitters, err := tIndexer.fetchTransmitters(ctx)
@@ -565,7 +549,7 @@ func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]str
 	}
 
 	tIndexer.mu.Lock()
-	tIndexer.transmitters = transmitters
+	tIndexer.transmitters = copyStrings(transmitters)
 	tIndexer.transmittersCached = true
 	tIndexer.transmittersCachedAt = time.Now()
 	tIndexer.mu.Unlock()
@@ -573,36 +557,14 @@ func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]str
 	return transmitters, nil
 }
 
-// invalidateTransmitters starts a short re-fetch window so the next getTransmitters
-// calls refetch the transmitter set from the latest ConfigSet event.
-func (tIndexer *TransactionsIndexer) invalidateTransmitters() {
-	tIndexer.mu.Lock()
-	tIndexer.transmittersRefreshDeadline = time.Now().Add(transmitterRefreshGrace)
-	tIndexer.mu.Unlock()
-}
-
-// batchContainsConfigSet reports whether any transaction in the batch emitted a
-// ConfigSet event for the configured offramp package.
-func batchContainsConfigSet(transactions []*suirpcv2.ExecutedTransaction, eventAccountAddress, moduleKey, eventKey string) bool {
-	expected := strings.TrimPrefix(fmt.Sprintf("%s::%s::%s", eventAccountAddress, moduleKey, eventKey), "0x")
-	for _, tx := range transactions {
-		if tx == nil {
-			continue
-		}
-		txEvents := tx.GetEvents()
-		if txEvents == nil {
-			continue
-		}
-		for _, event := range txEvents.GetEvents() {
-			if event == nil {
-				continue
-			}
-			if strings.TrimPrefix(event.GetEventType(), "0x") == expected {
-				return true
-			}
-		}
+// copyStrings returns a defensive copy of a string slice.
+func copyStrings(in []string) []string {
+	if in == nil {
+		return nil
 	}
-	return false
+	out := make([]string, len(in))
+	copy(out, in)
+	return out
 }
 
 // fetchTransmitters queries and decodes the latest ConfigSet event to read the
