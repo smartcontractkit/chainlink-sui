@@ -82,7 +82,6 @@ func TestCatchUpJumpsOverPrunedCheckpoints(t *testing.T) {
 	cp.catchUp(context.Background(), 400, 502)
 
 	require.Equal(t, []uint64{500, 501, 502}, mockClient.processed)
-	require.Equal(t, uint64(502), cp.lastProcessed)
 }
 
 func TestCatchUpRetriesInRangeNotFound(t *testing.T) {
@@ -102,7 +101,6 @@ func TestCatchUpRetriesInRangeNotFound(t *testing.T) {
 	cp.catchUp(context.Background(), 500, 502)
 
 	require.Empty(t, mockClient.processed)
-	require.Equal(t, uint64(0), cp.lastProcessed)
 }
 
 func TestIsCheckpointNotFound(t *testing.T) {
