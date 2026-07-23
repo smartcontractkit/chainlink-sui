@@ -562,6 +562,19 @@ func (cp *ChainPoller) commitCheckpoint(ctx context.Context, seq uint64, data *c
 	return nil
 }
 
+// normalizeEventType lowercases and 0x-trims the package address segment of a Move
+// event type string of the form "package::module::event". Only the address segment is
+// lowercased; module and event names are case-sensitive Move identifiers and are kept
+// verbatim. Config-supplied selector package ids may differ in casing from the chain's
+// lowercase type tags, so both sides are normalized before comparison.
+func normalizeEventType(s string) string {
+	idx := strings.Index(s, "::")
+	if idx < 0 {
+		return strings.TrimPrefix(strings.ToLower(s), "0x")
+	}
+	return strings.TrimPrefix(strings.ToLower(s[:idx]), "0x") + s[idx:]
+}
+
 // filterEvents extracts events matching the registered selectors from all transactions.
 func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv2.ExecutedTransaction, selectors []*sui.EventFilterByMoveEventModule) CheckpointEventsBatch {
 	batch := CheckpointEventsBatch{
@@ -573,15 +586,17 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 		return batch
 	}
 
-	// Precompute each selector's normalized type string once. Event types from the
-	// chain are 0x-prefixed, so compare on the trimmed form instead of rebuilding
-	// and trimming the selector string for every event/selector pair.
+	// Precompute each selector's normalized type string once. Config-supplied
+	// selector package ids may differ in casing from the chain's lowercase type
+	// tags, so both sides are normalized via normalizeEventType (lowercase the
+	// address segment only; module/event names are case-sensitive). Building this
+	// once per checkpoint avoids redoing it for every event/selector pair.
 	selectorTypes := make([]string, len(selectors))
 	for i, sel := range selectors {
 		if sel == nil {
 			continue
 		}
-		selectorTypes[i] = strings.TrimPrefix(fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event), "0x")
+		selectorTypes[i] = normalizeEventType(fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event))
 	}
 
 	for _, tx := range transactions {
@@ -606,8 +621,9 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 				continue
 			}
 
-			// Check if event matches any selector
-			eventType := strings.TrimPrefix(event.GetEventType(), "0x")
+			// Check if event matches any selector. Normalize once per event so the
+			// address segment is comparable to the precomputed selector types.
+			eventType := normalizeEventType(event.GetEventType())
 			for i, sel := range selectors {
 				if sel == nil {
 					continue

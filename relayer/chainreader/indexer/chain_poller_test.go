@@ -190,3 +190,81 @@ func TestIsCheckpointNotFound(t *testing.T) {
 	require.True(t, isCheckpointNotFound(errors.New("wrapped: not found")))
 	require.False(t, isCheckpointNotFound(errors.New("timeout")))
 }
+
+func strPtr(s string) *string { return &s }
+
+// TestFilterEvents_CaseInsensitive verifies that event filtering matches on the
+// lowercased type string, so a selector whose package id is configured in a
+// different casing than the chain's lowercase type tag still matches. The type
+// tag carries the original package id; matching must not depend on the emitting
+// package, only on the normalized type string.
+func TestFilterEvents_CaseInsensitive(t *testing.T) {
+	t.Parallel()
+
+	const (
+		// Chain emits lowercase type tags anchored to the original package id.
+		originalPkg = "0x30e087460af8a8aacccbc218aa358cdcde8d43faf61ec0638d71108e276e2f1d"
+		// Selector configured with the same original id but uppercased hex.
+		upperPkg = "0X30E087460AF8A8AACCCBC218AA358CDCDE8D43FAF61EC0638D71108E276E2F1D"
+	)
+
+	cp := &ChainPoller{logger: logger.Test(t)}
+
+	selectors := []*sui.EventFilterByMoveEventModule{
+		{Package: upperPkg, Module: "onramp", Event: "CCIPMessageSent"},
+	}
+
+	tx := &suirpcv2.ExecutedTransaction{
+		Digest: strPtr("digest-1"),
+		Events: &suirpcv2.TransactionEvents{
+			Events: []*suirpcv2.Event{
+				{EventType: strPtr(originalPkg + "::onramp::CCIPMessageSent")},
+				{EventType: strPtr(originalPkg + "::onramp::ExecutionStateChanged")},
+			},
+		},
+	}
+
+	batch := cp.filterEvents(CheckpointMeta{}, []*suirpcv2.ExecutedTransaction{tx}, selectors)
+
+	require.Len(t, batch.Events, 1, "only the CCIPMessageSent event should match")
+	require.Equal(t, "digest-1", batch.Events[0].TxDigest)
+	require.Equal(t, originalPkg+"::onramp::CCIPMessageSent", batch.Events[0].Event.GetEventType())
+}
+
+func TestNormalizeEventType(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "lowercase 0x address preserved, module and event casing preserved",
+			in:   "0x30e087460af8a8aacccbc218aa358cdcde8d43faf61ec0638d71108e276e2f1d::onramp::CCIPMessageSent",
+			want: "30e087460af8a8aacccbc218aa358cdcde8d43faf61ec0638d71108e276e2f1d::onramp::CCIPMessageSent",
+		},
+		{
+			name: "uppercase 0X address lowercased and prefix stripped",
+			in:   "0X30E087460AF8A8AACCCBC218AA358CDCDE8D43FAF61EC0638D71108E276E2F1D::onramp::CCIPMessageSent",
+			want: "30e087460af8a8aacccbc218aa358cdcde8d43faf61ec0638d71108e276e2f1d::onramp::CCIPMessageSent",
+		},
+		{
+			name: "no module/event separator, whole string treated as address",
+			in:   "0X30E08746",
+			want: "30e08746",
+		},
+		{
+			name: "module and event names are not lowercased",
+			in:   "0xabc::OnRamp::CCIPMessageSent",
+			want: "abc::OnRamp::CCIPMessageSent",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, normalizeEventType(tc.in))
+		})
+	}
+}

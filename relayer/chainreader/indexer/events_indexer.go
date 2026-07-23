@@ -155,16 +155,17 @@ func (eIndexer *EventsIndexer) findMatchingSelector(event *suirpcv2.Event) *sui.
 		return nil
 	}
 
+	// Normalize the event type once so the address segment is comparable to the
+	// selector types. See normalizeEventType for why only the address is lowercased.
+	eventType := normalizeEventType(event.GetEventType())
+
 	eIndexer.configMutex.RLock()
 	selectors := make([]*sui.EventFilterByMoveEventModule, len(eIndexer.eventConfigurations))
 	copy(selectors, eIndexer.eventConfigurations)
 	eIndexer.configMutex.RUnlock()
 
 	for _, selector := range selectors {
-		expectedEventType := fmt.Sprintf("%s::%s::%s", selector.Package, selector.Module, selector.Event)
-		expectedEventType = strings.TrimPrefix(expectedEventType, "0x")
-		eventType := strings.TrimPrefix(event.GetEventType(), "0x")
-
+		expectedEventType := normalizeEventType(fmt.Sprintf("%s::%s::%s", selector.Package, selector.Module, selector.Event))
 		if eventType == expectedEventType {
 			return selector
 		}
