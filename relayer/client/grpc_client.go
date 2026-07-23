@@ -1149,9 +1149,6 @@ func (c *PTBClient) GetCheckpointData(ctx context.Context, checkpointSequenceNum
 		}
 
 		transactions := response.GetCheckpoint().GetTransactions()
-		for _, tx := range transactions {
-			c.HydrateTransactionEvents(ctx, tx)
-		}
 
 		result = &CheckpointData{
 			Checkpoint:   response.GetCheckpoint(),
