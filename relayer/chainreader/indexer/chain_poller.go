@@ -474,7 +474,7 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 		// Get events from transaction
 		txEvents := tx.GetEvents()
 		if txEvents == nil {
-			cp.logger.Warnf("Transaction has no events, skipping", "transaction", txDigest)
+			cp.logger.Debugw("Transaction has no events, skipping", "transaction", txDigest)
 			continue
 		}
 
