@@ -146,13 +146,15 @@ func (cp *ChainPoller) run(ctx context.Context) {
 		// Continue anyway, will retry in polling loop
 	} else {
 		cp.logger.Infow("Catch-up phase", "from", startSeq, "to", latestSeq)
-		cp.catchUp(ctx, startSeq, latestSeq)
+		// Start catch-up in a separate goroutine to avoid blocking
+		go cp.catchUp(ctx, startSeq, latestSeq)
 	}
 
 	// Live polling
 	ticker := time.NewTicker(cp.config.PollingInterval)
 	defer ticker.Stop()
 
+	previousLatestSeq := startSeq
 	for {
 		select {
 		case <-ctx.Done():
@@ -166,13 +168,15 @@ func (cp *ChainPoller) run(ctx context.Context) {
 				continue
 			}
 
-			cp.mu.RLock()
-			lastProcessed := cp.lastProcessed
-			cp.mu.RUnlock()
+			// cp.mu.RLock()
+			// lastProcessed := cp.lastProcessed
+			// cp.mu.RUnlock()
+			// if latestSeq > lastProcessed {
+			// 	cp.catchUp(ctx, lastProcessed+1, latestSeq)
+			// }
 
-			if latestSeq > lastProcessed {
-				cp.catchUp(ctx, lastProcessed+1, latestSeq)
-			}
+			go cp.catchUp(ctx, previousLatestSeq, latestSeq)
+			previousLatestSeq = latestSeq
 		}
 	}
 }
@@ -337,6 +341,11 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 			}
 		}
 	}
+
+	cp.logger.Debugw("Checkpoint catchup goroutine completed",
+		"start", startSeq,
+		"end", endSeq,
+	)
 }
 
 func (cp *ChainPoller) providerLowestAvailable(ctx context.Context) uint64 {
