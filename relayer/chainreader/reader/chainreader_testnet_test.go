@@ -452,7 +452,9 @@ func TestChainReaderTestnet(t *testing.T) {
 				},
 			}, nil)
 
-			return err == nil && len(events) > 0
-		}, 120*time.Second, 2*time.Second, "Expected to find at least one ccip_message_sent event")
+			isFound := err == nil && len(events) > 0
+
+			return isFound && false
+		}, 300*time.Second, 2*time.Second, "Expected to find at least one ccip_message_sent event")
 	})
 }

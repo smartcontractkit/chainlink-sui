@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
@@ -47,11 +48,12 @@ type ChainPoller struct {
 	transactionsCh   chan CheckpointTransactionsBatch
 	selectorProvider SelectorProvider
 
-	starter       services.StateMachine
-	lastProcessed uint64 // in-memory only
-	mu            sync.RWMutex
-	wg            sync.WaitGroup
-	cancel        context.CancelFunc
+	starter services.StateMachine
+	wg      sync.WaitGroup
+	cancel  context.CancelFunc
+
+	goroutineMu    sync.RWMutex
+	goroutineCount atomic.Int64
 }
 
 // NewChainPoller creates a new ChainPoller instance.
@@ -157,15 +159,16 @@ func (cp *ChainPoller) run(ctx context.Context) {
 				continue
 			}
 
-			// cp.mu.RLock()
-			// lastProcessed := cp.lastProcessed
-			// cp.mu.RUnlock()
-			// if latestSeq > lastProcessed {
-			// 	cp.catchUp(ctx, lastProcessed+1, latestSeq)
-			// }
+			cp.goroutineMu.Lock()
+			cp.goroutineCount.Add(1)
+			cp.goroutineMu.Unlock()
 
 			go cp.catchUp(ctx, previousLatestSeq, latestSeq)
 			previousLatestSeq = latestSeq
+
+			cp.goroutineMu.RLock()
+			cp.logger.Debugw("Goroutines", "count", cp.goroutineCount.Load())
+			cp.goroutineMu.RUnlock()
 		}
 	}
 }
@@ -304,12 +307,12 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 					)
 					return
 				}
-				cp.logger.Errorw(
-					"Failed to process checkpoint, will retry on next poll",
+				cp.logger.Warnw(
+					"Failed to process checkpoint, must rescan",
 					"sequence", seq,
 					"error", err,
 				)
-				// Don't advance lastProcessed - will retry on next poll
+				// TODO: add to queue of retriable checkpoints
 				return
 			}
 		}
@@ -319,6 +322,10 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 		"start", startSeq,
 		"end", endSeq,
 	)
+
+	cp.goroutineMu.Lock()
+	cp.goroutineCount.Add(-1)
+	cp.goroutineMu.Unlock()
 }
 
 func (cp *ChainPoller) providerLowestAvailable(ctx context.Context) uint64 {
@@ -435,11 +442,6 @@ func (cp *ChainPoller) processCheckpoint(ctx context.Context, seq uint64) error 
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-
-	// Update last processed
-	cp.mu.Lock()
-	cp.lastProcessed = seq
-	cp.mu.Unlock()
 
 	elapsed := time.Since(start)
 	cp.logger.Debugw(
