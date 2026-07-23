@@ -25,10 +25,28 @@ type checkpointTestClient struct {
 	notFoundBelow   uint64
 	mu              sync.Mutex
 	processed       []uint64
+	// floorSeq, when set, returns successive floor values from GetCheckpointAvailability
+	// (clamped to the last value once exhausted) to simulate the provider floor advancing
+	// mid-catch-up.
+	floorSeq []uint64
+	floorIdx int
+	// pruned, when set, marks specific sequence numbers as NotFound (mid-range pruning),
+	// instead of the notFoundBelow bottom-pruning model.
+	pruned map[uint64]bool
 }
 
 func (c *checkpointTestClient) GetCheckpointAvailability(ctx context.Context) (*suirpcv2.GetServiceInfoResponse, error) {
+	c.mu.Lock()
 	lowest := c.lowestAvailable
+	if len(c.floorSeq) > 0 {
+		idx := c.floorIdx
+		if idx >= len(c.floorSeq) {
+			idx = len(c.floorSeq) - 1
+		}
+		lowest = c.floorSeq[idx]
+		c.floorIdx++
+	}
+	c.mu.Unlock()
 	return &suirpcv2.GetServiceInfoResponse{
 		LowestAvailableCheckpoint: &lowest,
 	}, nil
@@ -39,7 +57,13 @@ func (c *checkpointTestClient) GetTransaction(ctx context.Context, digest string
 }
 
 func (c *checkpointTestClient) GetCheckpointData(ctx context.Context, checkpointSequenceNumber uint64) (*client.CheckpointData, error) {
-	if checkpointSequenceNumber < c.notFoundBelow {
+	notFound := false
+	if c.pruned != nil {
+		notFound = c.pruned[checkpointSequenceNumber]
+	} else if checkpointSequenceNumber < c.notFoundBelow {
+		notFound = true
+	}
+	if notFound {
 		return nil, status.Error(codes.NotFound, "checkpoint not found")
 	}
 
@@ -128,6 +152,35 @@ func TestCatchUpRetriesInRangeNotFound(t *testing.T) {
 	// retried on the next poll.
 	require.NotContains(t, mockClient.getProcessed(), uint64(500))
 	require.Equal(t, uint64(0), cp.lastProcessed)
+}
+
+func TestCatchUpStopsOnMidCatchupFloorAdvance(t *testing.T) {
+	t.Parallel()
+
+	// floorSeq: the top clamp sees floor 100 (no clamp), then the jump sees 506, so the
+	// floor "advances" mid-catch-up. pruned: 503-505 are unavailable; 500-502 and 506+
+	// are available.
+	mockClient := &checkpointTestClient{
+		floorSeq: []uint64{100, 506},
+		pruned:   map[uint64]bool{503: true, 504: true, 505: true},
+	}
+
+	cp := NewChainPoller(mockClient, logger.Test(t), sui.ChainPollerConfig{
+		SyncTimeout: time.Minute,
+	}, func() []*sui.EventFilterByMoveEventModule {
+		return nil
+	})
+
+	// 500-502 commit; 503 is pruned and the floor has advanced to 506, so catchUp stops
+	// at 502 instead of fetching/buffering the pruned 503-505.
+	cp.catchUp(context.Background(), 500, 510)
+	require.Equal(t, uint64(502), cp.lastProcessed)
+
+	// The next poll resumes from lastProcessed+1=503; clampToProviderFloor raises it to
+	// the current floor (506), so 506-510 commit and no available checkpoint is missed.
+	// lastProcessed reaching 510 implies 506-510 all committed in order.
+	cp.catchUp(context.Background(), 503, 510)
+	require.Equal(t, uint64(510), cp.lastProcessed)
 }
 
 func TestIsCheckpointNotFound(t *testing.T) {

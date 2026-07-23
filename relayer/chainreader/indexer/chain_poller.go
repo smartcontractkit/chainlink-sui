@@ -376,13 +376,17 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 
 					if lowest := cp.providerLowestAvailable(ctx); lowest > 0 && nextSeq < lowest {
 						cp.logger.Errorw(
-							"Checkpoint below provider history floor during catch-up, jumping to lowest available",
+							"Checkpoint below provider history floor during catch-up, stopping; next poll resumes from the floor",
 							"sequence", nextSeq,
 							"lowestAvailable", lowest,
 							"error", pr.err,
 						)
-						nextSeq = lowest
-						continue
+						// Stop this catch-up rather than fetching and buffering the now-pruned
+						// range [nextSeq, lowest). The fetch stage is canceled on return. The next
+						// poll calls catchUp(lastProcessed+1, latest), and clampToProviderFloor
+						// raises the start to the current floor, so no available checkpoint is
+						// missed and pending cannot grow with the pruned range.
+						return
 					}
 
 					cp.logger.Warnw(
