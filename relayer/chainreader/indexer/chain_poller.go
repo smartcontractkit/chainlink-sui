@@ -139,17 +139,6 @@ func (cp *ChainPoller) run(ctx context.Context) {
 		"startCheckpoint", cp.config.StartCheckpointSequence,
 	)
 
-	// Initial catch-up loop
-	latestSeq, err := cp.getLatestCheckpointSequence(ctx)
-	if err != nil {
-		cp.logger.Errorw("Failed to get latest checkpoint", "error", err)
-		// Continue anyway, will retry in polling loop
-	} else {
-		cp.logger.Infow("Catch-up phase", "from", startSeq, "to", latestSeq)
-		// Start catch-up in a separate goroutine to avoid blocking
-		go cp.catchUp(ctx, startSeq, latestSeq)
-	}
-
 	// Live polling
 	ticker := time.NewTicker(cp.config.PollingInterval)
 	defer ticker.Stop()
