@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -51,6 +52,9 @@ type TransactionsIndexer struct {
 	transmitters         []string
 	transmittersCached   bool
 	transmittersCachedAt time.Time
+
+	// fetchTransmittersFn overrides the DB-backed fetch for tests; nil in production.
+	fetchTransmittersFn func(ctx context.Context) ([]string, error)
 
 	// Constants for event/module identification
 	executionEventModuleKey string
@@ -540,31 +544,28 @@ func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]str
 	tIndexer.mu.RUnlock()
 
 	if fresh {
-		return copyStrings(cached), nil
+		return slices.Clone(cached), nil
 	}
 
-	transmitters, err := tIndexer.fetchTransmitters(ctx)
+	// fetchTransmittersFn is nil in production, where the real DB-backed fetch runs.
+	// Tests inject a fake to exercise the cache without a database.
+	fetch := tIndexer.fetchTransmittersFn
+	if fetch == nil {
+		fetch = tIndexer.fetchTransmitters
+	}
+
+	transmitters, err := fetch(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	tIndexer.mu.Lock()
-	tIndexer.transmitters = copyStrings(transmitters)
+	tIndexer.transmitters = slices.Clone(transmitters)
 	tIndexer.transmittersCached = true
-	tIndexer.transmittersCachedAt = time.Now()
+	tIndexer.transmittersCachedAt = now
 	tIndexer.mu.Unlock()
 
 	return transmitters, nil
-}
-
-// copyStrings returns a defensive copy of a string slice.
-func copyStrings(in []string) []string {
-	if in == nil {
-		return nil
-	}
-	out := make([]string, len(in))
-	copy(out, in)
-	return out
 }
 
 // fetchTransmitters queries and decodes the latest ConfigSet event to read the

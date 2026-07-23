@@ -635,19 +635,6 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 	return batch
 }
 
-// eventMatchesSelector checks if an event matches a given selector.
-func eventMatchesSelector(event *suirpcv2.Event, sel *sui.EventFilterByMoveEventModule) bool {
-	if event == nil || sel == nil {
-		return false
-	}
-
-	expectedEventType := fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event)
-	expectedEventType = strings.TrimPrefix(expectedEventType, "0x")
-	eventType := strings.TrimPrefix(event.GetEventType(), "0x")
-
-	return expectedEventType == eventType
-}
-
 // Ready returns nil if the poller has started successfully.
 func (cp *ChainPoller) Ready() error {
 	return cp.starter.Ready()
