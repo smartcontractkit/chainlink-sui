@@ -643,7 +643,7 @@ public fun update_prices_with_owner_cap(
         gas_usd_per_unit_gas,
         ctx,
     );
-    destroy_fee_quoter_cap(ref, owner_cap, fee_quoter_cap);
+    destroy_fee_quoter_cap_internal(ref, owner_cap, fee_quoter_cap);
 }
 
 // this should only be called from offramp, hence gated by a fee quoter cap stored in offramp
@@ -743,7 +743,7 @@ public fun get_validated_fee(
     let tokens_len = local_token_addresses.length();
     validate_message(dest_chain_config, data_len, tokens_len);
 
-    let mut svm_payload_overhead: u64 = 0;
+    let mut dest_payload_overhead: u64 = 0;
     let gas_limit = if (
         chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
             || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
@@ -760,7 +760,7 @@ public fun get_validated_fee(
             tokens_len,
             local_token_addresses,
         );
-        svm_payload_overhead = overhead;
+        dest_payload_overhead = overhead;
         gas
     } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
         let (gas, overhead) = resolve_svm_gas_limit(
@@ -773,7 +773,7 @@ public fun get_validated_fee(
             tokens_len,
             local_token_addresses,
         );
-        svm_payload_overhead = overhead;
+        dest_payload_overhead = overhead;
         gas
     } else {
         abort EUnknownChainFamilySelector
@@ -817,13 +817,13 @@ public fun get_validated_fee(
         get_data_availability_cost(
             dest_chain_config,
             data_availability_gas_price,
-            data_len + svm_payload_overhead,
+            data_len + dest_payload_overhead,
             tokens_len,
             token_transfer_bytes_overhead,
         )
     } else { 0 };
 
-    let billing_data_len = (data_len + svm_payload_overhead) as u256;
+    let billing_data_len = (data_len + dest_payload_overhead) as u256;
     let call_data_length: u256 = billing_data_len + (token_transfer_bytes_overhead as u256);
     let mut dest_call_data_cost =
         call_data_length * (dest_chain_config.dest_gas_per_payload_byte_base as u256);
@@ -2116,6 +2116,19 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
 }
 
 public fun destroy_fee_quoter_cap(ref: &CCIPObjectRef, owner_cap: &OwnerCap, cap: FeeQuoterCap) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"destroy_fee_quoter_cap"),
+        VERSION,
+    );
+    destroy_fee_quoter_cap_internal(ref, owner_cap, cap);
+}
+
+// Ungated destroyer used by the temporary-cap pattern in
+// update_prices_with_owner_cap, so blocking destroy_fee_quoter_cap via the
+// upgrade registry does not also block routine price updates.
+fun destroy_fee_quoter_cap_internal(ref: &CCIPObjectRef, owner_cap: &OwnerCap, cap: FeeQuoterCap) {
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     let FeeQuoterCap { id } = cap;
@@ -2155,7 +2168,9 @@ public fun mcms_new_fee_quoter_cap_and_transfer(
 }
 
 /// Slow-MCMS wrapper that destroys an existing `FeeQuoterCap`. The cap object is passed
-/// as a PTB argument and its address is pinned in callback data.
+/// as a PTB argument and its address is pinned in callback data. Inherits the
+/// upgrade-registry gate from destroy_fee_quoter_cap, so blocking that function
+/// also blocks this MCMS path.
 public fun mcms_destroy_fee_quoter_cap(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,

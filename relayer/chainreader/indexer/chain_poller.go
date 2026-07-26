@@ -15,7 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -33,7 +33,7 @@ type ChainPollerAPI interface {
 
 // SelectorProvider is a function that returns the current list of event selectors.
 // This allows dynamic selector registration via AddEventSelector.
-type SelectorProvider func() []*client.EventSelector
+type SelectorProvider func() []*sui.EventFilterByMoveEventModule
 
 // ChainPoller implements checkpoint-based polling for the Sui chain.
 // It fetches checkpoints, extracts events and transactions, and sends them over channels
@@ -42,7 +42,7 @@ type ChainPoller struct {
 	client           client.SuiPTBClient
 	extendedClient   client.ExtendedPTBClient
 	logger           logger.Logger
-	config           config.ChainPollerConfig
+	config           sui.ChainPollerConfig
 	eventsCh         chan CheckpointEventsBatch
 	transactionsCh   chan CheckpointTransactionsBatch
 	selectorProvider SelectorProvider
@@ -58,7 +58,7 @@ type ChainPoller struct {
 func NewChainPoller(
 	client client.SuiPTBClient,
 	log logger.Logger,
-	cfg config.ChainPollerConfig,
+	cfg sui.ChainPollerConfig,
 	selectorProvider SelectorProvider,
 ) *ChainPoller {
 	bufferSize := cfg.ChannelBufferSize
@@ -84,12 +84,10 @@ func (cp *ChainPoller) Start(ctx context.Context) error {
 		pollerCtx, cancel := context.WithCancel(ctx)
 		cp.cancel = cancel
 
-		cp.wg.Add(1)
-		go func() {
-			defer cp.wg.Done()
+		cp.wg.Go(func() {
 			defer cp.closeChannels()
 			cp.run(pollerCtx)
-		}()
+		})
 
 		return nil
 	})
@@ -134,7 +132,8 @@ func (cp *ChainPoller) run(ctx context.Context) {
 		startSeq = 0
 	}
 
-	cp.logger.Infow("Starting checkpoint polling",
+	cp.logger.Infow(
+		"Starting checkpoint polling",
 		"startSequence", startSeq,
 		"backfillCount", cp.config.BackfillCheckpointCount,
 		"startCheckpoint", cp.config.StartCheckpointSequence,
@@ -213,7 +212,8 @@ func (cp *ChainPoller) computeStartSequence(ctx context.Context) (uint64, error)
 // has been pruned below the configured backfill/start point.
 func (cp *ChainPoller) clampToProviderFloor(ctx context.Context, startSeq uint64) uint64 {
 	if cp.extendedClient == nil {
-		cp.logger.Warnw("Failed to get provider checkpoint availability, using requested start sequence",
+		cp.logger.Warnw(
+			"Failed to get provider checkpoint availability, using requested start sequence",
 			"startSequence", startSeq,
 			"error", errors.New("client does not implement ExtendedPTBClient"),
 		)
@@ -222,7 +222,8 @@ func (cp *ChainPoller) clampToProviderFloor(ctx context.Context, startSeq uint64
 
 	info, err := cp.extendedClient.GetCheckpointAvailability(ctx)
 	if err != nil {
-		cp.logger.Warnw("Failed to get provider checkpoint availability, using requested start sequence",
+		cp.logger.Warnw(
+			"Failed to get provider checkpoint availability, using requested start sequence",
 			"startSequence", startSeq,
 			"error", err,
 		)
@@ -231,7 +232,8 @@ func (cp *ChainPoller) clampToProviderFloor(ctx context.Context, startSeq uint64
 
 	lowest := info.GetLowestAvailableCheckpoint()
 	if lowest > 0 && startSeq < lowest {
-		cp.logger.Warnw("Start sequence below provider history floor, clamping",
+		cp.logger.Warnw(
+			"Start sequence below provider history floor, clamping",
 			"requested", startSeq,
 			"lowestAvailable", lowest,
 		)
@@ -299,7 +301,8 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 			if err := cp.processCheckpoint(ctx, seq); err != nil {
 				if isCheckpointNotFound(err) {
 					if seq == endSeq {
-						cp.logger.Debugw("Latest checkpoint not yet available",
+						cp.logger.Debugw(
+							"Latest checkpoint not yet available",
 							"sequence", seq,
 							"error", err,
 						)
@@ -307,7 +310,8 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 					}
 
 					if lowest := cp.providerLowestAvailable(ctx); lowest > 0 && seq < lowest {
-						cp.logger.Errorw("Checkpoint below provider history floor during catch-up, jumping to lowest available",
+						cp.logger.Errorw(
+							"Checkpoint below provider history floor during catch-up, jumping to lowest available",
 							"sequence", seq,
 							"lowestAvailable", lowest,
 							"error", err,
@@ -316,13 +320,15 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 						continue
 					}
 
-					cp.logger.Warnw("Checkpoint not found during catch-up, will retry on next poll",
+					cp.logger.Warnw(
+						"Checkpoint not found during catch-up, will retry on next poll",
 						"sequence", seq,
 						"error", err,
 					)
 					return
 				}
-				cp.logger.Errorw("Failed to process checkpoint, will retry on next poll",
+				cp.logger.Errorw(
+					"Failed to process checkpoint, will retry on next poll",
 					"sequence", seq,
 					"error", err,
 				)
@@ -335,7 +341,8 @@ func (cp *ChainPoller) catchUp(ctx context.Context, startSeq, endSeq uint64) {
 
 func (cp *ChainPoller) providerLowestAvailable(ctx context.Context) uint64 {
 	if cp.extendedClient == nil {
-		cp.logger.Warnw("Failed to get provider checkpoint availability",
+		cp.logger.Warnw(
+			"Failed to get provider checkpoint availability",
 			"error", errors.New("client does not implement ExtendedPTBClient"),
 		)
 		return 0
@@ -407,7 +414,8 @@ func (cp *ChainPoller) processCheckpoint(ctx context.Context, seq uint64) error 
 		TimestampMs:    timestampMs,
 	}
 
-	cp.logger.Debugw("Processing checkpoint",
+	cp.logger.Debugw(
+		"Processing checkpoint",
 		"sequence", seq,
 		"digest", meta.Digest,
 		"transactions", len(data.Transactions),
@@ -415,6 +423,8 @@ func (cp *ChainPoller) processCheckpoint(ctx context.Context, seq uint64) error 
 
 	// Build events batch by filtering against selectors
 	selectors := cp.selectorProvider()
+	cp.logger.Debugw("current event selectors", "selectors", selectors)
+
 	eventsBatch := cp.filterEvents(meta, data.Transactions, selectors)
 
 	// Send events before transactions so event indexing is not blocked when the
@@ -422,7 +432,8 @@ func (cp *ChainPoller) processCheckpoint(ctx context.Context, seq uint64) error 
 	if len(eventsBatch.Events) > 0 {
 		select {
 		case cp.eventsCh <- eventsBatch:
-			cp.logger.Debugw("Sent events batch",
+			cp.logger.Debugw(
+				"Sent events batch",
 				"sequence", seq,
 				"eventCount", len(eventsBatch.Events),
 			)
@@ -449,7 +460,8 @@ func (cp *ChainPoller) processCheckpoint(ctx context.Context, seq uint64) error 
 	cp.mu.Unlock()
 
 	elapsed := time.Since(start)
-	cp.logger.Debugw("Checkpoint processed",
+	cp.logger.Debugw(
+		"Checkpoint processed",
 		"sequence", seq,
 		"duration", elapsed,
 	)
@@ -458,7 +470,7 @@ func (cp *ChainPoller) processCheckpoint(ctx context.Context, seq uint64) error 
 }
 
 // filterEvents extracts events matching the registered selectors from all transactions.
-func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv2.ExecutedTransaction, selectors []*client.EventSelector) CheckpointEventsBatch {
+func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv2.ExecutedTransaction, selectors []*sui.EventFilterByMoveEventModule) CheckpointEventsBatch {
 	batch := CheckpointEventsBatch{
 		Checkpoint: meta,
 		Events:     make([]CheckpointEventItem, 0),
@@ -468,33 +480,35 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 		return batch
 	}
 
-	// Build a map for faster lookup (key: "package::module::event")
-	selectorMap := make(map[string]*client.EventSelector)
-	for _, sel := range selectors {
-		key := fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event)
-		selectorMap[key] = sel
-	}
-
 	for _, tx := range transactions {
+		cp.logger.Debugw("Processing transaction for event filtering", "transaction", tx)
+
 		txDigest := tx.GetDigest()
 		if txDigest == "" {
+			cp.logger.Warnf("Transaction digest is empty, skipping")
 			continue
 		}
 
 		// Get events from transaction
 		txEvents := tx.GetEvents()
 		if txEvents == nil {
+			cp.logger.Debugw("Transaction has no events, skipping", "transaction", txDigest)
 			continue
 		}
 
 		for eventIdx, event := range txEvents.GetEvents() {
 			if event == nil {
+				cp.logger.Warnf("Event is nil in transaction %s, skipping", txDigest)
 				continue
 			}
 
 			// Check if event matches any selector
 			for _, sel := range selectors {
-				cp.logger.Debugw("Checking if event matches selector", "event", event.GetEventType())
+				cp.logger.Debugw(
+					"Checking if event matches selector",
+					"event", event.GetEventType(),
+					"selector", fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event),
+				)
 
 				if eventMatchesSelector(event, sel) {
 					item := CheckpointEventItem{
@@ -513,34 +527,16 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 }
 
 // eventMatchesSelector checks if an event matches a given selector.
-func eventMatchesSelector(event *suirpcv2.Event, sel *client.EventSelector) bool {
+func eventMatchesSelector(event *suirpcv2.Event, sel *sui.EventFilterByMoveEventModule) bool {
 	if event == nil || sel == nil {
 		return false
 	}
 
-	// Check package ID (handle potential 0x prefix differences)
-	eventPackage := strings.TrimPrefix(event.GetPackageId(), "0x")
-	selectorPackage := strings.TrimPrefix(sel.Package, "0x")
-	if eventPackage != selectorPackage {
-		return false
-	}
+	expectedEventType := fmt.Sprintf("%s::%s::%s", sel.Package, sel.Module, sel.Event)
+	expectedEventType = strings.TrimPrefix(expectedEventType, "0x")
+	eventType := strings.TrimPrefix(event.GetEventType(), "0x")
 
-	// Check module
-	if event.GetModule() != sel.Module {
-		return false
-	}
-
-	// Check event type - EventType in v2 is fully qualified like "0x123::module::EventName"
-	// We extract just the event name for comparison
-	eventTypeName := event.GetEventType()
-	if parts := strings.Split(eventTypeName, "::"); len(parts) >= 3 {
-		eventTypeName = parts[2]
-	}
-	if eventTypeName != sel.Event {
-		return false
-	}
-
-	return true
+	return expectedEventType == eventType
 }
 
 // Ready returns nil if the poller has started successfully.

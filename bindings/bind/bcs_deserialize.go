@@ -119,7 +119,7 @@ func bcsDeserializeSlice(reader io.Reader, deserializer *mystenbcs.Decoder, move
 	n := int(length)
 	sliceType := reflect.SliceOf(elemType)
 	slice := reflect.MakeSlice(sliceType, n, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		dec, _, err := bcsDeserializeType(reader, deserializer, innerType)
 		if err != nil {
 			return nil, nil, err
@@ -136,21 +136,21 @@ func bcsDeserializeSlice(reader io.Reader, deserializer *mystenbcs.Decoder, move
 func reflectTypeForMoveType(moveType string) (reflect.Type, error) {
 	switch {
 	case moveType == "bool":
-		return reflect.TypeOf(false), nil
+		return reflect.TypeFor[bool](), nil
 	case moveType == "u8":
-		return reflect.TypeOf(uint8(0)), nil
+		return reflect.TypeFor[uint8](), nil
 	case moveType == "u16":
-		return reflect.TypeOf(uint16(0)), nil
+		return reflect.TypeFor[uint16](), nil
 	case moveType == "u32":
-		return reflect.TypeOf(uint32(0)), nil
+		return reflect.TypeFor[uint32](), nil
 	case moveType == "u64":
-		return reflect.TypeOf(uint64(0)), nil
+		return reflect.TypeFor[uint64](), nil
 	case moveType == "0x1::string::String":
-		return reflect.TypeOf(""), nil
+		return reflect.TypeFor[string](), nil
 	case strings.HasPrefix(moveType, "vector<") && strings.HasSuffix(moveType, ">"):
 		inner := moveType[len("vector<") : len(moveType)-1]
 		if inner == "u8" {
-			return reflect.TypeOf([]byte(nil)), nil
+			return reflect.TypeFor[[]byte](), nil
 		}
 		elem, err := reflectTypeForMoveType(inner)
 		if err != nil {
@@ -159,12 +159,12 @@ func reflectTypeForMoveType(moveType string) (reflect.Type, error) {
 
 		return reflect.SliceOf(elem), nil
 	case moveType == "address":
-		return reflect.TypeOf(models.SuiAddress("")), nil
+		return reflect.TypeFor[models.SuiAddress](), nil
 	case moveType == "u128", moveType == "u256":
-		return reflect.TypeOf((*big.Int)(nil)), nil
+		return reflect.TypeFor[*big.Int](), nil
 	default:
 		// Custom Move structs fall through to bcsDeserializeAddress in decoding.
-		return reflect.TypeOf(models.SuiAddress("")), nil
+		return reflect.TypeFor[models.SuiAddress](), nil
 	}
 }
 
@@ -175,7 +175,7 @@ func bcsDeserializeAddress(deserializer *mystenbcs.Decoder) (models.SuiAddress, 
 		return "", nil, err
 	}
 	addrStr := transaction.ConvertSuiAddressBytesToString(res)
-	return addrStr, reflect.TypeOf(addrStr), nil
+	return addrStr, reflect.TypeFor[models.SuiAddress](), nil
 }
 
 func bcsDeserializeBigInt(deserializer *mystenbcs.Decoder, moveType string, size int) (*big.Int, reflect.Type, error) {
@@ -186,14 +186,14 @@ func bcsDeserializeBigInt(deserializer *mystenbcs.Decoder, moveType string, size
 			return nil, nil, fmt.Errorf("failed to decode %s: %w", moveType, err)
 		}
 		dec := new(big.Int).SetBytes(reverseBytes(bytes[:]))
-		return dec, reflect.TypeOf(dec), nil
+		return dec, reflect.TypeFor[*big.Int](), nil
 	case 32:
 		var bytes [32]byte
 		if _, err := deserializer.Decode(&bytes); err != nil {
 			return nil, nil, fmt.Errorf("failed to decode %s: %w", moveType, err)
 		}
 		dec := new(big.Int).SetBytes(reverseBytes(bytes[:]))
-		return dec, reflect.TypeOf(dec), nil
+		return dec, reflect.TypeFor[*big.Int](), nil
 	default:
 		return nil, nil, fmt.Errorf("unsupported big int size %d for type %s", size, moveType)
 	}

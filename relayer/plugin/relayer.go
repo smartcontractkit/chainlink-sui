@@ -25,10 +25,9 @@ import (
 	aptosBalanceMonitor "github.com/smartcontractkit/chainlink-aptos/relayer/monitor"
 	aptosTypes "github.com/smartcontractkit/chainlink-aptos/relayer/types"
 
-	chainreaderConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	chainreader "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
-	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
@@ -152,7 +151,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		return nil, fmt.Errorf("invalid chain poller channel buffer size: %w", err)
 	}
 
-	pollerConfig := chainreaderConfig.ChainPollerConfig{
+	pollerConfig := sui.ChainPollerConfig{
 		PollingInterval:         pollingInterval,
 		SyncTimeout:             syncTimeout,
 		BackfillCheckpointCount: cfg.ChainPoller.BackfillCheckpointCount,
@@ -296,7 +295,7 @@ func (r *SuiRelayer) Transact(ctx context.Context, from, to string, amount *big.
 
 // Relayer interface
 func (r *SuiRelayer) NewContractWriter(_ context.Context, configBytes []byte) (types.ContractWriter, error) {
-	chainConfig := cwConfig.ChainWriterConfig{}
+	chainConfig := sui.ChainWriterConfig{}
 	err := json.Unmarshal(configBytes, &chainConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractWriter: %w", err)
@@ -313,7 +312,7 @@ func (r *SuiRelayer) NewContractWriter(_ context.Context, configBytes []byte) (t
 }
 
 func (r *SuiRelayer) NewContractReader(ctx context.Context, contractReaderConfig []byte) (types.ContractReader, error) {
-	chainConfig := chainreaderConfig.ChainReaderConfig{}
+	chainConfig := sui.ChainReaderConfig{}
 	err := json.Unmarshal(contractReaderConfig, &chainConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractReader: %w", err)

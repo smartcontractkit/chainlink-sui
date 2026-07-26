@@ -15,30 +15,37 @@ func PrettyPrintDebug(log logger.Logger, data any, label string) {
 	}
 }
 
+//go:fix inline
 func StringPointer(s string) *string {
-	return &s
+	return new(s)
 }
 
+//go:fix inline
 func BoolPointer(b bool) *bool {
-	return &b
+	return new(b)
 }
 
+//go:fix inline
 func IntPointer(i int) *int {
-	return &i
+	return new(i)
 }
 
+//go:fix inline
 func Uint64Pointer(i uint64) *uint64 {
-	return &i
+	return new(i)
 }
 
+//go:fix inline
 func Uint32Pointer(i uint32) *uint32 {
-	return &i
+	return new(i)
 }
 
+//go:fix inline
 func Uint16Pointer(i uint16) *uint16 {
-	return &i
+	return new(i)
 }
 
+//go:fix inline
 func Uint8Pointer(i uint8) *uint8 {
-	return &i
+	return new(i)
 }

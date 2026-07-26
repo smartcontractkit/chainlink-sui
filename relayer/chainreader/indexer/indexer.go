@@ -10,7 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -56,13 +56,13 @@ type Params struct {
 	Logger       logger.Logger
 	DB           sqlutil.DataSource
 	Client       client.SuiPTBClient
-	PollerConfig config.ChainPollerConfig
+	PollerConfig sui.ChainPollerConfig
 	// EventSelectors optionally seeds the EventsIndexer. Selectors are normally registered later
 	// when the ChainReader binds contracts, so this is usually left nil/empty.
-	EventSelectors []*client.EventSelector
+	EventSelectors []*sui.EventFilterByMoveEventModule
 	// TransactionConfigs optionally seeds the TransactionsIndexer. Normally left nil/empty and
 	// populated later via the ChainReader.
-	TransactionConfigs map[string]*config.ChainReaderEvent
+	TransactionConfigs map[string]*sui.ChainReaderEvent
 }
 
 // NewIndexer constructs a fully-wired Indexer: it creates the TransactionsIndexer, EventsIndexer,
@@ -72,11 +72,11 @@ type Params struct {
 func NewIndexer(p Params) *Indexer {
 	eventSelectors := p.EventSelectors
 	if eventSelectors == nil {
-		eventSelectors = []*client.EventSelector{}
+		eventSelectors = []*sui.EventFilterByMoveEventModule{}
 	}
 	txnConfigs := p.TransactionConfigs
 	if txnConfigs == nil {
-		txnConfigs = map[string]*config.ChainReaderEvent{}
+		txnConfigs = map[string]*sui.ChainReaderEvent{}
 	}
 
 	txnIndexer := NewTransactionsIndexer(p.DB, p.Logger, txnConfigs)
@@ -136,15 +136,12 @@ func (i *Indexer) Start(_ context.Context) error {
 		txnIndexerCtx, txnIndexerCancel := context.WithCancel(context.Background())
 		i.transactionIndexerCancel = &txnIndexerCancel
 
-		i.wg.Add(1)
-		go func() {
-			defer i.wg.Done()
-
+		i.wg.Go(func() {
 			if err := i.transactionIndexer.Start(txnIndexerCtx, i.chainPoller.TransactionsChannel()); err != nil {
 				i.log.Errorw("Transaction indexer failed", "error", err)
 				i.transactionIndexerErr.Store(err)
 			}
-		}()
+		})
 
 		return nil
 	})

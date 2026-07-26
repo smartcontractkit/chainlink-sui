@@ -327,13 +327,13 @@ func generateRMNRemoteView(
 
 		// Parse the config struct (contains signers and f_sign)
 		// Config is a struct with fields: signers (vector of Signer structs) and f_sign (u64)
-		configData, ok := versionedConfigRaw[1].([]interface{})
+		configData, ok := versionedConfigRaw[1].([]any)
 		if ok && len(configData) >= 2 {
 			// Parse signers
-			if signersRaw, ok := configData[0].([]interface{}); ok {
+			if signersRaw, ok := configData[0].([]any); ok {
 				signers := make([]RMNRemoteSigner, 0, len(signersRaw))
 				for _, signerRaw := range signersRaw {
-					if signerData, ok := signerRaw.([]interface{}); ok && len(signerData) >= 2 {
+					if signerData, ok := signerRaw.([]any); ok && len(signerData) >= 2 {
 						// Signer struct: [onchain_public_key (vector<u8>), node_index (u64)]
 						pubKeyBytes, pkOk := signerData[0].([]byte)
 						nodeIndex, niOk := signerData[1].(uint64)

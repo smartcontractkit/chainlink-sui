@@ -7,7 +7,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 )
 
 // TypeTagBuilder provides methods to create TypeTag instances
@@ -19,7 +19,7 @@ func NewTypeTagBuilder() *TypeTagBuilder {
 }
 
 func (p *PTBConstructor) ResolveGenericTypeTags(
-	params []codec.SuiFunctionParam,
+	params []sui.SuiFunctionParam,
 ) ([]transaction.TypeTag, error) {
 	if len(params) == 0 {
 		return []transaction.TypeTag{}, nil

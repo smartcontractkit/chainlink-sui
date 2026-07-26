@@ -177,13 +177,13 @@ func TransactionLatestPackageID(tx types.Transaction) (string, error) {
 	return fields.LatestPackageID, nil
 }
 
-func ExtractTransactionCall(output interface{}, operationID string) (sui_ops.TransactionCall, error) {
+func ExtractTransactionCall(output any, operationID string) (sui_ops.TransactionCall, error) {
 	jsonBytes, err := json.Marshal(output)
 	if err != nil {
 		return sui_ops.TransactionCall{}, fmt.Errorf("failed to marshal operation %s output: %w", operationID, err)
 	}
 
-	var outputMap map[string]interface{}
+	var outputMap map[string]any
 	if err := json.Unmarshal(jsonBytes, &outputMap); err != nil {
 		return sui_ops.TransactionCall{}, fmt.Errorf("failed to unmarshal operation %s output: %w", operationID, err)
 	}
