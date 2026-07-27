@@ -204,6 +204,16 @@ fun encode_withdraw_liquidity_data(
     data
 }
 
+fun encode_destroy_rebalancer_cap_data(
+    state_id: address,
+    rebalancer_cap_id: address,
+): vector<u8> {
+    let mut data = vector[];
+    vector::append(&mut data, bcs::to_bytes(&state_id));
+    vector::append(&mut data, bcs::to_bytes(&rebalancer_cap_id));
+    data
+}
+
 fun setup_mcms_ownership(env: &mut TestEnv, owner_cap: OwnerCap) {
     // Transfer ownership to MCMS
     env.scenario.next_tx(OWNER);
@@ -440,6 +450,142 @@ public fun test_mcms_set_rebalancer_to_mcms_address() {
         LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST,
     >(mcms_cap);
     assert!(mcms_rebalancer_cap_addr == lock_release_token_pool::get_rebalancer(&env.state));
+
+    ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
+    tear_down(env);
+}
+
+#[test]
+public fun test_mcms_destroy_rebalancer_cap_succeeds() {
+    let (mut env, owner_cap, rebalancer_cap) = setup();
+    let owner_cap_id = object::id_address(&owner_cap);
+
+    // MCMS takes rebalancer control: mcms_cap.rebalancer_cap = Some(C), state.rebalancer_cap_id = id(C)
+    let mcms_rebalancer_cap_addr = setup_mcms_with_rebalancer(&mut env, owner_cap, owner_cap_id);
+    assert!(mcms_rebalancer_cap_addr == lock_release_token_pool::get_rebalancer(&env.state));
+
+    // Destroy the MCMS-held rebalancer cap directly. Previously this aborted with
+    // ERebalancerCapIsInUse because the MCMS-held cap is always the active rebalancer.
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_destroy_rebalancer_cap_data(
+        object::id_address(&env.state),
+        mcms_rebalancer_cap_addr,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"destroy_rebalancer_cap",
+        data,
+        x"000000000000000000000000000000000000000000000000000000000000000a",
+        0,
+    );
+    lock_release_token_pool::mcms_destroy_rebalancer_cap(
+        &mut env.state,
+        &mut env.mcms_registry,
+        params,
+        env.scenario.ctx(),
+    );
+
+    // MCMS no longer holds a rebalancer cap and the pool has no active rebalancer.
+    let mcms_cap = mcms_registry::get_cap<McmsCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(
+        &env.mcms_registry,
+        @lock_release_token_pool.to_ascii_string(),
+    );
+    assert!(!lock_release_token_pool::mcms_rebalancer_cap_is_some(mcms_cap));
+    assert!(lock_release_token_pool::get_rebalancer(&env.state) == @0x0);
+
+    ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
+    tear_down(env);
+}
+
+#[test]
+#[expected_failure(abort_code = lock_release_token_pool::ERebalancerCapDoesNotExist)]
+public fun test_mcms_destroy_rebalancer_cap_fails_when_none() {
+    let (mut env, owner_cap, rebalancer_cap) = setup();
+
+    // MCMS owns the pool but holds no rebalancer cap.
+    setup_mcms_ownership(&mut env, owner_cap);
+
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_destroy_rebalancer_cap_data(object::id_address(&env.state), @0x0);
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"destroy_rebalancer_cap",
+        data,
+        x"000000000000000000000000000000000000000000000000000000000000000b",
+        0,
+    );
+    lock_release_token_pool::mcms_destroy_rebalancer_cap(
+        &mut env.state,
+        &mut env.mcms_registry,
+        params,
+        env.scenario.ctx(),
+    );
+
+    ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
+    tear_down(env);
+}
+
+#[test]
+public fun test_mcms_retake_rebalancer_after_destroy() {
+    let (mut env, owner_cap, rebalancer_cap) = setup();
+    let owner_cap_id = object::id_address(&owner_cap);
+
+    setup_mcms_with_rebalancer(&mut env, owner_cap, owner_cap_id);
+
+    // Renounce rebalancer control by destroying the MCMS-held cap.
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let data = encode_destroy_rebalancer_cap_data(
+        object::id_address(&env.state),
+        lock_release_token_pool::get_rebalancer(&env.state),
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"destroy_rebalancer_cap",
+        data,
+        x"000000000000000000000000000000000000000000000000000000000000000c",
+        0,
+    );
+    lock_release_token_pool::mcms_destroy_rebalancer_cap(
+        &mut env.state,
+        &mut env.mcms_registry,
+        params,
+        env.scenario.ctx(),
+    );
+    assert!(lock_release_token_pool::get_rebalancer(&env.state) == @0x0);
+
+    // MCMS re-takes rebalancer control: a fresh cap is created and becomes active,
+    // overwriting the zero sentinel.
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
+    let mcms_address = mcms_registry::get_multisig_address();
+    let data = encode_set_rebalancer_data(
+        object::id_address(&env.state),
+        owner_cap_id,
+        mcms_address,
+    );
+    let params = create_mcms_callback_params(
+        @lock_release_token_pool,
+        b"set_rebalancer",
+        data,
+        x"000000000000000000000000000000000000000000000000000000000000000d",
+        0,
+    );
+    lock_release_token_pool::mcms_set_rebalancer(
+        &mut env.state,
+        &mut env.mcms_registry,
+        params,
+        env.scenario.ctx(),
+    );
+
+    let mcms_cap = mcms_registry::get_cap<McmsCap<LOCK_RELEASE_TOKEN_POOL_MCMS_CAP_TEST>>(
+        &env.mcms_registry,
+        @lock_release_token_pool.to_ascii_string(),
+    );
+    assert!(lock_release_token_pool::mcms_rebalancer_cap_is_some(mcms_cap));
+    assert!(
+        lock_release_token_pool::mcms_rebalancer_cap_address(mcms_cap)
+            == lock_release_token_pool::get_rebalancer(&env.state),
+    );
+    assert!(lock_release_token_pool::get_rebalancer(&env.state) != @0x0);
 
     ts::return_to_address(EOA_REBALANCER, rebalancer_cap);
     tear_down(env);

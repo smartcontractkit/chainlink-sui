@@ -76,6 +76,9 @@ jobs:
       DEFAULT_CORE_REF: develop
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chainlink_test?sslmode=disable
+      # smartcontractkit/* modules are fetched directly from GitHub VCS and skip the
+      # public proxy + checksum DB, which 500s on freshly-pushed pseudo-versions.
+      GOPRIVATE: github.com/smartcontractkit/*
 
     services:
       postgres:
@@ -174,15 +177,25 @@ jobs:
 
           echo "Using chainlink-sui ref: $REF"
 
+          # Retry transient VCS/network failures during module resolution.
+          retry() {
+            for i in 1 2 3; do
+              if "$@"; then return 0; fi
+              echo "retry $i/3 failed: $*" >&2
+              sleep 5
+            done
+            "$@"
+          }
+
           cd temp/chainlink
-          go get github.com/smartcontractkit/chainlink-sui@$REF
+          retry go get github.com/smartcontractkit/chainlink-sui@$REF
 
           cd deployment
-          go get github.com/smartcontractkit/chainlink-sui/deployment@$REF
+          retry go get github.com/smartcontractkit/chainlink-sui/deployment@$REF
 
           cd ../integration-tests
-          go get github.com/smartcontractkit/chainlink-sui@$REF
-          go get github.com/smartcontractkit/chainlink-sui/deployment@$REF
+          retry go get github.com/smartcontractkit/chainlink-sui@$REF
+          retry go get github.com/smartcontractkit/chainlink-sui/deployment@$REF
 
           # chainlink-sui/deployment pulls a newer chainlink-ccip/deployment than chainlink
           # develop pins for chains/evm; keep both sibling modules on the same commit.
@@ -190,12 +203,12 @@ jobs:
             ../../chainlink-sui/deployment/go.mod | awk '{print $2}')
           CCIP_REF="${CCIP_DEP##*-}"
           echo "Aligning chainlink-ccip modules to commit ${CCIP_REF} (from ${CCIP_DEP})"
-          go get "github.com/smartcontractkit/chainlink-ccip/deployment@${CCIP_REF}"
-          go get "github.com/smartcontractkit/chainlink-ccip/chains/evm@${CCIP_REF}"
+          retry go get "github.com/smartcontractkit/chainlink-ccip/deployment@${CCIP_REF}"
+          retry go get "github.com/smartcontractkit/chainlink-ccip/chains/evm@${CCIP_REF}"
 
           cd ../deployment
-          go get "github.com/smartcontractkit/chainlink-ccip/deployment@${CCIP_REF}"
-          go get "github.com/smartcontractkit/chainlink-ccip/chains/evm@${CCIP_REF}"
+          retry go get "github.com/smartcontractkit/chainlink-ccip/deployment@${CCIP_REF}"
+          retry go get "github.com/smartcontractkit/chainlink-ccip/chains/evm@${CCIP_REF}"
 
           cd ..
           make gomodtidy
@@ -203,8 +216,6 @@ jobs:
       # 6) Install public LOOP plugins (same as chainlink integration CI), then overlay PR relayer
       - name: Install LOOP plugins (public)
         working-directory: temp/chainlink
-        env:
-          GOPRIVATE: github.com/smartcontractkit/*
         run: |
           make install-loopinstall
           make install-plugins-public
