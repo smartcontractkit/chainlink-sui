@@ -838,7 +838,7 @@ func (c *PTBClient) GetEventsByCheckpoint(ctx context.Context, checkpointSequenc
 	var events []*suirpcv2.Event
 	for _, transaction := range transactions {
 		for _, event := range transaction.GetEvents().Events {
-			qualifiedEventHandle := strings.Join([]string{event.GetPackageId(), event.GetModule(), event.GetEventType()}, "::")
+			qualifiedEventHandle := strings.TrimPrefix(event.GetEventType(), "0x")
 			if slices.Contains(eventTypes, qualifiedEventHandle) {
 				events = append(events, event)
 			}
