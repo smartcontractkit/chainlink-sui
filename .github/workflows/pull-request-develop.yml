@@ -154,7 +154,7 @@ jobs:
         env:
           TEST_DB_URL: postgres://localhost:5432/chainlink_test?sslmode=disable&user=postgres&password=postgres
         run: |
-          cd relayer && nix develop --command go test -count=1 -p=1 -tags="integration" ./...
+          cd relayer && nix develop --command go test -timeout 25m -count=1 -p=1 -tags="integration" ./...
 
       - name: Memory after tests
         if: always()

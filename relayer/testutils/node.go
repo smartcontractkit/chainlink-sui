@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -51,7 +52,7 @@ func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
 // startDockerNode starts a Sui node in a Docker container and waits for its RPC
 // and faucet ports. The container persists across test runs, so no retry is used.
 func startDockerNode() (*exec.Cmd, error) {
-	cmd := exec.Command("docker", "ps", "-q", "-f", "name=sui-local")
+	cmd := exec.CommandContext(context.Background(), "docker", "ps", "-q", "-f", "name=sui-local")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -59,7 +60,7 @@ func startDockerNode() (*exec.Cmd, error) {
 	if len(strings.TrimSpace(string(output))) > 0 {
 		return cmd, nil
 	}
-	cmd = exec.Command("docker", "run", "--rm", "-d", "--name", "sui-local", "-p", "9000:9000", "mysten/sui-node:devnet")
+	cmd = exec.CommandContext(context.Background(), "docker", "run", "--rm", "-d", "--name", "sui-local", "-p", "9000:9000", "mysten/sui-node:devnet")
 	if err = cmd.Run(); err != nil {
 		return nil, err
 	}
@@ -75,10 +76,10 @@ func startDockerNode() (*exec.Cmd, error) {
 }
 
 // suiStartRetryDeadline bounds how long StartSuiNode retries `sui start` before
-// giving up. It gives many fast attempts, since a failed attempt is detected in
-// ~1s via process exit, while still failing a test promptly if the startup race
-// is deterministic.
-const suiStartRetryDeadline = 45 * time.Second
+// giving up. Each attempt waits for the ports plus a stabilization window, so
+// this allows several fresh starts if `sui start` keeps exiting from the
+// validator health-check race.
+const suiStartRetryDeadline = 3 * time.Minute
 
 // startCliNodeWithRetry repeatedly starts `sui start --with-faucet --force-regenesis`
 // until the node and faucet are reachable, or suiStartRetryDeadline elapses.
@@ -111,7 +112,7 @@ func startCliNodeOnce(perAttempt time.Duration) (*exec.Cmd, bool, error) {
 	suiLogPath := logFile.Name()
 	fmt.Fprintf(os.Stderr, "[StartSuiNode] capturing `sui start` output: %s\n", suiLogPath)
 
-	cmd := exec.Command("sui", "start", "--with-faucet", "--force-regenesis")
+	cmd := exec.CommandContext(context.Background(), "sui", "start", "--with-faucet", "--force-regenesis")
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	if startErr := cmd.Start(); startErr != nil {
@@ -131,15 +132,25 @@ func startCliNodeOnce(perAttempt time.Duration) (*exec.Cmd, bool, error) {
 
 	ok := waitForConnectionOrExit(LocalURL, perAttempt, exited) &&
 		waitForConnectionOrExit(LocalFaucetURL, perAttempt, exited)
-	if ok {
-		return cmd, true, nil
+	if !ok {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+			<-exited
+		}
+		fmt.Fprintf(os.Stderr, "[StartSuiNode] node not reachable; sui start output tail:\n%s\n", tailLog(suiLogPath))
+		return nil, false, nil
 	}
-	if cmd.Process != nil {
-		_ = cmd.Process.Kill()
-		<-exited
+
+	// Stabilize: the ports are up, but `sui start` can still exit ~9-12s after
+	// launch if a validator health check fails, because the post-launch grace
+	// period was removed in Sui 1.75.x. Wait out that window watching for process
+	// exit; if it dies, retry with a fresh node instead of handing the test a
+	// doomed process that will die mid-test.
+	if exitedBeforeTimeout(exited, stabilizeWindowFromEnv()) {
+		fmt.Fprintf(os.Stderr, "[StartSuiNode] node exited during stabilization window; retrying\n")
+		return nil, false, nil
 	}
-	fmt.Fprintf(os.Stderr, "[StartSuiNode] node not reachable; sui start output tail:\n%s\n", tailLog(suiLogPath))
-	return nil, false, nil
+	return cmd, true, nil
 }
 
 // waitForConnectionOrExit polls the TCP endpoint until it accepts a connection,
@@ -171,6 +182,34 @@ func waitForConnectionOrExit(url string, timeout time.Duration, exited <-chan st
 		}
 	}
 	return false
+}
+
+// exitedBeforeTimeout reports whether the sui process exited before the given
+// duration elapsed. Used to hold through Sui's health-check exit window.
+func exitedBeforeTimeout(exited <-chan struct{}, d time.Duration) bool {
+	select {
+	case <-exited:
+		return true
+	case <-time.After(d):
+		return false
+	}
+}
+
+// stabilizeWindowFromEnv returns how long StartSuiNode waits after the ports come
+// up to confirm `sui start` does not exit from a validator health-check failure.
+// Defaults to 15s, which covers Sui's ~9-12s health-check exit window with margin,
+// and is overridable via SUI_NODE_STABILIZE_SECS.
+func stabilizeWindowFromEnv() time.Duration {
+	const defaultWindow = 15 * time.Second
+	v := os.Getenv("SUI_NODE_STABILIZE_SECS")
+	if v == "" {
+		return defaultWindow
+	}
+	secs, err := strconv.Atoi(v)
+	if err != nil || secs < 0 {
+		return defaultWindow
+	}
+	return time.Duration(secs) * time.Second
 }
 
 // startTimeoutFromEnv returns the deadline used when waiting for the local Sui node
