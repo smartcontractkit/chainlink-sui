@@ -61,8 +61,8 @@ func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
 	}
 
 	// Wait for the node to start
-	const defaultDelay = 10 * time.Second
-	const backoffDelay = 100 * time.Millisecond
+	const defaultDelay = 30 * time.Second
+	const backoffDelay = 1000 * time.Millisecond
 	err := waitForConnection(LocalURL, defaultDelay, backoffDelay)
 	if err != nil {
 		return nil, err
