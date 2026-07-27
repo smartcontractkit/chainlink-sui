@@ -237,7 +237,7 @@ func TestChainReaderTestnet(t *testing.T) {
 		[]*client.EventSelector{},
 	)
 
-	startingCheckpointSequence := uint64(362867769)
+	startingCheckpointSequence := uint64(364000000)
 	chainPoller := indexer.NewChainPoller(
 		relayerClient,
 		log,
@@ -246,7 +246,7 @@ func TestChainReaderTestnet(t *testing.T) {
 			SyncTimeout:             60 * time.Second,
 			BackfillCheckpointCount: nil,
 			StartCheckpointSequence: &startingCheckpointSequence,
-			ChannelBufferSize:       16,
+			ChannelBufferSize:       32,
 		},
 		evIndexer.GetEventSelectors,
 	)
