@@ -237,7 +237,7 @@ func TestChainReaderTestnet(t *testing.T) {
 		[]*client.EventSelector{},
 	)
 
-	startingCheckpointSequence := uint64(364000000)
+	startingCheckpointSequence := uint64(365320000)
 	chainPoller := indexer.NewChainPoller(
 		relayerClient,
 		log,

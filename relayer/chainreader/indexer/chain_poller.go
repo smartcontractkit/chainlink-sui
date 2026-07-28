@@ -24,7 +24,7 @@ const (
 	// defaultChannelBufferSize is used when the config does not set ChannelBufferSize.
 	defaultChannelBufferSize = 64
 	// defaultMaxConcurrentWorkers is the default number of goroutines processing checkpoint chunks.
-	defaultMaxConcurrentWorkers = 128
+	defaultMaxConcurrentWorkers = 64
 	// defaultCatchupChunkSize is the default number of checkpoints per catch-up chunk.
 	defaultCatchupChunkSize = 12
 	// defaultMaxStalledTicksBeforeSkip is how many consecutive stalled poll ticks (no watermark
