@@ -33,7 +33,7 @@ const (
 	FaucetRetryDelay        = time.Second
 	HTTPClientTimeout       = 30 * time.Second
 	SeedSize                = ed25519.SeedSize
-	nodeStartupMaxAttempts  = 5
+	nodeStartupMaxAttempts  = 30
 	// Brief pause after releasing ephemeral port reservations so another process is less likely
 	// to steal the same port before `sui start` binds (TOCTOU under parallel `go test` packages).
 	portReleaseSettleDelay = 50 * time.Millisecond
@@ -193,10 +193,20 @@ func (te *TestEnvironment) initialize() error {
 	}
 	te.nodeCmd = cmd
 
+	// Detect early process exit so the caller retries immediately. Sui 1.75.x can
+	// exit during startup with "No address found with sufficient coins" when the
+	// faucet races the fullnode loading genesis state; without this each retry
+	// would spin for the full timeout polling a dead process.
+	exited := make(chan struct{})
+	go func() {
+		_ = cmd.Wait()
+		close(exited)
+	}()
+
 	rpcURL := fmt.Sprintf("http://%s:%d", loopbackHost, te.rpcPort)
 	faucetURL := fmt.Sprintf("http://%s:%d", loopbackHost, te.faucetPort)
 
-	// wait for node to be ready
+	// wait for node to be ready, aborting early if the process exits
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultNodeStartTimeout)
 	defer cancel()
 rpcWait:
@@ -205,6 +215,9 @@ rpcWait:
 		case <-ctx.Done():
 			te.cleanupLocked()
 			return fmt.Errorf("timeout waiting for Sui node to be ready")
+		case <-exited:
+			te.cleanupLocked()
+			return fmt.Errorf("sui start exited before RPC became ready")
 		default:
 			client := sui.NewSuiClientWithCustomClient(rpcURL, &http.Client{
 				Timeout: HTTPClientTimeout,
@@ -213,14 +226,25 @@ rpcWait:
 			if err == nil {
 				break rpcWait
 			}
-			time.Sleep(NodeReadyPollInterval)
+			select {
+			case <-exited:
+				te.cleanupLocked()
+				return fmt.Errorf("sui start exited before RPC became ready")
+			case <-time.After(NodeReadyPollInterval):
+			}
 		}
 	}
 
 	// RPC can be live while the faucet fails to bind (e.g. port collision); wait until the faucet
-	// accepts TCP connections before declaring the environment ready.
+	// accepts TCP connections before declaring the environment ready. Abort early if the process exits.
 	faucetDeadline := time.Now().Add(FaucetReadyTimeout)
 	for time.Now().Before(faucetDeadline) {
+		select {
+		case <-exited:
+			te.cleanupLocked()
+			return fmt.Errorf("sui start exited before faucet listened")
+		default:
+		}
 		conn, dialErr := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", loopbackHost, te.faucetPort), 500*time.Millisecond)
 		if dialErr == nil {
 			_ = conn.Close()
@@ -230,7 +254,12 @@ rpcWait:
 			te.logger.Infof("SUI_FAUCET_URL=%s", os.Getenv("SUI_FAUCET_URL"))
 			return nil
 		}
-		time.Sleep(NodeReadyPollInterval)
+		select {
+		case <-exited:
+			te.cleanupLocked()
+			return fmt.Errorf("sui start exited before faucet listened")
+		case <-time.After(NodeReadyPollInterval):
+		}
 	}
 
 	te.cleanupLocked()
@@ -244,7 +273,8 @@ func (te *TestEnvironment) cleanupLocked() {
 		if err := te.nodeCmd.Process.Kill(); err != nil {
 			te.logger.Info("Failed to kill Sui node process:", err)
 		}
-		_ = te.nodeCmd.Wait()
+		// Reaping is done by the exit-watcher goroutine started in initialize();
+		// calling Wait here too would race with it.
 	}
 
 	te.nodeCmd = nil

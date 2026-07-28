@@ -2,13 +2,16 @@ package testutils
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	netUrl "net/url"
+	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,53 +30,230 @@ const (
 	CLI
 )
 
-// StartSuiNode starts a local Sui node using Docker
+// StartSuiNode starts a local Sui node using Docker or the Sui CLI.
+//
+// For the CLI path it retries `sui start` until the fullnode RPC and faucet are
+// both reachable. Retrying is necessary because Sui 1.75.x removed the post-launch
+// grace period, so the faucet can race the fullnode loading genesis state and
+// `sui start` exits with "No address found with sufficient coins" before the ports
+// come up. Each attempt detects early process exit so a failed attempt is retried
+// in ~1s instead of waiting the full per-attempt timeout.
 func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
-	var cmd *exec.Cmd
-
 	switch nodeType {
 	case Docker:
-		// Check if the container is already running
-		cmd = exec.Command("docker", "ps", "-q", "-f", "name=sui-local")
-		output, err := cmd.Output()
-		if err != nil {
-			return nil, err
-		}
+		return startDockerNode()
+	case CLI:
+		return startCliNodeWithRetry()
+	default:
+		return nil, fmt.Errorf("unknown node type: %v", nodeType)
+	}
+}
 
-		// If the container is already running, return
-		if len(strings.TrimSpace(string(output))) > 0 {
+// startDockerNode starts a Sui node in a Docker container and waits for its RPC
+// and faucet ports. The container persists across test runs, so no retry is used.
+func startDockerNode() (*exec.Cmd, error) {
+	cmd := exec.CommandContext(context.Background(), "docker", "ps", "-q", "-f", "name=sui-local")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	if len(strings.TrimSpace(string(output))) > 0 {
+		return cmd, nil
+	}
+	cmd = exec.CommandContext(context.Background(), "docker", "run", "--rm", "-d", "--name", "sui-local", "-p", "9000:9000", "mysten/sui-node:devnet")
+	if err = cmd.Run(); err != nil {
+		return nil, err
+	}
+	delay := startTimeoutFromEnv()
+	const backoffDelay = 1000 * time.Millisecond
+	if err := waitForConnection(LocalURL, delay, backoffDelay); err != nil {
+		return nil, err
+	}
+	if err := waitForConnection(LocalFaucetURL, delay, backoffDelay); err != nil {
+		return nil, err
+	}
+	return cmd, nil
+}
+
+// suiStartRetryDeadline bounds how long StartSuiNode retries `sui start` before
+// giving up. Each attempt waits for the ports plus a stabilization window, so
+// this allows several fresh starts if `sui start` keeps exiting from the
+// validator health-check race.
+const suiStartRetryDeadline = 3 * time.Minute
+
+// startCliNodeWithRetry repeatedly starts `sui start --with-faucet --force-regenesis`
+// until the node and faucet are reachable, or suiStartRetryDeadline elapses.
+func startCliNodeWithRetry() (*exec.Cmd, error) {
+	perAttempt := startTimeoutFromEnv()
+	deadline := time.Now().Add(suiStartRetryDeadline)
+	for attempt := 1; time.Now().Before(deadline); attempt++ {
+		cmd, ok, ferr := startCliNodeOnce(perAttempt)
+		if ferr != nil {
+			return nil, ferr
+		}
+		if ok {
 			return cmd, nil
 		}
-
-		// Start the container
-		cmd = exec.Command("docker", "run", "--rm", "-d", "--name", "sui-local", "-p", "9000:9000", "mysten/sui-node:devnet")
-		err = cmd.Run()
-		if err != nil {
-			return nil, err
-		}
-	case CLI:
-		// Start the local sui node
-		cmd = exec.Command("sui", "start", "--with-faucet", "--force-regenesis")
-		err := cmd.Start()
-		if err != nil {
-			return nil, err
-		}
+		fmt.Fprintf(os.Stderr, "[StartSuiNode] attempt %d did not come up; retrying\n", attempt)
+		time.Sleep(200 * time.Millisecond)
 	}
+	return nil, fmt.Errorf("sui start did not become reachable within %s; see prior `sui start` output tails (likely the Sui 1.75.x faucet/fullnode startup race)", suiStartRetryDeadline)
+}
 
-	// Wait for the node to start
-	const defaultDelay = 10 * time.Second
-	const backoffDelay = 100 * time.Millisecond
-	err := waitForConnection(LocalURL, defaultDelay, backoffDelay)
+// startCliNodeOnce starts `sui start` once, captures its output, and waits for the
+// fullnode RPC and faucet to accept connections. It returns (cmd, true, nil) on
+// success, (nil, false, nil) if the process exited or the ports were not reached
+// in time (retryable), or (nil, false, err) on a fatal setup error.
+func startCliNodeOnce(perAttempt time.Duration) (*exec.Cmd, bool, error) {
+	logFile, err := os.CreateTemp("", "sui-start-*.log")
 	if err != nil {
-		return nil, err
+		return nil, false, fmt.Errorf("create sui start log: %w", err)
 	}
-	// wait for Faucet to be available
-	err = waitForConnection(LocalFaucetURL, defaultDelay, backoffDelay)
-	if err != nil {
-		return nil, err
+	suiLogPath := logFile.Name()
+	fmt.Fprintf(os.Stderr, "[StartSuiNode] capturing `sui start` output: %s\n", suiLogPath)
+
+	cmd := exec.CommandContext(context.Background(), "sui", "start", "--with-faucet", "--force-regenesis")
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	if startErr := cmd.Start(); startErr != nil {
+		logFile.Close()
+		return nil, false, fmt.Errorf("start sui: %w", startErr)
+	}
+	// The child holds its own dup'd fd; closing the parent copy avoids leaking it.
+	logFile.Close()
+
+	// Detect process exit so a failed attempt is retried immediately instead of
+	// waiting the full per-attempt timeout for a process that has already died.
+	exited := make(chan struct{})
+	go func() {
+		_ = cmd.Wait()
+		close(exited)
+	}()
+
+	ok := waitForConnectionOrExit(LocalURL, perAttempt, exited) &&
+		waitForConnectionOrExit(LocalFaucetURL, perAttempt, exited)
+	if !ok {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+			<-exited
+		}
+		fmt.Fprintf(os.Stderr, "[StartSuiNode] node not reachable; sui start output tail:\n%s\n", tailLog(suiLogPath))
+		return nil, false, nil
 	}
 
-	return cmd, nil
+	// Stabilize: the ports are up, but `sui start` can still exit ~9-12s after
+	// launch if a validator health check fails, because the post-launch grace
+	// period was removed in Sui 1.75.x. Wait out that window watching for process
+	// exit; if it dies, retry with a fresh node instead of handing the test a
+	// doomed process that will die mid-test.
+	if exitedBeforeTimeout(exited, stabilizeWindowFromEnv()) {
+		fmt.Fprintf(os.Stderr, "[StartSuiNode] node exited during stabilization window; retrying\n")
+		return nil, false, nil
+	}
+	return cmd, true, nil
+}
+
+// waitForConnectionOrExit polls the TCP endpoint until it accepts a connection,
+// the sui process exits, or the timeout elapses. Returning early on process exit
+// lets the caller retry immediately instead of waiting the full timeout for a
+// process that has already died.
+func waitForConnectionOrExit(url string, timeout time.Duration, exited <-chan struct{}) bool {
+	parsedURL, err := netUrl.Parse(url)
+	if err != nil || parsedURL.Host == "" {
+		return false
+	}
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		select {
+		case <-exited:
+			return false
+		default:
+		}
+		d := net.Dialer{Timeout: 2 * time.Second}
+		conn, derr := d.Dial("tcp", parsedURL.Host)
+		if derr == nil {
+			conn.Close()
+			return true
+		}
+		select {
+		case <-exited:
+			return false
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+	return false
+}
+
+// exitedBeforeTimeout reports whether the sui process exited before the given
+// duration elapsed. Used to hold through Sui's health-check exit window.
+func exitedBeforeTimeout(exited <-chan struct{}, d time.Duration) bool {
+	select {
+	case <-exited:
+		return true
+	case <-time.After(d):
+		return false
+	}
+}
+
+// stabilizeWindowFromEnv returns how long StartSuiNode waits after the ports come
+// up to confirm `sui start` does not exit from a validator health-check failure.
+// Defaults to 15s, which covers Sui's ~9-12s health-check exit window with margin,
+// and is overridable via SUI_NODE_STABILIZE_SECS.
+func stabilizeWindowFromEnv() time.Duration {
+	const defaultWindow = 15 * time.Second
+	v := os.Getenv("SUI_NODE_STABILIZE_SECS")
+	if v == "" {
+		return defaultWindow
+	}
+	secs, err := strconv.Atoi(v)
+	if err != nil || secs < 0 {
+		return defaultWindow
+	}
+	return time.Duration(secs) * time.Second
+}
+
+// startTimeoutFromEnv returns the deadline used when waiting for the local Sui node
+// and faucet to accept connections. It defaults to 30s and can be overridden with
+// SUI_NODE_START_TIMEOUT_SECS, e.g. to give a heavier Sui version more time to come up.
+func startTimeoutFromEnv() time.Duration {
+	const defaultDelay = 30 * time.Second
+	v := os.Getenv("SUI_NODE_START_TIMEOUT_SECS")
+	if v == "" {
+		return defaultDelay
+	}
+	secs, err := strconv.Atoi(v)
+	if err != nil || secs <= 0 {
+		return defaultDelay
+	}
+	return time.Duration(secs) * time.Second
+}
+
+// tailLog returns the trailing bytes of the captured `sui start` log so the real
+// crash/panic reason is included in the error returned by StartSuiNode. Returns an
+// empty string when no log was captured, e.g. the Docker path.
+func tailLog(path string) string {
+	if path == "" {
+		return ""
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Sprintf("(could not read sui start log %s: %v)", path, err)
+	}
+	defer f.Close()
+	const tail = 8 * 1024
+	if info, statErr := f.Stat(); statErr == nil && info.Size() > tail {
+		if _, seekErr := f.Seek(-tail, io.SeekEnd); seekErr != nil {
+			return ""
+		}
+	}
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return ""
+	}
+	if len(data) == 0 {
+		return "(sui start produced no output)"
+	}
+	return "--- sui start output (tail) ---\n" + string(data)
 }
 
 func waitForConnection(url string, timeout time.Duration, backoffDelay time.Duration) error {
