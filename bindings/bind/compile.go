@@ -1081,7 +1081,7 @@ func getChainIdentifier(rpcURL string) (string, error) {
 	// the gRPC equivalent.
 	chainID, grpcErr := getChainIdentifierViaGRPC(context.Background(), rpcURL)
 	if grpcErr != nil {
-		return "", fmt.Errorf("failed to query chain identifier via CLI (%v) and gRPC (%w)", err, grpcErr)
+		return "", fmt.Errorf("failed to query chain identifier via CLI (%w) and gRPC (%w)", err, grpcErr)
 	}
 	return chainID, nil
 }
