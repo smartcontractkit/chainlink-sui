@@ -150,6 +150,14 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain poller channel buffer size: %w", err)
 	}
+	pollerWorkers, err := common.IntFromUint64(*cfg.ChainPoller.MaxConcurrentWorkers)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller max concurrent workers: %w", err)
+	}
+	pollerChunkSize, err := common.IntFromUint64(*cfg.ChainPoller.CatchupChunkSize)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller catchup chunk size: %w", err)
+	}
 
 	pollerConfig := sui.ChainPollerConfig{
 		PollingInterval:         pollingInterval,
@@ -162,10 +170,12 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	// Create main indexer that constructs and orchestrates the poller + consumer indexers.
 	// A separate client (suiClientIndexers) is used for the poller to avoid rate limiting.
 	indexerInstance := indexer.NewIndexer(indexer.Params{
-		Logger:       loggerInstance,
-		DB:           db,
-		Client:       suiClientIndexers,
-		PollerConfig: pollerConfig,
+		Logger:          loggerInstance,
+		DB:              db,
+		Client:          suiClientIndexers,
+		PollerConfig:    pollerConfig,
+		PollerWorkers:   pollerWorkers,
+		PollerChunkSize: pollerChunkSize,
 	})
 
 	loggerInstance.Infof("Creating retry manager. NumberRetries: %d", *cfg.TransactionManager.MaxTxRetryAttempts)

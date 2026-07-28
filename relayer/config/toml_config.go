@@ -208,6 +208,10 @@ type ChainPollerConfig struct {
 	BackfillCheckpointCount *uint64
 	StartCheckpointSequence *uint64
 	ChannelBufferSize       *uint64
+	// MaxConcurrentWorkers is the number of goroutines fetching checkpoint chunks concurrently.
+	MaxConcurrentWorkers *uint64
+	// CatchupChunkSize is the number of checkpoints per catch-up chunk handed to a worker.
+	CatchupChunkSize *uint64
 }
 
 func (c *ChainPollerConfig) setDefaults() {
@@ -226,6 +230,14 @@ func (c *ChainPollerConfig) setDefaults() {
 	if c.BackfillCheckpointCount == nil {
 		v := DefaultChainPollerBackfillCheckpointCount
 		c.BackfillCheckpointCount = &v
+	}
+	if c.MaxConcurrentWorkers == nil {
+		v := DefaultChainPollerMaxConcurrentWorkers
+		c.MaxConcurrentWorkers = &v
+	}
+	if c.CatchupChunkSize == nil {
+		v := DefaultChainPollerCatchupChunkSize
+		c.CatchupChunkSize = &v
 	}
 }
 
@@ -394,6 +406,12 @@ func setFromChainPoller(c, f *ChainPollerConfig) {
 	}
 	if f.ChannelBufferSize != nil {
 		c.ChannelBufferSize = f.ChannelBufferSize
+	}
+	if f.MaxConcurrentWorkers != nil {
+		c.MaxConcurrentWorkers = f.MaxConcurrentWorkers
+	}
+	if f.CatchupChunkSize != nil {
+		c.CatchupChunkSize = f.CatchupChunkSize
 	}
 }
 

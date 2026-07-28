@@ -1098,7 +1098,7 @@ func (c *PTBClient) HydrateTransactionEvents(ctx context.Context, tx *suirpcv2.E
 		return
 	}
 
-	err := c.WithRateLimit(ctx, "GetTransactionStatus", func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "HydrateTransactionEvents", func(ctx context.Context) error {
 		ledgerService, err := c.getLedgerService(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get ledger service: %w", err)
@@ -1149,9 +1149,6 @@ func (c *PTBClient) GetCheckpointData(ctx context.Context, checkpointSequenceNum
 		}
 
 		transactions := response.GetCheckpoint().GetTransactions()
-		for _, tx := range transactions {
-			c.HydrateTransactionEvents(ctx, tx)
-		}
 
 		result = &CheckpointData{
 			Checkpoint:   response.GetCheckpoint(),

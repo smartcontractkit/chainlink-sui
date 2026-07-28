@@ -22,10 +22,11 @@ const (
     ALTER TABLE sui.events ADD COLUMN IF NOT EXISTS is_synthetic BOOLEAN DEFAULT FALSE;
     `
 
-	CreateTransmitterCursorsTable = `
-	CREATE TABLE IF NOT EXISTS sui.transmitter_cursors (
-		transmitter TEXT PRIMARY KEY,
-		cursor TEXT NOT NULL
+	CreateCheckpointCursorsTable = `
+	CREATE TABLE IF NOT EXISTS sui.checkpoint_cursors (
+		id TEXT PRIMARY KEY,
+		last_sequence BIGINT NOT NULL,
+		updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	);
 	`
 
@@ -58,34 +59,18 @@ const (
 	WHERE event_account_address = $1 AND event_handle = $2
     `
 
-	QueryEventsOffset = `
-	SELECT COALESCE(event_offset, 0) as event_offset, tx_digest
-	FROM sui.events 
-	WHERE event_account_address = $1 AND event_handle = $2 AND is_synthetic = FALSE
-	ORDER BY id DESC 
-	LIMIT 1
-	`
-
-	CountEvents = `
-	SELECT COUNT(*) as total_count
-	FROM sui.events 
-	WHERE event_account_address = $1 AND event_handle = $2 
-	`
-
-	GetTxDigestById = `
-	SELECT tx_digest
-	FROM sui.events
+	GetCheckpointCursorQuery = `
+	SELECT last_sequence
+	FROM sui.checkpoint_cursors
 	WHERE id = $1
 	`
 
-	GetTransmitterCursor = `
-	SELECT cursor
-	FROM sui.transmitter_cursors
-	WHERE transmitter = $1
-	`
-
-	UpdateTransmitterCursor = `
-	INSERT INTO sui.transmitter_cursors (transmitter, cursor) VALUES ($1, $2)
-	ON CONFLICT (transmitter) DO UPDATE SET cursor = $2;
+	// UpsertCheckpointCursorQuery is monotonic: the stored sequence never regresses even if
+	// callers race or submit stale values.
+	UpsertCheckpointCursorQuery = `
+	INSERT INTO sui.checkpoint_cursors (id, last_sequence) VALUES ($1, $2)
+	ON CONFLICT (id) DO UPDATE
+	SET last_sequence = GREATEST(sui.checkpoint_cursors.last_sequence, EXCLUDED.last_sequence),
+	    updated_at = NOW();
 	`
 )
