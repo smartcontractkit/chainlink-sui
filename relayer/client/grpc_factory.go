@@ -4,13 +4,11 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/signer"
-	"github.com/block-vision/sui-go-sdk/sui"
 	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/semaphore"
 
@@ -117,7 +115,6 @@ func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient,
 	}
 
 	var connPool *grpcConnPool
-	var moveModuleClient sui.ISuiAPI
 	if cfg.grpcEnabled() {
 		useTLS := grpcTargetUsesTLS(cfg.GrpcTarget)
 
@@ -128,18 +125,8 @@ func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient,
 		connPool = newGrpcConnPool(maxGrpcConnections, func() *suigrpcconn.Connection {
 			return NewSuiGrpcClient(grpcConfig)
 		})
-
-		// TODO: remove this to use the gRPC client only
-		jsonRPCScheme := "http"
-		if useTLS {
-			jsonRPCScheme = "https"
-		}
-		moveModuleClient = sui.NewSuiClientWithCustomClient(
-			jsonRPCScheme+"://"+cfg.GrpcTarget,
-			&http.Client{Timeout: cfg.TransactionTimeout},
-		)
 	} else {
-		log.Info("gRPC client not configured; using JSON-RPC only")
+		log.Info("gRPC client not configured; gRPC operations will fail")
 	}
 
 	log.Infof(
@@ -160,7 +147,6 @@ func NewPTBClientFromConfig(log logger.Logger, cfg PTBClientConfig) (*PTBClient,
 
 	return &PTBClient{
 		log:                log,
-		moveModuleClient:   moveModuleClient,
 		connPool:           connPool,
 		maxRetries:         cfg.MaxRetries,
 		transactionTimeout: cfg.TransactionTimeout,
