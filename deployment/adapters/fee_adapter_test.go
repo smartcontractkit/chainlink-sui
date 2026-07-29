@@ -25,6 +25,41 @@ func TestSuiFeeAdapter_Registered(t *testing.T) {
 	require.IsType(t, &SuiFeeAdapter{}, adapter)
 }
 
+func TestSuiFeeResolver_Registered(t *testing.T) {
+	t.Parallel()
+	resolver, ok := fees.GetRegistry().GetFeeResolver(chainsel.FamilySui)
+	require.True(t, ok, "sui fee resolver must be registered")
+	require.IsType(t, &SuiFeeResolver{}, resolver)
+}
+
+func TestSuiFeeResolver_GetOnRampRef(t *testing.T) {
+	t.Parallel()
+	r := &SuiFeeResolver{}
+	const selector uint64 = 123
+
+	t.Run("returns OnRamp ref versioned at 1.6.0", func(t *testing.T) {
+		t.Parallel()
+		ds := datastore.NewMemoryDataStore()
+		require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
+			ChainSelector: selector,
+			Type:          datastore.ContractType(suideploy.SuiOnRampType),
+			Address:       "0xonramp",
+			Version:       semver.MustParse("1.0.0"),
+		}))
+		got, err := r.GetOnRampRef(cldf_ops.Bundle{}, cldf_chain.BlockChains{}, ds.Seal(), selector, 456)
+		require.NoError(t, err)
+		require.Equal(t, "0xonramp", got.Address)
+		require.Equal(t, datastore.ContractType(suideploy.SuiOnRampType), got.Type)
+		require.True(t, got.Version.Equal(semver.MustParse("1.6.0")), "onRamp ref must be versioned at 1.6.0 so the generic flow selects the adapter")
+	})
+
+	t.Run("errors when OnRamp missing", func(t *testing.T) {
+		t.Parallel()
+		_, err := r.GetOnRampRef(cldf_ops.Bundle{}, cldf_chain.BlockChains{}, datastore.NewMemoryDataStore().Seal(), selector, 456)
+		require.Error(t, err)
+	})
+}
+
 func TestSuiFeeAdapter_GetDefaultTokenTransferFeeConfig(t *testing.T) {
 	t.Parallel()
 	a := &SuiFeeAdapter{}

@@ -23,7 +23,10 @@ import (
 	suilanes "github.com/smartcontractkit/chainlink-sui/deployment/lanes"
 )
 
-var _ fees.FeeAdapter = &SuiFeeAdapter{}
+var (
+	_ fees.FeeAdapter  = &SuiFeeAdapter{}
+	_ fees.FeeResolver = &SuiFeeResolver{}
+)
 
 // Label keys stashed on the FeeQuoter ref by GetFeeContractRef so the downstream
 // SetTokenTransferFee / GetOnchainTokenTransferFeeConfig can recover the CCIP state object
@@ -208,6 +211,30 @@ func (a *SuiFeeAdapter) ApplyDestChainConfigUpdates(_ datastore.DataStore, _ dat
 
 func (a *SuiFeeAdapter) GetOnchainDestChainConfig(_ cldf_ops.Bundle, _ cldf_chain.BlockChains, _ datastore.AddressRef, _ uint64, _ uint64) (lanes.FeeQuoterDestChainConfig, error) {
 	return lanes.FeeQuoterDestChainConfig{}, fmt.Errorf("GetOnchainDestChainConfig is not implemented on SuiFeeAdapter yet")
+}
+
+// ================================================================
+// === FeeResolver                                               ===
+// ================================================================
+
+// SuiFeeResolver implements fees.FeeResolver for Sui. The OnRamp is a separate Move package
+// whose ref is resolved from the datastore. The generic fee flow selects the FeeAdapter by
+// onRampRef.Version, and Sui contract refs are stored at 1.0.0 while the SuiFeeAdapter is
+// registered at 1.6.0, so the returned ref is versioned at 1.6.0. Chain-family routing is
+// handled upstream by the generic flow, so no chain sanity check is needed here.
+type SuiFeeResolver struct{}
+
+// GetOnRampRef returns the OnRamp address ref for the source chain, versioned at 1.6.0.
+func (r *SuiFeeResolver) GetOnRampRef(_ cldf_ops.Bundle, _ cldf_chain.BlockChains, ds datastore.DataStore, src uint64, _ uint64) (datastore.AddressRef, error) {
+	onRampRef, err := datastore_utils.FindAndFormatRef(ds, datastore.AddressRef{
+		ChainSelector: src,
+		Type:          datastore.ContractType(suideploy.SuiOnRampType),
+	}, src, datastore_utils.FullRef)
+	if err != nil {
+		return datastore.AddressRef{}, fmt.Errorf("failed to find Sui OnRamp ref on chain %d: %w", src, err)
+	}
+	onRampRef.Version = semver.MustParse("1.6.0")
+	return onRampRef, nil
 }
 
 // ================================================================

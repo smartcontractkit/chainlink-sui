@@ -22,4 +22,5 @@ func init() {
 	mcmsRegistry.RegisterMCMSReader(chainsel.FamilySui, &MCMSReader{})
 
 	fees.GetRegistry().RegisterFeeAdapter(chainsel.FamilySui, semver.MustParse("1.6.0"), &SuiFeeAdapter{})
+	fees.GetRegistry().RegisterFeeResolver(chainsel.FamilySui, &SuiFeeResolver{})
 }
