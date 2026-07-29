@@ -1,11 +1,13 @@
 package adapters
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strings"
 
 	semver "github.com/Masterminds/semver/v3"
+	chainsel "github.com/smartcontractkit/chain-selectors"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -333,33 +335,345 @@ func (a *SuiTokenAdapter) ResolveTokenRef(b cldf_ops.Bundle, chains cldf_chain.B
 // === Stubs: not yet implemented                                ===
 // ================================================================
 
+// ConfigureTokenForTransfersSequence configures a Sui token pool for cross-chain transfers
+// as an MCMS proposal. Per remote chain it applies the chain config (remote token + remote
+// pool) and the default-lane rate limits, mirroring the Sui ConfigureBurnMintTokenPool flow.
+// Sui has no router SetPool and the existing Sui configure flow does not register the pool in
+// the TokenAdminRegistry, so this sequence only sets per-remote chain config + rate limits.
 func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequence[tokensapi.ConfigureTokenForTransfersInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
-	return nil
+	return cldf_ops.NewSequence(
+		"sui-adapter:configure-token-for-transfers",
+		semver.MustParse("1.6.0"),
+		"Configure a Sui token pool for cross-chain transfers as an MCMS proposal",
+		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input tokensapi.ConfigureTokenForTransfersInput) (sequences.OnChainOutput, error) {
+			chain, ok := chains.SuiChains()[input.ChainSelector]
+			if !ok {
+				return sequences.OnChainOutput{}, fmt.Errorf("sui chain with selector %d not found", input.ChainSelector)
+			}
+			coinType := input.TokenRef.Address
+			if coinType == "" {
+				return sequences.OnChainOutput{}, fmt.Errorf("token ref has no coin type address on chain %d", input.ChainSelector)
+			}
+			pkgID := input.TokenPoolAddress
+			if pkgID == "" {
+				return sequences.OnChainOutput{}, fmt.Errorf("token pool address is empty on chain %d", input.ChainSelector)
+			}
+			poolType := datastore.ContractType(input.PoolType)
+			stateObjID, ownerCapID, err := resolveSuiPoolObjects(input.ExistingDataStore, input.ChainSelector, poolType, input.TokenRef.Qualifier)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to resolve sui pool objects: %w", err)
+			}
+			localDecimals, err := suiDecimals(b, chain, coinType)
+			if err != nil {
+				return sequences.OnChainOutput{}, err
+			}
+
+			deps := suiDeps(chain)
+			batchOps := make([]mcmstypes.BatchOperation, 0)
+			for remoteSelector, rc := range input.RemoteChains {
+				if err := rc.Validate(); err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("remote chain config for selector %d: %w", remoteSelector, err)
+				}
+				remoteTokenHex := "0x" + hex.EncodeToString(rc.RemoteToken)
+				remotePoolHex := "0x" + hex.EncodeToString(rc.RemotePool)
+
+				calls := make([]sui_ops.TransactionCall, 0, 2)
+				switch poolType {
+				case datastore.ContractType(suideploy.SuiBnMTokenPoolType):
+					r, err := cldf_ops.ExecuteOperation(b, burnminttokenpoolops.BurnMintTokenPoolApplyChainUpdatesOp, deps, burnminttokenpoolops.BurnMintTokenPoolApplyChainUpdatesInput{
+						BurnMintPackageId:            pkgID,
+						CoinObjectTypeArg:            coinType,
+						StateObjectId:                stateObjID,
+						OwnerCap:                     ownerCapID,
+						RemoteChainSelectorsToAdd:    []uint64{remoteSelector},
+						RemotePoolAddressesToAdd:     [][]string{{remotePoolHex}},
+						RemoteTokenAddressesToAdd:    []string{remoteTokenHex},
+					})
+					if err != nil {
+						return sequences.OnChainOutput{}, fmt.Errorf("apply chain updates for remote %d: %w", remoteSelector, err)
+					}
+					calls = append(calls, r.Output.Call)
+				case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
+					r, err := cldf_ops.ExecuteOperation(b, managedtokenpoolops.ManagedTokenPoolApplyChainUpdatesOp, deps, managedtokenpoolops.ManagedTokenPoolApplyChainUpdatesInput{
+						ManagedTokenPoolPackageId:    pkgID,
+						CoinObjectTypeArg:            coinType,
+						StateObjectId:                stateObjID,
+						OwnerCap:                     ownerCapID,
+						RemoteChainSelectorsToAdd:    []uint64{remoteSelector},
+						RemotePoolAddressesToAdd:     [][]string{{remotePoolHex}},
+						RemoteTokenAddressesToAdd:    []string{remoteTokenHex},
+					})
+					if err != nil {
+						return sequences.OnChainOutput{}, fmt.Errorf("apply chain updates for remote %d: %w", remoteSelector, err)
+					}
+					calls = append(calls, r.Output.Call)
+				default:
+					return sequences.OnChainOutput{}, fmt.Errorf("unsupported sui token pool type %s for ConfigureTokenForTransfers", poolType)
+				}
+
+				obBucket, obOk := rc.GetOutboundRateLimitBuckets().DefaultBucket()
+				ibBucket, ibOk := rc.GetInboundRateLimitBuckets().DefaultBucket()
+				switch {
+				case obOk && ibOk:
+					obRL, ibRL := tokensapi.GenerateTPRLConfigs(obBucket.RateLimit, ibBucket.RateLimit, localDecimals, rc.RemoteDecimals, chainsel.FamilySui, semver.MustParse("1.6.0"), input.PoolType)
+					rlCall, err := suiSetChainRateLimitCall(b, deps, poolType, pkgID, coinType, stateObjID, ownerCapID, remoteSelector, obRL, ibRL)
+					if err != nil {
+						return sequences.OnChainOutput{}, err
+					}
+					calls = append(calls, rlCall)
+				case !obOk && !ibOk:
+					b.Logger.Warnf("sui ConfigureTokenForTransfers: skipping rate limits for remote %d (no default bucket)", remoteSelector)
+				default:
+					return sequences.OnChainOutput{}, fmt.Errorf("default outbound and inbound rate limits must both be specified or both omitted for remote %d", remoteSelector)
+				}
+
+				out, err := batchOpFromCalls(input.ChainSelector, calls)
+				if err != nil {
+					return sequences.OnChainOutput{}, err
+				}
+				batchOps = append(batchOps, out.BatchOps...)
+			}
+			return sequences.OnChainOutput{BatchOps: batchOps}, nil
+		},
+	)
 }
 
-// DeriveTokenAddress is not implemented yet. Recovering the coin type from a pool requires
-// a DevInspect GetToken call whose typeArgs themselves need the coin type, so the coin type
-// must come from the token ref / datastore rather than the pool. This is wired as part of
-// the Tier 3 ConfigureTokenForTransfers work.
-func (a *SuiTokenAdapter) DeriveTokenAddress(_ deployment.Environment, _ uint64, _ datastore.AddressRef) (string, error) {
-	return "", fmt.Errorf("DeriveTokenAddress is not implemented on SuiTokenAdapter yet")
+// suiSetChainRateLimitCall builds the SetChainRateLimiter TransactionCall for one remote
+// chain, converting the decimal-scaled configs to the u64 on-chain representation.
+func suiSetChainRateLimitCall(
+	b cldf_ops.Bundle,
+	deps sui_ops.OpTxDeps,
+	poolType datastore.ContractType,
+	pkgID, coinType, stateObjID, ownerCapID string,
+	remoteSelector uint64,
+	obRL, ibRL tokensapi.RateLimiterConfig,
+) (sui_ops.TransactionCall, error) {
+	obCap, err := bigToU64(obRL.Capacity)
+	if err != nil {
+		return sui_ops.TransactionCall{}, fmt.Errorf("outbound capacity: %w", err)
+	}
+	obRate, err := bigToU64(obRL.Rate)
+	if err != nil {
+		return sui_ops.TransactionCall{}, fmt.Errorf("outbound rate: %w", err)
+	}
+	ibCap, err := bigToU64(ibRL.Capacity)
+	if err != nil {
+		return sui_ops.TransactionCall{}, fmt.Errorf("inbound capacity: %w", err)
+	}
+	ibRate, err := bigToU64(ibRL.Rate)
+	if err != nil {
+		return sui_ops.TransactionCall{}, fmt.Errorf("inbound rate: %w", err)
+	}
+	remotes := []uint64{remoteSelector}
+	switch poolType {
+	case datastore.ContractType(suideploy.SuiBnMTokenPoolType):
+		r, err := cldf_ops.ExecuteOperation(b, burnminttokenpoolops.BurnMintTokenPoolSetChainRateLimiterOp, deps, burnminttokenpoolops.BurnMintTokenPoolSetChainRateLimiterInput{
+			BurnMintPackageId:    pkgID,
+			CoinObjectTypeArg:    coinType,
+			StateObjectId:        stateObjID,
+			OwnerCap:             ownerCapID,
+			RemoteChainSelectors: remotes,
+			OutboundIsEnableds:   []bool{obRL.IsEnabled},
+			OutboundCapacities:   []uint64{obCap},
+			OutboundRates:        []uint64{obRate},
+			InboundIsEnableds:    []bool{ibRL.IsEnabled},
+			InboundCapacities:    []uint64{ibCap},
+			InboundRates:         []uint64{ibRate},
+		})
+		if err != nil {
+			return sui_ops.TransactionCall{}, fmt.Errorf("set rate limits: %w", err)
+		}
+		return r.Output.Call, nil
+	case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
+		r, err := cldf_ops.ExecuteOperation(b, managedtokenpoolops.ManagedTokenPoolSetChainRateLimiterOp, deps, managedtokenpoolops.ManagedTokenPoolSetChainRateLimiterInput{
+			ManagedTokenPoolPackageId: pkgID,
+			CoinObjectTypeArg:         coinType,
+			StateObjectId:             stateObjID,
+			OwnerCap:                  ownerCapID,
+			RemoteChainSelectors:      remotes,
+			OutboundIsEnableds:        []bool{obRL.IsEnabled},
+			OutboundCapacities:        []uint64{obCap},
+			OutboundRates:             []uint64{obRate},
+			InboundIsEnableds:         []bool{ibRL.IsEnabled},
+			InboundCapacities:         []uint64{ibCap},
+			InboundRates:              []uint64{ibRate},
+		})
+		if err != nil {
+			return sui_ops.TransactionCall{}, fmt.Errorf("set rate limits: %w", err)
+		}
+		return r.Output.Call, nil
+	default:
+		return sui_ops.TransactionCall{}, fmt.Errorf("unsupported sui token pool type %s for rate limits", poolType)
+	}
 }
 
+// DeriveTokenAddress derives the Sui coin type for a pool from the datastore. It is a
+// fallback used when the caller does not provide a token ref; the primary path threads the
+// coin type through the token ref. The coin type is built from the token's package id using
+// the module::STRUCT convention for each Sui token kind (managed token, BnM token, LINK),
+// disambiguated by the contract type the package is stored under.
+func (a *SuiTokenAdapter) DeriveTokenAddress(e deployment.Environment, chainSelector uint64, poolRef datastore.AddressRef) (string, error) {
+	return deriveSuiCoinType(e.DataStore, chainSelector, poolRef.Qualifier)
+}
+
+// ManualRegistration is a no-op on Sui. Unlike EVM/Solana, a Sui token pool self-registers
+// in the TokenAdminRegistry during pool initialization: the Move `initialize` (burn-mint) and
+// `initialize_with_managed_token` (managed) functions call `token_admin_registry::register_pool`
+// themselves. DeployTokenPoolForToken triggers that init, so by the time a pool exists it is
+// already registered. Calling register_pool again would abort with ETokenAlreadyRegistered, so
+// this sequence logs and returns an empty output rather than re-registering. A nil return would
+// crash the generic ManualRegistration changeset, so a no-op sequence is returned instead.
 func (a *SuiTokenAdapter) ManualRegistration() *cldf_ops.Sequence[tokensapi.ManualRegistrationSequenceInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
-	return nil
+	return cldf_ops.NewSequence(
+		"sui-adapter:manual-registration",
+		semver.MustParse("1.6.0"),
+		"No-op: Sui pools self-register in the TokenAdminRegistry during initialization",
+		func(b cldf_ops.Bundle, _ cldf_chain.BlockChains, input tokensapi.ManualRegistrationSequenceInput) (sequences.OnChainOutput, error) {
+			b.Logger.Infow("Sui ManualRegistration is a no-op: token pools self-register in the TokenAdminRegistry during pool initialization",
+				"chainSelector", input.ChainSelector, "tokenPoolRef", input.TokenPoolRef.Address)
+			return sequences.OnChainOutput{}, nil
+		},
+	)
 }
 
+// DeployToken is not implemented yet. Sui token deployment publishes a fixed-kind Move
+// package (managed token or BnM token) whose deploy op takes only MCMS config, not the
+// symbol/decimals/supply/pre-mint/senders that the generic DeployTokenInput carries. The
+// token identity is determined by the published package, so the generic input does not map
+// cleanly. This needs a decision on how to represent Sui token deploy in the generic flow
+// before wiring; it returns nil until then.
 func (a *SuiTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployTokenInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return nil
 }
 
-// DeployTokenPoolForToken is not implemented yet. The Sui DeployAndInitAllTokenPoolsSequence
-// publishes a Move package and requires several fields the generic DeployTokenPoolInput does
-// not carry (CCIP/MCMS package ids, fastcurse package, CCIPObjectRef, token administrator,
-// and the coin type). Package publish also executes directly rather than via MCMS. The
-// mapping must be validated against the Sui deploy sequence before wiring.
+// DeployTokenPoolForToken deploys and initializes a Sui token pool for an existing token.
+// It publishes a Move package and initializes the pool, so it executes directly with the
+// chain signer (not as an MCMS proposal) and returns the deployed pool's AddressRefs.
+//
+// PoolType accepts either the Sui short form ("bnm"/"managed"/"lnr") or the contract-type
+// string ("SuiBnMTokenPool"/"SuiManagedTokenPool"). The token's coin type comes from
+// TokenRef.Address and the symbol from TokenRef.Qualifier; CCIP/MCMS state is resolved from
+// the datastore. For managed pools, the first mint-cap ref found for the symbol is used.
 func (a *SuiTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi.DeployTokenPoolInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
-	return nil
+	return cldf_ops.NewSequence(
+		"sui-adapter:deploy-token-pool-for-token",
+		semver.MustParse("1.6.0"),
+		"Deploy and initialize a Sui token pool for an existing token (direct execution)",
+		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input tokensapi.DeployTokenPoolInput) (sequences.OnChainOutput, error) {
+			chain, ok := chains.SuiChains()[input.ChainSelector]
+			if !ok {
+				return sequences.OnChainOutput{}, fmt.Errorf("sui chain with selector %d not found", input.ChainSelector)
+			}
+			if input.TokenRef == nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("token ref is required to deploy a sui token pool")
+			}
+			coinType := input.TokenRef.Address
+			symbol := input.TokenRef.Qualifier
+			if coinType == "" || symbol == "" {
+				return sequences.OnChainOutput{}, fmt.Errorf("token ref must carry the coin type (address) and symbol (qualifier) on chain %d", input.ChainSelector)
+			}
+			poolType, err := suiPoolTypeFromStr(input.PoolType)
+			if err != nil {
+				return sequences.OnChainOutput{}, err
+			}
+			ds := input.ExistingDataStore
+			ccipPkg := firstRefAddress(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiCCIPType)))
+			if ccipPkg == "" {
+				return sequences.OnChainOutput{}, fmt.Errorf("CCIP package not found on chain %d", input.ChainSelector)
+			}
+			ccipObjRef := firstRefAddress(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiCCIPObjectRefType)))
+			if ccipObjRef == "" {
+				return sequences.OnChainOutput{}, fmt.Errorf("CCIP object ref not found on chain %d", input.ChainSelector)
+			}
+			mcmsPkg, ok := findRefExcludingLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiMcmsPackageIDType)), suideploy.MCMSFastCurseLabel)
+			if !ok {
+				return sequences.OnChainOutput{}, fmt.Errorf("normal (non-fastcurse) MCMS package not found on chain %d", input.ChainSelector)
+			}
+			fastMcmsPkg, ok := findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiMcmsPackageIDType)), suideploy.MCMSFastCurseLabel)
+			if !ok {
+				return sequences.OnChainOutput{}, fmt.Errorf("fastcurse MCMS package not found on chain %d", input.ChainSelector)
+			}
+			deployer, err := chain.Signer.GetAddress()
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get deployer address: %w", err)
+			}
+			admin := input.RateLimitAdmin
+			if admin == "" {
+				admin = deployer
+			}
+			deps := suiDepsExec(chain)
+			var addresses []datastore.AddressRef
+			switch poolType {
+			case datastore.ContractType(suideploy.SuiBnMTokenPoolType):
+				coinMeta := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiManagedTokenCoinMetadataIDType)), symbol))
+				treasuryCap := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiManagedTokenTreasuryCapIDType)), symbol))
+				if coinMeta == "" || treasuryCap == "" {
+					return sequences.OnChainOutput{}, fmt.Errorf("BnM token coin metadata / treasury cap not found for symbol %s on chain %d", symbol, input.ChainSelector)
+				}
+				deployReport, err := cldf_ops.ExecuteOperation(b, burnminttokenpoolops.DeployCCIPBurnMintTokenPoolOp, deps, burnminttokenpoolops.BurnMintTokenPoolDeployInput{
+					CCIPPackageId:    ccipPkg,
+					MCMSAddress:      mcmsPkg.Address,
+					FastMcmsAddress:  fastMcmsPkg.Address,
+					MCMSOwnerAddress: deployer,
+				})
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy burn-mint token pool: %w", err)
+				}
+				poolPkg := deployReport.Output.PackageId
+				initReport, err := cldf_ops.ExecuteOperation(b, burnminttokenpoolops.BurnMintTokenPoolInitializeOp, deps, burnminttokenpoolops.BurnMintTokenPoolInitializeInput{
+					BurnMintPackageId:      poolPkg,
+					OwnerCapObjectId:       deployReport.Output.Objects.OwnerCapObjectId,
+					CoinObjectTypeArg:      coinType,
+					StateObjectId:          ccipObjRef,
+					CoinMetadataObjectId:   coinMeta,
+					TreasuryCapObjectId:    treasuryCap,
+					TokenPoolAdministrator: admin,
+				})
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to initialize burn-mint token pool: %w", err)
+				}
+				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId)
+			case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
+				managedPkg := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiManagedTokenPackageIDType)), symbol))
+				mtState := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiManagedTokenStateObjectID)), symbol))
+				mtOwnerCap := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiManagedTokenOwnerCapObjectID)), symbol))
+				coinMeta := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiManagedTokenCoinMetadataIDType)), symbol))
+				mintCap := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiManagedTokenMinterCapID)), symbol))
+				if managedPkg == "" || mtState == "" || mtOwnerCap == "" || coinMeta == "" || mintCap == "" {
+					return sequences.OnChainOutput{}, fmt.Errorf("managed token state objects not found for symbol %s on chain %d", symbol, input.ChainSelector)
+				}
+				deployReport, err := cldf_ops.ExecuteOperation(b, managedtokenpoolops.DeployCCIPManagedTokenPoolOp, deps, managedtokenpoolops.ManagedTokenPoolDeployInput{
+					CCIPPackageId:         ccipPkg,
+					ManagedTokenPackageId: managedPkg,
+					MCMSAddress:           mcmsPkg.Address,
+					FastMcmsAddress:       fastMcmsPkg.Address,
+					MCMSOwnerAddress:      deployer,
+				})
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy managed token pool: %w", err)
+				}
+				poolPkg := deployReport.Output.PackageId
+				initReport, err := cldf_ops.ExecuteOperation(b, managedtokenpoolops.ManagedTokenPoolInitializeOp, deps, managedtokenpoolops.ManagedTokenPoolInitializeInput{
+					ManagedTokenPoolPackageId: poolPkg,
+					OwnerCapObjectId:          deployReport.Output.Objects.OwnerCapObjectId,
+					CoinObjectTypeArg:         coinType,
+					CCIPObjectRefObjectId:     ccipObjRef,
+					ManagedTokenStateObjectId: mtState,
+					ManagedTokenOwnerCapId:    mtOwnerCap,
+					CoinMetadataObjectId:      coinMeta,
+					MintCapObjectId:           mintCap,
+					TokenPoolAdministrator:    admin,
+				})
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to initialize managed token pool: %w", err)
+				}
+				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId)
+			default:
+				return sequences.OnChainOutput{}, fmt.Errorf("unsupported sui pool type %s for DeployTokenPoolForToken", poolType)
+			}
+			return sequences.OnChainOutput{Addresses: addresses}, nil
+		},
+	)
 }
 
 // ================================================================
@@ -380,6 +694,75 @@ func suiDeps(chain cldfsui.Chain) sui_ops.OpTxDeps {
 	}
 }
 
+// suiDepsExec builds OpTxDeps for direct execution with the chain signer. Used by deploy/init
+// ops that publish packages and must execute immediately rather than via MCMS.
+func suiDepsExec(chain cldfsui.Chain) sui_ops.OpTxDeps {
+	gas := uint64(400_000_000)
+	return sui_ops.OpTxDeps{
+		Client: chain.Client,
+		Signer: chain.Signer,
+		GetCallOpts: func() *bind.CallOpts {
+			return &bind.CallOpts{WaitForExecution: true, GasBudget: &gas}
+		},
+		SuiRPC: chain.URL,
+	}
+}
+
+// suiPoolTypeFromStr maps a PoolType string to a Sui pool contract type, accepting both the
+// Sui short form ("bnm"/"managed"/"lnr") and the contract-type string.
+func suiPoolTypeFromStr(s string) (datastore.ContractType, error) {
+	switch s {
+	case "bnm", string(suideploy.SuiBnMTokenPoolType):
+		return datastore.ContractType(suideploy.SuiBnMTokenPoolType), nil
+	case "managed", string(suideploy.SuiManagedTokenPoolType):
+		return datastore.ContractType(suideploy.SuiManagedTokenPoolType), nil
+	case "lnr", string(suideploy.SuiLnRTokenPoolType):
+		return datastore.ContractType(suideploy.SuiLnRTokenPoolType), nil
+	default:
+		return "", fmt.Errorf("unsupported sui pool type %q", s)
+	}
+}
+
+// firstRefAddress returns the address of the first ref in a slice, or empty if there are none.
+func firstRefAddress(refs []datastore.AddressRef) string {
+	if len(refs) == 0 {
+		return ""
+	}
+	return refs[0].Address
+}
+
+// refAddress returns the address of a found ref, or empty if ok is false.
+func refAddress(ref datastore.AddressRef, ok bool) string {
+	if !ok {
+		return ""
+	}
+	return ref.Address
+}
+
+// appendSuiPoolAddresses builds the AddressRefs for a freshly deployed pool (package, state,
+// owner cap) keyed by the token symbol label, matching the refs saved by the Sui
+// DeployTPAndConfigure changeset.
+func appendSuiPoolAddresses(in []datastore.AddressRef, selector uint64, poolType datastore.ContractType, symbol, poolPkg, stateObjID, ownerCapID string) []datastore.AddressRef {
+	var stateType, ownerType datastore.ContractType
+	switch poolType {
+	case datastore.ContractType(suideploy.SuiBnMTokenPoolType):
+		stateType = datastore.ContractType(suideploy.SuiBnMTokenPoolStateType)
+		ownerType = datastore.ContractType(suideploy.SuiBnMTokenPoolOwnerIDType)
+	case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
+		stateType = datastore.ContractType(suideploy.SuiManagedTokenPoolStateType)
+		ownerType = datastore.ContractType(suideploy.SuiManagedTokenPoolOwnerIDType)
+	case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
+		stateType = datastore.ContractType(suideploy.SuiLnRTokenPoolStateType)
+		ownerType = datastore.ContractType(suideploy.SuiLnRTokenPoolOwnerIDType)
+	}
+	version := semver.MustParse("1.0.0")
+	return append(in,
+		datastore.AddressRef{ChainSelector: selector, Type: poolType, Address: poolPkg, Version: version, Labels: datastore.NewLabelSet(symbol)},
+		datastore.AddressRef{ChainSelector: selector, Type: stateType, Address: stateObjID, Version: version, Labels: datastore.NewLabelSet(symbol)},
+		datastore.AddressRef{ChainSelector: selector, Type: ownerType, Address: ownerCapID, Version: version, Labels: datastore.NewLabelSet(symbol)},
+	)
+}
+
 // batchOpFromCall bridges a Sui TransactionCall into an OnChainOutput carrying a single
 // MCMS BatchOperation, matching the pattern used by the Sui RMN curse/uncurse sequences.
 func batchOpFromCall(chainSelector uint64, call sui_ops.TransactionCall) (sequences.OnChainOutput, error) {
@@ -393,6 +776,63 @@ func batchOpFromCall(chainSelector uint64, call sui_ops.TransactionCall) (sequen
 			Transactions:  []mcmstypes.Transaction{tx},
 		}},
 	}, nil
+}
+
+// batchOpFromCalls bridges one or more Sui TransactionCalls into a single MCMS BatchOperation
+// with ordered transactions. Returns an empty output when there are no calls.
+func batchOpFromCalls(chainSelector uint64, calls []sui_ops.TransactionCall) (sequences.OnChainOutput, error) {
+	if len(calls) == 0 {
+		return sequences.OnChainOutput{}, nil
+	}
+	txs := make([]mcmstypes.Transaction, 0, len(calls))
+	for _, c := range calls {
+		tx, err := suideployutils.TransactionCallToMCMSTransaction(c)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to convert sui call to mcms transaction: %w", err)
+		}
+		txs = append(txs, tx)
+	}
+	return sequences.OnChainOutput{
+		BatchOps: []mcmstypes.BatchOperation{{
+			ChainSelector: mcmstypes.ChainSelector(chainSelector),
+			Transactions:  txs,
+		}},
+	}, nil
+}
+
+// suiDecimals reads token decimals from on-chain coin metadata for a coin type.
+func suiDecimals(b cldf_ops.Bundle, chain cldfsui.Chain, coinType string) (uint8, error) {
+	report, err := cldf_ops.ExecuteOperation(b, coin_ops.GetCoinSymbolOp, suiDeps(chain), coinType)
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch coin metadata for type %s: %w", coinType, err)
+	}
+	if report.Output.Decimals < 0 || report.Output.Decimals > 255 {
+		return 0, fmt.Errorf("invalid decimals %d for coin type %s", report.Output.Decimals, coinType)
+	}
+	return uint8(report.Output.Decimals), nil
+}
+
+// deriveSuiCoinType builds the coin type for a token symbol by locating the token's package id
+// in the datastore. Each Sui token kind stores its package id under a distinct contract type
+// and uses a distinct module::STRUCT coin type suffix.
+func deriveSuiCoinType(ds datastore.DataStore, selector uint64, symbol string) (string, error) {
+	if symbol == "" {
+		return "", fmt.Errorf("symbol is required to derive the sui coin type")
+	}
+	candidates := []struct {
+		contractType datastore.ContractType
+		suffix       string
+	}{
+		{datastore.ContractType(suideploy.SuiManagedTokenPackageIDType), "managed_token::MANAGED_TOKEN"},
+		{datastore.ContractType(suideploy.SuiManagedTokenType), "ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"},
+		{datastore.ContractType(suideploy.SuiLinkTokenType), "link::LINK"},
+	}
+	for _, c := range candidates {
+		if ref, ok := findRefByLabel(findRefsByType(ds, selector, c.contractType), symbol); ok {
+			return normalizeCoinType(ref.Address) + "::" + c.suffix, nil
+		}
+	}
+	return "", fmt.Errorf("could not derive sui coin type for symbol %s on chain %d: no token package ref found", symbol, selector)
 }
 
 func findRefsByType(ds datastore.DataStore, selector uint64, contractType datastore.ContractType) []datastore.AddressRef {
