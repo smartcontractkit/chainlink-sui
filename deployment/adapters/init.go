@@ -5,6 +5,7 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/fees"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 )
 
@@ -19,4 +20,6 @@ func init() {
 
 	mcmsRegistry := changesets.GetRegistry()
 	mcmsRegistry.RegisterMCMSReader(chainsel.FamilySui, &MCMSReader{})
+
+	fees.GetRegistry().RegisterFeeAdapter(chainsel.FamilySui, semver.MustParse("1.6.0"), &SuiFeeAdapter{})
 }
