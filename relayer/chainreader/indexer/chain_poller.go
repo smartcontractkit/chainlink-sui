@@ -220,17 +220,8 @@ func (cp *ChainPoller) run(ctx context.Context) {
 	startSeq, err := cp.computeStartSequence(ctx)
 	if err != nil {
 		cp.logger.Errorw("Failed to compute start sequence", "error", err)
-<<<<<<< HEAD
 		// use a reasonable fallback value
 		startSeq = minStartSequence
-||||||| 005bb9a6
-		cp.logger.Errorw("Failed to comnpute start sequence", "error", err)
-		// Continue with startSeq = 0 as fallback
-		startSeq = 0
-=======
-		// Continue with startSeq = 0 as fallback
-		startSeq = 0
->>>>>>> develop
 	}
 
 	cp.sequencer.setStart(startSeq)
