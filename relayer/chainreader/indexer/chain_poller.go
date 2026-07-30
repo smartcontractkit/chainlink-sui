@@ -511,27 +511,8 @@ func (cp *ChainPoller) getLatestCheckpointSequence(ctx context.Context) (uint64,
 	return seq, nil
 }
 
-<<<<<<< HEAD
-// RescanRecent rewinds lastProcessed so the most recent checkpoints are re-processed on the next poll. It
-// is wired to fire when a new event selector is registered after the poller has advanced: a selector for
-// an event (e.g. the OnRamp CCIPMessageSent) only registers once its contract is discovered/bound, by
-// which point the poller may have already processed — and, lacking the selector, discarded — the
-// checkpoints carrying that event. Event inserts are idempotent (ON CONFLICT DO NOTHING), so re-scanning
-// is safe. The rewind span matches the configured backfill window.
-||||||| 005bb9a6
-// defaultRescanRewindCheckpoints is how far RescanRecent rewinds when no explicit backfill window is set.
-const defaultRescanRewindCheckpoints uint64 = 100
-
-// RescanRecent rewinds lastProcessed so the most recent checkpoints are re-processed on the next poll. It
-// is wired to fire when a new event selector is registered after the poller has advanced: a selector for
-// an event (e.g. the OnRamp CCIPMessageSent) only registers once its contract is discovered/bound, by
-// which point the poller may have already processed — and, lacking the selector, discarded — the
-// checkpoints carrying that event. Event inserts are idempotent (ON CONFLICT DO NOTHING), so re-scanning
-// is safe. The rewind span matches the configured backfill window.
-=======
 // RescanRecent enqueues the most recent N checkpoints for re-scanning. Results below the
 // sequencer watermark bypass ordering and are re-emitted directly; inserts are idempotent.
->>>>>>> develop
 func (cp *ChainPoller) RescanRecent() {
 	latestCheckpoint, err := cp.getLatestCheckpointSequence(context.Background())
 	if err != nil {
