@@ -62,7 +62,7 @@ func authMetadata(token string) metadata.MD {
 }
 
 func authUnaryInterceptor(token string) grpc.UnaryClientInterceptor {
-	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, callOpts ...grpc.CallOption) error {
+	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, callOpts ...grpc.CallOption) error {
 		ctx = metadata.NewOutgoingContext(ctx, authMetadata(token))
 		return invoker(ctx, method, req, reply, cc, callOpts...)
 	}

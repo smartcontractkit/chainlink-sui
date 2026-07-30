@@ -23,6 +23,8 @@ const (
 	DefaultChainPollerSyncTimeoutSecs         = uint64(60)
 	DefaultChainPollerChannelBufferSize       = uint64(16)
 	DefaultChainPollerBackfillCheckpointCount = uint64(100)
+	DefaultChainPollerMaxConcurrentWorkers    = uint64(8)
+	DefaultChainPollerCatchupChunkSize        = uint64(12)
 
 	DefaultReaperPollSecs           = uint64(10)
 	DefaultTransactionRetentionSecs = uint64(10)

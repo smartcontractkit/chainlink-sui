@@ -622,7 +622,7 @@ public fun update_prices_with_owner_cap(
         gas_usd_per_unit_gas,
         ctx,
     );
-    destroy_fee_quoter_cap(ref, owner_cap, fee_quoter_cap);
+    destroy_fee_quoter_cap_internal(ref, owner_cap, fee_quoter_cap);
 }
 
 // this should only be called from offramp, hence gated by a fee quoter cap stored in offramp
@@ -2096,6 +2096,19 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
 }
 
 public fun destroy_fee_quoter_cap(ref: &CCIPObjectRef, owner_cap: &OwnerCap, cap: FeeQuoterCap) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"destroy_fee_quoter_cap"),
+        VERSION,
+    );
+    destroy_fee_quoter_cap_internal(ref, owner_cap, cap);
+}
+
+// Ungated destroyer used by the temporary-cap pattern in
+// update_prices_with_owner_cap, so blocking destroy_fee_quoter_cap via the
+// upgrade registry does not also block routine price updates.
+fun destroy_fee_quoter_cap_internal(ref: &CCIPObjectRef, owner_cap: &OwnerCap, cap: FeeQuoterCap) {
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     let FeeQuoterCap { id } = cap;

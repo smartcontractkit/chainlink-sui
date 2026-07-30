@@ -47,7 +47,7 @@ tasks:
       - for:
           matrix:
             MODULE: ["."] # "./integration-tests" & "./deployment" is disabled until MCMS package is updated
-        cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -p=1 -tags="integration testnet" ./...
+        cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -timeout 25m -p=1 -tags="integration testnet" ./...
 
   integration-with-db:
     desc: "Run integration tests with database"

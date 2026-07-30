@@ -655,6 +655,12 @@ fun set_rebalancer_cap_id<T>(
     event::emit(RebalancerSet<T> { old_rebalancer_cap_id, new_rebalancer_cap_id });
 }
 
+/// Renounces MCMS rebalancer control by destroying the RebalancerCap held inside McmsCap.
+/// The MCMS-held cap is always the pool's active rebalancer, so the active id is cleared
+/// before the cap is deleted, leaving the pool with no active rebalancer. Use this to release
+/// rebalancer control directly, e.g. prior to mcms_destroy_token_pool or
+/// mcms_execute_ownership_transfer, without delegating to an EOA. To rotate rebalancer
+/// authority to an EOA instead, use mcms_set_rebalancer.
 public fun mcms_destroy_rebalancer_cap<T>(
     state: &mut LockReleaseTokenPoolState<T>,
     registry: &mut Registry,
@@ -680,7 +686,12 @@ public fun mcms_destroy_rebalancer_cap<T>(
     bcs_stream::assert_is_consumed(&stream);
 
     let rebalancer_cap = mcms_cap.rebalancer_cap.extract();
-    destroy_rebalancer_cap(state, rebalancer_cap, ctx);
+    // The MCMS-held cap is always the active rebalancer; clear the active id before deleting.
+    assert!(object::id(&rebalancer_cap) == state.rebalancer_cap_id, ERebalancerCapMismatch);
+    set_rebalancer_cap_id(state, &mcms_cap.owner_cap, @0x0.to_id(), ctx);
+
+    let RebalancerCap<T> { id } = rebalancer_cap;
+    object::delete(id);
 }
 
 /// Clean up old rebalancer caps not in use, anyone can call this function to clean up old rebalancer caps not in use.
@@ -1392,6 +1403,11 @@ public fun create_fake_rebalancer_cap<T>(ctx: &mut TxContext): RebalancerCap<T> 
 #[test_only]
 public fun mcms_rebalancer_cap_address<T>(mcms_cap: &McmsCap<T>): address {
     object::id_address(mcms_cap.rebalancer_cap.borrow())
+}
+
+#[test_only]
+public fun mcms_rebalancer_cap_is_some<T>(mcms_cap: &McmsCap<T>): bool {
+    mcms_cap.rebalancer_cap.is_some()
 }
 
 #[test_only]

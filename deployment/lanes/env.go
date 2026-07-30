@@ -2,6 +2,7 @@ package lanes
 
 import (
 	"fmt"
+	"maps"
 	"sync"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -87,9 +88,7 @@ func copyLatestPackageIDsBySelector(in map[uint64]LatestPackageIDsConfig) map[ui
 		return nil
 	}
 	out := make(map[uint64]LatestPackageIDsConfig, len(in))
-	for selector, ids := range in {
-		out[selector] = ids
-	}
+	maps.Copy(out, in)
 	return out
 }
 

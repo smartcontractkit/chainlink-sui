@@ -3,22 +3,32 @@ package indexer
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
+
+// checkpointCursorID namespaces the ChainPoller's row in sui.checkpoint_cursors.
+const checkpointCursorID = "chain_poller"
 
 // Indexer orchestrates the ChainPoller and the two consumer indexers (EventsIndexer and TransactionsIndexer).
 // The ChainPoller fetches checkpoint data from the chain and fans it out to the consumers via channels.
 type Indexer struct {
 	log     logger.Logger
 	starter services.StateMachine
+
+	// dbStore, when set (production wiring via NewIndexer), has its schema ensured before the
+	// ChainPoller starts, since the poller reads the checkpoint cursor at startup.
+	dbStore *database.DBStore
 
 	chainPoller ChainPollerAPI
 
@@ -56,13 +66,19 @@ type Params struct {
 	Logger       logger.Logger
 	DB           sqlutil.DataSource
 	Client       client.SuiPTBClient
-	PollerConfig config.ChainPollerConfig
+	PollerConfig sui.ChainPollerConfig
+	// PollerWorkers is the number of concurrent checkpoint catch-up workers; non-positive
+	// values use the ChainPoller default.
+	PollerWorkers int
+	// PollerChunkSize is the number of checkpoints per catch-up chunk; non-positive values use
+	// the ChainPoller default.
+	PollerChunkSize int
 	// EventSelectors optionally seeds the EventsIndexer. Selectors are normally registered later
 	// when the ChainReader binds contracts, so this is usually left nil/empty.
-	EventSelectors []*client.EventSelector
+	EventSelectors []*sui.EventFilterByMoveEventModule
 	// TransactionConfigs optionally seeds the TransactionsIndexer. Normally left nil/empty and
 	// populated later via the ChainReader.
-	TransactionConfigs map[string]*config.ChainReaderEvent
+	TransactionConfigs map[string]*sui.ChainReaderEvent
 }
 
 // NewIndexer constructs a fully-wired Indexer: it creates the TransactionsIndexer, EventsIndexer,
@@ -72,20 +88,31 @@ type Params struct {
 func NewIndexer(p Params) *Indexer {
 	eventSelectors := p.EventSelectors
 	if eventSelectors == nil {
-		eventSelectors = []*client.EventSelector{}
+		eventSelectors = []*sui.EventFilterByMoveEventModule{}
 	}
 	txnConfigs := p.TransactionConfigs
 	if txnConfigs == nil {
-		txnConfigs = map[string]*config.ChainReaderEvent{}
+		txnConfigs = map[string]*sui.ChainReaderEvent{}
 	}
 
 	txnIndexer := NewTransactionsIndexer(p.DB, p.Logger, txnConfigs)
 	eventsIndexer := NewEventIndexer(p.DB, p.Logger, eventSelectors)
 	// The poller pulls the live selector set from the events indexer on each checkpoint, so
 	// selectors added later (e.g. during Bind) are picked up without re-wiring.
-	chainPoller := NewChainPoller(p.Client, p.Logger, p.PollerConfig, eventsIndexer.GetEventSelectors)
+	dbStore := database.NewDBStore(p.DB, p.Logger)
+	chainPoller := NewChainPoller(
+		p.Client,
+		p.Logger,
+		p.PollerConfig,
+		eventsIndexer.GetEventSelectors,
+		WithWorkerPool(p.PollerWorkers, p.PollerChunkSize),
+		WithCursorStore(dbStore, checkpointCursorID),
+	)
 
-	return NewIndexerFromComponents(p.Logger, chainPoller, eventsIndexer, txnIndexer)
+	idx := NewIndexerFromComponents(p.Logger, chainPoller, eventsIndexer, txnIndexer)
+	idx.dbStore = dbStore
+
+	return idx
 }
 
 // NewIndexerFromComponents creates an Indexer from already-constructed components. Prefer NewIndexer
@@ -114,6 +141,17 @@ func (i *Indexer) Name() string {
 // When the poller stops, it closes the channels, which signals the consumers to exit.
 func (i *Indexer) Start(_ context.Context) error {
 	return i.starter.StartOnce(i.Name(), func() error {
+		// Ensure the database schema exists before the poller starts: the poller reads the
+		// persisted checkpoint cursor at startup. (EventsIndexer.Start also ensures the schema,
+		// idempotently, for tests that start it standalone.)
+		if i.dbStore != nil {
+			schemaCtx, schemaCancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer schemaCancel()
+			if err := i.dbStore.EnsureSchema(schemaCtx); err != nil {
+				return fmt.Errorf("failed to ensure schema: %w", err)
+			}
+		}
+
 		// Chain poller - runs first and creates the channels
 		//nolint:gosec // G118: pollerCancel is invoked from Stop()
 		pollerCtx, pollerCancel := context.WithCancel(context.Background())
@@ -136,15 +174,12 @@ func (i *Indexer) Start(_ context.Context) error {
 		txnIndexerCtx, txnIndexerCancel := context.WithCancel(context.Background())
 		i.transactionIndexerCancel = &txnIndexerCancel
 
-		i.wg.Add(1)
-		go func() {
-			defer i.wg.Done()
-
+		i.wg.Go(func() {
 			if err := i.transactionIndexer.Start(txnIndexerCtx, i.chainPoller.TransactionsChannel()); err != nil {
 				i.log.Errorw("Transaction indexer failed", "error", err)
 				i.transactionIndexerErr.Store(err)
 			}
-		}()
+		})
 
 		return nil
 	})

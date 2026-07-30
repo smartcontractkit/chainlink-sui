@@ -51,7 +51,7 @@ func GenerateBindings(inputFile, outputFolder, moveConfigPath, uppercase *string
 	}
 
 	if *uppercase != "" {
-		for _, w := range strings.Split(*uppercase, ",") {
+		for w := range strings.SplitSeq(*uppercase, ",") {
 			template.UppercaseWords = append(template.UppercaseWords, strings.ToUpper(w))
 		}
 		log.Printf("Capitalizing %v words: %v", len(template.UppercaseWords), strings.Join(template.UppercaseWords, ", "))

@@ -521,7 +521,3 @@ func SetOCRConfig(t *testing.T, relayerClient *client.PTBClient, packageId strin
 
 	return resp, err
 }
-
-func ptr[T any](v T) *T {
-	return &v
-}

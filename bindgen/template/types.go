@@ -2,6 +2,7 @@ package template
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/smartcontractkit/chainlink-sui/bindgen/parse"
@@ -135,8 +136,8 @@ func isSuiObjectStruct(s parse.Struct) bool {
 }
 
 func stripGenericType(s string) string {
-	if i := strings.Index(s, "<"); i != -1 {
-		return s[:i]
+	if before, _, ok := strings.Cut(s, "<"); ok {
+		return before
 	}
 
 	return s
@@ -144,10 +145,8 @@ func stripGenericType(s string) string {
 
 func containsGenericTypeParam(moveType string, typeParams []string) bool {
 	// check if the type itself is a type parameter
-	for _, param := range typeParams {
-		if moveType == param {
-			return true
-		}
+	if slices.Contains(typeParams, moveType) {
+		return true
 	}
 
 	// check for generic in vectors and structs

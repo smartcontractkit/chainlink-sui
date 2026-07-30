@@ -62,10 +62,10 @@ func ClearTestModifier() {
 
 // convertModulesToBase64 converts a slice of modules from []interface{} format
 // (as returned by JSON unmarshaling) to Base64-encoded strings
-func convertModulesToBase64(modulesInput []interface{}) []string {
+func convertModulesToBase64(modulesInput []any) []string {
 	var base64Modules []string
 	for i, modAny := range modulesInput {
-		byteArr, ok := modAny.([]interface{})
+		byteArr, ok := modAny.([]any)
 		if !ok {
 			fmt.Printf("module[%d] is not []interface{}, got %T\n", i, modAny)
 			continue
@@ -167,8 +167,8 @@ type CallArg struct {
 // Command — mimics SDK Command but matches CLI JSON
 type Command struct {
 	MoveCall *ProgrammableMoveCall `json:"MoveCall,omitempty"`
-	Publish  [][]interface{}       `json:"Publish,omitempty"`
-	Upgrade  []interface{}         `json:"Upgrade,omitempty"`
+	Publish  [][]any               `json:"Publish,omitempty"`
+	Upgrade  []any                 `json:"Upgrade,omitempty"`
 }
 
 // ArgumentRef — small helper for fields like {"Result": 0}
@@ -180,7 +180,7 @@ type ArgumentRef struct {
 // TransferObjects
 type TransferObjects struct {
 	Objects []ArgumentRef `json:"TransferObjects,omitempty"`
-	Address ArgumentRef   `json:"Address,omitempty"`
+	Address ArgumentRef   `json:"Address"`
 }
 
 // ProgrammableMoveCall — kept simple for now
@@ -188,16 +188,16 @@ type ProgrammableMoveCall struct {
 	Package       string        `json:"package"`
 	Module        string        `json:"module"`
 	Function      string        `json:"function"`
-	TypeArguments []interface{} `json:"type_arguments"`
+	TypeArguments []any         `json:"type_arguments"`
 	Arguments     []ArgumentRef `json:"arguments"`
 }
 
 // GasData
 type GasData struct {
-	Payment [][]interface{} `json:"payment"`
-	Owner   string          `json:"owner"`
-	Price   uint64          `json:"price"`
-	Budget  uint64          `json:"budget"`
+	Payment [][]any `json:"payment"`
+	Owner   string  `json:"owner"`
+	Price   uint64  `json:"price"`
+	Budget  uint64  `json:"budget"`
 }
 
 func CompilePackage(packageName contracts.Package, namedAddresses map[string]string, isUpgrade bool, suiRPC string) (PackageArtifact, error) {
@@ -1095,14 +1095,14 @@ func getDynamicSuiRPC() (string, error) {
 		return envRPC, nil
 	}
 
-	cmd := exec.CommandContext(context.Background(), "docker", "ps", "--filter", "ancestor=mysten/sui-tools:mainnet-v1.73.2", "--format", "{{.Ports}}")
+	cmd := exec.CommandContext(context.Background(), "docker", "ps", "--filter", "ancestor=mysten/sui-tools:mainnet-v1.75.2", "--format", "{{.Ports}}")
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("docker ps failed: %w", err)
 	}
 
 	// Example: "0.0.0.0:14097->9000/tcp, 0.0.0.0:14098->9123/tcp"
-	for _, part := range strings.Split(strings.TrimSpace(string(out)), ",") {
+	for part := range strings.SplitSeq(strings.TrimSpace(string(out)), ",") {
 		p := strings.TrimSpace(part)
 		if strings.Contains(p, "->9000") {
 			hostPort := strings.Split(strings.Split(p, ":")[1], "->")[0]
