@@ -19,6 +19,29 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
+const (
+	// defaultChannelBufferSize is used when the config does not set ChannelBufferSize.
+	defaultChannelBufferSize = 64
+	// defaultMaxConcurrentWorkers is the default number of goroutines processing checkpoint chunks.
+	defaultMaxConcurrentWorkers = 64
+	// defaultCatchupChunkSize is the default number of checkpoints per catch-up chunk.
+	defaultCatchupChunkSize = 12
+	// defaultMaxStalledTicksBeforeSkip is how many consecutive stalled poll ticks (no watermark
+	// progress while work is outstanding) are tolerated before the stuck checkpoint is skipped.
+	defaultMaxStalledTicksBeforeSkip = 30
+	// minStalledTicksBeforeRetry gives in-flight workers at least one full tick before the run
+	// loop re-fetches the gap at the watermark; retrying too eagerly re-emits checkpoints a
+	// worker had just delivered (harmless duplicates, but wasted RPC calls).
+	minStalledTicksBeforeRetry = 2
+	// chunkQueueSizeMultiplier sizes the chunk queue relative to the worker count.
+	chunkQueueSizeMultiplier = 4
+	// defaultRescanRewindCheckpoints is how far RescanRecent rewinds when no explicit backfill window is set.
+	defaultRescanRewindCheckpoints uint64 = 100
+	// minStartSequence is a value used as a fallback to avoid using 0 and doing a full chain rescan
+	// when the required configs are missing and the RPC node used is a full archive node
+	minStartSequence uint64 = 299_000_000
+)
+
 // ChainPollerAPI defines the interface for the ChainPoller.
 // It fetches checkpoint data and fans it out to EventsIndexer and TransactionsIndexer via channels.
 type ChainPollerAPI interface {
@@ -129,9 +152,9 @@ func (cp *ChainPoller) run(ctx context.Context) {
 	// Compute start sequence
 	startSeq, err := cp.computeStartSequence(ctx)
 	if err != nil {
-		cp.logger.Errorw("Failed to comnpute start sequence", "error", err)
-		// Continue with startSeq = 0 as fallback
-		startSeq = 0
+		cp.logger.Errorw("Failed to compute start sequence", "error", err)
+		// use a reasonable fallback value
+		startSeq = minStartSequence
 	}
 
 	cp.logger.Infow("Starting checkpoint polling",
@@ -251,9 +274,6 @@ func (cp *ChainPoller) getLatestCheckpointSequence(ctx context.Context) (uint64,
 	seq := checkpoint.GetSequenceNumber()
 	return seq, nil
 }
-
-// defaultRescanRewindCheckpoints is how far RescanRecent rewinds when no explicit backfill window is set.
-const defaultRescanRewindCheckpoints uint64 = 100
 
 // RescanRecent rewinds lastProcessed so the most recent checkpoints are re-processed on the next poll. It
 // is wired to fire when a new event selector is registered after the poller has advanced: a selector for
