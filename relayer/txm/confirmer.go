@@ -177,6 +177,10 @@ func handleGasBumpRetry(ctx context.Context, txm *SuiTxm, tx SuiTx, txError *sui
 		if txErrErr := txm.transactionRepository.UpdateTransactionError(tx.TransactionID, txError); txErrErr != nil {
 			txm.lggr.Errorw("Failed to update transaction error", "transactionID", tx.TransactionID, "error", txErrErr)
 		}
+		if releaseErr := tx.CoinManager.ReleaseCoins(tx.TransactionID); releaseErr != nil {
+			// Not critical - coins auto-release after TTL.
+			txm.lggr.Debugw("Failed to release coins after gas bump failure", "transactionID", tx.TransactionID, "error", releaseErr)
+		}
 		return err
 	}
 

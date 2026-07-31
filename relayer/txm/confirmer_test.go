@@ -46,14 +46,14 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 	defer ctrl.Finish()
 	mockClient := mocks.NewMockSuiPTBClient(ctrl)
 
-	// For this test, we simulate a failure with error "ErrGasBudgetTooHigh".
-	// The confirmer will then invoke the retry logic.
+	// For this test, we simulate a failure with error "GasBudgetTooLow".
+	// The confirmer will then invoke the retry logic with the GasBump strategy.
 	mockClient.EXPECT().
 		GetTransactionStatus(gomock.Any(), gomock.Any()).
 		AnyTimes().
 		Return(client.TransactionResult{
 			Status: "failure",
-			Error:  "ErrGasBudgetTooHigh",
+			Error:  "GasBudgetTooLow",
 		}, nil)
 
 	// Return a SUI coin with sufficient balance for gas
@@ -161,7 +161,7 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 		Digest:        "test-digest",
 		LastUpdatedAt: txm.GetCurrentUnixTimestamp(),
 		TxError:       nil,
-		GasBudget:     maxGasBudget.Uint64(),
+		GasBudget:     10000000, // Matches Metadata.GasLimit, as the production constructor guarantees
 		Ptb:           ptb,
 		CoinManager:   coinManager,
 	}
@@ -192,7 +192,7 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 	updatedTx, err := store.GetTransaction(txID)
 	require.NoError(t, err)
 	require.Equal(t, 4, updatedTx.Attempt)
-	require.Equal(t, suierrors.ErrGasBudgetTooHigh, updatedTx.TxError)
+	require.Equal(t, suierrors.ErrGasBudgetTooLow, updatedTx.TxError)
 
 	txmInstance.Close()
 }
@@ -336,7 +336,7 @@ func TestConfirmerRoutine_SuccessfulGasBumpAfterTwoAttempts(t *testing.T) {
 		Digest:        "test-digest-success",
 		LastUpdatedAt: txm.GetCurrentUnixTimestamp(),
 		TxError:       nil,
-		GasBudget:     maxGasBudget.Uint64(), // Use max budget to allow for gas bumps
+		GasBudget:     initialGasBudget, // Matches Metadata.GasLimit; bumps must grow this serialized budget
 		Ptb:           ptb,
 		CoinManager:   coinManager,
 	}
@@ -368,6 +368,80 @@ func TestConfirmerRoutine_SuccessfulGasBumpAfterTwoAttempts(t *testing.T) {
 	require.GreaterOrEqual(t, updatedTx.GasBudget, expectedMinGas, "Gas budget should have been bumped sufficiently")
 
 	txmInstance.Close()
+}
+
+// TestConfirmerRoutine_GasBumpAtMaxReleasesCoins verifies that when a gas bump is impossible
+// (budget already at the manager maximum), the transaction is marked failed and its reserved
+// gas coins are released instead of staying locked until their TTL expires.
+func TestConfirmerRoutine_GasBumpAtMaxReleasesCoins(t *testing.T) {
+	t.Parallel()
+	lggr := logger.Test(t)
+	store := txm.NewTxmStoreImpl(lggr)
+	retryManager := txm.NewDefaultRetryManager(3)
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockClient := mocks.NewMockSuiPTBClient(ctrl)
+
+	mockClient.EXPECT().
+		GetTransactionStatus(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(client.TransactionResult{Status: "failure", Error: "GasBudgetTooLow"}, nil)
+
+	maxGasBudget := big.NewInt(10000000)
+	gasManager := txm.NewSuiGasManager(lggr, mockClient, *maxGasBudget, 0)
+	coinManager := txm.NewGasCoinManager(lggr, mockClient)
+
+	keystoreInstance := testutils.NewTestKeystore(t)
+
+	txmInstance, err := txm.NewSuiTxm(lggr, mockClient, keystoreInstance, txm.DefaultConfigSet, store, retryManager, gasManager)
+	require.NoError(t, err)
+
+	// Reserve a gas coin for the transaction, mirroring the reservation made when the
+	// payload was originally built and signed.
+	coinObjectIdBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress("0x1234567890abcdef1234567890abcdef12345678"))
+	require.NoError(t, err)
+	digestBytes, err := transaction.ConvertObjectDigestStringToBytes(models.ObjectDigest("9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT"))
+	require.NoError(t, err)
+	paymentCoins := []transaction.SuiObjectRef{{ObjectId: *coinObjectIdBytes, Version: 1, Digest: *digestBytes}}
+
+	txID := "tx-gasbump-at-max-test"
+	require.NoError(t, coinManager.TryReserveCoins(context.Background(), txID, paymentCoins, nil))
+	require.True(t, coinManager.IsCoinReserved(*coinObjectIdBytes))
+
+	tx := txm.SuiTx{
+		TransactionID: txID,
+		Sender:        "dummy-sender",
+		Metadata:      &commontypes.TxMeta{GasLimit: maxGasBudget}, // already at max, so the bump must fail
+		Timestamp:     txm.GetCurrentUnixTimestamp(),
+		Payload:       "payload",
+		RequestType:   "WaitForEffectsCert",
+		State:         txm.StateSubmitted,
+		Digest:        "test-digest-at-max",
+		LastUpdatedAt: txm.GetCurrentUnixTimestamp(),
+		GasBudget:     maxGasBudget.Uint64(),
+		CoinManager:   coinManager,
+	}
+	require.NoError(t, store.AddTransaction(tx))
+	require.NoError(t, store.ChangeState(txID, txm.StateSubmitted))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() {
+		cancel()
+		txmInstance.Close()
+	})
+	require.NoError(t, txmInstance.Start(ctx))
+
+	require.Eventually(t, func() bool {
+		updatedTx, e := store.GetTransaction(txID)
+
+		return e == nil && updatedTx.State == txm.StateFailed
+	}, 15*time.Second, 100*time.Millisecond, "Transaction did not reach Failed state")
+
+	updatedTx, err := store.GetTransaction(txID)
+	require.NoError(t, err)
+	require.Equal(t, suierrors.ErrGasBudgetTooLow, updatedTx.TxError)
+	require.False(t, coinManager.IsCoinReserved(*coinObjectIdBytes), "reserved gas coins should be released when the gas bump fails")
 }
 
 func TestConfirmerRoutine_ExponentialBackoffRetry(t *testing.T) {
@@ -543,7 +617,7 @@ func TestConfirmerRoutine_BroadcastErrorRetryAcknowledged(t *testing.T) {
 	}{
 		// Gas bump has no time gate, so before the fix every confirmer tick scheduled
 		// another retry for the same stored failure.
-		{name: "GasBump", broadcastError: suierrors.ErrGasBudgetTooHigh.Error()},
+		{name: "GasBump", broadcastError: suierrors.ErrGasBudgetTooLow.Error()},
 		// Exponential backoff is time gated, but its Retriable->Retriable transition
 		// restarted the window, re-enqueueing the same stored failure after every newly
 		// started backoff window.
