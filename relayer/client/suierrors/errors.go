@@ -291,9 +291,12 @@ var ExponentialBackoffErrors = []error{
 	ErrDependentPackageNotFound,
 }
 
+// GasBumpErrors are errors that may be resolved by retrying with an increased gas
+// budget. ErrGasBudgetTooHigh is deliberately absent: the budget already exceeds the
+// protocol maximum, so bumping it further can never help and the transaction fails
+// immediately instead.
 var GasBumpErrors = []error{
 	ErrGasBudgetTooLow,
-	ErrGasBudgetTooHigh,
 	ErrInsufficientGas,
 	ErrGasPriceTooHigh,
 }

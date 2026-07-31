@@ -177,6 +177,10 @@ func handleGasBumpRetry(ctx context.Context, txm *SuiTxm, tx SuiTx, txError *sui
 		if txErrErr := txm.transactionRepository.UpdateTransactionError(tx.TransactionID, txError); txErrErr != nil {
 			txm.lggr.Errorw("Failed to update transaction error", "transactionID", tx.TransactionID, "error", txErrErr)
 		}
+		if releaseErr := tx.CoinManager.ReleaseCoins(tx.TransactionID); releaseErr != nil {
+			// Not critical - coins auto-release after TTL.
+			txm.lggr.Debugw("Failed to release coins after gas bump failure", "transactionID", tx.TransactionID, "error", releaseErr)
+		}
 		return err
 	}
 
@@ -200,6 +204,7 @@ func handleGasBumpRetry(ctx context.Context, txm *SuiTxm, tx SuiTx, txError *sui
 		return err
 	}
 
+	clearBroadcastError(txm, tx.TransactionID)
 	txm.broadcastChannel <- tx.TransactionID
 	return nil
 }
@@ -234,6 +239,7 @@ func handleCoinRefreshRetry(ctx context.Context, txm *SuiTxm, tx SuiTx, txError 
 	}
 
 	txm.lggr.Infow("Transaction refreshed with new coins", "transactionID", tx.TransactionID)
+	clearBroadcastError(txm, tx.TransactionID)
 	txm.broadcastChannel <- tx.TransactionID
 	return nil
 }
@@ -258,8 +264,21 @@ func handleExponentialBackoffRetry(txm *SuiTxm, tx SuiTx) error {
 		return err
 	}
 
+	clearBroadcastError(txm, tx.TransactionID)
 	txm.broadcastChannel <- tx.TransactionID
 	return nil
+}
+
+// clearBroadcastError acknowledges a stored broadcast failure once a retry has been
+// scheduled. While BroadcastError is empty the confirmer skips the transaction, so the
+// same stored failure cannot be re-handled (and re-enqueued) on every tick while the
+// re-broadcast is queued or in flight. The broadcaster sets a fresh BroadcastError if
+// the retry fails again. A failure to clear is not critical: it only means one extra
+// retry pass may be handled.
+func clearBroadcastError(txm *SuiTxm, transactionID string) {
+	if err := txm.transactionRepository.UpdateTransactionBroadcastError(transactionID, ""); err != nil {
+		txm.lggr.Errorw("Failed to clear broadcast error", "transactionID", transactionID, "error", err)
+	}
 }
 
 func markTransactionFailed(txm *SuiTxm, tx SuiTx, txError *suierrors.SuiError) error {
