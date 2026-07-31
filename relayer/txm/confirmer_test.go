@@ -6,6 +6,8 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/base64"
+	"errors"
 	"math/big"
 	"strconv"
 	"sync/atomic"
@@ -524,4 +526,182 @@ func TestConfirmerRoutine_ExponentialBackoffRetry(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 3, updatedTx.Attempt)
 	require.Nil(t, updatedTx.TxError)
+}
+
+// TestConfirmerRoutine_BroadcastErrorRetryAcknowledged is a regression test for the
+// confirmer repeatedly scheduling retries for the same stored broadcast failure while a
+// re-broadcast was still queued or in flight. Scheduling a retry must clear
+// BroadcastError as acknowledgment so subsequent confirmer ticks skip the transaction
+// until the broadcaster reports a new outcome; only a fresh failure may re-arm the
+// retry path.
+func TestConfirmerRoutine_BroadcastErrorRetryAcknowledged(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name           string
+		broadcastError string
+	}{
+		// Gas bump has no time gate, so before the fix every confirmer tick scheduled
+		// another retry for the same stored failure.
+		{name: "GasBump", broadcastError: suierrors.ErrGasBudgetTooHigh.Error()},
+		// Exponential backoff is time gated, but its Retriable->Retriable transition
+		// restarted the window, re-enqueueing the same stored failure after every newly
+		// started backoff window.
+		{name: "ExponentialBackoff", broadcastError: suierrors.ErrVerifiedCheckpointNotFound.Error()},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			lggr := logger.Test(t)
+			store := txm.NewTxmStoreImpl(lggr)
+			retryManager := txm.NewDefaultRetryManager(3)
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			mockClient := mocks.NewMockSuiPTBClient(ctrl)
+
+			objectID := "0x1234567890abcdef1234567890abcdef12345678"
+			digest := "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT"
+			coinType := "0x2::sui::SUI"
+			version := uint64(1)
+			balance := uint64(100000000)
+			testCoin := &suirpcv2.Object{
+				ObjectId:   &objectID,
+				Version:    &version,
+				Digest:     &digest,
+				ObjectType: &coinType,
+				Balance:    &balance,
+			}
+
+			// Rebuild mocks used by the gas bump strategy; unused by exponential backoff.
+			mockClient.EXPECT().
+				QueryCoinsByAddress(gomock.Any(), gomock.Any(), gomock.Any()).
+				AnyTimes().
+				Return([]*suirpcv2.Object{testCoin}, nil)
+
+			mockClient.EXPECT().
+				GetReferenceGasPrice(gomock.Any()).
+				AnyTimes().
+				Return(big.NewInt(1000), nil)
+
+			mockClient.EXPECT().
+				HashTxBytes(gomock.Any()).
+				AnyTimes().
+				Return([]byte("hashed-tx-bytes"))
+
+			// The submission blocks until released, simulating a slow SendTransaction that
+			// spans multiple confirmer ticks, then completes with another failure.
+			var sendCount atomic.Int32
+			releaseSend := make(chan struct{})
+			mockClient.EXPECT().
+				SendTransaction(gomock.Any(), gomock.Any()).
+				AnyTimes().
+				DoAndReturn(func(ctx context.Context, _ *suirpcv2.ExecuteTransactionRequest) (*suirpcv2.ExecuteTransactionResponse, error) {
+					sendCount.Add(1)
+					select {
+					case <-releaseSend:
+					case <-ctx.Done():
+					}
+
+					return nil, errors.New(tc.broadcastError)
+				})
+
+			maxGasBudget := big.NewInt(12000000)
+			gasManager := txm.NewSuiGasManager(lggr, mockClient, *maxGasBudget, 0)
+			coinManager := txm.NewGasCoinManager(lggr, mockClient)
+
+			keystoreInstance := testutils.NewTestKeystore(t)
+			publicKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+			require.NoError(t, err)
+			keystoreInstance.AddKey(privKey)
+			publicKeyBytes := []byte(publicKey)
+
+			address, err := client.GetAddressFromPublicKey(publicKeyBytes)
+			require.NoError(t, err)
+
+			txmInstance, err := txm.NewSuiTxm(lggr, mockClient, keystoreInstance, txm.DefaultConfigSet, store, retryManager, gasManager)
+			require.NoError(t, err)
+
+			gasBudget := uint64(10000000)
+			ptb := transaction.NewTransaction()
+			ptb.SetGasBudget(gasBudget)
+			ptb.SetSender(models.SuiAddress(address))
+			ptb.SetGasOwner(models.SuiAddress(address))
+			ptb.SetGasPrice(1000)
+
+			coinObjectIdBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(address))
+			require.NoError(t, err)
+			digestBytes, err := transaction.ConvertObjectDigestStringToBytes(models.ObjectDigest(digest))
+			require.NoError(t, err)
+
+			ptb.SetGasPayment([]transaction.SuiObjectRef{
+				{
+					ObjectId: *coinObjectIdBytes,
+					Version:  version,
+					Digest:   *digestBytes,
+				},
+			})
+
+			// Seed the transaction the way the broadcaster leaves a failed submission:
+			// StateRetriable with the failure recorded in BroadcastError. The payload only
+			// needs to be valid base64 for re-broadcasting; the mocked gateway ignores it.
+			txID := "tx-broadcast-error-" + tc.name
+			tx := txm.SuiTx{
+				TransactionID: txID,
+				Sender:        address,
+				PublicKey:     publicKeyBytes,
+				Metadata:      &commontypes.TxMeta{GasLimit: big.NewInt(5000000)},
+				Timestamp:     txm.GetCurrentUnixTimestamp(),
+				Payload:       base64.StdEncoding.EncodeToString([]byte("payload")),
+				RequestType:   "WaitForEffectsCert",
+				Attempt:       0,
+				State:         txm.StateRetriable,
+				LastUpdatedAt: txm.GetCurrentUnixTimestamp(),
+				GasBudget:     gasBudget,
+				Ptb:           ptb,
+				CoinManager:   coinManager,
+			}
+
+			require.NoError(t, store.AddTransaction(tx))
+			require.NoError(t, store.ChangeState(txID, txm.StateRetriable))
+			require.NoError(t, store.UpdateTransactionBroadcastError(txID, tc.broadcastError))
+
+			ctx, cancel := context.WithCancel(context.Background())
+			t.Cleanup(func() {
+				cancel()
+				txmInstance.Close()
+			})
+			require.NoError(t, txmInstance.Start(ctx))
+
+			// The confirmer handles the stored failure and dispatches exactly one retry.
+			require.Eventually(t, func() bool {
+				return sendCount.Load() == 1
+			}, 15*time.Second, 100*time.Millisecond, "retry was not dispatched to the broadcaster")
+
+			// Scheduling the retry must have acknowledged (cleared) the stored error.
+			updatedTx, err := store.GetTransaction(txID)
+			require.NoError(t, err)
+			require.Empty(t, updatedTx.BroadcastError, "BroadcastError was not cleared when the retry was scheduled")
+			require.Equal(t, txm.StateRetriable, updatedTx.State)
+
+			// While the submission is in flight, further confirmer ticks must not schedule
+			// more copies of the same stored failure. The window covers multiple ticks
+			// (ConfirmPollSecs=2, jittered up to 2.5s).
+			require.Never(t, func() bool {
+				current, e := store.GetTransaction(txID)
+
+				return e != nil || sendCount.Load() > 1 || current.Attempt != 0 || current.BroadcastError != ""
+			}, 6*time.Second, 250*time.Millisecond, "duplicate retry was scheduled while the submission was in flight")
+
+			// Complete the submission with a fresh failure: the broadcaster increments the
+			// attempt counter and records a new BroadcastError, re-arming the retry path.
+			close(releaseSend)
+			require.Eventually(t, func() bool {
+				current, e := store.GetTransaction(txID)
+
+				return e == nil && current.Attempt >= 1 && sendCount.Load() >= 2
+			}, 15*time.Second, 100*time.Millisecond, "fresh broadcast failure did not re-arm the retry path")
+		})
+	}
 }
