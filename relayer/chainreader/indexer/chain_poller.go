@@ -730,8 +730,8 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 	}
 
 	for txIdx, tx := range transactions {
-    cp.logger.Debugw("Processing transaction for event filtering", "transaction", tx.GetDigest())
-    
+		cp.logger.Debugw("Processing transaction for event filtering", "transaction", tx.GetDigest())
+
 		txDigest := tx.GetDigest()
 		if txDigest == "" {
 			cp.logger.Warnf("Transaction digest is empty, skipping")
