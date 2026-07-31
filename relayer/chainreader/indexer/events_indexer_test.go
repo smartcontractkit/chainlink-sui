@@ -242,12 +242,11 @@ func TestEventsIndexer(t *testing.T) {
 			require.Equal(t, expectedValue, newValue, "Event %d should have newValue %d", i, expectedValue)
 		}
 
-		// Verify the offset is tracked correctly
+		// Verify all events were persisted
 		eventHandle := packageId + "::" + eventSelector.Module + "::" + eventSelector.Event
-		cursor, totalCount, err := dbStore.GetLatestOffset(ctx, packageId, eventHandle)
+		allEvents, err := dbStore.QueryEvents(ctx, packageId, eventHandle, nil, query.LimitAndSort{})
 		require.NoError(t, err)
-		require.NotNil(t, cursor)
-		require.Equal(t, uint64(3), totalCount, "Should have 3 events total")
+		require.Len(t, allEvents, 3, "Should have 3 events total")
 	})
 
 	t.Run("TestMultipleSyncOperationsViaChannel", func(t *testing.T) {
@@ -484,11 +483,10 @@ func TestEventsIndexer(t *testing.T) {
 
 		dbStore.InsertEvents(ctx, []database.EventRecord{record, recordB})
 
-		// query events with out of order event_offset
-		cursor, totalCount, err := dbStore.GetLatestOffset(ctx, accountAddress, eventHandle)
+		// both synthetic and real events are persisted for the handle
+		events, err := dbStore.QueryEvents(ctx, accountAddress, eventHandle, nil, query.LimitAndSort{})
 		require.NoError(t, err)
-		require.Equal(t, recordB.TxDigest, cursor.TxDigest)
-		require.Equal(t, uint64(2), totalCount)
+		require.Len(t, events, 2)
 	})
 
 	// Cleanup

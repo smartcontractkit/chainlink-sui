@@ -3,6 +3,17 @@
 /// Implements the singleton tail-argument pattern for V1 destination execution.
 /// Tail slots: shared `Clock` at `@0x6` and the single `CCIPReceiverState`
 /// from `init`. See `contracts/ccip/docs/receiver-integration-guide.md`.
+///
+/// WARNING: registration ordering is the sender's responsibility. The OffRamp
+/// populates and delivers an Any2SuiMessage only when this package is
+/// registered in the receiver registry at execution time. If a message
+/// carrying data or a gas limit arrives while this package is not registered,
+/// the OffRamp skips the receiver callback yet still marks the execution
+/// SUCCESS, which makes the message terminal with no retry. A token leg in
+/// the same message completes independently, so assets can be released without
+/// the receiver-side application logic ever running. Register the receiver
+/// before any messages are sent to it; re-registering after a message has
+/// landed does not retroactively execute it.
 module ccip_dummy_receiver::dummy_receiver;
 
 use ccip::client;
@@ -95,6 +106,13 @@ fun init(otw: DUMMY_RECEIVER, ctx: &mut TxContext) {
     transfer::transfer(owner_cap, ctx.sender());
 }
 
+/// Registers this package in the OffRamp receiver registry.
+///
+/// WARNING: must be called before any messages are sent to this receiver. The
+/// OffRamp checks registration at execution time; an unregistered receiver
+/// causes the message to be marked SUCCESS without running the callback and
+/// with no retry. See the module doc for the full consequence, including the
+/// token-leg behavior.
 public fun register_receiver(owner_cap: &OwnerCap, ref: &mut CCIPObjectRef) {
     let publisher: &Publisher = df::borrow(&owner_cap.id, PublisherKey {});
     let publisher_wrapper = publisher_wrapper::create(publisher, DummyReceiverProof {});

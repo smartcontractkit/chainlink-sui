@@ -160,32 +160,16 @@ func (eIndexer *EventsIndexer) findMatchingSelector(event *suirpcv2.Event) *sui.
 	copy(selectors, eIndexer.eventConfigurations)
 	eIndexer.configMutex.RUnlock()
 
-	// Get event type name from fully qualified type (e.g., "0x123::module::EventName" -> "EventName")
-	eventTypeName := event.GetEventType()
-	if parts := strings.Split(eventTypeName, "::"); len(parts) >= 3 {
-		eventTypeName = parts[2]
-	}
-
 	for _, selector := range selectors {
-		// Check package ID (handle potential 0x prefix differences)
-		eventPackage := strings.TrimPrefix(event.GetPackageId(), "0x")
-		selectorPackage := strings.TrimPrefix(selector.Package, "0x")
-		if eventPackage != selectorPackage {
-			continue
-		}
+		expectedEventType := fmt.Sprintf("%s::%s::%s", selector.Package, selector.Module, selector.Event)
+		expectedEventType = strings.TrimPrefix(expectedEventType, "0x")
+		eventType := strings.TrimPrefix(event.GetEventType(), "0x")
 
-		// Check module
-		if event.GetModule() != selector.Module {
-			continue
+		if eventType == expectedEventType {
+			return selector
 		}
-
-		// Check event type
-		if eventTypeName != selector.Event {
-			continue
-		}
-
-		return selector
 	}
+
 	return nil
 }
 

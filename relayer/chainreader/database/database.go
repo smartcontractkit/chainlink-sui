@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/block-vision/sui-go-sdk/models"
-
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
@@ -49,9 +47,9 @@ func (store *DBStore) EnsureSchema(ctx context.Context) error {
 		return fmt.Errorf("failed to create sui indexes: %w", err)
 	}
 
-	_, err = store.ds.ExecContext(ctx, CreateTransmitterCursorsTable)
+	_, err = store.ds.ExecContext(ctx, CreateCheckpointCursorsTable)
 	if err != nil {
-		return fmt.Errorf("failed to create sui.transmitter_cursors table: %w", err)
+		return fmt.Errorf("failed to create sui.checkpoint_cursors table: %w", err)
 	}
 
 	return nil
@@ -147,8 +145,6 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 	}
 	baseSQL += fmt.Sprintf(" LIMIT %d", limit)
 
-	// store.lgr.Debugw("querying events", "sql", baseSQL, "args", args)
-
 	rows, err := store.ds.QueryContext(ctx, baseSQL, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query events failed: %w", err)
@@ -172,71 +168,32 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 		records = append(records, record)
 	}
 
-	// store.lgr.Debugw("fetched DB events", "records", records)
-
 	return records, nil
 }
 
-// GetLatestOffset returns a cursor (of type EventId) based on the latest event recorded in the DB for a given type
-func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, eventHandle string) (*models.EventId, uint64, error) {
-	var offset uint64
-	var txDigest string
-	var totalCount uint64
-	err := store.ds.QueryRowxContext(ctx, QueryEventsOffset, eventAccountAddress, eventHandle).Scan(&offset, &txDigest)
+// GetCheckpointCursor returns the persisted last-processed checkpoint sequence for the given
+// cursor id. found is false when no cursor has been persisted yet.
+func (store *DBStore) GetCheckpointCursor(ctx context.Context, id string) (seq uint64, found bool, err error) {
+	err = store.ds.QueryRowxContext(ctx, GetCheckpointCursorQuery, id).Scan(&seq)
 	if err != nil {
-		// no rows found in DB, return a nil index
-		//nolint:nilnil
 		if errors.Is(err, sql.ErrNoRows) {
-			// this is not an error, just nothing to return
-			return nil, 0, nil
+			return 0, false, nil
 		}
-
-		return nil, 0, fmt.Errorf("failed to get latest offset: %w", err)
+		return 0, false, fmt.Errorf("failed to get checkpoint cursor %q: %w", id, err)
 	}
 
-	err = store.ds.QueryRowxContext(ctx, CountEvents, eventAccountAddress, eventHandle).Scan(&totalCount)
-	if err != nil {
-		// no rows found in DB, return a nil index
-		//nolint:nilnil
-		if errors.Is(err, sql.ErrNoRows) {
-			// this is not an error, just nothing to return
-			return nil, 0, nil
-		}
-
-		return nil, 0, fmt.Errorf("failed to get latest offset: %w", err)
-	}
-
-	store.lgr.Debugw("latest offset", "offset", offset, "txDigest", txDigest)
-
-	return &models.EventId{
-		TxDigest: txDigest,
-		// EventSeq is scoped per transaction, the first (and only) event in a tx always has eventSeq = "0".
-		// We use (txDigest, eventSeq) as the pagination cursor to resume fetching events reliably.
-		EventSeq: "0",
-	}, totalCount, nil
+	return seq, true, nil
 }
 
-// GetTotalCount returns the total number of events recorded in the DB for a given type
-func (store *DBStore) GetTotalCount(ctx context.Context, eventAccountAddress, eventHandle string) (uint64, error) {
-	var totalCount uint64
-	err := store.ds.QueryRowxContext(ctx, CountEvents, eventAccountAddress, eventHandle).Scan(&totalCount)
+// UpsertCheckpointCursor persists the last-processed checkpoint sequence for the given cursor id.
+// The stored value is monotonic: it never regresses to a lower sequence.
+func (store *DBStore) UpsertCheckpointCursor(ctx context.Context, id string, seq uint64) error {
+	_, err := store.ds.ExecContext(ctx, UpsertCheckpointCursorQuery, id, seq)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get total count: %w", err)
+		return fmt.Errorf("failed to upsert checkpoint cursor %q: %w", id, err)
 	}
 
-	return totalCount, nil
-}
-
-func (store *DBStore) GetTxDigestByEventId(ctx context.Context, eventID uint64) (string, error) {
-	var txDigest string
-	err := store.ds.QueryRowxContext(ctx, GetTxDigestById, eventID).Scan(&txDigest)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", fmt.Errorf("no transaction found for event ID %d: %w", eventID, err)
-		}
-		return "", fmt.Errorf("failed to get transaction digest by event ID %d: %w", eventID, err)
-	}
-	return txDigest, nil
+	return nil
 }
 
 func operatorSQL(op primitives.ComparisonOperator) string {
@@ -257,24 +214,4 @@ func operatorSQL(op primitives.ComparisonOperator) string {
 		// Default to equality if unknown
 		return "="
 	}
-}
-
-func (store *DBStore) GetTransmitterCursor(ctx context.Context, transmitter models.SuiAddress) (string, error) {
-	var cursor string
-	err := store.ds.QueryRowxContext(ctx, GetTransmitterCursor, transmitter).Scan(&cursor)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", nil
-		}
-		return "", fmt.Errorf("failed to get transmitter cursor: %w", err)
-	}
-	return cursor, nil
-}
-
-func (store *DBStore) UpdateTransmitterCursor(ctx context.Context, transmitter models.SuiAddress, cursor string) error {
-	_, err := store.ds.ExecContext(ctx, UpdateTransmitterCursor, transmitter, cursor)
-	if err != nil {
-		return fmt.Errorf("failed to update transmitter cursor: %w", err)
-	}
-	return nil
 }

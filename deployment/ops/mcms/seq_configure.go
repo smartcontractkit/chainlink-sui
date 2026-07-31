@@ -23,6 +23,13 @@ type ConfigureMCMSSeqInput struct {
 	// defensive on-chain min_delay check (see MCMSSetConfigInput.TimelockObjectID
 	// for details on F5/F8 Interpretation B). Optional — leave empty to skip.
 	McmsTimelockObjectId string `yaml:"mcmsTimelockObjectId,omitempty"`
+	// ClearRoot forwards MCMSSetConfigInput.ClearRoot to each SetConfigMCMSOp
+	// invocation. Set true when rotating the signer set under a suspected
+	// compromise to revoke the previously installed root and close its remaining
+	// op-count window on-chain (see the warning in op_set_config.go). Defaults to
+	// false, preserving the prior behavior where the old root stays executable
+	// until it expires or exhausts its op-count range.
+	ClearRoot bool `yaml:"clearRoot,omitempty"`
 
 	// Optional configs for each timelock role
 	// If nil, the role will not be configured
@@ -68,6 +75,7 @@ func configureMCMS(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input ConfigureMCM
 			TimelockObjectID: input.McmsTimelockObjectId,
 			Role:             roleConfig.role,
 			Config:           *roleConfig.config,
+			ClearRoot:        input.ClearRoot,
 		}
 
 		report, err := cld_ops.ExecuteOperation(env, SetConfigMCMSOp, deps, setConfigInput)
