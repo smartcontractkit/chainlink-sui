@@ -732,7 +732,7 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 		return batch
 	}
 
-	for _, tx := range transactions {
+	for txIdx, tx := range transactions {
 		cp.logger.Debugw("Processing transaction for event filtering", "transaction", tx.GetDigest())
 
 		txDigest := tx.GetDigest()
@@ -773,6 +773,7 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 					item := CheckpointEventItem{
 						Event:      event,
 						TxDigest:   txDigest,
+						TxIndex:    uint32(txIdx),
 						EventIndex: uint32(eventIdx),
 					}
 					batch.Events = append(batch.Events, item)

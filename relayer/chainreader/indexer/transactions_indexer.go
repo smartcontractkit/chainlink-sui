@@ -269,12 +269,12 @@ func (tIndexer *TransactionsIndexer) ProcessCheckpointTransactions(ctx context.C
 
 	var records []database.EventRecord
 
-	for _, tx := range batch.Transactions {
+	for txIdx, tx := range batch.Transactions {
 		if !tIndexer.shouldProcessTransaction(tx, transmitterSet) {
 			continue
 		}
 
-		record, err := tIndexer.processFailedTransaction(ctx, tx, eventHandle, eventAccountAddress, latestOfframpPackageId, batch.Checkpoint)
+		record, err := tIndexer.processFailedTransaction(ctx, tx, uint64(txIdx), eventHandle, eventAccountAddress, latestOfframpPackageId, batch.Checkpoint)
 		if err != nil {
 			tIndexer.logger.Errorw("Failed to process failed transaction",
 				"txDigest", tx.GetDigest(),
@@ -338,6 +338,7 @@ func (tIndexer *TransactionsIndexer) shouldProcessTransaction(tx *suirpcv2.Execu
 func (tIndexer *TransactionsIndexer) processFailedTransaction(
 	ctx context.Context,
 	tx *suirpcv2.ExecutedTransaction,
+	txIdx uint64,
 	eventHandle string,
 	eventAccountAddress string,
 	latestOfframpPackageID string,
@@ -503,7 +504,8 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 	record := database.EventRecord{
 		EventAccountAddress: eventAccountAddress,
 		EventHandle:         eventHandle,
-		EventOffset:         0, // Synthetic events have offset 0
+		TxIndex:             txIdx, // position of the failed tx within the checkpoint
+		EventOffset:         0,     // Synthetic events have offset 0
 		TxDigest:            txDigestHex,
 		BlockVersion:        0,
 		BlockHeight:         strconv.FormatUint(checkpoint.SequenceNumber, 10),
