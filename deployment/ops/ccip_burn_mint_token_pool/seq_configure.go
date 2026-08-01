@@ -92,26 +92,6 @@ var ConfigureBurnMintTokenPoolSequence = cld_ops.NewSequence(
 		}
 		seqReports = append(seqReports, report2.ToGenericReport())
 
-		for i, chainSelector := range input.RemoteChainSelectors {
-			report, err := cld_ops.ExecuteOperation(
-				env,
-				BurnMintTokenPoolAddRemotePoolOp,
-				deps,
-				BurnMintTokenPoolAddRemotePoolInput{
-					BurnMintTokenPoolPackageId: input.TokenPoolPkgID,
-					CoinObjectTypeArg:          input.CoinObjectTypeArg,
-					StateObjectId:              input.TokenPoolStateObjectID,
-					OwnerCap:                   input.TokenOwnerCapID,
-					RemoteChainSelector:        chainSelector,
-					RemotePoolAddress:          input.RemotePoolAddressesToAdd[i][0], // one address at a time
-				},
-			)
-			if err != nil {
-				return ConfigureBurnMintTokenPoolOutput{}, err
-			}
-			seqReports = append(seqReports, report.ToGenericReport())
-		}
-
 		return ConfigureBurnMintTokenPoolOutput{
 			Objects: DeployBurnMintTokenPoolObjects{
 				OwnerCapObjectId: input.TokenOwnerCapID,
