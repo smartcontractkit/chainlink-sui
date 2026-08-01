@@ -38,6 +38,9 @@ const (
 	chunkQueueSizeMultiplier = 4
 	// defaultRescanRewindCheckpoints is how far RescanRecent rewinds when no explicit backfill window is set.
 	defaultRescanRewindCheckpoints uint64 = 100
+	// minStartSequence is a value used as a fallback to avoid using 0 and doing a full chain rescan
+	// when the required configs are missing and the RPC node used is a full archive node
+	minStartSequence uint64 = 299_000_000
 )
 
 // ChainPollerAPI defines the interface for the ChainPoller.
@@ -217,8 +220,8 @@ func (cp *ChainPoller) run(ctx context.Context) {
 	startSeq, err := cp.computeStartSequence(ctx)
 	if err != nil {
 		cp.logger.Errorw("Failed to compute start sequence", "error", err)
-		// Continue with startSeq = 0 as fallback
-		startSeq = 0
+		// use a reasonable fallback value
+		startSeq = minStartSequence
 	}
 
 	cp.sequencer.setStart(startSeq)
@@ -729,7 +732,7 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 		return batch
 	}
 
-	for _, tx := range transactions {
+	for txIdx, tx := range transactions {
 		cp.logger.Debugw("Processing transaction for event filtering", "transaction", tx.GetDigest())
 
 		txDigest := tx.GetDigest()
@@ -770,6 +773,7 @@ func (cp *ChainPoller) filterEvents(meta CheckpointMeta, transactions []*suirpcv
 					item := CheckpointEventItem{
 						Event:      event,
 						TxDigest:   txDigest,
+						TxIndex:    uint32(txIdx),
 						EventIndex: uint32(eventIdx),
 					}
 					batch.Events = append(batch.Events, item)

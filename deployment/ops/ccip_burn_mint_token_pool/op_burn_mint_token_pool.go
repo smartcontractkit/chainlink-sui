@@ -264,12 +264,17 @@ var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input B
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint token pool contract: %w", err)
 	}
 
+	remotePoolAddressBytes, err := deployment.StrToBytes(input.RemotePoolAddress)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert remote pool address to bytes: %w", err)
+	}
+
 	encodedCall, err := contract.Encoder().AddRemotePool(
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		input.RemoteChainSelector,
-		[]byte(input.RemotePoolAddress),
+		remotePoolAddressBytes,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode AddRemotePool call: %w", err)

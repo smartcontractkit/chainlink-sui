@@ -224,6 +224,7 @@ func (eIndexer *EventsIndexer) processEventsForHandle(
 		record := database.EventRecord{
 			EventAccountAddress: packageID,
 			EventHandle:         handle,
+			TxIndex:             uint64(item.TxIndex),
 			EventOffset:         uint64(item.EventIndex),
 			TxDigest:            txDigestHex,
 			BlockVersion:        0,
