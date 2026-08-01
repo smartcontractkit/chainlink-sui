@@ -13,6 +13,7 @@ type CheckpointMeta struct {
 type CheckpointEventItem struct {
 	Event      *suirpcv2.Event
 	TxDigest   string
+	TxIndex    uint32 // position of the transaction within the checkpoint, as returned by the node
 	EventIndex uint32 // position within tx events list (for offset stability)
 }
 

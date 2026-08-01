@@ -9,6 +9,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
+	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	"github.com/smartcontractkit/chainlink-sui/deployment/ops/mcmstest"
 )
@@ -47,18 +48,21 @@ func TestManagedTokenPoolDualModeOps_ProposalDataMatchesBindingEncoder(t *testin
 			StateObjectId:             mcmstest.StateObjectID,
 			OwnerCap:                  mcmstest.OwnerCapID,
 			RemoteChainSelector:       mcmstest.DestChainSel,
-			RemotePoolAddress:         "pool-address",
+			RemotePoolAddress:         mcmstest.CoinMetadata,
 		}
 		report, err := cld_ops.ExecuteOperation(mcmstest.Bundle(t), ManagedTokenPoolAddRemotePoolOp, sui_ops.OpTxDeps{}, input)
 		require.NoError(t, err)
-		encoded, err := contract.Encoder().AddRemotePool(typeArgs, bind.Object{Id: input.StateObjectId}, bind.Object{Id: input.OwnerCap}, input.RemoteChainSelector, []byte(input.RemotePoolAddress))
+		poolAddr, err := deployment.StrToBytes(input.RemotePoolAddress)
+		require.NoError(t, err)
+		encoded, err := contract.Encoder().AddRemotePool(typeArgs, bind.Object{Id: input.StateObjectId}, bind.Object{Id: input.OwnerCap}, input.RemoteChainSelector, poolAddr)
 		require.NoError(t, err)
 		mcmstest.AssertProposalDataMatches(t, report.Output.Call.Data, encoded, input.StateObjectId, typeArgs)
 	})
 
 	t.Run("remove_remote_pool", func(t *testing.T) {
 		t.Parallel()
-		poolAddr := []byte(mcmstest.CoinMetadata)
+		poolAddr, err := deployment.StrToBytes(mcmstest.CoinMetadata)
+		require.NoError(t, err)
 		input := ManagedTokenPoolRemoveRemotePoolInput{
 			ManagedTokenPoolPackageId: mcmstest.PackageID,
 			CoinObjectTypeArg:         mcmstest.CoinTypeArg,

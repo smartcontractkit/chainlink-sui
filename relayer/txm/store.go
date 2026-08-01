@@ -305,7 +305,16 @@ func (s *InMemoryStore) UpdateTransactionGas(
 	if !exists {
 		return fmt.Errorf("transaction not found")
 	}
+
+	if gasBudget == nil || !gasBudget.IsUint64() {
+		return fmt.Errorf("invalid gas budget: %v", gasBudget)
+	}
+
 	tx.Metadata.GasLimit = gasBudget
+	// Keep the serialized budget in sync with the metadata: UpdateBSCPayload rebuilds
+	// the BCS payload from tx.GasBudget, so updating only Metadata.GasLimit would
+	// rebroadcast the transaction with its old budget.
+	tx.GasBudget = gasBudget.Uint64()
 
 	err := tx.UpdateBSCPayload(ctx, s.lggr, keystoreService, suiClient)
 	if err != nil {

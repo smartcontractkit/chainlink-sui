@@ -70,11 +70,13 @@ func TestBurnMintTokenPoolDualModeOps_ProposalDataMatchesBindingEncoder(t *testi
 			StateObjectId:              mcmstest.StateObjectID,
 			OwnerCap:                   mcmstest.OwnerCapID,
 			RemoteChainSelector:        mcmstest.DestChainSel,
-			RemotePoolAddress:          "pool-address",
+			RemotePoolAddress:          mcmstest.CoinMetadata,
 		}
 		report, err := cld_ops.ExecuteOperation(mcmstest.Bundle(t), BurnMintTokenPoolAddRemotePoolOp, sui_ops.OpTxDeps{}, input)
 		require.NoError(t, err)
-		encoded, err := contract.Encoder().AddRemotePool(typeArgs, bind.Object{Id: input.StateObjectId}, bind.Object{Id: input.OwnerCap}, input.RemoteChainSelector, []byte(input.RemotePoolAddress))
+		poolAddr, err := deployment.StrToBytes(input.RemotePoolAddress)
+		require.NoError(t, err)
+		encoded, err := contract.Encoder().AddRemotePool(typeArgs, bind.Object{Id: input.StateObjectId}, bind.Object{Id: input.OwnerCap}, input.RemoteChainSelector, poolAddr)
 		require.NoError(t, err)
 		mcmstest.AssertProposalDataMatches(t, report.Output.Call.Data, encoded, input.StateObjectId, typeArgs)
 	})
