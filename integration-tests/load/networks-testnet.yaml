@@ -1,0 +1,96 @@
+# testnet network configuration file
+preferred_url_scheme: &preferred_url_scheme "http"
+networks:
+  # ethereum-testnet-sepolia-arbitrum-1 (evm:421614)
+  - type: testnet
+    chain_selector: 3478487238524512106
+    rpcs:
+      - rpc_name: CLL Proxy
+        preferred_url_scheme: *preferred_url_scheme
+        http_url: https://rpcs.cldev.sh/3478487238524512106
+        ws_url: wss://rpcs.cldev.sh/3478487238524512106
+
+  # avalanche-testnet-fuji (evm:43113)
+  - type: testnet
+    chain_selector: 14767482510784806043
+    block_explorer:
+      type: routescan
+      api_key: ""
+      url: https://api.routescan.io
+    rpcs:
+      - rpc_name: CLL Proxy
+        preferred_url_scheme: *preferred_url_scheme
+        http_url: https://rpcs.cldev.sh/14767482510784806043
+        ws_url: wss://rpcs.cldev.sh/14767482510784806043
+
+  # ethereum-testnet-sepolia-base-1
+  - type: testnet
+    chain_selector: 10344971235874465080
+    rpcs:
+      - rpc_name: CLL Proxy
+        preferred_url_scheme: *preferred_url_scheme
+        http_url: https://rpcs.cldev.sh/10344971235874465080
+        ws_url: wss://rpcs.cldev.sh/10344971235874465080
+
+  # binance_smart_chain-testnet (evm:97)
+  - type: testnet
+    chain_selector: 13264668187771770619
+    rpcs:
+      preferred_url_scheme: *preferred_url_scheme
+      http_url: https://rpcs.cldev.sh/13264668187771770619
+      ws_url: wss://rpcs.cldev.sh/13264668187771770619
+
+  # ethereum-testnet-sepolia (evm:11155111)
+  - type: testnet
+    chain_selector: 16015286601757825753
+    rpcs:
+      - rpc_name: CLL Proxy
+        preferred_url_scheme: *preferred_url_scheme
+        http_url: https://rpcs.cldev.sh/16015286601757825753
+        ws_url: wss://rpcs.cldev.sh/16015286601757825753
+
+  # gnosis_chain-testnet-chiado (evm:10200)
+  - type: testnet
+    chain_selector: 8871595565390010547
+    rpcs:
+      - rpc_name: CLL Proxy
+        preferred_url_scheme: *preferred_url_scheme
+        http_url: https://rpcs.cldev.sh/8871595565390010547
+        ws_url: wss://rpcs.cldev.sh/8871595565390010547
+
+  # ethereum-testnet-sepolia-optimism-1 (evm:11155420)
+  - type: testnet
+    chain_selector: 5224473277236331295
+    rpcs:
+      - rpc_name: CLL Proxy
+        preferred_url_scheme: *preferred_url_scheme
+        http_url: https://rpcs.cldev.sh/5224473277236331295
+        ws_url: wss://rpcs.cldev.sh/5224473277236331295
+
+  # polygon-testnet-amoy
+  - type: testnet
+    chain_selector: 16281711391670634445
+    rpcs:
+      - rpc_name: CLL Proxy
+        preferred_url_scheme: *preferred_url_scheme
+        http_url: https://rpcs.cldev.sh/16281711391670634445
+        ws_url: wss://rpcs.cldev.sh/16281711391670634445
+
+  - type: testnet
+    chain_selector: 16423721717087811551
+    block_explorer:
+      type: solana-explorer
+      api_key: ""
+      url: http://explorer.solana.com/
+    rpcs:
+      - rpc_name: LinkPool
+        preferred_url_scheme: http
+        http_url: https://rpcs.cldev.sh/solana/devnet
+
+  # sui
+  - type: testnet
+    chain_selector: 9762610643973837292
+    rpcs:
+      - rpc_name: LinkPool
+        preferred_url_scheme: *preferred_url_scheme
+        http_url: https://rpcs.cldev.sh/9762610643973837292

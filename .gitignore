@@ -20,3 +20,8 @@ chainlink-sui
 /contracts/**/Move.toml.bak
 
 /tmp
+
+# spec-kit
+.github/agents/
+.github/prompts/
+.specify/
