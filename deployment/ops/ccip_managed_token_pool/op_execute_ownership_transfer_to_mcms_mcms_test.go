@@ -33,4 +33,7 @@ func TestExecuteOwnershipTransferToMcmsManagedTokenPoolOp_ProposalDataMatchesBin
 	encoded, err := contract.Encoder().ExecuteOwnershipTransferToMcms(typeArgs, bind.Object{Id: input.OwnerCapObjectId}, bind.Object{Id: input.StateObjectId}, bind.Object{Id: input.RegistryObjectId}, input.To)
 	require.NoError(t, err)
 	mcmstest.AssertProposalDataMatches(t, report.Output.Call.Data, encoded, input.StateObjectId, typeArgs)
+	// The Move execute_ownership_transfer_to_mcms<T> is generic over the coin type, so the
+	// MCMS proposal must carry it as a type argument. Assert it propagates into the Call.
+	require.Equal(t, typeArgs, report.Output.Call.TypeArgs)
 }
