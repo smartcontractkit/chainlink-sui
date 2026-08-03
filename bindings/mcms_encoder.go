@@ -9,6 +9,8 @@ import (
 	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/codec"
+
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
 	module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
@@ -200,7 +202,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			"transfer_ownership":
 			return encodeWithCCIPObjectRefAndState()
 		case "execute_ownership_transfer":
-			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			ccipRef := codec.Object{Id: toHexString(deserializeFirst32Bytes(data))}
 			return offramp.Encoder().McmsExecuteOwnershipTransferWithArgs(ccipRef, stateObj, registryObj, deployerStateObj, executingCallbackParams)
 		case "accept_ownership":
 			ccipObjectRef := bind.Object{Id: stateObjID} // For accept_ownership, the state object is the CCIP object ref
@@ -238,7 +240,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			"transfer_ownership":
 			return encodeWithCCIPObjectRefAndState()
 		case "execute_ownership_transfer":
-			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			ccipRef := codec.Object{Id: toHexString(deserializeFirst32Bytes(data))}
 			return onramp.Encoder().McmsExecuteOwnershipTransferWithArgs(ccipRef, stateObj, registryObj, deployerStateObj, executingCallbackParams)
 		case "add_package_id":
 			return onramp.Encoder().McmsAddPackageIdWithArgs(stateObj, registryObj, executingCallbackParams)
@@ -313,7 +315,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return encodeDefaultWithTypeArgsAndClock()
 		case "destroy_token_pool":
 			deserializer := bcs.NewDeserializer(data)
-			ccipRef := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
+			ccipRef := codec.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
 			state := deserializer.ReadFixedBytes(SuiAddressLength)
 			if toHexString(state) != stateObj.Id {
 				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
@@ -358,7 +360,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			deserializer := bcs.NewDeserializer(data)
 			state := deserializer.ReadFixedBytes(SuiAddressLength)
 			deserializer.ReadFixedBytes(SuiAddressLength) // skip rebalancer cap, we don't need it
-			coin := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
+			coin := codec.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
 			if toHexString(state) != stateObj.Id {
 				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
 			}
@@ -366,7 +368,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return lockReleaseTokenPool.Encoder().McmsProvideLiquidityWithArgs(typeArgs, stateObj, registryObj, coin, executingCallbackParams)
 		case "destroy_token_pool":
 			deserializer := bcs.NewDeserializer(data)
-			ccipRef := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
+			ccipRef := codec.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
 			state := deserializer.ReadFixedBytes(SuiAddressLength)
 			if toHexString(state) != stateObj.Id {
 				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
@@ -405,7 +407,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return encodeDefaultWithTypeArgsAndClock()
 		case "destroy_token_pool":
 			deserializer := bcs.NewDeserializer(data)
-			ccipRef := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
+			ccipRef := codec.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
 			state := deserializer.ReadFixedBytes(SuiAddressLength)
 			if toHexString(state) != stateObj.Id {
 				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)

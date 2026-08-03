@@ -24,4 +24,3 @@ func TestMapChangedObjectsToModels_PublishedPackageWithCreatedIdOperation(t *tes
 	require.Equal(t, "published", out[0].Type)
 	require.Equal(t, objectID, out[0].PackageId)
 }
-
