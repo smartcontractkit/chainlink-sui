@@ -124,18 +124,17 @@ func (s *InMemoryStore) AddTransaction(tx SuiTx) error {
 }
 
 func (s *InMemoryStore) IncrementAttempts(transactionID string) error {
-	// Check if the transaction already exists
-	_, err := s.GetTransaction(transactionID)
-	if err == nil {
-		// Update the existing transaction
-		s.mu.Lock()
-		s.transactions[transactionID].IncrementAttempts()
-		s.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-		return nil
+	tx, exists := s.transactions[transactionID]
+	if !exists {
+		return fmt.Errorf("transaction not found")
 	}
 
-	return err
+	tx.IncrementAttempts()
+
+	return nil
 }
 
 // GetTransaction retrieves a transaction by its ID.
