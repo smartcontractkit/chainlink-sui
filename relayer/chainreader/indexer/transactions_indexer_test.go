@@ -16,6 +16,7 @@ import (
 	v2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
+	"github.com/smartcontractkit/chainlink-sui/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
@@ -361,7 +362,13 @@ func TestTransactionsIndexer(t *testing.T) {
 
 		executionStateChanged := events[0].Data.(*OfframpExecutionStateChanged)
 
-		require.True(t, strings.HasPrefix(executionStateChanged.MessageId, "0x"))
+		decodedReport, err := codec.DeserializeExecutionReport(reportBytes)
+		require.NoError(t, err)
+		require.NotNil(t, decodedReport)
+
+		// The message ID is expected to be encoded as a hex string due to the use of `ExpectedEventType`
+		// in the ChainReader config for the relevant event.
+		require.Equal(t, "0x"+hex.EncodeToString(decodedReport.Message.Header.MessageID), executionStateChanged.MessageId)
 		require.True(t, strings.HasPrefix(executionStateChanged.MessageHash, "0x"))
 	})
 
