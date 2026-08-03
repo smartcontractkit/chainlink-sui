@@ -2,6 +2,7 @@ package txm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -129,7 +130,7 @@ func (s *InMemoryStore) IncrementAttempts(transactionID string) error {
 
 	tx, exists := s.transactions[transactionID]
 	if !exists {
-		return fmt.Errorf("transaction not found")
+		return errors.New("transaction not found")
 	}
 
 	tx.IncrementAttempts()

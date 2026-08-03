@@ -57,7 +57,7 @@ func gateTestMoveCallCommand(pkg, module, function string, numInputArgs int) *su
 	}
 	for i := range numInputArgs {
 		argKind := suirpcv2.Argument_INPUT
-		inputIdx := uint32(i) //nolint:gosec
+		inputIdx := uint32(i)
 		call.Arguments = append(call.Arguments, &suirpcv2.Argument{Kind: &argKind, Input: &inputIdx})
 	}
 
