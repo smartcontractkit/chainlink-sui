@@ -391,17 +391,27 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 		}
 	}
 
+	// NOTE: The check below does not guarantee that a malicious (known) transmitter is not sending a failed PTB
+	// with the expected package and module. However, the worst case scenario simply involves creating an event
+	// record with a failure state for a report that passed full onchain validation before a later command
+	// aborted, which is indistinguishable from a genuine failed execution attempt.
 	if !includesValidPTBCommand {
 		tIndexer.logger.Warnw("Expected PTB command not found",
 			"txDigest", tx.GetDigest())
 		return nil, nil
 	}
 
-	// The failure should NOT take place at init_execute
-	if moveAbort.Location.FunctionName != nil &&
-		*moveAbort.Location.FunctionName == tIndexer.executeFunction {
-		tIndexer.logger.Debugw("Skipping - failure at init_execute",
-			"txDigest", tx.GetDigest())
+	// A synthetic FAILURE event is only valid if init_execute completed onchain
+	// (OCR + committed-root validation passed), which requires the abort to have
+	// occurred in a command strictly after init_execute. A missing function name
+	// or command index fails closed.
+	if moveAbort.Location.FunctionName == nil ||
+		*moveAbort.Location.FunctionName == tIndexer.executeFunction ||
+		moveAbort.CommandIndex <= uint64(executionMethodIndex) {
+		tIndexer.logger.Debugw("Skipping - failure at or before init_execute",
+			"txDigest", tx.GetDigest(),
+			"moveAbort", *moveAbort,
+			"executionMethodIndex", executionMethodIndex)
 		return nil, nil
 	}
 
