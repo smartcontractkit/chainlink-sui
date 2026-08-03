@@ -252,7 +252,7 @@ func handleExponentialBackoffRetry(txm *SuiTxm, tx SuiTx) error {
 	// Check if enough time has elapsed since the last update
 	timeElapsed := time.Since(time.Unix(int64(tx.LastUpdatedAt), 0))
 	if timeElapsed.Seconds() < delaySeconds {
-		// Not enough time has elapsed for the next retry, mark the transaction as failed
+		// Not enough time has elapsed for the next retry
 		txm.lggr.Debugw("Not enough time elapsed, no need to retry", "transactionID", tx.TransactionID, "elapsed", timeElapsed, "required", delaySeconds)
 		return nil
 	}
