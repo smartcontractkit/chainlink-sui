@@ -1,8 +1,126 @@
-# CCIP Cross-Chain Messaging: Go Load Test Guide
+# CCIP Load Tests
 
-This document describes the necessary steps to send **arbitrary messages** (no tokens) between
-Sui and EVM chains in Go, targeting **real deployed environments** (staging, testnet, mainnet).
-It assumes you already have all required on-chain addresses.
+Lightweight Go load test framework for sending CCIP messages between Sui and EVM chains against remote environments (testnet/staging/mainnet).
+
+**No Chainlink core dependency.** No confirmation/metrics features in v1.
+
+## Architecture
+
+```
+SUI → EVM:  Build PTB → create_token_transfer_params → ccip_send → Execute → Extract CCIPMessageSent
+EVM → SUI:  GetFee → Router.ccipSend (native ETH) → Extract CCIPMessageSent from receipt
+```
+
+## Prerequisites
+
+- Go 1.26.2+
+- Funded wallets (Sui and EVM) with sufficient tokens for fees
+- Contract addresses from a deployment run
+- Network configuration for all chains
+
+## Configuration (4 Layers)
+
+| Layer | File | Content |
+|-------|------|---------|
+| 1 | `.env.<env>` | Secrets: `SUI_PRIVATE_KEY`, `EVM_PRIVATE_KEY` |
+| 2 | `addresses-<env>.json` | Contract addresses (cldf AddressBook format) |
+| 3 | `networks-<env>.yaml` | Chain RPC endpoints (unified EVM + Sui) |
+| 4 | `runs/<name>.toml` | Run-specific parameters |
+
+### Layer 1: `.env.testnet`
+
+```bash
+SUI_PRIVATE_KEY=suiprivkey1...
+EVM_PRIVATE_KEY=0x...
+```
+
+### Layer 2: `addresses-testnet.json`
+
+Flat array of `{address, chainSelector, type, version}` entries. Copy from deployment pipeline output.
+
+### Layer 3: `networks-testnet.yaml`
+
+```yaml
+networks:
+  - type: testnet
+    chain_selector: 9762610643973837292  # Sui testnet
+    rpcs:
+      - rpc_name: Public
+        http_url: https://fullnode.testnet.sui.io:443
+  - type: testnet
+    chain_selector: 16015286601757825753  # Sepolia
+    rpcs:
+      - rpc_name: CLL Proxy
+        http_url: https://rpcs.cldev.sh/16015286601757825753
+```
+
+### Layer 4: `runs/my-first-sui-to-evm-run.toml`
+
+```toml
+[run]
+env = "testnet"
+source_chain_selector = 9762610643973837292
+dest_chain_selector = 16015286601757825753
+message_count = 10
+message_data = "hello from sui load test"
+
+[receiver]
+address = "0x0000000000000000000000000000000000000000"
+
+[gas]
+sui_gas_budget = 10000000000
+evm_gas_limit = 200000
+```
+
+## Running Tests
+
+### Sui → EVM
+
+```bash
+cd integration-tests/load
+go test -run TestSui2EVM -v --run-name my-first-sui-to-evm-run
+```
+
+### EVM → Sui
+
+```bash
+cd integration-tests/load
+go test -run TestEVM2Sui -v --run-name my-first-evm-to-sui-run
+```
+
+## Results
+
+Results are saved to `results/<runName>-<env>-<timestamp>.txt` in JSON format:
+
+```json
+{
+  "run_name": "my-first-sui-to-evm-run",
+  "env_name": "testnet",
+  "total_messages": 10,
+  "successful_messages": 10,
+  "failed_messages": 0,
+  "messages": [
+    {
+      "message_id": "0xabc...",
+      "transaction_hash": "0xdef...",
+      "success": true,
+      "sequence_number": "42"
+    }
+  ]
+}
+```
+
+## Fee Handling
+
+- **Sui→EVM**: Fees paid via PTB gas budget (native SUI). No LINK coin needed.
+- **EVM→Sui**: Fees paid in native ETH. 20% buffer added to estimated fee.
+
+## Constraints
+
+- Messages sent sequentially (one at a time)
+- No retries in v1 (will be added later)
+- No confirmation waiting (DON handles execution)
+- No Chainlink core imports
 
 ---
 

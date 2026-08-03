@@ -21,6 +21,9 @@ chainlink-sui
 
 /tmp
 
+# load test results
+integration-tests/load/results/
+
 # spec-kit
 .github/agents/
 .github/prompts/

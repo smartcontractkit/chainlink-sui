@@ -1,43 +1,47 @@
 # Implementation Plan: Sui CCIP Load Tests
 
-**Branch**: `001-sui-ccip-load-tests` | **Date**: 2026-08-03 | **Spec**: [spec.md](spec.md)
+**Branch**: `sui-load-tests` | **Date**: 2026-08-03 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `spec.md`
 
 ## Summary
 
-Build a lightweight Go load test framework under `integration-tests/load/` that sends CCIP messages in both directions (Sui→EVM and EVM→Sui) against remote environments only. The framework uses a three-layer config system (`.env` for secrets, `addresses.json` for contract addresses, YAML for network config), sends messages sequentially with retry-on-failure, and saves results to a JSON file. No Chainlink core dependency. No confirmation/metrics features in v1.
+Build a lightweight Go load test framework under `integration-tests/load/` that sends CCIP messages in both directions (Sui→EVM and EVM→Sui) against remote environments only. The framework uses a four-layer config system (`.env` for secrets, `addresses.json` for contract addresses, YAML for network config, TOML for run config), sends messages sequentially, and saves results to a file. No Chainlink core dependency. No confirmation/metrics features in v1. No retries in v1.
 
 ## Technical Context
 
 **Language/Version**: Go 1.26.2 (matching existing `integration-tests/go.mod`)
 
-**Primary Dependencies**:
-- `github.com/block-vision/sui-go-sdk` (already in go.mod) — Sui JSON-RPC client, PTB construction, transaction signing
-- `github.com/ethereum/go-ethereum` (already in go.mod) — EVM client, ABI bindings
-- `github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_2_0/router` (indirect dep) — EVM Router contract bindings
-- `github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_3/onramp` (indirect dep) — EVM OnRamp event bindings
-- `github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_3/message_hasher` (indirect dep) — SuiExtraArgsV1 struct
-- `github.com/smartcontractkit/chainlink-sui/relayer/signer` (same module) — Sui PrivateKeySigner
-- `github.com/joho/godotenv` (NEW) — `.env` file loading
-- `gopkg.in/yaml.v3` (NEW) — YAML network config parsing
-- `github.com/btcsuite/btcutil` (already indirect) — bech32 decoding for Sui private keys
+**Primary Dependencies** (all already in go.mod — no new deps):
+- `github.com/block-vision/sui-go-sdk` — Sui JSON-RPC client, PTB construction, transaction signing
+- `github.com/ethereum/go-ethereum` — EVM client, ABI bindings
+- `github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_2_0/router` — EVM Router contract bindings
+- `github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_3/message_hasher` — SuiExtraArgsV1 struct + ABI
+- `github.com/smartcontractkit/chainlink-deployments-framework/deployment` (cldf) — AddressBook, TypeAndVersion, chain helpers
+- `github.com/smartcontractkit/chainlink-sui/bindings/bind` — BoundContract, ExecutePTB, CallOpts
+- `github.com/smartcontractkit/chainlink-sui/bindings/generated` — Generated Sui contract bindings
+- `github.com/smartcontractkit/chainlink-sui/relayer/client` — BindingsClient, PTBClient
+- `github.com/smartcontractkit/chainlink-sui/relayer/signer` — Sui PrivateKeySigner
+- `github.com/joho/godotenv` — `.env` file loading
+- `gopkg.in/yaml.v3` — YAML network config parsing (already indirect)
+- `github.com/pelletier/go-toml/v2` — TOML run config parsing (already indirect)
+- `github.com/btcsuite/btcutil` — bech32 decoding for Sui private keys (already indirect)
 
-**Storage**: Results written to JSON files on local filesystem. No database.
+**Storage**: Results written to text files on local filesystem. No database.
 
-**Testing**: Manual Go test files (`_test.go`) run by the operator against remote environments. No unit tests for the load test framework itself (it's a tool, not a library).
+**Testing**: Manual Go test files (`_test.go`) run by the operator against remote environments.
 
 **Target Platform**: macOS/Linux — Go test binary run locally.
 
 **Project Type**: CLI test tool (Go test files run manually with `go test -run ...`)
 
-**Performance Goals**: N/A for v1 — sequential sends, no throughput targets. The framework is for functional load generation, not benchmarking.
+**Performance Goals**: N/A for v1 — sequential sends, no throughput targets.
 
 **Constraints**:
 - MUST NOT import any package from `github.com/smartcontractkit/chainlink` (Chainlink core)
 - All Go commands run manually by the operator — agents create/edit source files only
 - Messages sent sequentially (one at a time)
-- Retry up to 3x on failure, log and continue
+- No retries in v1 (exponential backoff will be added later)
 - Native ETH fees only for EVM→Sui (v1)
 - Native SUI gas budget only for Sui→EVM (v1)
 - No confirmation waiting, no metrics collection
@@ -50,11 +54,11 @@ Build a lightweight Go load test framework under `integration-tests/load/` that 
 
 | Gate | Status | Notes |
 |------|--------|-------|
-| **Standard Library First** | PASS | `encoding/json`, `os`, `fmt`, `net/http` used where possible. `godotenv` and `yaml.v3` justified: no stdlib equivalent for `.env` parsing or YAML. |
-| **Test Discipline** | PASS | Load tests are manual-run `_test.go` files, not automated CI tests. No build tags needed — they run against remote envs only. |
-| **Structured Logging** | PASS | Use `log/slog` (Go stdlib) for simplicity instead of `chainlink-common/pkg/logger` — load tests are scripts, not long-lived services. |
-| **Code Generation & Bindings** | PASS | No new Move contracts or bindings needed. Using existing generated bindings from `chainlink-ccip` and `sui-go-sdk`. |
-| **No Chainlink Core** | PASS | All dependencies come from `chainlink-sui`, `chainlink-ccip`, `sui-go-sdk`, or `go-ethereum`. No `chainlink` import. |
+| **Standard Library First** | PASS | `encoding/json`, `os`, `fmt`, `net/http` used where possible. `godotenv`, `yaml.v3`, `go-toml` already in go.mod. |
+| **Test Discipline** | PASS | Load tests are manual-run `_test.go` files, not automated CI tests. No build tags needed. |
+| **Structured Logging** | PASS | Use `log/slog` (Go stdlib) — load tests are scripts, not long-lived services. |
+| **Code Generation & Bindings** | PASS | No new Move contracts. Using existing generated bindings from `chainlink-sui/bindings/generated`. |
+| **No Chainlink Core** | PASS | All deps from `chainlink-sui`, `chainlink-ccip`, `cldf`, `sui-go-sdk`, `go-ethereum`. |
 
 ## Project Structure
 
@@ -74,29 +78,31 @@ specs/001-sui-ccip-load-tests/
 
 ```text
 integration-tests/load/
-├── README.md                    # Existing — updated with usage instructions
-├── addresses-testnet.json       # Existing — EVM addresses (flat array format)
-├── networks-testnet.yaml        # Existing — EVM network config
+├── README.md                    # Updated with usage instructions
+├── .env.testnet                 # Secrets (private keys, RPC URLs)
+├── addresses-testnet.json       # Contract addresses (cldf AddressBook format)
+├── networks-testnet.yaml        # Chain network config (RPC endpoints)
+├── runs/                        # Run config TOML files
+│   └── my-first-sui-to-evm-run.toml
 ├── config/
-│   ├── config.go                # Three-layer config loader (env + addresses.json + yaml)
-│   ├── addresses.go             # Addresses.json parser (deployment format + flat array)
-│   ├── networks.go              # YAML network config parser
-│   └── types.go                 # Config types (LoadTestConfig, SentMessage, RunResults)
+│   ├── config.go                # Four-layer config loader
+│   ├── runconfig.go             # TOML run config parser
+│   └── types.go                 # Config types (RunConfig, SentMessage, RunResults)
 ├── sui/
-│   ├── client.go                # Sui client setup, signer creation, key decoding
+│   ├── client.go                # Sui client + signer setup (reuse cldf helpers)
 │   ├── sender.go                # Build PTB, execute, extract events (Sui→EVM)
 │   └── extras.go                # GenericExtraArgsV2 BCS encoding
 ├── evm/
-│   ├── client.go                # EVM client setup, signer creation
+│   ├── client.go                # EVM client + signer setup
 │   ├── sender.go                # Build message, get fee, send, extract events (EVM→Sui)
 │   └── extras.go                # SuiExtraArgsV1 encoding
 ├── sui2evm_test.go              # Test: Sui→EVM message sending
 ├── evm2sui_test.go              # Test: EVM→Sui message sending
 └── results/
-    └── (runtime)                # Run results JSON files written here
+    └── (runtime)                # Run results files written here
 ```
 
-**Structure Decision**: Flat package layout under `integration-tests/load/` with sub-packages for `config/`, `sui/`, and `evm/`. Each sub-package is minimal and focused. Test files at the `load` package level for simple `go test -run` invocation.
+**Structure Decision**: Flat package layout under `integration-tests/load/` with sub-packages for `config/`, `sui/`, and `evm/`. Run configs in `runs/` directory. Results named after the run config file.
 
 ## Complexity Tracking
 
