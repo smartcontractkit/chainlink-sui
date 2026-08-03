@@ -250,7 +250,8 @@ func TestEncodeEntryPointArg_FeeQuoter(t *testing.T) {
 
 func TestEncodeEntryPointArg_Offramp(t *testing.T) {
 	encoder := &CCIPEntrypointArgEncoder{
-		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
+		registryObjID:      "0x1234567890123456789012345678901234567890123456789012345678901234",
+		deployerStateObjID: "0x5555555555555555555555555555555555555555555555555555555555555555",
 	}
 
 	target := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
@@ -263,7 +264,6 @@ func TestEncodeEntryPointArg_Offramp(t *testing.T) {
 		"apply_source_chain_config_updates",
 		"set_ocr3_config",
 		"transfer_ownership",
-		"execute_ownership_transfer",
 	}
 
 	for _, fn := range testCases {
@@ -294,11 +294,106 @@ func TestEncodeEntryPointArg_Offramp(t *testing.T) {
 			assert.Equal(t, ccipRefID, ccipRefFromResult, "CcipRef should match ccipRefID (from BCS data)")
 		})
 	}
+
+	t.Run("execute_ownership_transfer", func(t *testing.T) {
+		data := serializeAddress(ccipRefID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"offramp",
+			"execute_ownership_transfer",
+			stateObjID,
+			data,
+			nil,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "offramp", result.Module.ModuleName)
+		assert.Equal(t, "mcms_execute_ownership_transfer", result.Function)
+
+		require.Len(t, result.CallArgs, 5, "Expected 5 arguments: ccipRef, state, registry, deployer_state, executingCallbackParams")
+
+		ccipRefFromResult, err := extractObjectID(result.CallArgs[0])
+		require.NoError(t, err, "Failed to extract ccipRef object ID")
+		assert.Equal(t, ccipRefID, ccipRefFromResult, "CcipRef should match ccipRefID (from BCS data)")
+
+		stateFromResult, err := extractObjectID(result.CallArgs[1])
+		require.NoError(t, err, "Failed to extract state object ID")
+		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+
+		deployerStateFromResult, err := extractObjectID(result.CallArgs[3])
+		require.NoError(t, err, "Failed to extract deployer state object ID")
+		assert.Equal(t, encoder.deployerStateObjID, deployerStateFromResult, "Deployer state should match deployerStateObjID")
+	})
+
+	for _, fn := range []string{"add_allowed_modules", "remove_allowed_modules"} {
+		t.Run(fn, func(t *testing.T) {
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"offramp",
+				fn,
+				stateObjID,
+				[]byte{},
+				nil,
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, "offramp", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.CallArgs, 2, "Expected 2 arguments: registry, executingCallbackParams")
+
+			registryFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err)
+			assert.Equal(t, encoder.registryObjID, registryFromResult, "First arg should be the registry object")
+		})
+	}
+
+	for _, fn := range []string{"add_package_id", "remove_package_id"} {
+		t.Run(fn, func(t *testing.T) {
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"offramp",
+				fn,
+				stateObjID,
+				[]byte{},
+				nil,
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, "offramp", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.CallArgs, 3, "Expected 3 arguments: state, registry, executingCallbackParams")
+
+			stateFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err)
+			assert.Equal(t, stateObjID, stateFromResult, "First arg should be the state object")
+		})
+	}
+
+	t.Run("unsupported_function", func(t *testing.T) {
+		_, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"offramp",
+			"unknown_function",
+			stateObjID,
+			nil,
+			nil,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported offramp MCMS function")
+	})
 }
 
 func TestEncodeEntryPointArg_Onramp(t *testing.T) {
 	encoder := &CCIPEntrypointArgEncoder{
-		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
+		registryObjID:      "0x1234567890123456789012345678901234567890123456789012345678901234",
+		deployerStateObjID: "0x5555555555555555555555555555555555555555555555555555555555555555",
 	}
 
 	target := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
@@ -352,7 +447,6 @@ func TestEncodeEntryPointArg_Onramp(t *testing.T) {
 		"apply_dest_chain_config_updates",
 		"apply_allowlist_updates",
 		"transfer_ownership",
-		"execute_ownership_transfer",
 	}
 
 	for _, fn := range ccipTestCases {
@@ -383,42 +477,201 @@ func TestEncodeEntryPointArg_Onramp(t *testing.T) {
 			assert.Equal(t, ccipRefID, ccipRefFromResult, "CcipRef should match ccipRefID (from BCS data)")
 		})
 	}
+
+	t.Run("execute_ownership_transfer", func(t *testing.T) {
+		data := serializeAddress(ccipRefID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"onramp",
+			"execute_ownership_transfer",
+			stateObjID,
+			data,
+			nil,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "onramp", result.Module.ModuleName)
+		assert.Equal(t, "mcms_execute_ownership_transfer", result.Function)
+
+		require.Len(t, result.CallArgs, 5, "Expected 5 arguments: ccipRef, state, registry, deployer_state, executingCallbackParams")
+
+		ccipRefFromResult, err := extractObjectID(result.CallArgs[0])
+		require.NoError(t, err, "Failed to extract ccipRef object ID")
+		assert.Equal(t, ccipRefID, ccipRefFromResult, "CcipRef should match ccipRefID (from BCS data)")
+
+		stateFromResult, err := extractObjectID(result.CallArgs[1])
+		require.NoError(t, err, "Failed to extract state object ID")
+		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+
+		deployerStateFromResult, err := extractObjectID(result.CallArgs[3])
+		require.NoError(t, err, "Failed to extract deployer state object ID")
+		assert.Equal(t, encoder.deployerStateObjID, deployerStateFromResult, "Deployer state should match deployerStateObjID")
+	})
+
+	for _, fn := range []string{"add_allowed_modules", "remove_allowed_modules"} {
+		t.Run(fn, func(t *testing.T) {
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"onramp",
+				fn,
+				stateObjID,
+				[]byte{},
+				nil,
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, "onramp", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.CallArgs, 2, "Expected 2 arguments: registry, executingCallbackParams")
+
+			registryFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err)
+			assert.Equal(t, encoder.registryObjID, registryFromResult, "First arg should be the registry object")
+		})
+	}
+
+	for _, fn := range []string{"add_package_id", "remove_package_id"} {
+		t.Run(fn, func(t *testing.T) {
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"onramp",
+				fn,
+				stateObjID,
+				[]byte{},
+				nil,
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, "onramp", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.CallArgs, 3, "Expected 3 arguments: state, registry, executingCallbackParams")
+
+			stateFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err)
+			assert.Equal(t, stateObjID, stateFromResult, "First arg should be the state object")
+		})
+	}
+
+	t.Run("unsupported_function", func(t *testing.T) {
+		_, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"onramp",
+			"unknown_function",
+			stateObjID,
+			nil,
+			nil,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported onramp MCMS function")
+	})
 }
 
 func TestEncodeEntryPointArg_Router(t *testing.T) {
 	encoder := &CCIPEntrypointArgEncoder{
-		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
+		registryObjID:      "0x1234567890123456789012345678901234567890123456789012345678901234",
+		deployerStateObjID: "0x5555555555555555555555555555555555555555555555555555555555555555",
 	}
 
 	target := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
 	stateObjID := "0x9999999999999999999999999999999999999999999999999999999999999999"
 	executingCallbackParams := &transaction.Argument{}
 
-	t.Run("accept_ownership", func(t *testing.T) {
-		data := []byte{}
+	for _, fn := range []string{"accept_ownership", "transfer_ownership", "set_on_ramps"} {
+		t.Run(fn, func(t *testing.T) {
+			data := []byte{}
 
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"router",
+				fn,
+				stateObjID,
+				data,
+				nil,
+			)
+
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.Equal(t, "router", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.CallArgs, 3, "Expected 3 arguments: state, registry, executingCallbackParams")
+
+			stateFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err, "Failed to extract state object ID")
+			assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+		})
+	}
+
+	t.Run("execute_ownership_transfer", func(t *testing.T) {
 		result, err := encoder.EncodeEntryPointArg(
 			executingCallbackParams,
 			target,
 			"router",
-			"accept_ownership",
+			"execute_ownership_transfer",
 			stateObjID,
-			data,
-			[]string{"0x1::sui::SUI"},
+			[]byte{},
+			nil,
 		)
 
 		require.NoError(t, err)
-		assert.NotNil(t, result)
 		assert.Equal(t, "router", result.Module.ModuleName)
-		assert.Equal(t, "mcms_accept_ownership", result.Function)
+		assert.Equal(t, "mcms_execute_ownership_transfer", result.Function)
 
-		// Verify deserialization - the state should be extracted from data
-		require.Len(t, result.CallArgs, 3, "Expected 3 arguments: state, registry, executingCallbackParams")
+		require.Len(t, result.CallArgs, 4, "Expected 4 arguments: state, registry, deployer_state, executingCallbackParams")
 
-		// Verify the state was deserialized correctly
 		stateFromResult, err := extractObjectID(result.CallArgs[0])
 		require.NoError(t, err, "Failed to extract state object ID")
-		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID (from BCS data)")
+		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+
+		deployerStateFromResult, err := extractObjectID(result.CallArgs[2])
+		require.NoError(t, err, "Failed to extract deployer state object ID")
+		assert.Equal(t, encoder.deployerStateObjID, deployerStateFromResult, "Deployer state should match deployerStateObjID")
+	})
+
+	for _, fn := range []string{"add_allowed_modules", "remove_allowed_modules"} {
+		t.Run(fn, func(t *testing.T) {
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"router",
+				fn,
+				stateObjID,
+				[]byte{},
+				nil,
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, "router", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.CallArgs, 2, "Expected 2 arguments: registry, executingCallbackParams")
+
+			registryFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err)
+			assert.Equal(t, encoder.registryObjID, registryFromResult, "First arg should be the registry object")
+		})
+	}
+
+	t.Run("unsupported_function", func(t *testing.T) {
+		_, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"router",
+			"unknown_function",
+			stateObjID,
+			nil,
+			nil,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported router MCMS function")
 	})
 }
 
@@ -554,6 +807,75 @@ func TestEncodeEntryPointArg_BurnMintTokenPool(t *testing.T) {
 			assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID (from BCS data)")
 		})
 	}
+
+	t.Run("destroy_token_pool", func(t *testing.T) {
+		ccipRefID := "0x7777777777777777777777777777777777777777777777777777777777777777"
+		data := serializeAddresses(ccipRefID, stateObjID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"burn_mint_token_pool",
+			"destroy_token_pool",
+			stateObjID,
+			data,
+			[]string{"0x1::sui::SUI"},
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "burn_mint_token_pool", result.Module.ModuleName)
+		assert.Equal(t, "mcms_destroy_token_pool", result.Function)
+
+		require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+		require.Len(t, result.CallArgs, 4, "Expected 4 arguments: ccipRef, state, registry, executingCallbackParams")
+
+		ccipRefFromResult, err := extractObjectID(result.CallArgs[0])
+		require.NoError(t, err, "Failed to extract ccipRef object ID")
+		assert.Equal(t, ccipRefID, ccipRefFromResult, "CcipRef should match deserialized value from data")
+
+		stateFromResult, err := extractObjectID(result.CallArgs[1])
+		require.NoError(t, err, "Failed to extract state object ID")
+		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+	})
+
+	for _, fn := range []string{"add_allowed_modules", "remove_allowed_modules"} {
+		t.Run(fn, func(t *testing.T) {
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"burn_mint_token_pool",
+				fn,
+				stateObjID,
+				[]byte{},
+				[]string{"0x1::sui::SUI"},
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, "burn_mint_token_pool", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+			require.Len(t, result.CallArgs, 2, "Expected 2 arguments: registry, executingCallbackParams")
+
+			registryFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err)
+			assert.Equal(t, encoder.registryObjID, registryFromResult, "First arg should be the registry object")
+		})
+	}
+
+	t.Run("unsupported_function", func(t *testing.T) {
+		_, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"burn_mint_token_pool",
+			"unknown_function",
+			stateObjID,
+			nil,
+			nil,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported burn_mint_token_pool MCMS function")
+	})
 }
 
 func TestEncodeEntryPointArg_LockReleaseTokenPool(t *testing.T) {
@@ -689,6 +1011,131 @@ func TestEncodeEntryPointArg_LockReleaseTokenPool(t *testing.T) {
 			assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID (from BCS data)")
 		})
 	}
+
+	for _, fn := range []string{"destroy_rebalancer_cap", "withdraw_liquidity"} {
+		t.Run(fn, func(t *testing.T) {
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"lock_release_token_pool",
+				fn,
+				stateObjID,
+				[]byte{},
+				[]string{"0x1::sui::SUI"},
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, "lock_release_token_pool", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+			require.Len(t, result.CallArgs, 3, "Expected 3 arguments: state, registry, executingCallbackParams")
+
+			stateFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err, "Failed to extract state object ID")
+			assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+		})
+	}
+
+	t.Run("provide_liquidity", func(t *testing.T) {
+		rebalancerCapID := "0x6666666666666666666666666666666666666666666666666666666666666666"
+		coinID := "0x4444444444444444444444444444444444444444444444444444444444444444"
+		data := serializeAddresses(stateObjID, rebalancerCapID, coinID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"lock_release_token_pool",
+			"provide_liquidity",
+			stateObjID,
+			data,
+			[]string{"0x1::sui::SUI"},
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "lock_release_token_pool", result.Module.ModuleName)
+		assert.Equal(t, "mcms_provide_liquidity", result.Function)
+
+		require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+		require.Len(t, result.CallArgs, 4, "Expected 4 arguments: state, registry, coin, executingCallbackParams")
+
+		stateFromResult, err := extractObjectID(result.CallArgs[0])
+		require.NoError(t, err, "Failed to extract state object ID")
+		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+
+		coinFromResult, err := extractObjectID(result.CallArgs[2])
+		require.NoError(t, err, "Failed to extract coin object ID")
+		assert.Equal(t, coinID, coinFromResult, "Coin should match deserialized value from data")
+	})
+
+	t.Run("destroy_token_pool", func(t *testing.T) {
+		ccipRefID := "0x7777777777777777777777777777777777777777777777777777777777777777"
+		data := serializeAddresses(ccipRefID, stateObjID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"lock_release_token_pool",
+			"destroy_token_pool",
+			stateObjID,
+			data,
+			[]string{"0x1::sui::SUI"},
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "lock_release_token_pool", result.Module.ModuleName)
+		assert.Equal(t, "mcms_destroy_token_pool", result.Function)
+
+		require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+		require.Len(t, result.CallArgs, 4, "Expected 4 arguments: ccipRef, state, registry, executingCallbackParams")
+
+		ccipRefFromResult, err := extractObjectID(result.CallArgs[0])
+		require.NoError(t, err, "Failed to extract ccipRef object ID")
+		assert.Equal(t, ccipRefID, ccipRefFromResult, "CcipRef should match deserialized value from data")
+
+		stateFromResult, err := extractObjectID(result.CallArgs[1])
+		require.NoError(t, err, "Failed to extract state object ID")
+		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+	})
+
+	for _, fn := range []string{"add_allowed_modules", "remove_allowed_modules"} {
+		t.Run(fn, func(t *testing.T) {
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"lock_release_token_pool",
+				fn,
+				stateObjID,
+				[]byte{},
+				[]string{"0x1::sui::SUI"},
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, "lock_release_token_pool", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+			require.Len(t, result.CallArgs, 2, "Expected 2 arguments: registry, executingCallbackParams")
+
+			registryFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err)
+			assert.Equal(t, encoder.registryObjID, registryFromResult, "First arg should be the registry object")
+		})
+	}
+
+	t.Run("unsupported_function", func(t *testing.T) {
+		_, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"lock_release_token_pool",
+			"unknown_function",
+			stateObjID,
+			nil,
+			nil,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported lock_release_token_pool MCMS function")
+	})
 }
 
 func TestEncodeEntryPointArg_ManagedTokenPool(t *testing.T) {
@@ -823,11 +1270,81 @@ func TestEncodeEntryPointArg_ManagedTokenPool(t *testing.T) {
 			assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID (from BCS data)")
 		})
 	}
+
+	t.Run("destroy_token_pool", func(t *testing.T) {
+		ccipRefID := "0x7777777777777777777777777777777777777777777777777777777777777777"
+		data := serializeAddresses(ccipRefID, stateObjID)
+
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"managed_token_pool",
+			"destroy_token_pool",
+			stateObjID,
+			data,
+			[]string{"0x1::sui::SUI"},
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "managed_token_pool", result.Module.ModuleName)
+		assert.Equal(t, "mcms_destroy_token_pool", result.Function)
+
+		require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+		require.Len(t, result.CallArgs, 4, "Expected 4 arguments: ccipRef, state, registry, executingCallbackParams")
+
+		ccipRefFromResult, err := extractObjectID(result.CallArgs[0])
+		require.NoError(t, err, "Failed to extract ccipRef object ID")
+		assert.Equal(t, ccipRefID, ccipRefFromResult, "CcipRef should match deserialized value from data")
+
+		stateFromResult, err := extractObjectID(result.CallArgs[1])
+		require.NoError(t, err, "Failed to extract state object ID")
+		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+	})
+
+	for _, fn := range []string{"add_allowed_modules", "remove_allowed_modules"} {
+		t.Run(fn, func(t *testing.T) {
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"managed_token_pool",
+				fn,
+				stateObjID,
+				[]byte{},
+				[]string{"0x1::sui::SUI"},
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, "managed_token_pool", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+			require.Len(t, result.CallArgs, 2, "Expected 2 arguments: registry, executingCallbackParams")
+
+			registryFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err)
+			assert.Equal(t, encoder.registryObjID, registryFromResult, "First arg should be the registry object")
+		})
+	}
+
+	t.Run("unsupported_function", func(t *testing.T) {
+		_, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"managed_token_pool",
+			"unknown_function",
+			stateObjID,
+			nil,
+			nil,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported managed_token_pool MCMS function")
+	})
 }
 
 func TestEncodeEntryPointArg_ManagedToken(t *testing.T) {
 	encoder := &CCIPEntrypointArgEncoder{
-		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
+		registryObjID:      "0x1234567890123456789012345678901234567890123456789012345678901234",
+		deployerStateObjID: "0x5555555555555555555555555555555555555555555555555555555555555555",
 	}
 
 	target := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
@@ -894,6 +1411,7 @@ func TestEncodeEntryPointArg_ManagedToken(t *testing.T) {
 		"blocklist",
 		"unblocklist",
 		"pause",
+		"unpause",
 	}
 
 	for _, fn := range denyListTestCases {
@@ -918,18 +1436,111 @@ func TestEncodeEntryPointArg_ManagedToken(t *testing.T) {
 			assert.Equal(t, "managed_token", result.Module.ModuleName)
 			assert.Equal(t, "mcms_"+fn, result.Function)
 
-			require.NotEmpty(t, result.CallArgs, "Expected call arguments to be populated")
+			require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+			require.Len(t, result.CallArgs, 4, "Expected 4 arguments: state, registry, denyList, executingCallbackParams")
 
 			denyListFromResult, err := extractObjectID(result.CallArgs[2])
 			require.NoError(t, err, "Failed to extract denyList object ID")
 			assert.Equal(t, toHexString(createAddress(denyListID)), denyListFromResult, "DenyList should match deserialized value from data")
 		})
 	}
+
+	for _, fn := range []string{"transfer_ownership", "destroy_managed_token"} {
+		t.Run(fn, func(t *testing.T) {
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"managed_token",
+				fn,
+				stateObjID,
+				[]byte{},
+				[]string{"0x1::sui::SUI"},
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, "managed_token", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+			require.Len(t, result.CallArgs, 3, "Expected 3 arguments: state, registry, executingCallbackParams")
+
+			stateFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err, "Failed to extract state object ID")
+			assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+		})
+	}
+
+	t.Run("execute_ownership_transfer", func(t *testing.T) {
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"managed_token",
+			"execute_ownership_transfer",
+			stateObjID,
+			[]byte{},
+			[]string{"0x1::sui::SUI"},
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "managed_token", result.Module.ModuleName)
+		assert.Equal(t, "mcms_execute_ownership_transfer", result.Function)
+
+		require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+		require.Len(t, result.CallArgs, 4, "Expected 4 arguments: state, registry, deployer_state, executingCallbackParams")
+
+		stateFromResult, err := extractObjectID(result.CallArgs[0])
+		require.NoError(t, err, "Failed to extract state object ID")
+		assert.Equal(t, stateObjID, stateFromResult, "State should match stateObjID")
+
+		deployerStateFromResult, err := extractObjectID(result.CallArgs[2])
+		require.NoError(t, err, "Failed to extract deployer state object ID")
+		assert.Equal(t, encoder.deployerStateObjID, deployerStateFromResult, "Deployer state should match deployerStateObjID")
+	})
+
+	for _, fn := range []string{"add_allowed_modules", "remove_allowed_modules"} {
+		t.Run(fn, func(t *testing.T) {
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"managed_token",
+				fn,
+				stateObjID,
+				[]byte{},
+				[]string{"0x1::sui::SUI"},
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, "managed_token", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
+			require.Len(t, result.CallArgs, 2, "Expected 2 arguments: registry, executingCallbackParams")
+
+			registryFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err)
+			assert.Equal(t, encoder.registryObjID, registryFromResult, "First arg should be the registry object")
+		})
+	}
+
+	t.Run("unsupported_function", func(t *testing.T) {
+		_, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"managed_token",
+			"unknown_function",
+			stateObjID,
+			nil,
+			nil,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported managed_token MCMS function")
+	})
 }
 
 func TestEncodeEntryPointArg_StateObject(t *testing.T) {
 	encoder := &CCIPEntrypointArgEncoder{
-		registryObjID: "0x1234567890123456789012345678901234567890123456789012345678901234",
+		registryObjID:      "0x1234567890123456789012345678901234567890123456789012345678901234",
+		deployerStateObjID: "0x5555555555555555555555555555555555555555555555555555555555555555",
 	}
 
 	target := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
@@ -968,6 +1579,71 @@ func TestEncodeEntryPointArg_StateObject(t *testing.T) {
 			assert.Equal(t, encoder.registryObjID, registryFromResult, "First arg should be the registry object")
 		})
 	}
+
+	// For state_object, the state object is the CCIP object ref
+	for _, fn := range []string{"accept_ownership", "transfer_ownership", "add_package_id", "remove_package_id"} {
+		t.Run(fn, func(t *testing.T) {
+			result, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				"state_object",
+				fn,
+				stateObjID,
+				[]byte{},
+				nil,
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, "state_object", result.Module.ModuleName)
+			assert.Equal(t, "mcms_"+fn, result.Function)
+
+			require.Len(t, result.CallArgs, 3, "Expected 3 arguments: ccipRef, registry, executingCallbackParams")
+
+			ccipRefFromResult, err := extractObjectID(result.CallArgs[0])
+			require.NoError(t, err)
+			assert.Equal(t, stateObjID, ccipRefFromResult, "First arg should be the CCIP object ref (the state object)")
+		})
+	}
+
+	t.Run("execute_ownership_transfer", func(t *testing.T) {
+		result, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"state_object",
+			"execute_ownership_transfer",
+			stateObjID,
+			[]byte{},
+			nil,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, "state_object", result.Module.ModuleName)
+		assert.Equal(t, "mcms_execute_ownership_transfer", result.Function)
+
+		require.Len(t, result.CallArgs, 4, "Expected 4 arguments: ccipRef, registry, deployer_state, executingCallbackParams")
+
+		ccipRefFromResult, err := extractObjectID(result.CallArgs[0])
+		require.NoError(t, err)
+		assert.Equal(t, stateObjID, ccipRefFromResult, "First arg should be the CCIP object ref (the state object)")
+
+		deployerStateFromResult, err := extractObjectID(result.CallArgs[2])
+		require.NoError(t, err, "Failed to extract deployer state object ID")
+		assert.Equal(t, encoder.deployerStateObjID, deployerStateFromResult, "Deployer state should match deployerStateObjID")
+	})
+
+	t.Run("unsupported_function", func(t *testing.T) {
+		_, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"state_object",
+			"unknown_function",
+			stateObjID,
+			nil,
+			nil,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported state_object MCMS function")
+	})
 }
 
 func TestEncodeEntryPointArg_UnknownModule(t *testing.T) {
@@ -979,10 +1655,10 @@ func TestEncodeEntryPointArg_UnknownModule(t *testing.T) {
 	stateObjID := "0x9999999999999999999999999999999999999999999999999999999999999999"
 	executingCallbackParams := &transaction.Argument{}
 
-	t.Run("fallback_to_default_encoder", func(t *testing.T) {
+	t.Run("unknown_module_errors", func(t *testing.T) {
 		data := []byte{}
 
-		result, err := encoder.EncodeEntryPointArg(
+		_, err := encoder.EncodeEntryPointArg(
 			executingCallbackParams,
 			target,
 			"unknown_module",
@@ -992,10 +1668,8 @@ func TestEncodeEntryPointArg_UnknownModule(t *testing.T) {
 			[]string{"0x1::sui::SUI"},
 		)
 
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, "unknown_module", result.Module.ModuleName)
-		assert.Equal(t, "mcms_unknown_function", result.Function)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported MCMS module")
 	})
 }
 
@@ -1061,6 +1735,49 @@ func TestEncodeEntryPointArg_ErrorCases(t *testing.T) {
 			target,
 			"managed_token",
 			"pause",
+			stateObjID,
+			data,
+			[]string{"0x1::sui::SUI"},
+		)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "does not match state object")
+	})
+
+	t.Run("destroy_token_pool_state_mismatch", func(t *testing.T) {
+		ccipRefID := "0x7777777777777777777777777777777777777777777777777777777777777777"
+
+		// Second address is wrong state
+		data := serializeAddresses(ccipRefID, wrongStateObjID)
+
+		for _, module := range []string{"burn_mint_token_pool", "lock_release_token_pool", "managed_token_pool"} {
+			_, err := encoder.EncodeEntryPointArg(
+				executingCallbackParams,
+				target,
+				module,
+				"destroy_token_pool",
+				stateObjID,
+				data,
+				[]string{"0x1::sui::SUI"},
+			)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "does not match state object")
+		}
+	})
+
+	t.Run("provide_liquidity_state_mismatch", func(t *testing.T) {
+		rebalancerCapID := "0x6666666666666666666666666666666666666666666666666666666666666666"
+		coinID := "0x4444444444444444444444444444444444444444444444444444444444444444"
+
+		// First address is wrong state
+		data := serializeAddresses(wrongStateObjID, rebalancerCapID, coinID)
+
+		_, err := encoder.EncodeEntryPointArg(
+			executingCallbackParams,
+			target,
+			"lock_release_token_pool",
+			"provide_liquidity",
 			stateObjID,
 			data,
 			[]string{"0x1::sui::SUI"},
@@ -1160,6 +1877,38 @@ func TestNewCCIPEntrypointArgEncoder(t *testing.T) {
 	assert.NotNil(t, encoder)
 	assert.Equal(t, registryObjID, encoder.registryObjID)
 	assert.Equal(t, deployerStateObjID, encoder.deployerStateObjID)
+}
+
+func TestEncodeEntryPointArg_RmnRemoteSetConfig(t *testing.T) {
+	t.Parallel()
+
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	deployerStateObjID := "0x8888888888888888888888888888888888888888888888888888888888888888"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID, deployerStateObjID)
+
+	ccipRef := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ownerCap := "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	data := serializeAddresses(ccipRef, ownerCap)
+
+	paramsArg := transaction.Argument{}
+	encoded, err := encoder.EncodeEntryPointArg(
+		&paramsArg,
+		ccipRef,
+		"rmn_remote",
+		"set_config",
+		ccipRef,
+		data,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "rmn_remote", encoded.Module.ModuleName)
+	require.Equal(t, "mcms_set_config", encoded.Function)
+
+	require.Len(t, encoded.CallArgs, 3, "Expected 3 arguments: ccipRef, registry, executingCallbackParams")
+
+	ccipRefFromResult, err := extractObjectID(encoded.CallArgs[0])
+	require.NoError(t, err)
+	require.Equal(t, ccipRef, ccipRefFromResult, "First arg should be the CCIP object ref (from BCS data)")
 }
 
 func TestEncodeEntryPointArg_RmnRemoteCurserCapCurse(t *testing.T) {

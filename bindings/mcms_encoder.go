@@ -170,30 +170,53 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		switch function {
 		case "accept_ownership":
 			return moduleStateObj.Encoder().McmsAcceptOwnershipWithArgs(stateObj, registryObj, executingCallbackParams)
+		case "transfer_ownership":
+			// For state_object, the state object is the CCIP object ref
+			return moduleStateObj.Encoder().McmsTransferOwnershipWithArgs(stateObj, registryObj, executingCallbackParams)
+		case "execute_ownership_transfer":
+			return moduleStateObj.Encoder().McmsExecuteOwnershipTransferWithArgs(stateObj, registryObj, deployerStateObj, executingCallbackParams)
+		case "add_package_id":
+			return moduleStateObj.Encoder().McmsAddPackageIdWithArgs(stateObj, registryObj, executingCallbackParams)
+		case "remove_package_id":
+			return moduleStateObj.Encoder().McmsRemovePackageIdWithArgs(stateObj, registryObj, executingCallbackParams)
 		case "add_allowed_modules":
 			return moduleStateObj.Encoder().McmsAddAllowedModulesWithArgs(registryObj, executingCallbackParams)
 		case "remove_allowed_modules":
 			return moduleStateObj.Encoder().McmsRemoveAllowedModulesWithArgs(registryObj, executingCallbackParams)
+		default:
+			return nil, fmt.Errorf("unsupported state_object MCMS function: %q", function)
 		}
 
 	// OFFRAMP
 	case "offramp":
+		offramp, err := module_offramp.NewOfframp(target, nil)
+		if err != nil {
+			return nil, err
+		}
 		switch function {
 		case "set_dynamic_config",
 			"apply_source_chain_config_updates",
 			"set_ocr3_config",
-			"transfer_ownership",
-			"execute_ownership_transfer":
+			"transfer_ownership":
 			return encodeWithCCIPObjectRefAndState()
+		case "execute_ownership_transfer":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return offramp.Encoder().McmsExecuteOwnershipTransferWithArgs(ccipRef, stateObj, registryObj, deployerStateObj, executingCallbackParams)
 		case "accept_ownership":
-			offramp, err := module_offramp.NewOfframp(target, nil)
-			if err != nil {
-				return nil, err
-			}
 			ccipObjectRef := bind.Object{Id: stateObjID} // For accept_ownership, the state object is the CCIP object ref
 			stateObj := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
 
 			return offramp.Encoder().McmsAcceptOwnershipWithArgs(ccipObjectRef, stateObj, registryObj, executingCallbackParams)
+		case "add_package_id":
+			return offramp.Encoder().McmsAddPackageIdWithArgs(stateObj, registryObj, executingCallbackParams)
+		case "remove_package_id":
+			return offramp.Encoder().McmsRemovePackageIdWithArgs(stateObj, registryObj, executingCallbackParams)
+		case "add_allowed_modules":
+			return offramp.Encoder().McmsAddAllowedModulesWithArgs(registryObj, executingCallbackParams)
+		case "remove_allowed_modules":
+			return offramp.Encoder().McmsRemoveAllowedModulesWithArgs(registryObj, executingCallbackParams)
+		default:
+			return nil, fmt.Errorf("unsupported offramp MCMS function: %q", function)
 		}
 
 	// ONRAMP
@@ -204,10 +227,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 		switch function {
 		case "accept_ownership":
-			onramp, err := module_onramp.NewOnramp(target, nil)
-			if err != nil {
-				return nil, err
-			}
 			ccipObjectRef := bind.Object{Id: stateObjID} // For accept_ownership, the state object is the CCIP object ref
 			stateObj := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
 
@@ -216,9 +235,19 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "set_dynamic_config",
 			"apply_dest_chain_config_updates",
 			"apply_allowlist_updates",
-			"transfer_ownership",
-			"execute_ownership_transfer":
+			"transfer_ownership":
 			return encodeWithCCIPObjectRefAndState()
+		case "execute_ownership_transfer":
+			ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return onramp.Encoder().McmsExecuteOwnershipTransferWithArgs(ccipRef, stateObj, registryObj, deployerStateObj, executingCallbackParams)
+		case "add_package_id":
+			return onramp.Encoder().McmsAddPackageIdWithArgs(stateObj, registryObj, executingCallbackParams)
+		case "remove_package_id":
+			return onramp.Encoder().McmsRemovePackageIdWithArgs(stateObj, registryObj, executingCallbackParams)
+		case "add_allowed_modules":
+			return onramp.Encoder().McmsAddAllowedModulesWithArgs(registryObj, executingCallbackParams)
+		case "remove_allowed_modules":
+			return onramp.Encoder().McmsRemoveAllowedModulesWithArgs(registryObj, executingCallbackParams)
 		case "withdraw_fee_tokens":
 			deserializer := bcs.NewDeserializer(data)
 			ccipRefBytes := deserializer.ReadFixedBytes(SuiAddressLength)
@@ -234,6 +263,8 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			}
 
 			return onramp.Encoder().McmsWithdrawFeeTokensWithArgs(typeArgs, ccipRef, stateObj, registryObj, coinMetadata, executingCallbackParams)
+		default:
+			return nil, fmt.Errorf("unsupported onramp MCMS function: %q", function)
 		}
 
 	// ROUTER
@@ -245,6 +276,18 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		switch function {
 		case "accept_ownership":
 			return router.Encoder().McmsAcceptOwnershipWithArgs(stateObj, registryObj, executingCallbackParams)
+		case "transfer_ownership":
+			return router.Encoder().McmsTransferOwnershipWithArgs(stateObj, registryObj, executingCallbackParams)
+		case "execute_ownership_transfer":
+			return router.Encoder().McmsExecuteOwnershipTransferWithArgs(stateObj, registryObj, deployerStateObj, executingCallbackParams)
+		case "set_on_ramps":
+			return router.Encoder().McmsSetOnRampsWithArgs(stateObj, registryObj, executingCallbackParams)
+		case "add_allowed_modules":
+			return router.Encoder().McmsAddAllowedModulesWithArgs(registryObj, executingCallbackParams)
+		case "remove_allowed_modules":
+			return router.Encoder().McmsRemoveAllowedModulesWithArgs(registryObj, executingCallbackParams)
+		default:
+			return nil, fmt.Errorf("unsupported router MCMS function: %q", function)
 		}
 
 	// BURN MINT TOKEN POOL
@@ -268,6 +311,21 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
+		case "destroy_token_pool":
+			deserializer := bcs.NewDeserializer(data)
+			ccipRef := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
+			state := deserializer.ReadFixedBytes(SuiAddressLength)
+			if toHexString(state) != stateObj.Id {
+				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
+			}
+
+			return burnMintTokenPool.Encoder().McmsDestroyTokenPoolWithArgs(typeArgs, ccipRef, stateObj, registryObj, executingCallbackParams)
+		case "add_allowed_modules":
+			return burnMintTokenPool.Encoder().McmsAddAllowedModulesWithArgs(typeArgs, registryObj, executingCallbackParams)
+		case "remove_allowed_modules":
+			return burnMintTokenPool.Encoder().McmsRemoveAllowedModulesWithArgs(typeArgs, registryObj, executingCallbackParams)
+		default:
+			return nil, fmt.Errorf("unsupported burn_mint_token_pool MCMS function: %q", function)
 		}
 
 	// LOCK RELEASE TOKEN POOL
@@ -292,6 +350,35 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
+		case "destroy_rebalancer_cap":
+			return lockReleaseTokenPool.Encoder().McmsDestroyRebalancerCapWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
+		case "withdraw_liquidity":
+			return lockReleaseTokenPool.Encoder().McmsWithdrawLiquidityWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
+		case "provide_liquidity":
+			deserializer := bcs.NewDeserializer(data)
+			state := deserializer.ReadFixedBytes(SuiAddressLength)
+			deserializer.ReadFixedBytes(SuiAddressLength) // skip rebalancer cap, we don't need it
+			coin := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
+			if toHexString(state) != stateObj.Id {
+				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
+			}
+
+			return lockReleaseTokenPool.Encoder().McmsProvideLiquidityWithArgs(typeArgs, stateObj, registryObj, coin, executingCallbackParams)
+		case "destroy_token_pool":
+			deserializer := bcs.NewDeserializer(data)
+			ccipRef := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
+			state := deserializer.ReadFixedBytes(SuiAddressLength)
+			if toHexString(state) != stateObj.Id {
+				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
+			}
+
+			return lockReleaseTokenPool.Encoder().McmsDestroyTokenPoolWithArgs(typeArgs, ccipRef, stateObj, registryObj, executingCallbackParams)
+		case "add_allowed_modules":
+			return lockReleaseTokenPool.Encoder().McmsAddAllowedModulesWithArgs(typeArgs, registryObj, executingCallbackParams)
+		case "remove_allowed_modules":
+			return lockReleaseTokenPool.Encoder().McmsRemoveAllowedModulesWithArgs(typeArgs, registryObj, executingCallbackParams)
+		default:
+			return nil, fmt.Errorf("unsupported lock_release_token_pool MCMS function: %q", function)
 		}
 
 	// MANAGED TOKEN POOL
@@ -316,6 +403,21 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "set_chain_rate_limiter_configs",
 			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
+		case "destroy_token_pool":
+			deserializer := bcs.NewDeserializer(data)
+			ccipRef := bind.Object{Id: toHexString(deserializer.ReadFixedBytes(SuiAddressLength))}
+			state := deserializer.ReadFixedBytes(SuiAddressLength)
+			if toHexString(state) != stateObj.Id {
+				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
+			}
+
+			return managedTokenPool.Encoder().McmsDestroyTokenPoolWithArgs(typeArgs, ccipRef, stateObj, registryObj, executingCallbackParams)
+		case "add_allowed_modules":
+			return managedTokenPool.Encoder().McmsAddAllowedModulesWithArgs(typeArgs, registryObj, executingCallbackParams)
+		case "remove_allowed_modules":
+			return managedTokenPool.Encoder().McmsRemoveAllowedModulesWithArgs(typeArgs, registryObj, executingCallbackParams)
+		default:
+			return nil, fmt.Errorf("unsupported managed_token_pool MCMS function: %q", function)
 		}
 
 	// RMN REMOTE
@@ -326,6 +428,8 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 		ccipRef := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
 		switch function {
+		case "set_config":
+			return rmnRemote.Encoder().McmsSetConfigWithArgs(ccipRef, registryObj, executingCallbackParams)
 		case "curse", "curse_multiple":
 			entrypointCall, err := rmnRemote.Encoder().McmsCurseMultipleWithArgs(ccipRef, registryObj, executingCallbackParams)
 			if err != nil {
@@ -475,7 +579,8 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			"set_unlimited_mint_allowances",
 			"blocklist",
 			"unblocklist",
-			"pause":
+			"pause",
+			"unpause":
 			deserializer := bcs.NewDeserializer(data)
 			state := deserializer.ReadFixedBytes(SuiAddressLength)
 			deserializer.ReadFixedBytes(SuiAddressLength) // skip owner cap, we don't need it
@@ -492,27 +597,23 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			}
 
 			return overrideCall(entrypointCall, module, function), nil
+		case "transfer_ownership":
+			return managedToken.Encoder().McmsTransferOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
+		case "execute_ownership_transfer":
+			return managedToken.Encoder().McmsExecuteOwnershipTransferWithArgs(typeArgs, stateObj, registryObj, deployerStateObj, executingCallbackParams)
+		case "destroy_managed_token":
+			return managedToken.Encoder().McmsDestroyManagedTokenWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
+		case "add_allowed_modules":
+			return managedToken.Encoder().McmsAddAllowedModulesWithArgs(typeArgs, registryObj, executingCallbackParams)
+		case "remove_allowed_modules":
+			return managedToken.Encoder().McmsRemoveAllowedModulesWithArgs(typeArgs, registryObj, executingCallbackParams)
+		default:
+			return nil, fmt.Errorf("unsupported managed_token MCMS function: %q", function)
 		}
 	}
 
-	// FALLBACK CASE: Use Fee Quoter as it has the most common function signatures
-	// Fallback to fee quoter for any unhandled module/function
-	// This works because most mcms functions have the same signature
-	// state: &State, registry: &Registry, executing_callback_params: &ExecutingCallbackParams
-	// If a function has a different signature, it should be handled explicitly above
-	feeQuoter, err := module_fee_quoter.NewFeeQuoter(target, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	entryPointCall, err := feeQuoter.Encoder().McmsApplyFeeTokenUpdatesWithArgs(
-		stateObj,
-		registryObj,
-		executingCallbackParams,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create mcms_entrypoint call: %w", err)
-	}
-
-	return overrideCall(entryPointCall, module, function), nil
+	// Every supported module/function pair must be handled explicitly above: MCMS
+	// callback signatures differ per function (extra objects, type arguments), so a
+	// generic fallback would produce a plausible-looking but wrong call.
+	return nil, fmt.Errorf("unsupported MCMS module: %q", module)
 }
