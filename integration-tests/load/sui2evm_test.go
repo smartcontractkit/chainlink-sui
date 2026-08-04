@@ -83,10 +83,45 @@ func TestSui2EVM(t *testing.T) {
 	const feeTokenType = "0x2::sui::SUI"
 	const suiCoinMetadataID = "0x587c29de216efd4219573e08a1f6964d4fa7cb714518c2c8a0f29abfa264327d"
 
-	// Fetch a SUI coin from the signer's wallet to pay CCIP fees.
-	feeCoinID, err := sui.FetchFeeCoin(ctx, ptbClient, senderAddress, "0x2::coin::Coin<0x2::sui::SUI>")
+	receiverBytes, err := sui.ParseEVMReceiver32(cfg.ReceiverAddress)
 	if err != nil {
-		t.Fatalf("Failed to fetch fee coin: %v", err)
+		t.Fatalf("Invalid EVM receiver address %q: %v", cfg.ReceiverAddress, err)
+	}
+
+	estimatedFee, err := sui.EstimateSuiToEVMFee(
+		ctx,
+		ptbClient,
+		suiSigner,
+		ccipPkgID,
+		onRampPkgID,
+		ccipObjectRefID,
+		onRampStateID,
+		feeTokenType,
+		suiCoinMetadataID,
+		cfg.DestChainSelector,
+		receiverBytes,
+		cfg.MessageData,
+		cfg.EvmCallbackGasLimit,
+	)
+	if err != nil {
+		t.Fatalf("Failed to estimate Sui fee: %v", err)
+	}
+	splitAmountPerCoin := sui.RecommendedSplitAmountPerCoin(estimatedFee)
+	slog.Info("Using dynamic SUI split amount",
+		"estimatedFee", estimatedFee,
+		"splitAmountPerCoin", splitAmountPerCoin,
+	)
+
+	coinPool, err := sui.PrepareSuiCoinPool(
+		ctx,
+		ptbClient,
+		suiSigner,
+		senderAddress,
+		cfg.MessageCount,
+		splitAmountPerCoin,
+	)
+	if err != nil {
+		t.Fatalf("Failed to prepare SUI coin pool: %v", err)
 	}
 
 	slog.Info("Resolved Sui addresses",
@@ -95,7 +130,7 @@ func TestSui2EVM(t *testing.T) {
 		"ccipObjectRef", ccipObjectRefID,
 		"onRampState", onRampStateID,
 		"linkTokenMetadata", linkTokenMetadataID,
-		"feeCoin", feeCoinID,
+		"coinPoolSize", coinPool.Size(),
 	)
 
 	// Prepare results
@@ -121,6 +156,18 @@ func TestSui2EVM(t *testing.T) {
 	for i := 0; i < cfg.MessageCount; i++ {
 		slog.Info("Sending message", "progress", fmt.Sprintf("%d/%d", i+1, cfg.MessageCount))
 
+		gasCoinID, err := coinPool.Pop(ctx)
+		if err != nil {
+			t.Fatalf("Failed to get gas coin from pool for message %d: %v", i+1, err)
+		}
+		feeCoinID, err := coinPool.Pop(ctx)
+		if err != nil {
+			t.Fatalf("Failed to get fee coin from pool for message %d: %v", i+1, err)
+		}
+		if gasCoinID == feeCoinID {
+			t.Fatalf("Invalid coin pool state: gas and fee coin IDs are equal for message %d (%s)", i+1, gasCoinID)
+		}
+
 		msg := config.SentMessage{
 			SourceChainSelector: cfg.SourceChainSelector,
 			DestChainSelector:   cfg.DestChainSelector,
@@ -135,14 +182,15 @@ func TestSui2EVM(t *testing.T) {
 			onRampPkgID,
 			ccipObjectRefID,
 			onRampStateID,
+			gasCoinID,
 			feeTokenType,
 			suiCoinMetadataID,
 			feeCoinID,
 			cfg.DestChainSelector,
-			[]byte(cfg.ReceiverAddress),
+			receiverBytes,
 			cfg.MessageData,
 			cfg.SuiGasBudget,
-			cfg.EvmGasLimit,
+			cfg.EvmCallbackGasLimit,
 		)
 
 		if sendErr != nil {
@@ -175,6 +223,10 @@ func TestSui2EVM(t *testing.T) {
 		"failed", results.FailedMessages,
 		"total", results.TotalMessages,
 	)
+
+	if results.FailedMessages > 0 {
+		t.Fatalf("Run completed with failed messages: failed=%d total=%d", results.FailedMessages, results.TotalMessages)
+	}
 }
 
 func TestMain(m *testing.M) {

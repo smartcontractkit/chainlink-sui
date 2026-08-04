@@ -2,6 +2,7 @@ package config
 
 import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"gopkg.in/yaml.v3"
 )
 
 // RunConfig is loaded from a TOML run config file (Layer 4).
@@ -70,6 +71,41 @@ type RPCConfig struct {
 	RPCName string `yaml:"rpc_name"`
 	HTTPURL string `yaml:"http_url"`
 	WSURL   string `yaml:"ws_url"`
+}
+
+// UnmarshalYAML allows RPCs to be either a list of RPC configs or a single RPC config.
+// The standard networks YAML uses both formats — some entries have `rpcs:` as a list
+// (with `-` markers), others as a single map.
+func (n *NetworkConfig) UnmarshalYAML(value *yaml.Node) error {
+	type rawNetworkConfig struct {
+		Type          string `yaml:"type"`
+		ChainSelector uint64 `yaml:"chain_selector"`
+		RPCs          yaml.Node `yaml:"rpcs"`
+	}
+	var raw rawNetworkConfig
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+	n.Type = raw.Type
+	n.ChainSelector = raw.ChainSelector
+
+	switch raw.RPCs.Kind {
+	case yaml.SequenceNode:
+		// List of RPC configs
+		if err := raw.RPCs.Decode(&n.RPCs); err != nil {
+			return err
+		}
+	case yaml.MappingNode:
+		// Single RPC config (not a list)
+		var single RPCConfig
+		if err := raw.RPCs.Decode(&single); err != nil {
+			return err
+		}
+		n.RPCs = []RPCConfig{single}
+	default:
+		n.RPCs = nil
+	}
+	return nil
 }
 
 // SentMessage represents a single sent CCIP message.

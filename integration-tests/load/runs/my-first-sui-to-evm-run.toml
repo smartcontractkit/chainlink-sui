@@ -4,13 +4,13 @@
 [run]
 env = "testnet"
 source_chain_selector = "9762610643973837292"
-dest_chain_selector = "16015286601757825753"
-message_count = 2
+dest_chain_selector = "10344971235874465080"
+message_count = 3
 message_data = "hello from sui load test"
 
 [receiver]
 # 32-byte EVM receiver address (left-padded with zeros)
-address = "0x0000000000000000000000000000000000000000"
+address = "0x320f4dE5B482a8732fdEEf358e96D785a3C0De30"
 
 [gas]
 sui_gas_budget = 1000000000

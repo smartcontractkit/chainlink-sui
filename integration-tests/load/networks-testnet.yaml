@@ -93,4 +93,4 @@ networks:
     rpcs:
       - rpc_name: LinkPool
         preferred_url_scheme: *preferred_url_scheme
-        http_url: https://rpcs.cldev.sh/9762610643973837292
+        http_url: fullnode.testnet.sui.io:443
