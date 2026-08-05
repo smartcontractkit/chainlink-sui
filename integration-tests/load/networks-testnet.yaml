@@ -13,10 +13,6 @@ networks:
   # avalanche-testnet-fuji (evm:43113)
   - type: testnet
     chain_selector: 14767482510784806043
-    block_explorer:
-      type: routescan
-      api_key: ""
-      url: https://api.routescan.io
     rpcs:
       - rpc_name: CLL Proxy
         preferred_url_scheme: *preferred_url_scheme
@@ -76,12 +72,9 @@ networks:
         http_url: https://rpcs.cldev.sh/16281711391670634445
         ws_url: wss://rpcs.cldev.sh/16281711391670634445
 
+  # Solana
   - type: testnet
     chain_selector: 16423721717087811551
-    block_explorer:
-      type: solana-explorer
-      api_key: ""
-      url: http://explorer.solana.com/
     rpcs:
       - rpc_name: LinkPool
         preferred_url_scheme: http

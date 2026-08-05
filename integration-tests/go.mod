@@ -7,6 +7,7 @@ replace github.com/smartcontractkit/chainlink-sui => ../
 replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
 
 require (
+	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/block-vision/sui-go-sdk v1.2.1
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/ethereum/go-ethereum v1.17.4
@@ -29,7 +30,6 @@ replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlin
 require (
 	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
-	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
 	github.com/XSAM/otelsql v0.37.0 // indirect
