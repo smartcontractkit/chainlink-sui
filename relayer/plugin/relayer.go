@@ -74,6 +74,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node config: %w", err)
 	}
+	loggerInstance.Infof("Selected Sui node %q for chain %s", *nodeConfig.Name, id)
 	store := txm.NewTxmStoreImpl(loggerInstance)
 
 	timeout, err := time.ParseDuration(*cfg.TransactionManager.TransactionTimeout)

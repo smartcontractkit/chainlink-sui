@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 )
@@ -53,6 +54,25 @@ func (n *NodeConfig) ValidateConfig() error {
 	}
 	if n.URL == nil {
 		err = errors.Join(err, config.ErrMissing{Name: "URL", Msg: "required for all nodes"})
+	}
+
+	// The Sui relayer drives reads, indexing, and tx submission over gRPC, so a node without a
+	// gRPC endpoint cannot serve a relayer. Reject it here instead of nil-dereferencing in NewRelayer.
+	// The node name is included so that layered multi-node configs identify which entry is missing gRPC.
+	nameQualifier := ""
+	if n.Name != nil {
+		nameQualifier = fmt.Sprintf(" (node %q)", *n.Name)
+	}
+	grpcMsg := "required for all Sui nodes" + nameQualifier
+	if n.GrpcTarget == nil {
+		err = errors.Join(err, config.ErrMissing{Name: "GrpcTarget", Msg: grpcMsg})
+	} else if *n.GrpcTarget == "" {
+		err = errors.Join(err, config.ErrEmpty{Name: "GrpcTarget", Msg: grpcMsg})
+	}
+	if n.GrpcToken == nil {
+		err = errors.Join(err, config.ErrMissing{Name: "GrpcToken", Msg: grpcMsg})
+	} else if *n.GrpcToken == "" {
+		err = errors.Join(err, config.ErrEmpty{Name: "GrpcToken", Msg: grpcMsg})
 	}
 
 	return err
