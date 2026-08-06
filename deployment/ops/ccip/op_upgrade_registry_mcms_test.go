@@ -153,3 +153,30 @@ func TestUnblockFunctionOp_ProposalDataMatchesBindingEncoder(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expected.Data, report.Output.Call.Data)
 }
+
+func TestUpgradeRegistryInitializeOp_ProposalDataMatchesBindingEncoder(t *testing.T) {
+	t.Parallel()
+
+	report, err := cld_ops.ExecuteOperation(
+		upgradeRegistryTestBundle(t),
+		UpgradeRegistryInitializeOp,
+		sui_ops.OpTxDeps{},
+		InitUpgradeRegistryInput{
+			CCIPPackageId:    testCCIPPackageID,
+			StateObjectId:    testStateObjectID,
+			OwnerCapObjectId: testOwnerCapID,
+		},
+	)
+	require.NoError(t, err)
+
+	contract, err := module_upgrade_registry.NewUpgradeRegistry(testCCIPPackageID, nil)
+	require.NoError(t, err)
+	encodedCall, err := contract.Encoder().Initialize(
+		bind.Object{Id: testStateObjectID},
+		bind.Object{Id: testOwnerCapID},
+	)
+	require.NoError(t, err)
+	expected, err := sui_ops.ToTransactionCall(encodedCall, testStateObjectID)
+	require.NoError(t, err)
+	require.Equal(t, expected.Data, report.Output.Call.Data)
+}

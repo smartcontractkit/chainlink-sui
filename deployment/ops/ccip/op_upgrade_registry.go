@@ -41,13 +41,34 @@ var initUpgradeRegistryHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
 	}
 
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
+
+	if deps.Signer == nil {
+		encodedCall, err := contract.Encoder().Initialize(ref, ownerCap)
+		if err != nil {
+			return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, fmt.Errorf("failed to encode Initialize call: %w", err)
+		}
+		call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+		if err != nil {
+			return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+		}
+		b.Logger.Infow("Skipping execution of UpgradeRegistry initialize as per no Signer provided")
+		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   InitUpgradeRegistryObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 	tx, err := contract.Initialize(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		ref,
+		ownerCap,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, fmt.Errorf("failed to execute UpgradeRegistry initialization: %w", err)
