@@ -55,10 +55,10 @@ type IndexerApi interface {
 	Close() error
 	GetEventIndexer() EventsIndexerApi
 	GetTransactionIndexer() TransactionsIndexerApi
-	// RescanRecentCheckpoints rewinds the ChainPoller so recently-processed checkpoints are re-scanned.
-	// The ChainReader calls this after a Bind registers new event selectors, so events the poller already
-	// processed and discarded (before the selector existed) are picked up on a second pass.
-	RescanRecentCheckpoints()
+	// RescanFromCheckpoint rewinds the ChainPoller so a bounded window of checkpoints starting at
+	// fromSeq is re-scanned. The relayer calls this when the core node requests a Replay, so events
+	// and transactions the poller already processed (or missed) are picked up on a second pass.
+	RescanFromCheckpoint(ctx context.Context, fromSeq uint64) error
 }
 
 // Params holds the dependencies needed to construct a fully-wired Indexer via NewIndexer.
@@ -73,6 +73,9 @@ type Params struct {
 	// PollerChunkSize is the number of checkpoints per catch-up chunk; non-positive values use
 	// the ChainPoller default.
 	PollerChunkSize int
+	// PollerReplayCheckpointCount is how many checkpoints a Replay request re-scans, starting from
+	// the requested checkpoint; zero re-scans all the way to the latest checkpoint.
+	PollerReplayCheckpointCount uint64
 	// EventSelectors optionally seeds the EventsIndexer. Selectors are normally registered later
 	// when the ChainReader binds contracts, so this is usually left nil/empty.
 	EventSelectors []*sui.EventFilterByMoveEventModule
@@ -107,6 +110,7 @@ func NewIndexer(p Params) *Indexer {
 		eventsIndexer.GetEventSelectors,
 		WithWorkerPool(p.PollerWorkers, p.PollerChunkSize),
 		WithCursorStore(dbStore, checkpointCursorID),
+		WithRescanCheckpointCount(p.PollerReplayCheckpointCount),
 	)
 
 	idx := NewIndexerFromComponents(p.Logger, chainPoller, eventsIndexer, txnIndexer)
@@ -276,11 +280,12 @@ func (i *Indexer) GetTransactionIndexer() TransactionsIndexerApi {
 	return i.transactionIndexer
 }
 
-// RescanRecentCheckpoints rewinds the ChainPoller so recently-processed checkpoints are re-scanned. See
-// the IndexerApi docs: the ChainReader calls this after a Bind registers new event selectors.
-func (i *Indexer) RescanRecentCheckpoints() {
+// RescanFromCheckpoint rewinds the ChainPoller so a bounded window of checkpoints starting at
+// fromSeq is re-scanned. See the IndexerApi docs: the relayer calls this when the core node
+// requests a Replay.
+func (i *Indexer) RescanFromCheckpoint(ctx context.Context, fromSeq uint64) error {
 	if i.chainPoller == nil {
-		return
+		return errors.New("chain poller not configured")
 	}
-	i.chainPoller.RescanRecent()
+	return i.chainPoller.RescanFrom(ctx, fromSeq)
 }

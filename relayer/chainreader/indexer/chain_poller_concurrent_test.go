@@ -364,9 +364,9 @@ func TestPollerRescanRecentReEmitsBelowWatermark(t *testing.T) {
 		return len(firstOccurrences(collected())) == 160-150+1
 	}, 10*time.Second, 10*time.Millisecond)
 
-	// Rescan rewinds 100 checkpoints behind the latest (160 → 60) and re-enqueues them; results
-	// below the watermark bypass ordering and are re-emitted directly.
-	cp.RescanRecent()
+	// Rescan re-enqueues [60, 159] (default window of 100 checkpoints from the requested start);
+	// results below the watermark bypass ordering and are re-emitted directly.
+	require.NoError(t, cp.RescanFrom(context.Background(), 60))
 
 	require.Eventually(t, func() bool {
 		return mockClient.processed(60) >= 1 && mockClient.processed(155) >= 2

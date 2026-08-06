@@ -212,6 +212,10 @@ type ChainPollerConfig struct {
 	MaxConcurrentWorkers *uint64
 	// CatchupChunkSize is the number of checkpoints per catch-up chunk handed to a worker.
 	CatchupChunkSize *uint64
+	// ReplayCheckpointCount is how many checkpoints a Replay request re-scans, starting from the
+	// requested checkpoint. An explicit 0 re-scans all the way to the latest checkpoint; the
+	// default only applies when the field is unset.
+	ReplayCheckpointCount *uint64
 }
 
 func (c *ChainPollerConfig) setDefaults() {
@@ -238,6 +242,10 @@ func (c *ChainPollerConfig) setDefaults() {
 	if c.CatchupChunkSize == nil {
 		v := DefaultChainPollerCatchupChunkSize
 		c.CatchupChunkSize = &v
+	}
+	if c.ReplayCheckpointCount == nil {
+		v := DefaultChainPollerReplayCheckpointCount
+		c.ReplayCheckpointCount = &v
 	}
 }
 
@@ -412,6 +420,9 @@ func setFromChainPoller(c, f *ChainPollerConfig) {
 	}
 	if f.CatchupChunkSize != nil {
 		c.CatchupChunkSize = f.CatchupChunkSize
+	}
+	if f.ReplayCheckpointCount != nil {
+		c.ReplayCheckpointCount = f.ReplayCheckpointCount
 	}
 }
 

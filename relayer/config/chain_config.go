@@ -26,6 +26,7 @@ const (
 	DefaultChainPollerBackfillCheckpointCount = uint64(100)
 	DefaultChainPollerMaxConcurrentWorkers    = uint64(8)
 	DefaultChainPollerCatchupChunkSize        = uint64(12)
+	DefaultChainPollerReplayCheckpointCount   = uint64(100)
 
 	DefaultReaperPollSecs           = uint64(10)
 	DefaultTransactionRetentionSecs = uint64(10)
