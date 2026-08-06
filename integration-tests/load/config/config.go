@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -138,6 +139,9 @@ func LoadFullConfig(runName string) (*LoadTestConfig, error) {
 		return nil, fmt.Errorf("layer 4 (run config): %w", err)
 	}
 
+	// Canonicalize the run name (strip .toml extension) for results/logs.
+	runName = strings.TrimSuffix(runName, ".toml")
+
 	envName := runCfg.Run.Env
 
 	// Layer 1: Secrets
@@ -193,12 +197,34 @@ func LoadFullConfig(runName string) (*LoadTestConfig, error) {
 		Networks:            networks,
 	}
 
+	if runCfg.Token != nil {
+		var tokenIdentifier string
+		if runCfg.Token.CoinMetadataID != "" {
+			tokenIdentifier = runCfg.Token.CoinMetadataID
+		} else {
+			tokenIdentifier = runCfg.Token.TokenAddress
+		}
+		cfg.TokenConfig = &TokenTransferConfig{
+			TokenIdentifier: tokenIdentifier,
+			Amount:          runCfg.Token.Amount,
+			Mode:            runCfg.Token.Mode,
+		}
+	}
+
+	if runCfg.SuiReceiver != nil {
+		cfg.SuiReceiverConfig = &SuiReceiverConfig{
+			PackageID: runCfg.SuiReceiver.PackageID,
+		}
+	}
+
 	slog.Info("Config loaded successfully",
 		"runName", cfg.RunName,
 		"env", cfg.EnvName,
 		"sourceChain", cfg.SourceChainSelector,
 		"destChain", cfg.DestChainSelector,
 		"messageCount", cfg.MessageCount,
+		"tokenMode", cfg.TokenConfig,
+		"suiReceiver", cfg.SuiReceiverConfig,
 	)
 
 	return cfg, nil

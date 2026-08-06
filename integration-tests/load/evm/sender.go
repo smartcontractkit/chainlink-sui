@@ -3,7 +3,6 @@ package evm
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -58,66 +57,19 @@ func SendMessage(
 	data []byte,
 	extraArgs []byte,
 ) (messageID string, txHash string, err error) {
-	routerContract, err := router.NewRouter(routerAddress, client)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to instantiate Router: %w", err)
-	}
-
-	msg := router.ClientEVM2AnyMessage{
-		Receiver:     receiver,
-		Data:         data,
-		TokenAmounts: []router.ClientEVMTokenAmount{},
-		FeeToken:     common.Address{}, // zero address = native ETH
-		ExtraArgs:    extraArgs,
-	}
-
-	// Get fee and add 20% buffer
-	fee, err := routerContract.GetFee(&bind.CallOpts{Context: ctx}, destChainSelector, msg)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get fee: %w", err)
-	}
-
-	feeWithBuffer := new(big.Int).Add(fee, new(big.Int).Div(fee, big.NewInt(5)))
-	auth.Value = feeWithBuffer
-
-	slog.Info("Sending EVM→Sui message",
-		"fee", fee.String(),
-		"feeWithBuffer", feeWithBuffer.String(),
+	return SendTokenMessage(
+		ctx,
+		client,
+		auth,
+		routerAddress,
+		destChainSelector,
+		receiver,
+		data,
+		common.Address{},
+		big.NewInt(0),
+		extraArgs,
 	)
-
-	tx, err := routerContract.CcipSend(auth, destChainSelector, msg)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to send CCIP message: %w", err)
-	}
-
-	txHash = tx.Hash().Hex()
-
-	// Wait for the transaction to be mined
-	receipt, err := bind.WaitMined(ctx, client, tx)
-	if err != nil {
-		slog.Warn("Could not wait for transaction to be mined, using tx hash as message ID",
-			"txHash", txHash,
-			"error", err,
-		)
-		return txHash, txHash, nil
-	}
-
-	// Extract message ID from receipt logs
-	messageID, _, err = ExtractMessageIDFromReceipt(receipt, destChainSelector)
-	if err != nil {
-		slog.Warn("Could not extract message ID from receipt, using tx hash",
-			"txHash", txHash,
-			"error", err,
-		)
-		messageID = txHash
-	}
-
-	return messageID, txHash, nil
 }
-
-// CCIPMessageSentTopic is the keccak256 hash of the CCIPMessageSent event signature.
-// event CCIPMessageSent(uint64 indexed destChainSelector, uint64 sequenceNumber, ...)
-var CCIPMessageSentTopic = common.HexToHash("0x...")
 
 // ExtractMessageIDFromReceipt extracts the CCIPMessageSent event from a transaction receipt.
 // Scans receipt logs for the CCIPMessageSent event by matching the event topic.

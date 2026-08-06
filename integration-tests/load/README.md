@@ -1,14 +1,16 @@
 # CCIP Load Tests
 
-Lightweight Go load test framework for sending CCIP messages between Sui and EVM chains against remote environments (testnet/staging/mainnet).
+Lightweight Go load test framework for sending CCIP messages and token transfers between Sui and EVM chains against remote environments (testnet/staging/mainnet).
 
 **No Chainlink core dependency.** No confirmation/metrics features in v1.
 
 ## Architecture
 
 ```
-SUI → EVM:  Build PTB → create_token_transfer_params → ccip_send → Execute → Extract CCIPMessageSent
-EVM → SUI:  GetFee → Router.ccipSend (native ETH) → Extract CCIPMessageSent from receipt
+SUI → EVM (message-only):  Build PTB → create_token_transfer_params → ccip_send → Execute → Extract CCIPMessageSent
+SUI → EVM (token):         Build PTB → create_token_transfer_params → managed_token_pool.lock_or_burn → ccip_send → Execute → Extract CCIPMessageSent
+EVM → SUI (message-only):  GetFee → Router.ccipSend (native ETH) → Extract CCIPMessageSent from receipt
+EVM → SUI (token):         Approve Router → GetFee → Router.ccipSend (native ETH + TokenAmounts + SuiExtraArgsV1) → Extract CCIPMessageSent from receipt
 ```
 
 ## Prerequisites
@@ -72,6 +74,24 @@ sui_gas_budget = 10000000000
 evm_gas_limit = 200000
 ```
 
+### Token Transfer Run Config
+
+Add an optional `[token]` section to enable token transfers. For Sui source chains, use `coin_metadata_id`. For EVM source chains, use `token_address`.
+
+```toml
+[token]
+coin_metadata_id = "0x331ce2ba0901fec09d863f0d4162ae29bae2898922e345f3e4cd356363ce3c1b"
+amount = 1000000000
+mode = "token_only"  # or "token_and_message"
+```
+
+For EVM→Sui `token_and_message` mode, add a `[sui_receiver]` section with the receiver package ID:
+
+```toml
+[sui_receiver]
+package_id = "0x1810288cfa4414848aad6d0d11afcb95836255d195c114d902fd933e5965511e"
+```
+
 ## Running Tests
 
 ### Sui → EVM
@@ -86,6 +106,16 @@ go test -run TestSui2EVM -v --run-name my-first-sui-to-evm-run
 ```bash
 cd integration-tests/load
 go test -run TestEVM2Sui -v --run-name my-first-evm-to-sui-run
+```
+
+### Token Transfer Examples
+
+```bash
+cd integration-tests/load
+go test -run TestSui2EVM -v --run-name sui-to-evm-token-only-run
+go test -run TestEVM2Sui -v --run-name evm-to-sui-token-only-run
+go test -run TestSui2EVM -v --run-name sui-to-evm-token-and-message-run
+go test -run TestEVM2Sui -v --run-name evm-to-sui-token-and-message-run
 ```
 
 ## Results
@@ -104,16 +134,21 @@ Results are saved to `results/<runName>-<env>-<timestamp>.txt` in JSON format:
       "message_id": "0xabc...",
       "transaction_hash": "0xdef...",
       "success": true,
-      "sequence_number": "42"
+      "sequence_number": "42",
+      "token_amount": "1000000000",
+      "token_identifier": "0x331ce2ba0901fec09d863f0d4162ae29bae2898922e345f3e4cd356363ce3c1b"
     }
   ]
 }
 ```
 
+Token fields are only populated when a `[token]` section is present in the run config.
+
 ## Fee Handling
 
 - **Sui→EVM**: Fees paid via PTB gas budget (native SUI). No LINK coin needed.
 - **EVM→Sui**: Fees paid in native ETH. 20% buffer added to estimated fee.
+- **Token transfers**: Token amounts are specified in base units (raw smallest units). No decimal conversion is performed at runtime.
 
 ## Constraints
 
@@ -133,11 +168,14 @@ Results are saved to `results/<runName>-<env>-<timestamp>.txt` in JSON format:
 │  Go script                                                      │
 │    │                                                            │
 │    ├─ 1. Build PTB (Programmable Transaction Block)             │
-│    │      a. create_token_transfer_params (empty, no tokens)    │
-│    │      b. ccip_send (onramp)                                 │
+│    │      a. create_token_transfer_params                       │
+│    │      b. managed_token_pool.lock_or_burn (token transfers)  │
+│    │      c. ccip_send (onramp)                                 │
 │    ├─ 2. Sign & execute PTB via Sui fullnode                    │
 │    └─ 3. Extract CCIPMessageSent event → sequence number        │
 │                                                                 │
+│  Token pool config resolved at runtime from token admin registry│
+│  Token coins pre-split into exact per-message amounts           │
 │  DON (off-chain) handles commit + execution automatically       │
 └─────────────────────────────────────────────────────────────────┘
 
@@ -146,11 +184,14 @@ Results are saved to `results/<runName>-<env>-<timestamp>.txt` in JSON format:
 │                                                                 │
 │  Go script                                                      │
 │    │                                                            │
-│    ├─ 1. Call Router.getFee(destChainSelector, message)         │
-│    ├─ 2. If LINK fee: approve(Router, feeAmount)                │
+│    ├─ 1. Approve Router for total ERC-20 amount (once)        │
+│    ├─ 2. Call Router.getFee(destChainSelector, message)         │
 │    ├─ 3. Call Router.ccipSend(destChainSelector, message)       │
+│    │      with TokenAmounts and SuiExtraArgsV1                  │
 │    └─ 4. Extract CCIPMessageSent event from OnRamp logs         │
 │                                                                 │
+│  SuiExtraArgsV1 tokenReceiver = EOA for token-only              │
+│  SuiExtraArgsV1 tokenReceiver = receiverState for token+message │
 │  DON (off-chain) handles commit + execution automatically       │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -190,7 +231,9 @@ You need the following addresses for each lane. Example values are from the
 
 ---
 
-## Step-by-Step: SUI → EVM (Message Only)
+## Step-by-Step: SUI → EVM (Message Only or Token Transfer)
+
+Token transfers reuse the same PTB path with an additional `managed_token_pool.lock_or_burn` call between `create_token_transfer_params` and `ccip_send`. The token pool config is resolved at runtime from the CCIP token admin registry using the token's coin metadata ID.
 
 ### 1. Create the Sui Client
 
@@ -252,7 +295,7 @@ The PTB has **two Move calls**:
 
 #### 5a. `create_token_transfer_params` (onramp_state_helper)
 
-Even for message-only transfers, you must call this with an empty token receiver:
+Even for message-only transfers, you must call this with the normalized receiver bytes:
 
 ```go
 import (
@@ -267,58 +310,67 @@ helperContract, _ := suiBind.NewBoundContract(
     latestCcipPkg, "ccip", "onramp_state_helper", ptbClient,
 )
 
-// Encode create_token_transfer_params with empty receiver
+// Encode create_token_transfer_params with receiver bytes
 encoded, _ := helperContract.EncodeCallArgsWithGenerics(
     "create_token_transfer_params",
     []string{},          // typeArgs
     []string{},          // typeParams
     []string{"vector<u8>"}, // paramTypes
-    []any{make([]byte, 32)}, // zeroed 32-byte receiver
+    []any{receiverBytes}, // normalized 32-byte receiver
     nil,                 // returnTypes
 )
 
 tokenParamsResult, _ := helperContract.AppendPTB(ctx, callOpts, ptb, encoded)
 ```
 
-#### 5b. `ccip_send` (onramp)
+#### 5b. `managed_token_pool.lock_or_burn` (token transfers only)
+
+```go
+poolContract, _ := managedtokenpool.NewManagedTokenPool(latestPoolPkgID, ptbClient)
+
+encoded, _ := poolContract.Encoder().LockOrBurn(
+    []string{coinType},
+    suiBind.Object{Id: ccipObjectRef},
+    tokenParamsResult,
+    suiBind.Object{Id: tokenCoinID},
+    destChainSelector,
+    suiBind.Object{Id: "0x6"},
+    suiBind.Object{Id: denyListObjectID},
+    suiBind.Object{Id: tokenStateObjectID},
+    suiBind.Object{Id: poolStateObjectID},
+)
+
+poolContract.Bound().AppendPTB(ctx, callOpts, ptb, encoded)
+```
+
+**Reusable from:** `integration-tests/load/sui/token_pool.go` —
+`AppendManagedTokenPoolLockOrBurn()`.
+
+#### 5c. `ccip_send` (onramp)
 
 ```go
 // Bind the onramp contract
-onRampContract, _ := suiBind.NewBoundContract(
-    latestOnRampPkg, "ccip_onramp", "onramp", ptbClient,
+onRampContract, _ := onramp.NewOnramp(latestOnRampPkg, ptbClient)
+
+encoded, _ := onRampContract.Encoder().CcipSendWithArgs(
+    []string{feeTokenType},           // fee token type
+    suiBind.Object{Id: ccipObjectRef}, // ccip state
+    suiBind.Object{Id: onRampState},   // onramp state
+    suiBind.Object{Id: "0x6"},        // clock
+    destChainSelector,                // uint64
+    receiver,                         // []byte (32-byte EVM address)
+    data,                             // []byte (message payload)
+    tokenParamsResult,                // from step 5a
+    suiBind.Object{Id: feeTokenMetadataID}, // fee token metadata
+    suiBind.Object{Id: feeTokenCoinID},    // fee token coin
+    extraArgs,                        // []byte
 )
 
-// Get the function signature from normalized module
-normalizedModule, _ := ptbClient.GetNormalizedModule(ctx, latestOnRampPkg, "onramp")
-fnSig := normalizedModule.ExposedFunctions["ccip_send"].(map[string]any)
-paramTypes, _ := suiofframp_helper.DecodeParameters(logger, fnSig, "parameters")
-
-// Encode ccip_send
-encoded, _ := onRampContract.EncodeCallArgsWithGenerics(
-    "ccip_send",
-    []string{linkTokenPkgID + "::link::LINK"}, // fee token type
-    []string{},
-    paramTypes,
-    []any{
-        suiBind.Object{Id: ccipObjectRef},       // ccip state
-        suiBind.Object{Id: onRampState},          // onramp state
-        suiBind.Object{Id: "0x6"},                // clock
-        destChainSelector,                        // uint64
-        receiver,                                 // []byte (32-byte EVM address)
-        data,                                     // []byte (message payload)
-        tokenParamsResult,                        // from step 5a
-        suiBind.Object{Id: linkCoinMetadataID},   // fee token metadata
-        suiBind.Object{Id: feeTokenCoinObject},   // fee token coin
-        extraArgs,                                // []byte
-    },
-    nil,
-)
-
-onRampContract.AppendPTB(ctx, callOpts, ptb, encoded)
+onRampContract.Bound().AppendPTB(ctx, callOpts, ptb, encoded)
 ```
 
-**Reusable from:** `chainlink/deployment/ccip/changeset/testhelpers/test_sui_helpers.go` —
-`SendSuiCCIPRequest()` does exactly this (with additional token-pool logic).
+**Reusable from:** `integration-tests/load/sui/sender.go` —
+`SendMessage()` and `SendTokenMessage()`.
 
 ### 6. Construct ExtraArgs (GenericExtraArgsV2)
 
@@ -375,14 +427,16 @@ for _, event := range resp.Events {
 
 ### 9. Fee Handling
 
-- **LINK fees:** Split a LINK coin to cover `fee + 20% buffer`, pass as `feeToken` arg.
 - **Native SUI fees:** Use `ptb.SetGasBudget(budget)` — the fee is deducted from the gas coin.
+- **Token transfer fees:** The fee is quoted via `onramp.get_fee` with token types and amounts included, then a 20% buffer is applied.
 
-The fee can be queried via `fee_quoter.get_fee` (devInspect) before building the PTB.
+The fee can be queried via `onramp.get_fee` (devInspect) before building the PTB.
 
 ---
 
-## Step-by-Step: EVM → SUI (Message Only)
+## Step-by-Step: EVM → SUI (Message Only or Token Transfer)
+
+Token transfers populate `TokenAmounts` in `ClientEVM2AnyMessage` and set `TokenReceiver` in `SuiExtraArgsV1`. For token-only transfers to a Sui EOA, the receiver is `ZeroHash` and `tokenReceiver` is the EOA address. For token+message transfers to a Sui receiver object, `tokenReceiver` is the receiver state object ID and `ReceiverObjectIds` includes both clock and receiver state.
 
 ### 1. Create the EVM Client
 
@@ -426,9 +480,17 @@ routerContract, _ := router.NewRouter(routerAddress, ethClient)
 msg := router.ClientEVM2AnyMessage{
     Receiver:     receiverBytes,    // 32-byte Sui receiver package ID
     Data:         messageData,      // arbitrary bytes
-    TokenAmounts: []router.ClientEVMTokenAmount{}, // empty = no tokens
-    FeeToken:     feeTokenAddress,  // LINK address or 0x0 for native
+    TokenAmounts: []router.ClientEVMTokenAmount{}, // empty = message-only
+    FeeToken:     common.Address{}, // 0x0 for native ETH
     ExtraArgs:    extraArgsBytes,   // SuiExtraArgsV1
+}
+```
+
+For token transfers, populate `TokenAmounts`:
+
+```go
+msg.TokenAmounts = []router.ClientEVMTokenAmount{
+    {Token: tokenAddress, Amount: tokenAmount},
 }
 ```
 
@@ -440,10 +502,9 @@ For EVM→Sui, use the **SuiExtraArgsV1** format:
 import (
     "math/big"
     "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_3/message_hasher"
-    "github.com/smartcontractkit/chainlink/core/capabilities/ccip/ccipevm"
 )
 
-extraArgs, _ := ccipevm.SerializeClientSUIExtraArgsV1(message_hasher.ClientSuiExtraArgsV1{
+extraArgs, _ := evm.SerializeClientSUIExtraArgsV1(message_hasher.ClientSuiExtraArgsV1{
     GasLimit:                 big.NewInt(100_000),
     AllowOutOfOrderExecution: true,
     TokenReceiver:            [32]byte{}, // zero for message-only
@@ -454,8 +515,12 @@ extraArgs, _ := ccipevm.SerializeClientSUIExtraArgsV1(message_hasher.ClientSuiEx
 })
 ```
 
-**Reusable from:** `chainlink/core/capabilities/ccip/ccipevm/msghasher.go` —
+**Reusable from:** `integration-tests/load/evm/extras.go` —
 `SerializeClientSUIExtraArgsV1()`.
+
+For token-only transfers, set `TokenReceiver` to the Sui EOA address (as bytes32).
+For token+message transfers, set `TokenReceiver` to the receiver state object ID and
+include both clock and receiver state in `ReceiverObjectIds`.
 
 ### 6. Get the Fee
 
@@ -463,30 +528,26 @@ extraArgs, _ := ccipevm.SerializeClientSUIExtraArgsV1(message_hasher.ClientSuiEx
 fee, _ := routerContract.GetFee(&bind.CallOpts{}, destChainSelector, msg)
 ```
 
-### 7. Approve LINK (if paying with LINK)
+### 7. Approve ERC-20 Tokens (for token transfers)
 
 ```go
-if msg.FeeToken != (common.Address{}) {
-    // Add 20% buffer
-    feeWithBuffer := new(big.Int).Add(fee, new(big.Int).Div(fee, big.NewInt(5)))
-
-    linkToken, _ := erc677.NewBurnMintERC677(msg.FeeToken, ethClient)
-    tx, _ := linkToken.Approve(auth, routerAddress, feeWithBuffer)
-    // Wait for confirmation...
-}
+// Approve Router for total token amount once at start
+totalAmount := new(big.Int).Mul(tokenAmount, big.NewInt(int64(messageCount)))
+evmapproveRouterForTokens(ctx, ethClient, auth, tokenAddress, routerAddress, totalAmount)
 ```
+
+The approval is skipped if the existing allowance is already sufficient.
 
 ### 8. Send the Message
 
 ```go
-// For LINK fees:
-auth.Value = nil
-tx, _ := routerContract.CcipSend(auth, destChainSelector, msg)
-
-// For native fees:
+// For native ETH fees:
 auth.Value = feeWithBuffer
 tx, _ := routerContract.CcipSend(auth, destChainSelector, msg)
 ```
+
+Token amounts are included in `msg.TokenAmounts`. The fee token remains native ETH
+in v1.
 
 **Reusable from:** `chainlink/deployment/ccip/changeset/testhelpers/test_helpers_solana_v0_1_0.go` —
 `CCIPSendRequest()` and `retryCcipSendUntilNativeFeeIsSufficient()`.
@@ -494,24 +555,12 @@ tx, _ := routerContract.CcipSend(auth, destChainSelector, msg)
 ### 9. Extract the CCIPMessageSent Event
 
 ```go
-import (
-    onramp "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_3/onramp"
-)
-
 receipt, _ := ethClient.TransactionReceipt(ctx, tx.Hash())
-onRampContract, _ := onramp.NewOnRamp(onRampAddress, ethClient)
-
-// Filter CCIPMessageSent events in the receipt block
-it, _ := onRampContract.FilterCCIPMessageSent(&bind.FilterOpts{
-    StartBlock: receipt.BlockNumber,
-    EndBlock:   &receipt.BlockNumber,
-}, []uint64{destChainSelector}, []uint64{})
-
-for it.Next() {
-    seqNum := it.Event.SequenceNumber
-    messageID := it.Event.Message.Header.MessageId
-}
+messageID, seqNum, _ := evm.ExtractMessageIDFromReceipt(receipt, destChainSelector)
 ```
+
+**Reusable from:** `integration-tests/load/evm/sender.go` —
+`ExtractMessageIDFromReceipt()`.
 
 ---
 
@@ -525,10 +574,12 @@ for it.Next() {
 | Sui offramp helpers | `chainlink-sui/relayer/chainwriter/ptb/offramp` | `DecodeParameters` (for reading Move function signatures) |
 | EVM Router | `chainlink-ccip/chains/evm/gobindings/generated/v1_2_0/router` | `Router`, `ClientEVM2AnyMessage` |
 | EVM Message Hasher | `chainlink-ccip/chains/evm/gobindings/generated/v1_6_3/message_hasher` | `ClientSuiExtraArgsV1`, `ClientGenericExtraArgsV2` |
-| ExtraArgs serialization | `chainlink/core/capabilities/ccip/ccipevm` | `SerializeClientSUIExtraArgsV1()` |
-| GenericExtraArgsV2 | `chainlink/deployment/ccip/changeset/testhelpers` | `MakeBCSEVMExtraArgsV2()`, `GenericExtraArgsV2Tag` |
+| ExtraArgs serialization | `chainlink-ccip/chains/evm/gobindings/generated/v1_6_3/message_hasher` | `SerializeClientSUIExtraArgsV1()` (vendored in `evm/extras.go`) |
+| GenericExtraArgsV2 | `integration-tests/load/sui/extras.go` | `MakeBCSEVMExtraArgsV2()`, `GenericExtraArgsV2Tag` |
 | Sui Go SDK | `github.com/block-vision/sui-go-sdk/sui` | `ISuiAPI` (JSON-RPC), `NewSuiClientWithCustomClient` |
 | Sui Go SDK tx | `github.com/block-vision/sui-go-sdk/transaction` | `NewTransaction()` (PTB builder) |
+| Token admin registry | `chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry` | `GetTokenConfigStruct()` |
+| Managed token pool | `chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool` | `LockOrBurn()` |
 
 ---
 
@@ -542,6 +593,8 @@ If you want a script that depends **only** on `chainlink-sui` and `chainlink-cci
 3. **Use `chainlink-sui/bindings/bind`** for PTB construction and execution.
 4. **Use `chainlink-sui/bindings/utils`** for the `SuiSigner` interface and `TestPrivateKeySigner`.
 5. **Use `chainlink-ccip/chains/evm/gobindings/generated/v1_2_0/router`** for EVM Router interactions.
+6. **Use `chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry`** to resolve token pool config at runtime.
+7. **Use `chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool`** for `lock_or_burn` calls.
 
 The `GenericExtraArgsV2Tag` constant is `"0x181dcf10"` (4 bytes).
 
@@ -558,6 +611,8 @@ SUI_PRIVATE_KEY=<32-byte hex-encoded Ed25519 seed>
 EVM_RPC_URL=https://sepolia.infura.io/v3/...
 EVM_PRIVATE_KEY=<hex-encoded ECDSA private key>
 ```
+
+No new environment variables are required for token transfers.
 
 ---
 
@@ -577,3 +632,12 @@ EVM_PRIVATE_KEY=<hex-encoded ECDSA private key>
 - **Receiver requirements on Sui:** For EVM→Sui messages, the receiver must be a
   package that implements the `ccip_receive` interface. The `ReceiverObjectIds` in
   `SuiExtraArgsV1` must include the `Clock` (0x6) and the receiver's state object.
+- **Token pool config:** The Sui token pool package ID, state object ID, deny list,
+  and token state are resolved at runtime from the CCIP token admin registry using
+  the token's coin metadata ID. No manual pool addresses are required in the run config.
+- **Token amounts:** All token amounts in the run config are in base units (raw
+  smallest units). Operators must convert from human-readable amounts using the token's
+  decimals.
+- **ERC-20 allowance:** For EVM→Sui token transfers, the Router is approved once at
+  the start of the run for the total token amount. The approval is skipped if the
+  existing allowance is already sufficient.

@@ -137,12 +137,77 @@ func SendMessage(
 	gasBudget uint64,
 	evmCallbackGasLimit uint64,
 ) (messageID string, txDigest string, seqNum uint64, err error) {
+	return SendTokenMessage(
+		ctx,
+		ptbClient,
+		signer,
+		ccipPkgID,
+		onRampPkgID,
+		ccipObjectRefID,
+		onRampStateID,
+		gasCoinID,
+		feeTokenType,
+		feeTokenMetadataID,
+		feeTokenCoinID,
+		"", // no token coin for message-only
+		"", // no token address for message-only
+		"", // no token coin type for message-only
+		"", // no token pool package for message-only
+		"", // no pool state for message-only
+		"", // no deny list for message-only
+		"", // no token state for message-only
+		destChainSelector,
+		receiver,
+		data,
+		gasBudget,
+		evmCallbackGasLimit,
+	)
+}
+
+// SendTokenMessage builds and executes a CCIP token transfer from Sui to EVM.
+//
+// For message-only mode, pass empty tokenCoinID, tokenCoinType, and token pool IDs.
+// For token transfers, the PTB sequence is:
+//
+//	create_token_transfer_params -> managed_token_pool.lock_or_burn -> ccip_send
+//
+// Returns the message ID, transaction digest, and sequence number.
+func SendTokenMessage(
+	ctx context.Context,
+	ptbClient *client.PTBClient,
+	signer bindutils.SuiSigner,
+	ccipPkgID string,
+	onRampPkgID string,
+	ccipObjectRefID string,
+	onRampStateID string,
+	gasCoinID string,
+	feeTokenType string,
+	feeTokenMetadataID string,
+	feeTokenCoinID string,
+	tokenCoinID string,
+	tokenAddress string,
+	tokenCoinType string,
+	tokenPoolPkgID string,
+	tokenPoolStateID string,
+	denyListObjectID string,
+	tokenStateObjectID string,
+	destChainSelector uint64,
+	receiver []byte,
+	data []byte,
+	gasBudget uint64,
+	evmCallbackGasLimit uint64,
+) (messageID string, txDigest string, seqNum uint64, err error) {
 	latestCcipPkg, latestOnRampPkg := resolveLatestPackages(ctx, ptbClient, ccipPkgID, onRampPkgID, ccipObjectRefID, onRampStateID)
 
 	slog.Info("Resolved latest package IDs",
 		"ccip", latestCcipPkg,
 		"onramp", latestOnRampPkg,
 	)
+
+	signerAddress, err := signer.GetAddress()
+	if err != nil {
+		return "", "", 0, fmt.Errorf("failed to get signer address: %w", err)
+	}
 
 	// Build PTB
 	ptb := transaction.NewTransaction()
@@ -182,7 +247,38 @@ func SendMessage(
 		return "", "", 0, fmt.Errorf("failed to append create_token_transfer_params: %w", err)
 	}
 
-	// Step 2: ccip_send (onramp)
+	// Step 2 (optional): managed_token_pool.lock_or_burn
+	if tokenCoinID != "" && tokenPoolPkgID != "" {
+		tokenCoinBalance, err := fetchCoinBalanceByIDAndType(ctx, ptbClient, signerAddress, tokenCoinID, tokenCoinType)
+		if err != nil {
+			return "", "", 0, fmt.Errorf("failed to read token coin balance: %w", err)
+		}
+		if tokenCoinBalance == 0 {
+			return "", "", 0, fmt.Errorf("token coin %s has zero balance", tokenCoinID)
+		}
+
+		err = AppendManagedTokenPoolLockOrBurn(
+			ctx,
+			ptbClient,
+			signer,
+			ptb,
+			callOpts,
+			tokenPoolPkgID,
+			tokenCoinType,
+			tokenCoinID,
+			*tokenParamsResult,
+			destChainSelector,
+			ccipObjectRefID,
+			tokenPoolStateID,
+			denyListObjectID,
+			tokenStateObjectID,
+		)
+		if err != nil {
+			return "", "", 0, fmt.Errorf("failed to append lock_or_burn: %w", err)
+		}
+	}
+
+	// Step 3: ccip_send (onramp)
 	// Use the generated OnrampContract for proper encoding
 	onRampContract, err := onramp.NewOnramp(latestOnRampPkg, ptbClient)
 	if err != nil {
@@ -194,9 +290,11 @@ func SendMessage(
 	// NOT the Sui PTB gas budget.
 	extraArgs := MakeBCSEVMExtraArgsV2(big.NewInt(int64(evmCallbackGasLimit)), true)
 
-	signerAddress, err := signer.GetAddress()
-	if err != nil {
-		return "", "", 0, fmt.Errorf("failed to get signer address: %w", err)
+	tokenAddresses := []string{}
+	tokenAmounts := []uint64{}
+	if tokenCoinID != "" {
+		tokenAddresses = []string{tokenAddress}
+		tokenAmounts = []uint64{0} // amount is encoded via the token coin object itself
 	}
 
 	estimatedFee, err := onRampContract.DevInspect().GetFee(
@@ -208,8 +306,8 @@ func SendMessage(
 		destChainSelector,
 		receiver,
 		data,
-		[]string{},
-		[]uint64{},
+		tokenAddresses,
+		tokenAmounts,
 		bind.Object{Id: feeTokenMetadataID},
 		extraArgs,
 	)
@@ -392,6 +490,22 @@ func fetchCoinBalanceByID(ctx context.Context, ptbClient *client.PTBClient, sign
 	}
 
 	return 0, fmt.Errorf("coin %s not found in signer wallet", coinID)
+}
+
+// fetchCoinBalanceByIDAndType returns the balance of a specific coin object by ID and type.
+func fetchCoinBalanceByIDAndType(ctx context.Context, ptbClient *client.PTBClient, signerAddress string, coinID string, coinType string) (uint64, error) {
+	coins, err := ptbClient.QueryCoinsByAddress(ctx, signerAddress, normalizeCoinObjectType(coinType))
+	if err != nil {
+		return 0, fmt.Errorf("failed to query coins of type %s for balance lookup: %w", coinType, err)
+	}
+
+	for _, coin := range coins {
+		if coin.GetObjectId() == coinID {
+			return coin.GetBalance(), nil
+		}
+	}
+
+	return 0, fmt.Errorf("coin %s of type %s not found in signer wallet", coinID, coinType)
 }
 
 func normalizeMessageIDToHex(messageID any) (string, error) {

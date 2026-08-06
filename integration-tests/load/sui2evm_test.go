@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +19,9 @@ var runName = flag.String("run-name", "", "Name of the run config file (without 
 func TestSui2EVM(t *testing.T) {
 	if *runName == "" {
 		t.Fatal("--run-name flag is required (e.g., --run-name my-first-sui-to-evm-run)")
+	}
+	if strings.Contains(*runName, "evm-to-sui") {
+		t.Fatalf("--run-name %q is an EVM→Sui config; run TestEVM2Sui instead", *runName)
 	}
 
 	ctx := context.Background()
@@ -88,6 +92,62 @@ func TestSui2EVM(t *testing.T) {
 		t.Fatalf("Invalid EVM receiver address %q: %v", cfg.ReceiverAddress, err)
 	}
 
+	// Determine mode: message-only vs token transfer
+	isTokenMode := cfg.TokenConfig != nil
+	var tokenCoinPool *sui.TokenCoinPool
+	var tokenPoolConfig *sui.TokenPoolConfig
+	var tokenCoinType string
+	var tokenPoolPkgID string
+	var tokenPoolStateID string
+	var denyListObjectID string
+	var tokenStateObjectID string
+
+	if isTokenMode {
+		tokenPoolConfig, err = sui.ResolveTokenPoolConfig(
+			ctx,
+			ptbClient,
+			suiSigner,
+			ccipPkgID,
+			ccipObjectRefID,
+			cfg.TokenConfig.TokenIdentifier,
+		)
+		if err != nil {
+			t.Fatalf("Failed to resolve token pool config: %v", err)
+		}
+
+		tokenCoinType = tokenPoolConfig.CoinType
+		tokenPoolPkgID = tokenPoolConfig.LatestPoolPackageID
+		tokenPoolStateID = tokenPoolConfig.PoolStateObjectID
+		// DenyList and TokenState object IDs are derived from lock_or_burn_params for managed pools.
+		// managed_token_pool lock_or_burn params: [clock, denyList, managedTokenState, poolState]
+		// The registry returns the shared object IDs in that order.
+		if tokenPoolConfig.PoolKind == "managed" && len(tokenPoolConfig.LockOrBurnParams) > 3 {
+			denyListObjectID = tokenPoolConfig.LockOrBurnParams[1]
+			tokenStateObjectID = tokenPoolConfig.LockOrBurnParams[2]
+		}
+
+		slog.Info("Resolved token pool config",
+			"poolPackage", tokenPoolPkgID,
+			"poolModule", tokenPoolConfig.PoolModule,
+			"poolKind", tokenPoolConfig.PoolKind,
+			"poolState", tokenPoolStateID,
+			"coinType", tokenCoinType,
+		)
+
+		tokenCoinPool, err = sui.PrepareTokenCoinPool(
+			ctx,
+			ptbClient,
+			suiSigner,
+			senderAddress,
+			tokenCoinType,
+			cfg.MessageCount,
+			cfg.TokenConfig.Amount,
+		)
+		if err != nil {
+			t.Fatalf("Failed to prepare token coin pool: %v", err)
+		}
+	}
+
 	estimatedFee, err := sui.EstimateSuiToEVMFee(
 		ctx,
 		ptbClient,
@@ -131,6 +191,12 @@ func TestSui2EVM(t *testing.T) {
 		"onRampState", onRampStateID,
 		"linkTokenMetadata", linkTokenMetadataID,
 		"coinPoolSize", coinPool.Size(),
+		"tokenCoinPoolSize", func() int {
+			if tokenCoinPool == nil {
+				return 0
+			}
+			return tokenCoinPool.Size()
+		}(),
 	)
 
 	// Prepare results
@@ -174,7 +240,17 @@ func TestSui2EVM(t *testing.T) {
 			Timestamp:           time.Now().Format(time.RFC3339),
 		}
 
-		messageID, txDigest, seqNum, sendErr := sui.SendMessage(
+		var tokenCoinID string
+		if isTokenMode {
+			tokenCoinID, err = tokenCoinPool.Pop(ctx)
+			if err != nil {
+				t.Fatalf("Failed to get token coin from pool for message %d: %v", i+1, err)
+			}
+			msg.TokenAmount = fmt.Sprintf("%d", cfg.TokenConfig.Amount)
+			msg.TokenIdentifier = cfg.TokenConfig.TokenIdentifier
+		}
+
+		messageID, txDigest, seqNum, sendErr := sui.SendTokenMessage(
 			ctx,
 			ptbClient,
 			suiSigner,
@@ -186,6 +262,13 @@ func TestSui2EVM(t *testing.T) {
 			feeTokenType,
 			suiCoinMetadataID,
 			feeCoinID,
+			tokenCoinID,
+			cfg.TokenConfig.TokenIdentifier,
+			tokenCoinType,
+			tokenPoolPkgID,
+			tokenPoolStateID,
+			denyListObjectID,
+			tokenStateObjectID,
 			cfg.DestChainSelector,
 			receiverBytes,
 			cfg.MessageData,
@@ -207,6 +290,8 @@ func TestSui2EVM(t *testing.T) {
 				"messageID", messageID,
 				"txDigest", txDigest,
 				"seqNum", seqNum,
+				"tokenAmount", msg.TokenAmount,
+				"tokenIdentifier", msg.TokenIdentifier,
 			)
 			msg.Success = true
 			msg.MessageID = messageID

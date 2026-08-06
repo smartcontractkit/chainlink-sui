@@ -16,11 +16,15 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/config"
 	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/evm"
+	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/sui"
 )
 
 func TestEVM2Sui(t *testing.T) {
 	if *runName == "" {
 		t.Fatal("--run-name flag is required (e.g., --run-name my-first-evm-to-sui-run)")
+	}
+	if strings.Contains(*runName, "sui-to-evm") {
+		t.Fatalf("--run-name %q is a Sui→EVM config; run TestSui2EVM instead", *runName)
 	}
 
 	ctx := context.Background()
@@ -82,6 +86,63 @@ func TestEVM2Sui(t *testing.T) {
 	var receiver [32]byte
 	copy(receiver[:], receiverBytes)
 
+	// Determine mode: message-only vs token transfer
+	isTokenMode := cfg.TokenConfig != nil
+	var tokenAddress common.Address
+	var tokenAmount *big.Int
+	var totalTokenAmount *big.Int
+	var suiReceiverStateID [32]byte
+
+	if isTokenMode {
+		tokenAddress = common.HexToAddress(cfg.TokenConfig.TokenIdentifier)
+		tokenAmount = new(big.Int).SetUint64(cfg.TokenConfig.Amount)
+		totalTokenAmount = new(big.Int).Mul(tokenAmount, big.NewInt(int64(cfg.MessageCount)))
+
+		// For token-only mode, tokenReceiver is the Sui EOA (signer address converted to bytes32).
+		// For token+message mode, tokenReceiver is the receiver state object ID.
+		if cfg.TokenConfig.Mode == "token_and_message" {
+			if cfg.SuiReceiverConfig == nil || cfg.SuiReceiverConfig.PackageID == "" {
+				t.Fatal("sui_receiver.package_id is required for EVM→Sui token_and_message mode")
+			}
+			// Resolve Sui destination RPC from network config
+			destNetwork, err := config.FindNetworkBySelector(cfg.Networks, cfg.DestChainSelector)
+			if err != nil {
+				t.Fatalf("Destination chain not found in network config: %v", err)
+			}
+			if len(destNetwork.RPCs) == 0 {
+				t.Fatal("Destination chain has no RPC endpoints")
+			}
+			suiDestRPCURL := destNetwork.RPCs[0].HTTPURL
+			suiDestClient, err := sui.NewSuiClient(t, suiDestRPCURL)
+			if err != nil {
+				t.Fatalf("Failed to create Sui destination client: %v", err)
+			}
+			defer suiDestClient.Close()
+
+			receiverStateStr, err := sui.ResolveReceiverState(ctx, suiDestClient, cfg.SuiReceiverConfig.PackageID)
+			if err != nil {
+				t.Fatalf("Failed to resolve Sui receiver state: %v", err)
+			}
+			suiReceiverStateID, err = sui.SuiObjectIdToBytes32(receiverStateStr)
+			if err != nil {
+				t.Fatalf("Failed to convert receiver state ID to bytes32: %v", err)
+			}
+		}
+
+		// Approve Router for total token amount once at start
+		err = evm.ApproveRouterForTokens(
+			ctx,
+			ethClient,
+			auth,
+			tokenAddress,
+			routerAddress,
+			totalTokenAmount,
+		)
+		if err != nil {
+			t.Fatalf("Failed to approve Router for tokens: %v", err)
+		}
+	}
+
 	// Construct SuiExtraArgsV1
 	// Clock object ID is always 0x6 on Sui
 	clockObjID := [32]byte{}
@@ -92,6 +153,21 @@ func TestEVM2Sui(t *testing.T) {
 		AllowOutOfOrderExecution: true,
 		TokenReceiver:            [32]byte{}, // zero for message-only
 		ReceiverObjectIds:        [][32]byte{clockObjID},
+	}
+
+	if isTokenMode {
+		if cfg.TokenConfig.Mode == "token_only" {
+			// Token-only: tokenReceiver is the Sui EOA (signer address as bytes32)
+			signerAddressBytes, err := sui.SuiObjectIdToBytes32(auth.From.Hex())
+			if err != nil {
+				t.Fatalf("Failed to convert EVM signer address to Sui token receiver bytes: %v", err)
+			}
+			suiExtraArgs.TokenReceiver = signerAddressBytes
+		} else {
+			// token+message: tokenReceiver is the receiver state object ID
+			suiExtraArgs.TokenReceiver = suiReceiverStateID
+			suiExtraArgs.ReceiverObjectIds = [][32]byte{clockObjID, suiReceiverStateID}
+		}
 	}
 
 	extraArgs, err := evm.SerializeClientSUIExtraArgsV1(suiExtraArgs)
@@ -128,16 +204,35 @@ func TestEVM2Sui(t *testing.T) {
 			Timestamp:           time.Now().Format(time.RFC3339),
 		}
 
-		messageID, txHash, sendErr := evm.SendMessage(
-			ctx,
-			ethClient,
-			auth,
-			routerAddress,
-			cfg.DestChainSelector,
-			receiver[:],
-			cfg.MessageData,
-			extraArgs,
-		)
+		var messageID, txHash string
+		var sendErr error
+		if isTokenMode {
+			msg.TokenAmount = fmt.Sprintf("%d", cfg.TokenConfig.Amount)
+			msg.TokenIdentifier = cfg.TokenConfig.TokenIdentifier
+			messageID, txHash, sendErr = evm.SendTokenMessage(
+				ctx,
+				ethClient,
+				auth,
+				routerAddress,
+				cfg.DestChainSelector,
+				receiver[:],
+				cfg.MessageData,
+				tokenAddress,
+				tokenAmount,
+				extraArgs,
+			)
+		} else {
+			messageID, txHash, sendErr = evm.SendMessage(
+				ctx,
+				ethClient,
+				auth,
+				routerAddress,
+				cfg.DestChainSelector,
+				receiver[:],
+				cfg.MessageData,
+				extraArgs,
+			)
+		}
 
 		if sendErr != nil {
 			slog.Error("Failed to send message",
@@ -152,6 +247,8 @@ func TestEVM2Sui(t *testing.T) {
 				"progress", fmt.Sprintf("%d/%d", i+1, cfg.MessageCount),
 				"messageID", messageID,
 				"txHash", txHash,
+				"tokenAmount", msg.TokenAmount,
+				"tokenIdentifier", msg.TokenIdentifier,
 			)
 			msg.Success = true
 			msg.MessageID = messageID

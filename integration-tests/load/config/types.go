@@ -7,9 +7,11 @@ import (
 
 // RunConfig is loaded from a TOML run config file (Layer 4).
 type RunConfig struct {
-	Run      RunParams      `toml:"run"`
-	Receiver ReceiverParams `toml:"receiver"`
-	Gas      GasParams      `toml:"gas"`
+	Run         RunParams         `toml:"run"`
+	Receiver    ReceiverParams    `toml:"receiver"`
+	Gas         GasParams         `toml:"gas"`
+	Token       *TokenParams      `toml:"token,omitempty"`
+	SuiReceiver *SuiReceiverParams `toml:"sui_receiver,omitempty"`
 }
 
 // RunParams holds the core run parameters.
@@ -34,6 +36,20 @@ type GasParams struct {
 	EvmCallbackGasLimit uint64 `toml:"evm_callback_gas_limit"`
 }
 
+// TokenParams holds token transfer parameters in the run config TOML.
+// For Sui source chains, use coin_metadata_id. For EVM source chains, use token_address.
+type TokenParams struct {
+	CoinMetadataID string `toml:"coin_metadata_id,omitempty"`
+	TokenAddress   string `toml:"token_address,omitempty"`
+	Amount         uint64 `toml:"amount"`
+	Mode           string `toml:"mode"`
+}
+
+// SuiReceiverParams holds the Sui receiver package ID for EVM→Sui programmable transfers.
+type SuiReceiverParams struct {
+	PackageID string `toml:"package_id"`
+}
+
 // LoadTestConfig is the fully assembled configuration for a load test run.
 type LoadTestConfig struct {
 	RunName             string // from TOML filename (without .toml)
@@ -56,6 +72,24 @@ type LoadTestConfig struct {
 
 	// Network configs (from YAML)
 	Networks []NetworkConfig
+
+	// Token transfer config (optional, nil for message-only runs)
+	TokenConfig *TokenTransferConfig
+
+	// Sui receiver config (optional, only for EVM→Sui programmable transfers)
+	SuiReceiverConfig *SuiReceiverConfig
+}
+
+// TokenTransferConfig is the fully assembled token transfer configuration.
+type TokenTransferConfig struct {
+	TokenIdentifier string // coin metadata ID (Sui source) or ERC-20 address (EVM source)
+	Amount          uint64 // token amount per message in base units
+	Mode            string // "token_only" or "token_and_message"
+}
+
+// SuiReceiverConfig is the fully assembled Sui receiver configuration.
+type SuiReceiverConfig struct {
+	PackageID string // Sui receiver package ID
 }
 
 // NetworkConfig is a unified chain network entry from the YAML config.
@@ -118,6 +152,8 @@ type SentMessage struct {
 	Success             bool   `json:"success"`
 	Error               string `json:"error,omitempty"`
 	SequenceNumber      string `json:"sequence_number,omitempty"`
+	TokenAmount         string `json:"token_amount,omitempty"`
+	TokenIdentifier     string `json:"token_identifier,omitempty"`
 }
 
 // RunResults is the output of a load test run.
