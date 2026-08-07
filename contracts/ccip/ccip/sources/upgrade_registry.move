@@ -226,6 +226,35 @@ public fun verify_function_allowed(
 
 public struct McmsCallback has drop {} // not used, kept for compatibility
 
+// MCMS-routed initializer: the registry cannot exist yet, so this must not call
+// verify_function_allowed (which borrows the registry). The OwnerCap is handed over
+// by the MCMS registry callback, same as the other mcms_* entry points.
+public fun mcms_initialize(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"initialize"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    initialize(ref, owner_cap, ctx);
+}
+
 public fun mcms_block_version(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,

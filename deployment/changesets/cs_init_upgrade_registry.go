@@ -16,11 +16,12 @@ import (
 )
 
 type UpgradeRegistryConfig struct {
-	SuiChainSelector uint64                `yaml:"suiChainSelector"`
-	CCIPPackageId    string                `yaml:"ccipPackageId"`
-	StateObjectId    string                `yaml:"stateObjectId"`
-	OwnerCapObjectId string                `yaml:"ownerCapObjectId"`
-	TimelockConfig   *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
+	SuiChainSelector    uint64                `yaml:"suiChainSelector"`
+	CCIPPackageId       string                `yaml:"ccipPackageId"`
+	LatestCCIPPackageId string                `yaml:"latestCCIPPackageId,omitempty"`
+	StateObjectId       string                `yaml:"stateObjectId"`
+	OwnerCapObjectId    string                `yaml:"ownerCapObjectId"`
+	TimelockConfig      *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
 }
 
 var _ cldf.ChangeSetV2[UpgradeRegistryConfig] = UpgradeRegistry{}
@@ -39,6 +40,12 @@ func (d UpgradeRegistry) Apply(e cldf.Environment, config UpgradeRegistryConfig)
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load onchain state: %w", err)
 	}
 	chainState := state[config.SuiChainSelector]
+
+	// When the upgraded package ID is not provided, fall back to the latest CCIP package
+	// ID recorded in the address book so the call executes against the upgraded bytecode.
+	if config.LatestCCIPPackageId == "" {
+		config.LatestCCIPPackageId = chainState.LatestCCIPPackageID
+	}
 
 	suiChain := e.BlockChains.SuiChains()[config.SuiChainSelector]
 
@@ -60,9 +67,10 @@ func (d UpgradeRegistry) Apply(e cldf.Environment, config UpgradeRegistryConfig)
 	}
 
 	upgradeRegistryInitializeOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.UpgradeRegistryInitializeOp, deps, ccipops.InitUpgradeRegistryInput{
-		CCIPPackageId:    config.CCIPPackageId,
-		StateObjectId:    config.StateObjectId,
-		OwnerCapObjectId: config.OwnerCapObjectId,
+		CCIPPackageId:       config.CCIPPackageId,
+		LatestCCIPPackageId: config.LatestCCIPPackageId,
+		StateObjectId:       config.StateObjectId,
+		OwnerCapObjectId:    config.OwnerCapObjectId,
 	})
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to initialize upgrade registry for Sui chain %d: %w", config.SuiChainSelector, err)
