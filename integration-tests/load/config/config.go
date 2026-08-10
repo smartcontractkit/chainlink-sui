@@ -191,6 +191,8 @@ func LoadFullConfig(runName string) (*LoadTestConfig, error) {
 		SuiGasBudget:        runCfg.Gas.SuiGasBudget,
 		EvmGasLimit:         runCfg.Gas.EvmGasLimit,
 		EvmCallbackGasLimit: runCfg.Gas.EvmCallbackGasLimit,
+		LoadRPS:             runCfg.Load.RPS,
+		LoadWallets:         runCfg.Load.Wallets,
 		SuiPrivateKey:       suiPrivKey,
 		EVMPrivateKey:       evmPrivKey,
 		AddressBook:         addressBook,

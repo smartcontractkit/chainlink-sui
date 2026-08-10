@@ -12,8 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/smartcontractkit/chainlink-testing-framework/wasp"
+
+	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
 	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/config"
 	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/sui"
+	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/wallet"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var runName = flag.String("run-name", "", "Name of the run config file (without .toml) in runs/ directory")
@@ -201,7 +206,37 @@ func TestSui2EVM(t *testing.T) {
 		}(),
 	)
 
-	// Prepare results
+	// Token transfers stay sequential; message-only uses WASP wallet pool.
+	if isTokenMode {
+		runSui2EVMSequential(t, cfg, ptbClient, suiSigner, coinPool, tokenCoinPool,
+			ccipPkgID, onRampPkgID, ccipObjectRefID, onRampStateID,
+			feeTokenType, suiCoinMetadataID,
+			tokenCoinType, tokenPoolPkgID, tokenPoolStateID, denyListObjectID, tokenStateObjectID,
+			receiverBytes)
+		return
+	}
+
+	runSui2EVMWASP(t, cfg, ptbClient, suiSigner, senderAddress,
+		ccipPkgID, onRampPkgID, ccipObjectRefID, onRampStateID,
+		feeTokenType, suiCoinMetadataID,
+		receiverBytes)
+}
+
+// runSui2EVMSequential sends token-transfer messages sequentially using the main signer.
+func runSui2EVMSequential(
+	t *testing.T,
+	cfg *config.LoadTestConfig,
+	ptbClient *client.PTBClient,
+	suiSigner bindutils.SuiSigner,
+	coinPool *sui.SuiCoinPool,
+	tokenCoinPool *sui.TokenCoinPool,
+	ccipPkgID, onRampPkgID, ccipObjectRefID, onRampStateID string,
+	feeTokenType, suiCoinMetadataID string,
+	tokenCoinType, tokenPoolPkgID, tokenPoolStateID, denyListObjectID, tokenStateObjectID string,
+	receiverBytes []byte,
+) {
+	ctx := context.Background()
+
 	results := &config.RunResults{
 		RunName:             cfg.RunName,
 		EnvName:             cfg.EnvName,
@@ -212,7 +247,6 @@ func TestSui2EVM(t *testing.T) {
 		Messages:            make([]config.SentMessage, 0, cfg.MessageCount),
 	}
 
-	// Save results on normal exit, panic, or interrupt (Ctrl+C).
 	saveResults := func() {
 		results.RunEnded = time.Now().Format(time.RFC3339)
 		if err := config.SaveResults(results); err != nil {
@@ -229,7 +263,6 @@ func TestSui2EVM(t *testing.T) {
 	}()
 	defer saveResults()
 
-	// Send messages sequentially
 	for i := 0; i < cfg.MessageCount; i++ {
 		slog.Info("Sending message", "progress", fmt.Sprintf("%d/%d", i+1, cfg.MessageCount))
 
@@ -251,20 +284,12 @@ func TestSui2EVM(t *testing.T) {
 			Timestamp:           time.Now().Format(time.RFC3339),
 		}
 
-		var tokenCoinID string
-		if isTokenMode {
-			tokenCoinID, err = tokenCoinPool.Pop(ctx)
-			if err != nil {
-				t.Fatalf("Failed to get token coin from pool for message %d: %v", i+1, err)
-			}
-			msg.TokenAmount = fmt.Sprintf("%d", cfg.TokenConfig.Amount)
-			msg.TokenIdentifier = cfg.TokenConfig.TokenIdentifier
+		tokenCoinID, err := tokenCoinPool.Pop(ctx)
+		if err != nil {
+			t.Fatalf("Failed to get token coin from pool for message %d: %v", i+1, err)
 		}
-
-		var tokenIdentifier string
-		if isTokenMode {
-			tokenIdentifier = cfg.TokenConfig.TokenIdentifier
-		}
+		msg.TokenAmount = fmt.Sprintf("%d", cfg.TokenConfig.Amount)
+		msg.TokenIdentifier = cfg.TokenConfig.TokenIdentifier
 
 		messageID, txDigest, seqNum, sendErr := sui.SendTokenMessage(
 			ctx,
@@ -279,7 +304,7 @@ func TestSui2EVM(t *testing.T) {
 			suiCoinMetadataID,
 			feeCoinID,
 			tokenCoinID,
-			tokenIdentifier,
+			cfg.TokenConfig.TokenIdentifier,
 			tokenCoinType,
 			tokenPoolPkgID,
 			tokenPoolStateID,
@@ -324,6 +349,132 @@ func TestSui2EVM(t *testing.T) {
 		"failed", results.FailedMessages,
 		"total", results.TotalMessages,
 	)
+
+	if results.FailedMessages > 0 {
+		t.Fatalf("Run completed with failed messages: failed=%d total=%d", results.FailedMessages, results.TotalMessages)
+	}
+}
+
+// runSui2EVMWASP sends message-only CCIP messages using WASP with N parallel wallets.
+func runSui2EVMWASP(
+	t *testing.T,
+	cfg *config.LoadTestConfig,
+	ptbClient *client.PTBClient,
+	mainSigner bindutils.SuiSigner,
+	mainAddress string,
+	ccipPkgID, onRampPkgID, ccipObjectRefID, onRampStateID string,
+	feeTokenType, suiCoinMetadataID string,
+	receiverBytes []byte,
+) {
+	ctx := context.Background()
+	N := cfg.LoadWallets
+
+	// Step 1: Generate N wallets.
+	wallets, err := wallet.GenerateSuiWallets(N)
+	if err != nil {
+		t.Fatalf("Failed to generate Sui wallets: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := wallet.SweepSuiWallets(ctx, ptbClient, wallets, mainAddress); err != nil {
+			slog.Error("Failed to sweep Sui wallets during cleanup", "error", err)
+		}
+	})
+
+	// Step 2: Estimate fee and compute split amount before funding.
+	estimatedFee, err := sui.EstimateSuiToEVMFee(
+		ctx, ptbClient, mainSigner,
+		ccipPkgID, onRampPkgID, ccipObjectRefID, onRampStateID,
+		feeTokenType, suiCoinMetadataID,
+		cfg.DestChainSelector, receiverBytes, cfg.MessageData, cfg.EvmCallbackGasLimit,
+	)
+	if err != nil {
+		t.Fatalf("Failed to estimate Sui fee: %v", err)
+	}
+	splitAmount := sui.RecommendedSplitAmountPerCoin(estimatedFee)
+
+	// Step 3: Fund each wallet using the actual split amount requirement.
+	fundingPerWallet := estimateSuiFunding(cfg, N, splitAmount)
+	if err := wallet.FundSuiWallets(ctx, ptbClient, mainSigner, mainAddress, wallets, fundingPerWallet); err != nil {
+		t.Fatalf("Failed to fund Sui wallets: %v", err)
+	}
+
+	// Step 4: Prepare all gas coin pools BEFORE creating any generators.
+	// CRITICAL: wasp.NewGenerator starts a context.WithTimeout at construction time,
+	// not at Run() time. Any slow work (like Sui RPC calls for coin splitting) done
+	// between NewGenerator and p.Run() eats into the generator's lifetime.
+	// With 5 wallets × ~3s per PrepareSuiCoinPool = ~15s of sequential prep,
+	// a 2s duration would expire before p.Run() is even called for early wallets.
+	msgPerWallet := cfg.MessageCount / N
+	if msgPerWallet < 1 {
+		msgPerWallet = 1
+	}
+	type walletPool struct {
+		w       *wallet.Wallet
+		gasPool *sui.SuiCoinPool
+	}
+	pools := make([]walletPool, N)
+	for i := 0; i < N; i++ {
+		w := wallets[i]
+		gasPool, err := sui.PrepareSuiCoinPool(ctx, ptbClient, w.SuiSigner, w.Address, msgPerWallet, splitAmount)
+		if err != nil {
+			t.Fatalf("Failed to prepare SUI coin pool for wallet %d: %v", i, err)
+		}
+		pools[i] = walletPool{w: w, gasPool: gasPool}
+	}
+
+	// Step 5: Create all generators and run immediately.
+	// Generators are created in a tight loop right before p.Run() to minimize
+	// the gap between NewGenerator (context start) and Run (actual execution).
+	resultsCh := make(chan config.SentMessage, cfg.MessageCount)
+	p := wasp.NewProfile()
+	rpsPerWallet := int64(cfg.LoadRPS / N)
+	if rpsPerWallet < 1 {
+		rpsPerWallet = 1
+	}
+	// Each wallet sends msgPerWallet messages at rpsPerWallet RPS.
+	// duration = msgPerWallet / rpsPerWallet seconds.
+	duration := time.Duration(msgPerWallet) * time.Second / time.Duration(rpsPerWallet)
+
+	for i := 0; i < N; i++ {
+		pool := pools[i]
+		gun := &Sui2EVMMsgGun{
+			wallet:            pool.w,
+			gasPool:           pool.gasPool,
+			ptbClient:         ptbClient,
+			ccipPkgID:         ccipPkgID,
+			onRampPkgID:       onRampPkgID,
+			ccipObjectRefID:   ccipObjectRefID,
+			onRampStateID:     onRampStateID,
+			feeTokenType:      feeTokenType,
+			suiCoinMetaID:     suiCoinMetadataID,
+			destChainSelector: cfg.DestChainSelector,
+			receiver:          receiverBytes,
+			data:              cfg.MessageData,
+			gasBudget:         cfg.SuiGasBudget,
+			evmCallbackGas:    cfg.EvmCallbackGasLimit,
+			resultsCh:         resultsCh,
+		}
+
+		gen, err := wasp.NewGenerator(&wasp.Config{
+			GenName:  fmt.Sprintf("sui2evm-w%d", i),
+			LoadType: wasp.RPS,
+			Schedule: wasp.Plain(rpsPerWallet, duration),
+			Gun:      gun,
+		})
+		p.Add(gen, err)
+	}
+
+	// Step 6: Run all generators in parallel.
+	if _, err := p.Run(true); err != nil {
+		t.Fatalf("WASP profile run failed: %v", err)
+	}
+	close(resultsCh)
+
+	// Step 7: Collect and save results.
+	results := collectResults(cfg, resultsCh)
+	if err := config.SaveResults(results); err != nil {
+		t.Fatalf("Failed to save results: %v", err)
+	}
 
 	if results.FailedMessages > 0 {
 		t.Fatalf("Run completed with failed messages: failed=%d total=%d", results.FailedMessages, results.TotalMessages)

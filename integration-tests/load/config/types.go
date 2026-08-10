@@ -10,6 +10,7 @@ type RunConfig struct {
 	Run         RunParams         `toml:"run"`
 	Receiver    ReceiverParams    `toml:"receiver"`
 	Gas         GasParams         `toml:"gas"`
+	Load        *LoadParams       `toml:"load,omitempty"`
 	Token       *TokenParams      `toml:"token,omitempty"`
 	SuiReceiver *SuiReceiverParams `toml:"sui_receiver,omitempty"`
 }
@@ -34,6 +35,14 @@ type GasParams struct {
 	SuiGasBudget        uint64 `toml:"sui_gas_budget"`
 	EvmGasLimit         uint64 `toml:"evm_gas_limit"`
 	EvmCallbackGasLimit uint64 `toml:"evm_callback_gas_limit"`
+}
+
+// LoadParams holds WASP load test settings.
+// RPS is the target total requests per second across all wallets.
+// Wallets is the number of parallel wallets (and generators) to use.
+type LoadParams struct {
+	RPS     int `toml:"rps"`
+	Wallets int `toml:"wallets"`
 }
 
 // TokenParams holds token transfer parameters in the run config TOML.
@@ -62,6 +71,10 @@ type LoadTestConfig struct {
 	SuiGasBudget        uint64
 	EvmGasLimit         uint64
 	EvmCallbackGasLimit uint64
+
+	// Load test settings (from [load] section, defaults to rps=1, wallets=1)
+	LoadRPS     int
+	LoadWallets int
 
 	// Secrets (from .env)
 	SuiPrivateKey string

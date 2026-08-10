@@ -10,13 +10,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_3/message_hasher"
+	"github.com/smartcontractkit/chainlink-testing-framework/wasp"
 
 	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/config"
 	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/evm"
 	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/sui"
+	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/wallet"
 )
 
 func TestEVM2Sui(t *testing.T) {
@@ -175,7 +179,30 @@ func TestEVM2Sui(t *testing.T) {
 		t.Fatalf("Failed to serialize SuiExtraArgsV1: %v", err)
 	}
 
-	// Prepare results
+	// Token transfers stay sequential; message-only uses WASP wallet pool.
+	if isTokenMode {
+		runEVM2SuiSequential(t, cfg, ethClient, auth, routerAddress,
+			receiver, tokenAddress, tokenAmount, extraArgs)
+		return
+	}
+
+	runEVM2SuiWASP(t, cfg, ethClient, auth, routerAddress, receiver, extraArgs)
+}
+
+// runEVM2SuiSequential sends token-transfer messages sequentially using the main signer.
+func runEVM2SuiSequential(
+	t *testing.T,
+	cfg *config.LoadTestConfig,
+	ethClient *ethclient.Client,
+	auth *bind.TransactOpts,
+	routerAddress common.Address,
+	receiver [32]byte,
+	tokenAddress common.Address,
+	tokenAmount *big.Int,
+	extraArgs []byte,
+) {
+	ctx := context.Background()
+
 	results := &config.RunResults{
 		RunName:             cfg.RunName,
 		EnvName:             cfg.EnvName,
@@ -186,7 +213,6 @@ func TestEVM2Sui(t *testing.T) {
 		Messages:            make([]config.SentMessage, 0, cfg.MessageCount),
 	}
 
-	// Ensure results are saved even on panic
 	defer func() {
 		results.RunEnded = time.Now().Format(time.RFC3339)
 		if err := config.SaveResults(results); err != nil {
@@ -194,7 +220,6 @@ func TestEVM2Sui(t *testing.T) {
 		}
 	}()
 
-	// Send messages sequentially
 	for i := 0; i < cfg.MessageCount; i++ {
 		slog.Info("Sending message", "progress", fmt.Sprintf("%d/%d", i+1, cfg.MessageCount))
 
@@ -204,35 +229,20 @@ func TestEVM2Sui(t *testing.T) {
 			Timestamp:           time.Now().Format(time.RFC3339),
 		}
 
-		var messageID, txHash string
-		var sendErr error
-		if isTokenMode {
-			msg.TokenAmount = fmt.Sprintf("%d", cfg.TokenConfig.Amount)
-			msg.TokenIdentifier = cfg.TokenConfig.TokenIdentifier
-			messageID, txHash, sendErr = evm.SendTokenMessage(
-				ctx,
-				ethClient,
-				auth,
-				routerAddress,
-				cfg.DestChainSelector,
-				receiver[:],
-				cfg.MessageData,
-				tokenAddress,
-				tokenAmount,
-				extraArgs,
-			)
-		} else {
-			messageID, txHash, sendErr = evm.SendMessage(
-				ctx,
-				ethClient,
-				auth,
-				routerAddress,
-				cfg.DestChainSelector,
-				receiver[:],
-				cfg.MessageData,
-				extraArgs,
-			)
-		}
+		msg.TokenAmount = fmt.Sprintf("%d", cfg.TokenConfig.Amount)
+		msg.TokenIdentifier = cfg.TokenConfig.TokenIdentifier
+		messageID, txHash, sendErr := evm.SendTokenMessage(
+			ctx,
+			ethClient,
+			auth,
+			routerAddress,
+			cfg.DestChainSelector,
+			receiver[:],
+			cfg.MessageData,
+			tokenAddress,
+			tokenAmount,
+			extraArgs,
+		)
 
 		if sendErr != nil {
 			slog.Error("Failed to send message",
@@ -264,4 +274,93 @@ func TestEVM2Sui(t *testing.T) {
 		"failed", results.FailedMessages,
 		"total", results.TotalMessages,
 	)
+}
+
+// runEVM2SuiWASP sends message-only CCIP messages using WASP with N parallel wallets.
+func runEVM2SuiWASP(
+	t *testing.T,
+	cfg *config.LoadTestConfig,
+	ethClient *ethclient.Client,
+	mainAuth *bind.TransactOpts,
+	routerAddress common.Address,
+	receiver [32]byte,
+	extraArgs []byte,
+) {
+	ctx := context.Background()
+	N := cfg.LoadWallets
+
+	// Step 1: Generate N wallets.
+	chainID, err := ethClient.ChainID(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get chain ID: %v", err)
+	}
+	wallets, err := wallet.GenerateEVMWallets(N, chainID)
+	if err != nil {
+		t.Fatalf("Failed to generate EVM wallets: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := wallet.SweepEVMWallets(ctx, ethClient, wallets, mainAuth.From); err != nil {
+			slog.Error("Failed to sweep EVM wallets during cleanup", "error", err)
+		}
+	})
+
+	// Step 2: Fund each wallet.
+	fundingPerWallet := estimateEvmFunding(cfg, N)
+	if err := wallet.FundEVMWallets(ctx, ethClient, mainAuth, wallets, fundingPerWallet); err != nil {
+		t.Fatalf("Failed to fund EVM wallets: %v", err)
+	}
+
+	// Step 3: Create N generators (one per wallet).
+	resultsCh := make(chan config.SentMessage, cfg.MessageCount)
+	p := wasp.NewProfile()
+	rpsPerWallet := int64(cfg.LoadRPS / N)
+	if rpsPerWallet < 1 {
+		rpsPerWallet = 1
+	}
+	msgPerWallet := cfg.MessageCount / N
+	if msgPerWallet < 1 {
+		msgPerWallet = 1
+	}
+	// Each wallet sends msgPerWallet messages at rpsPerWallet RPS.
+	// duration = msgPerWallet / rpsPerWallet seconds.
+	duration := time.Duration(msgPerWallet) * time.Second / time.Duration(rpsPerWallet)
+
+	for i := 0; i < N; i++ {
+		w := wallets[i]
+
+		gun := &EVM2SuiMsgGun{
+			wallet:            w,
+			ethClient:         ethClient,
+			routerAddress:     routerAddress,
+			destChainSelector: cfg.DestChainSelector,
+			receiver:          receiver,
+			data:              cfg.MessageData,
+			extraArgs:         extraArgs,
+			resultsCh:         resultsCh,
+		}
+
+		gen, err := wasp.NewGenerator(&wasp.Config{
+			GenName:  fmt.Sprintf("evm2sui-w%d", i),
+			LoadType: wasp.RPS,
+			Schedule: wasp.Plain(rpsPerWallet, duration),
+			Gun:      gun,
+		})
+		p.Add(gen, err)
+	}
+
+	// Step 4: Run all generators in parallel.
+	if _, err := p.Run(true); err != nil {
+		t.Fatalf("WASP profile run failed: %v", err)
+	}
+	close(resultsCh)
+
+	// Step 5: Collect and save results.
+	results := collectResults(cfg, resultsCh)
+	if err := config.SaveResults(results); err != nil {
+		t.Fatalf("Failed to save results: %v", err)
+	}
+
+	if results.FailedMessages > 0 {
+		t.Fatalf("Run completed with failed messages: failed=%d total=%d", results.FailedMessages, results.TotalMessages)
+	}
 }

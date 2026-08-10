@@ -3,6 +3,7 @@ package scripts
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"math/big"
 	"os"
@@ -13,20 +14,21 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-
+	commitstore "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_5_0/commit_store"
 	evm2evmofframp "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_5_0/evm_2_evm_offramp"
 	offramp160 "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/offramp"
-
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/config"
 )
 
+var resultsFile = flag.String("results-file", "", "Path to the results JSON file (relative to load/) to check for on-chain execution")
+
 // TestCheckCommitAndExecuteOnDest reads a results file from a previous Sui→EVM
 // load test run and queries the destination EVM chain's OffRamp for
 // ExecutionStateChanged events for each message.
 //
-// Usage: go test -v -run TestCheckCommitAndExecuteOnDest ./scripts/
+// Usage: go test -v -run TestCheckCommitAndExecuteOnDest ./scripts/ -args --results-file results/<file>.txt
 func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 	// Config functions use relative paths from load/; when running `go test ./scripts/`
 	// the CWD is scripts/, so chdir up.
@@ -39,9 +41,12 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 	ctx := context.Background()
 
 	// ── Load results ──
-	resultsRaw, err := os.ReadFile("results/real-sui-to-evm-run-2-testnet-20260810T113420.txt")
+	if *resultsFile == "" {
+		t.Fatal("--results-file flag is required (e.g., --results-file results/sui-to-evm-message-load-run-testnet-20260810T161625.txt)")
+	}
+	resultsRaw, err := os.ReadFile(*resultsFile)
 	if err != nil {
-		t.Fatalf("Failed to read results: %v", err)
+		t.Fatalf("Failed to read results %q: %v", *resultsFile, err)
 	}
 	var results config.RunResults
 	if err := json.Unmarshal(resultsRaw, &results); err != nil {
@@ -133,9 +138,19 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 	// ── Build message ID list ──
 	messageIDs := make([][32]byte, len(results.Messages))
 	seqNums := make([]uint64, len(results.Messages))
+	hasSeqNums := false
 	for i, msg := range results.Messages {
 		messageIDs[i] = common.HexToHash(msg.MessageID)
 		seqNums[i] = parseUint64(msg.SequenceNumber)
+		if seqNums[i] != 0 {
+			hasSeqNums = true
+		}
+	}
+	// If no sequence numbers were recorded (e.g. older results files), pass nil
+	// to avoid filtering on seqNum==0, which would exclude all real events.
+	seqNumFilter := seqNums
+	if !hasSeqNums {
+		seqNumFilter = nil
 	}
 
 	// ── Query ExecutionStateChanged for all messages ──
@@ -162,7 +177,7 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 		iter, err := filterer.FilterExecutionStateChanged(
 			filterOpts,
 			[]uint64{results.SourceChainSelector},
-			seqNums,
+			seqNumFilter,
 			messageIDs,
 		)
 		if err != nil {
@@ -188,7 +203,7 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 		}
 		iter, err := filterer.FilterExecutionStateChanged(
 			filterOpts,
-			seqNums,
+			seqNumFilter,
 			messageIDs,
 		)
 		if err != nil {
@@ -205,6 +220,108 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 			prev, ok := execByMsgID[e.MessageId]
 			if !ok || e.Raw.BlockNumber >= prev.Block {
 				execByMsgID[e.MessageId] = execResult{Block: e.Raw.BlockNumber, Timestamp: ts, State: e.State, TxHash: e.Raw.TxHash.Hex()}
+			}
+		}
+	}
+
+	// ── Query commit events ──
+	// Commit events are batch-level (Merkle roots with seq number ranges), not per-message.
+	// We fetch all commit events in the block range, then match each message to the
+	// commit batch whose [MinSeqNr, MaxSeqNr] interval contains the message's sequence number.
+	type commitBatch struct {
+		Block     uint64
+		Timestamp time.Time
+		TxHash    string
+		MinSeqNr  uint64
+		MaxSeqNr  uint64
+	}
+	commitBatches := make([]commitBatch, 0)
+
+	if isV160 {
+		filterer, err := offramp160.NewOffRampFilterer(offRampAddr, client)
+		if err != nil {
+			t.Fatalf("NewOffRampFilterer (commit): %v", err)
+		}
+		iter, err := filterer.FilterCommitReportAccepted(filterOpts)
+		if err != nil {
+			t.Fatalf("FilterCommitReportAccepted: %v", err)
+		}
+		defer iter.Close()
+		for iter.Next() {
+			e := iter.Event
+			header, _ := client.HeaderByNumber(ctx, big.NewInt(int64(e.Raw.BlockNumber)))
+			ts := time.Time{}
+			if header != nil {
+				ts = time.Unix(int64(header.Time), 0)
+			}
+			// Only keep blessed roots (committed); unblessed roots are not yet committed.
+			for _, root := range e.BlessedMerkleRoots {
+				if root.SourceChainSelector != results.SourceChainSelector {
+					continue
+				}
+				commitBatches = append(commitBatches, commitBatch{
+					Block:     e.Raw.BlockNumber,
+					Timestamp: ts,
+					TxHash:    e.Raw.TxHash.Hex(),
+					MinSeqNr:  root.MinSeqNr,
+					MaxSeqNr:  root.MaxSeqNr,
+				})
+			}
+		}
+	} else {
+		// v1.5.0: commit happens on a separate CommitStore contract.
+		// Find it via the OffRamp's static config.
+		offRampCaller, err := evm2evmofframp.NewEVM2EVMOffRampCaller(offRampAddr, client)
+		if err != nil {
+			t.Fatalf("NewEVM2EVMOffRampCaller: %v", err)
+		}
+		staticCfg, err := offRampCaller.GetStaticConfig(&bind.CallOpts{Context: ctx})
+		if err != nil {
+			t.Fatalf("GetStaticConfig: %v", err)
+		}
+		commitStoreAddr := staticCfg.CommitStore
+		t.Logf("CommitStore: %s", commitStoreAddr.Hex())
+
+		csFilterer, err := commitstore.NewCommitStoreFilterer(commitStoreAddr, client)
+		if err != nil {
+			t.Fatalf("NewCommitStoreFilterer: %v", err)
+		}
+		iter, err := csFilterer.FilterReportAccepted(filterOpts)
+		if err != nil {
+			t.Fatalf("FilterReportAccepted: %v", err)
+		}
+		defer iter.Close()
+		for iter.Next() {
+			e := iter.Event
+			header, _ := client.HeaderByNumber(ctx, big.NewInt(int64(e.Raw.BlockNumber)))
+			ts := time.Time{}
+			if header != nil {
+				ts = time.Unix(int64(header.Time), 0)
+			}
+			commitBatches = append(commitBatches, commitBatch{
+				Block:     e.Raw.BlockNumber,
+				Timestamp: ts,
+				TxHash:    e.Raw.TxHash.Hex(),
+				MinSeqNr:  e.Report.Interval.Min,
+				MaxSeqNr:  e.Report.Interval.Max,
+			})
+		}
+	}
+	t.Logf("Found %d commit batches", len(commitBatches))
+
+	// Map each message's sequence number to its commit batch.
+	commitBySeq := make(map[uint64]commitBatch, len(results.Messages))
+	for _, msg := range results.Messages {
+		seq := parseUint64(msg.SequenceNumber)
+		if seq == 0 {
+			continue // can't match without a sequence number
+		}
+		for _, batch := range commitBatches {
+			if seq >= batch.MinSeqNr && seq <= batch.MaxSeqNr {
+				// Pick the earliest commit batch that covers this seq.
+				if prev, ok := commitBySeq[seq]; !ok || batch.Block < prev.Block {
+					commitBySeq[seq] = batch
+				}
 			}
 		}
 	}
@@ -251,6 +368,80 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 
 	fmt.Println(strings.Repeat("─", 170))
 	fmt.Printf("Summary: %d/%d executed\n", executed, len(results.Messages))
+
+	// ── Print timing table: Sent → Commit → Execute ──
+	fmt.Println()
+	fmt.Println("=== Message Timing: Sent → Commit → Execute ===")
+	fmt.Printf("%-22s  %6s  %-20s  %-20s  %-20s  %-12s  %-12s\n",
+		"MessageID", "Seq", "Sent (source)", "Commit (dest)", "Execute (dest)", "Sent→Commit", "Commit→Exec")
+	fmt.Println(strings.Repeat("─", 130))
+
+	var sentToCommitSum, commitToExecSum time.Duration
+	var timingCount int
+
+	for _, msg := range results.Messages {
+		seq := parseUint64(msg.SequenceNumber)
+		short := strings.TrimPrefix(msg.MessageID, "0x")
+		if len(short) > 20 {
+			short = short[:20]
+		}
+
+		// Sent timestamp (from results file, recorded on source chain)
+		sentTime, _ := time.Parse(time.RFC3339, msg.Timestamp)
+		sentStr := sentTime.Format("01-02 15:04:05")
+		if sentTime.IsZero() {
+			sentStr = "-"
+		}
+
+		// Commit timestamp (from commit batch covering this seq)
+		var commitStr string
+		var commitTime time.Time
+		if batch, ok := commitBySeq[seq]; ok {
+			commitTime = batch.Timestamp
+			commitStr = commitTime.Format("01-02 15:04:05")
+		} else {
+			commitStr = "❌ not found"
+		}
+
+		// Execute timestamp (from ExecutionStateChanged event)
+		var execStr string
+		var execTime time.Time
+		msgID := common.HexToHash(msg.MessageID)
+		if r, ok := execByMsgID[msgID]; ok {
+			execTime = r.Timestamp
+			execStr = execTime.Format("01-02 15:04:05")
+		} else {
+			execStr = "❌ not found"
+		}
+
+		// Latencies
+		sentToCommitStr := "-"
+		commitToExecStr := "-"
+		if !sentTime.IsZero() && !commitTime.IsZero() {
+			d := commitTime.Sub(sentTime)
+			sentToCommitStr = fmt.Sprintf("%.1fs", d.Seconds())
+			sentToCommitSum += d
+		}
+		if !commitTime.IsZero() && !execTime.IsZero() {
+			d := execTime.Sub(commitTime)
+			commitToExecStr = fmt.Sprintf("%.1fs", d.Seconds())
+			commitToExecSum += d
+		}
+		if !sentTime.IsZero() && !commitTime.IsZero() && !execTime.IsZero() {
+			timingCount++
+		}
+
+		fmt.Printf("%-22s  %6d  %-20s  %-20s  %-20s  %-12s  %-12s\n",
+			short, seq, sentStr, commitStr, execStr, sentToCommitStr, commitToExecStr)
+	}
+
+	fmt.Println(strings.Repeat("─", 130))
+	if timingCount > 0 {
+		fmt.Printf("Avg latencies (n=%d):  Sent→Commit = %.1fs   Commit→Execute = %.1fs\n",
+			timingCount, sentToCommitSum.Seconds()/float64(timingCount), commitToExecSum.Seconds()/float64(timingCount))
+	} else {
+		fmt.Println("No complete timing data (need sent + commit + execute timestamps)")
+	}
 }
 
 // findOffRamp finds the OffRamp contract handling the given source chain.
@@ -327,4 +518,9 @@ func txExplorerURL(chainID uint64, txHash string) string {
 	default:
 		return ""
 	}
+}
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	os.Exit(m.Run())
 }

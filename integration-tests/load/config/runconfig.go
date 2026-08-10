@@ -50,6 +50,20 @@ func validateRunConfig(cfg *RunConfig) error {
 		return fmt.Errorf("receiver.address is required")
 	}
 
+	// Apply defaults for optional [load] section
+	if cfg.Load == nil {
+		cfg.Load = &LoadParams{
+			RPS:     1,
+			Wallets: 1,
+		}
+	}
+	if cfg.Load.RPS < 1 {
+		return fmt.Errorf("load.rps must be >= 1, got %d", cfg.Load.RPS)
+	}
+	if cfg.Load.Wallets < 1 {
+		return fmt.Errorf("load.wallets must be >= 1, got %d", cfg.Load.Wallets)
+	}
+
 	// message_data is optional for token_only mode; required for message-only and token_and_message
 	if cfg.Token == nil && cfg.Run.MessageData == "" {
 		return fmt.Errorf("run.message_data is required for message-only mode")
