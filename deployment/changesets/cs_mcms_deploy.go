@@ -5,6 +5,7 @@ import (
 
 	"github.com/smartcontractkit/mcms"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -29,6 +30,7 @@ type DeployMCMS struct{}
 // Apply implements deployment.ChangeSetV2.
 func (d DeployMCMS) Apply(e cldf.Environment, config DeployMCMSConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	suiChains := e.BlockChains.SuiChains()
@@ -56,7 +58,7 @@ func (d DeployMCMS) Apply(e cldf.Environment, config DeployMCMSConfig) (cldf.Cha
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for Sui chain %d: %w", config.ChainSelector, err)
 	}
 
-	err = deployment.StoreMCMSInAddressBook(ab, config.ChainSelector, mcmsReport.Output, deployment.MCMSInstanceFromFastCurseFlag(config.IsFastCurse))
+	err = deployment.StoreMCMSInAddressBookAndDataStore(ab, ds.Addresses(), config.ChainSelector, mcmsReport.Output, deployment.MCMSInstanceFromFastCurseFlag(config.IsFastCurse))
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to store MCMS in address book for Sui chain %d: %w", config.ChainSelector, err)
 	}
@@ -68,6 +70,7 @@ func (d DeployMCMS) Apply(e cldf.Environment, config DeployMCMSConfig) (cldf.Cha
 
 	return cldf.ChangesetOutput{
 		AddressBook:           ab,
+		DataStore:             ds,
 		Reports:               seqReports,
 		MCMSTimelockProposals: proposals,
 	}, nil

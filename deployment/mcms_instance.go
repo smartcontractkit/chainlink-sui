@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
@@ -80,6 +81,20 @@ func (s CCIPChainState) MCMSStateByInstance(instance MCMSInstance) MCMSStateFiel
 // StoreMCMSInAddressBook saves one MCMS deployment into the address book under the
 // correct instance label so slow and fastcurse entries can coexist on one chain.
 func StoreMCMSInAddressBook(ab *cldf.AddressBookMap, chainSelector uint64, mcmsReport mcmsops.DeployMCMSSeqOutput, instance MCMSInstance) error {
+	return storeMCMS(ab, nil, chainSelector, mcmsReport, instance)
+}
+
+// StoreMCMSInAddressBookAndDataStore is the dual-write counterpart of
+// StoreMCMSInAddressBook for changesets that return ChangesetOutput.DataStore.
+// Each MCMS object ID is written to both stores via SaveSuiAddress.
+func StoreMCMSInAddressBookAndDataStore(ab *cldf.AddressBookMap, ds fdatastore.MutableAddressRefStore, chainSelector uint64, mcmsReport mcmsops.DeployMCMSSeqOutput, instance MCMSInstance) error {
+	return storeMCMS(ab, ds, chainSelector, mcmsReport, instance)
+}
+
+// storeMCMS writes one MCMS deployment's seven object IDs under the correct instance
+// label. When ds is non-nil each entry is dual-written via SaveSuiAddress; otherwise
+// only the address book is written.
+func storeMCMS(ab *cldf.AddressBookMap, ds fdatastore.MutableAddressRefStore, chainSelector uint64, mcmsReport mcmsops.DeployMCMSSeqOutput, instance MCMSInstance) error {
 	addLabel := func(tv cldf.TypeAndVersion) cldf.TypeAndVersion {
 		if label := instance.AddressBookLabel(); label != "" {
 			tv.Labels.Add(label)
@@ -88,7 +103,11 @@ func StoreMCMSInAddressBook(ab *cldf.AddressBookMap, chainSelector uint64, mcmsR
 	}
 
 	save := func(addr string, typ cldf.ContractType) error {
-		return ab.Save(chainSelector, addr, addLabel(cldf.NewTypeAndVersion(typ, Version1_0_0)))
+		tv := addLabel(cldf.NewTypeAndVersion(typ, Version1_0_0))
+		if ds != nil {
+			return SaveSuiAddress(ab, ds, chainSelector, addr, tv)
+		}
+		return ab.Save(chainSelector, addr, tv)
 	}
 
 	if err := save(mcmsReport.PackageId, SuiMcmsPackageIDType); err != nil {
