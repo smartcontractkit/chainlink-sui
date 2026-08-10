@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -210,13 +212,22 @@ func TestSui2EVM(t *testing.T) {
 		Messages:            make([]config.SentMessage, 0, cfg.MessageCount),
 	}
 
-	// Ensure results are saved even on panic
-	defer func() {
+	// Save results on normal exit, panic, or interrupt (Ctrl+C).
+	saveResults := func() {
 		results.RunEnded = time.Now().Format(time.RFC3339)
 		if err := config.SaveResults(results); err != nil {
-			t.Errorf("Failed to save results: %v", err)
+			slog.Error("Failed to save results", "err", err)
 		}
+	}
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-signalCh
+		slog.Warn("Interrupt received, saving results...")
+		saveResults()
+		os.Exit(1)
 	}()
+	defer saveResults()
 
 	// Send messages sequentially
 	for i := 0; i < cfg.MessageCount; i++ {

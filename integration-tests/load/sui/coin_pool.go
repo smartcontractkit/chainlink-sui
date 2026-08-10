@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -123,14 +124,26 @@ func PrepareSuiCoinPool(
 		return nil, fmt.Errorf("invalid message count: %d", messageCount)
 	}
 
-	sourceCoinID, sourceBalance, err := fetchLargestSuiCoin(ctx, ptbClient, signerAddress)
+	// Fetch all SUI coins and compute total balance.
+	allCoins, err := ptbClient.QueryCoinsByAddress(ctx, signerAddress, suiCoinObjectType)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query SUI coins: %w", err)
+	}
+	if len(allCoins) == 0 {
+		return nil, fmt.Errorf("no SUI coins found for address %s", signerAddress)
 	}
 
-	usableCoinIDs, err := fetchUsableSuiCoinIDs(ctx, ptbClient, signerAddress, sourceCoinID, amountPerCoin)
-	if err != nil {
-		return nil, err
+	var totalBalance uint64
+	for _, c := range allCoins {
+		totalBalance += c.GetBalance()
+	}
+
+	// Check if we already have enough usable coins (balance >= amountPerCoin).
+	usableCoinIDs := make([]string, 0, len(allCoins))
+	for _, c := range allCoins {
+		if c.GetBalance() >= amountPerCoin {
+			usableCoinIDs = append(usableCoinIDs, c.GetObjectId())
+		}
 	}
 
 	if len(usableCoinIDs) >= requiredCoins {
@@ -142,33 +155,38 @@ func PrepareSuiCoinPool(
 		return newSuiCoinPool(usableCoinIDs[:requiredCoins]), nil
 	}
 
-	missingCoins := requiredCoins - len(usableCoinIDs)
-	totalSplitNeeded := uint64(missingCoins) * amountPerCoin //nolint:gosec // bounded by run config input
-	if sourceBalance <= totalSplitNeeded {
+	// Not enough usable coins. Check total balance first.
+	totalSplitNeeded := uint64(requiredCoins) * amountPerCoin //nolint:gosec
+	if totalBalance <= totalSplitNeeded {
 		return nil, fmt.Errorf(
-			"insufficient SUI balance for split: source coin %s has %d, need more than %d to create %d additional coins",
-			sourceCoinID,
-			sourceBalance,
+			"insufficient total SUI balance: have %d, need more than %d to create %d coins of %d each",
+			totalBalance,
 			totalSplitNeeded,
-			missingCoins,
+			requiredCoins,
+			amountPerCoin,
 		)
 	}
 
-	slog.Info("Preparing pre-split SUI coin pool",
+	slog.Info("Consolidating all SUI coins before split",
 		"requiredCoins", requiredCoins,
 		"existingUsableCoins", len(usableCoinIDs),
-		"missingCoins", missingCoins,
+		"totalBalance", totalBalance,
 		"amountPerCoin", amountPerCoin,
-		"sourceCoinID", sourceCoinID,
-		"sourceBalance", sourceBalance,
 	)
 
-	err = splitSuiCoinObjects(ctx, ptbClient, signer, signerAddress, sourceCoinID, missingCoins, amountPerCoin)
+	// Merge all coins into one, then split from the consolidated coin.
+	mergedCoinID, err := mergeSuiCoins(ctx, ptbClient, signer, signerAddress, allCoins)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge SUI coins: %w", err)
+	}
+
+	err = splitSuiCoinObjects(ctx, ptbClient, signer, signerAddress, mergedCoinID, requiredCoins, amountPerCoin)
 	if err != nil {
 		return nil, err
 	}
 
-	usableCoinIDs, err = fetchUsableSuiCoinIDs(ctx, ptbClient, signerAddress, sourceCoinID, amountPerCoin)
+	// After split, collect the newly created coins (exclude the merged source).
+	usableCoinIDs, err = fetchUsableSuiCoinIDs(ctx, ptbClient, signerAddress, mergedCoinID, amountPerCoin)
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +201,68 @@ func PrepareSuiCoinPool(
 
 	slog.Info("Prepared pre-split SUI coin pool", "poolCoins", requiredCoins)
 	return newSuiCoinPool(usableCoinIDs[:requiredCoins]), nil
+}
+
+// mergeSuiCoins merges all given SUI coins into a single coin.
+// Returns the object ID of the merged coin (the largest coin).
+func mergeSuiCoins(
+	ctx context.Context,
+	ptbClient *client.PTBClient,
+	signer bindutils.SuiSigner,
+	signerAddress string,
+	coins []*suirpcv2.Object,
+) (string, error) {
+	if len(coins) <= 1 {
+		return coins[0].GetObjectId(), nil
+	}
+
+	// Use the largest coin as the destination, merge all others into it.
+	dstID := ""
+	var dstBalance uint64
+	for _, c := range coins {
+		if c.GetBalance() >= dstBalance {
+			dstBalance = c.GetBalance()
+			dstID = c.GetObjectId()
+		}
+	}
+
+	mergeGasBudget := uint64(100_000_000)
+	batchSize := 20
+
+	for i := 0; i < len(coins); i += batchSize {
+		ptb := transaction.NewTransaction()
+		dstArg := ptb.Object(dstID)
+		var srcArgs []transaction.Argument
+
+		for j := i; j < len(coins) && j < i+batchSize; j++ {
+			c := coins[j]
+			id := c.GetObjectId()
+			if id == dstID {
+				continue
+			}
+			srcArgs = append(srcArgs, ptb.Object(id))
+		}
+
+		if len(srcArgs) == 0 {
+			continue
+		}
+
+		ptb.MergeCoins(dstArg, srcArgs)
+
+		callOpts := &bind.CallOpts{
+			Signer:           signer,
+			GasObject:        dstID,
+			GasBudget:        &mergeGasBudget,
+			WaitForExecution: true,
+		}
+
+		if _, err := bind.ExecutePTB(ctx, callOpts, ptbClient, ptb); err != nil {
+			return "", fmt.Errorf("failed to merge coin batch: %w", err)
+		}
+	}
+
+	slog.Info("Merged all SUI coins", "dstCoin", dstID, "totalCoins", len(coins))
+	return dstID, nil
 }
 
 func splitSuiCoinObjects(

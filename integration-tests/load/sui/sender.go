@@ -18,7 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
-const minSplitAmountPerCoin uint64 = 1_000_000_000 // 1 SUI
+const minSplitAmountPerCoin uint64 = 250_000_000 // 0.25 SUI
 
 // RecommendedSplitAmountPerCoin returns a conservative split amount for SUI fee coins
 // based on estimated onramp fee, plus buffer for fee fluctuations.
