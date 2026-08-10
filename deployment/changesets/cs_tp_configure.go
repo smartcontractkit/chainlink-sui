@@ -3,6 +3,7 @@ package changesets
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
@@ -35,6 +36,7 @@ var _ cldf.ChangeSetV2[TPConfigureConfig] = TPConfigure{}
 // Apply implements deployment.ChangeSetV2.
 func (d TPConfigure) Apply(e cldf.Environment, config TPConfigureConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	state, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
@@ -131,6 +133,7 @@ func (d TPConfigure) Apply(e cldf.Environment, config TPConfigureConfig) (cldf.C
 
 	return cldf.ChangesetOutput{
 		AddressBook:           ab,
+		DataStore:             ds,
 		Reports:               seqReports,
 		MCMSTimelockProposals: []mcms.TimelockProposal{mcmsProposal},
 	}, nil

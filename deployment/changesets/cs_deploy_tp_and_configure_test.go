@@ -6,6 +6,7 @@ import (
 	cselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/stretchr/testify/require"
 
@@ -30,7 +31,7 @@ func deployTPEnv(t *testing.T, ab *cldf.AddressBookMap, selector uint64) cldf.En
 
 func storeSlowMCMS(t *testing.T, ab *cldf.AddressBookMap, selector uint64) {
 	t.Helper()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -45,7 +46,7 @@ func storeSlowMCMS(t *testing.T, ab *cldf.AddressBookMap, selector uint64) {
 
 func storeFastMCMS(t *testing.T, ab *cldf.AddressBookMap, selector uint64) {
 	t.Helper()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xfast_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xfast_state",

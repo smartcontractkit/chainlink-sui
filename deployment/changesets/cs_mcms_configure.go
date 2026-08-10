@@ -5,6 +5,7 @@ import (
 
 	"github.com/smartcontractkit/mcms"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -33,6 +34,7 @@ func (c ConfigureMCMS) VerifyPreconditions(e cldf.Environment, config ConfigureM
 // Apply implements deployment.ChangeSetV2.
 func (c ConfigureMCMS) Apply(e cldf.Environment, config ConfigureMCMSConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	state, err := deployment.LoadOnchainStatesui(e)
@@ -113,6 +115,7 @@ func (c ConfigureMCMS) Apply(e cldf.Environment, config ConfigureMCMSConfig) (cl
 
 	return cldf.ChangesetOutput{
 		AddressBook:           ab,
+		DataStore:             ds,
 		Reports:               seqReports,
 		MCMSTimelockProposals: []mcms.TimelockProposal{mcmsProposal},
 	}, nil

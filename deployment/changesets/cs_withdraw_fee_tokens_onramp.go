@@ -5,6 +5,7 @@ import (
 
 	"github.com/smartcontractkit/mcms"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -50,6 +51,7 @@ func (WithdrawFeeTokensOnRamp) VerifyPreconditions(e cldf.Environment, config Wi
 // Apply implements deployment.ChangeSetV2.
 func (WithdrawFeeTokensOnRamp) Apply(e cldf.Environment, config WithdrawFeeTokensOnRampConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	state, err := deployment.LoadOnchainStatesui(e)
@@ -119,6 +121,7 @@ func (WithdrawFeeTokensOnRamp) Apply(e cldf.Environment, config WithdrawFeeToken
 
 	return cldf.ChangesetOutput{
 		AddressBook:           ab,
+		DataStore:             ds,
 		Reports:               seqReports,
 		MCMSTimelockProposals: timelockProposals,
 	}, nil

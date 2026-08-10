@@ -84,7 +84,7 @@ func TestSaveSuiAddress_fastcurseLabelRoundTrip(t *testing.T) {
 	require.Equal(t, "0xfast-pkg", got[selector].FastCurseMCMSPackageID)
 }
 
-func TestStoreMCMSInAddressBookAndDataStore_dualWrite(t *testing.T) {
+func TestStoreMCMSInAddressBook_dualWrite(t *testing.T) {
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
@@ -102,7 +102,7 @@ func TestStoreMCMSInAddressBookAndDataStore_dualWrite(t *testing.T) {
 			McmsAccountOwnerCapObjectId: "0xmcms-ownercap",
 		},
 	}
-	require.NoError(t, StoreMCMSInAddressBookAndDataStore(ab, ds.Addresses(), selector, report, MCMSInstanceFastCurse))
+	require.NoError(t, StoreMCMSInAddressBook(ab, ds.Addresses(), selector, report, MCMSInstanceFastCurse))
 
 	refs := ds.Addresses().Filter(fdatastore.AddressRefByChainSelector(selector))
 	require.Len(t, refs, 7)

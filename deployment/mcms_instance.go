@@ -78,23 +78,11 @@ func (s CCIPChainState) MCMSStateByInstance(instance MCMSInstance) MCMSStateFiel
 	}
 }
 
-// StoreMCMSInAddressBook saves one MCMS deployment into the address book under the
-// correct instance label so slow and fastcurse entries can coexist on one chain.
-func StoreMCMSInAddressBook(ab *cldf.AddressBookMap, chainSelector uint64, mcmsReport mcmsops.DeployMCMSSeqOutput, instance MCMSInstance) error {
-	return storeMCMS(ab, nil, chainSelector, mcmsReport, instance)
-}
-
-// StoreMCMSInAddressBookAndDataStore is the dual-write counterpart of
-// StoreMCMSInAddressBook for changesets that return ChangesetOutput.DataStore.
-// Each MCMS object ID is written to both stores via SaveSuiAddress.
-func StoreMCMSInAddressBookAndDataStore(ab *cldf.AddressBookMap, ds fdatastore.MutableAddressRefStore, chainSelector uint64, mcmsReport mcmsops.DeployMCMSSeqOutput, instance MCMSInstance) error {
-	return storeMCMS(ab, ds, chainSelector, mcmsReport, instance)
-}
-
-// storeMCMS writes one MCMS deployment's seven object IDs under the correct instance
-// label. When ds is non-nil each entry is dual-written via SaveSuiAddress; otherwise
-// only the address book is written.
-func storeMCMS(ab *cldf.AddressBookMap, ds fdatastore.MutableAddressRefStore, chainSelector uint64, mcmsReport mcmsops.DeployMCMSSeqOutput, instance MCMSInstance) error {
+// StoreMCMSInAddressBook saves one MCMS deployment's seven object IDs to both the
+// address book and the datastore under the correct instance label, so slow and
+// fastcurse entries can coexist on one chain. Each entry is dual-written via
+// SaveSuiAddress.
+func StoreMCMSInAddressBook(ab *cldf.AddressBookMap, ds fdatastore.MutableAddressRefStore, chainSelector uint64, mcmsReport mcmsops.DeployMCMSSeqOutput, instance MCMSInstance) error {
 	addLabel := func(tv cldf.TypeAndVersion) cldf.TypeAndVersion {
 		if label := instance.AddressBookLabel(); label != "" {
 			tv.Labels.Add(label)
@@ -103,11 +91,7 @@ func storeMCMS(ab *cldf.AddressBookMap, ds fdatastore.MutableAddressRefStore, ch
 	}
 
 	save := func(addr string, typ cldf.ContractType) error {
-		tv := addLabel(cldf.NewTypeAndVersion(typ, Version1_0_0))
-		if ds != nil {
-			return SaveSuiAddress(ab, ds, chainSelector, addr, tv)
-		}
-		return ab.Save(chainSelector, addr, tv)
+		return SaveSuiAddress(ab, ds, chainSelector, addr, addLabel(cldf.NewTypeAndVersion(typ, Version1_0_0)))
 	}
 
 	if err := save(mcmsReport.PackageId, SuiMcmsPackageIDType); err != nil {

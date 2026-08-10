@@ -3,6 +3,7 @@ package changesets
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
@@ -100,14 +101,16 @@ func (d UpgradeRegistry) Apply(e cldf.Environment, config UpgradeRegistryConfig)
 
 	// EOA mode: save UpgradeRegistryObjectId to the addressbook now that it exists on-chain.
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	typeAndVersionUpgradeRegistryObjectId := cldf.NewTypeAndVersion(deployment.SuiUpgradeRegistryObjectId, deployment.Version1_0_0)
-	err = ab.Save(config.SuiChainSelector, upgradeRegistryInitializeOp.Output.Objects.UpgradeRegistryObjectId, typeAndVersionUpgradeRegistryObjectId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, upgradeRegistryInitializeOp.Output.Objects.UpgradeRegistryObjectId, typeAndVersionUpgradeRegistryObjectId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save UpgradeRegistryInitializeOp address %s for Sui chain %d: %w", upgradeRegistryInitializeOp.Output.Objects.UpgradeRegistryObjectId, config.SuiChainSelector, err)
 	}
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
+		DataStore:   ds,
 		Reports:     []operations.Report[any, any]{upgradeRegistryInitializeOp.ToGenericReport()},
 	}, nil
 }

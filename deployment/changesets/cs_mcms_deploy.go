@@ -58,7 +58,7 @@ func (d DeployMCMS) Apply(e cldf.Environment, config DeployMCMSConfig) (cldf.Cha
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for Sui chain %d: %w", config.ChainSelector, err)
 	}
 
-	err = deployment.StoreMCMSInAddressBookAndDataStore(ab, ds.Addresses(), config.ChainSelector, mcmsReport.Output, deployment.MCMSInstanceFromFastCurseFlag(config.IsFastCurse))
+	err = deployment.StoreMCMSInAddressBook(ab, ds.Addresses(), config.ChainSelector, mcmsReport.Output, deployment.MCMSInstanceFromFastCurseFlag(config.IsFastCurse))
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to store MCMS in address book for Sui chain %d: %w", config.ChainSelector, err)
 	}

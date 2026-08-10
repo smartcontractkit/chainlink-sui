@@ -3,6 +3,7 @@ package changesets
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -37,6 +38,7 @@ func (d ManagedTokenConfigureNewMinter) VerifyPreconditions(e cldf.Environment, 
 // Apply implements deployment.ChangeSetV2.
 func (d ManagedTokenConfigureNewMinter) Apply(e cldf.Environment, config ManagedTokenConfigureNewMinterConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]operations.Report[any, any], 0)
 
 	suiChain := e.BlockChains.SuiChains()[config.SuiChainSelector]
@@ -76,7 +78,7 @@ func (d ManagedTokenConfigureNewMinter) Apply(e cldf.Environment, config Managed
 	// save ManagedTokenMinterCapID address to the addressbook
 	typeAndVersionMinterCapID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenMinterCapID, deployment.Version1_0_0)
 	typeAndVersionMinterCapID.AddLabel(symbolReport.Output.Symbol)
-	err = ab.Save(config.SuiChainSelector, configureNewMinterReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, configureNewMinterReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken MinterCapObjectId address %s for Sui chain %d: %w", configureNewMinterReport.Output.Objects.MinterCapObjectId, config.SuiChainSelector, err)
 	}
@@ -85,6 +87,7 @@ func (d ManagedTokenConfigureNewMinter) Apply(e cldf.Environment, config Managed
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
+		DataStore:   ds,
 		Reports:     seqReports,
 	}, nil
 }
