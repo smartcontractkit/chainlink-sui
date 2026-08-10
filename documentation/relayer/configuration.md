@@ -219,6 +219,7 @@ PollingIntervalSecs = 2
 SyncTimeoutSecs = 60
 ChannelBufferSize = 16
 BackfillCheckpointCount = 100
+ReplayCheckpointCount = 100         # checkpoints re-scanned per Replay request (0 = to latest)
 # StartCheckpointSequence = 12345   # optional; overrides backfill when set
 ```
 
@@ -227,8 +228,9 @@ BackfillCheckpointCount = 100
 | `PollingIntervalSecs` | uint64 | `2` | How often live polling checks for new checkpoints |
 | `SyncTimeoutSecs` | uint64 | `60` | Timeout for processing a single checkpoint |
 | `ChannelBufferSize` | uint64 | `16` | Buffer size of the events/transactions channels |
-| `BackfillCheckpointCount` | uint64 | `100` | Start at `latest - N`; also the rewind span used when a new selector triggers a rescan |
+| `BackfillCheckpointCount` | uint64 | `100` | Start at `latest - N` |
 | `StartCheckpointSequence` | uint64 | _unset_ | Explicit starting checkpoint sequence (overrides backfill) |
+| `ReplayCheckpointCount` | uint64 | `100` | Checkpoints re-scanned per `Replay` request, starting at the requested checkpoint; an explicit `0` re-scans to the latest checkpoint |
 
 > **Note**: In the relayer's own TOML the chain block is keyed `[[Sui]]` with `[[Sui.Nodes]]`, `[Sui.ChainPoller]`, `[Sui.TransactionManager]`, etc. The `[[Chains]]` form used elsewhere in this document is illustrative.
 

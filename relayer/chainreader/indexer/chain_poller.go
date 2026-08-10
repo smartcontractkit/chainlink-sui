@@ -36,8 +36,9 @@ const (
 	minStalledTicksBeforeRetry = 2
 	// chunkQueueSizeMultiplier sizes the chunk queue relative to the worker count.
 	chunkQueueSizeMultiplier = 4
-	// defaultRescanRewindCheckpoints is how far RescanRecent rewinds when no explicit backfill window is set.
-	defaultRescanRewindCheckpoints uint64 = 100
+	// defaultRescanCheckpointCount is how many checkpoints RescanFrom covers when the config does
+	// not set ReplayCheckpointCount.
+	defaultRescanCheckpointCount uint64 = 100
 	// minStartSequence is a value used as a fallback to avoid using 0 and doing a full chain rescan
 	// when the required configs are missing and the RPC node used is a full archive node
 	minStartSequence uint64 = 299_000_000
@@ -49,9 +50,9 @@ type ChainPollerAPI interface {
 	Start(ctx context.Context) error
 	EventsChannel() <-chan CheckpointEventsBatch
 	TransactionsChannel() <-chan CheckpointTransactionsBatch
-	// RescanRecent rewinds the poller so recently-processed checkpoints are re-scanned (used when a new
-	// event selector is registered after the poller has already advanced past the events it matches).
-	RescanRecent()
+	// RescanFrom re-enqueues a bounded window of checkpoints starting at fromSeq so
+	// already-processed checkpoints are re-scanned (triggered by the relayer's Replay command).
+	RescanFrom(ctx context.Context, fromSeq uint64) error
 	Close() error
 }
 
@@ -96,6 +97,14 @@ func WithCursorStore(store CheckpointCursorStore, id string) PollerOption {
 	}
 }
 
+// WithRescanCheckpointCount sets how many checkpoints RescanFrom covers per replay request.
+// Zero means the rescan extends to the latest checkpoint.
+func WithRescanCheckpointCount(count uint64) PollerOption {
+	return func(cp *ChainPoller) {
+		cp.rescanCount = count
+	}
+}
+
 // ChainPoller implements checkpoint-based polling for the Sui chain.
 // It fetches checkpoints concurrently in bounded chunks, reorders the results via a sequencer,
 // and sends events and transactions strictly in checkpoint order over channels to the indexers.
@@ -113,6 +122,7 @@ type ChainPoller struct {
 	chunkSize       int
 	maxPending      int // reorder-buffer capacity: workers * chunkSize
 	maxStalledTicks int
+	rescanCount     uint64 // checkpoints covered per RescanFrom request; 0 rescans to the latest
 
 	sequencer   *checkpointSequencer
 	chunkCh     chan chunkRange
@@ -154,6 +164,7 @@ func NewChainPoller(
 		workers:          defaultMaxConcurrentWorkers,
 		chunkSize:        defaultCatchupChunkSize,
 		maxStalledTicks:  defaultMaxStalledTicksBeforeSkip,
+		rescanCount:      defaultRescanCheckpointCount,
 	}
 
 	for _, opt := range opts {
@@ -511,34 +522,52 @@ func (cp *ChainPoller) getLatestCheckpointSequence(ctx context.Context) (uint64,
 	return seq, nil
 }
 
-// RescanRecent enqueues the most recent N checkpoints for re-scanning. Results below the
-// sequencer watermark bypass ordering and are re-emitted directly; inserts are idempotent.
-func (cp *ChainPoller) RescanRecent() {
-	latestCheckpoint, err := cp.getLatestCheckpointSequence(context.Background())
+// RescanFrom enqueues up to rescanCount checkpoints starting at fromSeq (capped at the chain tip;
+// a zero rescanCount rescans all the way to the tip) for re-scanning. Results below the sequencer
+// watermark bypass ordering and are re-emitted directly; inserts are idempotent. It rejects a
+// fromSeq the provider has already pruned or that is ahead of the chain tip.
+func (cp *ChainPoller) RescanFrom(ctx context.Context, fromSeq uint64) error {
+	latestCheckpoint, err := cp.getLatestCheckpointSequence(ctx)
 	if err != nil {
-		cp.logger.Errorw("Failed to get latest checkpoint", "error", err)
-		return
+		return fmt.Errorf("failed to get latest checkpoint: %w", err)
 	}
 
-	startSeq := uint64(0)
-	if latestCheckpoint > defaultRescanRewindCheckpoints {
-		startSeq = latestCheckpoint - defaultRescanRewindCheckpoints
+	if fromSeq > latestCheckpoint {
+		return fmt.Errorf("rescan start checkpoint %d is ahead of the latest checkpoint %d", fromSeq, latestCheckpoint)
 	}
 
-	for from := startSeq; from <= latestCheckpoint; {
-		end := min(from+cp.chunkSpan()-1, latestCheckpoint)
+	if lowest := cp.providerLowestAvailable(ctx); lowest > fromSeq {
+		return fmt.Errorf(
+			"rescan start checkpoint %d is no longer available from the RPC provider (pruned; lowest available is %d)",
+			fromSeq, lowest,
+		)
+	}
+
+	// Rescanning can be done upto the current latest checkpoint unless
+	// the `rescanCount` config value is set. This clause allows for the TOML
+	// configs to explicitly set the behavior of setting `PollerReplayCheckpointCount`
+	// to 0 to allow for rescanning upto latest.
+	endSeq := latestCheckpoint
+	if cp.rescanCount != 0 {
+		endSeq = min(fromSeq+cp.rescanCount-1, latestCheckpoint)
+	}
+
+	cp.logger.Infow("Rescanning checkpoints", "fromSequence", fromSeq, "toSequence", endSeq)
+
+	for from := fromSeq; from <= endSeq; {
+		end := min(from+cp.chunkSpan()-1, endSeq)
 		select {
 		case cp.chunkCh <- chunkRange{start: from, end: end}:
 			from = end + 1
 		default:
-			cp.logger.Warnw(
-				"Chunk queue full, dropping remainder of rescan range",
-				"droppedFrom", from,
-				"droppedTo", latestCheckpoint,
+			return fmt.Errorf(
+				"chunk queue full: enqueued rescan of [%d, %d], dropped [%d, %d]; retry replay for the dropped range",
+				fromSeq, from-1, from, endSeq,
 			)
-			return
 		}
 	}
+
+	return nil
 }
 
 // catchUp processes checkpoints from startSeq to endSeq (inclusive).
@@ -646,7 +675,7 @@ func (cp *ChainPoller) processCheckpoint(ctx context.Context, seq uint64) error 
 	// Skip the fetch when the result is already buffered awaiting emission — a duplicate
 	// submit would be dropped anyway, so re-fetching (e.g. from a stall retry overlapping an
 	// in-flight chunk) is wasted RPC. Below-watermark sequences are still fetched so
-	// RescanRecent can re-emit them.
+	// RescanFrom can re-emit them.
 	if cp.sequencer.isPending(seq) {
 		cp.logger.Debugw("Checkpoint already buffered, skipping fetch", "sequence", seq)
 		return nil

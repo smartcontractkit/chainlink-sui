@@ -59,7 +59,8 @@ SyncTimeoutSecs = 3
 PollingIntervalSecs = 2      # how often live polling checks for new checkpoints
 SyncTimeoutSecs = 60         # timeout for processing a single checkpoint
 ChannelBufferSize = 16       # buffer size of the events/transactions channels
-BackfillCheckpointCount = 100 # start at (latest - N); also the rewind span on rescan
+BackfillCheckpointCount = 100 # start at (latest - N)
+ReplayCheckpointCount = 100   # checkpoints re-scanned per Replay request, starting at the requested checkpoint (0 = to latest)
 # StartCheckpointSequence = 12345 # optional; explicit start checkpoint (overrides backfill)
 
 

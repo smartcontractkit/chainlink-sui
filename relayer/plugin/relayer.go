@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -171,12 +172,13 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	// Create main indexer that constructs and orchestrates the poller + consumer indexers.
 	// A separate client (suiClientIndexers) is used for the poller to avoid rate limiting.
 	indexerInstance := indexer.NewIndexer(indexer.Params{
-		Logger:          loggerInstance,
-		DB:              db,
-		Client:          suiClientIndexers,
-		PollerConfig:    pollerConfig,
-		PollerWorkers:   pollerWorkers,
-		PollerChunkSize: pollerChunkSize,
+		Logger:                      loggerInstance,
+		DB:                          db,
+		Client:                      suiClientIndexers,
+		PollerConfig:                pollerConfig,
+		PollerWorkers:               pollerWorkers,
+		PollerChunkSize:             pollerChunkSize,
+		PollerReplayCheckpointCount: *cfg.ChainPoller.ReplayCheckpointCount,
 	})
 
 	loggerInstance.Infof("Creating retry manager. NumberRetries: %d", *cfg.TransactionManager.MaxTxRetryAttempts)
@@ -369,10 +371,17 @@ func (r *SuiRelayer) NewAutomationProvider(ctx context.Context, rargs types.Rela
 	return nil, errors.New("automation not supported for Sui")
 }
 
-// Replay implements the transaction replay functionality.
-// Currently not supported for Sui.
-func (r *SuiRelayer) Replay(ctx context.Context, chainID string, data map[string]any) error {
-	return errors.New("replay not supported for Sui")
+// Replay re-scans a window of checkpoints starting at the given sequence (ChainPoller's
+// ReplayCheckpointCount, capped at the chain tip; 0 re-scans to the tip) so their events and
+// transactions are re-indexed. fromBlock is a Sui checkpoint sequence number in decimal; args
+// is unused. Re-inserts are idempotent, so replaying already-indexed checkpoints is safe.
+func (r *SuiRelayer) Replay(ctx context.Context, fromBlock string, args map[string]any) error {
+	fromSeq, err := strconv.ParseUint(fromBlock, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid fromBlock %q: expected a Sui checkpoint sequence number: %w", fromBlock, err)
+	}
+
+	return r.indexer.RescanFromCheckpoint(ctx, fromSeq)
 }
 
 // NewCCIPCommitProvider returns a new CCIP commit provider for the given relay and plugin arguments.
