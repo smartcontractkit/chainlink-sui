@@ -175,7 +175,7 @@ func PrepareSuiCoinPool(
 	)
 
 	// Merge all coins into one, then split from the consolidated coin.
-	mergedCoinID, err := mergeSuiCoins(ctx, ptbClient, signer, signerAddress, allCoins)
+	mergedCoinID, err := MergeSuiCoins(ctx, ptbClient, signer, signerAddress, allCoins)
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge SUI coins: %w", err)
 	}
@@ -203,36 +203,123 @@ func PrepareSuiCoinPool(
 	return newSuiCoinPool(usableCoinIDs[:requiredCoins]), nil
 }
 
-// mergeSuiCoins merges all given SUI coins into a single coin.
+// MergeAllSuiCoins fetches all SUI coins for the signer and merges them into one.
+// Returns the object ID of the merged coin.
+func MergeAllSuiCoins(
+	ctx context.Context,
+	ptbClient *client.PTBClient,
+	signer bindutils.SuiSigner,
+	signerAddress string,
+) (string, error) {
+	coins, err := ptbClient.QueryCoinsByAddress(ctx, signerAddress, suiCoinObjectType)
+	if err != nil {
+		return "", fmt.Errorf("failed to query SUI coins: %w", err)
+	}
+	if len(coins) == 0 {
+		return "", fmt.Errorf("no SUI coins found for address %s", signerAddress)
+	}
+	return MergeSuiCoins(ctx, ptbClient, signer, signerAddress, coins)
+}
+
+// MergeSuiCoins merges all given SUI coins into a single coin.
+// Uses MergeCoins with GasCoin destination to avoid duplicate mutable object references.
 // Returns the object ID of the merged coin (the largest coin).
-func mergeSuiCoins(
+func MergeSuiCoins(
 	ctx context.Context,
 	ptbClient *client.PTBClient,
 	signer bindutils.SuiSigner,
 	signerAddress string,
 	coins []*suirpcv2.Object,
 ) (string, error) {
-	if len(coins) <= 1 {
+	if len(coins) == 0 {
+		return "", fmt.Errorf("no coins provided")
+	}
+	if len(coins) == 1 {
 		return coins[0].GetObjectId(), nil
 	}
 
 	// Use the largest coin as the destination, merge all others into it.
-	dstID := ""
+	dstCoin := coins[0]
 	var dstBalance uint64
 	for _, c := range coins {
 		if c.GetBalance() >= dstBalance {
 			dstBalance = c.GetBalance()
-			dstID = c.GetObjectId()
+			dstCoin = c
+		}
+	}
+	dstID := dstCoin.GetObjectId()
+
+	coinRefs := make(map[string]transaction.SuiObjectRef, len(coins))
+	for _, c := range coins {
+		if c.GetObjectId() == dstID {
+			continue
+		}
+		objIDBytes, convErr := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(c.GetObjectId()))
+		if convErr != nil {
+			return "", fmt.Errorf("failed to convert source coin id to bytes (%s): %w", c.GetObjectId(), convErr)
+		}
+		digestBytes, convErr := transaction.ConvertObjectDigestStringToBytes(models.ObjectDigest(c.GetDigest()))
+		if convErr != nil {
+			return "", fmt.Errorf("failed to convert source coin digest to bytes (%s): %w", c.GetObjectId(), convErr)
+		}
+		coinRefs[c.GetObjectId()] = transaction.SuiObjectRef{
+			ObjectId: *objIDBytes,
+			Version:  c.GetVersion(),
+			Digest:   *digestBytes,
 		}
 	}
 
 	mergeGasBudget := uint64(100_000_000)
-	batchSize := 20
+	callOpts := &bind.CallOpts{
+		Signer:           signer,
+		GasObject:        dstID,
+		GasBudget:        &mergeGasBudget,
+		WaitForExecution: true,
+	}
+
+	// Try to merge all source coins in a single PTB first to minimize tx count.
+	{
+		ptb := transaction.NewTransaction()
+		dstArg := ptb.Gas()
+		sourceArgs := make([]transaction.Argument, 0, len(coins)-1)
+
+		for _, c := range coins {
+			id := c.GetObjectId()
+			if id == dstID {
+				continue
+			}
+			srcRef, ok := coinRefs[id]
+			if !ok {
+				continue
+			}
+			sourceArgs = append(sourceArgs, ptb.Object(transaction.CallArg{
+				Object: &transaction.ObjectArg{
+					ImmOrOwnedObject: &srcRef,
+				},
+			}))
+		}
+
+		if len(sourceArgs) > 0 {
+			ptb.MergeCoins(dstArg, sourceArgs)
+			if _, err := bind.ExecutePTB(ctx, callOpts, ptbClient, ptb); err == nil {
+				slog.Info("Merged all SUI coins in a single transaction", "dstCoin", dstID, "totalCoins", len(coins))
+				return dstID, nil
+			} else {
+				slog.Warn("Single-transaction SUI merge failed; falling back to batched merge",
+					"dstCoin", dstID,
+					"totalCoins", len(coins),
+					"error", err,
+				)
+			}
+		}
+	}
+
+	batchSize := 100
 
 	for i := 0; i < len(coins); i += batchSize {
 		ptb := transaction.NewTransaction()
-		dstArg := ptb.Object(dstID)
-		var srcArgs []transaction.Argument
+		dstArg := ptb.Gas()
+		sourceArgs := make([]transaction.Argument, 0, batchSize)
 
 		for j := i; j < len(coins) && j < i+batchSize; j++ {
 			c := coins[j]
@@ -240,23 +327,26 @@ func mergeSuiCoins(
 			if id == dstID {
 				continue
 			}
-			srcArgs = append(srcArgs, ptb.Object(id))
+			srcRef, ok := coinRefs[id]
+			if !ok {
+				continue
+			}
+			sourceArgs = append(sourceArgs, ptb.Object(transaction.CallArg{
+				Object: &transaction.ObjectArg{
+					ImmOrOwnedObject: &srcRef,
+				},
+			}))
+			delete(coinRefs, id)
 		}
 
-		if len(srcArgs) == 0 {
+		if len(sourceArgs) == 0 {
 			continue
 		}
 
-		ptb.MergeCoins(dstArg, srcArgs)
+		ptb.MergeCoins(dstArg, sourceArgs)
 
-		callOpts := &bind.CallOpts{
-			Signer:           signer,
-			GasObject:        dstID,
-			GasBudget:        &mergeGasBudget,
-			WaitForExecution: true,
-		}
-
-		if _, err := bind.ExecutePTB(ctx, callOpts, ptbClient, ptb); err != nil {
+		_, err := bind.ExecutePTB(ctx, callOpts, ptbClient, ptb)
+		if err != nil {
 			return "", fmt.Errorf("failed to merge coin batch: %w", err)
 		}
 	}
