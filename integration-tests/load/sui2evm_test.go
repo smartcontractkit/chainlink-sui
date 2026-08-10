@@ -250,6 +250,11 @@ func TestSui2EVM(t *testing.T) {
 			msg.TokenIdentifier = cfg.TokenConfig.TokenIdentifier
 		}
 
+		var tokenIdentifier string
+		if isTokenMode {
+			tokenIdentifier = cfg.TokenConfig.TokenIdentifier
+		}
+
 		messageID, txDigest, seqNum, sendErr := sui.SendTokenMessage(
 			ctx,
 			ptbClient,
@@ -263,7 +268,7 @@ func TestSui2EVM(t *testing.T) {
 			suiCoinMetadataID,
 			feeCoinID,
 			tokenCoinID,
-			cfg.TokenConfig.TokenIdentifier,
+			tokenIdentifier,
 			tokenCoinType,
 			tokenPoolPkgID,
 			tokenPoolStateID,
