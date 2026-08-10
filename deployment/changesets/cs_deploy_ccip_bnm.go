@@ -3,6 +3,7 @@ package changesets
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -28,6 +29,7 @@ type DeployCCIPBnMToken struct{}
 // Apply implements deployment.ChangeSetV2.
 func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	suiChains := e.BlockChains.SuiChains()
@@ -56,7 +58,7 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 	// save CCIPBnMToken package ID to the addressbook
 	typeAndVersionCCIPBnMToken := cldf.NewTypeAndVersion(deployment.SuiManagedTokenType, deployment.Version1_0_0)
 	typeAndVersionCCIPBnMToken.AddLabel(CCIPBnMSymbol)
-	err = ab.Save(config.ChainSelector, ccipBnMTokenReport.Output.PackageId, typeAndVersionCCIPBnMToken)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipBnMTokenReport.Output.PackageId, typeAndVersionCCIPBnMToken)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPBnMToken package ID %s for Sui chain %d: %w", ccipBnMTokenReport.Output.PackageId, config.ChainSelector, err)
 	}
@@ -64,7 +66,7 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 	// save CCIPBnMTokenCoinMetadataId address to the addressbook
 	typeAndVersionCoinMetadataId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenCoinMetadataIDType, deployment.Version1_0_0)
 	typeAndVersionCoinMetadataId.AddLabel(CCIPBnMSymbol)
-	err = ab.Save(config.ChainSelector, ccipBnMTokenReport.Output.Objects.CoinMetadataObjectId, typeAndVersionCoinMetadataId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipBnMTokenReport.Output.Objects.CoinMetadataObjectId, typeAndVersionCoinMetadataId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPBnMToken CoinmetadataObjectId address %s for Sui chain %d: %w", ccipBnMTokenReport.Output.Objects.CoinMetadataObjectId, config.ChainSelector, err)
 	}
@@ -72,7 +74,7 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 	// save CCIPBnMTokenTreasuryCapId address to the addressbook
 	typeAndVersionTreasuryCapId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenTreasuryCapIDType, deployment.Version1_0_0)
 	typeAndVersionTreasuryCapId.AddLabel(CCIPBnMSymbol)
-	err = ab.Save(config.ChainSelector, ccipBnMTokenReport.Output.Objects.TreasuryCapObjectId, typeAndVersionTreasuryCapId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipBnMTokenReport.Output.Objects.TreasuryCapObjectId, typeAndVersionTreasuryCapId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPBnMToken TreasuryCapObjectId address %s for Sui chain %d: %w", ccipBnMTokenReport.Output.Objects.TreasuryCapObjectId, config.ChainSelector, err)
 	}
@@ -80,7 +82,7 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 	// save CCIPBnMTokenUpgradeCapId address to the addressbook
 	typeAndVersionUpgradeCapId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenUpgradeCapIDType, deployment.Version1_0_0)
 	typeAndVersionUpgradeCapId.AddLabel(CCIPBnMSymbol)
-	err = ab.Save(config.ChainSelector, ccipBnMTokenReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipBnMTokenReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPBnMToken UpgradeCapObjectId address %s for Sui chain %d: %w", ccipBnMTokenReport.Output.Objects.UpgradeCapObjectId, config.ChainSelector, err)
 	}
@@ -100,6 +102,7 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
+		DataStore:   ds,
 		Reports:     seqReports,
 	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -33,6 +34,7 @@ var _ cldf.ChangeSetV2[NewFeeTokenConfig] = NewFeeToken{}
 // Apply implements deployment.ChangeSetV2.
 func (d NewFeeToken) Apply(e cldf.Environment, config NewFeeTokenConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	state, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
@@ -86,6 +88,7 @@ func (d NewFeeToken) Apply(e cldf.Environment, config NewFeeTokenConfig) (cldf.C
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
+		DataStore:   ds,
 		Reports:     seqReports,
 	}, nil
 }

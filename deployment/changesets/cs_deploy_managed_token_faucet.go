@@ -3,6 +3,7 @@ package changesets
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -33,6 +34,7 @@ func (d DeployManagedTokenFaucet) Apply(e cldf.Environment, config DeployManaged
 	}
 
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	state, err := deployment.LoadOnchainStatesui(e)
@@ -106,7 +108,7 @@ func (d DeployManagedTokenFaucet) Apply(e cldf.Environment, config DeployManaged
 		// Save the minter cap for the deployer
 		typeAndVersionMinterCapID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenMinterCapID, deployment.Version1_0_0)
 		typeAndVersionMinterCapID.AddLabel(config.TokenSymbol)
-		if err := ab.Save(config.ChainSelector, minterReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID); err != nil {
+		if err := deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, minterReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID); err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to save managed token minter cap id %s: %w", minterReport.Output.Objects.MinterCapObjectId, err)
 		}
 		mintCapObjectId = minterReport.Output.Objects.MinterCapObjectId
@@ -123,24 +125,25 @@ func (d DeployManagedTokenFaucet) Apply(e cldf.Environment, config DeployManaged
 
 	typeAndVersionPackageID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenFaucetPackageIDType, deployment.Version1_0_0)
 	typeAndVersionPackageID.AddLabel(config.TokenSymbol)
-	if err := ab.Save(config.ChainSelector, deployReport.Output.PackageId, typeAndVersionPackageID); err != nil {
+	if err := deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, deployReport.Output.PackageId, typeAndVersionPackageID); err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save managed token faucet package id %s: %w", deployReport.Output.PackageId, err)
 	}
 
 	typeAndVersionUpgradeCapID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenFaucetUpgradeCapObjectIDType, deployment.Version1_0_0)
 	typeAndVersionUpgradeCapID.AddLabel(config.TokenSymbol)
-	if err := ab.Save(config.ChainSelector, deployReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapID); err != nil {
+	if err := deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, deployReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapID); err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save managed token faucet upgrade cap id %s: %w", deployReport.Output.Objects.UpgradeCapObjectId, err)
 	}
 
 	typeAndVersionStateID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenFaucetStateObjectIDType, deployment.Version1_0_0)
 	typeAndVersionStateID.AddLabel(config.TokenSymbol)
-	if err := ab.Save(config.ChainSelector, initReport.Output.Objects.FaucetStateObjectId, typeAndVersionStateID); err != nil {
+	if err := deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, initReport.Output.Objects.FaucetStateObjectId, typeAndVersionStateID); err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save managed token faucet state object id %s: %w", initReport.Output.Objects.FaucetStateObjectId, err)
 	}
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
+		DataStore:   ds,
 		Reports:     seqReports,
 	}, nil
 }
