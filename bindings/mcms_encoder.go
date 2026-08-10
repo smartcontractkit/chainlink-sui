@@ -544,6 +544,8 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 		ccipRef := codec.Object{Id: toHexString(deserializeFirst32Bytes(data))}
 		switch function {
+		case "initialize":
+			return upgradeRegistry.Encoder().McmsInitializeWithArgs(ccipRef, registryObj, executingCallbackParams)
 		case "block_version":
 			return upgradeRegistry.Encoder().McmsBlockVersionWithArgs(ccipRef, registryObj, executingCallbackParams)
 		case "unblock_version":
