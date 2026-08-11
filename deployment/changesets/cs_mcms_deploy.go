@@ -5,6 +5,7 @@ import (
 
 	"github.com/smartcontractkit/mcms"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -13,13 +14,23 @@ import (
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
 
-var _ cldf.ChangeSetV2[mcmsops.DeployMCMSSeqInput] = DeployMCMS{}
+var _ cldf.ChangeSetV2[DeployMCMSConfig] = DeployMCMS{}
+
+// DeployMCMSConfig wraps DeployMCMSSeqInput and adds the IsFastCurse flag.
+// When IsFastCurse is true the fast_mcms package is published and all address-book
+// entries are stored with the "fastcurse" label so LoadOnchainStatesui can distinguish
+// the two MCMS instances deployed on the same chain.
+type DeployMCMSConfig struct {
+	mcmsops.DeployMCMSSeqInput
+	IsFastCurse bool `yaml:"isFastCurse,omitempty"`
+}
 
 type DeployMCMS struct{}
 
 // Apply implements deployment.ChangeSetV2.
-func (d DeployMCMS) Apply(e cldf.Environment, config mcmsops.DeployMCMSSeqInput) (cldf.ChangesetOutput, error) {
+func (d DeployMCMS) Apply(e cldf.Environment, config DeployMCMSConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	suiChains := e.BlockChains.SuiChains()
@@ -39,78 +50,45 @@ func (d DeployMCMS) Apply(e cldf.Environment, config mcmsops.DeployMCMSSeqInput)
 		SuiRPC: suiChain.URL,
 	}
 
-	// Run DeployMCMS Sequence
-	mcmsReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.DeployMCMSSequence, deps, config)
+	seqInput := config.DeployMCMSSeqInput
+	seqInput.FastMCMS = config.IsFastCurse
+
+	mcmsReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.DeployMCMSSequence, deps, seqInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for Sui chain %d: %w", config.ChainSelector, err)
 	}
 
-	err = storeMCMSInAddressBook(ab, config.ChainSelector, mcmsReport.Output)
+	err = deployment.StoreMCMSInAddressBook(ab, ds.Addresses(), config.ChainSelector, mcmsReport.Output, deployment.MCMSInstanceFromFastCurseFlag(config.IsFastCurse))
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to store MCMS in address book for Sui chain %d: %w", config.ChainSelector, err)
 	}
 
+	proposals := []mcms.TimelockProposal{}
+	if !seqInput.SkipOwnershipTransfer {
+		proposals = append(proposals, mcmsReport.Output.AcceptOwnershipProposal)
+	}
+
 	return cldf.ChangesetOutput{
 		AddressBook:           ab,
+		DataStore:             ds,
 		Reports:               seqReports,
-		MCMSTimelockProposals: []mcms.TimelockProposal{mcmsReport.Output.AcceptOwnershipProposal},
+		MCMSTimelockProposals: proposals,
 	}, nil
 }
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
-func (d DeployMCMS) VerifyPreconditions(e cldf.Environment, config mcmsops.DeployMCMSSeqInput) error {
-	return nil
-}
-
-func storeMCMSInAddressBook(ab *cldf.AddressBookMap, chainSelector uint64, mcmsReport mcmsops.DeployMCMSSeqOutput) error {
-	// save MCMS address to the addressbook
-	typeAndVersionMCMS := cldf.NewTypeAndVersion(deployment.SuiMcmsPackageIDType, deployment.Version1_0_0)
-	err := ab.Save(chainSelector, mcmsReport.PackageId, typeAndVersionMCMS)
+func (d DeployMCMS) VerifyPreconditions(e cldf.Environment, config DeployMCMSConfig) error {
+	state, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
-		return fmt.Errorf("failed to save MCMS address %s for Sui chain %d: %w", mcmsReport.PackageId, chainSelector, err)
+		return fmt.Errorf("load onchain state: %w", err)
 	}
-
-	// save MCMS MultisigState object ID to the addressbook
-	typeAndVersionMCMSObject := cldf.NewTypeAndVersion(deployment.SuiMcmsObjectIDType, deployment.Version1_0_0)
-	err = ab.Save(chainSelector, mcmsReport.Objects.McmsMultisigStateObjectId, typeAndVersionMCMSObject)
-	if err != nil {
-		return fmt.Errorf("failed to save MCMS MultisigState object ID %s for Sui chain %d: %w", mcmsReport.Objects.McmsMultisigStateObjectId, chainSelector, err)
+	chainState, ok := state[config.ChainSelector]
+	if !ok {
+		return nil
 	}
-
-	// save MCMS Registry object ID to the addressbook
-	typeAndVersionMCMSRegistry := cldf.NewTypeAndVersion(deployment.SuiMcmsRegistryObjectIDType, deployment.Version1_0_0)
-	err = ab.Save(chainSelector, mcmsReport.Objects.McmsRegistryObjectId, typeAndVersionMCMSRegistry)
-	if err != nil {
-		return fmt.Errorf("failed to save MCMS Registry object ID %s for Sui chain %d: %w", mcmsReport.Objects.McmsRegistryObjectId, chainSelector, err)
+	instance := deployment.MCMSInstanceFromFastCurseFlag(config.IsFastCurse)
+	if chainState.HasMCMSInstance(instance) {
+		return fmt.Errorf("%s MCMS is already recorded for chain %d", instance, config.ChainSelector)
 	}
-
-	// save MCMS AccountState object ID to the addressbook
-	typeAndVersionMCMSAccountState := cldf.NewTypeAndVersion(deployment.SuiMcmsAccountStateObjectIDType, deployment.Version1_0_0)
-	err = ab.Save(chainSelector, mcmsReport.Objects.McmsAccountStateObjectId, typeAndVersionMCMSAccountState)
-	if err != nil {
-		return fmt.Errorf("failed to save MCMS AccountState object ID %s for Sui chain %d: %w", mcmsReport.Objects.McmsAccountStateObjectId, chainSelector, err)
-	}
-
-	// save MCMS AccountOwnerCap object ID to the addressbook
-	typeAndVersionMCMSAccountOwnerCap := cldf.NewTypeAndVersion(deployment.SuiMcmsAccountOwnerCapObjectIDType, deployment.Version1_0_0)
-	err = ab.Save(chainSelector, mcmsReport.Objects.McmsAccountOwnerCapObjectId, typeAndVersionMCMSAccountOwnerCap)
-	if err != nil {
-		return fmt.Errorf("failed to save MCMS AccountOwnerCap object ID %s for Sui chain %d: %w", mcmsReport.Objects.McmsAccountOwnerCapObjectId, chainSelector, err)
-	}
-
-	// save MCMS Timelock object ID to the addressbook
-	typeAndVersionMCMSTimelock := cldf.NewTypeAndVersion(deployment.SuiMcmsTimelockObjectIDType, deployment.Version1_0_0)
-	err = ab.Save(chainSelector, mcmsReport.Objects.TimelockObjectId, typeAndVersionMCMSTimelock)
-	if err != nil {
-		return fmt.Errorf("failed to save MCMS Timelock object ID %s for Sui chain %d: %w", mcmsReport.Objects.TimelockObjectId, chainSelector, err)
-	}
-
-	// save MCMS Deployer State object ID to the addressbook
-	typeAndVersionMCMSDeployer := cldf.NewTypeAndVersion(deployment.SuiMcmsDeployerObjectIDType, deployment.Version1_0_0)
-	err = ab.Save(chainSelector, mcmsReport.Objects.McmsDeployerStateObjectId, typeAndVersionMCMSDeployer)
-	if err != nil {
-		return fmt.Errorf("failed to save MCMS Deployer object ID %s for Sui chain %d: %w", mcmsReport.Objects.McmsDeployerStateObjectId, chainSelector, err)
-	}
-
 	return nil
 }

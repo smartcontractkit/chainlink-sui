@@ -9,17 +9,16 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"test","module":"counter","name":"create","parameters":null},{"package":"test","module":"counter","name":"decrement","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"emit_counter_bytes","parameters":null},{"package":"test","module":"counter","name":"get_address_list","parameters":null},{"package":"test","module":"counter","name":"get_coin_value","parameters":[{"name":"coin","type":"Coin<T>"}]},{"package":"test","module":"counter","name":"get_count","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_count_no_entry","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_count_using_pointer","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_multi_nested_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_nested_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_ocr_config","parameters":null},{"package":"test","module":"counter","name":"get_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_simple_result","parameters":null},{"package":"test","module":"counter","name":"get_tuple_struct","parameters":null},{"package":"test","module":"counter","name":"get_value_with_pointer_dependency","parameters":[{"name":"counter","type":"Counter"},{"name":"pointer","type":"CCIPObjectRef"}]},{"package":"test","module":"counter","name":"get_vector_of_addresses","parameters":null},{"package":"test","module":"counter","name":"get_vector_of_u8","parameters":null},{"package":"test","module":"counter","name":"get_vector_of_vectors_of_u8","parameters":null},{"package":"test","module":"counter","name":"increment","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by","parameters":[{"name":"counter","type":"Counter"},{"name":"by","type":"u64"}]},{"package":"test","module":"counter","name":"increment_by_bytes_length","parameters":[{"name":"counter","type":"Counter"},{"name":"bytes","type":"vector<u8>"}]},{"package":"test","module":"counter","name":"increment_by_one","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_one_no_context","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_two","parameters":[{"name":"_admin","type":"AdminCap"},{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_two_no_context","parameters":[{"name":"_admin","type":"AdminCap"},{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_mult","parameters":[{"name":"counter","type":"Counter"},{"name":"a","type":"u64"},{"name":"b","type":"u64"}]},{"package":"test","module":"counter","name":"initialize","parameters":null},{"package":"test","module":"counter","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"test","module":"counter","name":"create","parameters":null},{"package":"test","module":"counter","name":"create_many_objects","parameters":[{"name":"count","type":"u64"}]},{"package":"test","module":"counter","name":"decrement","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"emit_counter_bytes","parameters":null},{"package":"test","module":"counter","name":"get_address_list","parameters":null},{"package":"test","module":"counter","name":"get_coin_value","parameters":[{"name":"coin","type":"Coin<T>"}]},{"package":"test","module":"counter","name":"get_count","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_count_no_entry","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_count_using_pointer","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"get_multi_nested_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_nested_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_ocr_config","parameters":null},{"package":"test","module":"counter","name":"get_result_struct","parameters":null},{"package":"test","module":"counter","name":"get_simple_result","parameters":null},{"package":"test","module":"counter","name":"get_tuple_struct","parameters":null},{"package":"test","module":"counter","name":"get_value_with_pointer_dependency","parameters":[{"name":"counter","type":"Counter"},{"name":"pointer","type":"CCIPObjectRef"}]},{"package":"test","module":"counter","name":"get_vector_of_addresses","parameters":null},{"package":"test","module":"counter","name":"get_vector_of_u8","parameters":null},{"package":"test","module":"counter","name":"get_vector_of_vectors_of_u8","parameters":null},{"package":"test","module":"counter","name":"increment","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by","parameters":[{"name":"counter","type":"Counter"},{"name":"by","type":"u64"}]},{"package":"test","module":"counter","name":"increment_by_bytes_length","parameters":[{"name":"counter","type":"Counter"},{"name":"bytes","type":"vector<u8>"}]},{"package":"test","module":"counter","name":"increment_by_one","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_one_no_context","parameters":[{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_two","parameters":[{"name":"_admin","type":"AdminCap"},{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_by_two_no_context","parameters":[{"name":"_admin","type":"AdminCap"},{"name":"counter","type":"Counter"}]},{"package":"test","module":"counter","name":"increment_mult","parameters":[{"name":"counter","type":"Counter"},{"name":"a","type":"u64"},{"name":"b","type":"u64"}]},{"package":"test","module":"counter","name":"initialize","parameters":null},{"package":"test","module":"counter","name":"type_and_version","parameters":null}]`
 
 type ICounter interface {
 	Initialize(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -50,6 +49,7 @@ type ICounter interface {
 	GetVectorOfU8(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	GetVectorOfAddresses(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	GetVectorOfVectorsOfU8(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	CreateManyObjects(ctx context.Context, opts *bind.CallOpts, count uint64) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() ICounterDevInspect
 	Encoder() CounterEncoder
 	Bound() bind.IBoundContract
@@ -134,6 +134,8 @@ type CounterEncoder interface {
 	GetVectorOfAddressesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetVectorOfVectorsOfU8() (*bind.EncodedCall, error)
 	GetVectorOfVectorsOfU8WithArgs(args ...any) (*bind.EncodedCall, error)
+	CreateManyObjects(count uint64) (*bind.EncodedCall, error)
+	CreateManyObjectsWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type CounterContract struct {
@@ -149,8 +151,8 @@ type CounterDevInspect struct {
 var _ ICounter = (*CounterContract)(nil)
 var _ ICounterDevInspect = (*CounterDevInspect)(nil)
 
-func NewCounter(packageID string, client sui.ISuiAPI) (ICounter, error) {
-	contract, err := bind.NewBoundContract(packageID, "test", "counter", client)
+func NewCounter(packageID string, chainClient client.BindingsClient) (ICounter, error) {
+	contract, err := bind.NewBoundContract(packageID, "test", "counter", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -217,6 +219,10 @@ type CounterObject struct {
 	Id string `move:"sui::object::UID"`
 }
 
+type SomeObject struct {
+	Id string `move:"sui::object::UID"`
+}
+
 type CounterPointer struct {
 	Id              string `move:"sui::object::UID"`
 	CounterObjectId string `move:"address"`
@@ -263,525 +269,6 @@ type OCRConfig struct {
 	ConfigInfo   ConfigInfo `move:"ConfigInfo"`
 	Signers      [][]byte   `move:"vector<vector<u8>>"`
 	Transmitters []string   `move:"vector<address>"`
-}
-
-type bcsDoubleCheckCCIPPointer struct {
-	Addresses [][32]byte
-}
-
-func convertDoubleCheckCCIPPointerFromBCS(bcs bcsDoubleCheckCCIPPointer) (DoubleCheckCCIPPointer, error) {
-
-	return DoubleCheckCCIPPointer{
-		Addresses: func() []string {
-			addrs := make([]string, len(bcs.Addresses))
-			for i, addr := range bcs.Addresses {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-	}, nil
-}
-
-type bcsCounterPointer struct {
-	Id              string
-	CounterObjectId [32]byte
-}
-
-func convertCounterPointerFromBCS(bcs bcsCounterPointer) (CounterPointer, error) {
-
-	return CounterPointer{
-		Id:              bcs.Id,
-		CounterObjectId: fmt.Sprintf("0x%x", bcs.CounterObjectId),
-	}, nil
-}
-
-type bcsAddressList struct {
-	Addresses [][32]byte
-	Count     uint64
-}
-
-func convertAddressListFromBCS(bcs bcsAddressList) (AddressList, error) {
-
-	return AddressList{
-		Addresses: func() []string {
-			addrs := make([]string, len(bcs.Addresses))
-			for i, addr := range bcs.Addresses {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		Count: bcs.Count,
-	}, nil
-}
-
-type bcsComplexResult struct {
-	Count     uint64
-	Addr      [32]byte
-	IsComplex bool
-	Bytes     []byte
-}
-
-func convertComplexResultFromBCS(bcs bcsComplexResult) (ComplexResult, error) {
-
-	return ComplexResult{
-		Count:     bcs.Count,
-		Addr:      fmt.Sprintf("0x%x", bcs.Addr),
-		IsComplex: bcs.IsComplex,
-		Bytes:     bcs.Bytes,
-	}, nil
-}
-
-type bcsNestedStruct struct {
-	IsNested           bool
-	DoubleCount        uint64
-	NestedStruct       bcsComplexResult
-	NestedSimpleStruct SimpleResult
-}
-
-func convertNestedStructFromBCS(bcs bcsNestedStruct) (NestedStruct, error) {
-	NestedStructField, err := convertComplexResultFromBCS(bcs.NestedStruct)
-	if err != nil {
-		return NestedStruct{}, fmt.Errorf("failed to convert nested struct NestedStruct: %w", err)
-	}
-
-	return NestedStruct{
-		IsNested:           bcs.IsNested,
-		DoubleCount:        bcs.DoubleCount,
-		NestedStruct:       NestedStructField,
-		NestedSimpleStruct: bcs.NestedSimpleStruct,
-	}, nil
-}
-
-type bcsMultiNestedStruct struct {
-	IsMultiNested      bool
-	DoubleCount        uint64
-	NestedStruct       bcsNestedStruct
-	NestedSimpleStruct SimpleResult
-}
-
-func convertMultiNestedStructFromBCS(bcs bcsMultiNestedStruct) (MultiNestedStruct, error) {
-	NestedStructField, err := convertNestedStructFromBCS(bcs.NestedStruct)
-	if err != nil {
-		return MultiNestedStruct{}, fmt.Errorf("failed to convert nested struct NestedStruct: %w", err)
-	}
-
-	return MultiNestedStruct{
-		IsMultiNested:      bcs.IsMultiNested,
-		DoubleCount:        bcs.DoubleCount,
-		NestedStruct:       NestedStructField,
-		NestedSimpleStruct: bcs.NestedSimpleStruct,
-	}, nil
-}
-
-type bcsOCRConfig struct {
-	ConfigInfo   ConfigInfo
-	Signers      [][]byte
-	Transmitters [][32]byte
-}
-
-func convertOCRConfigFromBCS(bcs bcsOCRConfig) (OCRConfig, error) {
-
-	return OCRConfig{
-		ConfigInfo: bcs.ConfigInfo,
-		Signers:    bcs.Signers,
-		Transmitters: func() []string {
-			addrs := make([]string, len(bcs.Transmitters))
-			for i, addr := range bcs.Transmitters {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("test::counter::COUNTER", func(data []byte) (interface{}, error) {
-		var result COUNTER
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for COUNTER
-	bind.RegisterStructDecoder("vector<test::counter::COUNTER>", func(data []byte) (interface{}, error) {
-		var results []COUNTER
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::CounterIncremented", func(data []byte) (interface{}, error) {
-		var result CounterIncremented
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CounterIncremented
-	bind.RegisterStructDecoder("vector<test::counter::CounterIncremented>", func(data []byte) (interface{}, error) {
-		var results []CounterIncremented
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::CounterDecremented", func(data []byte) (interface{}, error) {
-		var result CounterDecremented
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CounterDecremented
-	bind.RegisterStructDecoder("vector<test::counter::CounterDecremented>", func(data []byte) (interface{}, error) {
-		var results []CounterDecremented
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::CounterBytes", func(data []byte) (interface{}, error) {
-		var result CounterBytes
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CounterBytes
-	bind.RegisterStructDecoder("vector<test::counter::CounterBytes>", func(data []byte) (interface{}, error) {
-		var results []CounterBytes
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::NestedCounterBytes", func(data []byte) (interface{}, error) {
-		var result NestedCounterBytes
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for NestedCounterBytes
-	bind.RegisterStructDecoder("vector<test::counter::NestedCounterBytes>", func(data []byte) (interface{}, error) {
-		var results []NestedCounterBytes
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::DoubleCheckCCIPPointer", func(data []byte) (interface{}, error) {
-		var temp bcsDoubleCheckCCIPPointer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertDoubleCheckCCIPPointerFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DoubleCheckCCIPPointer
-	bind.RegisterStructDecoder("vector<test::counter::DoubleCheckCCIPPointer>", func(data []byte) (interface{}, error) {
-		var temps []bcsDoubleCheckCCIPPointer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]DoubleCheckCCIPPointer, len(temps))
-		for i, temp := range temps {
-			result, err := convertDoubleCheckCCIPPointerFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::AdminCap", func(data []byte) (interface{}, error) {
-		var result AdminCap
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for AdminCap
-	bind.RegisterStructDecoder("vector<test::counter::AdminCap>", func(data []byte) (interface{}, error) {
-		var results []AdminCap
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::Counter", func(data []byte) (interface{}, error) {
-		var result Counter
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Counter
-	bind.RegisterStructDecoder("vector<test::counter::Counter>", func(data []byte) (interface{}, error) {
-		var results []Counter
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::CounterObject", func(data []byte) (interface{}, error) {
-		var result CounterObject
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CounterObject
-	bind.RegisterStructDecoder("vector<test::counter::CounterObject>", func(data []byte) (interface{}, error) {
-		var results []CounterObject
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::CounterPointer", func(data []byte) (interface{}, error) {
-		var temp bcsCounterPointer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertCounterPointerFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CounterPointer
-	bind.RegisterStructDecoder("vector<test::counter::CounterPointer>", func(data []byte) (interface{}, error) {
-		var temps []bcsCounterPointer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]CounterPointer, len(temps))
-		for i, temp := range temps {
-			result, err := convertCounterPointerFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::AddressList", func(data []byte) (interface{}, error) {
-		var temp bcsAddressList
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertAddressListFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for AddressList
-	bind.RegisterStructDecoder("vector<test::counter::AddressList>", func(data []byte) (interface{}, error) {
-		var temps []bcsAddressList
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]AddressList, len(temps))
-		for i, temp := range temps {
-			result, err := convertAddressListFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::SimpleResult", func(data []byte) (interface{}, error) {
-		var result SimpleResult
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for SimpleResult
-	bind.RegisterStructDecoder("vector<test::counter::SimpleResult>", func(data []byte) (interface{}, error) {
-		var results []SimpleResult
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::ComplexResult", func(data []byte) (interface{}, error) {
-		var temp bcsComplexResult
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertComplexResultFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ComplexResult
-	bind.RegisterStructDecoder("vector<test::counter::ComplexResult>", func(data []byte) (interface{}, error) {
-		var temps []bcsComplexResult
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]ComplexResult, len(temps))
-		for i, temp := range temps {
-			result, err := convertComplexResultFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::NestedStruct", func(data []byte) (interface{}, error) {
-		var temp bcsNestedStruct
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertNestedStructFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for NestedStruct
-	bind.RegisterStructDecoder("vector<test::counter::NestedStruct>", func(data []byte) (interface{}, error) {
-		var temps []bcsNestedStruct
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]NestedStruct, len(temps))
-		for i, temp := range temps {
-			result, err := convertNestedStructFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::MultiNestedStruct", func(data []byte) (interface{}, error) {
-		var temp bcsMultiNestedStruct
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertMultiNestedStructFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MultiNestedStruct
-	bind.RegisterStructDecoder("vector<test::counter::MultiNestedStruct>", func(data []byte) (interface{}, error) {
-		var temps []bcsMultiNestedStruct
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]MultiNestedStruct, len(temps))
-		for i, temp := range temps {
-			result, err := convertMultiNestedStructFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::ConfigInfo", func(data []byte) (interface{}, error) {
-		var result ConfigInfo
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ConfigInfo
-	bind.RegisterStructDecoder("vector<test::counter::ConfigInfo>", func(data []byte) (interface{}, error) {
-		var results []ConfigInfo
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("test::counter::OCRConfig", func(data []byte) (interface{}, error) {
-		var temp bcsOCRConfig
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOCRConfigFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OCRConfig
-	bind.RegisterStructDecoder("vector<test::counter::OCRConfig>", func(data []byte) (interface{}, error) {
-		var temps []bcsOCRConfig
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OCRConfig, len(temps))
-		for i, temp := range temps {
-			result, err := convertOCRConfigFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
 }
 
 // Initialize executes the initialize Move function.
@@ -1064,6 +551,16 @@ func (c *CounterContract) GetVectorOfVectorsOfU8(ctx context.Context, opts *bind
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// CreateManyObjects executes the create_many_objects Move function.
+func (c *CounterContract) CreateManyObjects(ctx context.Context, opts *bind.CallOpts, count uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.counterEncoder.CreateManyObjects(count)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // TypeAndVersion executes the type_and_version Move function using DevInspect to get return values.
 //
 // Returns: 0x1::string::String
@@ -1079,9 +576,9 @@ func (d *CounterDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallO
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1101,9 +598,9 @@ func (d *CounterDevInspect) GetValueWithPointerDependency(ctx context.Context, o
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1123,9 +620,9 @@ func (d *CounterDevInspect) Create(ctx context.Context, opts *bind.CallOpts) (bi
 	if len(results) == 0 {
 		return bind.Object{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1145,9 +642,9 @@ func (d *CounterDevInspect) IncrementByOne(ctx context.Context, opts *bind.CallO
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1167,9 +664,9 @@ func (d *CounterDevInspect) IncrementByOneNoContext(ctx context.Context, opts *b
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1189,9 +686,9 @@ func (d *CounterDevInspect) GetCount(ctx context.Context, opts *bind.CallOpts, c
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1211,9 +708,9 @@ func (d *CounterDevInspect) GetCountUsingPointer(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1233,9 +730,9 @@ func (d *CounterDevInspect) GetCountNoEntry(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1255,9 +752,9 @@ func (d *CounterDevInspect) GetCoinValue(ctx context.Context, opts *bind.CallOpt
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1277,9 +774,9 @@ func (d *CounterDevInspect) GetAddressList(ctx context.Context, opts *bind.CallO
 	if len(results) == 0 {
 		return AddressList{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(AddressList)
-	if !ok {
-		return AddressList{}, fmt.Errorf("unexpected return type: expected AddressList, got %T", results[0])
+	var result AddressList
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return AddressList{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1299,9 +796,9 @@ func (d *CounterDevInspect) GetSimpleResult(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return SimpleResult{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(SimpleResult)
-	if !ok {
-		return SimpleResult{}, fmt.Errorf("unexpected return type: expected SimpleResult, got %T", results[0])
+	var result SimpleResult
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return SimpleResult{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1321,9 +818,9 @@ func (d *CounterDevInspect) GetResultStruct(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return ComplexResult{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(ComplexResult)
-	if !ok {
-		return ComplexResult{}, fmt.Errorf("unexpected return type: expected ComplexResult, got %T", results[0])
+	var result ComplexResult
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return ComplexResult{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1343,9 +840,9 @@ func (d *CounterDevInspect) GetNestedResultStruct(ctx context.Context, opts *bin
 	if len(results) == 0 {
 		return NestedStruct{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(NestedStruct)
-	if !ok {
-		return NestedStruct{}, fmt.Errorf("unexpected return type: expected NestedStruct, got %T", results[0])
+	var result NestedStruct
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return NestedStruct{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1365,9 +862,9 @@ func (d *CounterDevInspect) GetMultiNestedResultStruct(ctx context.Context, opts
 	if len(results) == 0 {
 		return MultiNestedStruct{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(MultiNestedStruct)
-	if !ok {
-		return MultiNestedStruct{}, fmt.Errorf("unexpected return type: expected MultiNestedStruct, got %T", results[0])
+	var result MultiNestedStruct
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return MultiNestedStruct{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1385,7 +882,35 @@ func (d *CounterDevInspect) GetTupleStruct(ctx context.Context, opts *bind.CallO
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 4 {
+		return nil, fmt.Errorf("expected 4 return values, got %d", len(results))
+	}
+	decoded := make([]any, 4)
+	var ret0 uint64
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 string
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 bool
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	var ret3 MultiNestedStruct
+	if err := bind.DecodeJSONReturn(results[3], &ret3); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 3: %w", err)
+	}
+	decoded[3] = ret3
+	return decoded, nil
 }
 
 // GetOcrConfig executes the get_ocr_config Move function using DevInspect to get return values.
@@ -1403,9 +928,9 @@ func (d *CounterDevInspect) GetOcrConfig(ctx context.Context, opts *bind.CallOpt
 	if len(results) == 0 {
 		return OCRConfig{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(OCRConfig)
-	if !ok {
-		return OCRConfig{}, fmt.Errorf("unexpected return type: expected OCRConfig, got %T", results[0])
+	var result OCRConfig
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return OCRConfig{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1425,9 +950,9 @@ func (d *CounterDevInspect) GetVectorOfU8(ctx context.Context, opts *bind.CallOp
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1447,9 +972,9 @@ func (d *CounterDevInspect) GetVectorOfAddresses(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	var result []string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1469,9 +994,9 @@ func (d *CounterDevInspect) GetVectorOfVectorsOfU8(ctx context.Context, opts *bi
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([][]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected [][]byte, got %T", results[0])
+	var result [][]byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -2229,4 +1754,30 @@ func (c counterEncoder) GetVectorOfVectorsOfU8WithArgs(args ...any) (*bind.Encod
 	return c.EncodeCallArgsWithGenerics("get_vector_of_vectors_of_u8", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"vector<vector<u8>>",
 	})
+}
+
+// CreateManyObjects encodes a call to the create_many_objects Move function.
+func (c counterEncoder) CreateManyObjects(count uint64) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("create_many_objects", typeArgsList, typeParamsList, []string{
+		"u64",
+	}, []any{
+		count,
+	}, nil)
+}
+
+// CreateManyObjectsWithArgs encodes a call to the create_many_objects Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c counterEncoder) CreateManyObjectsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("create_many_objects", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

@@ -178,7 +178,7 @@ func ParseFunctions(module []byte) ([]Func, error) {
 				f.HasTypeParams = true
 				// type_params is something like < T, U >
 				childCount := int(capture.Node.NamedChildCount())
-				for i := 0; i < childCount; i++ {
+				for i := range childCount {
 					child := capture.Node.NamedChild(i)
 					if child.Type() == "type_param" {
 						// first child of type_param is the identifier

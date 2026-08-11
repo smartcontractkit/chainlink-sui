@@ -14,8 +14,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
-	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +26,7 @@ func TestStateObjectOperations(t *testing.T) {
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
@@ -47,18 +45,14 @@ func TestStateObjectOperations(t *testing.T) {
 	_, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy LINK token")
 
-	// Deploy MCMS
-	mcmsReport, err := cld_ops.ExecuteOperation(bundle, mcmsops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
-	require.NoError(t, err, "failed to deploy MCMS Contract")
+	inputCCIP, err := DeployCCIPDependencyPackages(bundle, deps)
+	require.NoError(t, err, "failed to deploy CCIP dependency packages")
 
 	signerAddress, err := signer.GetAddress()
 	require.NoError(t, err, "failed to get signer address")
 
 	// Deploy CCIP
-	ccipReport, err := cld_ops.ExecuteOperation(bundle, DeployCCIPOp, deps, DeployCCIPInput{
-		McmsPackageId: mcmsReport.Output.PackageId,
-		McmsOwner:     signerAddress,
-	})
+	ccipReport, err := cld_ops.ExecuteOperation(bundle, DeployCCIPOp, deps, inputCCIP)
 	require.NoError(t, err, "failed to deploy CCIP Package")
 
 	t.Run("Test Get Owner", func(t *testing.T) {
@@ -88,10 +82,10 @@ func TestStateObjectOperations(t *testing.T) {
 	t.Run("Test Add Package ID", func(t *testing.T) {
 		newPackageId := "0x123456789abcdef" // Example package ID
 		addReport, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, AddPackageIdStateObjectInput{
-			CCIPPackageId:         ccipReport.Output.PackageId,
+			PackageId:             ccipReport.Output.PackageId,
 			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
 			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
-			PackageId:             newPackageId,
+			NewPackageId:          newPackageId,
 		})
 		require.NoError(t, err, "failed to add package ID")
 		require.NotEmpty(t, addReport.Output.Digest, "add package ID transaction should have a digest")
@@ -101,10 +95,10 @@ func TestStateObjectOperations(t *testing.T) {
 		// First add a package ID to remove
 		newPackageId := "0xabcdef1234567890abcdef1234567890abcdef12"
 		_, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, AddPackageIdStateObjectInput{
-			CCIPPackageId:         ccipReport.Output.PackageId,
+			PackageId:             ccipReport.Output.PackageId,
 			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
 			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
-			PackageId:             newPackageId,
+			NewPackageId:          newPackageId,
 		})
 		// Now remove the package ID
 		removeReport, err := cld_ops.ExecuteOperation(bundle, RemovePackageIdStateObjectOp, deps, RemovePackageIdStateObjectInput{

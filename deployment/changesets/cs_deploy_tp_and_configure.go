@@ -3,6 +3,7 @@ package changesets
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -33,6 +34,7 @@ var _ cldf.ChangeSetV2[DeployTPAndConfigureConfig] = DeployTPAndConfigure{}
 // Apply implements deployment.ChangeSetV2.
 func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfigureConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	state, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
@@ -61,12 +63,21 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 		SuiRPC: suiChain.URL,
 	}
 
+	fastMcmsPackageID := state[config.SuiChainSelector].FastCurseMCMSPackageID
+	if fastMcmsPackageID == "" {
+		return cldf.ChangesetOutput{}, fmt.Errorf(
+			"fast MCMS package not deployed for Sui chain %d; run DeploySuiChain first",
+			config.SuiChainSelector,
+		)
+	}
+
 	// Populate state information for each token pool type
 	for _, tokenPoolType := range config.TokenPoolTypes {
 		switch tokenPoolType {
 		case deployment.TokenPoolTypeBurnMint:
 			config.BurnMintTpInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.BurnMintTpInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
+			config.BurnMintTpInput.FastMcmsAddress = fastMcmsPackageID
 			// TODO: MCMSOwner address should come state
 			config.BurnMintTpInput.MCMSOwnerAddress = deployerAddr
 			config.BurnMintTpInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
@@ -74,6 +85,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 		case deployment.TokenPoolTypeLockRelease:
 			config.LockReleaseTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.LockReleaseTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
+			config.LockReleaseTPInput.FastMcmsAddress = fastMcmsPackageID
 			config.LockReleaseTPInput.MCMSOwnerAddress = deployerAddr
 			config.LockReleaseTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.LockReleaseTPInput.TokenPoolAdministrator = deployerAddr
@@ -89,6 +101,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			config.ManagedTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.ManagedTPInput.ManagedTokenPackageId = managedTokenState.PackageID
 			config.ManagedTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
+			config.ManagedTPInput.FastMcmsAddress = fastMcmsPackageID
 			config.ManagedTPInput.MCMSOwnerAddress = deployerAddr
 			config.ManagedTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.ManagedTPInput.TokenPoolAdministrator = deployerAddr
@@ -116,7 +129,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save BnM Pool to the addressbook
 			typeAndVersionBurnMintTokenPool := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolType, deployment.Version1_0_0)
 			typeAndVersionBurnMintTokenPool.AddLabel(tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.TokenSymbol)
-			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.BurnMintTPPackageID, typeAndVersionBurnMintTokenPool)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.BurnMintTPPackageID, typeAndVersionBurnMintTokenPool)
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPool address %s for Sui chain %d: %w", tokenPoolReport.Output.BurnMintTPPackageID, config.SuiChainSelector, err)
 			}
@@ -124,7 +137,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save BnM Pool State to the addressBook
 			typeAndVersionBurnMintTokenPoolState := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolStateType, deployment.Version1_0_0)
 			typeAndVersionBurnMintTokenPoolState.AddLabel(tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.TokenSymbol)
-			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.StateObjectId, typeAndVersionBurnMintTokenPoolState)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.StateObjectId, typeAndVersionBurnMintTokenPoolState)
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolState address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.StateObjectId, config.SuiChainSelector, err)
 			}
@@ -132,7 +145,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save BnM Pool OwnerId to the addressBook
 			typeAndVersionBurnMintTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolOwnerIDType, deployment.Version1_0_0)
 			typeAndVersionBurnMintTokenPoolOwnerId.AddLabel(tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.TokenSymbol)
-			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionBurnMintTokenPoolOwnerId)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionBurnMintTokenPoolOwnerId)
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolOwnerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
@@ -141,7 +154,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save LnR Pool to the addressbook
 			typeAndVersionLnRTokenPool := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolType, deployment.Version1_0_0)
 			typeAndVersionLnRTokenPool.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
-			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.LockReleaseTPPackageID, typeAndVersionLnRTokenPool)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.LockReleaseTPPackageID, typeAndVersionLnRTokenPool)
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPool address %s for Sui chain %d: %w", tokenPoolReport.Output.LockReleaseTPPackageID, config.SuiChainSelector, err)
 			}
@@ -149,7 +162,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save LnR Pool State to the addressBook
 			typeAndVersionLnRTokenPoolState := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolStateType, deployment.Version1_0_0)
 			typeAndVersionLnRTokenPoolState.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
-			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.StateObjectId, typeAndVersionLnRTokenPoolState)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.StateObjectId, typeAndVersionLnRTokenPoolState)
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPoolState address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.StateObjectId, config.SuiChainSelector, err)
 			}
@@ -157,16 +170,23 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save LnR Pool OwnerId to the addressBook
 			typeAndVersionLnRTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolOwnerIDType, deployment.Version1_0_0)
 			typeAndVersionLnRTokenPoolOwnerId.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
-			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionLnRTokenPoolOwnerId)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionLnRTokenPoolOwnerId)
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPoolOwnerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
 
+			// save LnR Pool RebalancerCapId to the addressBook
+			typeAndVersionLnRTokenPoolRebalancerCapId := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolRebalancerCapIDType, deployment.Version1_0_0)
+			typeAndVersionLnRTokenPoolRebalancerCapId.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.RebalancerCapObjectId, typeAndVersionLnRTokenPoolRebalancerCapId)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPoolRebalancerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.RebalancerCapObjectId, config.SuiChainSelector, err)
+			}
 		case deployment.TokenPoolTypeManaged:
 			// save Managed Pool to the addressbook
 			typeAndVersionManagedTokenPool := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPoolType, deployment.Version1_0_0)
 			typeAndVersionManagedTokenPool.AddLabel(tokenPoolReport.Output.DeployManagedTokenPoolOutput.TokenSymbol)
-			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.ManagedTPPackageId, typeAndVersionManagedTokenPool)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.ManagedTPPackageId, typeAndVersionManagedTokenPool)
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedTokenPool address %s for Sui chain %d: %w", tokenPoolReport.Output.ManagedTPPackageId, config.SuiChainSelector, err)
 			}
@@ -174,7 +194,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save Managed Pool State to the addressBook
 			typeAndVersionManagedTokenPoolState := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPoolStateType, deployment.Version1_0_0)
 			typeAndVersionManagedTokenPoolState.AddLabel(tokenPoolReport.Output.DeployManagedTokenPoolOutput.TokenSymbol)
-			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.StateObjectId, typeAndVersionManagedTokenPoolState)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.StateObjectId, typeAndVersionManagedTokenPoolState)
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedTokenPoolState address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.StateObjectId, config.SuiChainSelector, err)
 			}
@@ -182,7 +202,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save Managed Pool OwnerId to the addressBook
 			typeAndVersionManagedTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPoolOwnerIDType, deployment.Version1_0_0)
 			typeAndVersionManagedTokenPoolOwnerId.AddLabel(tokenPoolReport.Output.DeployManagedTokenPoolOutput.TokenSymbol)
-			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionManagedTokenPoolOwnerId)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionManagedTokenPoolOwnerId)
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedTokenPoolOwnerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
@@ -191,11 +211,22 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
+		DataStore:   ds,
 		Reports:     seqReports,
 	}, nil
 }
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
 func (d DeployTPAndConfigure) VerifyPreconditions(e cldf.Environment, config DeployTPAndConfigureConfig) error {
+	state, err := deployment.LoadOnchainStatesui(e)
+	if err != nil {
+		return err
+	}
+	if state[config.SuiChainSelector].FastCurseMCMSPackageID == "" {
+		return fmt.Errorf(
+			"fast MCMS package not deployed for Sui chain %d; run DeploySuiChain first",
+			config.SuiChainSelector,
+		)
+	}
 	return nil
 }

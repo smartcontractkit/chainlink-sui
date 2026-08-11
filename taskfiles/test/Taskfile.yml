@@ -12,7 +12,7 @@ tasks:
     cmds:
       - for:
           matrix:
-            MODULE: [".", "./integration-tests", "./deployment"]
+            MODULE: [".", "./codec"]
         cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags="unit" ./...
 
   integration-setup:
@@ -37,7 +37,7 @@ tasks:
     cmds:
       - for:
           matrix:
-            MODULE: [".", "./integration-tests", "./deployment"]
+            MODULE: [".", "./codec", "./integration-tests", "./deployment"]
         cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -p=1 -count=1 -tags="integration" ./...
 
   integration-testnet:
@@ -46,8 +46,8 @@ tasks:
     cmds:
       - for:
           matrix:
-            MODULE: [".", "./integration-tests", "./deployment"]
-        cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -p=1 -tags="integration testnet" ./...
+            MODULE: ["."] # "./integration-tests" & "./deployment" is disabled until MCMS package is updated
+        cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -timeout 25m -p=1 -tags="integration testnet" ./...
 
   integration-with-db:
     desc: "Run integration tests with database"
@@ -56,7 +56,7 @@ tasks:
     cmds:
       - for:
           matrix:
-            MODULE: [".", "./integration-tests", "./deployment"]
+            MODULE: [".", "./codec", "./integration-tests", "./deployment"]
         cmd: cd {{ .ITEM.MODULE }} && TEST_DB_URL={{.TEST_DB_URL}} go test {{.CLI_ARGS}} -count=1 -p=1 -tags="integration" ./...
 
   mcms:

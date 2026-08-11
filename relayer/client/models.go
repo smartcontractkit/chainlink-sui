@@ -2,6 +2,8 @@ package client
 
 import (
 	"github.com/block-vision/sui-go-sdk/models"
+
+	common "github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 )
 
 type TransactionBlockOptions struct {
@@ -69,17 +71,13 @@ type SuiTransactionBlockResponse struct {
 	ObjectChanges []models.ObjectChange     `json:"objectChanges,omitempty"`
 }
 
-type EventFilterByMoveEventModule struct {
-	Package string `json:"package"`
-	Module  string `json:"module"`
-	Event   string `json:"event"`
-	// this is used to insert the event using the initial package ID event if the
-	// indexer is polling events based on the latest package ID after upgrades
-	InitialPackageId *string `json:"initialPackageId"`
-}
+//go:fix inline
+type EventFilterByMoveEventModule = common.EventFilterByMoveEventModule
 
 // EventSelector is an alias for EventFilterByMoveEventModule
-type EventSelector = EventFilterByMoveEventModule
+//
+//go:fix inline
+type EventSelector = common.EventFilterByMoveEventModule
 
 type EventData struct {
 	Id struct {
@@ -105,10 +103,8 @@ type PaginatedEventsResponse struct {
 	HasNextPage bool        `json:"hasNextPage"`
 }
 
-type EventId struct {
-	TxDigest string `json:"txDigest"`
-	EventSeq string `json:"eventSeq"`
-}
+//go:fix inline
+type EventId = common.EventId //nolint:revive // preserving name for compatibility
 
 type SuiExecutionStatus struct {
 	Status string `json:"status"`
@@ -120,8 +116,20 @@ type QuerySortOptions struct {
 }
 
 type TransactionResult struct {
-	Status string `json:"status"`
-	Error  string `json:"error"`
+	Status     string `json:"status"`
+	Error      string `json:"error"`
+	Checkpoint uint64 `json:"checkpoint"`
+}
+
+// TransactionDetails contains transaction information retrievable by digest,
+// including the sender address, without requiring a full checkpoint scan.
+type TransactionDetails struct {
+	Digest     string `json:"digest"`
+	Status     string `json:"status"`
+	Error      string `json:"error"`
+	Checkpoint uint64 `json:"checkpoint"`
+	Sender     string `json:"sender"`
+	Timestamp  uint64 `json:"timestamp"`
 }
 
 type FunctionReadResponse struct {

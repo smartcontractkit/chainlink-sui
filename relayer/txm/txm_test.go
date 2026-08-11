@@ -5,6 +5,7 @@ package txm_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -188,6 +189,112 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 		})
 	}
 	txManager.Close()
+}
+
+func TestCoinReservations(t *testing.T) {
+	ctx := context.Background()
+	logger := logger.Test(t)
+	logger.Debugw("Starting Sui node")
+
+	gasLimit := int64(200000000000)
+
+	suiClient, txManager, _, _, _, publicKeyBytes, packageId, objectID := testutils.SetupTestEnv(t, ctx, logger, gasLimit)
+
+	chainWriterConfig := config.ChainWriterConfig{
+		Modules: map[string]*config.ChainWriterModule{
+			"counter": {
+				Name:     "Counter",
+				ModuleID: packageId,
+				Functions: map[string]*config.ChainWriterFunction{
+					"ptb_call": {
+						Name:      "ptb_call",
+						PublicKey: publicKeyBytes,
+						Params:    []codec.SuiFunctionParam{},
+						PTBCommands: []config.ChainWriterPTBCommand{
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: &packageId,
+								ModuleId:  strPtr("counter"),
+								Function:  strPtr("increment_by"),
+								Params: []codec.SuiFunctionParam{
+									{
+										Name:     "counter",
+										Type:     "object_id",
+										Required: true,
+									},
+									{
+										Name:     "by",
+										Type:     "u64",
+										Required: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	numTransactions := 10
+	ptbConstructor := ptb.NewPTBConstructor(chainWriterConfig, suiClient, logger)
+	numEnqueuedTransactions := 0
+
+	// queue N transactions
+	for i := range numTransactions {
+		arg := config.Arguments{
+			Args: map[string]any{
+				"counter": objectID,
+				"by":      uint64(i),
+			},
+		}
+		ptb, err := ptbConstructor.BuildPTBCommands(ctx, "counter", "ptb_call", arg, packageId, chainWriterConfig.Modules["counter"].Functions["ptb_call"])
+		require.NoError(t, err, "Failed to build PTB commands")
+
+		txID := fmt.Sprintf("test-txID-%d", i)
+		_, err = txManager.EnqueuePTB(ctx, txID, &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)}, publicKeyBytes, ptb)
+
+		if err != nil {
+			logger.Errorw("Failed to enqueue PTB", "error", err)
+			continue
+		}
+
+		numEnqueuedTransactions++
+	}
+
+	// start the txm with multiple queued transactions
+	err := txManager.Start(ctx)
+	require.NoError(t, err, "Failed to start transaction manager")
+
+	defer txManager.Close()
+
+	successfulTransactions := map[string]bool{}
+
+	require.Eventually(t, func() bool {
+		successCount := 0
+
+		for i := range numEnqueuedTransactions {
+			txID := fmt.Sprintf("test-txID-%d", i)
+
+			// Skip if the transaction has already been finalized
+			if _, ok := successfulTransactions[txID]; ok {
+				successCount++
+				continue
+			}
+
+			status, statusErr := txManager.GetTransactionStatus(ctx, txID)
+			if statusErr != nil {
+				return false
+			}
+
+			if status == commontypes.Finalized {
+				successCount++
+				successfulTransactions[txID] = true
+			}
+		}
+
+		return successCount == numEnqueuedTransactions
+	}, 60*time.Second, 3*time.Second, "Transactions final state not reached")
 }
 
 // Helper function to convert a string to a string pointer

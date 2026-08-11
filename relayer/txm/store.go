@@ -2,6 +2,7 @@ package txm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -49,6 +50,7 @@ type TxmStore interface {
 	) error
 
 	UpdateTransactionError(transactionID string, txError *suierrors.SuiError) error
+	UpdateTransactionBroadcastError(transactionID string, broadcastError string) error
 
 	// DeleteTransaction removes a transaction from the store.
 	// Returns an error if the transaction is not found.
@@ -123,18 +125,17 @@ func (s *InMemoryStore) AddTransaction(tx SuiTx) error {
 }
 
 func (s *InMemoryStore) IncrementAttempts(transactionID string) error {
-	// Check if the transaction already exists
-	_, err := s.GetTransaction(transactionID)
-	if err == nil {
-		// Update the existing transaction
-		s.mu.Lock()
-		s.transactions[transactionID].IncrementAttempts()
-		s.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-		return nil
+	tx, exists := s.transactions[transactionID]
+	if !exists {
+		return errors.New("transaction not found")
 	}
 
-	return err
+	tx.IncrementAttempts()
+
+	return nil
 }
 
 // GetTransaction retrieves a transaction by its ID.
@@ -153,12 +154,31 @@ func (s *InMemoryStore) GetTransaction(transactionID string) (SuiTx, error) {
 	return *tx, nil
 }
 
+// validTransitions defines allowed state transitions.
+// Terminal states (Finalized, Failed) have no valid outgoing transitions.
+var validTransitions = map[TransactionState]map[TransactionState]bool{
+	StatePending: {
+		StateSubmitted: true,
+		StateFailed:    true,
+		StateRetriable: true,
+	},
+	StateSubmitted: {
+		StateFinalized: true,
+		StateRetriable: true,
+		StateFailed:    true,
+	},
+	StateRetriable: {
+		StateSubmitted: true,
+		StateFinalized: true,
+		StateFailed:    true,
+		// Allow going from retriable to itself to avoid raising errors
+		StateRetriable: true,
+	},
+	StateFinalized: {},
+	StateFailed:    {},
+}
+
 // ChangeState updates the state of a transaction.
-// It validates the state transition according to the allowed transitions:
-// - Pending -> Submitted
-// - Submitted -> Finalized, Retriable, or Failed
-// - Retriable -> Submitted, Failed, or Finalized
-// - Finalized and Failed are terminal states
 // Returns an error if the transaction is not found or if the state transition is invalid.
 func (s *InMemoryStore) ChangeState(transactionID string, newState TransactionState) error {
 	s.mu.Lock()
@@ -171,43 +191,19 @@ func (s *InMemoryStore) ChangeState(transactionID string, newState TransactionSt
 
 	oldState := tx.State
 
-	// Check if the state transition is valid
-	switch oldState {
-	case StatePending:
-		if newState != StateSubmitted && newState != StateFailed {
-			return fmt.Errorf("pending state must transition to submitted or failed")
-		}
-	case StateSubmitted:
-		if newState == StatePending {
-			return fmt.Errorf("submitted state cannot transition to pending")
-		}
-	case StateFinalized:
-		return fmt.Errorf("finalized state cannot transition to any other state")
-	case StateRetriable:
-		if newState != StateSubmitted && newState != StateFailed && newState != StateFinalized {
-			return fmt.Errorf("invalid state transition from %v to %v", oldState, newState)
-		}
-	case StateFailed:
-		return fmt.Errorf("invalid state transition from %v to %v", oldState, newState)
-	default:
-		return fmt.Errorf("invalid state: %v", oldState)
+	validNextStates, ok := validTransitions[oldState]
+	if !ok {
+		return fmt.Errorf("invalid current state: %v", oldState)
 	}
 
-	// Remove from the old state bucket
+	if valid, ok := validNextStates[newState]; !ok || !valid {
+		return fmt.Errorf("invalid state transition from %v to %v", oldState, newState)
+	}
+
 	delete(s.stateBuckets[oldState], transactionID)
-
-	// Update the transaction's state
 	tx.State = newState
-
-	// Update the transaction's last updated at
 	tx.LastUpdatedAt = GetCurrentUnixTimestamp()
-
-	// Add the transaction ID to the new state bucket
 	s.stateBuckets[newState][transactionID] = struct{}{}
-
-	// Update the transaction in the main transactions map
-	delete(s.transactions, transactionID)
-	s.transactions[transactionID] = tx
 
 	return nil
 }
@@ -309,7 +305,16 @@ func (s *InMemoryStore) UpdateTransactionGas(
 	if !exists {
 		return fmt.Errorf("transaction not found")
 	}
+
+	if gasBudget == nil || !gasBudget.IsUint64() {
+		return fmt.Errorf("invalid gas budget: %v", gasBudget)
+	}
+
 	tx.Metadata.GasLimit = gasBudget
+	// Keep the serialized budget in sync with the metadata: UpdateBSCPayload rebuilds
+	// the BCS payload from tx.GasBudget, so updating only Metadata.GasLimit would
+	// rebroadcast the transaction with its old budget.
+	tx.GasBudget = gasBudget.Uint64()
 
 	err := tx.UpdateBSCPayload(ctx, s.lggr, keystoreService, suiClient)
 	if err != nil {
@@ -329,6 +334,19 @@ func (s *InMemoryStore) UpdateTransactionError(transactionID string, txError *su
 		return fmt.Errorf("transaction not found")
 	}
 	tx.TxError = txError
+
+	return nil
+}
+
+func (s *InMemoryStore) UpdateTransactionBroadcastError(transactionID string, broadcastError string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, exists := s.transactions[transactionID]
+	if !exists {
+		return fmt.Errorf("transaction not found")
+	}
+	tx.BroadcastError = broadcastError
 
 	return nil
 }

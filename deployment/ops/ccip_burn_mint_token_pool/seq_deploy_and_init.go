@@ -9,8 +9,9 @@ import (
 )
 
 type DeployBurnMintTokenPoolObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	OwnerCapObjectId   string
+	StateObjectId      string
+	UpgradeCapObjectId string
 }
 
 type DeployBurnMintTokenPoolOutput struct {
@@ -128,8 +129,9 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 		return DeployBurnMintTokenPoolOutput{
 			BurnMintTPPackageID: deployReport.Output.PackageId,
 			Objects: DeployBurnMintTokenPoolObjects{
-				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
-				StateObjectId:    initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectId:   deployReport.Output.Objects.OwnerCapObjectId,
+				StateObjectId:      initReport.Output.Objects.StateObjectId,
+				UpgradeCapObjectId: deployReport.Output.Objects.UpgradeCapObjectId,
 			},
 		}, nil
 	},

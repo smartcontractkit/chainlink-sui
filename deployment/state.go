@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -28,32 +27,58 @@ type SuiChainView struct {
 	ChainSelector uint64 `json:"chainSelector,omitempty"`
 	ChainID       string `json:"chainID,omitempty"`
 
-	MCMSWithTimelock view.MCMSWithTimelockView `json:"mcmsWithTimelock"`
+	MCMSWithTimelock          view.MCMSWithTimelockView `json:"mcmsWithTimelock"`
+	FastCurseMCMSWithTimelock view.MCMSWithTimelockView `json:"fastcurseMcmsWithTimelock"`
 
-	CCIP    view.CCIPView    `json:"ccip,omitempty"`
-	OnRamp  view.OnRampView  `json:"onRamp,omitempty"`
-	OffRamp view.OffRampView `json:"offRamp,omitempty"`
-	Router  view.RouterView  `json:"router,omitempty"`
+	CCIP    view.CCIPView               `json:"ccip"`
+	OnRamp  map[string]view.OnRampView  `json:"onRamp,omitempty"`
+	OffRamp map[string]view.OffRampView `json:"offRamp,omitempty"`
+	Router  view.RouterView             `json:"router"`
 
-	TokenPools map[string]map[string]view.TokenPoolView // TokenSymbol => TokenPool Address => PoolView
+	TokenPools map[string]map[string]view.TokenPoolView `json:"tokenPools,omitempty"` // TokenSymbol => TokenPool Address => PoolView
 }
 
 type CCIPPoolState struct {
 	PackageID        string
 	StateObjectId    string
 	OwnerCapObjectId string
+	RebalancerCapIds []string // only applicable for LR TP
 }
 
 type ManagedTokenState struct {
+	TokenPackageID      string
+	TokenCoinMetadataID string
+	TokenTreasuryCapID  string
+	TokenUpgradeCapID   string
+	PackageID           string
+	StateObjectId       string
+	OwnerCapObjectId    string
+	MinterCapObjectIds  []string
+	PublisherObjectId   string
+}
+
+type ManagedTokenFaucetState struct {
 	PackageID          string
 	StateObjectId      string
-	OwnerCapObjectId   string
-	MinterCapObjectIds []string
-	PublisherObjectId  string
+	UpgradeCapObjectId string
+}
+
+// MCMSLabel is the address book label applied to the fastcurse MCMS instance.
+const MCMSFastCurseLabel = "fastcurse"
+
+// MCMSStateFields holds the seven object IDs that describe one MCMS deployment.
+type MCMSStateFields struct {
+	PackageID               string
+	StateObjectID           string
+	RegistryObjectID        string
+	DeployerStateObjectID   string
+	AccountStateObjectID    string
+	AccountOwnerCapObjectID string
+	TimelockObjectID        string
 }
 
 type CCIPChainState struct {
-	// MCMS related
+	// MCMS related (normal governance instance)
 	MCMSPackageID               string
 	MCMSStateObjectID           string
 	MCMSRegistryObjectID        string
@@ -62,10 +87,21 @@ type CCIPChainState struct {
 	MCMSAccountOwnerCapObjectID string
 	MCMSTimelockObjectID        string
 
+	// FastCurse MCMS related (fastcurse governance instance, stored with label "fastcurse")
+	FastCurseMCMSPackageID               string
+	FastCurseMCMSStateObjectID           string
+	FastCurseMCMSRegistryObjectID        string
+	FastCurseMCMSDeployerStateObjectID   string
+	FastCurseMCMSAccountStateObjectID    string
+	FastCurseMCMSAccountOwnerCapObjectID string
+	FastCurseMCMSTimelockObjectID        string
+
 	// CCIP related
 	CCIPAddress            string
+	LatestCCIPPackageID    string
 	CCIPObjectRef          string
 	CCIPOwnerCapObjectId   string
+	CurserCapObjectId      string
 	CCIPUpgradeCapObjectId string
 	FeeQuoterCapId         string
 
@@ -73,26 +109,31 @@ type CCIPChainState struct {
 	CCIPRouterAddress          string
 	CCIPRouterStateObjectID    string
 	CCIPRouterOwnerCapObjectId string
+	CCIPRouterUpgradeCapId     string
 
 	// OnRamp related
 	OnRampAddress          string
+	LatestOnRampPackageID  string
 	OnRampStateObjectId    string
 	OnRampOwnerCapObjectId string
 	OnRampUpgradeCapId     string
 
 	// OffRamp related
-	OffRampAddress       string
-	OffRampStateObjectId string
-	OffRampOwnerCapId    string
-	OffRampUpgradeCapId  string
+	OffRampAddress         string
+	LatestOffRampPackageID string
+	OffRampStateObjectId   string
+	OffRampOwnerCapId      string
+	OffRampUpgradeCapId    string
 
 	// LINK token related
 	LinkTokenAddress        string
 	LinkTokenCoinMetadataId string
 	LinkTokenTreasuryCapId  string
+	LinkTokenUpgradeCapId   string
 
 	// Managed Token related
-	ManagedTokens map[string]ManagedTokenState
+	ManagedTokens       map[string]ManagedTokenState
+	ManagedTokenFaucets map[string]ManagedTokenFaucetState
 
 	// Token pools related
 	LnRTokenPools     map[string]CCIPPoolState
@@ -105,11 +146,47 @@ type CCIPChainState struct {
 	CCIPMockV2PackageId    string
 }
 
+// EffectiveCCIPPackageID returns the latest upgraded CCIP package head when recorded,
+// otherwise the genesis package ID from initial deploy.
+func (s CCIPChainState) EffectiveCCIPPackageID() string {
+	if s.LatestCCIPPackageID != "" {
+		return s.LatestCCIPPackageID
+	}
+	return s.CCIPAddress
+}
+
+// EffectiveOnRampPackageID returns the latest upgraded OnRamp package head when recorded,
+// otherwise the genesis package ID from initial deploy.
+func (s CCIPChainState) EffectiveOnRampPackageID() string {
+	if s.LatestOnRampPackageID != "" {
+		return s.LatestOnRampPackageID
+	}
+	return s.OnRampAddress
+}
+
+// EffectiveOffRampPackageID returns the latest upgraded OffRamp package head when recorded,
+// otherwise the genesis package ID from initial deploy.
+func (s CCIPChainState) EffectiveOffRampPackageID() string {
+	if s.LatestOffRampPackageID != "" {
+		return s.LatestOffRampPackageID
+	}
+	return s.OffRampAddress
+}
+
+// MCMSState returns the MCMS object IDs for the requested instance.
+// When isFastCurse is true the fastcurse instance fields are returned;
+// otherwise the normal governance instance fields are returned.
+func (s CCIPChainState) MCMSState(isFastCurse bool) MCMSStateFields {
+	return s.MCMSStateByInstance(MCMSInstanceFromFastCurseFlag(isFastCurse))
+}
+
 func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chainName string) (SuiChainView, error) {
 	lggr := e.Logger
 	chainView := SuiChainView{
 		ChainSelector: selector,
 		TokenPools:    make(map[string]map[string]view.TokenPoolView),
+		OnRamp:        make(map[string]view.OnRampView),
+		OffRamp:       make(map[string]view.OffRampView),
 	}
 
 	lggr.Infow("generating Sui chain view", "chain", chainName, "selector", selector)
@@ -120,7 +197,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	var mu sync.Mutex
 	g, ctxG1 := errgroup.WithContext(ctx)
 
-	// MCMS
+	// Normal MCMS
 	if s.MCMSStateObjectID != "" {
 		g.Go(func() error {
 			mcmsView, err := view.GenerateMCMSWithTimelockView(ctxG1, suiChain, s.MCMSPackageID, s.MCMSStateObjectID, s.MCMSTimelockObjectID, s.MCMSAccountStateObjectID)
@@ -131,6 +208,34 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 			chainView.MCMSWithTimelock = mcmsView
 			mu.Unlock()
 			lggr.Infow("generated MCMS view", "mcmsStateObjectID", s.MCMSStateObjectID, "chain", chainName)
+			return nil
+		})
+	}
+
+	// FastCurse MCMS — package may be published without role configuration (e.g. during
+	// DeploySuiChain before a dedicated ConfigureMCMS changeset runs).
+	if s.FastCurseMCMSStateObjectID != "" {
+		g.Go(func() error {
+			configured, err := view.IsMCMSConfigured(ctxG1, suiChain, s.FastCurseMCMSPackageID, s.FastCurseMCMSStateObjectID)
+			if err != nil {
+				return fmt.Errorf("failed to check fastcurse mcms configuration for %s: %w", s.FastCurseMCMSStateObjectID, err)
+			}
+			if !configured {
+				lggr.Infow("skipping FastCurse MCMS view: roles not configured yet",
+					"fastCurseMCMSStateObjectID", s.FastCurseMCMSStateObjectID,
+					"chain", chainName,
+				)
+				return nil
+			}
+
+			mcmsView, err := view.GenerateMCMSWithTimelockView(ctxG1, suiChain, s.FastCurseMCMSPackageID, s.FastCurseMCMSStateObjectID, s.FastCurseMCMSTimelockObjectID, s.FastCurseMCMSAccountStateObjectID)
+			if err != nil {
+				return fmt.Errorf("failed to generate fastcurse mcms view for mcms %s: %w", s.FastCurseMCMSStateObjectID, err)
+			}
+			mu.Lock()
+			chainView.FastCurseMCMSWithTimelock = mcmsView
+			mu.Unlock()
+			lggr.Infow("generated FastCurse MCMS view", "fastCurseMCMSStateObjectID", s.FastCurseMCMSStateObjectID, "chain", chainName)
 			return nil
 		})
 	}
@@ -173,7 +278,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return fmt.Errorf("failed to generate onramp view for onramp %s: %w", s.OnRampAddress, err)
 			}
 			mu.Lock()
-			chainView.OnRamp = onRampView
+			chainView.OnRamp[s.OnRampAddress] = onRampView
 			mu.Unlock()
 			lggr.Infow("generated onRamp view", "onRampAddress", s.OnRampAddress, "chain", chainName)
 			return nil
@@ -188,7 +293,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return fmt.Errorf("failed to generate offramp view for offramp %s: %w", s.OffRampAddress, err)
 			}
 			mu.Lock()
-			chainView.OffRamp = offRampView
+			chainView.OffRamp[s.OffRampAddress] = offRampView
 			mu.Unlock()
 			lggr.Infow("generated offRamp view", "offRampAddress", s.OffRampAddress, "chain", chainName)
 			return nil
@@ -222,6 +327,10 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return fmt.Errorf("failed to generate BnM token pool view for symbol %s: %w", symbol, err)
 			}
 
+			if len(pool.RebalancerCapIds) > 0 {
+				return fmt.Errorf("BnM token pool %s has rebalancer cap ids, but it is not applicable", symbol)
+			}
+
 			mu.Lock()
 			if chainView.TokenPools[symbol] == nil {
 				chainView.TokenPools[symbol] = make(map[string]view.TokenPoolView)
@@ -251,6 +360,8 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 			if err != nil {
 				return fmt.Errorf("failed to generate LnR token pool view for symbol %s: %w", symbol, err)
 			}
+
+			poolView.RebalancerCapIds = pool.RebalancerCapIds
 
 			mu.Lock()
 			if chainView.TokenPools[symbol] == nil {
@@ -282,6 +393,10 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 				return fmt.Errorf("failed to generate managed token pool view for symbol %s: %w", symbol, err)
 			}
 
+			if len(pool.RebalancerCapIds) > 0 {
+				return fmt.Errorf("managed token pool %s has rebalancer cap ids, but it is not applicable", symbol)
+			}
+
 			mu.Lock()
 			if chainView.TokenPools[symbol] == nil {
 				chainView.TokenPools[symbol] = make(map[string]view.TokenPoolView)
@@ -297,19 +412,17 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	return chainView, g.Wait()
 }
 
-// LoadOnchainStatesui loads chain state for sui chains from env
+// LoadOnchainStatesui loads chain state for Sui chains from env.
+// Address metadata is read from env.DataStore (address_refs.json) when refs exist
+// for a chain; otherwise it falls back to env.ExistingAddresses (addresses.json).
 func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error) {
 	rawChains := env.BlockChains.SuiChains()
 	suiChains := make(map[uint64]CCIPChainState)
 
 	for chainSelector := range rawChains {
-		addresses, err := env.ExistingAddresses.AddressesForChain(chainSelector)
+		addresses, err := addressesForSuiChain(env, chainSelector)
 		if err != nil {
-			// Chain not found in address book, initialize empty state
-			if !errors.Is(err, cldf.ErrChainNotFound) {
-				return nil, fmt.Errorf("failed to get addresses for chain %d: %w", chainSelector, err)
-			}
-			addresses = make(map[string]cldf.TypeAndVersion)
+			return nil, err
 		}
 
 		chainState, err := loadsuiChainStateFromAddresses(addresses)
@@ -325,30 +438,61 @@ func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error
 
 func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (CCIPChainState, error) {
 	chainState := CCIPChainState{
-		ManagedTokens:     make(map[string]ManagedTokenState),
-		BnMTokenPools:     make(map[string]CCIPPoolState),
-		LnRTokenPools:     make(map[string]CCIPPoolState),
-		ManagedTokenPools: make(map[string]CCIPPoolState),
+		ManagedTokens:       make(map[string]ManagedTokenState),
+		ManagedTokenFaucets: make(map[string]ManagedTokenFaucetState),
+		BnMTokenPools:       make(map[string]CCIPPoolState),
+		LnRTokenPools:       make(map[string]CCIPPoolState),
+		ManagedTokenPools:   make(map[string]CCIPPoolState),
 	}
 	for addr, typeAndVersion := range addresses {
-		// Parse addresss based on type and label
+		// Determine whether this address belongs to the fastcurse MCMS instance.
+		isFastCurse := typeAndVersion.Labels.Contains(MCMSFastCurseLabel)
+
 		switch typeAndVersion.Type {
 
-		// MCMS related
+		// MCMS related — route to normal or fastcurse fields based on the label.
 		case SuiMcmsPackageIDType:
-			chainState.MCMSPackageID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSPackageID = addr
+			} else {
+				chainState.MCMSPackageID = addr
+			}
 		case SuiMcmsRegistryObjectIDType:
-			chainState.MCMSRegistryObjectID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSRegistryObjectID = addr
+			} else {
+				chainState.MCMSRegistryObjectID = addr
+			}
 		case SuiMcmsObjectIDType:
-			chainState.MCMSStateObjectID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSStateObjectID = addr
+			} else {
+				chainState.MCMSStateObjectID = addr
+			}
 		case SuiMcmsAccountStateObjectIDType:
-			chainState.MCMSAccountStateObjectID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSAccountStateObjectID = addr
+			} else {
+				chainState.MCMSAccountStateObjectID = addr
+			}
 		case SuiMcmsAccountOwnerCapObjectIDType:
-			chainState.MCMSAccountOwnerCapObjectID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSAccountOwnerCapObjectID = addr
+			} else {
+				chainState.MCMSAccountOwnerCapObjectID = addr
+			}
 		case SuiMcmsTimelockObjectIDType:
-			chainState.MCMSTimelockObjectID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSTimelockObjectID = addr
+			} else {
+				chainState.MCMSTimelockObjectID = addr
+			}
 		case SuiMcmsDeployerObjectIDType:
-			chainState.MCMSDeployerStateObjectID = addr
+			if isFastCurse {
+				chainState.FastCurseMCMSDeployerStateObjectID = addr
+			} else {
+				chainState.MCMSDeployerStateObjectID = addr
+			}
 
 		// CCIP Router related
 		case SuiCCIPRouterType:
@@ -357,14 +501,20 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.CCIPRouterStateObjectID = addr
 		case SuiCCIPRouterOwnerCapObjectIDType:
 			chainState.CCIPRouterOwnerCapObjectId = addr
+		case SuiRouterUpgradeCapObjectIDType:
+			chainState.CCIPRouterUpgradeCapId = addr
 
 		// CCIP related
 		case SuiCCIPType:
 			chainState.CCIPAddress = addr
+		case SuiLatestCCIPPackageIDType:
+			chainState.LatestCCIPPackageID = addr
 		case SuiCCIPObjectRefType:
 			chainState.CCIPObjectRef = addr
 		case SuiCCIPOwnerCapObjectIDType:
 			chainState.CCIPOwnerCapObjectId = addr
+		case SuiCurserCapObjectIDType:
+			chainState.CurserCapObjectId = addr
 		case SuiCCIPUpgradeCapObjectIDType:
 			chainState.CCIPUpgradeCapObjectId = addr
 		case SuiFeeQuoterCapType:
@@ -373,6 +523,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		// OnRamp related
 		case SuiOnRampType:
 			chainState.OnRampAddress = addr
+		case SuiLatestOnRampPackageIDType:
+			chainState.LatestOnRampPackageID = addr
 		case SuiOnRampStateObjectIDType:
 			chainState.OnRampStateObjectId = addr
 		case SuiOnRampOwnerCapObjectIDType:
@@ -383,6 +535,8 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		// OffRamp related
 		case SuiOffRampType:
 			chainState.OffRampAddress = addr
+		case SuiLatestOffRampPackageIDType:
+			chainState.LatestOffRampPackageID = addr
 		case SuiOffRampStateObjectIDType:
 			chainState.OffRampStateObjectId = addr
 		case SuiOffRampOwnerCapObjectIDType:
@@ -397,15 +551,49 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.LinkTokenCoinMetadataId = addr
 		case SuiLinkTokenTreasuryCapID:
 			chainState.LinkTokenTreasuryCapId = addr
+		case SuiLinkTokenUpgradeCapID:
+			chainState.LinkTokenUpgradeCapId = addr
 
 		// Managed Token related
-		case SuiManagedTokenType:
+		case SuiManagedTokenPackageIDType:
 			symbol, err := getTokenSymbol(typeAndVersion)
 			if err != nil {
 				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
 			}
 			managed_token := chainState.ManagedTokens[symbol]
 			managed_token.PackageID = addr
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenCoinMetadataIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenCoinMetadataID = addr
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenUpgradeCapIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenUpgradeCapID = addr
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenTreasuryCapIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenTreasuryCapID = addr
+			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+			}
+			managed_token := chainState.ManagedTokens[symbol]
+			managed_token.TokenPackageID = addr
 			chainState.ManagedTokens[symbol] = managed_token
 		case SuiManagedTokenOwnerCapObjectID:
 			symbol, err := getTokenSymbol(typeAndVersion)
@@ -439,6 +627,30 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			managed_token := chainState.ManagedTokens[symbol]
 			managed_token.PublisherObjectId = addr
 			chainState.ManagedTokens[symbol] = managed_token
+		case SuiManagedTokenFaucetPackageIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token faucet: %w", err)
+			}
+			faucet := chainState.ManagedTokenFaucets[symbol]
+			faucet.PackageID = addr
+			chainState.ManagedTokenFaucets[symbol] = faucet
+		case SuiManagedTokenFaucetStateObjectIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token faucet: %w", err)
+			}
+			faucet := chainState.ManagedTokenFaucets[symbol]
+			faucet.StateObjectId = addr
+			chainState.ManagedTokenFaucets[symbol] = faucet
+		case SuiManagedTokenFaucetUpgradeCapObjectIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token faucet: %w", err)
+			}
+			faucet := chainState.ManagedTokenFaucets[symbol]
+			faucet.UpgradeCapObjectId = addr
+			chainState.ManagedTokenFaucets[symbol] = faucet
 
 		// mock upgrade related
 		case SuiOnRampMockV2:
@@ -498,6 +710,14 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			}
 			pool := chainState.LnRTokenPools[symbol]
 			pool.OwnerCapObjectId = addr
+			chainState.LnRTokenPools[symbol] = pool
+		case SuiLnRTokenPoolRebalancerCapIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token pool: %w", err)
+			}
+			pool := chainState.LnRTokenPools[symbol]
+			pool.RebalancerCapIds = append(pool.RebalancerCapIds, addr)
 			chainState.LnRTokenPools[symbol] = pool
 
 		// Managed Token pools related

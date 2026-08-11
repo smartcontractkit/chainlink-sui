@@ -12,6 +12,7 @@ type DeployLockReleaseTokenPoolObjects struct {
 	OwnerCapObjectId      string
 	StateObjectId         string
 	RebalancerCapObjectId string
+	UpgradeCapObjectId    string
 }
 
 type DeployLockReleaseTokenPoolOutput struct {
@@ -134,6 +135,7 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 				OwnerCapObjectId:      deployReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:         initReport.Output.Objects.StateObjectId,
 				RebalancerCapObjectId: initReport.Output.Objects.RebalancerCapObjectId,
+				UpgradeCapObjectId:    deployReport.Output.Objects.UpgradeCapObjectId,
 			},
 		}, nil
 	},

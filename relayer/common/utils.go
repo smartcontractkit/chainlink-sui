@@ -3,10 +3,32 @@ package common
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
+	"math"
 	"math/big"
 	"slices"
 	"strings"
+	"time"
 )
+
+// DurationFromSeconds converts non-negative seconds to time.Duration without overflow.
+func DurationFromSeconds(secs uint64) (time.Duration, error) {
+	maxSecs := uint64(math.MaxInt64) / uint64(time.Second)
+	if secs > maxSecs {
+		return 0, fmt.Errorf("seconds %d exceeds duration limit", secs)
+	}
+
+	return time.Duration(secs) * time.Second, nil
+}
+
+// IntFromUint64 converts uint64 to int when the value fits.
+func IntFromUint64(val uint64) (int, error) {
+	if val > uint64(math.MaxInt) {
+		return 0, fmt.Errorf("value %d exceeds int maximum", val)
+	}
+
+	return int(val), nil
+}
 
 func ValueAt[T any](slice []T, idx int) (T, bool) {
 	var zero T
@@ -105,12 +127,81 @@ func GetModuleForContract(contractName string) string {
 		return "burn_mint_token_pool"
 	case "ManagedTokenPool", "managed_token_pool", "managedtokenpool":
 		return "managed_token_pool"
-	case "USDCTokenPool", "usdc_token_pool", "usdctokenpool":
-		return "usdc_token_pool"
 	case "LockReleaseTokenPool", "lock_release_token_pool", "lockreleasetokenpool":
 		return "lock_release_token_pool"
 	default:
 		// anything under ccip module has to be state_object module
 		return "state_object"
 	}
+}
+
+// Converts snake_case to camelCase
+func SnakeToCamel(s string) string {
+	parts := strings.Split(s, "_")
+	for i := range parts {
+		if i > 0 && len(parts[i]) > 0 {
+			parts[i] = strings.ToUpper(string(parts[i][0])) + parts[i][1:]
+		}
+	}
+
+	return strings.Join(parts, "")
+}
+
+// Recursively convert all keys in the map to camelCase,
+// with a special case for message.header.sequence_number → seqNum
+func ConvertMapKeysToCamelCase(input any) any {
+	return ConvertMapKeysToCamelCaseWithPath(input, "")
+}
+
+func ConvertMapKeysToCamelCaseWithPath(input any, path string) any {
+	switch typed := input.(type) {
+	case map[string]any:
+		result := make(map[string]any)
+		for k, v := range typed {
+			camelKey := SnakeToCamel(k)
+			fullPath := path
+			if fullPath != "" {
+				fullPath += "." + camelKey
+			} else {
+				fullPath = camelKey
+			}
+
+			if fullPath == "message.header.sequenceNumber" {
+				camelKey = "seqNum"
+			}
+
+			result[camelKey] = ConvertMapKeysToCamelCaseWithPath(v, fullPath)
+		}
+
+		return result
+
+	case []any:
+		for i, v := range typed {
+			typed[i] = ConvertMapKeysToCamelCaseWithPath(v, path)
+		}
+	}
+
+	return input
+}
+
+// NormalizeTo32Bytes converts an address string to a 32-byte representation with padding if needed.
+// This is used for converting Ethereum addresses to the format expected by Sui contracts as well as
+// converting addresses like `0x2` to the full `0x0000000000000000000000000000000000000000000000000000000000000002`.
+func NormalizeTo32Bytes(address string) []byte {
+	addressHex := address
+	if strings.HasPrefix(address, "0x") {
+		addressHex = address[2:]
+	}
+	addressBytesFull, _ := hex.DecodeString(addressHex)
+	addressBytes := addressBytesFull
+	if len(addressBytesFull) > 32 {
+		addressBytes = addressBytesFull[len(addressBytesFull)-32:]
+	} else if len(addressBytesFull) < 32 {
+		// pad left with zeros
+		paddingLen := 32 - len(addressBytesFull)
+		addressBytes = make([]byte, 0, 32)
+		addressBytes = append(addressBytes, make([]byte, paddingLen)...)
+		addressBytes = append(addressBytes, addressBytesFull...)
+	}
+	return addressBytes
 }

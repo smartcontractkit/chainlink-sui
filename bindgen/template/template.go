@@ -65,46 +65,6 @@ type tmplStruct struct {
 	Fields []*tmplField
 }
 
-func (s *tmplStruct) NeedsCustomDecoder(allStructs map[string]*tmplStruct) bool {
-	for _, field := range s.Fields {
-		// TODO: recursively handle address decoding
-		switch field.Type.MoveType {
-		case "address", "vector<address>", "vector<vector<address>>", "u256", "u128":
-			return true
-		}
-
-		if nestedStruct, ok := allStructs[field.Type.MoveType]; ok {
-			if nestedStruct.NeedsCustomDecoder(allStructs) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func GetBCSType(field *tmplField, allStructs map[string]*tmplStruct) string {
-	// TODO: recursively handle address decoding
-	switch field.Type.MoveType {
-	case "address":
-		return "[32]byte"
-	case "vector<address>":
-		return "[][32]byte"
-	case "vector<vector<address>>":
-		return "[][][32]byte"
-	case "u256":
-		return "[32]byte"
-	case "u128":
-		return "[16]byte"
-	default:
-		if nestedStruct, ok := allStructs[field.Type.MoveType]; ok {
-			if nestedStruct.NeedsCustomDecoder(allStructs) {
-				return "bcs" + field.Type.MoveType
-			}
-		}
-		return field.Type.GoType
-	}
-}
-
 type tmplOption struct {
 	UnderlyingGoType string
 }
@@ -379,21 +339,6 @@ func Generate(data tmplData) (string, error) {
 		"toLowerCamel": ToLowerCamelCase,
 		"toUpperCamel": ToUpperCamelCase,
 		"getZeroValue": getZeroValue,
-		"needsCustomDecoder": func(structName string) bool {
-			if s, ok := structMap[structName]; ok {
-				return s.NeedsCustomDecoder(structMap)
-			}
-			return false
-		},
-		"getBCSType": func(field *tmplField) string {
-			return GetBCSType(field, structMap)
-		},
-		"isNestedStructWithDecoder": func(moveType string) bool {
-			if s, ok := structMap[moveType]; ok {
-				return s.NeedsCustomDecoder(structMap)
-			}
-			return false
-		},
 		"getFullyQualifiedType": func(moveType string, packageName string, moduleName string) string {
 			return getFullyQualifiedType(moveType, packageName, moduleName, structMap)
 		},

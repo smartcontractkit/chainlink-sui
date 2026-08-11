@@ -19,7 +19,8 @@ type ManagedTokenDeployInput struct {
 }
 
 type ManagedTokenDeployOutput struct {
-	PublisherObjectId string
+	PublisherObjectId  string
+	UpgradeCapObjectId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenDeployInput) (output sui_ops.OpTxResult[ManagedTokenDeployOutput], err error) {
@@ -42,11 +43,17 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedT
 		return sui_ops.OpTxResult[ManagedTokenDeployOutput]{}, fmt.Errorf("failed to find Publisher object ID: %w", err)
 	}
 
+	upgradeCapObj, err := bind.FindObjectIdFromPublishTx(*tx, "package", "UpgradeCap")
+	if err != nil {
+		return sui_ops.OpTxResult[ManagedTokenDeployOutput]{}, fmt.Errorf("failed to find UpgradeCap object ID: %w", err)
+	}
+
 	return sui_ops.OpTxResult[ManagedTokenDeployOutput]{
 		Digest:    tx.Digest,
 		PackageId: managedTokenPackage.Address(),
 		Objects: ManagedTokenDeployOutput{
-			PublisherObjectId: publisherObj,
+			PublisherObjectId:  publisherObj,
+			UpgradeCapObjectId: upgradeCapObj,
 		},
 	}, err
 }

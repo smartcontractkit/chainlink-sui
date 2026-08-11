@@ -4,13 +4,11 @@ import (
 	"fmt"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
-
-func strPtr(s string) *string {
-	return &s
-}
 
 // TokenPoolType represents the different types of token pools available
 type TokenPoolType string
@@ -20,7 +18,6 @@ const (
 	TokenPoolTypeBurnMint    TokenPoolType = "burn_mint_token_pool"
 	TokenPoolTypeManaged     TokenPoolType = "managed_token_pool"
 	TokenPoolTypeBase        TokenPoolType = "token_pool"
-	TokenPoolTypeUSDC        TokenPoolType = "usdc_token_pool"
 	ZeroAddress              string        = "0x0000000000000000000000000000000000000000000000000000000000000000"
 )
 
@@ -34,47 +31,47 @@ type TokenToolDetails struct {
 	TokenPoolType      TokenPoolType
 }
 
-func getCreateTokenTransferParams(ccipOnrampPackageId string) cwConfig.ChainWriterPTBCommand {
-	return cwConfig.ChainWriterPTBCommand{
+func getCreateTokenTransferParams(ccipOnrampPackageID string) sui.ChainWriterPTBCommand {
+	return sui.ChainWriterPTBCommand{
 		Type:      codec.SuiPTBCommandMoveCall,
-		PackageId: strPtr(ccipOnrampPackageId),
-		ModuleId:  strPtr("onramp_state_helper"),
-		Function:  strPtr("create_token_transfer_params"),
-		Params: []codec.SuiFunctionParam{
+		PackageId: new(ccipOnrampPackageID),
+		ModuleId:  new("onramp_state_helper"),
+		Function:  new("create_token_transfer_params"),
+		Params: []sui.SuiFunctionParam{
 			{
 				Name:      "token_receiver",
 				Type:      "vector<u8>",
 				Required:  true,
-				IsMutable: BoolPointer(false),
+				IsMutable: new(false),
 			},
 		},
 	}
 }
 
-func getCCIPSendCommand(ccipOnrampPackageId string, feeTokenType string) cwConfig.ChainWriterPTBCommand {
-	return cwConfig.ChainWriterPTBCommand{
+func getCCIPSendCommand(ccipOnrampPackageID string, feeTokenType string) sui.ChainWriterPTBCommand {
+	return sui.ChainWriterPTBCommand{
 		Type:      codec.SuiPTBCommandMoveCall,
-		PackageId: strPtr(ccipOnrampPackageId),
-		ModuleId:  strPtr("onramp"),
-		Function:  strPtr("ccip_send"),
-		Params: []codec.SuiFunctionParam{
+		PackageId: new(ccipOnrampPackageID),
+		ModuleId:  new("onramp"),
+		Function:  new("ccip_send"),
+		Params: []sui.SuiFunctionParam{
 			{
 				Name:      "ccip_object_ref_mutable",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(true),
+				IsMutable: new(true),
 			},
 			{
 				Name:      "onramp_state",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(true),
+				IsMutable: new(true),
 			},
 			{
 				Name:      "clock",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(false),
+				IsMutable: new(false),
 			},
 			{
 				Name:     "destination_chain_selector",
@@ -95,7 +92,7 @@ func getCCIPSendCommand(ccipOnrampPackageId string, feeTokenType string) cwConfi
 				Name:     "token_params",
 				Type:     "ptb_dependency",
 				Required: true,
-				PTBDependency: &codec.PTBCommandDependency{
+				PTBDependency: &sui.PTBCommandDependency{
 					CommandIndex: 0,
 				},
 			},
@@ -103,14 +100,14 @@ func getCCIPSendCommand(ccipOnrampPackageId string, feeTokenType string) cwConfi
 				Name:      "fee_token_metadata",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(false),
+				IsMutable: new(false),
 			},
 			{
 				Name:        "fee_token",
 				Type:        "object_id",
 				Required:    true,
-				GenericType: strPtr(feeTokenType),
-				IsMutable:   BoolPointer(true),
+				GenericType: new(feeTokenType),
+				IsMutable:   new(true),
 			},
 			{
 				Name:     "extra_args",
@@ -122,24 +119,24 @@ func getCCIPSendCommand(ccipOnrampPackageId string, feeTokenType string) cwConfi
 }
 
 // getLRLockOrBurnCommand returns a ChainWriterPTBCommand for the lock_or_burn function of the lock_release_token_pool module
-func getLRLockOrBurnCommand(tokenPoolPackageId string, tokenType string) cwConfig.ChainWriterPTBCommand {
-	return cwConfig.ChainWriterPTBCommand{
+func getLRLockOrBurnCommand(tokenPoolPackageID string, tokenType string) sui.ChainWriterPTBCommand {
+	return sui.ChainWriterPTBCommand{
 		Type:      codec.SuiPTBCommandMoveCall,
-		PackageId: strPtr(tokenPoolPackageId),
-		ModuleId:  strPtr("lock_release_token_pool"),
-		Function:  strPtr("lock_or_burn"),
-		Params: []codec.SuiFunctionParam{
+		PackageId: new(tokenPoolPackageID),
+		ModuleId:  new("lock_release_token_pool"),
+		Function:  new("lock_or_burn"),
+		Params: []sui.SuiFunctionParam{
 			{
 				Name:      "ccip_object_ref",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(false),
+				IsMutable: new(false),
 			},
 			{
 				Name:     "token_transfer_params",
 				Type:     "ptb_dependency",
 				Required: true,
-				PTBDependency: &codec.PTBCommandDependency{
+				PTBDependency: &sui.PTBCommandDependency{
 					CommandIndex: 0,
 				},
 			},
@@ -147,7 +144,7 @@ func getLRLockOrBurnCommand(tokenPoolPackageId string, tokenType string) cwConfi
 				Name:        "c_link",
 				Type:        "object_id",
 				Required:    true,
-				GenericType: strPtr(tokenType),
+				GenericType: new(tokenType),
 			},
 			{
 				Name:     "destination_chain_selector",
@@ -158,37 +155,37 @@ func getLRLockOrBurnCommand(tokenPoolPackageId string, tokenType string) cwConfi
 				Name:      "clock",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(false),
+				IsMutable: new(false),
 			},
 			{
 				Name:      "link_lock_release_token_pool_state",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(true),
+				IsMutable: new(true),
 			},
 		},
 	}
 }
 
 // getBMLockOrBurnCommand returns a ChainWriterPTBCommand for the lock_or_burn function of the burn_mint_token_pool module
-func getBMLockOrBurnCommand(tokenPoolPackageId string, ethTokenType string) cwConfig.ChainWriterPTBCommand {
-	return cwConfig.ChainWriterPTBCommand{
+func getBMLockOrBurnCommand(tokenPoolPackageID string, ethTokenType string) sui.ChainWriterPTBCommand {
+	return sui.ChainWriterPTBCommand{
 		Type:      codec.SuiPTBCommandMoveCall,
-		PackageId: strPtr(tokenPoolPackageId),
-		ModuleId:  strPtr("burn_mint_token_pool"),
-		Function:  strPtr("lock_or_burn"),
-		Params: []codec.SuiFunctionParam{
+		PackageId: new(tokenPoolPackageID),
+		ModuleId:  new("burn_mint_token_pool"),
+		Function:  new("lock_or_burn"),
+		Params: []sui.SuiFunctionParam{
 			{
 				Name:      "ccip_object_ref",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(false),
+				IsMutable: new(false),
 			},
 			{
 				Name:     "token_transfer_params",
 				Type:     "ptb_dependency",
 				Required: true,
-				PTBDependency: &codec.PTBCommandDependency{
+				PTBDependency: &sui.PTBCommandDependency{
 					CommandIndex: 0,
 				},
 			},
@@ -196,7 +193,7 @@ func getBMLockOrBurnCommand(tokenPoolPackageId string, ethTokenType string) cwCo
 				Name:        "c_eth",
 				Type:        "object_id",
 				Required:    true,
-				GenericType: strPtr(ethTokenType),
+				GenericType: new(ethTokenType),
 			},
 			{
 				Name:     "destination_chain_selector",
@@ -207,37 +204,37 @@ func getBMLockOrBurnCommand(tokenPoolPackageId string, ethTokenType string) cwCo
 				Name:      "clock",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(false),
+				IsMutable: new(false),
 			},
 			{
 				Name:      "eth_burn_mint_token_pool_state",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(true),
+				IsMutable: new(true),
 			},
 		},
 	}
 }
 
 // getManagedLockOrBurnCommand returns a ChainWriterPTBCommand for the lock_or_burn function of the managed_token_pool module
-func getManagedLockOrBurnCommand(tokenPoolPackageId string, ethTokenType string) cwConfig.ChainWriterPTBCommand {
-	return cwConfig.ChainWriterPTBCommand{
+func getManagedLockOrBurnCommand(tokenPoolPackageID string, ethTokenType string) sui.ChainWriterPTBCommand {
+	return sui.ChainWriterPTBCommand{
 		Type:      codec.SuiPTBCommandMoveCall,
-		PackageId: strPtr(tokenPoolPackageId),
-		ModuleId:  strPtr("managed_token_pool"),
-		Function:  strPtr("lock_or_burn"),
-		Params: []codec.SuiFunctionParam{
+		PackageId: new(tokenPoolPackageID),
+		ModuleId:  new("managed_token_pool"),
+		Function:  new("lock_or_burn"),
+		Params: []sui.SuiFunctionParam{
 			{
 				Name:      "ccip_object_ref",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(false),
+				IsMutable: new(false),
 			},
 			{
 				Name:     "token_transfer_params",
 				Type:     "ptb_dependency",
 				Required: true,
-				PTBDependency: &codec.PTBCommandDependency{
+				PTBDependency: &sui.PTBCommandDependency{
 					CommandIndex: 0,
 				},
 			},
@@ -245,7 +242,7 @@ func getManagedLockOrBurnCommand(tokenPoolPackageId string, ethTokenType string)
 				Name:        "c_managed_eth",
 				Type:        "object_id",
 				Required:    true,
-				GenericType: strPtr(ethTokenType),
+				GenericType: new(ethTokenType),
 			},
 			{
 				Name:     "destination_chain_selector",
@@ -256,25 +253,25 @@ func getManagedLockOrBurnCommand(tokenPoolPackageId string, ethTokenType string)
 				Name:      "clock",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(false),
+				IsMutable: new(false),
 			},
 			{
 				Name:      "deny_list",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(true),
+				IsMutable: new(true),
 			},
 			{
 				Name:      "eth_managed_token_state",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(true),
+				IsMutable: new(true),
 			},
 			{
 				Name:      "eth_managed_token_pool_state",
 				Type:      "object_id",
 				Required:  true,
-				IsMutable: BoolPointer(true),
+				IsMutable: new(true),
 			},
 		},
 	}
@@ -291,25 +288,25 @@ func ConfigureOnRampChainWriter(
 	feeTokenType string,
 	linkTokenType string,
 	ethTokenType string,
-) (cwConfig.ChainWriterConfig, error) {
-	functions := make(map[string]*cwConfig.ChainWriterFunction)
+) (sui.ChainWriterConfig, error) {
+	functions := make(map[string]*sui.ChainWriterFunction)
 
 	// Build PTB for message passing only
-	messagePassingCommands := []cwConfig.ChainWriterPTBCommand{
+	messagePassingCommands := []sui.ChainWriterPTBCommand{
 		getCreateTokenTransferParams(ccipPackageId),
 		getCCIPSendCommand(ccipOnrampPackageId, feeTokenType),
 	}
 
-	functions["message_passing"] = &cwConfig.ChainWriterFunction{
+	functions["message_passing"] = &sui.ChainWriterFunction{
 		Name:        "message_passing",
 		PublicKey:   publicKeyBytes,
-		Params:      []codec.SuiFunctionParam{},
+		Params:      []sui.SuiFunctionParam{},
 		PTBCommands: messagePassingCommands,
 	}
 
 	// Build PTB for token transfers with messaging (if token pools are provided)
 	if len(tokenPools) > 0 {
-		tokenTransferCommands := []cwConfig.ChainWriterPTBCommand{
+		tokenTransferCommands := []sui.ChainWriterPTBCommand{
 			getCreateTokenTransferParams(ccipPackageId),
 		}
 
@@ -325,27 +322,24 @@ func ConfigureOnRampChainWriter(
 			case TokenPoolTypeManaged:
 				managedCommand := getManagedLockOrBurnCommand(tokenPool.TokenPoolPackageId, ethTokenType)
 				tokenTransferCommands = append(tokenTransferCommands, managedCommand)
-			case TokenPoolTypeUSDC:
-				// TODO: Add USDC token pool command when available
-				return cwConfig.ChainWriterConfig{}, fmt.Errorf("usdc_token_pool not yet implemented")
 			default:
-				return cwConfig.ChainWriterConfig{}, fmt.Errorf("unknown token pool type: %s", tokenPool.TokenPoolType)
+				return sui.ChainWriterConfig{}, fmt.Errorf("unknown token pool type: %s", tokenPool.TokenPoolType)
 			}
 		}
 
 		ccipSendCommand := getCCIPSendCommand(ccipOnrampPackageId, feeTokenType)
 		tokenTransferCommands = append(tokenTransferCommands, ccipSendCommand)
 
-		functions["token_transfer_with_messaging"] = &cwConfig.ChainWriterFunction{
+		functions["token_transfer_with_messaging"] = &sui.ChainWriterFunction{
 			Name:        "token_transfer_with_messaging",
 			PublicKey:   publicKeyBytes,
-			Params:      []codec.SuiFunctionParam{},
+			Params:      []sui.SuiFunctionParam{},
 			PTBCommands: tokenTransferCommands,
 		}
 	}
 
-	return cwConfig.ChainWriterConfig{
-		Modules: map[string]*cwConfig.ChainWriterModule{
+	return sui.ChainWriterConfig{
+		Modules: map[string]*sui.ChainWriterModule{
 			cwConfig.PTBChainWriterModuleName: {
 				Name:      cwConfig.PTBChainWriterModuleName,
 				ModuleID:  "0x123",

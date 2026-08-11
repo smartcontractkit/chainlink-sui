@@ -5,10 +5,15 @@ package mcms
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"slices"
+	"strconv"
+	"strings"
+	"testing"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/smartcontractkit/mcms"
@@ -19,12 +24,14 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	mcmsencoder "github.com/smartcontractkit/chainlink-sui/bindings"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
+	module_user "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms_user"
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
@@ -34,15 +41,18 @@ import (
 	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	opregistry "github.com/smartcontractkit/chainlink-sui/deployment/ops/registry"
 
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
+	cslclient "github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 type RoleConfig struct {
@@ -80,12 +90,12 @@ func CreateConfig(role suisdk.TimelockRole, count int, quorum uint8) *RoleConfig
 type MCMSTestSuite struct {
 	suite.Suite
 
-	client sui.ISuiAPI
+	client cslclient.SuiPTBClient
 	signer bindutils.SuiSigner
 
 	chainSelector types.ChainSelector
 
-	// MCMS
+	// MCMS (slow)
 	mcmsPackageID    string
 	mcmsOwnerAddress string
 	mcmsObj          string
@@ -94,6 +104,15 @@ type MCMSTestSuite struct {
 	deployerStateObj string
 	accountObj       string
 	ownerCapObj      string
+
+	// Fast MCMS — published in SetupSuite before CCIP so compile-time fast_mcms matches on-chain types.
+	fastMcmsPackageID    string
+	fastMcmsObj          string
+	fastTimelockObj      string
+	fastRegistryObj      string
+	fastDeployerStateObj string
+	fastAccountObj       string
+	fastOwnerCapObj      string
 
 	bypasserConfig *RoleConfig
 	proposerConfig *RoleConfig
@@ -108,20 +127,24 @@ type MCMSTestSuite struct {
 	linkObjects   linkops.DeployLinkObjects
 
 	// CCIP
-	ccipPackageId string
-	ccipObjects   ccipops.DeployCCIPSeqObjects
+	ccipPackageId       string
+	latestCcipPackageId string
+	ccipObjects         ccipops.DeployCCIPSeqObjects
 
 	// Router
-	ccipRouterPackageId string
-	ccipRouterObjects   routerops.DeployCCIPRouterObjects
+	ccipRouterPackageId       string
+	latestCcipRouterPackageId string
+	ccipRouterObjects         routerops.DeployCCIPRouterObjects
 
 	// Onramp
-	ccipOnrampPackageId string
-	ccipOnrampObjects   onrampops.DeployCCIPOnRampSeqObjects
+	ccipOnrampPackageId       string
+	latestCcipOnrampPackageId string
+	ccipOnrampObjects         onrampops.DeployCCIPOnRampSeqObjects
 
 	// offramp
-	ccipOfframpPackageId string
-	ccipOfframpObjects   offrampops.DeployCCIPOffRampSeqObjects
+	ccipOfframpPackageId       string
+	latestCcipOfframpPackageId string
+	ccipOfframpObjects         offrampops.DeployCCIPOffRampSeqObjects
 }
 
 // TODO: refactor so suites are per product
@@ -141,12 +164,8 @@ func (s *MCMSTestSuite) SetupSuite() {
 	}
 
 	// Convert slice of values to slice of pointers
-	ops := make([]*cld_ops.Operation[any, any, any], len(opregistry.AllOperations))
-	for i := range opregistry.AllOperations {
-		ops[i] = &opregistry.AllOperations[i]
-	}
 	registry := cld_ops.NewOperationRegistry(
-		ops...,
+		opregistry.AllOperations...,
 	)
 
 	reporter := cld_ops.NewMemoryReporter()
@@ -174,6 +193,15 @@ func (s *MCMSTestSuite) SetupSuite() {
 	require.NoError(s.T(), err, "deploying MCMS contract")
 
 	s.mcmsPackageID = mcmsDeploymentReport.Output.PackageId
+	fastMcmsReport, err := cld_ops.ExecuteOperation(bundle, mcmsops.DeployFastMCMSOp, deps, cld_ops.EmptyInput{})
+	require.NoError(s.T(), err, "deploying fast MCMS contract")
+	s.fastMcmsPackageID = fastMcmsReport.Output.PackageId
+	s.fastMcmsObj = fastMcmsReport.Output.Objects.McmsMultisigStateObjectId
+	s.fastTimelockObj = fastMcmsReport.Output.Objects.TimelockObjectId
+	s.fastRegistryObj = fastMcmsReport.Output.Objects.McmsRegistryObjectId
+	s.fastDeployerStateObj = fastMcmsReport.Output.Objects.McmsDeployerStateObjectId
+	s.fastAccountObj = fastMcmsReport.Output.Objects.McmsAccountStateObjectId
+	s.fastOwnerCapObj = fastMcmsReport.Output.Objects.McmsAccountOwnerCapObjectId
 	s.mcmsObj = mcmsDeploymentReport.Output.Objects.McmsMultisigStateObjectId
 	s.timelockObj = mcmsDeploymentReport.Output.Objects.TimelockObjectId
 	s.registryObj = mcmsDeploymentReport.Output.Objects.McmsRegistryObjectId
@@ -213,6 +241,28 @@ func (s *MCMSTestSuite) SetupSuite() {
 	s.SetupCCIP()
 }
 
+func (s *MCMSTestSuite) NewOpBundle() cld_ops.Bundle {
+	reporter := cld_ops.NewMemoryReporter()
+	return cld_ops.NewBundle(
+		s.T().Context,
+		logger.Test(s.T()),
+		reporter,
+	)
+}
+
+// NewOpBundleWithRegistry returns a fresh operation bundle so sequences are not
+// deduplicated against prior runs on s.bundle.
+func (s *MCMSTestSuite) NewOpBundleWithRegistry() cld_ops.Bundle {
+	registry := cld_ops.NewOperationRegistry(opregistry.AllOperations...)
+	reporter := cld_ops.NewMemoryReporter()
+	return cld_ops.NewBundle(
+		s.T().Context,
+		logger.Test(s.T()),
+		reporter,
+		cld_ops.WithOperationRegistry(registry),
+	)
+}
+
 func (s *MCMSTestSuite) SetupCCIP() {
 	// Deploy LINK
 	linkReport, err := cld_ops.ExecuteOperation(s.bundle, linkops.DeployLINKOp, s.deps, cld_ops.EmptyInput{})
@@ -246,8 +296,9 @@ func (s *MCMSTestSuite) SetupCCIP() {
 		LocalChainSelector:            1,
 		DestChainSelector:             2,
 		DeployCCIPInput: ccipops.DeployCCIPInput{
-			McmsPackageId: s.mcmsPackageID,
-			McmsOwner:     s.mcmsOwnerAddress,
+			McmsPackageId:     s.mcmsPackageID,
+			FastMcmsPackageId: s.fastMcmsPackageID,
+			McmsOwner:         s.mcmsOwnerAddress,
 		},
 		MaxFeeJuelsPerMsg:            "100000000",
 		TokenPriceStalenessThreshold: 60,
@@ -292,6 +343,7 @@ func (s *MCMSTestSuite) SetupCCIP() {
 
 	s.linkObjects = linkReport.Output.Objects
 	s.ccipPackageId = ccipReport.Output.CCIPPackageId
+	s.latestCcipPackageId = ccipReport.Output.CCIPPackageId
 	s.ccipObjects = ccipReport.Output.Objects
 
 	// Deploy Router
@@ -302,12 +354,14 @@ func (s *MCMSTestSuite) SetupCCIP() {
 	require.NoError(s.T(), err, "failed to execute CCIP deploy sequence")
 
 	s.ccipRouterPackageId = routerReport.Output.PackageId
+	s.latestCcipRouterPackageId = routerReport.Output.PackageId
 	s.ccipRouterObjects = routerReport.Output.Objects
 
 	// Deploy Onramp
 	ccipOnRampSeqInput := deployment.DefaultOnRampSeqConfig
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.CCIPPackageId = ccipReport.Output.CCIPPackageId
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSPackageId = s.mcmsPackageID
+	ccipOnRampSeqInput.DeployCCIPOnRampInput.FastMcmsPackageId = s.fastMcmsPackageID
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSOwnerPackageId = s.mcmsOwnerAddress
 	ccipOnRampSeqInput.OnRampInitializeInput.NonceManagerCapId = ccipReport.Output.Objects.NonceManagerCapObjectId
 	ccipOnRampSeqInput.OnRampInitializeInput.SourceTransferCapId = ccipReport.Output.Objects.SourceTransferCapObjectId
@@ -325,6 +379,7 @@ func (s *MCMSTestSuite) SetupCCIP() {
 	require.NoError(s.T(), err, "failed to execute CCIP OnRamp deploy sequence")
 
 	s.ccipOnrampPackageId = ccipOnRampSeqReport.Output.CCIPOnRampPackageId
+	s.latestCcipOnrampPackageId = ccipOnRampSeqReport.Output.CCIPOnRampPackageId
 	s.ccipOnrampObjects = ccipOnRampSeqReport.Output.Objects
 
 	// Deploy offramp
@@ -338,6 +393,7 @@ func (s *MCMSTestSuite) SetupCCIP() {
 	ccipOffRampSeqInput.CCIPObjectRefId = ccipReport.Output.Objects.CCIPObjectRefObjectId
 	ccipOffRampSeqInput.DeployCCIPOffRampInput.CCIPPackageId = ccipReport.Output.CCIPPackageId
 	ccipOffRampSeqInput.DeployCCIPOffRampInput.MCMSPackageId = s.mcmsPackageID
+	ccipOffRampSeqInput.DeployCCIPOffRampInput.FastMcmsPackageId = s.fastMcmsPackageID
 
 	ccipOffRampSeqInput.InitializeOffRampInput.DestTransferCapId = ccipReport.Output.Objects.DestTransferCapObjectId
 	ccipOffRampSeqInput.InitializeOffRampInput.FeeQuoterCapId = ccipReport.Output.Objects.FeeQuoterCapObjectId
@@ -351,6 +407,7 @@ func (s *MCMSTestSuite) SetupCCIP() {
 	require.NoError(s.T(), err, "failed to execute CCIP OffRamp deploy sequence")
 
 	s.ccipOfframpPackageId = ccipOffRampSeqReport.Output.CCIPOffRampPackageId
+	s.latestCcipOfframpPackageId = ccipOffRampSeqReport.Output.CCIPOffRampPackageId
 	s.ccipOfframpObjects = ccipOffRampSeqReport.Output.Objects
 }
 
@@ -407,7 +464,7 @@ func (s *MCMSTestSuite) SetRoot(proposal *mcms.Proposal, roleConfig *RoleConfig)
 
 }
 
-func (s *MCMSTestSuite) Execute(timelockProposal *mcms.TimelockProposal, proposal *mcms.Proposal, proposalDelay time.Duration, roleConfig *RoleConfig) {
+func (s *MCMSTestSuite) Execute(timelockProposal *mcms.TimelockProposal, proposal *mcms.Proposal, proposalDelay time.Duration, roleConfig *RoleConfig) []types.TransactionResult {
 	encoders, err := proposal.GetEncoders()
 	s.Require().NoError(err)
 	suiEncoder := encoders[s.chainSelector].(*suisdk.Encoder)
@@ -420,9 +477,11 @@ func (s *MCMSTestSuite) Execute(timelockProposal *mcms.TimelockProposal, proposa
 	executable, err := mcms.NewExecutable(proposal, executors)
 	s.Require().NoError(err, "Error creating executable")
 
+	var responses []types.TransactionResult
 	for i := range proposal.Operations {
-		_, execErr := executable.Execute(s.T().Context(), i)
+		res, execErr := executable.Execute(s.T().Context(), i)
 		s.Require().NoError(execErr)
+		responses = append(responses, res)
 	}
 	if roleConfig.Role == suisdk.TimelockRoleProposer {
 		// If proposer, some time needs to pass before the proposal can be executed sleep for delay5s
@@ -444,17 +503,21 @@ func (s *MCMSTestSuite) Execute(timelockProposal *mcms.TimelockProposal, proposa
 		timelockExecutable, execErr := mcms.NewTimelockExecutable(s.T().Context(), timelockProposal, timelockExecutors)
 		s.Require().NoError(execErr)
 
-		_, terr := timelockExecutable.Execute(s.T().Context(), 0, mcms.WithCallProxy(s.timelockObj))
+		res, terr := timelockExecutable.Execute(s.T().Context(), 0, mcms.WithCallProxy(s.timelockObj))
 		s.Require().NoError(terr)
+		responses = append(responses, res)
 	}
+
+	return responses
 }
 
-func (s *MCMSTestSuite) ExecuteProposalE2e(timelockProposal *mcms.TimelockProposal, roleConfig *RoleConfig, proposalDelay time.Duration) {
+func (s *MCMSTestSuite) ExecuteProposalE2e(timelockProposal *mcms.TimelockProposal, roleConfig *RoleConfig, proposalDelay time.Duration) []types.TransactionResult {
 	proposal := s.ConvertProposal(timelockProposal)
 	s.SignProposal(proposal, roleConfig)
 	s.SetRoot(proposal, roleConfig)
-	s.Execute(timelockProposal, proposal, proposalDelay, roleConfig)
+	responses := s.Execute(timelockProposal, proposal, proposalDelay, roleConfig)
 	s.T().Logf("✅ Executed MCMS proposal: %s", timelockProposal.Description)
+	return responses
 }
 
 // Reused in other tests
@@ -558,8 +621,11 @@ func (s *MCMSTestSuite) RunOwnershipCCIPTransfer() {
 		OffRampStateObjectId: s.ccipOfframpObjects.StateObjectId,
 
 		// Proposal
-		Role: suisdk.TimelockRoleBypasser,
-
+		TimelockConfig: utils.TimelockConfig{
+			MCMSAction:   types.TimelockActionBypass,
+			MinDelay:     0,
+			OverrideRoot: false,
+		},
 		ChainSelector: uint64(s.chainSelector),
 	}
 	acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(s.bundle, ownershipops.AcceptCCIPOwnershipSeq, s.deps, input)
@@ -623,4 +689,132 @@ func (s *MCMSTestSuite) RunOwnershipCCIPTransfer() {
 	newOwnerRouter, err := ccipRouterContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipRouterObjects.RouterStateObjectId})
 	s.Require().NoError(err, "getting new owner of Router state object")
 	s.Require().Equal(s.mcmsPackageID, newOwnerRouter, "new owner of Router should be MCMS")
+}
+
+func (s *MCMSTestSuite) VerifyVersion(packageId string, expectedVersion string) {
+	// we can use mcmsuser contract always since the interface is the same
+	userContract, err := module_user.NewMcmsUser(packageId, s.client)
+	s.Require().NoError(err, "creating upgraded contract")
+	// Call type_and_version function
+	version, err := userContract.DevInspect().TypeAndVersion(s.T().Context(), s.deps.GetCallOpts())
+	require.NoError(s.T(), err, "getting type and version")
+
+	s.T().Logf("✅ New package version: %s", version)
+	require.Equal(s.T(), expectedVersion, version, "version should match expected")
+}
+
+func (s *MCMSTestSuite) GetUpgradedAddress(result *models.SuiTransactionBlockResponse, mcmsPackageID string) (string, error) {
+	s.T().Helper()
+
+	if result == nil || result.Events == nil {
+		return "", errors.New("result is nil or events are nil")
+	}
+
+	for _, event := range result.Events {
+		if isUpgradeEvent(event, mcmsPackageID) {
+			return processUpgradeEvent(s.T(), event)
+		}
+	}
+
+	return "", errors.New("upgrade receipt committed event not found")
+}
+
+// isUpgradeEvent checks if the event is an upgrade receipt committed event
+func isUpgradeEvent(event models.SuiEventResponse, mcmsPackageID string) bool {
+	return event.PackageId == mcmsPackageID &&
+		event.TransactionModule == "mcms_deployer" &&
+		strings.Contains(event.Type, "UpgradeReceiptCommitted")
+}
+
+// processUpgradeEvent processes an upgrade event and returns the new package address
+func processUpgradeEvent(t *testing.T, event models.SuiEventResponse) (string, error) {
+	t.Helper()
+
+	if event.ParsedJson == nil {
+		return "", errors.New("parsed json is nil")
+	}
+
+	oldAddr := event.ParsedJson["old_package_address"]
+	newAddr := event.ParsedJson["new_package_address"]
+	oldVer := event.ParsedJson["old_version"]
+	newVer := event.ParsedJson["new_version"]
+
+	newAddress, err := validateAddressChange(t, oldAddr, newAddr)
+	if err != nil {
+		return "", err
+	}
+
+	err = validateVersionIncrement(t, oldVer, newVer)
+	if err != nil {
+		return "", err
+	}
+
+	return newAddress, nil
+}
+
+// validateAddressChange validates that the package address changed correctly
+func validateAddressChange(t *testing.T, oldAddr, newAddr any) (string, error) {
+	t.Helper()
+
+	if oldAddr == nil || newAddr == nil {
+		return "", errors.New("package addresses are nil")
+	}
+
+	oldAddrStr := fmt.Sprintf("%v", oldAddr)
+	newAddrStr := fmt.Sprintf("%v", newAddr)
+
+	if oldAddrStr == newAddrStr {
+		t.Errorf("ERROR: Package address did not change! Old: %v, New: %v", oldAddr, newAddr)
+		return "", errors.New("package address did not change")
+	}
+
+	return newAddrStr, nil
+}
+
+// validateVersionIncrement validates that the version incremented correctly
+func validateVersionIncrement(t *testing.T, oldVer, newVer any) error {
+	t.Helper()
+
+	if oldVer == nil || newVer == nil {
+		return nil // Version validation is optional
+	}
+
+	oldVersion, oldParseOk := parseVersion(t, oldVer, "old")
+	newVersion, newParseOk := parseVersion(t, newVer, "new")
+
+	if !oldParseOk || !newParseOk {
+		return nil // Skip validation if parsing failed
+	}
+
+	expectedVersion := oldVersion + 1
+	if newVersion != expectedVersion {
+		t.Errorf("ERROR: Version did not increment correctly! Old: %.0f, New: %.0f (expected %.0f)",
+			oldVersion, newVersion, expectedVersion)
+
+		return errors.New("version did not increment correctly")
+	}
+
+	return nil
+}
+
+// parseVersion parses a version value from interface{} to float64
+func parseVersion(t *testing.T, version any, versionType string) (float64, bool) {
+	t.Helper()
+
+	switch v := version.(type) {
+	case float64:
+		return v, true
+	case int:
+		return float64(v), true
+	case string:
+		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
+			return parsed, true
+		}
+		t.Logf("Warning: Could not parse %s version string '%s' as number", versionType, v)
+
+		return 0, false
+	default:
+		t.Logf("Warning: Unsupported %s version type: %T", versionType, v)
+		return 0, false
+	}
 }

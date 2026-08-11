@@ -3,6 +3,7 @@ package changesets
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -29,6 +30,7 @@ func (d DeployDummyReceiver) Apply(e cldf.Environment, config DeployDummyReceive
 	}
 
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]operations.Report[any, any], 0)
 
 	suiChain := e.BlockChains.SuiChains()[config.SuiChainSelector]
@@ -48,9 +50,10 @@ func (d DeployDummyReceiver) Apply(e cldf.Environment, config DeployDummyReceive
 
 	// Run DummyReceiver Operation
 	DeployDummyReceiverOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.DeployCCIPDummyReceiverOp, deps, ccipops.DeployDummyReceiverInput{
-		CCIPPackageId: state[config.SuiChainSelector].CCIPAddress,
-		McmsPackageId: state[config.SuiChainSelector].MCMSPackageID,
-		McmsOwner:     config.McmsOwner,
+		CCIPPackageId:     state[config.SuiChainSelector].CCIPAddress,
+		McmsPackageId:     state[config.SuiChainSelector].MCMSPackageID,
+		FastMcmsPackageId: state[config.SuiChainSelector].FastCurseMCMSPackageID,
+		McmsOwner:         config.McmsOwner,
 	})
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy dummy receiver for Sui chain %d: %w", config.SuiChainSelector, err)
@@ -61,6 +64,7 @@ func (d DeployDummyReceiver) Apply(e cldf.Environment, config DeployDummyReceive
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
+		DataStore:   ds,
 		Reports:     seqReports,
 	}, nil
 }

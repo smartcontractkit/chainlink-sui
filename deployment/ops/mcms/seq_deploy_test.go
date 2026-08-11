@@ -40,8 +40,6 @@ func generateSortedSigners(count int) []common.Address {
 }
 
 func TestDeployMCMSSeq(t *testing.T) {
-	t.Parallel()
-
 	signer, client := testenv.SetupEnvironment(t)
 
 	deps := sui_ops.OpTxDeps{
@@ -184,5 +182,92 @@ func TestDeployMCMSSeq(t *testing.T) {
 	require.NotEmpty(t, objects.McmsAccountStateObjectId, "MCMS Account State Object ID should not be empty")
 	require.NotEmpty(t, objects.McmsAccountOwnerCapObjectId, "MCMS Account Owner Cap Object ID should not be empty")
 	require.NotEmpty(t, report.Output.PackageId, "Package ID should not be empty")
-	require.NotEmpty(t, report.Output.AcceptOwnershipProposal, "Accept Ownership Proposal should not be empty")
+
+	// Verify the accept ownership proposal was generated correctly
+	proposal := report.Output.AcceptOwnershipProposal
+	require.NotEmpty(t, proposal.Description, "Proposal description should not be empty")
+	require.Contains(t, proposal.Description, "accept_ownership", "Proposal should reference accept_ownership operation")
+	require.NotEmpty(t, proposal.Version, "Proposal version should not be empty")
+	require.NotZero(t, proposal.ValidUntil, "Proposal ValidUntil should be set")
+	require.NotEmpty(t, proposal.Operations, "Proposal should contain operations")
+	require.Len(t, proposal.Operations, 1, "Proposal should contain exactly one operation")
+}
+
+func TestDeployFastMCMSSeq_SkipOwnershipTransfer(t *testing.T) {
+	signer, client := testenv.SetupEnvironment(t)
+
+	deps := sui_ops.OpTxDeps{
+		Client: client,
+		Signer: signer,
+		GetCallOpts: func() *bind.CallOpts {
+			b := uint64(300_000_000)
+			return &bind.CallOpts{
+				WaitForExecution: true,
+				GasBudget:        &b,
+			}
+		},
+	}
+
+	bundle := cld_ops.NewBundle(
+		context.Background,
+		logger.Test(t),
+		cld_ops.NewMemoryReporter(),
+	)
+
+	signers := generateSortedSigners(4)
+	proposerConfig := &types.Config{
+		Quorum:  1,
+		Signers: signers[:2],
+	}
+
+	report, err := cld_ops.ExecuteSequence(bundle, DeployMCMSSequence, deps, DeployMCMSSeqInput{
+		ChainSelector:         cselectors.SUI_TESTNET.Selector,
+		FastMCMS:              true,
+		SkipOwnershipTransfer: true,
+		Proposer:              proposerConfig,
+	})
+	require.NoError(t, err)
+
+	require.NotEmpty(t, report.Output.PackageId)
+	require.NotEmpty(t, report.Output.Objects.McmsRegistryObjectId)
+	require.Empty(t, report.Output.AcceptOwnershipProposal.Operations)
+}
+
+func TestDeployFastMCMSSeq_PublishesDistinctPackageFromSlowMCMS(t *testing.T) {
+	signer, client := testenv.SetupEnvironment(t)
+
+	deps := sui_ops.OpTxDeps{
+		Client: client,
+		Signer: signer,
+		GetCallOpts: func() *bind.CallOpts {
+			b := uint64(300_000_000)
+			return &bind.CallOpts{
+				WaitForExecution: true,
+				GasBudget:        &b,
+			}
+		},
+	}
+
+	bundle := cld_ops.NewBundle(
+		context.Background,
+		logger.Test(t),
+		cld_ops.NewMemoryReporter(),
+	)
+
+	slowReport, err := cld_ops.ExecuteSequence(bundle, DeployMCMSSequence, deps, DeployMCMSSeqInput{
+		ChainSelector:         cselectors.SUI_TESTNET.Selector,
+		SkipOwnershipTransfer: true,
+	})
+	require.NoError(t, err)
+
+	fastReport, err := cld_ops.ExecuteSequence(bundle, DeployMCMSSequence, deps, DeployMCMSSeqInput{
+		ChainSelector:         cselectors.SUI_TESTNET.Selector,
+		FastMCMS:              true,
+		SkipOwnershipTransfer: true,
+	})
+	require.NoError(t, err)
+
+	require.NotEqual(t, slowReport.Output.PackageId, fastReport.Output.PackageId)
+	require.NotEqual(t, slowReport.Output.Objects.McmsMultisigStateObjectId, fastReport.Output.Objects.McmsMultisigStateObjectId)
+	require.NotEqual(t, slowReport.Output.Objects.McmsRegistryObjectId, fastReport.Output.Objects.McmsRegistryObjectId)
 }

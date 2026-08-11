@@ -107,8 +107,8 @@ var (
 	}
 )
 
-// BuildExpectedSuiChainView returns the expected SuiChainView for the given state and owner
-func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainState, owner string) deployment.SuiChainView {
+// buildExpectedSuiChainView returns the expected SuiChainView for the given state and owner
+func buildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainState, owner string) deployment.SuiChainView {
 	return deployment.SuiChainView{
 		ChainSelector: SuiChainSelector,
 		ChainID:       "",
@@ -136,7 +136,7 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
-					TypeAndVersion: "FeeQuoter 1.6.0",
+					TypeAndVersion: "FeeQuoter 1.6.1",
 					StateObjectID:  state.CCIPObjectRef,
 				},
 				FeeTokens: []string{state.LinkTokenCoinMetadataId},
@@ -173,7 +173,7 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
-					TypeAndVersion: "RMNRemote 1.6.0",
+					TypeAndVersion: "RMNRemote 1.6.1",
 					StateObjectID:  state.CCIPObjectRef,
 				},
 				IsCursed:             false,
@@ -184,7 +184,7 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
-					TypeAndVersion: "TokenAdminRegistry 1.6.0",
+					TypeAndVersion: "TokenAdminRegistry 1.6.1",
 					StateObjectID:  state.CCIPObjectRef,
 				},
 				TokenConfigs: map[string]view.TokenConfigView{
@@ -197,73 +197,86 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 						LockOrBurnParams:    []string{"0x0000000000000000000000000000000000000000000000000000000000000006", state.BnMTokenPools["LINK"].StateObjectId},
 						ReleaseOrMintParams: []string{"0x0000000000000000000000000000000000000000000000000000000000000006", state.BnMTokenPools["LINK"].StateObjectId},
 					},
+					state.ManagedTokens[changesets.CCIPBnMSymbol].TokenCoinMetadataID: {
+						TokenPoolPackageId:  state.ManagedTokenPools[changesets.CCIPBnMSymbol].PackageID,
+						TokenPoolModule:     "managed_token_pool",
+						TokenType:           fmt.Sprintf("%s::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", strings.Replace(state.ManagedTokens[changesets.CCIPBnMSymbol].TokenPackageID, "0x", "", 1)),
+						Administrator:       owner,
+						TokenPoolTypeProof:  fmt.Sprintf("%s::managed_token_pool::TypeProof", strings.Replace(state.ManagedTokenPools[changesets.CCIPBnMSymbol].PackageID, "0x", "", 1)),
+						LockOrBurnParams:    []string{"0x0000000000000000000000000000000000000000000000000000000000000006", "0x0000000000000000000000000000000000000000000000000000000000000403", state.ManagedTokens[changesets.CCIPBnMSymbol].StateObjectId, state.ManagedTokenPools[changesets.CCIPBnMSymbol].StateObjectId},
+						ReleaseOrMintParams: []string{"0x0000000000000000000000000000000000000000000000000000000000000006", "0x0000000000000000000000000000000000000000000000000000000000000403", state.ManagedTokens[changesets.CCIPBnMSymbol].StateObjectId, state.ManagedTokenPools[changesets.CCIPBnMSymbol].StateObjectId},
+					},
 				},
 			},
 			NonceManager: view.NonceManagerView{
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
-					TypeAndVersion: "NonceManager 1.6.0",
+					TypeAndVersion: "NonceManager 1.6.1",
 				},
 			},
 			ReceiverRegistry: view.ReceiverRegistryView{
 				ContractMetaData: view.ContractMetaData{
 					Address:        state.CCIPAddress,
 					Owner:          owner,
-					TypeAndVersion: "ReceiverRegistry 1.6.0",
+					TypeAndVersion: "ReceiverRegistry 1.6.1",
 				},
 			},
 		},
-		OnRamp: view.OnRampView{
-			ContractMetaData: view.ContractMetaData{
-				Address:        state.OnRampAddress,
-				Owner:          owner,
-				TypeAndVersion: "OnRamp 1.6.0",
-				StateObjectID:  state.OnRampStateObjectId,
-			},
-			StaticConfig: view.OnRampStaticConfig{
-				ChainSelector: SuiChainSelector,
-			},
-			DynamicConfig: view.OnRampDynamicConfig{
-				FeeAggregator:  owner,
-				AllowlistAdmin: owner,
-			},
-			DestChainSpecificData: map[uint64]view.DestChainSpecificData{
-				EVMChainSelector: {
-					AllowedSendersList: []string{},
-					DestChainConfig: view.OnRampDestChainConfig{
-						SequenceNumber:   0,
-						AllowlistEnabled: DestChainConfigureOnRamp.DestChainAllowListEnabled[0],
-						Router:           DestChainConfigureOnRamp.DestChainRouters[0],
+		OnRamp: map[string]view.OnRampView{
+			state.OnRampAddress: {
+				ContractMetaData: view.ContractMetaData{
+					Address:        state.OnRampAddress,
+					Owner:          owner,
+					TypeAndVersion: "OnRamp 1.6.1",
+					StateObjectID:  state.OnRampStateObjectId,
+				},
+				StaticConfig: view.OnRampStaticConfig{
+					ChainSelector: SuiChainSelector,
+				},
+				DynamicConfig: view.OnRampDynamicConfig{
+					FeeAggregator:  owner,
+					AllowlistAdmin: owner,
+				},
+				DestChainSpecificData: map[uint64]view.DestChainSpecificData{
+					EVMChainSelector: {
+						AllowedSendersList: []string{},
+						DestChainConfig: view.OnRampDestChainConfig{
+							SequenceNumber:   0,
+							AllowlistEnabled: DestChainConfigureOnRamp.DestChainAllowListEnabled[0],
+							Router:           DestChainConfigureOnRamp.DestChainRouters[0],
+						},
+						ExpectedNextSeqNum: 1,
 					},
-					ExpectedNextSeqNum: 1,
 				},
 			},
 		},
-		OffRamp: view.OffRampView{
-			ContractMetaData: view.ContractMetaData{
-				Address:        state.OffRampAddress,
-				Owner:          owner,
-				TypeAndVersion: "OffRamp 1.6.0",
-				StateObjectID:  state.OffRampStateObjectId,
-			},
-			StaticConfig: view.OffRampStaticConfig{
-				ChainSelector:      SuiChainSelector,
-				RMNRemote:          state.CCIPAddress,
-				TokenAdminRegistry: state.CCIPAddress,
-				NonceManager:       state.CCIPAddress,
-			},
-			DynamicConfig: view.OffRampDynamicConfig{
-				FeeQuoter:                               state.CCIPAddress,
-				PermissionlessExecutionThresholdSeconds: 28800,
-			},
-			SourceChainConfigs: map[uint64]view.OffRampSourceChainConfig{
-				EVMChainSelector: {
-					Router:                    state.CCIPAddress,
-					IsEnabled:                 true,
-					MinSeqNr:                  1,
-					IsRMNVerificationDisabled: true,
-					OnRamp:                    fmt.Sprintf("0x%s", DestChainOnRampAddress),
+		OffRamp: map[string]view.OffRampView{
+			state.OffRampAddress: {
+				ContractMetaData: view.ContractMetaData{
+					Address:        state.OffRampAddress,
+					Owner:          owner,
+					TypeAndVersion: "OffRamp 1.6.1",
+					StateObjectID:  state.OffRampStateObjectId,
+				},
+				StaticConfig: view.OffRampStaticConfig{
+					ChainSelector:      SuiChainSelector,
+					RMNRemote:          state.CCIPAddress,
+					TokenAdminRegistry: state.CCIPAddress,
+					NonceManager:       state.CCIPAddress,
+				},
+				DynamicConfig: view.OffRampDynamicConfig{
+					FeeQuoter:                               state.CCIPAddress,
+					PermissionlessExecutionThresholdSeconds: 28800,
+				},
+				SourceChainConfigs: map[uint64]view.OffRampSourceChainConfig{
+					EVMChainSelector: {
+						Router:                    state.CCIPAddress,
+						IsEnabled:                 true,
+						MinSeqNr:                  1,
+						IsRMNVerificationDisabled: true,
+						OnRamp:                    fmt.Sprintf("0x%s", DestChainOnRampAddress),
+					},
 				},
 			},
 		},
@@ -308,6 +321,35 @@ func BuildExpectedSuiChainView(s *DeployTestSuite, state deployment.CCIPChainSta
 					AllowListEnabled: false,
 				},
 			},
+			changesets.CCIPBnMSymbol: {
+				state.ManagedTokenPools[changesets.CCIPBnMSymbol].PackageID: {
+					ContractMetaData: view.ContractMetaData{
+						Address:        state.ManagedTokenPools[changesets.CCIPBnMSymbol].PackageID,
+						Owner:          owner,
+						TypeAndVersion: "ManagedTokenPool 1.6.0",
+						StateObjectID:  state.ManagedTokenPools[changesets.CCIPBnMSymbol].StateObjectId,
+					},
+					Token: state.ManagedTokens[changesets.CCIPBnMSymbol].TokenCoinMetadataID,
+					RemoteChainConfigs: map[uint64]view.RemoteChainConfig{
+						EVMChainSelector: {
+							RemoteTokenAddress:  fmt.Sprintf("0x000000000000000000000000%s", EVMTokenAddress),
+							RemotePoolAddresses: []string{EVMPoolAddress},
+							InboundRateLimiterConfig: view.RateLimiterConfig{
+								IsEnabled: false,
+								Capacity:  RateLimiterCapacity,
+								Rate:      RateLimiterRate,
+							},
+							OutboundRateLimiterConfig: view.RateLimiterConfig{
+								IsEnabled: false,
+								Capacity:  RateLimiterCapacity,
+								Rate:      RateLimiterRate,
+							},
+						},
+					},
+					AllowList:        []string{},
+					AllowListEnabled: false,
+				},
+			},
 		},
 	}
 }
@@ -322,6 +364,7 @@ func (s *DeployTestSuite) GetDeployTPAndConfigureConfig() changesets.DeployTPAnd
 			BurnMintTokenPoolDeployInput: burnminttokenpoolops.BurnMintTokenPoolDeployInput{
 				CCIPPackageId:    s.ccipPackageID,
 				MCMSAddress:      s.mcmsPackageID,
+				FastMcmsAddress:  s.fastMcmsPackageID,
 				MCMSOwnerAddress: s.deployerAddr,
 			},
 			CoinObjectTypeArg:      coinTypeArg,

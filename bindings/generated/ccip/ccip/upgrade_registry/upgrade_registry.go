@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -30,6 +29,7 @@ type IUpgradeRegistry interface {
 	GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string) (*models.SuiTransactionBlockResponse, error)
 	IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error)
 	VerifyFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error)
+	McmsInitialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsBlockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsUnblockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsBlockFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -61,6 +61,8 @@ type UpgradeRegistryEncoder interface {
 	IsFunctionAllowedWithArgs(args ...any) (*bind.EncodedCall, error)
 	VerifyFunctionAllowed(ref bind.Object, moduleName string, functionName string, version byte) (*bind.EncodedCall, error)
 	VerifyFunctionAllowedWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsInitialize(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsInitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsBlockVersion(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsBlockVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsUnblockVersion(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -84,8 +86,8 @@ type UpgradeRegistryDevInspect struct {
 var _ IUpgradeRegistry = (*UpgradeRegistryContract)(nil)
 var _ IUpgradeRegistryDevInspect = (*UpgradeRegistryDevInspect)(nil)
 
-func NewUpgradeRegistry(packageID string, client sui.ISuiAPI) (IUpgradeRegistry, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "upgrade_registry", client)
+func NewUpgradeRegistry(packageID string, chainClient client.BindingsClient) (IUpgradeRegistry, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip", "upgrade_registry", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -138,111 +140,6 @@ type UpgradeRegistry struct {
 }
 
 type McmsCallback struct {
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip::upgrade_registry::VersionBlocked", func(data []byte) (interface{}, error) {
-		var result VersionBlocked
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for VersionBlocked
-	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::VersionBlocked>", func(data []byte) (interface{}, error) {
-		var results []VersionBlocked
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::upgrade_registry::VersionUnblocked", func(data []byte) (interface{}, error) {
-		var result VersionUnblocked
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for VersionUnblocked
-	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::VersionUnblocked>", func(data []byte) (interface{}, error) {
-		var results []VersionUnblocked
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::upgrade_registry::FunctionBlocked", func(data []byte) (interface{}, error) {
-		var result FunctionBlocked
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for FunctionBlocked
-	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::FunctionBlocked>", func(data []byte) (interface{}, error) {
-		var results []FunctionBlocked
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::upgrade_registry::FunctionUnblocked", func(data []byte) (interface{}, error) {
-		var result FunctionUnblocked
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for FunctionUnblocked
-	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::FunctionUnblocked>", func(data []byte) (interface{}, error) {
-		var results []FunctionUnblocked
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::upgrade_registry::UpgradeRegistry", func(data []byte) (interface{}, error) {
-		var result UpgradeRegistry
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for UpgradeRegistry
-	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::UpgradeRegistry>", func(data []byte) (interface{}, error) {
-		var results []UpgradeRegistry
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::upgrade_registry::McmsCallback", func(data []byte) (interface{}, error) {
-		var result McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsCallback
-	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::McmsCallback>", func(data []byte) (interface{}, error) {
-		var results []McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // Initialize executes the initialize Move function.
@@ -325,6 +222,16 @@ func (c *UpgradeRegistryContract) VerifyFunctionAllowed(ctx context.Context, opt
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// McmsInitialize executes the mcms_initialize Move function.
+func (c *UpgradeRegistryContract) McmsInitialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.McmsInitialize(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // McmsBlockVersion executes the mcms_block_version Move function.
 func (c *UpgradeRegistryContract) McmsBlockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.upgradeRegistryEncoder.McmsBlockVersion(ref, registry, params)
@@ -380,9 +287,9 @@ func (d *UpgradeRegistryDevInspect) GetModuleRestrictions(ctx context.Context, o
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([][]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected [][]byte, got %T", results[0])
+	var result [][]byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -402,9 +309,9 @@ func (d *UpgradeRegistryDevInspect) IsFunctionAllowed(ctx context.Context, opts 
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -693,6 +600,38 @@ func (c upgradeRegistryEncoder) VerifyFunctionAllowedWithArgs(args ...any) (*bin
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("verify_function_allowed", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsInitialize encodes a call to the mcms_initialize Move function.
+func (c upgradeRegistryEncoder) McmsInitialize(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_initialize", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsInitializeWithArgs encodes a call to the mcms_initialize Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c upgradeRegistryEncoder) McmsInitializeWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsBlockVersion encodes a call to the mcms_block_version Move function.

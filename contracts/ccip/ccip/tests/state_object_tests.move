@@ -9,6 +9,7 @@ use mcms::mcms_registry::{Self, Registry};
 use std::string;
 use sui::address;
 use sui::bcs;
+use sui::package;
 use sui::test_scenario::{Self, Scenario};
 
 const SENDER_1: address = @0x1;
@@ -272,20 +273,22 @@ fun setup_with_mcms_ownership(): (Scenario, Registry, CCIPObjectRef) {
 fun test_mcms_add_allowed_modules_success() {
     let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
-    // Verify initial allowed modules (should have fee_quoter, rmn_remote, state_object, token_admin_registry)
+    // Verify initial allowed modules
     let initial_modules = mcms_registry::get_allowed_modules(
         &registry,
         address::to_ascii_string(@ccip),
     );
     assert!(initial_modules.contains(&b"fee_quoter"), 0);
     assert!(initial_modules.contains(&b"rmn_remote"), 1);
-    assert!(initial_modules.contains(&b"state_object"), 2);
-    assert!(initial_modules.contains(&b"token_admin_registry"), 3);
-    assert!(!initial_modules.contains(&b"nonce_manager"), 4); // Should not exist yet
+    assert!(initial_modules.contains(&b"receiver_registry"), 2);
+    assert!(initial_modules.contains(&b"state_object"), 3);
+    assert!(initial_modules.contains(&b"token_admin_registry"), 4);
+    assert!(initial_modules.contains(&b"upgrade_registry"), 5);
+    assert!(!initial_modules.contains(&b"nonce_manager"), 6); // Should not exist yet
 
     // Prepare data for mcms_add_allowed_modules
     // Data format: [registry_address][vector<vector<u8>> of module names]
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&registry))); // Registry address for validation
 
     // Serialize vector of module names (vector<vector<u8>>)
@@ -328,7 +331,7 @@ fun test_mcms_add_allowed_modules_already_exists() {
 
     // Try to add "fee_quoter" which already exists in initial allowed modules
     // Data format: [registry_address][vector<vector<u8>> of module names]
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&registry))); // Registry address for validation
 
     // Serialize vector of module names (vector<vector<u8>>)
@@ -365,7 +368,7 @@ fun test_mcms_add_allowed_modules_wrong_function_name() {
 
     // Prepare data with correct format
     // Data format: [registry_address][vector<vector<u8>> of module names]
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&registry))); // Registry address for validation
 
     // Serialize vector of module names (vector<vector<u8>>)
@@ -406,7 +409,7 @@ fun test_mcms_remove_allowed_modules_success() {
 
     // First, add a module that we'll later remove
     {
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&registry)));
         let module_names = vector[b"nonce_manager"];
         data.append(bcs::to_bytes(&module_names));
@@ -437,7 +440,7 @@ fun test_mcms_remove_allowed_modules_success() {
 
     // Now remove the module
     {
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&registry)));
         let module_names = vector[b"nonce_manager"];
         data.append(bcs::to_bytes(&module_names));
@@ -478,7 +481,7 @@ fun test_mcms_remove_allowed_modules_not_in_allowlist() {
     let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
     // Try to remove a module that doesn't exist
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&registry)));
     let module_names = vector[b"nonexistent_module"];
     data.append(bcs::to_bytes(&module_names));
@@ -512,7 +515,7 @@ fun test_mcms_remove_allowed_modules_wrong_function_name() {
     let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
     // Prepare data with correct format
-    let mut data = vector::empty<u8>();
+    let mut data = vector[];
     data.append(bcs::to_bytes(&object::id_address(&registry)));
     let module_names = vector[b"fee_quoter"];
     data.append(bcs::to_bytes(&module_names));
@@ -563,7 +566,7 @@ fun test_mcms_three_step_ownership_transfer() {
             @ccip.to_ascii_string(),
         );
 
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&ref)));
         data.append(bcs::to_bytes(&owner_cap_address));
         data.append(bcs::to_bytes(&new_owner));
@@ -620,7 +623,7 @@ fun test_mcms_three_step_ownership_transfer() {
         let mut deployer_state = test_scenario::take_shared<mcms_deployer::DeployerState>(&scenario);
 
         // Serialize data: [ref_address][owner_cap_address][to_address][package_address]
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         data.append(bcs::to_bytes(&object::id_address(&ref)));
         data.append(bcs::to_bytes(&owner_cap_address));
         data.append(bcs::to_bytes(&new_owner));
@@ -669,6 +672,111 @@ fun test_mcms_three_step_ownership_transfer() {
         assert!(state_object::contains<TestObject>(&ref));
 
         scenario.return_to_sender(owner_cap);
+    };
+
+    test_scenario::return_shared(registry);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+// RR-02: transferring ownership out of MCMS while an upgrade cap is registered must
+// release both the owner cap and the upgrade cap. Before the fix this aborted because
+// `release_cap` removed the registry proof state that `release_upgrade_cap` then needed.
+fun test_mcms_execute_ownership_transfer_releases_upgrade_cap() {
+    let (mut scenario, mut registry, mut ref) = setup_with_mcms_ownership();
+
+    let new_owner = SENDER_2;
+
+    // Register an upgrade cap for @ccip under MCMS custody.
+    let ccip_addr = @ccip;
+    scenario.next_tx(OWNER);
+    {
+        let mut deployer_state = test_scenario::take_shared<mcms_deployer::DeployerState>(&scenario);
+        let upgrade_cap = package::test_publish(ccip_addr.to_id(), scenario.ctx());
+        mcms_deployer::test_register_upgrade_cap(&mut deployer_state, upgrade_cap, scenario.ctx());
+        assert!(mcms_deployer::has_upgrade_cap(&deployer_state, ccip_addr));
+        test_scenario::return_shared(deployer_state);
+    };
+
+    // Step 1: initiate transfer out of MCMS to SENDER_2.
+    scenario.next_tx(OWNER);
+    {
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(
+            &registry,
+            @ccip.to_ascii_string(),
+        );
+
+        let mut data = vector[];
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&owner_cap_address));
+        data.append(bcs::to_bytes(&new_owner));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"state_object"),
+            string::utf8(b"transfer_ownership"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000001",
+            0,
+            1,
+        );
+
+        state_object::mcms_transfer_ownership(&mut ref, &mut registry, params, scenario.ctx());
+    };
+
+    // Step 2: new owner accepts.
+    scenario.next_tx(new_owner);
+    state_object::accept_ownership(&mut ref, scenario.ctx());
+
+    // Step 3: execute the transfer; this must release the upgrade cap first, then the owner cap.
+    scenario.next_tx(OWNER);
+    {
+        let owner_cap_address = mcms_registry::test_get_cap_address<OwnerCap>(
+            &registry,
+            @ccip.to_ascii_string(),
+        );
+        let mut deployer_state = test_scenario::take_shared<mcms_deployer::DeployerState>(&scenario);
+
+        let mut data = vector[];
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&owner_cap_address));
+        data.append(bcs::to_bytes(&new_owner));
+        data.append(bcs::to_bytes(&@ccip));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"state_object"),
+            string::utf8(b"execute_ownership_transfer"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000002",
+            0,
+            1,
+        );
+
+        state_object::mcms_execute_ownership_transfer(
+            &mut ref,
+            &mut registry,
+            &mut deployer_state,
+            params,
+            scenario.ctx(),
+        );
+
+        // The upgrade cap is no longer held by the deployer.
+        assert!(!mcms_deployer::has_upgrade_cap(&deployer_state, ccip_addr));
+        test_scenario::return_shared(deployer_state);
+    };
+
+    // Ownership moved to the new owner.
+    assert!(state_object::owner(&ref) == new_owner);
+
+    // The new owner received both the owner cap and the upgrade cap.
+    scenario.next_tx(new_owner);
+    {
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let upgrade_cap = scenario.take_from_sender<package::UpgradeCap>();
+        scenario.return_to_sender(owner_cap);
+        scenario.return_to_sender(upgrade_cap);
     };
 
     test_scenario::return_shared(registry);

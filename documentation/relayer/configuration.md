@@ -116,12 +116,12 @@ RequestType = "WaitForEffectsCert"
 Enabled = true
 BalancePollPeriod = "60s"
 
-# ChainReader Configuration
-[Chains.ChainReader]
-EventsIndexer.PollingInterval = "1s"
-EventsIndexer.SyncTimeout = "30s"
-TransactionsIndexer.PollingInterval = "2s"
-TransactionsIndexer.SyncTimeout = "60s"
+# ChainPoller (checkpoint-based indexing)
+[Chains.ChainPoller]
+PollingIntervalSecs = 2
+SyncTimeoutSecs = 60
+ChannelBufferSize = 16
+BackfillCheckpointCount = 100
 
 # ChainWriter Configuration
 [Chains.ChainWriter]
@@ -143,22 +143,24 @@ TransactionTimeout = "45s"
 
 ### Node Configuration
 
-Each chain can have multiple nodes for redundancy and load balancing:
+Each chain can have multiple nodes for redundancy and load balancing. Because the PTB Client now talks to the node over **gRPC**, each node may also specify a gRPC target and auth token:
 
 ```toml
 [[Chains.Nodes]]
 Name = 'primary-node'
 URL = 'https://fullnode.mainnet.sui.io'
-
-[[Chains.Nodes]]
-Name = 'backup-node'
-URL = 'https://sui-mainnet-rpc.nodereal.io'
+GrpcTarget = 'sui-mainnet-grpc.example.org:443'  # gRPC endpoint (host:port)
+GrpcToken = 'your-api-key'                        # gRPC auth token
 ```
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `Name` | string | required | Unique name for the node |
-| `URL` | string | required | RPC endpoint URL |
+| `URL` | string | required | JSON-RPC endpoint URL |
+| `GrpcTarget` | string | - | gRPC endpoint (`host:port`); enables gRPC when set together with `GrpcToken` |
+| `GrpcToken` | string | - | gRPC auth token |
+
+> The gRPC client is only initialized when **both** `GrpcTarget` and `GrpcToken` are present. Without them the client runs in JSON-RPC-only mode. The checkpoint-based indexer (ChainPoller) relies on gRPC, so production deployments should configure these.
 
 ### Transaction Manager
 
@@ -178,12 +180,14 @@ RequestType = "WaitForEffectsCert"
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `BroadcastChanSize` | uint64 | `4096` | Size of the transaction broadcast channel |
-| `ConfirmPollSecs` | int64 | `1` | Interval for polling transaction confirmations |
-| `DefaultMaxGasAmount` | int64 | `10000000` | Default gas limit for transactions |
-| `MaxTxRetryAttempts` | int64 | `5` | Maximum retry attempts for failed transactions |
-| `TransactionTimeout` | string | `"10s"` | Timeout for individual transactions |
-| `MaxConcurrentRequests` | int64 | `5` | Maximum concurrent RPC requests |
+| `ConfirmPollSecs` | uint64 | `10` | Interval for polling transaction confirmations |
+| `DefaultMaxGasAmount` | uint64 | `10000000` | Default gas limit for transactions |
+| `MaxTxRetryAttempts` | uint64 | `5` | Maximum retry attempts for failed transactions |
+| `TransactionTimeout` | string | `"120s"` | Timeout for individual transactions |
+| `MaxConcurrentRequests` | uint64 | `500` | Maximum concurrent RPC requests |
 | `RequestType` | string | `"WaitForEffectsCert"` | Transaction request type |
+| `ReaperPollSecs` | uint64 | `10` | How often the reaper runs |
+| `TransactionRetentionSecs` | uint64 | `10` | How long to retain finalized/failed transactions |
 
 #### Request Types
 
@@ -205,24 +209,30 @@ BalancePollPeriod = "60s"
 | `Enabled` | bool | `true` | Enable balance monitoring |
 | `BalancePollPeriod` | string | `"10s"` | Interval for checking balances |
 
-### ChainReader Configuration
+### ChainPoller Configuration
 
-Controls how the relayer reads data from the blockchain:
+The indexing pipeline is driven by a single **ChainPoller** that streams checkpoints over gRPC and fans their contents out to the Events and Transactions indexers (see [Event Indexing](./event-indexing.md)). It replaces the old per-selector / per-transmitter polling, so checkpoint fetching is configured here rather than under separate `EventsIndexer` / `TransactionsIndexer` polling settings:
 
 ```toml
-[Chains.ChainReader]
-EventsIndexer.PollingInterval = "1s"
-EventsIndexer.SyncTimeout = "30s"
-TransactionsIndexer.PollingInterval = "2s"
-TransactionsIndexer.SyncTimeout = "60s"
+[Chains.ChainPoller]
+PollingIntervalSecs = 2
+SyncTimeoutSecs = 60
+ChannelBufferSize = 16
+BackfillCheckpointCount = 100
+ReplayCheckpointCount = 100         # checkpoints re-scanned per Replay request (0 = to latest)
+# StartCheckpointSequence = 12345   # optional; overrides backfill when set
 ```
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `EventsIndexer.PollingInterval` | string | `"1s"` | How often to poll for new events |
-| `EventsIndexer.SyncTimeout` | string | `"30s"` | Timeout for event sync operations |
-| `TransactionsIndexer.PollingInterval` | string | `"1s"` | How often to poll for transactions |
-| `TransactionsIndexer.SyncTimeout` | string | `"30s"` | Timeout for transaction sync operations |
+| `PollingIntervalSecs` | uint64 | `2` | How often live polling checks for new checkpoints |
+| `SyncTimeoutSecs` | uint64 | `60` | Timeout for processing a single checkpoint |
+| `ChannelBufferSize` | uint64 | `16` | Buffer size of the events/transactions channels |
+| `BackfillCheckpointCount` | uint64 | `100` | Start at `latest - N` |
+| `StartCheckpointSequence` | uint64 | _unset_ | Explicit starting checkpoint sequence (overrides backfill) |
+| `ReplayCheckpointCount` | uint64 | `100` | Checkpoints re-scanned per `Replay` request, starting at the requested checkpoint; an explicit `0` re-scans to the latest checkpoint |
+
+> **Note**: In the relayer's own TOML the chain block is keyed `[[Sui]]` with `[[Sui.Nodes]]`, `[Sui.ChainPoller]`, `[Sui.TransactionManager]`, etc. The `[[Chains]]` form used elsewhere in this document is illustrative.
 
 ### ChainWriter Configuration
 
@@ -371,9 +381,9 @@ ConfirmPollSecs = 1
 MaxConcurrentRequests = 25
 TransactionTimeout = "180s"
 
-[Chains.ChainReader]
-EventsIndexer.PollingInterval = "500ms"
-EventsIndexer.SyncTimeout = "60s"
+[Chains.ChainPoller]
+PollingIntervalSecs = 1
+SyncTimeoutSecs = 60
 ```
 
 ### Low-Latency Configuration
@@ -387,8 +397,8 @@ RequestType = "WaitForLocalExecution"
 TransactionTimeout = "30s"
 MaxConcurrentRequests = 10
 
-[Chains.ChainReader]
-EventsIndexer.PollingInterval = "250ms"
+[Chains.ChainPoller]
+PollingIntervalSecs = 1
 ```
 
 ### Resource-Constrained Configuration
@@ -401,9 +411,9 @@ BroadcastChanSize = 100
 MaxConcurrentRequests = 3
 TransactionTimeout = "60s"
 
-[Chains.ChainReader]
-EventsIndexer.PollingInterval = "5s"
-EventsIndexer.SyncTimeout = "30s"
+[Chains.ChainPoller]
+PollingIntervalSecs = 5
+SyncTimeoutSecs = 30
 ```
 
 ## Configuration Templates
@@ -546,12 +556,12 @@ RequestType = "WaitForEffectsCert"
 Enabled = true
 BalancePollPeriod = "45s"
 
-# Event indexing
-[Chains.ChainReader]
-EventsIndexer.PollingInterval = "1s"
-EventsIndexer.SyncTimeout = "45s"
-TransactionsIndexer.PollingInterval = "2s"
-TransactionsIndexer.SyncTimeout = "90s"
+# Checkpoint-based indexing
+[Chains.ChainPoller]
+PollingIntervalSecs = 2
+SyncTimeoutSecs = 60
+ChannelBufferSize = 16
+BackfillCheckpointCount = 100
 
 # Transaction submission
 [Chains.ChainWriter]

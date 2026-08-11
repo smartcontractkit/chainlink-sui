@@ -7,11 +7,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
-	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/mitchellh/mapstructure"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
@@ -26,7 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -62,11 +62,10 @@ func BuildOffRampExecutePTB(
 	lggr logger.Logger,
 	ptbClient client.SuiPTBClient,
 	ptb *transaction.Transaction,
-	args config.Arguments,
+	args sui.Arguments,
 	signerAddress string,
 	addressMappings OffRampAddressMappings,
 ) (err error) {
-	sdkClient := ptbClient.GetClient()
 	offrampArgs, err := DecodeOffRampExecCallArgs(args.Args)
 	if err != nil {
 		return fmt.Errorf("failed to decode args for offramp execute PTB: %w", err)
@@ -114,7 +113,7 @@ func BuildOffRampExecutePTB(
 	addressMappings.CcipPackageId = latestCcipPackageId
 
 	// Set the offramp package interface from bindings
-	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, sdkClient)
+	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, ptbClient)
 	if err != nil {
 		return err
 	}
@@ -200,12 +199,10 @@ func ProcessTokenPools(
 	coinMetadataAddresses []string,
 	receiverParams *transaction.Argument,
 ) ([]transaction.Argument, error) {
-	sdkClient := ptbClient.GetClient()
-
 	lggr.Debugw("processing token pools for offramp execution...", "coinMetadataAddresses", coinMetadataAddresses)
 
 	// Set the ccip package interface from bindings
-	ccipPkg, err := ccip.NewCCIP(addressMappings.CcipPackageId, sdkClient)
+	ccipPkg, err := ccip.NewCCIP(addressMappings.CcipPackageId, ptbClient)
 	if err != nil {
 		return nil, err
 	}
@@ -229,21 +226,14 @@ func ProcessTokenPools(
 
 		lggr.Debugw("fetched token configs via dev inspect call", "tokenConfig", tokenConfig)
 
-		// Get the move normalized module to dynamically construct the parameters for the token pool call
-		tokenPoolNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, tokenConfig.TokenPoolPackageId, tokenConfig.TokenPoolModule)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get normalized module for token pool: %w", err)
-		}
-
 		tokenPoolCommandResult, err := AppendPTBCommandForTokenPool(
 			ctx,
 			lggr,
-			sdkClient,
+			ptbClient,
 			ptb,
 			callOpts,
 			addressMappings,
 			&tokenConfig,
-			&tokenPoolNormalizedModule,
 			receiverParams,
 		)
 		if err != nil {
@@ -259,19 +249,18 @@ func ProcessTokenPools(
 func AppendPTBCommandForTokenPool(
 	ctx context.Context,
 	lggr logger.Logger,
-	sdkClient sui.ISuiAPI,
+	chainClient client.SuiPTBClient,
 	ptb *transaction.Transaction,
 	callOpts *bind.CallOpts,
 	addressMappings *OffRampAddressMappings,
 	tokenPoolConfigs *module_token_admin_registry.TokenConfig,
-	normalizedModule *models.GetNormalizedMoveModuleResponse,
 	receiverParams *transaction.Argument,
 ) (*transaction.Argument, error) {
 	poolBoundContract, err := bind.NewBoundContract(
 		tokenPoolConfigs.TokenPoolPackageId,
 		tokenPoolConfigs.TokenPoolPackageId,
 		tokenPoolConfigs.TokenPoolModule,
-		sdkClient,
+		chainClient,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create token pool bound contract when appending PTB command: %w", err)
@@ -297,13 +286,11 @@ func AppendPTBCommandForTokenPool(
 	}
 
 	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
-	functionSignature, ok := normalizedModule.ExposedFunctions[OfframpTokenPoolFunctionName]
-	if !ok {
-		return nil, fmt.Errorf("missing function signature for token pool function not found in module (%s)", OfframpTokenPoolFunctionName)
+	functionDescriptor, err := chainClient.GetMoveModuleFunction(ctx, tokenPoolConfigs.TokenPoolPackageId, tokenPoolConfigs.TokenPoolModule, OfframpTokenPoolFunctionName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get function descriptor for token pool function: %w", err)
 	}
-
-	// Figure out the parameter types from the normalized module of the token pool
-	paramTypes, err := DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
+	paramTypes, err := DecodeParametersFromFunctionDescriptor(lggr, functionDescriptor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
 	}
@@ -341,56 +328,55 @@ func ProcessReceivers(
 	receiverParams *transaction.Argument,
 	extraArgs map[string]any,
 ) ([]transaction.Argument, error) {
-	sdkClient := ptbClient.GetClient()
-
 	// Create a receiver binding interface to filter out non-registered receivers
-	receiverRegistryPkg, err := receiver_registry.NewReceiverRegistry(addressMappings.CcipPackageId, sdkClient)
+	receiverRegistryPkg, err := receiver_registry.NewReceiverRegistry(addressMappings.CcipPackageId, ptbClient)
 	if err != nil {
 		return nil, err
 	}
 	receiverRegistryDevInspect := receiverRegistryPkg.DevInspect()
 
 	receiverCommandsResults := make([]transaction.Argument, 0)
-	// Generate receiver call commands
 	for _, message := range messages {
-		// If there is no receiver, skip this message
 		if len(message.Receiver) == 0 || message.Receiver == nil {
 			lggr.Errorw("unexpected nil or zero length receiver, skipping message in offramp execution...", "message", message)
 			continue
 		}
 
-		// Check if receiver is a zero address (0x0....0 // 32 bytes of 0)
 		if bytes.Equal(message.Receiver, codec.AccountZero) {
 			lggr.Debugw("receiver is zero address, skipping message in offramp execution...", "message", message)
 			continue
 		}
 
-		// Parse the receiver address into a hex string
+		// Mirror on-chain gating: skip receiver call when on-chain would not populate the message.
+		// On-chain: has_valid_message_receiver = (!data.is_empty() || gas_limit != 0) && is_registered_receiver
+		if !needsAppDelivery(message, extraArgs) {
+			lggr.Debugw("message has no data and zero gas limit, skipping receiver call",
+				"receiver", hex.EncodeToString(message.Receiver))
+			continue
+		}
+
 		receiverPackageId := "0x" + hex.EncodeToString(message.Receiver)
 
 		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
 		}
-		// If the receiver is not registered, fail the entire execution
 		if !isRegistered {
-			return nil, fmt.Errorf("receiver is not registered in offramp execution: %s", message.Receiver)
+			lggr.Warnw("receiver not registered, skipping receiver call (on-chain will not populate message)",
+				"receiver", receiverPackageId)
+			continue
 		}
 
 		receiverConfig, err := receiverRegistryDevInspect.GetReceiverConfig(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
 		if err != nil {
+			// RPC/network error — propagate so the caller can retry later.
 			return nil, fmt.Errorf("failed to get receiver config in offramp execution: %w", err)
-		}
-
-		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverConfig.ModuleName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get normalized module for token pool: %w", err)
 		}
 
 		receiverCommandResult, err := AppendPTBCommandForReceiver(
 			ctx,
 			lggr,
-			sdkClient,
+			ptbClient,
 			ptb,
 			callOpts,
 			receiverPackageId,
@@ -398,12 +384,25 @@ func ProcessReceivers(
 			"ccip_receive",
 			addressMappings,
 			message.Header.MessageID,
-			&receiverNormalizedModule,
 			receiverParams,
 			extraArgs,
 		)
 		if err != nil {
-			return nil, err
+			if errors.Is(err, ErrUnsupportedReceiverABI) {
+				// Permanent failure: the receiver's on-chain ABI uses shapes the relayer
+				// cannot handle (e.g. TypeParameter/generics, missing ccip_receive).
+				// Skip the receiver leg so the PTB is submitted without it.
+				// On-chain, populate_message will have set ReceiverParams.message to Some,
+				// so finish_execute → deconstruct_receiver_params will abort with
+				// ECCIPReceiveFailed. The message remains UNTOUCHED (atomic rollback)
+				// and available for manually_init_execute once the receiver is fixed
+				// or unregistered.
+				lggr.Errorw("skipping receiver command due to unsupported ABI; PTB will fail on-chain",
+					"receiver", receiverPackageId,
+					"error", err)
+				continue
+			}
+			return nil, fmt.Errorf("failed to build receiver command for %s: %w", receiverPackageId, err)
 		}
 		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
 	}
@@ -411,10 +410,26 @@ func ProcessReceivers(
 	return receiverCommandsResults, nil
 }
 
+//nolint:staticcheck // ccipocr3.Message is a deprecated alias; matches ExecuteReport.Messages until ccipocr3common migration.
+func needsAppDelivery(message ccipocr3.Message, extraArgs map[string]any) bool {
+	if len(message.Data) > 0 {
+		return true
+	}
+	if val, ok := extraArgs["gasLimit"]; ok {
+		switch gl := val.(type) {
+		case *big.Int:
+			return gl != nil && gl.Sign() > 0
+		case uint64:
+			return gl > 0
+		}
+	}
+	return false
+}
+
 func AppendPTBCommandForReceiver(
 	ctx context.Context,
 	lggr logger.Logger,
-	sdkClient sui.ISuiAPI,
+	chainClient client.SuiPTBClient,
 	ptb *transaction.Transaction,
 	callOpts *bind.CallOpts,
 	packageId string,
@@ -422,11 +437,10 @@ func AppendPTBCommandForReceiver(
 	functionName string,
 	addressMappings *OffRampAddressMappings,
 	messageID [32]byte,
-	normalizedModule *models.GetNormalizedMoveModuleResponse,
 	receiverParams *transaction.Argument,
 	extraArgs map[string]any,
 ) (*transaction.Argument, error) {
-	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, sdkClient)
+	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, chainClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create receiver bound contract when appending PTB command: %w", err)
 	}
@@ -435,7 +449,7 @@ func AppendPTBCommandForReceiver(
 		addressMappings.CcipPackageId,
 		addressMappings.CcipPackageId,
 		"offramp_state_helper",
-		sdkClient,
+		chainClient,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create offramp state helper bound contract when appending PTB command: %w", err)
@@ -478,43 +492,18 @@ func AppendPTBCommandForReceiver(
 	}
 
 	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
-	functionSignature, ok := normalizedModule.ExposedFunctions[functionName]
-	if !ok {
-		return nil, fmt.Errorf("missing function signature for receiver function not found in module (%s)", functionName)
-	}
-
-	// Figure out the parameter types from the normalized module of the token pool
-	paramTypes, err = DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
+	functionDescriptor, err := chainClient.GetMoveModuleFunction(ctx, packageId, moduleId, functionName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
+		return nil, fmt.Errorf("failed to get function descriptor for receiver: %w", err)
+	}
+	paramTypes, err = DecodeParametersFromFunctionDescriptor(lggr, functionDescriptor)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode parameters for receiver: %w", err)
 	}
 
 	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
 
-	// Append extra args to the paramValues for the receiver call.
-	receiverObjectIds, ok := extraArgs["receiverObjectIds"]
-	if !ok {
-		return nil, fmt.Errorf("missing extra args for receiver function not found in module (%s)", functionName)
-	}
-
-	// note: we cannot expect receiverObjectIds to be [][]byte, so check for []any type
-	var extraArgsValues [][]byte
-	switch vals := receiverObjectIds.(type) {
-	case [][]byte:
-		extraArgsValues = vals
-	case []any:
-		for _, v := range vals {
-			b, ok := v.([]byte)
-			if !ok {
-				lggr.Error("unexpected element type in receiverObjectIds", "type", fmt.Sprintf("%T", v))
-				continue
-			}
-			extraArgsValues = append(extraArgsValues, b)
-		}
-	default:
-		lggr.Error("unexpected receiverObjectIds type", "type", fmt.Sprintf("%T", receiverObjectIds))
-	}
-
+	extraArgsValues := extractReceiverObjectIDs(lggr, extraArgs)
 	for _, value := range extraArgsValues {
 		objectId := hex.EncodeToString(value)
 		paramValues = append(paramValues, bind.Object{Id: "0x" + objectId})
@@ -538,4 +527,33 @@ func AppendPTBCommandForReceiver(
 	}
 
 	return receiverCommandResult, nil
+}
+
+// extractReceiverObjectIDs extracts receiver object IDs from extraArgs,
+// handling missing keys, nil values, and both [][]byte and []any representations.
+func extractReceiverObjectIDs(lggr logger.Logger, extraArgs map[string]any) [][]byte {
+	raw, ok := extraArgs["receiverObjectIds"]
+	if !ok || raw == nil {
+		lggr.Warnw("receiverObjectIds not present in extraArgs, defaulting to empty")
+		return nil
+	}
+
+	switch vals := raw.(type) {
+	case [][]byte:
+		return vals
+	case []any:
+		var out [][]byte
+		for _, v := range vals {
+			b, ok := v.([]byte)
+			if !ok {
+				lggr.Errorw("unexpected element type in receiverObjectIds", "type", fmt.Sprintf("%T", v))
+				continue
+			}
+			out = append(out, b)
+		}
+		return out
+	default:
+		lggr.Errorw("unexpected receiverObjectIds type", "type", fmt.Sprintf("%T", raw))
+		return nil
+	}
 }

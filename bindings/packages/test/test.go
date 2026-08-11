@@ -2,9 +2,10 @@ package test
 
 import (
 	"context"
+	"log"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	modulecomplex "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/complex"
@@ -47,18 +48,18 @@ func (p TestPackage) Generics() module_generics.IGenerics {
 	return p.generics
 }
 
-func NewTest(address string, client sui.ISuiAPI) (Test, error) {
-	counterContract, err := modulecounter.NewCounter(address, client)
+func NewTest(address string, chainClient client.BindingsClient) (Test, error) {
+	counterContract, err := modulecounter.NewCounter(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
 
-	complexContract, err := modulecomplex.NewComplex(address, client)
+	complexContract, err := modulecomplex.NewComplex(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
 
-	genericsContract, err := module_generics.NewGenerics(address, client)
+	genericsContract, err := module_generics.NewGenerics(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func NewTest(address string, client sui.ISuiAPI) (Test, error) {
 	}, nil
 }
 
-func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, testSecondary, suiRPC string) (Test, *models.SuiTransactionBlockResponse, error) {
+func PublishTest(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, testSecondary, suiRPC string) (Test, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -81,25 +82,24 @@ func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, t
 	artifact, err := bind.CompilePackage(contracts.Test, map[string]string{
 		"test":           "0x0",
 		"test_secondary": testSecondary,
-
-		"signer": signerAddr,
+		"signer":         signerAddr,
 	}, false, suiRPC)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if err != nil {
-		return nil, nil, err
-	}
+	artifact.Dependencies = append(artifact.Dependencies, testSecondary)
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+	//nolint:revive // var-naming: generated bindings keep packageId naming
+	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	contract, err := NewTest(packageId, client)
+	log.Printf("successfully published test package")
+	contract, err := NewTest(packageId, chainClient)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -107,7 +107,7 @@ func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, t
 	return contract, tx, nil
 }
 
-func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, suiRPC string) (Test, *models.SuiTransactionBlockResponse, error) {
+func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, suiRPC string) (Test, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -122,18 +122,16 @@ func PublishTestSecondary(ctx context.Context, opts *bind.CallOpts, client sui.I
 		return nil, nil, err
 	}
 
-	if err != nil {
-		return nil, nil, err
-	}
-
-	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+	//nolint:revive // var-naming: generated bindings keep packageId naming
+	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	contract, err := NewTest(packageId, client)
+	log.Printf("successfully published test secondary package")
+	contract, err := NewTest(packageId, chainClient)
 	if err != nil {
 		return nil, nil, err
 	}

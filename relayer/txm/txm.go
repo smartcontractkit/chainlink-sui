@@ -33,6 +33,7 @@ type SuiTxm struct {
 	transactionRepository TxmStore
 	retryManager          RetryManager
 	gasManager            GasManager
+	coinManager           GasCoinManager
 	configuration         Config
 	Starter               commonutils.StartStopOnce
 	done                  sync.WaitGroup
@@ -49,6 +50,8 @@ func NewSuiTxm(
 	lggr.Infof("SuiTxm configuration: %+v", conf)
 	lggr.Infof("Gas manager Max Gas Budget: %+v", gasManager.MaxGasBudget())
 
+	coinManager := NewGasCoinManager(lggr, gateway)
+
 	return &SuiTxm{
 		lggr:                  logger.Named(lggr, "SuiTxm"),
 		suiGateway:            gateway,
@@ -56,6 +59,7 @@ func NewSuiTxm(
 		transactionRepository: transactionsRepository,
 		retryManager:          retryManager,
 		gasManager:            gasManager,
+		coinManager:           coinManager,
 		configuration:         conf,
 		broadcastChannel:      make(chan string, conf.BroadcastChanSize),
 		stopChannel:           make(chan struct{}),
@@ -86,18 +90,30 @@ func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetad
 	txn, err := GeneratePTBTransactionWithGasEstimation(
 		ctx, signerPublicKey, txm.lggr, txm.keystoreService, txm.suiGateway,
 		txm.configuration.RequestType, transactionID, txMetadata,
-		ptb, simulateTx, txm.gasManager,
+		ptb, simulateTx, txm.gasManager, txm.coinManager,
 	)
 	if err != nil {
 		txm.lggr.Errorw("Failed to generate PTB txn", "error", err)
+		// Coins may have been reserved during generation before the failure; release
+		// them so they don't stay locked until their TTL for a transaction that will
+		// never be enqueued. Safe to call even if nothing was reserved.
+		if releaseErr := txm.coinManager.ReleaseCoins(transactionID); releaseErr != nil {
+			txm.lggr.Debugw("Failed to release coins after generation failure", "transactionID", transactionID, "error", releaseErr)
+		}
 		return nil, err
 	}
 
-	txm.lggr.Infow("PTB txn generated", "transactionID", transactionID, "ptb", txn)
+	txm.lggr.Infow("PTB txn generated", "transactionID", transactionID)
 
 	err = txm.transactionRepository.AddTransaction(*txn)
 	if err != nil {
 		txm.lggr.Errorw("Failed to add txn to repository", "error", err)
+		// The payment coins were reserved during transaction generation; release them
+		// so they don't stay locked until their TTL expires for a transaction that
+		// was never enqueued.
+		if releaseErr := txm.coinManager.ReleaseCoins(transactionID); releaseErr != nil {
+			txm.lggr.Debugw("Failed to release coins after add failure", "transactionID", transactionID, "error", releaseErr)
+		}
 		return nil, err
 	}
 
@@ -127,7 +143,7 @@ func (txm *SuiTxm) GetTransactionStatus(ctx context.Context, transactionID strin
 		txm.lggr.Infow("Transaction is finalized", "transactionID", transactionID)
 		return commontypes.Finalized, nil
 	case StateRetriable:
-		txm.lggr.Infow("Transaction is retriable", "transactionID", transactionID)
+		txm.lggr.Infow("Transaction is retryable", "transactionID", transactionID)
 		return commontypes.Failed, nil
 	case StateFailed:
 		txm.lggr.Infow("Transaction has failed", "transactionID", transactionID)

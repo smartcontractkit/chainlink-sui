@@ -36,6 +36,9 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/mock_eth_token --input ./co
 # CCIP - Managed Token
 go run bindgen/main.go --moveConfig ./contracts/ccip/managed_token --input ./contracts/ccip/managed_token/sources/managed_token.move --output ./bindings/generated/ccip/managed_token/managed_token
 
+# CCIP - Managed Token Faucet
+go run bindgen/main.go --moveConfig ./contracts/ccip/managed_token_faucet --input ./contracts/ccip/managed_token_faucet/sources/faucet.move --output ./bindings/generated/ccip/managed_token_faucet/managed_token_faucet
+
 # CCIP - Lock Release Token Pool
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/lock_release_token_pool --input ./contracts/ccip/ccip_token_pools/lock_release_token_pool/sources/lock_release_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/lock_release_token_pool
 
@@ -45,11 +48,11 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/burn_mint_
 # CCIP - Managed Token Pool
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/managed_token_pool --input ./contracts/ccip/ccip_token_pools/managed_token_pool/sources/managed_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/managed_token_pool
 
-# CCIP - USDCTokenPool
-go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/usdc_token_pool --input ./contracts/ccip/ccip_token_pools/usdc_token_pool/sources/usdc_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/usdc_token_pool
-
 # CCIP Router
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_router --input ./contracts/ccip/ccip_router/sources/router.move --output ./bindings/generated/ccip/ccip_router/
+
+# CCIP BnM Token
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_burn_mint_token --input ./contracts/ccip/ccip_burn_mint_token/sources/ccip_burn_mint_token.move --output ./bindings/generated/ccip/ccip_burn_mint_token/ccip_burn_mint_token
 
 # LINK TOKEN
 go run bindgen/main.go --moveConfig ./contracts/link --input ./contracts/link/sources/link.move --output ./bindings/generated/link/link

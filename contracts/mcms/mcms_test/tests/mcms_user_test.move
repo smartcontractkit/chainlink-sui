@@ -9,7 +9,6 @@ use std::string;
 use sui::bcs;
 use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
-use sui::test_utils;
 
 const SENDER: address = @0xA;
 const MODULE_NAME: vector<u8> = b"mcms_user";
@@ -132,7 +131,7 @@ fun test_mcms_function_one() {
         let arg2 = TEST_ARG_BYTES;
 
         // Serialize arguments for BCS
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
         vector::append(&mut data, bcs::to_bytes(&mcms_user::get_owner_cap_id(&user_data)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
@@ -188,7 +187,7 @@ fun test_mcms_function_two() {
         let arg1 = TEST_ARG_ADDRESS;
         let arg2 = TEST_ARG_U128;
 
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
         vector::append(&mut data, bcs::to_bytes(&mcms_user::get_owner_cap_id(&user_data)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
@@ -248,7 +247,7 @@ fun test_mcms_function_one_invalid_function() {
             @mcms_test,
             string::utf8(MODULE_NAME),
             string::utf8(b"unknown_function"),
-            vector::empty(),
+            vector[],
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
@@ -290,7 +289,7 @@ fun test_mcms_entrypoint_wrong_module_name() {
             @mcms_test,
             string::utf8(b"wrong_module_name"),
             string::utf8(FUNCTION_ONE),
-            vector::empty(),
+            vector[],
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
@@ -329,7 +328,7 @@ fun test_sequential_function_calls() {
         let arg2 = TEST_ARG_BYTES;
 
         // Serialize arguments for BCS
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
         vector::append(&mut data, bcs::to_bytes(&mcms_user::get_owner_cap_id(&user_data)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
@@ -374,7 +373,7 @@ fun test_sequential_function_calls() {
         let arg2 = TEST_ARG_U128;
 
         // Serialize arguments for BCS
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
         vector::append(&mut data, bcs::to_bytes(&mcms_user::get_owner_cap_id(&user_data)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
@@ -437,7 +436,7 @@ fun test_call_function_with_invalid_user_data() {
         let arg1 = string::utf8(TEST_ARG_STRING);
         let arg2 = TEST_ARG_BYTES;
 
-        let mut data = vector::empty<u8>();
+        let mut data = vector[];
         vector::append(&mut data, bcs::to_bytes(&object::id_address(&fake_user_data)));
         vector::append(&mut data, bcs::to_bytes(&mcms_user::get_owner_cap_id(&fake_user_data)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
@@ -464,7 +463,7 @@ fun test_call_function_with_invalid_user_data() {
 
         ts::return_shared(fake_user_data);
         ts::return_shared(registry);
-        test_utils::destroy(fake_owner_cap);
+        transfer::public_share_object(fake_owner_cap);
     };
 
     ts::end(scenario);

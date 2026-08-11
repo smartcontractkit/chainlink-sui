@@ -1,7 +1,7 @@
 {
   "9762610643973837292": {
     "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29": {
-      "Type": "SuiManagedToken",
+      "Type": "SuiManagedTokenPackageID",
       "Version": "1.0.0",
       "Labels": {
         "LINK": {}
@@ -22,6 +22,13 @@
       }
     },
     "0xe25afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f72": {
+      "Type": "SuiManagedTokenMinterCapID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0x125afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f78": {
       "Type": "SuiManagedTokenMinterCapID",
       "Version": "1.0.0",
       "Labels": {
@@ -98,6 +105,20 @@
         "CCIP-LnR": {}
       }
     },
+    "0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd97": {
+      "Type": "SuiLnRTokenPoolRebalancerCapID",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-LnR": {}
+      }
+    },
+    "0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd99": {
+      "Type": "SuiLnRTokenPoolRebalancerCapID",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP-LnR": {}
+      }
+    },
     "0xa10215a219a1f2e30f746e68c1e4f2b39f593d83a1980c7cf4e4738591a7e7": {
       "Type": "SuiManagedTokenPool",
       "Version": "1.0.0",
@@ -114,6 +135,27 @@
     },
     "0xabeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd99": {
       "Type": "SuiManagedTokenPoolOwnerID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0x52f33e4724128431084e207406304383c05660042000016240438147268f184f": {
+      "Type": "SuiManagedTokenFaucetStateObjectID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0x52f33e4724128431084e207406304383c05660042000016240438147268f1850": {
+      "Type": "SuiManagedTokenFaucetUpgradeCapObjectID",
+      "Version": "1.0.0",
+      "Labels": {
+        "LINK": {}
+      }
+    },
+    "0x52f33e4724128431084e207406304383c05660042000016240438147268f1851": {
+      "Type": "SuiManagedTokenFaucetPackageID",
       "Version": "1.0.0",
       "Labels": {
         "LINK": {}
@@ -179,6 +221,10 @@
       "Type": "SuiRouterStateObjectID",
       "Version": "1.0.0"
     },
+    "0xb000000000000000000000000000000000000000000000000000000000000001": {
+      "Type": "SuiCCIPRouterOwnerCapObjectID",
+      "Version": "1.0.0"
+    },
     "0xbeace36c3c1e1f37c5806c4954140d15cbc7b0002ef7ccb490de26e82f5ec4ca": {
       "Type": "SuiCCIPObjectRef",
       "Version": "1.0.0"
@@ -214,6 +260,48 @@
     "0xf87c6010be571a304f0d860857204bc66f037842156f0f6c9d80be265fd83752": {
       "Type": "SuiOnRamp",
       "Version": "1.0.0"
+    },
+    "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e2a": {
+      "Type": "SuiManagedTokenPackageID",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP BnM": {}
+      }
+    },
+    "0x0eac90f883ea0902156b340c41e0d178af3f012fe63c33f9663b7be245bee4ff": {
+      "Type": "SuiManagedTokenOwnerCapObjectID",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP BnM": {}
+      }
+    },
+    "0xd93ceb06feeab8b0b5333a7f76f2e9d0d79e71063b8a71bce654954f7bfd631e": {
+      "Type": "SuiManagedTokenStateObjectID",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP BnM": {}
+      }
+    },
+    "0x125afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f71": {
+      "Type": "SuiManagedTokenMinterCapID",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP BnM": {}
+      }
+    },
+    "0xe25afa59deccfec819aaa67bf14f049982d2a1ca87c49c8614da5ea2dc438f7b": {
+      "Type": "SuiManagedTokenMinterCapID",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP BnM": {}
+      }
+    },
+    "0x52f33e4724128431084e207406304383c05660042000016240438147268f184a": {
+      "Type": "SuiManagedTokenPublisherObjectId",
+      "Version": "1.0.0",
+      "Labels": {
+        "CCIP BnM": {}
+      }
     }
   }
 }

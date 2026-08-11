@@ -26,7 +26,7 @@ func TestDeployAndInitManagedToken(t *testing.T) {
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(400_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
@@ -63,6 +63,7 @@ func TestDeployAndInitManagedToken(t *testing.T) {
 		MinterAddress:       signerAddress,
 		Allowance:           0,
 		IsUnlimited:         true,
+		Source:              "test",
 	}
 
 	output, err := cld_ops.ExecuteSequence(bundle, DeployAndInitManagedTokenSequence, deps, input)

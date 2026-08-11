@@ -15,7 +15,6 @@ import (
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
-	usdctokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_usdc_token_pool"
 	managedtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/managed_token"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
@@ -31,7 +30,6 @@ const (
 	ContractTypeManagedToken         ContractType = "managed_token"
 	ContractTypeBurnMintTokenPool    ContractType = "burn_mint_token_pool"
 	ContractTypeLockReleaseTokenPool ContractType = "lock_release_token_pool"
-	ContractTypeUsdcTokenPool        ContractType = "usdc_token_pool"
 	ContractTypeManagedTokenPool     ContractType = "managed_token_pool"
 	ContractTypeMCMS                 ContractType = "mcms"
 )
@@ -46,7 +44,6 @@ type ExecuteOwnershipTransferToMcmsSeqInput struct {
 	ManagedToken         *managedtokenops.ExecuteOwnershipTransferToMcmsManagedTokenInput                 `json:"managed_token,omitempty"`
 	BurnMintTokenPool    *burnminttokenpoolops.ExecuteOwnershipTransferToMcmsBurnMintTokenPoolInput       `json:"burn_mint_token_pool,omitempty"`
 	LockReleaseTokenPool *lockreleasetokenpoolops.ExecuteOwnershipTransferToMcmsLockReleaseTokenPoolInput `json:"lock_release_token_pool,omitempty"`
-	UsdcTokenPool        *usdctokenpoolops.ExecuteOwnershipTransferToMcmsUsdcTokenPoolInput               `json:"usdc_token_pool,omitempty"`
 	ManagedTokenPool     *managedtokenpoolops.ExecuteOwnershipTransferToMcmsManagedTokenPoolInput         `json:"managed_token_pool,omitempty"`
 }
 
@@ -162,19 +159,6 @@ var ExecuteOwnershipTransferToMcmsSequence = cld_ops.NewSequence(
 			env.Logger.Infow("Successfully executed ownership transfer to MCMS for LockReleaseTokenPool",
 				"packageId", input.LockReleaseTokenPool.LockReleaseTokenPoolPackageId,
 				"to", input.LockReleaseTokenPool.To,
-				"digest", report.Output.Digest)
-		}
-
-		// Execute UsdcTokenPool ownership transfer if provided
-		if input.UsdcTokenPool != nil {
-			report, err := cld_ops.ExecuteOperation(env, usdctokenpoolops.ExecuteOwnershipTransferToMcmsUsdcTokenPoolOp, deps, *input.UsdcTokenPool)
-			if err != nil {
-				return ExecuteOwnershipTransferToMcmsSeqOutput{}, fmt.Errorf("failed to execute ownership transfer for UsdcTokenPool: %w", err)
-			}
-			results[ContractTypeUsdcTokenPool] = report.Output.Digest
-			env.Logger.Infow("Successfully executed ownership transfer to MCMS for UsdcTokenPool",
-				"packageId", input.UsdcTokenPool.UsdcTokenPoolPackageId,
-				"to", input.UsdcTokenPool.To,
 				"digest", report.Output.Digest)
 		}
 

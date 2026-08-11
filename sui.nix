@@ -4,18 +4,18 @@
 }:
 stdenv.mkDerivation rec {
   name = "sui-cli-${version}";
-  version = "1.60.1"; # Update as needed. Should be a mainnet release version from https://github.com/MystenLabs/sui/releases
+  version = "1.75.2"; # Update as needed. Should be a mainnet release version from https://github.com/MystenLabs/sui/releases
 
   src = if stdenv.hostPlatform.isDarwin then
     pkgs.fetchzip {
       url = "https://github.com/MystenLabs/sui/releases/download/mainnet-v${version}/sui-mainnet-v${version}-macos-arm64.tgz"; # Assume is a M1 Mac
-      sha256 = "sha256-0w8YYrDDbf0tWom2asp0BkzuqLmWbdcUAAkMAll7Q6Y=";  # Should be replaced when bumping versions
+      sha256 = "sha256-fSIt7V78vLJQfWKvzwJn6A+ER0JjvWHTDw7hdgdPSUc=";  # Should be replaced when bumping versions
       stripRoot = false;
     }
     else if stdenv.isLinux then
       pkgs.fetchzip {
         url = "https://github.com/MystenLabs/sui/releases/download/mainnet-v${version}/sui-mainnet-v${version}-ubuntu-x86_64.tgz";
-        sha256 = "sha256-/rcMuLEgqV9UA0K7VaS+wIpX+jQKDQE+U1vGb5spJmU=";  # Should be replaced when bumping versions
+        sha256 = "sha256-kJ4sxEesNBOa0zvCtAdroyWBoRYeyqQfkEzRELdskCk=";  # Should be replaced when bumping versions
         stripRoot = false;
       }
     else

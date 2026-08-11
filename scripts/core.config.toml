@@ -32,6 +32,8 @@ NetworkNameFull = "sui-localnet" # optional, CLL naming convention
 Name = 'sui-node-1'
 URL = 'http://localhost:9000'  # For local development
 SolidityURL = 'http://localhost:9000'
+GrpcTarget = 'localhost:9000'  # gRPC endpoint (host:port); required for checkpoint-based indexing
+GrpcToken = 'test'             # gRPC auth token; gRPC is only enabled when both target and token are set
 
 [Sui.TransactionManager]
 BroadcastChanSize = 100
@@ -49,6 +51,17 @@ SyncTimeoutSecs = 3
 [Sui.EventsIndexer]
 PollingIntervalSecs = 3
 SyncTimeoutSecs = 3
+
+# ChainPoller drives checkpoint-based indexing over gRPC and fans checkpoint
+# contents out to the Events and Transactions indexers. Requires a node with
+# GrpcTarget/GrpcToken configured above.
+[Sui.ChainPoller]
+PollingIntervalSecs = 2      # how often live polling checks for new checkpoints
+SyncTimeoutSecs = 60         # timeout for processing a single checkpoint
+ChannelBufferSize = 16       # buffer size of the events/transactions channels
+BackfillCheckpointCount = 100 # start at (latest - N)
+ReplayCheckpointCount = 100   # checkpoints re-scanned per Replay request, starting at the requested checkpoint (0 = to latest)
+# StartCheckpointSequence = 12345 # optional; explicit start checkpoint (overrides backfill)
 
 
 # [Tracing]

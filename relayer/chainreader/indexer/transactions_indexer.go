@@ -6,145 +6,165 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/models"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	"github.com/mr-tron/base58"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
-	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
+	codec0 "github.com/smartcontractkit/chainlink-sui/codec"
+	chainreader_util "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
 
+// TransactionsIndexer consumes checkpoint transaction batches from a channel,
+// identifies failed transactions from known transmitters, and creates synthetic
+// ExecutionStateChanged events for those failures.
 type TransactionsIndexer struct {
-	db              *database.DBStore
-	client          client.SuiPTBClient
-	logger          logger.Logger
-	pollingInterval time.Duration
-	syncTimeout     time.Duration
+	db     *database.DBStore
+	logger logger.Logger
+	wg     sync.WaitGroup
 
-	// map of transmitter address to cursor (the last processed transaction digest)
-	transmitters map[models.SuiAddress]string
+	// Event configs for reading source chain config
+	eventConfigs map[string]*sui.ChainReaderEvent
 
-	// event selectors
-	eventPackageId          string
+	// Offramp package tracking
+	offrampPackageID       string
+	latestOfframpPackageID string
+	mu                     sync.RWMutex
+	offrampPackageIDReady  chan struct{}
+	offrampPackageOnce     sync.Once
+
+	// Constants for event/module identification
 	executionEventModuleKey string
 	executionEventKey       string
 	configEventModuleKey    string
 	configEventKey          string
-	executeFunctions        []string
+	executeFunction         string
 
-	// configs
-	eventConfigs map[string]*config.ChainReaderEvent
-
-	mu            sync.RWMutex
-	eventPkgReady chan struct{}
-	eventPkgOnce  sync.Once
+	starter services.StateMachine
 }
 
+// TransactionsIndexerApi defines the interface for the transactions indexer.
 type TransactionsIndexerApi interface {
-	Start(ctx context.Context) error
-	SetOffRampPackage(pkg string)
+	// Start begins consuming from the transactions channel.
+	// The channel is closed when the poller stops.
+	Start(ctx context.Context, transactionsCh <-chan CheckpointTransactionsBatch) error
+	// ProcessCheckpointTransactions processes a batch of transactions from a single checkpoint.
+	ProcessCheckpointTransactions(ctx context.Context, batch CheckpointTransactionsBatch) error
+	// SetOffRampPackage sets the offramp package IDs.
+	SetOffRampPackage(pkg string, latestPkg string)
 	Ready() error
 	Close() error
 }
 
+// NewTransactionsIndexer creates a new TransactionsIndexer instance.
 func NewTransactionsIndexer(
 	db sqlutil.DataSource,
 	lggr logger.Logger,
-	sdkClient client.SuiPTBClient,
-	pollingInterval time.Duration,
-	syncTimeout time.Duration,
-	eventConfigs map[string]*config.ChainReaderEvent,
+	eventConfigs map[string]*sui.ChainReaderEvent,
 ) TransactionsIndexerApi {
-	dataStore := database.NewDBStore(db, lggr)
+	logInstance := logger.Named(lggr, "SuiTransactionsIndexer")
+	dataStore := database.NewDBStore(db, logInstance)
 
 	return &TransactionsIndexer{
 		db:                      dataStore,
-		client:                  sdkClient,
-		logger:                  lggr,
-		pollingInterval:         pollingInterval,
-		syncTimeout:             syncTimeout,
-		transmitters:            make(map[models.SuiAddress]string),
+		logger:                  logInstance,
+		eventConfigs:            eventConfigs,
 		executionEventModuleKey: "offramp",
 		executionEventKey:       "ExecutionStateChanged",
 		configEventModuleKey:    "ocr3_base",
 		configEventKey:          "ConfigSet",
-		executeFunctions:        []string{"finish_execute"},
-		eventConfigs:            eventConfigs,
-		eventPkgReady:           make(chan struct{}),
+		executeFunction:         "init_execute",
+		offrampPackageIDReady:   make(chan struct{}),
 	}
 }
 
-// Start method initiates the polling loop for the transactions indexer to enable
-// indexing synthetic events for failed transactions.
-func (tIndexer *TransactionsIndexer) Start(ctx context.Context) error {
-	if err := tIndexer.waitForInitialEvent(ctx); err != nil {
-		return err
-	}
+// Start begins consuming transactions from the provided channel.
+// The consumer drains the channel immediately so the ChainPoller is not blocked
+// while waiting for the initial ConfigSet event to identify transmitters.
+func (tIndexer *TransactionsIndexer) Start(ctx context.Context, transactionsCh <-chan CheckpointTransactionsBatch) error {
+	return tIndexer.starter.StartOnce("TransactionsIndexer", func() error {
+		tIndexer.wg.Go(func() {
+			tIndexer.run(ctx, transactionsCh)
+		})
 
-	tIndexer.logger.Infow("Transaction polling goroutine started")
-	defer tIndexer.logger.Infow("Transaction polling goroutine exited")
+		return nil
+	})
+}
 
-	ticker := time.NewTicker(tIndexer.pollingInterval)
-	defer ticker.Stop()
+// run is the main consumer loop.
+func (tIndexer *TransactionsIndexer) run(ctx context.Context, transactionsCh <-chan CheckpointTransactionsBatch) {
+	tIndexer.logger.Info("TransactionsIndexer starting")
+
+	ready := make(chan error, 1)
+	go func() {
+		ready <- tIndexer.waitForInitialEvent(ctx)
+	}()
+
+	processingEnabled := false
 
 	for {
 		select {
-		case <-ticker.C:
-			syncCtx, cancel := context.WithTimeout(ctx, tIndexer.syncTimeout)
-			start := time.Now()
-
-			err := tIndexer.SyncAllTransmittersTransactions(syncCtx)
-			elapsed := time.Since(start)
-
-			if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-				tIndexer.logger.Warnw("TxSync completed with errors", "error", err, "duration", elapsed)
-			} else if err != nil {
-				tIndexer.logger.Warnw("Transaction sync timed out", "duration", elapsed)
-			} else {
-				tIndexer.logger.Debugw("Transaction sync completed successfully", "duration", elapsed)
-			}
-
-			cancel()
 		case <-ctx.Done():
-			tIndexer.logger.Infow("Transaction polling stopped")
-			return nil
+			tIndexer.logger.Info("TransactionsIndexer stopping")
+			return
+		case err := <-ready:
+			if err != nil {
+				tIndexer.logger.Infow("Transaction processing disabled", "error", err)
+				continue
+			}
+			tIndexer.logger.Info("TransactionsIndexer ready to process checkpoint transactions")
+			processingEnabled = true
+		case batch, ok := <-transactionsCh:
+			if !ok {
+				tIndexer.logger.Info("TransactionsIndexer channel closed, exiting")
+				return
+			}
+			if !processingEnabled {
+				continue
+			}
+			if err := tIndexer.ProcessCheckpointTransactions(ctx, batch); err != nil {
+				tIndexer.logger.Errorw("Failed to process checkpoint transactions",
+					"sequence", batch.Checkpoint.SequenceNumber,
+					"error", err)
+			}
 		}
 	}
 }
 
 // SetOffRampPackage sets offramp called by chainreader Bind.
-func (t *TransactionsIndexer) SetOffRampPackage(pkg string) {
+func (t *TransactionsIndexer) SetOffRampPackage(pkg string, latestPkg string) {
 	if pkg == "" {
 		t.logger.Warn("SetOffRampPackage called with empty package id")
 		return
 	}
 	t.mu.Lock()
-	old := t.eventPackageId
-	t.eventPackageId = pkg
+	t.offrampPackageID = pkg
+	t.latestOfframpPackageID = latestPkg
 	t.mu.Unlock()
 
-	if old != pkg {
-		t.logger.Infow("OffRamp package set", "old", old, "new", pkg)
-	}
-	t.eventPkgOnce.Do(func() { close(t.eventPkgReady) })
+	t.logger.Infow("OffRamp package set", "offrampPackageId", pkg, "latestOfframpPackageId", latestPkg)
+
+	t.offrampPackageOnce.Do(func() { close(t.offrampPackageIDReady) })
 }
 
 // waitForOffRampPackage blocks until the OffRamp package ID is available or the
 // provided context is canceled.
 func (t *TransactionsIndexer) waitForOffRampPackage(ctx context.Context) (string, error) {
 	t.mu.RLock()
-	pkg := t.eventPackageId
-	ch := t.eventPkgReady
+	pkg := t.offrampPackageID
+	ch := t.offrampPackageIDReady
 	t.mu.RUnlock()
 	if pkg != "" {
 		return pkg, nil
@@ -153,7 +173,7 @@ func (t *TransactionsIndexer) waitForOffRampPackage(ctx context.Context) (string
 	select {
 	case <-ch:
 		t.mu.RLock()
-		pkg = t.eventPackageId
+		pkg = t.offrampPackageID
 		t.mu.RUnlock()
 		if pkg == "" {
 			return "", fmt.Errorf("package ready signaled but empty")
@@ -164,26 +184,25 @@ func (t *TransactionsIndexer) waitForOffRampPackage(ctx context.Context) (string
 	}
 }
 
-// waitForInitialEvent method waits for the initial ExecutionStateChanged event to be indexed
-// in the database before starting the transaction polling loop.
+// waitForInitialEvent waits for the initial ConfigSet event to be indexed.
 func (tIndexer *TransactionsIndexer) waitForInitialEvent(ctx context.Context) error {
 	tIndexer.logger.Infow("waitForInitialEvent start", "idx_ptr", fmt.Sprintf("%p", tIndexer))
 
-	moduleKey := tIndexer.configEventModuleKey // "ocr3_base"
-	eventKey := tIndexer.configEventKey        // "ConfigSet"
+	moduleKey := tIndexer.configEventModuleKey
+	eventKey := tIndexer.configEventKey
 
-	tIndexer.logger.Infof("Waiting for initial %s::%s event before starting transaction polling...", moduleKey, eventKey)
+	tIndexer.logger.Infof("Waiting for initial %s::%s event before starting transaction processing...", moduleKey, eventKey)
 
-	// 1) Wait until Bind provides the OffRamp package (or ctx is cancelled)
+	// Wait until Bind provides the OffRamp package
 	pkg, err := tIndexer.waitForOffRampPackage(ctx)
 	if err != nil {
-		tIndexer.logger.Infow("Transaction polling stopped during initial wait (no OffRamp pkg).")
+		tIndexer.logger.Infow("Transaction processing stopped during initial wait (no OffRamp pkg).")
 		return err
 	}
 	tIndexer.logger.Infow("OffRamp package ready", "package", pkg)
 
-	// 2) Poll the DB for the first ConfigSet event
-	ticker := time.NewTicker(tIndexer.pollingInterval)
+	// Poll the DB for the first ConfigSet event
+	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
 	for {
@@ -205,23 +224,23 @@ func (tIndexer *TransactionsIndexer) waitForInitialEvent(ctx context.Context) er
 		if err != nil {
 			tIndexer.logger.Warnw(fmt.Sprintf("Failed to query for %s::%s events, retrying...", moduleKey, eventKey), "error", err)
 		} else if len(events) > 0 {
-			tIndexer.logger.Infow(fmt.Sprintf("Found initial %s::%s event, starting tx poller.", moduleKey, eventKey), "count", len(events))
+			tIndexer.logger.Infow(fmt.Sprintf("Found initial %s::%s event, starting tx processing.", moduleKey, eventKey), "count", len(events))
 			return nil
 		}
 
 		select {
 		case <-ticker.C:
-			tIndexer.logger.Infow(fmt.Sprintf("No %s::%s events found yet, waiting...", moduleKey, eventKey))
+			// tIndexer.logger.Infow(fmt.Sprintf("No %s::%s events found yet, waiting...", moduleKey, eventKey))
 			continue
 		case <-ctx.Done():
-			tIndexer.logger.Infow(fmt.Sprintf("Transaction polling stopped during initial wait for %s::%s event.", moduleKey, eventKey))
+			tIndexer.logger.Infow(fmt.Sprintf("Transaction processing stopped during initial wait for %s::%s event.", moduleKey, eventKey))
 			return ctx.Err()
 		}
 	}
 }
 
-// SyncTransmittersTransactions method syncs the transactions for each known transmitter.
-func (tIndexer *TransactionsIndexer) SyncAllTransmittersTransactions(ctx context.Context) error {
+// ProcessCheckpointTransactions processes a batch of transactions from a single checkpoint.
+func (tIndexer *TransactionsIndexer) ProcessCheckpointTransactions(ctx context.Context, batch CheckpointTransactionsBatch) error {
 	transmitters, err := tIndexer.getTransmitters(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get transmitters: %w", err)
@@ -231,282 +250,292 @@ func (tIndexer *TransactionsIndexer) SyncAllTransmittersTransactions(ctx context
 		return nil
 	}
 
-	var batchSize uint64 = 50
-	var totalProcessed int
+	// Build transmitter set for O(1) lookup
+	transmitterSet := make(map[string]struct{})
+	for _, t := range transmitters {
+		transmitterSet[t] = struct{}{}
+	}
 
-	for _, transmitter := range transmitters {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			if _, exists := tIndexer.transmitters[transmitter]; !exists {
-				tIndexer.logger.Debugw("Initializing cursor for transmitter", "transmitter", transmitter)
-				tIndexer.transmitters[transmitter] = ""
-			}
+	tIndexer.logger.Debugw("Processing checkpoint transactions",
+		"sequence", batch.Checkpoint.SequenceNumber,
+		"transactions", len(batch.Transactions),
+		"transmitters", len(transmitters))
 
-			processed, err := tIndexer.syncTransmitterTransactions(ctx, transmitter, batchSize)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to sync transmitter transactions", "transmitter", transmitter, "error", err)
+	eventAccountAddress, latestOfframpPackageId, err := tIndexer.getEventPackageIdFromConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get event package: %w", err)
+	}
+	eventHandle := fmt.Sprintf("%s::%s::%s", eventAccountAddress, tIndexer.executionEventModuleKey, tIndexer.executionEventKey)
 
-				continue
-			}
-			totalProcessed += processed
+	var records []database.EventRecord
+
+	for txIdx, tx := range batch.Transactions {
+		if !tIndexer.shouldProcessTransaction(tx, transmitterSet) {
+			continue
+		}
+
+		record, err := tIndexer.processFailedTransaction(ctx, tx, uint64(txIdx), eventHandle, eventAccountAddress, latestOfframpPackageId, batch.Checkpoint)
+		if err != nil {
+			tIndexer.logger.Errorw("Failed to process failed transaction",
+				"txDigest", tx.GetDigest(),
+				"error", err)
+			continue
+		}
+		if record != nil {
+			records = append(records, *record)
 		}
 	}
 
-	if totalProcessed > 0 {
-		tIndexer.logger.Debugw("All transmitters' failed transactions processed", "totalProcessed", totalProcessed)
+	if len(records) == 0 {
+		return nil
 	}
+
+	// Batch insert with fallback
+	if err := tIndexer.db.InsertEvents(ctx, records); err != nil {
+		tIndexer.logger.Errorw("Batch insert failed, falling back to per-event insert", "error", err)
+
+		for _, record := range records {
+			if err := tIndexer.db.InsertEvents(ctx, []database.EventRecord{record}); err != nil {
+				tIndexer.logger.Errorw("Failed to insert single synthetic event, skipping",
+					"error", err,
+					"txDigest", record.TxDigest)
+			}
+		}
+	}
+
+	tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events",
+		"count", len(records))
 
 	return nil
 }
 
-func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Context, transmitter models.SuiAddress, batchSize uint64) (int, error) {
-	var (
-		moduleKey = tIndexer.executionEventModuleKey
-		eventKey  = tIndexer.executionEventKey
-	)
-
-	cursor := tIndexer.transmitters[transmitter]
-	totalProcessed := 0
-
-	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get ExecutionStateChanged event config: %w", err)
+// shouldProcessTransaction determines if a transaction should be processed.
+func (tIndexer *TransactionsIndexer) shouldProcessTransaction(tx *suirpcv2.ExecutedTransaction, transmitterSet map[string]struct{}) bool {
+	// Must be from a known transmitter
+	sender := tx.GetTransaction().GetSender()
+	if sender == "" {
+		return false
 	}
-	eventHandle := fmt.Sprintf("%s::%s::%s", eventAccountAddress, moduleKey, eventKey)
-
-	select {
-	case <-ctx.Done():
-		return totalProcessed, ctx.Err()
-	default:
-		queryResponse, err := tIndexer.client.QueryTransactions(ctx, string(transmitter), &cursor, &batchSize)
-		if err != nil {
-			return totalProcessed, fmt.Errorf("failed to fetch transactions for transmitter %s: %w", transmitter, err)
-		}
-
-		if len(queryResponse.Data) == 0 {
-			return totalProcessed, nil
-		}
-
-		lastDigest := queryResponse.Data[len(queryResponse.Data)-1].Digest
-		defer func() {
-			// Update the cursor to the last transaction digest regardless of the code path below
-			tIndexer.transmitters[transmitter] = lastDigest
-		}()
-
-		var records []database.EventRecord
-		for _, transactionRecord := range queryResponse.Data {
-			if transactionRecord.Effects.Status.Status == "success" {
-				tIndexer.logger.Debugw("Skipping successful transaction",
-					"transmitter", transmitter, "digest", transactionRecord.Digest)
-
-				continue
-			}
-
-			tIndexer.logger.Infow("Found failed transaction",
-				"transmitter", transmitter, "digest", transactionRecord.Digest)
-
-			if transactionRecord.Transaction.Data.Transaction.Kind != "ProgrammableTransaction" {
-				tIndexer.logger.Debugw("Skipping non-programmable transaction",
-					"transmitter", transmitter, "digest", transactionRecord.Digest)
-
-				continue
-			}
-
-			// get the checkpoint / block details
-			checkpointResponse, err := tIndexer.client.GetBlockById(ctx, transactionRecord.Checkpoint)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to get checkpoint", "error", err)
-				continue
-			}
-
-			// parse the transaction error
-			errMessage := transactionRecord.Effects.Status.Error
-			moveAbort, err := tIndexer.parseMoveAbort(errMessage)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to parse move abort", "error", err)
-				continue
-			}
-
-			if moveAbort.Location.Module.Address != tIndexer.eventPackageId {
-				tIndexer.logger.Debugw("Skipping transaction with different package address",
-					"transmitter", transmitter, "packageAddress", moveAbort.Location.Module.Address)
-
-				continue
-			}
-
-			if moveAbort.Location.Module.Name != moduleKey {
-				tIndexer.logger.Debugw("Skipping transaction with different module",
-					"transmitter", transmitter, "module", moveAbort.Location.Module.Name)
-
-				continue
-			}
-
-			if moveAbort.Location.FunctionName == nil || !slices.Contains(tIndexer.executeFunctions, *moveAbort.Location.FunctionName) {
-				tIndexer.logger.Debugw("Skipping transaction for non-execute function",
-					"transmitter", transmitter, "location", moveAbort.Location)
-
-				continue
-			}
-
-			// we always get the report from the init_execute function call (index 0), the "finish_execute" function call
-			// does not contain an argument which contains the report
-			// NOTE: we assume that init_execute (which contains the report) is always the first command in the PTB
-			commandIndex := uint64(0)
-			callArgs, err := tIndexer.extractCommandCallArgs(&transactionRecord, commandIndex)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to extract command call args", "error", err)
-				continue
-			}
-
-			tIndexer.logger.Debugw("Extracted command call args in transactions indexer", "transmitter", transmitter, "txDigest", transactionRecord.Digest, "args", callArgs)
-
-			if len(callArgs) < 5 {
-				tIndexer.logger.Errorw("Expected report to be a hex string", "transmitter", transmitter, "txDigest", transactionRecord.Digest, "callArgs", callArgs)
-				continue
-			}
-
-			reportArg := callArgs[4]
-			tIndexer.logger.Debugw("Report arg", "reportArg", reportArg)
-
-			// Handle the conversion from []interface{} to []byte
-			reportValue, ok := reportArg["value"].([]any)
-			if !ok {
-				tIndexer.logger.Errorw("Expected report value to be a []any",
-					"transmitter", transmitter,
-					"txDigest", transactionRecord.Digest,
-					"reportArg", reportArg,
-					"valueType", fmt.Sprintf("%T", reportArg["value"]))
-				continue
-			}
-
-			reportBytes := make([]byte, len(reportValue))
-			for i, val := range reportValue {
-				num, ok := val.(float64)
-				if !ok {
-					tIndexer.logger.Errorw("Expected numeric value in byte array",
-						"transmitter", transmitter, "txDigest", transactionRecord.Digest, "value", val, "type", fmt.Sprintf("%T", val))
-
-					continue
-				}
-				reportBytes[i] = byte(num)
-			}
-
-			tIndexer.logger.Infow("Report bytes", "reportBytes", reportBytes)
-
-			execReport, err := codec.DeserializeExecutionReport(reportBytes)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to deserialize execution report",
-					"transmitter", transmitter, "txDigest", transactionRecord.Digest, "error", err)
-
-				continue
-			}
-
-			tIndexer.logger.Debugw("Deserialized execution report", "execReport", execReport)
-
-			sourceChainSelector := execReport.Message.Header.SourceChainSelector
-			sourceChainConfig, err := tIndexer.getSourceChainConfig(ctx, sourceChainSelector)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to get source chain config",
-					"transmitter", transmitter, "sourceChainSelector", sourceChainSelector, "error", err)
-
-				continue
-			}
-
-			if sourceChainConfig == nil {
-				tIndexer.logger.Debugw("No source chain config found for selector",
-					"transmitter", transmitter, "sourceChainSelector", sourceChainSelector)
-
-				continue
-			}
-
-			tIndexer.logger.Debugw("Source chain config", "sourceChainConfig", sourceChainConfig)
-			tIndexer.logger.Debugw("Execution report", "execReport", execReport)
-
-			hasher := crUtil.NewMessageHasherV1(tIndexer.logger)
-			messageHash, err := hasher.Hash(ctx, execReport, sourceChainConfig.OnRamp)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to calculate message hash",
-					"transmitter", transmitter, "txDigest", transactionRecord.Digest, "error", err)
-
-				continue
-			}
-
-			// Create synthetic ExecutionStateChanged event
-			// The fields map one-to-one the onchain event
-			executionStateChanged := map[string]any{
-				"source_chain_selector": fmt.Sprintf("%d", sourceChainSelector),
-				"sequence_number":       fmt.Sprintf("%d", execReport.Message.Header.SequenceNumber),
-				"message_id":            "0x" + hex.EncodeToString(execReport.Message.Header.MessageID),
-				"message_hash":          "0x" + hex.EncodeToString(messageHash[:]),
-				"state":                 uint8(3), // 3 = FAILURE
-			}
-
-			blockTimestamp, err := strconv.ParseUint(checkpointResponse.TimestampMs, 10, 64)
-			if err != nil {
-				tIndexer.logger.Errorw("Failed to parse block timestamp", "error", err)
-				continue
-			}
-
-			record := database.EventRecord{
-				EventAccountAddress: eventAccountAddress,
-				EventHandle:         eventHandle,
-				EventOffset:         0,
-				TxDigest:            transactionRecord.Digest,
-				BlockHeight:         checkpointResponse.SequenceNumber,
-				BlockHash:           []byte(checkpointResponse.Digest),
-				BlockTimestamp:      blockTimestamp,
-				Data:                executionStateChanged,
-			}
-
-			records = append(records, record)
-			totalProcessed++
-		}
-
-		if len(records) > 0 {
-			// Try batch insert first
-			if err := tIndexer.db.InsertEvents(ctx, records); err != nil {
-				tIndexer.logger.Errorw("Batch insert failed, falling back to per-event insert", "error", err)
-				// Fallback: insert each record individually, skip bad ones
-				totalProcessedFallback := 0
-				for _, record := range records {
-					if err := tIndexer.db.InsertEvents(ctx, []database.EventRecord{record}); err != nil {
-						tIndexer.logger.Errorw("Failed to insert single synthetic event, skipping",
-							"error", err,
-							"transmitter", transmitter,
-							"txDigest", record.TxDigest)
-
-						continue
-					}
-
-					totalProcessedFallback++
-				}
-				tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events", "count", totalProcessed, "transmitter", transmitter)
-
-				return totalProcessedFallback, nil
-			}
-
-			tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events",
-				"count", len(records), "transmitter", transmitter)
-		}
-
-		tIndexer.logger.Debugw("Inserted synthetic ExecutionStateChanged events", "records", records)
-
-		return totalProcessed, nil
+	if _, ok := transmitterSet[sender]; !ok {
+		return false
 	}
+
+	// Must be a failed transaction
+	if tx.GetEffects().GetStatus().GetSuccess() {
+		return false
+	}
+
+	// Must be a programmable transaction
+	kind := tx.GetTransaction().GetKind()
+	if kind == nil || kind.GetProgrammableTransaction() == nil {
+		return false
+	}
+
+	return true
 }
 
-// getTransmitters method retrieves the transmitters from the OCRConfigSet event in the 'ocr3_base.move' contract.
-func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]models.SuiAddress, error) {
-	var (
-		moduleKey = tIndexer.configEventModuleKey
-		eventKey  = tIndexer.configEventKey
-	)
+// processFailedTransaction processes a single failed transaction and creates a synthetic event record.
+func (tIndexer *TransactionsIndexer) processFailedTransaction(
+	ctx context.Context,
+	tx *suirpcv2.ExecutedTransaction,
+	txIdx uint64,
+	eventHandle string,
+	eventAccountAddress string,
+	latestOfframpPackageID string,
+	checkpoint CheckpointMeta,
+) (*database.EventRecord, error) {
+	tIndexer.logger.Debugw("Processing failed transaction",
+		"txDigest", tx.GetDigest(),
+		"eventHandle", eventHandle,
+		"eventAccountAddress", eventAccountAddress,
+		"latestOfframpPackageId", latestOfframpPackageID,
+		"checkpoint", checkpoint)
 
-	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig()
+	execErr := tx.GetEffects().GetStatus().GetError()
+	moveAbort, err := tIndexer.parseMoveAbortFromExecutionError(execErr)
 	if err != nil {
-		tIndexer.logger.Errorw("Failed to get OCRConfigSet event config", "error", err)
+		tIndexer.logger.Debugw("Failed to parse move abort (not necessarily an error)", "error", err, "moveErrString", execErr)
+		// Continue processing - some failures may not have abort info
+		return nil, nil
+	}
+
+	// Find init_execute command and extract call args
+	kind := tx.GetTransaction().GetKind()
+	if kind == nil {
+		return nil, errors.New("transaction has no kind")
+	}
+	programmableTx := kind.GetProgrammableTransaction()
+	if programmableTx == nil {
+		return nil, errors.New("not a programmable transaction")
+	}
+
+	var executionMethodIndex int
+	includesValidPTBCommand := false
+
+	for i, cmd := range programmableTx.Commands {
+		moveCall := cmd.GetMoveCall()
+		if moveCall == nil {
+			continue
+		}
+
+		pkg := moveCall.GetPackage()
+		module := moveCall.GetModule()
+		function := moveCall.GetFunction()
+
+		if (pkg == eventAccountAddress || pkg == latestOfframpPackageID) &&
+			module == tIndexer.executionEventModuleKey &&
+			function == tIndexer.executeFunction {
+			executionMethodIndex = i
+			includesValidPTBCommand = true
+			break
+		}
+	}
+
+	// NOTE: The check below does not guarantee that a malicious (known) transmitter is not sending a failed PTB
+	// with the expected package and module. However, the worst case scenario simply involves creating an event
+	// record with a failure state for a report that passed full onchain validation before a later command
+	// aborted, which is indistinguishable from a genuine failed execution attempt.
+	if !includesValidPTBCommand {
+		tIndexer.logger.Warnw("Expected PTB command not found",
+			"txDigest", tx.GetDigest())
+		return nil, nil
+	}
+
+	// A synthetic FAILURE event is only valid if init_execute completed onchain
+	// (OCR + committed-root validation passed), which requires the abort to have
+	// occurred in a command strictly after init_execute. A missing function name
+	// or command index fails closed.
+	if moveAbort.Location.FunctionName == nil ||
+		*moveAbort.Location.FunctionName == tIndexer.executeFunction ||
+		moveAbort.CommandIndex <= uint64(executionMethodIndex) {
+		tIndexer.logger.Debugw("Skipping - failure at or before init_execute",
+			"txDigest", tx.GetDigest(),
+			"moveAbort", *moveAbort,
+			"executionMethodIndex", executionMethodIndex)
+		return nil, nil
+	}
+
+	// Extract call args for the report from the ProgrammableTransaction
+	if executionMethodIndex >= len(programmableTx.Commands) {
+		return nil, fmt.Errorf("command index %d out of range", executionMethodIndex)
+	}
+
+	moveCall := programmableTx.Commands[executionMethodIndex].GetMoveCall()
+	if moveCall == nil {
+		return nil, errors.New("command is not a MoveCall")
+	}
+
+	// Extract arguments from the move call
+	inputs := programmableTx.Inputs
+	var callArgs []*suirpcv2.Input
+	for _, arg := range moveCall.Arguments {
+		// Only process INPUT type arguments
+		if arg.GetKind() != suirpcv2.Argument_INPUT {
+			continue
+		}
+		inputIdx := arg.GetInput()
+		if int(inputIdx) >= len(inputs) {
+			return nil, fmt.Errorf("input index %d out of range", inputIdx)
+		}
+		callArgs = append(callArgs, inputs[inputIdx])
+	}
+
+	if len(callArgs) < 5 {
+		tIndexer.logger.Errorw("Expected report in arg position 4", "callArgs", len(callArgs))
+		return nil, nil
+	}
+
+	// Extract report bytes from input - Pure input type contains raw bytes
+	reportInput := callArgs[4]
+	if reportInput == nil {
+		return nil, errors.New("report input is nil")
+	}
+	reportBytes := reportInput.GetPure()
+	if reportBytes == nil {
+		return nil, errors.New("report input is not Pure type")
+	}
+
+	// Deserialize execution report
+	execReport, err := codec0.DeserializeExecutionReportFromPure(reportBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to deserialize execution report: %w", err)
+	}
+
+	sourceChainSelector := execReport.Message.Header.SourceChainSelector
+	sourceChainConfig, err := tIndexer.getSourceChainConfig(ctx, sourceChainSelector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get source chain config: %w", err)
+	}
+	if sourceChainConfig == nil {
+		tIndexer.logger.Debugw("No source chain config found",
+			"sourceChainSelector", sourceChainSelector)
+		return nil, nil
+	}
+
+	// Calculate message hash
+	hasher := chainreader_util.NewMessageHasherV1(tIndexer.logger)
+	messageHash, err := hasher.Hash(ctx, execReport, sourceChainConfig.OnRamp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate message hash: %w", err)
+	}
+
+	// Create synthetic ExecutionStateChanged event
+	executionStateChanged := map[string]any{
+		"source_chain_selector": strconv.FormatUint(sourceChainSelector, 10),
+		"sequence_number":       strconv.FormatUint(execReport.Message.Header.SequenceNumber, 10),
+		"message_id":            codec0.BytesToAnySlice(execReport.Message.Header.MessageID),
+		"message_hash":          codec0.BytesToAnySlice(messageHash[:]),
+		"state":                 uint8(3), // 3 = FAILURE
+	}
+
+	// Normalize keys to camelCase
+	if normalized := common.ConvertMapKeysToCamelCase(executionStateChanged); normalized != nil {
+		if mapData, ok := normalized.(map[string]any); ok {
+			executionStateChanged = mapData
+		}
+	}
+
+	// Convert tx digest to hex format
+	txDigest := tx.GetDigest()
+	txDigestHex := txDigest
+	if !strings.HasPrefix(txDigest, "0x") {
+		if base58Bytes, err := base58.Decode(txDigest); err == nil {
+			txDigestHex = "0x" + hex.EncodeToString(base58Bytes)
+		}
+	}
+
+	// Convert block hash to bytes
+	blockHashBytes := []byte(checkpoint.Digest)
+	if decoded, err := base58.Decode(checkpoint.Digest); err == nil {
+		blockHashBytes = decoded
+	}
+
+	// Build record
+	record := database.EventRecord{
+		EventAccountAddress: eventAccountAddress,
+		EventHandle:         eventHandle,
+		TxIndex:             txIdx, // position of the failed tx within the checkpoint
+		EventOffset:         0,     // Synthetic events have offset 0
+		TxDigest:            txDigestHex,
+		BlockVersion:        0,
+		BlockHeight:         strconv.FormatUint(checkpoint.SequenceNumber, 10),
+		BlockHash:           blockHashBytes,
+		BlockTimestamp:      checkpoint.TimestampMs / 1000, // Convert ms to seconds
+		Data:                executionStateChanged,
+		IsSynthetic:         true,
+	}
+
+	return &record, nil
+}
+
+// getTransmitters retrieves the transmitters from the ConfigSet event.
+func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]string, error) {
+	moduleKey := tIndexer.configEventModuleKey
+	eventKey := tIndexer.configEventKey
+
+	eventAccountAddress, _, err := tIndexer.getEventPackageIdFromConfig()
+	if err != nil {
+		tIndexer.logger.Errorw("Failed to get ConfigSet event config", "error", err)
 		return nil, err
 	}
 	eventHandle := fmt.Sprintf("%s::%s::%s", eventAccountAddress, moduleKey, eventKey)
@@ -524,17 +553,17 @@ func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]mod
 		},
 	)
 	if err != nil {
-		tIndexer.logger.Errorw("Failed to query OCRConfigSet events", "error", err)
+		tIndexer.logger.Errorw("Failed to query ConfigSet events", "error", err)
 		return nil, err
 	}
 
 	if len(events) == 0 {
-		tIndexer.logger.Warnw("No OCRConfigSet events found")
+		tIndexer.logger.Warnw("No ConfigSet events found")
 		return nil, nil
 	}
 
-	var configSet codec.ConfigSet
-	if err := codec.DecodeSuiJsonValue(events[0].Data, &configSet); err != nil {
+	var configSet codec0.ConfigSet
+	if err := codec0.DecodeSuiJsonValue(events[0].Data, &configSet); err != nil {
 		tIndexer.logger.Errorw("Failed to decode ConfigSet event", "error", err)
 		return nil, fmt.Errorf("failed to decode ConfigSet event: %w", err)
 	}
@@ -543,28 +572,23 @@ func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]mod
 
 	transmitters := configSet.Transmitters
 	if len(transmitters) == 0 {
-		tIndexer.logger.Warnw("`No transmitters` found in OCRConfigSet event")
+		tIndexer.logger.Warnw("No transmitters found in ConfigSet event")
 		return nil, nil
 	}
 
-	suiAddresses := make([]models.SuiAddress, 0, len(transmitters))
-	for _, transmitter := range transmitters {
-		suiAddresses = append(suiAddresses, models.SuiAddress(transmitter))
-	}
+	tIndexer.logger.Infow("Found transmitters in ConfigSet event", "count", len(transmitters))
 
-	tIndexer.logger.Infow("Found transmitters in OCRConfigSet event", "count", len(suiAddresses))
-
-	return suiAddresses, nil
+	return transmitters, nil
 }
 
-func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, sourceChainSelector uint64) (*codec.SourceChainConfig, error) {
+func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, sourceChainSelector uint64) (*codec0.SourceChainConfig, error) {
 	const (
 		moduleKey = "offramp"
 		eventKey  = "SourceChainConfigSet"
 		selector  = "sourceChainSelector"
 	)
 
-	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig()
+	eventAccountAddress, _, err := tIndexer.getEventPackageIdFromConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get SourceChainConfigSet event config: %w", err)
 	}
@@ -572,7 +596,7 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 
 	filter := []query.Expression{
 		query.Comparator(selector,
-			primitives.ValueComparator{Value: sourceChainSelector, Operator: primitives.Eq},
+			primitives.ValueComparator{Value: strconv.FormatUint(sourceChainSelector, 10), Operator: primitives.Eq},
 		),
 	}
 
@@ -594,31 +618,31 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 
 	if len(events) == 0 {
 		tIndexer.logger.Debugw("No SourceChainConfigSet event found", "sourceChainSelector", sourceChainSelector)
-		//nolint:nilnil
 		return nil, nil
 	}
 
-	var configEvent codec.SourceChainConfigSet
-	if err := codec.DecodeSuiJsonValue(events[0].Data, &configEvent); err != nil {
+	var configEvent codec0.SourceChainConfigSet
+	if err := codec0.DecodeSuiJsonValue(events[0].Data, &configEvent); err != nil {
 		return nil, fmt.Errorf("failed to decode SourceChainConfigSet event: %w", err)
 	}
 
 	return &configEvent.SourceChainConfig, nil
 }
 
-// Prefer the cached OffRamp package
-func (t *TransactionsIndexer) getEventPackageIdFromConfig() (string, error) {
+// getEventPackageIdFromConfig returns the cached OffRamp package.
+func (t *TransactionsIndexer) getEventPackageIdFromConfig() (string, string, error) {
 	t.mu.RLock()
-	pkg := t.eventPackageId
+	pkg := t.offrampPackageID
+	latestPkg := t.latestOfframpPackageID
 	t.mu.RUnlock()
 
 	if pkg != "" {
-		return pkg, nil
+		return pkg, latestPkg, nil
 	}
-	return "", fmt.Errorf("offramp package not set yet")
+	return "", "", fmt.Errorf("offramp package not set yet")
 }
 
-// ModuleId represents Move’s ModuleId { address, name }
+// ModuleId represents Move's ModuleId { address, name }
 type ModuleId struct {
 	Address string
 	Name    string
@@ -639,16 +663,7 @@ type MoveAbort struct {
 	CommandIndex uint64
 }
 
-// regex to capture:
-//
-//	1: address (hex)
-//	2: module name
-//	3: function (decimal)
-//	4: instruction (decimal)
-//	5: either Some("X") or None
-//	6: inner X from Some("X") (empty if None)
-//	7: abort code
-//	8: command index
+// Regex to capture MoveAbort details
 var abortRe = regexp.MustCompile(
 	`^MoveAbort\(` +
 		`MoveLocation \{ module: ModuleId \{ address: ([0-9a-f]+), name: Identifier\("([^"]+)"\) \}, ` +
@@ -656,17 +671,49 @@ var abortRe = regexp.MustCompile(
 		`(\d+)\) in command (\d+)$`,
 )
 
-// ParseMoveAbort parses the error string into a MoveAbort struct.
+// parseMoveAbortFromExecutionError extracts abort metadata from gRPC v2 ExecutionError.
+func (tIndexer *TransactionsIndexer) parseMoveAbortFromExecutionError(execErr *suirpcv2.ExecutionError) (*MoveAbort, error) {
+	if execErr == nil {
+		return nil, errors.New("execution error is nil")
+	}
+
+	abort := execErr.GetAbort()
+	if abort == nil {
+		return nil, errors.New("execution error has no abort details")
+	}
+
+	location := abort.GetLocation()
+	if location == nil {
+		return nil, errors.New("abort has no location")
+	}
+
+	var functionName *string
+	if name := location.GetFunctionName(); name != "" {
+		functionName = &name
+	}
+
+	return &MoveAbort{
+		Location: MoveLocation{
+			Module: ModuleId{
+				Address: location.GetPackage(),
+				Name:    location.GetModule(),
+			},
+			Function:     uint64(location.GetFunction()),
+			Instruction:  uint64(location.GetInstruction()),
+			FunctionName: functionName,
+		},
+		AbortCode:    abort.GetAbortCode(),
+		CommandIndex: execErr.GetCommand(),
+	}, nil
+}
+
+// parseMoveAbort parses the legacy Rust debug error string into a MoveAbort struct.
 func (tIndexer *TransactionsIndexer) parseMoveAbort(s string) (*MoveAbort, error) {
 	m := abortRe.FindStringSubmatch(s)
 	if m == nil {
 		return nil, fmt.Errorf("input does not match MoveAbort pattern")
 	}
-	// m[1]=address, m[2]=modName, m[3]=func, m[4]=instr,
-	// m[5]=full (Some("…")|None), m[6]=inner name or "",
-	// m[7]=abortCode, m[8]=cmdIndex
 
-	// parse integers
 	fn, err := strconv.ParseUint(m[3], 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("bad function number: %w", err)
@@ -684,7 +731,6 @@ func (tIndexer *TransactionsIndexer) parseMoveAbort(s string) (*MoveAbort, error
 		return nil, fmt.Errorf("bad command index: %w", err)
 	}
 
-	// optional function name
 	var fname *string
 	if m[5] != "None" {
 		fname = new(string)
@@ -708,56 +754,15 @@ func (tIndexer *TransactionsIndexer) parseMoveAbort(s string) (*MoveAbort, error
 	}, nil
 }
 
-// extractCommandCallArgs zips the input indices with the input call args to output a slice of call arg details
-func (tIndexer *TransactionsIndexer) extractCommandCallArgs(transactionRecord *models.SuiTransactionBlockResponse, commandIndex uint64) ([]models.SuiCallArg, error) {
-	// this refers to the indexed inputs of the command call which failed
-	commandDetails, ok := transactionRecord.Transaction.Data.Transaction.Transactions[commandIndex].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("failed to read command details for failed transaction")
-	}
-	// this refers to the indexed inputs of the entire PTB transaction
-	inputCallArgs := transactionRecord.Transaction.Data.Transaction.Inputs
-
-	moveCall, ok := commandDetails["MoveCall"].(map[string]any)
-	if !ok {
-		tIndexer.logger.Debugw("Failed to read MoveCall details for failed transaction", "commandDetails", commandDetails)
-		return nil, fmt.Errorf("failed to read MoveCall details for failed transaction")
-	}
-
-	moveCallArguments, ok := moveCall["arguments"].([]any)
-	if !ok {
-		tIndexer.logger.Debugw("Failed to read MoveCall arguments for failed transaction", "moveCall", moveCall)
-		return nil, fmt.Errorf("failed to read MoveCall arguments for failed transaction")
-	}
-
-	// construct a slice of call arg details based on the command call arguments
-	commandArgs := make([]models.SuiCallArg, 0)
-	for _, arg := range moveCallArguments {
-		argEntry, ok := arg.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("failed to read arg entry for failed transaction")
-		}
-		argIndex, ok := argEntry["Input"].(float64)
-		if !ok {
-			return nil, fmt.Errorf("failed to read arg index for failed transaction")
-		} else if argIndex >= float64(len(inputCallArgs)) {
-			return nil, fmt.Errorf("arg index out of range for failed transaction, argIndex: %d, inputCallArgs length: %d", int(argIndex), len(inputCallArgs))
-		} else if inputCallArgs[uint64(argIndex)] == nil {
-			return nil, fmt.Errorf("arg value is nil for failed transaction, argIndex: %d", int(argIndex))
-		}
-
-		commandArgs = append(commandArgs, inputCallArgs[uint64(argIndex)])
-	}
-
-	return commandArgs, nil
-}
-
+// Ready returns nil if the indexer has started successfully.
 func (tIndexer *TransactionsIndexer) Ready() error {
-	// TODO: implement
-	return nil
+	return tIndexer.starter.Ready()
 }
 
+// Close stops the transactions indexer.
 func (tIndexer *TransactionsIndexer) Close() error {
-	// TODO: implement
-	return nil
+	return tIndexer.starter.StopOnce("TransactionsIndexer", func() error {
+		tIndexer.wg.Wait()
+		return nil
+	})
 }

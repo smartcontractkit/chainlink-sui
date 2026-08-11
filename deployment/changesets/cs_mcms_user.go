@@ -3,6 +3,7 @@ package changesets
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -23,6 +24,7 @@ type DeployMCMSUser struct{}
 // Apply implements deployment.ChangeSetV2.
 func (d DeployMCMSUser) Apply(e cldf.Environment, config DeployMCMSUserConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	suiChains := e.BlockChains.SuiChains()
@@ -50,21 +52,21 @@ func (d DeployMCMSUser) Apply(e cldf.Environment, config DeployMCMSUserConfig) (
 
 	// save MCMS User package ID to the addressbook
 	typeAndVersionMCMSUserPackage := cldf.NewTypeAndVersion(deployment.SuiMcmsUserPackageIDType, deployment.Version1_0_0)
-	err = ab.Save(config.ChainSelector, mcmsUserReport.Output.PackageId, typeAndVersionMCMSUserPackage)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, mcmsUserReport.Output.PackageId, typeAndVersionMCMSUserPackage)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save MCMS User package ID %s for Sui chain %d: %w", mcmsUserReport.Output.PackageId, config.ChainSelector, err)
 	}
 
 	// save MCMS User Data object ID to the addressbook
 	typeAndVersionMCMSUserData := cldf.NewTypeAndVersion(deployment.SuiMcmsUserDataObjectIDType, deployment.Version1_0_0)
-	err = ab.Save(config.ChainSelector, mcmsUserReport.Output.Objects.McmsUserDataObjectID, typeAndVersionMCMSUserData)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, mcmsUserReport.Output.Objects.McmsUserDataObjectID, typeAndVersionMCMSUserData)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save MCMS User Data object ID %s for Sui chain %d: %w", mcmsUserReport.Output.Objects.McmsUserDataObjectID, config.ChainSelector, err)
 	}
 
 	// save MCMS User OwnerCap object ID to the addressbook
 	typeAndVersionMCMSUserOwnerCap := cldf.NewTypeAndVersion(deployment.SuiMcmsUserOwnerCapObjectIDType, deployment.Version1_0_0)
-	err = ab.Save(config.ChainSelector, mcmsUserReport.Output.Objects.McmsUserOwnerCapObjectID, typeAndVersionMCMSUserOwnerCap)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, mcmsUserReport.Output.Objects.McmsUserOwnerCapObjectID, typeAndVersionMCMSUserOwnerCap)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save MCMS User OwnerCap object ID %s for Sui chain %d: %w", mcmsUserReport.Output.Objects.McmsUserOwnerCapObjectID, config.ChainSelector, err)
 	}
@@ -78,6 +80,7 @@ func (d DeployMCMSUser) Apply(e cldf.Environment, config DeployMCMSUserConfig) (
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
+		DataStore:   ds,
 		Reports:     seqReports,
 	}, nil
 }

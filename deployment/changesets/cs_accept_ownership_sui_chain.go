@@ -4,19 +4,21 @@ import (
 	"fmt"
 
 	"github.com/smartcontractkit/mcms"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
 	opregistry "github.com/smartcontractkit/chainlink-sui/deployment/ops/registry"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 type AcceptOwnershipCCIPConfig struct {
 	SuiChainSelector uint64
+	TimelockConfig   utils.TimelockConfig `yaml:"timelockConfig"`
 }
 
 var _ cldf.ChangeSetV2[AcceptOwnershipCCIPConfig] = AcceptOwnershipCCIP{}
@@ -33,7 +35,7 @@ func (d AcceptOwnershipCCIP) Apply(e cldf.Environment, config AcceptOwnershipCCI
 		Client: suiChain.Client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
+			b := uint64(1_000_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
@@ -43,10 +45,8 @@ func (d AcceptOwnershipCCIP) Apply(e cldf.Environment, config AcceptOwnershipCCI
 	}
 
 	// in case the registry is not loaded with all operations. Needed to build accept ownership proposals
-	ops := make([]*cld_ops.Operation[any, any, any], len(opregistry.AllOperations))
 	for i := range opregistry.AllOperations {
-		ops[i] = &opregistry.AllOperations[i]
-		cld_ops.RegisterOperation(e.OperationsBundle.OperationRegistry, &opregistry.AllOperations[i])
+		cld_ops.RegisterOperation(e.OperationsBundle.OperationRegistry, opregistry.AllOperations[i])
 	}
 
 	suiState, err := deployment.LoadOnchainStatesui(e)
@@ -80,7 +80,7 @@ func (d AcceptOwnershipCCIP) Apply(e cldf.Environment, config AcceptOwnershipCCI
 		OffRampPackageId:     state.OffRampAddress,
 		OffRampStateObjectId: state.OffRampStateObjectId,
 
-		Role: suisdk.TimelockRoleProposer,
+		TimelockConfig: config.TimelockConfig,
 	}
 
 	acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, ownershipops.AcceptCCIPOwnershipSeq, deps, proposalInput)

@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -192,8 +191,8 @@ type ManagedTokenDevInspect struct {
 var _ IManagedToken = (*ManagedTokenContract)(nil)
 var _ IManagedTokenDevInspect = (*ManagedTokenDevInspect)(nil)
 
-func NewManagedToken(packageID string, client sui.ISuiAPI) (IManagedToken, error) {
-	contract, err := bind.NewBoundContract(packageID, "managed_token", "managed_token", client)
+func NewManagedToken(packageID string, chainClient client.BindingsClient) (IManagedToken, error) {
+	contract, err := bind.NewBoundContract(packageID, "managed_token", "managed_token", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -286,407 +285,6 @@ type McmsCallback struct {
 }
 
 type McmsAcceptOwnershipProof struct {
-}
-
-type bcsMinterConfigured struct {
-	MintCapOwner [32]byte
-	MintCap      bind.Object
-	Allowance    uint64
-	IsUnlimited  bool
-}
-
-func convertMinterConfiguredFromBCS(bcs bcsMinterConfigured) (MinterConfigured, error) {
-
-	return MinterConfigured{
-		MintCapOwner: fmt.Sprintf("0x%x", bcs.MintCapOwner),
-		MintCap:      bcs.MintCap,
-		Allowance:    bcs.Allowance,
-		IsUnlimited:  bcs.IsUnlimited,
-	}, nil
-}
-
-type bcsMinted struct {
-	MintCap bind.Object
-	Minter  [32]byte
-	To      [32]byte
-	Amount  uint64
-}
-
-func convertMintedFromBCS(bcs bcsMinted) (Minted, error) {
-
-	return Minted{
-		MintCap: bcs.MintCap,
-		Minter:  fmt.Sprintf("0x%x", bcs.Minter),
-		To:      fmt.Sprintf("0x%x", bcs.To),
-		Amount:  bcs.Amount,
-	}, nil
-}
-
-type bcsBurnt struct {
-	MintCap bind.Object
-	Burner  [32]byte
-	From    [32]byte
-	Amount  uint64
-}
-
-func convertBurntFromBCS(bcs bcsBurnt) (Burnt, error) {
-
-	return Burnt{
-		MintCap: bcs.MintCap,
-		Burner:  fmt.Sprintf("0x%x", bcs.Burner),
-		From:    fmt.Sprintf("0x%x", bcs.From),
-		Amount:  bcs.Amount,
-	}, nil
-}
-
-type bcsBlocklisted struct {
-	Address [32]byte
-}
-
-func convertBlocklistedFromBCS(bcs bcsBlocklisted) (Blocklisted, error) {
-
-	return Blocklisted{
-		Address: fmt.Sprintf("0x%x", bcs.Address),
-	}, nil
-}
-
-type bcsUnblocklisted struct {
-	Address [32]byte
-}
-
-func convertUnblocklistedFromBCS(bcs bcsUnblocklisted) (Unblocklisted, error) {
-
-	return Unblocklisted{
-		Address: fmt.Sprintf("0x%x", bcs.Address),
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("managed_token::managed_token::MANAGED_TOKEN", func(data []byte) (interface{}, error) {
-		var result MANAGED_TOKEN
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MANAGED_TOKEN
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::MANAGED_TOKEN>", func(data []byte) (interface{}, error) {
-		var results []MANAGED_TOKEN
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::TokenState", func(data []byte) (interface{}, error) {
-		var result TokenState
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for TokenState
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::TokenState>", func(data []byte) (interface{}, error) {
-		var results []TokenState
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::MintCap", func(data []byte) (interface{}, error) {
-		var result MintCap
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MintCap
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::MintCap>", func(data []byte) (interface{}, error) {
-		var results []MintCap
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::MintCapCreated", func(data []byte) (interface{}, error) {
-		var result MintCapCreated
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MintCapCreated
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::MintCapCreated>", func(data []byte) (interface{}, error) {
-		var results []MintCapCreated
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::MinterConfigured", func(data []byte) (interface{}, error) {
-		var temp bcsMinterConfigured
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertMinterConfiguredFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MinterConfigured
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::MinterConfigured>", func(data []byte) (interface{}, error) {
-		var temps []bcsMinterConfigured
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]MinterConfigured, len(temps))
-		for i, temp := range temps {
-			result, err := convertMinterConfiguredFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::Minted", func(data []byte) (interface{}, error) {
-		var temp bcsMinted
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertMintedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Minted
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::Minted>", func(data []byte) (interface{}, error) {
-		var temps []bcsMinted
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Minted, len(temps))
-		for i, temp := range temps {
-			result, err := convertMintedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::Burnt", func(data []byte) (interface{}, error) {
-		var temp bcsBurnt
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertBurntFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Burnt
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::Burnt>", func(data []byte) (interface{}, error) {
-		var temps []bcsBurnt
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Burnt, len(temps))
-		for i, temp := range temps {
-			result, err := convertBurntFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::Blocklisted", func(data []byte) (interface{}, error) {
-		var temp bcsBlocklisted
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertBlocklistedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Blocklisted
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::Blocklisted>", func(data []byte) (interface{}, error) {
-		var temps []bcsBlocklisted
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Blocklisted, len(temps))
-		for i, temp := range temps {
-			result, err := convertBlocklistedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::Unblocklisted", func(data []byte) (interface{}, error) {
-		var temp bcsUnblocklisted
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertUnblocklistedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Unblocklisted
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::Unblocklisted>", func(data []byte) (interface{}, error) {
-		var temps []bcsUnblocklisted
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Unblocklisted, len(temps))
-		for i, temp := range temps {
-			result, err := convertUnblocklistedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::Paused", func(data []byte) (interface{}, error) {
-		var result Paused
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Paused
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::Paused>", func(data []byte) (interface{}, error) {
-		var results []Paused
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::Unpaused", func(data []byte) (interface{}, error) {
-		var result Unpaused
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Unpaused
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::Unpaused>", func(data []byte) (interface{}, error) {
-		var results []Unpaused
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::MinterAllowanceIncremented", func(data []byte) (interface{}, error) {
-		var result MinterAllowanceIncremented
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MinterAllowanceIncremented
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::MinterAllowanceIncremented>", func(data []byte) (interface{}, error) {
-		var results []MinterAllowanceIncremented
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::MinterUnlimitedAllowanceSet", func(data []byte) (interface{}, error) {
-		var result MinterUnlimitedAllowanceSet
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for MinterUnlimitedAllowanceSet
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::MinterUnlimitedAllowanceSet>", func(data []byte) (interface{}, error) {
-		var results []MinterUnlimitedAllowanceSet
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::McmsCallback", func(data []byte) (interface{}, error) {
-		var result McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsCallback
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::McmsCallback>", func(data []byte) (interface{}, error) {
-		var results []McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("managed_token::managed_token::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
-		var result McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsAcceptOwnershipProof
-	bind.RegisterStructDecoder("vector<managed_token::managed_token::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
-		var results []McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -1144,9 +742,9 @@ func (d *ManagedTokenDevInspect) TypeAndVersion(ctx context.Context, opts *bind.
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1162,7 +760,25 @@ func (d *ManagedTokenDevInspect) MintAllowance(ctx context.Context, opts *bind.C
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 uint64
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 bool
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 // TotalSupply executes the total_supply Move function using DevInspect to get return values.
@@ -1180,9 +796,9 @@ func (d *ManagedTokenDevInspect) TotalSupply(ctx context.Context, opts *bind.Cal
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1202,9 +818,9 @@ func (d *ManagedTokenDevInspect) IsMinterCapAllowed(ctx context.Context, opts *b
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1242,9 +858,9 @@ func (d *ManagedTokenDevInspect) GetAllMintCaps(ctx context.Context, opts *bind.
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]bind.Object)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []bind.Object, got %T", results[0])
+	var result []bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1278,7 +894,25 @@ func (d *ManagedTokenDevInspect) DestroyManagedToken(ctx context.Context, opts *
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 *bind.Object
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 // BorrowTreasuryCap executes the borrow_treasury_cap Move function using DevInspect to get return values.
@@ -1314,9 +948,9 @@ func (d *ManagedTokenDevInspect) Owner(ctx context.Context, opts *bind.CallOpts,
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1336,9 +970,9 @@ func (d *ManagedTokenDevInspect) HasPendingTransfer(ctx context.Context, opts *b
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1358,9 +992,9 @@ func (d *ManagedTokenDevInspect) PendingTransferFrom(ctx context.Context, opts *
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1380,9 +1014,9 @@ func (d *ManagedTokenDevInspect) PendingTransferTo(ctx context.Context, opts *bi
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1402,9 +1036,9 @@ func (d *ManagedTokenDevInspect) PendingTransferAccepted(ctx context.Context, op
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*bool)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *bool, got %T", results[0])
+	var result *bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

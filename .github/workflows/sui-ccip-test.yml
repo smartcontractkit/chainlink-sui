@@ -19,39 +19,66 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - test_name: Test_CCIP_Messaging_Sui2EVM
-            sui_version: mainnet-v1.60.1
-          - test_name: Test_CCIP_Messaging_EVM2Sui
-            sui_version: mainnet-v1.60.1
-          - test_name: Test_CCIP_EVM2Sui_ZeroReceiver
-            sui_version: mainnet-v1.60.1
-          - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool
-            sui_version: mainnet-v1.60.1
-          - test_name: Test_CCIPTokenTransfer_Sui2EVM_ManagedTokenPool
-            sui_version: mainnet-v1.60.1
           - test_name: Test_CCIP_Upgrade_Sui2EVM
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.75.2
           - test_name: Test_CCIP_Upgrade_EVM2Sui
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.75.2
           - test_name: Test_CCIP_Upgrade_CommonPkg_EVM2Sui
-            sui_version: mainnet-v1.60.1
+            sui_version: mainnet-v1.75.2
           - test_name: Test_CCIP_Upgrade_NoBlock_EVM2Sui
-            sui_version: mainnet-v1.60.1
-          # - test_name: Test_CCIPTokenTransfer_EVM2SUI_BurnMintTokenPool
-          #   sui_version: mainnet-v1.57.2
-          # - test_name: Test_CCIPPureTokenTransfer_EVM2SUI_BurnMintTokenPool
-          #   sui_version: mainnet-v1.57.2
-          # - test_name: Test_CCIPProgrammableTokenTransfer_EVM2SUI_BurnMintTokenPool
-          #   sui_version: mainnet-v1.57.2
-          # - test_name: Test_CCIPZeroGasLimitTokenTransfer_EVM2SUI_BurnMintTokenPool
-          #   sui_version: mainnet-v1.57.2
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_LockReleaseTokenPool_Plain
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_LockReleaseTokenPool_Revert
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool_Plain
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool_WithRateLimit
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool_WithAllowlist_DenylistedSender
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool_WithAllowlist_AfterSignerAdded
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_BurnMintTokenPool_ThenGloballyCursedUncursed
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_ManagedTokenPool_ThenCurseUncurse
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_ManagedTokenPool_WithRateLimit
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPTokenTransfer_EVM2Sui_BurnMintTokenPool
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPTokenTransfer_EVM2Sui_ManagedTokenPool_NoRateLimit
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPTokenTransfer_EVM2Sui_ManagedTokenPool_WithRateLimit
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPPureTokenTransfer_EVM2Sui_BurnMintTokenPool
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPProgrammableTokenTransfer_EVM2Sui_BurnMintTokenPool
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIPZeroGasLimitTokenTransfer_EVM2Sui_BurnMintTokenPool
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIP_Messaging_Sui2EVM_Success
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIP_Messaging_Sui2EVM_Revert_Part1
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIP_Messaging_Sui2EVM_Revert_Part2
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIP_Messaging_EVM2Sui_Success
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIP_Messaging_EVM2Sui_Revert_Part1
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIP_Messaging_EVM2Sui_Revert_Part2
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIP_EVM2Sui_ZeroReceiver
+            sui_version: mainnet-v1.75.2
 
     env:
       DEFAULT_CORE_REF: develop
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_PAT_READ: ${{ secrets.GH_PAT_READ }}
-      GOPRIVATE: github.com/smartcontractkit/chainlink-sui
       CL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chainlink_test?sslmode=disable
+      # smartcontractkit/* modules are fetched directly from GitHub VCS and skip the
+      # public proxy + checksum DB, which 500s on freshly-pushed pseudo-versions.
+      GOPRIVATE: github.com/smartcontractkit/*
 
     services:
       postgres:
@@ -126,16 +153,8 @@ jobs:
           go-version: ${{ steps.go-version.outputs.GO_VERSION }}
           cache: true
 
-      # 4) Configure Git for private modules
-      - name: Configure Git & GOPRIVATE
-        run: |
-          git config --global url."https://${GH_PAT_READ}@github.com/".insteadOf "https://github.com/"
-          echo "GOPRIVATE=github.com/smartcontractkit/*" >> $GITHUB_ENV
-        env:
-          GH_PAT_READ: ${{ secrets.GH_PAT_READ }}
-
-      # 5) Cache Go modules
-      - name: Cache Go modules & build cache
+      # 4) Cache Go modules
+      - name: Cache Go modules
         uses: actions/cache@v4
         id: cache-go
         with:
@@ -146,7 +165,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-mods-
 
-      # 6) Pin & tidy the core module
+      # 5) Pin & tidy the core module
       - name: Fetch & pin chainlink-sui (and deployment)
         run: |
           # Determine which ref of chainlink-sui to use
@@ -158,43 +177,76 @@ jobs:
 
           echo "Using chainlink-sui ref: $REF"
 
+          # Retry transient VCS/network failures during module resolution.
+          retry() {
+            for i in 1 2 3; do
+              if "$@"; then return 0; fi
+              echo "retry $i/3 failed: $*" >&2
+              sleep 5
+            done
+            "$@"
+          }
+
           cd temp/chainlink
-          go get github.com/smartcontractkit/chainlink-sui@$REF
+          retry go get github.com/smartcontractkit/chainlink-sui@$REF
 
           cd deployment
-          go get github.com/smartcontractkit/chainlink-sui/deployment@$REF
+          retry go get github.com/smartcontractkit/chainlink-sui/deployment@$REF
+
+          cd ../integration-tests
+          retry go get github.com/smartcontractkit/chainlink-sui@$REF
+          retry go get github.com/smartcontractkit/chainlink-sui/deployment@$REF
+
+          # chainlink-sui/deployment pulls a newer chainlink-ccip/deployment than chainlink
+          # develop pins for chains/evm; keep both sibling modules on the same commit.
+          CCIP_DEP=$(grep -m1 'github.com/smartcontractkit/chainlink-ccip/deployment v' \
+            ../../chainlink-sui/deployment/go.mod | awk '{print $2}')
+          CCIP_REF="${CCIP_DEP##*-}"
+          echo "Aligning chainlink-ccip modules to commit ${CCIP_REF} (from ${CCIP_DEP})"
+          retry go get "github.com/smartcontractkit/chainlink-ccip/deployment@${CCIP_REF}"
+          retry go get "github.com/smartcontractkit/chainlink-ccip/chains/evm@${CCIP_REF}"
+
+          cd ../deployment
+          retry go get "github.com/smartcontractkit/chainlink-ccip/deployment@${CCIP_REF}"
+          retry go get "github.com/smartcontractkit/chainlink-ccip/chains/evm@${CCIP_REF}"
 
           cd ..
           make gomodtidy
 
-      # 7) Build LOOP plugin
-      - name: Build LOOP plugin
-        working-directory: temp/chainlink-sui
-        run: go build -o chainlink-sui ./relayer/cmd/chainlink-sui/main.go
+      # 6) Install public LOOP plugins (same as chainlink integration CI), then overlay PR relayer
+      - name: Install LOOP plugins (public)
+        working-directory: temp/chainlink
+        run: |
+          make install-loopinstall
+          make install-plugins-public
 
-      # 8) Setup Sui CLI using your reusable composite action
+      - name: Build chainlink-sui LOOP plugin from PR
+        working-directory: temp/chainlink-sui
+        run: |
+          go build -ldflags=-s -o "$(go env GOPATH)/bin/chainlink-sui" ./relayer/cmd/chainlink-sui
+
+      # 7) Setup Sui CLI
       - name: Setup Sui CLI
         uses: ./temp/chainlink-sui/.github/actions/setup-sui
         with:
           version: ${{ matrix.sui_version }}
 
-      # 9) Wait for Postgres
+      # 8) Wait for Postgres
       - name: Wait for Postgres
         run: |
           until pg_isready -h localhost -U postgres; do sleep 1; done
 
-      # 10) Prepare DB
+      # 9) Prepare DB
       - name: Prepare database
         run: |
           cd temp/chainlink
           make testdb
 
-      # 11) Run the integration test (isolated per job)
+      # 10) Run the integration test
       - name: Run ${{ matrix.test_name }}
         env:
           CL_DATABASE_URL: ${{ env.CL_DATABASE_URL }}
           TEST_ENV_TYPE: in-memory
-          CL_SUI_CMD: ${{ github.workspace }}/temp/chainlink-sui/chainlink-sui
         run: |
           cd temp/chainlink/integration-tests
           echo "=== Running ${{ matrix.test_name }} ==="
@@ -205,7 +257,7 @@ jobs:
             -count=1 \
             -v
 
-      # 12) Upload test artifacts
+      # 11) Upload test artifacts
       - name: Upload Sui test artifacts
         if: always()
         uses: actions/upload-artifact@v4

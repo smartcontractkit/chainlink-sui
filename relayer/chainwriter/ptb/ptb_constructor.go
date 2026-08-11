@@ -7,9 +7,9 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -20,9 +20,9 @@ import (
 // It provides methods to construct PTBs by mapping arguments to their respective commands
 // and handling dependencies between commands.
 type PTBConstructor struct {
-	config cwConfig.ChainWriterConfig // Configuration for building PTBs
-	client client.SuiPTBClient        // Client for interacting with Sui PTB functionality
-	log    logger.Logger              // Logger for debugging and error reporting
+	config sui.ChainWriterConfig // Configuration for building PTBs
+	client client.SuiPTBClient   // Client for interacting with Sui PTB functionality
+	log    logger.Logger         // Logger for debugging and error reporting
 }
 
 // NewPTBConstructor creates a new PTB constructor with the given configuration.
@@ -35,7 +35,7 @@ type PTBConstructor struct {
 //
 // Returns:
 //   - *PTBConstructor: A new instance of PTBConstructor
-func NewPTBConstructor(config cwConfig.ChainWriterConfig, ptbClient client.SuiPTBClient, log logger.Logger) *PTBConstructor {
+func NewPTBConstructor(config sui.ChainWriterConfig, ptbClient client.SuiPTBClient, log logger.Logger) *PTBConstructor {
 	return &PTBConstructor{
 		config: config,
 		client: ptbClient,
@@ -133,7 +133,7 @@ Parameters:
   - function: the name of the signal (virtual function) which does not actually map to a single contract call
   - argMapping: a structured representation of the arguments for various commands within PTB, containing both object and scalar arguments
 */
-func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, arguments cwConfig.Arguments, toAddress string, txnConfig *cwConfig.ChainWriterFunction) (*transaction.Transaction, error) {
+func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, arguments sui.Arguments, toAddress string, txnConfig *sui.ChainWriterFunction) (*transaction.Transaction, error) {
 	p.log.Debugw("Building PTB commands", "module", moduleName, "function", function)
 
 	if txnConfig == nil {
@@ -141,9 +141,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 	}
 
 	// Create a new transaction builder
-	sdkClient := p.client.GetClient()
 	ptb := transaction.NewTransaction()
-	ptb.SetSuiClient(sdkClient.(*sui.Client))
 
 	signerAddress, err := client.GetAddressFromPublicKey(txnConfig.PublicKey)
 	if err != nil {
@@ -241,8 +239,8 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 func (p *PTBConstructor) ProcessMoveCall(
 	ctx context.Context,
 	builder *transaction.Transaction,
-	cmd cwConfig.ChainWriterPTBCommand,
-	arguments *cwConfig.Arguments,
+	cmd sui.ChainWriterPTBCommand,
+	arguments *sui.Arguments,
 	cachedArgs *map[string]transaction.Argument,
 ) (*transaction.Argument, error) {
 	p.log.Debugw("Processing move call", "Command", cmd, "Args", arguments)
@@ -284,8 +282,8 @@ func (p *PTBConstructor) ProcessMoveCall(
 func (p *PTBConstructor) ProcessArgsForCommand(
 	ctx context.Context,
 	builder *transaction.Transaction,
-	params []codec.SuiFunctionParam,
-	arguments *cwConfig.Arguments,
+	params []sui.SuiFunctionParam,
+	arguments *sui.Arguments,
 	cachedArgs *map[string]transaction.Argument,
 ) ([]transaction.Argument, error) {
 	processedArgs := make([]transaction.Argument, 0, len(params))

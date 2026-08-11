@@ -1,13 +1,13 @@
-package mcmsops
+package mcmsops_test
 
 import (
-	"encoding/json"
+	"context"
+	"math/big"
 	"testing"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/models"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	cselectors "github.com/smartcontractkit/chain-selectors"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	mocksui "github.com/smartcontractkit/mcms/sdk/sui/mocks/sui"
 	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +20,50 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
+
+func mockSharedSuiObject(objectID string) *suirpcv2.Object {
+	digest := "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT"
+	version := uint64(1)
+	sharedVersion := uint64(1)
+	ownerKind := suirpcv2.Owner_SHARED
+
+	return &suirpcv2.Object{
+		ObjectId: &objectID,
+		Version:  &version,
+		Digest:   &digest,
+		Owner: &suirpcv2.Owner{
+			Kind:    &ownerKind,
+			Version: &sharedVersion,
+		},
+	}
+}
+
+func setupProposalGenerateMockClient(t *testing.T) *mocksui.SuiPTBClient {
+	t.Helper()
+
+	mockClient := mocksui.NewSuiPTBClient(t)
+	mockClient.On("ReadObjectId", mock.Anything, mock.Anything).
+		Return(
+			func(_ context.Context, objectID string) *suirpcv2.Object {
+				return mockSharedSuiObject(objectID)
+			},
+			func(_ context.Context, _ string) error {
+				return nil
+			},
+		).
+		Maybe()
+	mockClient.On("GetReferenceGasPrice", mock.Anything).
+		Return(big.NewInt(1000), nil).
+		Maybe()
+	mockClient.On("SimulatePTB", mock.Anything, mock.Anything).
+		Return([]any{uint64(1)}, nil).
+		Maybe()
+
+	return mockClient
+}
 
 func newTestBundle(t *testing.T, registry *cld_ops.OperationRegistry) cld_ops.Bundle {
 	t.Helper()
@@ -31,6 +74,17 @@ func newTestBundle(t *testing.T, registry *cld_ops.OperationRegistry) cld_ops.Bu
 		reporter,
 		cld_ops.WithOperationRegistry(registry),
 	)
+}
+
+// Temporarily wrap the mock client from MCMS to mock the GetMoveModuleFunction method
+type proposalGenerateMockClient struct {
+	*mocksui.SuiPTBClient
+}
+
+func (c *proposalGenerateMockClient) GetMoveModuleFunction(
+	_ context.Context, _, _, _ string,
+) (*suirpcv2.FunctionDescriptor, error) {
+	return nil, nil
 }
 
 func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
@@ -44,32 +98,10 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		ccipops.AcceptOwnershipStateObjectOp.AsUntyped(),
 	)
 
-	mockClient := mocksui.NewISuiAPI(t)
-	// This response doesn't matter much
-	mockClient.EXPECT().SuiGetObject(mock.Anything, mock.Anything).
-		Return(models.SuiObjectResponse{
-			Data: &models.SuiObjectData{
-				ObjectId: "0xf2facb344885659b11e707838ee131b407654f75f6589984af462c13de41ef84",
-				Version:  "3",
-				Digest:   "4TRR2ZC9r7UUDUeke2DUhHdRQkZWYjkygHrRSNVM4YmX",
-				Owner:    nil,
-			},
-			Error: nil,
-		}, nil)
-	// This is the response from getOpCount
-	mockClient.EXPECT().SuiDevInspectTransactionBlock(mock.Anything, mock.Anything).
-		Return(models.SuiTransactionBlockResponse{
-			Effects: models.SuiEffects{
-				Status: models.ExecutionStatus{
-					Status: "success",
-					Error:  "",
-				},
-			},
-			Results: json.RawMessage(`[{"returnValues":[[[1,0,0,0,0,0,0,0],"u64"]]}]`), // Returns 1
-		}, nil)
+	mockClient := setupProposalGenerateMockClient(t)
 	// Create mock dependencies
 	deps := sui_ops.OpTxDeps{
-		Client: mockClient,
+		Client: &proposalGenerateMockClient{mockClient},
 		Signer: nil, // We don't need a real signer for this test since NoExecute=true
 		GetCallOpts: func() *bind.CallOpts {
 			return &bind.CallOpts{}
@@ -98,10 +130,10 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		inputs := []any{
 			ccipops.AddPackageIdStateObjectInput{
-				CCIPPackageId:         testCCIPPackageId,
+				PackageId:             testCCIPPackageId,
 				CCIPObjectRefObjectId: testObjectRefId,
 				OwnerCapObjectId:      testOwnerCapId,
-				PackageId:             testPackageId,
+				NewPackageId:          testPackageId,
 			},
 			ccipops.TransferOwnershipStateObjectInput{
 				CCIPPackageId:         testCCIPPackageId,
@@ -115,26 +147,26 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			},
 		}
 
-		proposalInput := ProposalGenerateInput{
-			Defs:   defs,
-			Inputs: inputs,
-
+		proposalInput := mcmsops.ProposalGenerateInput{
+			Defs:               defs,
+			Inputs:             inputs,
+			ChainSelector:      testChainSelector,
 			MmcsPackageID:      testCCIPPackageId,
 			McmsStateObjID:     testObjectRefId,
 			TimelockObjID:      testTimelockObjID,
 			AccountObjID:       testAccountObjID,
 			RegistryObjID:      testRegistryObjID,
 			DeployerStateObjID: testDeployerStateObjID,
-
-			Role:  suisdk.TimelockRoleProposer,
-			Delay: time.Hour * 24,
-
-			ChainSelector: testChainSelector,
+			TimelockConfig: utils.TimelockConfig{
+				MCMSAction:   types.TimelockActionSchedule,
+				MinDelay:     time.Hour * 24,
+				OverrideRoot: false,
+			},
 		}
 
 		// Execute the operation
 		bundle := newTestBundle(t, registry)
-		result, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+		result, err := cld_ops.ExecuteSequence(bundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.NoError(t, err, "should generate proposal successfully")
 
 		// Verify the proposal structure
@@ -183,26 +215,26 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			},
 		}
 
-		proposalInput := ProposalGenerateInput{
-			Defs:   defs,
-			Inputs: inputs,
-
+		proposalInput := mcmsops.ProposalGenerateInput{
+			Defs:               defs,
+			Inputs:             inputs,
 			MmcsPackageID:      testCCIPPackageId,
 			McmsStateObjID:     testObjectRefId,
 			TimelockObjID:      testTimelockObjID,
 			AccountObjID:       testAccountObjID,
 			RegistryObjID:      testRegistryObjID,
 			DeployerStateObjID: testDeployerStateObjID,
-
-			Role:  suisdk.TimelockRoleBypasser,
-			Delay: 0, // No delay for bypasser
-
-			ChainSelector: testChainSelector,
+			ChainSelector:      testChainSelector,
+			TimelockConfig: utils.TimelockConfig{
+				MCMSAction:   types.TimelockActionBypass,
+				MinDelay:     0,
+				OverrideRoot: false,
+			},
 		}
 
 		// Execute the operation
 		bundle := newTestBundle(t, registry)
-		result, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+		result, err := cld_ops.ExecuteSequence(bundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.NoError(t, err, "should generate proposal successfully")
 
 		// Verify the proposal structure
@@ -228,14 +260,14 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		inputs := []any{
 
 			ccipops.AddPackageIdStateObjectInput{
-				CCIPPackageId:         testCCIPPackageId,
+				PackageId:             testCCIPPackageId,
 				CCIPObjectRefObjectId: testObjectRefId,
 				OwnerCapObjectId:      testOwnerCapId,
-				PackageId:             testPackageId,
+				NewPackageId:          testPackageId,
 			},
 		}
 
-		proposalInput := ProposalGenerateInput{
+		proposalInput := mcmsops.ProposalGenerateInput{
 			Defs:   defs,
 			Inputs: inputs,
 
@@ -245,18 +277,19 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			AccountObjID:       testAccountObjID,
 			RegistryObjID:      testRegistryObjID,
 			DeployerStateObjID: testDeployerStateObjID,
-
-			Role:  suisdk.TimelockRole(100), // Invalid role
-			Delay: time.Hour,
-
-			ChainSelector: testChainSelector,
+			ChainSelector:      testChainSelector,
+			TimelockConfig: utils.TimelockConfig{
+				MCMSAction:   "bad_action",
+				MinDelay:     time.Hour,
+				OverrideRoot: false,
+			},
 		}
 
 		// Execute the operation - should fail
 		bundle := newTestBundle(t, registry)
-		_, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
-		require.Error(t, err, "should fail with invalid role")
-		assert.Contains(t, err.Error(), "unsupported role", "error should mention `unsupported role`")
+		_, err := cld_ops.ExecuteSequence(bundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+		require.Error(t, err, "should fail with invalid action")
+		assert.Contains(t, err.Error(), "unsupported action", "error should mention `unsupported action`")
 	})
 
 	t.Run("Generate Proposal with Mismatched Definitions and Inputs", func(t *testing.T) {
@@ -269,16 +302,16 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		inputs := []any{
 
 			ccipops.AddPackageIdStateObjectInput{
-				CCIPPackageId:         testCCIPPackageId,
+				PackageId:             testCCIPPackageId,
 				CCIPObjectRefObjectId: testObjectRefId,
 				OwnerCapObjectId:      testOwnerCapId,
-				PackageId:             testPackageId,
+				NewPackageId:          testPackageId,
 			},
 
 			// Missing second input
 		}
 
-		proposalInput := ProposalGenerateInput{
+		proposalInput := mcmsops.ProposalGenerateInput{
 			Defs:   defs,
 			Inputs: inputs[:1], // Only one input for two definitions
 
@@ -288,16 +321,17 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			AccountObjID:       testAccountObjID,
 			RegistryObjID:      testRegistryObjID,
 			DeployerStateObjID: testDeployerStateObjID,
-
-			Role:  suisdk.TimelockRoleProposer,
-			Delay: time.Hour,
-
-			ChainSelector: testChainSelector,
+			ChainSelector:      testChainSelector,
+			TimelockConfig: utils.TimelockConfig{
+				MCMSAction:   types.TimelockActionSchedule,
+				MinDelay:     time.Hour,
+				OverrideRoot: false,
+			},
 		}
 
 		// Execute the operation - should fail due to index out of bounds
 		bundle := newTestBundle(t, registry)
-		_, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+		_, err := cld_ops.ExecuteSequence(bundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.Error(t, err, "should fail with mismatched definitions and inputs")
 	})
 }

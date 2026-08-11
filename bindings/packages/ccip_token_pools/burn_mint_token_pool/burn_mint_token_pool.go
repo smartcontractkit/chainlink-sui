@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
@@ -27,8 +27,8 @@ func (p CCIPBurnMintTokenPoolPackage) Address() string {
 	return p.address
 }
 
-func NewCCIPBurnMintTokenPool(address string, client sui.ISuiAPI) (BurnMintTokenPool, error) {
-	tokenPoolContract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(address, client)
+func NewCCIPBurnMintTokenPool(address string, chainClient client.BindingsClient) (BurnMintTokenPool, error) {
+	tokenPoolContract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -47,9 +47,10 @@ func NewCCIPBurnMintTokenPool(address string, client sui.ISuiAPI) (BurnMintToken
 func PublishCCIPBurnMintTokenPool(
 	ctx context.Context,
 	opts *bind.CallOpts,
-	client sui.ISuiAPI,
+	chainClient client.BindingsClient,
 	ccipAddress,
 	mcmsAddress,
+	fastMcmsAddress,
 	mcmsOwnerAddress, suiRPC string) (BurnMintTokenPool, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
@@ -60,6 +61,7 @@ func PublishCCIPBurnMintTokenPool(
 		"ccip":                 ccipAddress,
 		"burn_mint_token_pool": "0x0",
 		"mcms":                 mcmsAddress,
+		"fast_mcms":            fastMcmsAddress,
 		"mcms_owner":           mcmsOwnerAddress,
 		"signer":               signerAddr,
 	}, false, suiRPC)
@@ -67,7 +69,8 @@ func PublishCCIPBurnMintTokenPool(
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+	//nolint:revive // var-naming: generated bindings keep packageId naming
+	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
@@ -75,7 +78,7 @@ func PublishCCIPBurnMintTokenPool(
 		return nil, nil, err
 	}
 
-	contract, err := NewCCIPBurnMintTokenPool(packageId, client)
+	contract, err := NewCCIPBurnMintTokenPool(packageId, chainClient)
 	if err != nil {
 		return nil, nil, err
 	}

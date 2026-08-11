@@ -2,18 +2,26 @@ package offramp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
+// ErrUnsupportedReceiverABI indicates a receiver's on-chain ABI contains shapes
+// that the relayer cannot build a PTB command for (e.g. generic TypeParameter).
+// This is a permanent failure: retrying with the same receiver will always fail.
+var ErrUnsupportedReceiverABI = errors.New("unsupported receiver ABI")
+
+//go:fix inline
 func AnyPointer[T any](v T) *T {
-	return &v
+	return new(v)
 }
 
 type OffRampAddressMappings struct {
@@ -60,14 +68,7 @@ func GetOfframpAddressMappings(
 		OffRampState:     "",
 	}
 
-	// Use the `toAddress` (offramp package ID) from the config overrides to get the offramp pointer object
-	signerAddress, err := client.GetAddressFromPublicKey(publicKey)
-	if err != nil {
-		lggr.Errorw("Error getting signer address", "error", err)
-		return OffRampAddressMappings{}, err
-	}
-
-	ccipPkgID, err := ptbClient.GetCCIPPackageID(ctx, addressMappings.OffRampPackageId, signerAddress)
+	ccipPkgID, err := ptbClient.GetCCIPPackageID(ctx, addressMappings.OffRampPackageId)
 	if err != nil {
 		return OffRampAddressMappings{}, err
 	}
@@ -92,7 +93,7 @@ func GetOfframpAddressMappings(
 	}
 
 	// Derive OffRampState from parent object ID
-	offRampStateID, err := bind.DeriveObjectIDWithVectorU8Key(offRampObjectID, []byte("OffRampState"))
+	offRampStateID, err := client.DeriveObjectIDWithVectorU8Key(offRampObjectID, []byte("OffRampState"))
 	if err != nil {
 		lggr.Errorw("Error deriving offramp state object ID", "error", err)
 		return OffRampAddressMappings{}, err
@@ -114,7 +115,7 @@ func GetOfframpAddressMappings(
 	}
 
 	// Derive CCIPObjectRef from parent object ID
-	ccipObjectRefID, err := bind.DeriveObjectIDWithVectorU8Key(ccipObjectID, []byte("CCIPObjectRef"))
+	ccipObjectRefID, err := client.DeriveObjectIDWithVectorU8Key(ccipObjectID, []byte("CCIPObjectRef"))
 	if err != nil {
 		lggr.Errorw("Error deriving ccip object ref ID", "error", err)
 		return OffRampAddressMappings{}, err
@@ -122,7 +123,7 @@ func GetOfframpAddressMappings(
 	addressMappings.CcipObjectRef = ccipObjectRefID
 
 	// Derive CCIP OwnerCap from parent object ID
-	ccipOwnerCapID, err := bind.DeriveObjectIDWithVectorU8Key(ccipObjectID, []byte("CCIP_OWNABLE"))
+	ccipOwnerCapID, err := client.DeriveObjectIDWithVectorU8Key(ccipObjectID, []byte("CCIP_OWNABLE"))
 	if err != nil {
 		lggr.Errorw("Error deriving ccip owner cap ID", "error", err)
 		return OffRampAddressMappings{}, err
@@ -145,7 +146,11 @@ type SuiArgumentMetadata struct {
 	Type          string          `json:"type"`
 }
 
-func decodeParam(lggr logger.Logger, param any, reference string) SuiArgumentMetadata {
+func decodeParam(lggr logger.Logger, param any, reference string) (SuiArgumentMetadata, error) {
+	if param == nil {
+		return SuiArgumentMetadata{}, errors.New("nil parameter")
+	}
+
 	// Handle primitive types (strings like "U64", "Bool", etc.)
 	if str, ok := param.(string); ok {
 		return SuiArgumentMetadata{
@@ -155,54 +160,194 @@ func decodeParam(lggr logger.Logger, param any, reference string) SuiArgumentMet
 			Reference:     reference,
 			TypeArguments: []TypeParameter{},
 			Type:          ParseParamType(lggr, str),
-		}
+		}, nil
 	}
 
-	// Handle complex types (maps)
-	m := param.(map[string]any)
-	for k, v := range m {
-		switch k {
-		case "Struct":
-			// Direct struct
-			s := v.(map[string]any)
-			typeArguments := []TypeParameter{}
-			for _, ta := range s["typeArguments"].([]any) {
-				typeArgument := ta.(map[string]any)
-				typeArguments = append(typeArguments, TypeParameter{TypeParameter: typeArgument["TypeParameter"].(float64)})
-			}
-			return SuiArgumentMetadata{
-				Address:       s["address"].(string),
-				Module:        s["module"].(string),
-				Name:          s["name"].(string),
-				Reference:     reference,
-				TypeArguments: typeArguments,
-				Type:          ParseParamType(lggr, v),
-			}
-		case "Reference", "MutableReference", "Vector":
-			// Reference and MutableReference are the same thing
-			// We need to unwrap the struct
-			return decodeParam(lggr, v, k)
-		default:
-			inner := v.(map[string]any)["Struct"].(map[string]any)
-			typeArguments := []TypeParameter{}
-			for _, ta := range inner["typeArguments"].([]any) {
-				typeArgument := ta.(map[string]any)
-				typeArguments = append(typeArguments, TypeParameter{TypeParameter: typeArgument["TypeParameter"].(float64)})
-			}
-			return SuiArgumentMetadata{
-				Address:       inner["address"].(string),
-				Module:        inner["module"].(string),
-				Name:          inner["name"].(string),
-				Reference:     k,
-				TypeArguments: typeArguments,
-				Type:          ParseParamType(lggr, v),
-			}
-		}
+	m, ok := param.(map[string]any)
+	if !ok {
+		return SuiArgumentMetadata{}, fmt.Errorf("expected map[string]any, got %T", param)
 	}
-	return SuiArgumentMetadata{}
+	if len(m) == 0 {
+		return SuiArgumentMetadata{}, errors.New("empty parameter map")
+	}
+	if len(m) != 1 {
+		return SuiArgumentMetadata{}, fmt.Errorf("expected exactly one ABI wrapper key, got %d", len(m))
+	}
+
+	var k string
+	var v any
+	for key, val := range m {
+		k, v = key, val
+	}
+
+	switch k {
+	case "Struct":
+		return decodeStructParam(lggr, v, reference)
+	case "Vector":
+		decoded, err := decodeParam(lggr, v, reference)
+		if err != nil {
+			return SuiArgumentMetadata{}, err
+		}
+		decoded.Reference = "Vector"
+		decoded.Type = ParseParamType(lggr, v)
+		return decoded, nil
+	case "Reference", "MutableReference":
+		return decodeParam(lggr, v, k)
+	case "TypeParameter":
+		return SuiArgumentMetadata{}, fmt.Errorf("%w: TypeParameter (generic parameters are not supported)", ErrUnsupportedReceiverABI)
+	default:
+		vMap, ok := v.(map[string]any)
+		if !ok {
+			return SuiArgumentMetadata{}, fmt.Errorf("%w: key %q has non-map value of type %T", ErrUnsupportedReceiverABI, k, v)
+		}
+		innerRaw, exists := vMap["Struct"]
+		if !exists {
+			return SuiArgumentMetadata{}, fmt.Errorf("%w: key %q missing inner Struct", ErrUnsupportedReceiverABI, k)
+		}
+		inner, ok := innerRaw.(map[string]any)
+		if !ok {
+			return SuiArgumentMetadata{}, fmt.Errorf("%w: key %q Struct value is %T, not map", ErrUnsupportedReceiverABI, k, innerRaw)
+		}
+		typeArguments, err := decodeTypeArguments(inner)
+		if err != nil {
+			return SuiArgumentMetadata{}, fmt.Errorf("key %q: %w", k, err)
+		}
+		address, module, name, err := extractStructFields(inner)
+		if err != nil {
+			return SuiArgumentMetadata{}, fmt.Errorf("key %q: %w", k, err)
+		}
+		return SuiArgumentMetadata{
+			Address:       address,
+			Module:        module,
+			Name:          name,
+			Reference:     k,
+			TypeArguments: typeArguments,
+			Type:          ParseParamType(lggr, v),
+		}, nil
+	}
 }
 
-func ParseParamType(lggr logger.Logger, param interface{}) string {
+func decodeStructParam(lggr logger.Logger, v any, reference string) (SuiArgumentMetadata, error) {
+	s, ok := v.(map[string]any)
+	if !ok {
+		return SuiArgumentMetadata{}, fmt.Errorf("struct value is %T, expected map[string]any", v)
+	}
+	typeArguments, err := decodeTypeArguments(s)
+	if err != nil {
+		return SuiArgumentMetadata{}, fmt.Errorf("struct: %w", err)
+	}
+	address, module, name, err := extractStructFields(s)
+	if err != nil {
+		return SuiArgumentMetadata{}, fmt.Errorf("struct: %w", err)
+	}
+	return SuiArgumentMetadata{
+		Address:       address,
+		Module:        module,
+		Name:          name,
+		Reference:     reference,
+		TypeArguments: typeArguments,
+		Type:          ParseParamType(lggr, v),
+	}, nil
+}
+
+func decodeTypeArguments(s map[string]any) ([]TypeParameter, error) {
+	taRaw, exists := s["typeArguments"]
+	if !exists {
+		return []TypeParameter{}, nil
+	}
+	taSlice, ok := taRaw.([]any)
+	if !ok {
+		return nil, fmt.Errorf("typeArguments is %T, expected []any", taRaw)
+	}
+	typeArguments := make([]TypeParameter, 0, len(taSlice))
+	for i, ta := range taSlice {
+		taMap, ok := ta.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("typeArguments[%d] is %T, expected map[string]any", i, ta)
+		}
+		tpRaw, exists := taMap["TypeParameter"]
+		if !exists {
+			return nil, fmt.Errorf("typeArguments[%d] missing TypeParameter key", i)
+		}
+		tp, ok := tpRaw.(float64)
+		if !ok {
+			return nil, fmt.Errorf("typeArguments[%d].TypeParameter is %T, expected float64", i, tpRaw)
+		}
+		typeArguments = append(typeArguments, TypeParameter{TypeParameter: tp})
+	}
+	return typeArguments, nil
+}
+
+func extractStructFields(s map[string]any) (address, module, name string, err error) {
+	addrRaw, ok := s["address"]
+	if !ok {
+		return "", "", "", errors.New("missing field \"address\"")
+	}
+	address, ok = addrRaw.(string)
+	if !ok {
+		return "", "", "", fmt.Errorf("field \"address\" is %T, expected string", addrRaw)
+	}
+	modRaw, ok := s["module"]
+	if !ok {
+		return "", "", "", errors.New("missing field \"module\"")
+	}
+	module, ok = modRaw.(string)
+	if !ok {
+		return "", "", "", fmt.Errorf("field \"module\" is %T, expected string", modRaw)
+	}
+	nameRaw, ok := s["name"]
+	if !ok {
+		return "", "", "", errors.New("missing field \"name\"")
+	}
+	name, ok = nameRaw.(string)
+	if !ok {
+		return "", "", "", fmt.Errorf("field \"name\" is %T, expected string", nameRaw)
+	}
+	return address, module, name, nil
+}
+
+const (
+	moveStringType      = "0x1::string::String"
+	moveASCIIStringType = "ascii::String"
+)
+
+func structFieldsToMoveType(address, module, name string) string {
+	switch {
+	case module == "string" && name == "String":
+		return moveStringType
+	case module == "ascii" && name == "String":
+		return moveASCIIStringType
+	default:
+		return "object_id"
+	}
+}
+
+func structMapToMoveType(m map[string]any) string {
+	address, module, name, err := extractStructFields(m)
+	if err != nil {
+		return "object_id"
+	}
+	return structFieldsToMoveType(address, module, name)
+}
+
+func isPureParamType(paramType string) bool {
+	if strings.HasPrefix(paramType, "u") || paramType == "bool" {
+		return true
+	}
+	return paramType == moveStringType ||
+		paramType == moveASCIIStringType ||
+		strings.Contains(paramType, "::string::String") ||
+		strings.Contains(paramType, "::ascii::String")
+}
+
+func formatValueParamType(paramType string) string {
+	if strings.Contains(paramType, "::") {
+		return paramType
+	}
+	return strings.ToLower(paramType)
+}
+
+func ParseParamType(lggr logger.Logger, param any) string {
 	// Case 1: string primitive
 	if str, ok := param.(string); ok {
 		switch str {
@@ -228,7 +373,7 @@ func ParseParamType(lggr logger.Logger, param interface{}) string {
 	}
 
 	// Case 2: map structure (e.g., Vector, Reference, Struct)
-	if m, ok := param.(map[string]interface{}); ok {
+	if m, ok := param.(map[string]any); ok {
 		if vectorVal, ok := m["Vector"]; ok {
 			return "vector<" + ParseParamType(lggr, vectorVal) + ">"
 		}
@@ -238,19 +383,14 @@ func ParseParamType(lggr logger.Logger, param interface{}) string {
 		if mutRefVal, ok := m["MutableReference"]; ok {
 			return ParseParamType(lggr, mutRefVal)
 		}
-		if _, ok := m["Struct"]; ok {
-			// Special case for strings
-			if m["address"] == "String" {
-				return "string"
+		if structVal, ok := m["Struct"]; ok {
+			if inner, ok := structVal.(map[string]any); ok {
+				return structMapToMoveType(inner)
 			}
 			return "object_id"
 		}
-		// Handle direct struct content (when called from decodeParam with unwrapped struct)
-		if address, ok := m["address"]; ok {
-			if address == "String" {
-				return "string"
-			}
-			return "object_id"
+		if _, ok := m["address"]; ok {
+			return structMapToMoveType(m)
 		}
 	}
 
@@ -258,17 +398,25 @@ func ParseParamType(lggr logger.Logger, param interface{}) string {
 	return "unknown"
 }
 
+func exposedFunctionSignature(functionName string, raw any) (map[string]any, error) {
+	m, ok := raw.(map[string]any)
+	if !ok || m == nil {
+		return nil, fmt.Errorf("%w: function %q has invalid signature shape (%T)", ErrUnsupportedReceiverABI, functionName, raw)
+	}
+	return m, nil
+}
+
 func DecodeParameters(lggr logger.Logger, function map[string]any, key string) ([]string, error) {
 	parametersRaw, exists := function[key]
 	if !exists || parametersRaw == nil {
 		lggr.Errorw("key field is missing or nil", "function", function, "key", key)
-		return nil, fmt.Errorf("key field is missing or nil")
+		return nil, errors.New("key field is missing or nil")
 	}
 
 	parameters, ok := parametersRaw.([]any)
 	if !ok {
 		lggr.Errorw("key field is not an array", "parametersRaw", parametersRaw, "key", key)
-		return nil, fmt.Errorf("key field is not an array")
+		return nil, errors.New("key field is not an array")
 	}
 
 	lggr.Debugw("Raw parameters", "parameters", parameters, "key", key)
@@ -276,7 +424,11 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 	defaultReference := "Reference"
 	decodedParameters := make([]SuiArgumentMetadata, len(parameters))
 	for i, parameter := range parameters {
-		decodedParameters[i] = decodeParam(lggr, parameter, defaultReference)
+		decoded, err := decodeParam(lggr, parameter, defaultReference)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode parameter %d: %w", i, err)
+		}
+		decodedParameters[i] = decoded
 	}
 
 	lggr.Debugw("decoded parameters", "decodedParameters", decodedParameters)
@@ -288,8 +440,7 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 		}
 
 		if param.Reference == "Reference" {
-			if strings.HasPrefix(param.Type, "u") || param.Type == "bool" {
-				// It's a primitive, not an object reference
+			if isPureParamType(param.Type) {
 				paramTypes = append(paramTypes, param.Type)
 			} else {
 				paramTypes = append(paramTypes, "&object")
@@ -307,8 +458,154 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 			continue
 		}
 
-		paramTypes = append(paramTypes, strings.ToLower(param.Type))
+		paramTypes = append(paramTypes, formatValueParamType(param.Type))
 	}
+
+	return paramTypes, nil
+}
+
+// datatypeName returns the unqualified name portion (e.g. "TxContext") of a fully qualified
+// datatype name of the form "<address>::<module>::<name>", as returned by
+// OpenSignatureBody.GetTypeName(). If typeName isn't qualified, it is returned unchanged.
+func datatypeName(typeName string) string {
+	idx := strings.LastIndex(typeName, "::")
+	if idx == -1 {
+		return typeName
+	}
+	return typeName[idx+2:]
+}
+
+// datatypeMoveType maps a fully qualified datatype name to the Move type string used by
+// EncodeCallArgsWithGenerics, mirroring structMapToMoveType for the JSON-RPC based decoder.
+func datatypeMoveType(typeName string) string {
+	parts := strings.Split(typeName, "::")
+	if len(parts) != 3 {
+		return "object_id"
+	}
+	address, module, name := parts[0], parts[1], parts[2]
+	return structFieldsToMoveType(address, module, name)
+}
+
+// parseSignatureBodyType computes the Move type string for a single OpenSignatureBody, recursing
+// into vector element types. It mirrors ParseParamType for the gRPC FunctionDescriptor shape.
+func parseSignatureBodyType(body *suirpcv2.OpenSignatureBody) (string, error) {
+	if body == nil {
+		return "", errors.New("nil signature body")
+	}
+
+	switch body.GetType() {
+	case suirpcv2.OpenSignatureBody_ADDRESS:
+		return "object_id", nil
+	case suirpcv2.OpenSignatureBody_BOOL:
+		return "bool", nil
+	case suirpcv2.OpenSignatureBody_U8:
+		return "u8", nil
+	case suirpcv2.OpenSignatureBody_U16:
+		return "u16", nil
+	case suirpcv2.OpenSignatureBody_U32:
+		return "u32", nil
+	case suirpcv2.OpenSignatureBody_U64:
+		return "u64", nil
+	case suirpcv2.OpenSignatureBody_U128:
+		return "u128", nil
+	case suirpcv2.OpenSignatureBody_U256:
+		return "u256", nil
+	case suirpcv2.OpenSignatureBody_VECTOR:
+		elementTypes := body.GetTypeParameterInstantiation()
+		if len(elementTypes) != 1 {
+			return "", fmt.Errorf("vector signature has %d type parameters, expected 1", len(elementTypes))
+		}
+		elementType, err := parseSignatureBodyType(elementTypes[0])
+		if err != nil {
+			return "", err
+		}
+		return "vector<" + elementType + ">", nil
+	case suirpcv2.OpenSignatureBody_DATATYPE:
+		return datatypeMoveType(body.GetTypeName()), nil
+	case suirpcv2.OpenSignatureBody_TYPE_PARAMETER:
+		return "", fmt.Errorf("%w: TypeParameter (generic parameters are not supported)", ErrUnsupportedReceiverABI)
+	default:
+		return "unknown", nil
+	}
+}
+
+// decodeOpenSignature classifies a single function parameter/return signature into the name
+// (used to detect and skip TxContext), the reference kind ("Reference", "MutableReference", or
+// "Vector"), and the underlying Move type string. It mirrors decodeParam for the gRPC
+// FunctionDescriptor shape: a Vector body always takes precedence over the outer reference
+// (matching the JSON-RPC decoder, where a Vector's own wrapper key overrides any enclosing
+// Reference/MutableReference), and a bare (non-Vector) body defaults to "Reference" unless
+// explicitly marked MUTABLE.
+func decodeOpenSignature(sig *suirpcv2.OpenSignature) (name string, reference string, moveType string, err error) {
+	body := sig.GetBody()
+	if body == nil {
+		return "", "", "", errors.New("nil parameter body")
+	}
+
+	if body.GetType() == suirpcv2.OpenSignatureBody_VECTOR {
+		elementTypes := body.GetTypeParameterInstantiation()
+		if len(elementTypes) != 1 {
+			return "", "", "", fmt.Errorf("vector signature has %d type parameters, expected 1", len(elementTypes))
+		}
+		elementType, elmErr := parseSignatureBodyType(elementTypes[0])
+		if elmErr != nil {
+			return "", "", "", elmErr
+		}
+		return datatypeName(elementTypes[0].GetTypeName()), "Vector", elementType, nil
+	}
+
+	moveType, err = parseSignatureBodyType(body)
+	if err != nil {
+		return "", "", "", err
+	}
+	name = datatypeName(body.GetTypeName())
+
+	if sig.GetReference() == suirpcv2.OpenSignature_MUTABLE {
+		return name, "MutableReference", moveType, nil
+	}
+
+	return name, "Reference", moveType, nil
+}
+
+// DecodeParametersFromFunctionDescriptor computes the PTB argument type strings for a Move
+// function's parameters, given its gRPC FunctionDescriptor. It achieves the same purpose as
+// DecodeParameters, but reads from the typed sui.rpc.v2.FunctionDescriptor returned by
+// MovePackageService.GetFunction rather than the untyped JSON-RPC normalized function map.
+func DecodeParametersFromFunctionDescriptor(lggr logger.Logger, functionDescriptor *suirpcv2.FunctionDescriptor) ([]string, error) {
+	if functionDescriptor == nil {
+		lggr.Errorw("function descriptor is nil")
+		return nil, errors.New("function descriptor is nil")
+	}
+
+	parameters := functionDescriptor.GetParameters()
+	lggr.Debugw("Raw parameters", "parameters", parameters)
+
+	paramTypes := make([]string, 0, len(parameters))
+	for i, parameter := range parameters {
+		name, reference, moveType, err := decodeOpenSignature(parameter)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode parameter %d: %w", i, err)
+		}
+
+		if name == "TxContext" {
+			continue
+		}
+
+		switch reference {
+		case "MutableReference":
+			paramTypes = append(paramTypes, "&mut object")
+		case "Vector":
+			paramTypes = append(paramTypes, "vector<"+moveType+">")
+		default:
+			if isPureParamType(moveType) {
+				paramTypes = append(paramTypes, moveType)
+			} else {
+				paramTypes = append(paramTypes, "&object")
+			}
+		}
+	}
+
+	lggr.Debugw("decoded parameter types", "paramTypes", paramTypes)
 
 	return paramTypes, nil
 }

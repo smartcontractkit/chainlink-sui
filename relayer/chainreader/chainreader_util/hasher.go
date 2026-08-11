@@ -13,7 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/utils/hex"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	codec0 "github.com/smartcontractkit/chainlink-sui/codec"
 )
 
 // Hasher implementation adapted from Aptos hasher for Sui
@@ -48,7 +48,7 @@ func NewMessageHasherV1(lggr logger.Logger) *MessageHasherV1 {
 	}
 }
 
-func (h *MessageHasherV1) Hash(ctx context.Context, report *codec.ExecutionReport, onRampAddress []byte) ([32]byte, error) {
+func (h *MessageHasherV1) Hash(ctx context.Context, report *codec0.ExecutionReport, onRampAddress []byte) ([32]byte, error) {
 	rampTokenAmounts := make([]any2SuiTokenTransfer, len(report.Message.TokenAmounts))
 	for i, rta := range report.Message.TokenAmounts {
 		// Convert Sui address to 32-byte array

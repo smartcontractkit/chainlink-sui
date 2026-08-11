@@ -12,10 +12,11 @@ import (
 )
 
 type DeployManagedTokenObjects struct {
-	OwnerCapObjectId  string
-	StateObjectId     string
-	MinterCapObjectId string
-	PublisherObjectId string
+	OwnerCapObjectId   string
+	StateObjectId      string
+	MinterCapObjectId  string
+	PublisherObjectId  string
+	UpgradeCapObjectId string
 }
 
 type DeployManagedTokenOutput struct {
@@ -35,6 +36,7 @@ type DeployAndInitManagedTokenInput struct {
 	MinterAddress string
 	Allowance     uint64
 	IsUnlimited   bool
+	Source        string
 }
 
 var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
@@ -78,6 +80,7 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 					MinterAddress:         input.MinterAddress,
 					Allowance:             input.Allowance,
 					IsUnlimited:           input.IsUnlimited,
+					Source:                input.Source,
 				},
 			)
 			if err != nil {
@@ -97,10 +100,11 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 			ManagedTokenPackageId: deployReport.Output.PackageId,
 			TokenSymbol:           symbol,
 			Objects: DeployManagedTokenObjects{
-				OwnerCapObjectId:  initReport.Output.Objects.OwnerCapObjectId,
-				StateObjectId:     initReport.Output.Objects.StateObjectId,
-				PublisherObjectId: deployReport.Output.Objects.PublisherObjectId,
-				MinterCapObjectId: minterObjectId,
+				OwnerCapObjectId:   initReport.Output.Objects.OwnerCapObjectId,
+				StateObjectId:      initReport.Output.Objects.StateObjectId,
+				PublisherObjectId:  deployReport.Output.Objects.PublisherObjectId,
+				MinterCapObjectId:  minterObjectId,
+				UpgradeCapObjectId: deployReport.Output.Objects.UpgradeCapObjectId,
 			},
 		}, nil
 	},

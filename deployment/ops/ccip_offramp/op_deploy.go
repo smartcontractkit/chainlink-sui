@@ -22,8 +22,9 @@ type DeployCCIPOffRampObjects struct {
 }
 
 type DeployCCIPOffRampInput struct {
-	CCIPPackageId string
-	MCMSPackageId string
+	CCIPPackageId     string
+	MCMSPackageId     string
+	FastMcmsPackageId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPOffRampInput) (output sui_ops.OpTxResult[DeployCCIPOffRampObjects], err error) {
@@ -35,6 +36,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		deps.Client,
 		input.CCIPPackageId,
 		input.MCMSPackageId,
+		input.FastMcmsPackageId,
 		deps.SuiRPC,
 	)
 	if err != nil {
@@ -179,6 +181,7 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 type ApplySourceChainConfigUpdateInput struct {
 	CCIPObjectRef                         string
 	OffRampPackageId                      string
+	LatestPackageId                       string // optional: upgraded package ID for PTB execution when OffRampPackageId is the MCMS registry identity
 	OffRampStateId                        string
 	OwnerCapObjectId                      string
 	SourceChainsSelectors                 []uint64
@@ -188,7 +191,11 @@ type ApplySourceChainConfigUpdateInput struct {
 }
 
 var applySourceChainConfigUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ApplySourceChainConfigUpdateInput) (output sui_ops.OpTxResult[DeployCCIPOffRampObjects], err error) {
-	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	binaryPkgId := input.OffRampPackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	offRampPackage, err := module_offramp.NewOfframp(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, err
 	}
@@ -208,6 +215,10 @@ var applySourceChainConfigUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.Op
 	call, err := sui_ops.ToTransactionCall(encodedCall, input.OffRampStateId)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID
+		call.PackageID = input.OffRampPackageId
 	}
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of ApplySourceChainConfigUpdates on OffRamp as per no Signer provided")
@@ -241,10 +252,11 @@ var applySourceChainConfigUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.Op
 }
 
 type AddPackageIdOffRampInput struct {
-	OffRampPackageId string
+	PackageId        string // original package ID (MCMS registry identity; used as binary when LatestPackageId is "")
+	LatestPackageId  string // optional: upgraded package ID (PTB execution target when set)
 	StateObjectId    string
 	OwnerCapObjectId string
-	PackageId        string
+	NewPackageId     string // the package ID to register in the OffRamp state
 }
 
 type AddPackageIdOffRampObjects struct {
@@ -252,30 +264,59 @@ type AddPackageIdOffRampObjects struct {
 }
 
 var addPackageIdOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddPackageIdOffRampInput) (output sui_ops.OpTxResult[AddPackageIdOffRampObjects], err error) {
-	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	// When the package has been upgraded, PTB must target the latest bytecode for execution.
+	binaryPkgId := input.PackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	offRampPackage, err := module_offramp.NewOfframp(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{}, err
 	}
 
+	encodedCall, err := offRampPackage.Encoder().AddPackageId(bind.Object{Id: input.StateObjectId}, bind.Object{Id: input.OwnerCapObjectId}, input.NewPackageId)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{}, fmt.Errorf("failed to encode AddPackageId call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	// When the package has been upgraded, the on-chain MCMS registry still holds the original package's
+	// proof type, so tx.To must be the original package ID. Use LatestPackageId so the proposal
+	// generator routes the PTB MoveCall to the upgraded bytecode.
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID // current PackageID is the latest (from binaryPkgId)
+		call.PackageID = input.PackageId      // replace with original for on-chain identity
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of AddPackageId on OffRamp as per no Signer provided", "newPackageId", input.NewPackageId)
+		return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{
+			Digest:    "",
+			PackageId: input.PackageId,
+			Objects:   AddPackageIdOffRampObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := offRampPackage.AddPackageId(
+	tx, err := offRampPackage.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.PackageId,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{}, fmt.Errorf("failed to execute AddPackageId on offRamp: %w", err)
 	}
 
-	b.Logger.Infow("Package ID added to OffRamp", "packageId", input.PackageId)
+	b.Logger.Infow("Package ID added to OffRamp", "newPackageId", input.NewPackageId)
 
 	return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.OffRampPackageId,
+		PackageId: input.PackageId,
 		Objects:   AddPackageIdOffRampObjects{},
+		Call:      call,
 	}, nil
 }
 

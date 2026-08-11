@@ -63,13 +63,6 @@ var PointerConfigs = map[string][]PointerConfig{
 			ParentFieldName: "managed_token_pool_object_id",
 		},
 	},
-	"usdc_token_pool": {
-		{
-			Module:          "usdc_token_pool",
-			Pointer:         "USDCTokenPoolStatePointer",
-			ParentFieldName: "usdc_token_pool_object_id",
-		},
-	},
 	"lock_release_token_pool": {
 		{
 			Module:          "lock_release_token_pool",
@@ -84,6 +77,24 @@ var PointerConfigs = map[string][]PointerConfig{
 			ParentFieldName: "counter_object_id",
 		},
 	},
+}
+
+var StateObjectNameByModule = map[string]string{
+	"offramp":                 "OffRampState",
+	"onramp":                  "OnRampState",
+	"state_object":            "CCIPObjectRef",
+	"router":                  "RouterState",
+	"burn_mint_token_pool":    "BurnMintTokenPoolState",
+	"lock_release_token_pool": "LockReleaseTokenPoolState",
+	"managed_token_pool":      "ManagedTokenPoolState",
+	"counter":                 "Counter",
+}
+
+func GetStateObjectNameByModule(module string) string {
+	if name, ok := StateObjectNameByModule[module]; ok {
+		return name
+	}
+	return ""
 }
 
 func GetParentFieldName(pointerName string) string {

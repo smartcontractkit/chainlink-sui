@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -33,7 +32,7 @@ type IDummyReceiver interface {
 	ReceiveCoin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ReceiveAndSendCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object, recipient string) (*models.SuiTransactionBlockResponse, error)
 	ReceiveCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object) (*models.SuiTransactionBlockResponse, error)
-	CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetAlwaysAbort(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	EnableAlwaysAbort(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DisableAlwaysAbort(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -77,7 +76,7 @@ type DummyReceiverEncoder interface {
 	ReceiveAndSendCoinNoOwnerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ReceiveCoinNoOwnerCap(typeArgs []string, state bind.Object, coinReceiving bind.Object) (*bind.EncodedCall, error)
 	ReceiveCoinNoOwnerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	CcipReceive(expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*bind.EncodedCall, error)
+	CcipReceive(expectedMessageId []byte, ref bind.Object, message bind.Object, clock bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	CcipReceiveWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetAlwaysAbort(state bind.Object) (*bind.EncodedCall, error)
 	GetAlwaysAbortWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -100,8 +99,8 @@ type DummyReceiverDevInspect struct {
 var _ IDummyReceiver = (*DummyReceiverContract)(nil)
 var _ IDummyReceiverDevInspect = (*DummyReceiverDevInspect)(nil)
 
-func NewDummyReceiver(packageID string, client sui.ISuiAPI) (IDummyReceiver, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_dummy_receiver", "dummy_receiver", client)
+func NewDummyReceiver(packageID string, chainClient client.BindingsClient) (IDummyReceiver, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip_dummy_receiver", "dummy_receiver", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -525,8 +524,8 @@ func (c *DummyReceiverContract) ReceiveCoinNoOwnerCap(ctx context.Context, opts 
 }
 
 // CcipReceive executes the ccip_receive Move function.
-func (c *DummyReceiverContract) CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.dummyReceiverEncoder.CcipReceive(expectedMessageId, ref, message, param, state)
+func (c *DummyReceiverContract) CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.CcipReceive(expectedMessageId, ref, message, clock, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -579,9 +578,9 @@ func (d *DummyReceiverDevInspect) TypeAndVersion(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -601,9 +600,9 @@ func (d *DummyReceiverDevInspect) GetCounter(ctx context.Context, opts *bind.Cal
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -623,9 +622,9 @@ func (d *DummyReceiverDevInspect) GetDestTokenAmounts(ctx context.Context, opts 
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]TokenAmount)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []TokenAmount, got %T", results[0])
+	var result []TokenAmount
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -645,9 +644,9 @@ func (d *DummyReceiverDevInspect) GetTokenReceiver(ctx context.Context, opts *bi
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -667,9 +666,9 @@ func (d *DummyReceiverDevInspect) GetTokenAmountToken(ctx context.Context, opts 
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -689,9 +688,9 @@ func (d *DummyReceiverDevInspect) GetTokenAmountAmount(ctx context.Context, opts
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*big.Int)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *big.Int, got %T", results[0])
+	var result *big.Int
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1114,7 +1113,7 @@ func (c dummyReceiverEncoder) ReceiveCoinNoOwnerCapWithArgs(typeArgs []string, a
 }
 
 // CcipReceive encodes a call to the ccip_receive Move function.
-func (c dummyReceiverEncoder) CcipReceive(expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*bind.EncodedCall, error) {
+func (c dummyReceiverEncoder) CcipReceive(expectedMessageId []byte, ref bind.Object, message bind.Object, clock bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("ccip_receive", typeArgsList, typeParamsList, []string{
@@ -1127,7 +1126,7 @@ func (c dummyReceiverEncoder) CcipReceive(expectedMessageId []byte, ref bind.Obj
 		expectedMessageId,
 		ref,
 		message,
-		param,
+		clock,
 		state,
 	}, nil)
 }

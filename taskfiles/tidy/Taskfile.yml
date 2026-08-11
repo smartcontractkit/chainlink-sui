@@ -6,7 +6,7 @@ tasks:
     cmds:
       - for:
           matrix:
-            MODULE: [".", "./integration-tests", "./deployment"]
+            MODULE: [".", "./codec", "./integration-tests", "./deployment", "./scripts"]
         cmd: cd {{ .ITEM.MODULE }} && go mod tidy
       - task: modgraph
 

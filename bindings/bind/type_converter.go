@@ -25,6 +25,15 @@ const (
 	HexCharPairLength = 2
 )
 
+func reverseBytes(data []byte) []byte {
+	result := make([]byte, len(data))
+	for i := range data {
+		result[i] = data[len(data)-1-i]
+	}
+
+	return result
+}
+
 func convertToAddressString(value any) (string, error) {
 	switch v := value.(type) {
 	case string:
@@ -82,6 +91,18 @@ func ConvertToCallArg(typeName string, value any) (*transaction.CallArg, error) 
 	typeName = strings.TrimSpace(typeName)
 	isMutableRef := strings.HasPrefix(typeName, "&mut ")
 	isImmutableRef := strings.HasPrefix(typeName, "&") && !isMutableRef
+
+	if _, ok := value.(EmptyMoveStructWitness); ok {
+		if isMutableRef || isImmutableRef {
+			return nil, fmt.Errorf("EmptyMoveStructWitness cannot be used with reference parameter type %q", typeName)
+		}
+		if strings.Contains(typeName, "::") && !strings.HasPrefix(typeName, "vector<") {
+			return &transaction.CallArg{
+				Pure: &transaction.Pure{Bytes: []byte{}},
+			}, nil
+		}
+		return nil, fmt.Errorf("EmptyMoveStructWitness requires a concrete Move struct type, got %q", typeName)
+	}
 
 	if obj, ok := value.(Object); ok {
 		arg, err := convertObjectStructToCallArg(obj, isMutableRef)
@@ -259,7 +280,7 @@ func convertPureValueToCallArg(typeName string, value any) (*transaction.CallArg
 	case "vector<u8>":
 		valueToEncode, err = convertToByteArray(value)
 
-	case "0x1::string::String":
+	case "0x1::string::String", "ascii::String":
 		str, ok := value.(string)
 		if !ok {
 			return nil, fmt.Errorf("expected string, got %T", value)
@@ -533,7 +554,7 @@ func convertVectorToBCS(innerType string, value any) (any, error) {
 
 		return result, nil
 
-	case "0x1::string::String":
+	case "0x1::string::String", "ascii::String":
 		result := make([]string, rv.Len())
 		for i := range rv.Len() {
 			elem := rv.Index(i).Interface()
@@ -610,7 +631,7 @@ func normalizeValue(value any) (any, error) {
 	case [][32]byte:
 		// Single-level vector<address>
 		return convertToSliceSuiAddressBytes(v), nil
-	case []interface{}:
+	case []any:
 		// Possible nested address vectors: [][][32]byte (wrapped as []interface{}) (vector<vector<address>>)
 		if len(v) == 0 {
 			return v, nil

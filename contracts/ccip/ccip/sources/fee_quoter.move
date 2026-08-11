@@ -14,8 +14,9 @@ use std::string::{Self, String};
 use sui::clock;
 use sui::event;
 use sui::table;
+use sui::transfer;
 
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
 
 const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
 const CHAIN_FAMILY_SELECTOR_SVM: vector<u8> = x"1e10bdc4";
@@ -71,6 +72,25 @@ const SVM_TOKEN_TRANSFER_DATA_OVERHEAD: u64 =
     + 32 // per-chain token billing config, not always included in the token lookup table
     + 32; // OffRamp pool signer PDA, not included in the token lookup table;
 
+/// The maximum number of receiver object IDs that can be passed in SuiExtraArgsV1.
+const SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS: u64 = 64;
+
+/// Number of overhead accounts needed for message execution on SUI.
+/// This is the message.receiver.
+const SUI_MESSAGING_ACCOUNTS_OVERHEAD: u64 = 1;
+
+/// The size of each SUI account address in bytes.
+const SUI_ACCOUNT_BYTE_SIZE: u64 = 32;
+
+/// The expected static payload size of a token transfer when BCS encoded on SUI.
+/// TokenPool extra_data contents are dynamic and billed via dest_bytes_overhead.
+const SUI_TOKEN_TRANSFER_DATA_OVERHEAD: u64 =
+    (1 + 32) // source_pool_address: ULEB128 length + 32 bytes
+    + 32 // dest_token_address
+    + 4 // dest_gas_amount
+    + 1 // extra_data: ULEB128 length for empty vector
+    + 32; // amount
+
 const MAX_U64: u256 = 18446744073709551615;
 const MAX_U160: u256 = 1461501637330902918203684832716283019655932542975;
 const VAL_1E5: u256 = 100_000;
@@ -78,10 +98,10 @@ const VAL_1E14: u256 = 100_000_000_000_000;
 const VAL_1E16: u256 = 10_000_000_000_000_000;
 const VAL_1E18: u256 = 1_000_000_000_000_000_000;
 
-// Link has 8 decimals on Sui and 18 decimals on it's native chain, Ethereum. We want to emit
+// Link has 9 decimals on Sui and 18 decimals on its native chain, Ethereum. We want to emit
 // the fee in juels (1e18) denomination for consistency across chains. This means we multiply
-// the fee by 1e10 on Sui before we emit it in the event.
-const LOCAL_8_TO_18_DECIMALS_LINK_MULTIPLIER: u256 = 10_000_000_000;
+// the fee by 1e9 on Sui before we emit it in the event.
+const LOCAL_9_TO_18_DECIMALS_LINK_MULTIPLIER: u256 = 1_000_000_000;
 
 public struct FeeQuoterState has key, store {
     id: UID,
@@ -241,9 +261,11 @@ const EInvalidSvmAccountLength: u64 = 35;
 const ETokenAmountMismatch: u64 = 36;
 const EInvalidOwnerCap: u64 = 37;
 const EInvalidFunction: u64 = 38;
+const ETooManySuiExtraArgsReceiverObjectIds: u64 = 39;
+const EInvalidSuiReceiverObjectIdLength: u64 = 40;
 
 public fun type_and_version(): String {
-    string::utf8(b"FeeQuoter 1.6.0")
+    string::utf8(b"FeeQuoter 1.6.1")
 }
 
 #[allow(lint(self_transfer))]
@@ -294,6 +316,26 @@ public fun new_fee_quoter_cap(
     FeeQuoterCap {
         id: object::new(ctx),
     }
+}
+
+/// Mint a `FeeQuoterCap` and send it to `recipient`. Used when the cap must be held
+/// off-registry between MCMS executions before offramp provisioning.
+public fun new_fee_quoter_cap_and_transfer(
+    ref: &CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    recipient: address,
+    ctx: &mut TxContext,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"new_fee_quoter_cap_and_transfer"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
+    let cap = new_fee_quoter_cap(ref, owner_cap, ctx);
+    transfer::public_transfer(cap, recipient);
 }
 
 public fun get_token_price(ref: &CCIPObjectRef, token: address): TimestampedPrice {
@@ -601,7 +643,7 @@ public fun update_prices_with_owner_cap(
         gas_usd_per_unit_gas,
         ctx,
     );
-    destroy_fee_quoter_cap(ref, owner_cap, fee_quoter_cap);
+    destroy_fee_quoter_cap_internal(ref, owner_cap, fee_quoter_cap);
 }
 
 // this should only be called from offramp, hence gated by a fee quoter cap stored in offramp
@@ -701,15 +743,14 @@ public fun get_validated_fee(
     let tokens_len = local_token_addresses.length();
     validate_message(dest_chain_config, data_len, tokens_len);
 
+    let mut dest_payload_overhead: u64 = 0;
     let gas_limit = if (
         chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
             || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
     ) {
         resolve_generic_gas_limit(dest_chain_config, extra_args)
     } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
-        resolve_sui_gas_limit(dest_chain_config, extra_args)
-    } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
-        resolve_svm_gas_limit(
+        let (gas, overhead) = resolve_sui_gas_limit(
             dest_chain_config,
             state,
             dest_chain_selector,
@@ -718,7 +759,22 @@ public fun get_validated_fee(
             data_len,
             tokens_len,
             local_token_addresses,
-        )
+        );
+        dest_payload_overhead = overhead;
+        gas
+    } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
+        let (gas, overhead) = resolve_svm_gas_limit(
+            dest_chain_config,
+            state,
+            dest_chain_selector,
+            extra_args,
+            receiver,
+            data_len,
+            tokens_len,
+            local_token_addresses,
+        );
+        dest_payload_overhead = overhead;
+        gas
     } else {
         abort EUnknownChainFamilySelector
     };
@@ -761,13 +817,14 @@ public fun get_validated_fee(
         get_data_availability_cost(
             dest_chain_config,
             data_availability_gas_price,
-            data_len,
+            data_len + dest_payload_overhead,
             tokens_len,
             token_transfer_bytes_overhead,
         )
     } else { 0 };
 
-    let call_data_length: u256 = (data_len as u256) + (token_transfer_bytes_overhead as u256);
+    let billing_data_len = (data_len + dest_payload_overhead) as u256;
+    let call_data_length: u256 = billing_data_len + (token_transfer_bytes_overhead as u256);
     let mut dest_call_data_cost =
         call_data_length * (dest_chain_config.dest_gas_per_payload_byte_base as u256);
     if (call_data_length > (dest_chain_config.dest_gas_per_payload_byte_threshold as u256)) {
@@ -862,21 +919,107 @@ fun resolve_generic_gas_limit(dest_chain_config: &DestChainConfig, extra_args: v
     gas_limit
 }
 
-fun resolve_sui_gas_limit(dest_chain_config: &DestChainConfig, extra_args: vector<u8>): u256 {
+/// Returns `(gas_limit, sui_payload_overhead_bytes)`.
+/// `sui_payload_overhead_bytes` is the SUI-specific payload size counted in maxDataBytes validation
+/// but not already included in `data_len` or per-token `dest_bytes_overhead` billing.
+fun resolve_sui_gas_limit(
+    dest_chain_config: &DestChainConfig,
+    state: &FeeQuoterState,
+    dest_chain_selector: u64,
+    extra_args: vector<u8>,
+    receiver: vector<u8>,
+    data_len: u64,
+    tokens_len: u64,
+    local_token_addresses: vector<address>,
+): (u256, u64) {
     let (
         gas_limit,
         allow_out_of_order_execution,
-        _token_receiver,
-        _receiver_object_ids,
+        token_receiver,
+        receiver_object_ids,
     ) = decode_sui_extra_args(extra_args);
     assert!(gas_limit <= (dest_chain_config.max_per_msg_gas_limit as u64), EMessageGasLimitTooHigh);
     assert!(
         !dest_chain_config.enforce_out_of_order || allow_out_of_order_execution,
         EExtraArgOutOfOrderExecutionMustBeTrue,
     );
-    gas_limit as u256
+
+    let receiver_object_ids_length = receiver_object_ids.length();
+    assert!(
+        receiver_object_ids_length <= SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS,
+        ETooManySuiExtraArgsReceiverObjectIds,
+    );
+
+    let mut i = 0;
+    while (i < receiver_object_ids_length) {
+        assert!(receiver_object_ids[i].length() == 32, EInvalidSuiReceiverObjectIdLength);
+        i = i + 1;
+    };
+
+    let mut sui_payload_overhead = tokens_len * SUI_TOKEN_TRANSFER_DATA_OVERHEAD;
+
+    assert!(receiver.length() == 32, EInvalid32BytesAddress);
+    let receiver_uint = eth_abi::decode_u256_value(receiver);
+    if (receiver_uint == 0) {
+        assert!(receiver_object_ids_length == 0, ETooManySuiExtraArgsReceiverObjectIds);
+    } else {
+        sui_payload_overhead =
+            sui_payload_overhead + (
+            receiver_object_ids_length + SUI_MESSAGING_ACCOUNTS_OVERHEAD
+        ) * SUI_ACCOUNT_BYTE_SIZE;
+    };
+
+    if (tokens_len > 0) {
+        assert!(
+            token_receiver.length() == 32
+                    && eth_abi::decode_u256_value(token_receiver) != 0,
+            EInvalidTokenReceiver,
+        );
+    };
+
+    let mut sui_expanded_data_length = data_len + sui_payload_overhead;
+
+    let mut i = 0;
+    while (i < tokens_len) {
+        let local_token_address = local_token_addresses[i];
+        let destBytesOverhead = get_token_transfer_fee_config_internal(
+            state,
+            dest_chain_selector,
+            local_token_address,
+        ).dest_bytes_overhead;
+
+        if (destBytesOverhead > 0) {
+            sui_expanded_data_length = sui_expanded_data_length + (destBytesOverhead as u64);
+        } else {
+            sui_expanded_data_length =
+                sui_expanded_data_length + (CCIP_LOCK_OR_BURN_V1_RET_BYTES as u64);
+        };
+
+        i = i + 1;
+    };
+
+    assert!(
+        sui_expanded_data_length <= (dest_chain_config.max_data_bytes as u64),
+        EMessageTooLarge,
+    );
+
+    (gas_limit as u256, sui_payload_overhead)
 }
 
+fun check_svm_writable_bitmap(account_is_writable_bitmap: u64, accounts_length: u64) {
+    assert!(accounts_length <= SVM_EXTRA_ARGS_MAX_ACCOUNTS, ETooManySvmExtraArgsAccounts);
+    // Move aborts on u64 >> 64; at the max account count every bitmap bit is already in use.
+    if (accounts_length < SVM_EXTRA_ARGS_MAX_ACCOUNTS) {
+        assert!(
+            (account_is_writable_bitmap >> (accounts_length as u8)) == 0,
+            EInvalidSvmExtraArgsWritableBitmap,
+        );
+    };
+}
+
+/// Returns `(gas_limit, svm_payload_overhead_bytes)`.
+/// `svm_payload_overhead_bytes` is the SVM-specific payload size counted in maxDataBytes validation
+/// but not already included in `data_len` or per-token `dest_bytes_overhead` billing.
 fun resolve_svm_gas_limit(
     dest_chain_config: &DestChainConfig,
     state: &FeeQuoterState,
@@ -886,7 +1029,7 @@ fun resolve_svm_gas_limit(
     data_len: u64,
     tokens_len: u64,
     local_token_addresses: vector<address>,
-): u256 {
+): (u256, u64) {
     let extra_args_len = extra_args.length();
     assert!(extra_args_len > 0, EInvalidExtraArgsData);
 
@@ -907,9 +1050,9 @@ fun resolve_svm_gas_limit(
     assert!(gas_limit <= dest_chain_config.max_per_msg_gas_limit, EMessageComputeUnitLimitTooHigh);
 
     let accounts_length = accounts.length();
-    // The max payload size for SVM is heavily dependent on the accounts passed into extra args and the number of
-    // tokens. Below, token and account overhead will count towards maxDataBytes.
-    let mut svm_expanded_data_length = data_len;
+    // SVM account overhead and static per-token transfer overhead are validated against maxDataBytes
+    // and returned for billing so validation and fee quotes stay aligned.
+    let mut svm_payload_overhead = tokens_len * SVM_TOKEN_TRANSFER_DATA_OVERHEAD;
 
     // The receiver length has not yet been validated before this point.
     assert!(receiver.length() == 32, EInvalidSvmReceiverLength);
@@ -922,8 +1065,8 @@ fun resolve_svm_gas_limit(
         // The messaging accounts needed for CCIP receiver on SVM are:
         // message receiver, offramp PDA signer,
         // plus remaining accounts specified in SVM extraArgs. Each account is 32 bytes.
-        svm_expanded_data_length =
-            svm_expanded_data_length + (
+        svm_payload_overhead =
+            svm_payload_overhead + (
             accounts_length + SVM_MESSAGING_ACCOUNTS_OVERHEAD
         ) * SVM_ACCOUNT_BYTE_SIZE;
     };
@@ -942,14 +1085,9 @@ fun resolve_svm_gas_limit(
         );
     };
 
-    assert!(accounts_length <= SVM_EXTRA_ARGS_MAX_ACCOUNTS, ETooManySvmExtraArgsAccounts);
-    assert!(
-        (account_is_writable_bitmap >> (accounts_length as u8)) == 0,
-        EInvalidSvmExtraArgsWritableBitmap,
-    );
+    check_svm_writable_bitmap(account_is_writable_bitmap, accounts_length);
 
-    svm_expanded_data_length =
-        svm_expanded_data_length + tokens_len * SVM_TOKEN_TRANSFER_DATA_OVERHEAD;
+    let mut svm_expanded_data_length = data_len + svm_payload_overhead;
 
     // The token destBytesOverhead can be very different per token so we have to take it into account as well.
     let mut i = 0;
@@ -977,7 +1115,15 @@ fun resolve_svm_gas_limit(
         EMessageTooLarge,
     );
 
-    gas_limit as u256
+    (gas_limit as u256, svm_payload_overhead)
+}
+
+#[test_only]
+public fun check_svm_writable_bitmap_for_test(
+    account_is_writable_bitmap: u64,
+    accounts_length: u64,
+) {
+    check_svm_writable_bitmap(account_is_writable_bitmap, accounts_length);
 }
 
 fun decode_generic_extra_args(
@@ -1240,7 +1386,7 @@ public fun process_message_args(
     // get a consistent juels amount regardless of the token denomination on the chain.
     let msg_fee_juels =
         (msg_fee_link_local_denomination as u256)
-            * LOCAL_8_TO_18_DECIMALS_LINK_MULTIPLIER;
+            * LOCAL_9_TO_18_DECIMALS_LINK_MULTIPLIER;
 
     // max_fee_juels_per_msg is in juels denomination for consistency across chains.
     assert!(msg_fee_juels <= state.max_fee_juels_per_msg, EMessageFeeTooHigh);
@@ -1970,10 +2116,90 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
 }
 
 public fun destroy_fee_quoter_cap(ref: &CCIPObjectRef, owner_cap: &OwnerCap, cap: FeeQuoterCap) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"destroy_fee_quoter_cap"),
+        VERSION,
+    );
+    destroy_fee_quoter_cap_internal(ref, owner_cap, cap);
+}
+
+// Ungated destroyer used by the temporary-cap pattern in
+// update_prices_with_owner_cap, so blocking destroy_fee_quoter_cap via the
+// upgrade registry does not also block routine price updates.
+fun destroy_fee_quoter_cap_internal(ref: &CCIPObjectRef, owner_cap: &OwnerCap, cap: FeeQuoterCap) {
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     let FeeQuoterCap { id } = cap;
     object::delete(id);
+}
+
+/// Slow-MCMS wrapper that mints a `FeeQuoterCap` and transfers it to a pinned recipient.
+/// Void return so a standalone MCMS leaf does not leave an unconsumed `FeeQuoterCap`.
+public fun mcms_new_fee_quoter_cap_and_transfer(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(
+        function == string::utf8(b"new_fee_quoter_cap_and_transfer"),
+        EInvalidFunction,
+    );
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let recipient = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    new_fee_quoter_cap_and_transfer(ref, owner_cap, recipient, ctx);
+}
+
+/// Slow-MCMS wrapper that destroys an existing `FeeQuoterCap`. The cap object is passed
+/// as a PTB argument and its address is pinned in callback data. Inherits the
+/// upgrade-registry gate from destroy_fee_quoter_cap, so blocking that function
+/// also blocks this MCMS path.
+public fun mcms_destroy_fee_quoter_cap(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    cap: FeeQuoterCap,
+    _ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"destroy_fee_quoter_cap"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[
+            object::id_address(ref),
+            object::id_address(owner_cap),
+            object::id_address(&cap),
+        ],
+        &mut stream,
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    destroy_fee_quoter_cap(ref, owner_cap, cap);
 }
 
 #[test]

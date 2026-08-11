@@ -13,14 +13,14 @@ use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
-use std::type_name;
 use std::string::{Self, String};
+use std::type_name;
+use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::derived_object;
 use sui::event;
 use sui::package::{Self, UpgradeCap};
-use sui::address;
 
 public struct LOCK_RELEASE_TOKEN_POOL has drop {}
 
@@ -655,6 +655,12 @@ fun set_rebalancer_cap_id<T>(
     event::emit(RebalancerSet<T> { old_rebalancer_cap_id, new_rebalancer_cap_id });
 }
 
+/// Renounces MCMS rebalancer control by destroying the RebalancerCap held inside McmsCap.
+/// The MCMS-held cap is always the pool's active rebalancer, so the active id is cleared
+/// before the cap is deleted, leaving the pool with no active rebalancer. Use this to release
+/// rebalancer control directly, e.g. prior to mcms_destroy_token_pool or
+/// mcms_execute_ownership_transfer, without delegating to an EOA. To rotate rebalancer
+/// authority to an EOA instead, use mcms_set_rebalancer.
 public fun mcms_destroy_rebalancer_cap<T>(
     state: &mut LockReleaseTokenPoolState<T>,
     registry: &mut Registry,
@@ -680,7 +686,12 @@ public fun mcms_destroy_rebalancer_cap<T>(
     bcs_stream::assert_is_consumed(&stream);
 
     let rebalancer_cap = mcms_cap.rebalancer_cap.extract();
-    destroy_rebalancer_cap(state, rebalancer_cap, ctx);
+    // The MCMS-held cap is always the active rebalancer; clear the active id before deleting.
+    assert!(object::id(&rebalancer_cap) == state.rebalancer_cap_id, ERebalancerCapMismatch);
+    set_rebalancer_cap_id(state, &mcms_cap.owner_cap, @0x0.to_id(), ctx);
+
+    let RebalancerCap<T> { id } = rebalancer_cap;
+    object::delete(id);
 }
 
 /// Clean up old rebalancer caps not in use, anyone can call this function to clean up old rebalancer caps not in use.
@@ -1226,15 +1237,8 @@ public fun mcms_execute_ownership_transfer<T>(
     let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let McmsCap<T> { id, owner_cap, rebalancer_cap } = mcms_registry::release_cap(
-        registry,
-        McmsCallback<T> {},
-    );
-    assert!(rebalancer_cap.is_none(), ERebalancerCapNotTransferredOut);
-
-    rebalancer_cap.destroy_none();
-    object::delete(id);
-
+    // Release the upgrade cap before `release_cap`, which removes the registry proof state
+    // that `release_upgrade_cap` depends on.
     if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
@@ -1243,6 +1247,15 @@ public fun mcms_execute_ownership_transfer<T>(
         );
         transfer::public_transfer(upgrade_cap, to);
     };
+
+    let McmsCap<T> { id, owner_cap, rebalancer_cap } = mcms_registry::release_cap(
+        registry,
+        McmsCallback<T> {},
+    );
+    assert!(rebalancer_cap.is_none(), ERebalancerCapNotTransferredOut);
+
+    rebalancer_cap.destroy_none();
+    object::delete(id);
 
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }
@@ -1341,9 +1354,9 @@ public fun mcms_destroy_token_pool<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (_mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap<T>,
     >(
         registry,
         McmsCallback<T> {},
@@ -1360,10 +1373,16 @@ public fun mcms_destroy_token_pool<T>(
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let owner_cap = mcms_registry::release_cap<McmsCallback<T>, OwnerCap>(
+    let McmsCap<T> { id, owner_cap, rebalancer_cap } = mcms_registry::release_cap<
+        McmsCallback<T>,
+        McmsCap<T>,
+    >(
         registry,
         McmsCallback<T> {},
     );
+    assert!(rebalancer_cap.is_none(), ERebalancerCapNotTransferredOut);
+    rebalancer_cap.destroy_none();
+    object::delete(id);
 
     let reserve = destroy_token_pool(ref, state, owner_cap, ctx);
     transfer::public_transfer(reserve, to);
@@ -1384,6 +1403,11 @@ public fun create_fake_rebalancer_cap<T>(ctx: &mut TxContext): RebalancerCap<T> 
 #[test_only]
 public fun mcms_rebalancer_cap_address<T>(mcms_cap: &McmsCap<T>): address {
     object::id_address(mcms_cap.rebalancer_cap.borrow())
+}
+
+#[test_only]
+public fun mcms_rebalancer_cap_is_some<T>(mcms_cap: &McmsCap<T>): bool {
+    mcms_cap.rebalancer_cap.is_some()
 }
 
 #[test_only]

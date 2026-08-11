@@ -4,35 +4,37 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 
-	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/loop"
+	"github.com/smartcontractkit/chainlink-aptos/codec/loop"
 
-	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	aptosCRUtils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
+	aptosCRConfig "github.com/smartcontractkit/chainlink-common/pkg/types/aptos"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/codec"
 	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 )
 
 const (
@@ -42,16 +44,28 @@ const (
 	ccipPointerKey      = "state_object::CCIPObjectRefPointer"
 )
 
+// ctxErrStr returns the context error string (e.g. deadline exceeded) for session 39639b debugging.
+func ctxErrStr(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if err := ctx.Err(); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
 type suiChainReader struct {
 	pkgtypes.UnimplementedContractReader
 
 	logger          logger.Logger
-	config          config.ChainReaderConfig
+	config          sui.ChainReaderConfig
 	starter         services.StateMachine
 	packageResolver *crUtil.PackageResolver
 	client          *client.PTBClient
 	dbStore         *database.DBStore
 	indexer         indexer.IndexerApi
+	readerCache     *Cache
 
 	// Cache of parent object IDs for pointer objects
 	// Key format: "{packageID}::{module}::{pointerName}"
@@ -78,9 +92,10 @@ func NewChainReader(
 	ctx context.Context,
 	lgr logger.Logger,
 	ptbClient *client.PTBClient,
-	configs config.ChainReaderConfig,
+	configs sui.ChainReaderConfig,
 	db sqlutil.DataSource,
 	indexer indexer.IndexerApi,
+	readerCache *Cache,
 ) (pkgtypes.ContractReader, error) {
 	dbStore := database.NewDBStore(db, lgr)
 
@@ -97,6 +112,7 @@ func NewChainReader(
 		packageResolver: crUtil.NewPackageResolver(lgr, ptbClient),
 		// indexers
 		indexer:         indexer,
+		readerCache:     readerCache,
 		parentObjectIDs: make(map[string]string),
 	}, nil
 }
@@ -118,9 +134,7 @@ func (s *suiChainReader) HealthReport() map[string]error {
 
 	// Include indexer health status
 	if s.indexer != nil {
-		for k, v := range s.indexer.HealthReport() {
-			report[k] = v
-		}
+		maps.Copy(report, s.indexer.HealthReport())
 	}
 
 	return report
@@ -128,6 +142,23 @@ func (s *suiChainReader) HealthReport() map[string]error {
 
 func (s *suiChainReader) Start(ctx context.Context) error {
 	return s.starter.StartOnce(s.Name(), func() error {
+		// set the event offset overrides for the event indexer if any
+		offsetOverrides := make(map[string]sui.EventId)
+
+		for _, moduleConfig := range s.config.Modules {
+			for _, eventConfig := range moduleConfig.Events {
+				if eventConfig.EventSelectorDefaultOffset != nil {
+					key := fmt.Sprintf("%s::%s", eventConfig.EventSelector.Module, eventConfig.EventSelector.Event)
+					offsetOverrides[key] = *eventConfig.EventSelectorDefaultOffset
+				}
+			}
+		}
+
+		if len(offsetOverrides) > 0 {
+			// ignore this error to avoid blocking the start of the chain reader
+			_ = s.indexer.GetEventIndexer().SetEventOffsetOverrides(ctx, offsetOverrides)
+		}
+
 		return nil
 	})
 }
@@ -139,32 +170,141 @@ func (s *suiChainReader) Close() error {
 }
 
 func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
+	offrampPackageAddress := ""
+
 	for _, binding := range bindings {
 		err := s.packageResolver.BindPackage(binding.Name, binding.Address)
 		if err != nil {
 			return fmt.Errorf("failed to bind package: %w", err)
 		}
 
+		// Register every event selector configured for this contract with the events indexer,
+		// using the binding's package address. This ensures the ChainPoller filters these events
+		// in from the moment the contract is bound, instead of only after the first QueryKey for
+		// each event (which would drop any events emitted in between).
+		s.registerConfiguredEventSelectors(ctx, binding)
+
 		// Pre-load parent object IDs for known pointer types
 		if err := s.preloadParentObjectIDs(ctx, binding); err != nil {
 			s.logger.Warnw("Failed to pre-load parent object IDs", "contract", binding.Name, "error", err)
 		}
+
+		if common.NormalizeName(binding.Name) == common.NormalizeName(offrampName) {
+			offrampPackageAddress = binding.Address
+		}
 	}
 
 	// If the "OffRamp" package/module is now bound, set the offramp package ID for the tx indexer
-	if pkg, err := s.packageResolver.ResolvePackageAddress(offrampName); err == nil {
-		// Get the latest package ID for the offramp module
-		latestPackageID, err := s.client.GetLatestPackageId(ctx, pkg, "offramp")
+	if offrampPackageAddress != "" {
+		// Get the latest package ID for the offramp module. The transaction indexer watches the latest package ID for the offramp module
+		// to capture failed transactions.
+		latestPackageID, err := s.client.GetLatestPackageId(ctx, offrampPackageAddress, "offramp")
 		if err != nil {
-			s.logger.Warnw("Failed to get latest package ID for OffRamp", "error", err)
+			s.logger.Errorw("Failed to get latest package ID for OffRamp", "error", err)
+			// Use the currently available package address for the offramp module as a fallback
+			s.indexer.GetTransactionIndexer().SetOffRampPackage(offrampPackageAddress, offrampPackageAddress)
 		} else {
-			s.indexer.GetTransactionIndexer().SetOffRampPackage(latestPackageID)
+			s.indexer.GetTransactionIndexer().SetOffRampPackage(offrampPackageAddress, latestPackageID)
 		}
 
-		s.indexer.GetTransactionIndexer().SetOffRampPackage(pkg)
+		// Ensure that the event indexer has the SourceChainConfigSet event selector, this is needed to make sure
+		// transaction indexer can find the relevant data when inserting synthetic events.
+		err = s.indexer.GetEventIndexer().AddEventSelector(ctx, &sui.EventFilterByMoveEventModule{
+			Package: offrampPackageAddress,
+			Module:  "offramp",
+			Event:   "SourceChainConfigSet",
+		})
+		if err != nil {
+			s.logger.Errorw("Failed to update offramp::SourceChainConfigSet event selector when binding OffRamp", "error", err)
+		}
+		err = s.indexer.GetEventIndexer().AddEventSelector(ctx, &sui.EventFilterByMoveEventModule{
+			Package: offrampPackageAddress,
+			Module:  "ocr3_base",
+			Event:   "ConfigSet",
+		})
+		if err != nil {
+			s.logger.Errorw("Failed to update ocr3_base::ConfigSet event selector when binding OffRamp", "error", err)
+		}
 	}
 
 	return nil
+}
+
+// registerConfiguredEventSelectors registers every event selector configured for the bound
+// contract with the EventsIndexer, using the binding's package address as the authoritative
+// address. The selectors are derived to match exactly what updateEventConfigs / QueryKey build
+// for the event handle, so polled events line up with subsequent queries. AddEventSelector is
+// idempotent, so re-binding or the OffRamp special-case below cannot create duplicates.
+func (s *suiChainReader) registerConfiguredEventSelectors(ctx context.Context, binding pkgtypes.BoundContract) {
+	moduleConfig, ok := s.config.Modules[binding.Name]
+	if !ok || moduleConfig == nil {
+		s.logger.Debugw("No module config for binding; skipping event selector registration",
+			"contract", binding.Name, "address", binding.Address)
+		return
+	}
+
+	evIndexer := s.indexer.GetEventIndexer()
+	if evIndexer == nil {
+		s.logger.Warnw("Event indexer unavailable; skipping event selector registration",
+			"contract", binding.Name, "address", binding.Address)
+		return
+	}
+
+	if len(moduleConfig.Events) == 0 {
+		s.logger.Debugw("Contract has no configured events; nothing to register",
+			"contract", binding.Name, "address", binding.Address)
+		return
+	}
+
+	s.logger.Infow("Registering configured event selectors at bind",
+		"contract", binding.Name, "address", binding.Address, "eventCount", len(moduleConfig.Events))
+
+	for eventKey, eventConfig := range moduleConfig.Events {
+		if eventConfig == nil {
+			continue
+		}
+
+		// Resolve the module name the same way updateEventConfigs does: prefer the selector's
+		// module, fall back to the module config name, and finally to the binding name.
+		module := eventConfig.Module
+		if module == "" {
+			module = moduleConfig.Name
+		}
+		if module == "" {
+			module = binding.Name
+		}
+
+		// Resolve the event (struct) name. EventType is authoritative (it is what QueryKey uses
+		// to build the event handle); fall back to the selector's Event and then the config key.
+		event := eventConfig.EventType
+		if event == "" {
+			event = eventConfig.Event
+		}
+		if event == "" {
+			event = eventKey
+		}
+
+		selector := &sui.EventFilterByMoveEventModule{
+			Package: binding.Address,
+			Module:  module,
+			Event:   event,
+		}
+
+		if err := evIndexer.AddEventSelector(ctx, selector); err != nil {
+			s.logger.Errorw("Failed to register configured event selector at bind",
+				"contract", binding.Name,
+				"module", module,
+				"event", event,
+				"error", err)
+			continue
+		}
+
+		s.logger.Infow("Registered configured event selector at bind",
+			"contract", binding.Name,
+			"package", binding.Address,
+			"module", module,
+			"event", event)
+	}
 }
 
 func (s *suiChainReader) Unbind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
@@ -206,7 +346,7 @@ func (s *suiChainReader) preloadParentObjectIDs(ctx context.Context, binding pkg
 	var ccipPackageID string
 	if strings.EqualFold(binding.Name, offrampName) {
 		var err error
-		ccipPackageID, err = s.client.GetCCIPPackageID(ctx, binding.Address, binding.Address)
+		ccipPackageID, err = s.client.GetCCIPPackageID(ctx, binding.Address)
 		if err != nil {
 			s.logger.Warnw("Failed to get CCIP package ID for OffRamp", "error", err)
 		} else {
@@ -302,71 +442,32 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		"function", parsed.readName,
 	)
 
-	results, err := s.callFunction(ctx, parsed, params, functionConfig)
+	// Route the devInspect read through the cache: concurrent identical reads are collapsed and, when read
+	// caching is enabled, the decoded result is reused for a short TTL. A nil readerCache (or disabled read
+	// cache) simply invokes callFunction directly. Decoding into returnVal stays per-call below.
+	readCacheKey := fmt.Sprintf("%s::%s::%s::%v", parsed.address, parsed.contractName, parsed.readName, params)
+	results, err := s.readerCache.GetReadResults(ctx, readCacheKey, func(ctx context.Context) ([]any, error) {
+		return s.callFunction(ctx, parsed, params, functionConfig)
+	})
 	if err != nil {
 		return err
 	}
 
-	if functionConfig.ResultTupleToStruct != nil {
-		structResult := make(map[string]any)
-		// Check the length of results to avoid panics
-		if len(results) < len(functionConfig.ResultTupleToStruct) {
-			return fmt.Errorf("expected %d results, got %d", len(functionConfig.ResultTupleToStruct), len(results))
-		}
-
-		for i, mapKey := range functionConfig.ResultTupleToStruct {
-			structResult[mapKey] = results[i]
-		}
-
-		// Apply result field renames if configured
-		if functionConfig.ResultFieldRenames != nil {
-			err = aptosCRUtils.MaybeRenameFields(structResult, functionConfig.ResultFieldRenames)
-			if err != nil {
-				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
-			}
-		}
-
-		// if we are running in loop plugin mode, we will want to encode the result into JSON bytes
-		if s.config.IsLoopPlugin {
-			return s.encodeLoopResult(structResult, returnVal)
-		}
-
-		return codec.DecodeSuiJsonValue(structResult, returnVal)
+	prepared, err := s.prepareFunctionReadResult(results, functionConfig, s.config.IsLoopPlugin)
+	if err != nil {
+		return err
 	}
 
-	// otherwise, no tuple to struct specification, just a slice of values
+	if s.config.NormalizeReturnValuesToHex {
+		prepared = codec.ConvertBase64StringsToHex(prepared)
+	}
+
 	if s.config.IsLoopPlugin {
-		// Apply renames to the result slice or contained maps before encoding
-		var renamed any = results
-		if functionConfig.ResultFieldRenames != nil {
-			err = aptosCRUtils.MaybeRenameFields(renamed, functionConfig.ResultFieldRenames)
-			if err != nil {
-				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
-			}
-		}
-		return s.encodeLoopResult(renamed, returnVal)
+		return s.encodeLoopResult(prepared, returnVal)
 	}
 
 	s.logger.Debugw("GLV results before decoding to SUI json", "results", results, "returnVal", returnVal)
-
-	// Apply renames (if any) to the primary result element before decoding
-	responseValues := make([]any, len(results))
-	for i, result := range results {
-		current := result
-		if functionConfig.ResultFieldRenames != nil {
-			err = aptosCRUtils.MaybeRenameFields(current, functionConfig.ResultFieldRenames)
-			if err != nil {
-				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
-			}
-		}
-		responseValues[i] = current
-	}
-
-	if len(results) > 1 {
-		return codec.DecodeSuiJsonValue(responseValues, returnVal)
-	}
-
-	return codec.DecodeSuiJsonValue(results[0], returnVal)
+	return codec.DecodeSuiJsonValue(prepared, returnVal)
 }
 
 // QueryKey queries events from the indexer database for events that were populated from the RPC node
@@ -441,6 +542,29 @@ func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgt
 func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgtypes.BatchGetLatestValuesRequest) (pkgtypes.BatchGetLatestValuesResult, error) {
 	result := make(pkgtypes.BatchGetLatestValuesResult)
 
+	// Confirms the batch shape (contracts iterated sequentially, reads per contract concurrent) and
+	// whether the overall batch trips the caller's 30s deadline (the merkle-root-blocking failure).
+	batchStart := time.Now()
+	totalReads := 0
+	contractCount := 0
+	readNames := make([]string, 0)
+	for contract, batch := range request {
+		contractCount++
+		totalReads += len(batch)
+		for _, r := range batch {
+			readNames = append(readNames, contract.Name+"."+r.ReadName)
+		}
+	}
+	defer func() {
+		common.DebugLog("chainreader.go:BatchGetLatestValues", "batch completed", map[string]any{
+			"contracts": contractCount,
+			"reads":     totalReads,
+			"readNames": readNames,
+			"totalSec":  time.Since(batchStart).Seconds(),
+			"ctxErr":    ctxErrStr(ctx),
+		})
+	}()
+
 	for contract, batch := range request {
 		batchResults := make(pkgtypes.ContractBatchResults, len(batch))
 		resultChan := make(chan struct {
@@ -470,24 +594,32 @@ func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgty
 			}(i, read, contract)
 		}
 
-		// wait for all the results to be processed then close the channel
+		// Close resultChan once all goroutines finish (may happen after caller ctx expires).
 		go func() {
 			waitgroup.Wait()
 			close(resultChan)
 		}()
 
 		resultsReceived := 0
-		for res := range resultChan {
-			batchResults[res.index] = res.result
-			resultsReceived++
-		}
-
-		// check if all the results were received
-		if resultsReceived != len(batch) {
-			if err := ctx.Err(); err != nil {
-				return nil, err
+		for resultsReceived < len(batch) {
+			select {
+			case res, ok := <-resultChan:
+				if !ok {
+					if err := ctx.Err(); err != nil {
+						return nil, err
+					}
+					return nil, errors.New("batch processing failed: result channel closed early")
+				}
+				batchResults[res.index] = res.result
+				resultsReceived++
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
+			case <-ctx.Done():
+				// Return immediately when the caller's deadline fires (e.g. CCIP config poller's 30s
+				// bgRefreshTimeout). Do not block on slow in-flight RPCs that outlive the parent context.
+				return nil, ctx.Err()
 			}
-			return nil, fmt.Errorf("batch processing failed: expected %d results, received %d", len(batch), resultsReceived)
 		}
 
 		result[contract] = batchResults
@@ -516,7 +648,7 @@ func (s *suiChainReader) parseReadIdentifier(identifier string) (*readIdentifier
 	}, nil
 }
 
-func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter) (*config.ChainReaderEvent, error) {
+func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter) (*sui.ChainReaderEvent, error) {
 	// Validate contract binding
 	if err := s.validateContractBindingAndConfig(contract.Name, contract.Address); err != nil {
 		return nil, err
@@ -529,10 +661,10 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	// No event config found, construct a config
 	if err == nil && eventConfig == nil {
 		// construct a new config ad-hoc
-		eventConfig = &config.ChainReaderEvent{
+		eventConfig = &sui.ChainReaderEvent{
 			Name:      filter.Key,
 			EventType: filter.Key,
-			EventSelector: client.EventSelector{
+			EventSelector: sui.EventFilterByMoveEventModule{
 				Package: contract.Address,
 				Module:  contract.Name,
 				Event:   filter.Key,
@@ -542,11 +674,15 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 		return nil, err
 	}
 
-	if moduleConfig.Name != "" {
+	if moduleConfig.Name != "" && eventConfig.Name == "" {
 		eventConfig.Name = moduleConfig.Name
 	} else {
 		// If the module config has no name, use the module name from the event config
 		moduleConfig.Name = moduleConfig.Events[filter.Key].Module
+	}
+
+	if eventConfig.EventSelector.Module == "" {
+		eventConfig.EventSelector.Module = moduleConfig.Name
 	}
 
 	// only write contract address, rest will be handled during chainreader config
@@ -554,16 +690,16 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 
 	evIndexer := s.indexer.GetEventIndexer()
 	// create a selector for the initial package ID
-	selector := client.EventSelector{
+	selector := sui.EventFilterByMoveEventModule{
 		Package: contract.Address,
-		Module:  moduleConfig.Name,
+		Module:  eventConfig.EventSelector.Module,
 		Event:   eventConfig.EventType,
 	}
 
-	// sync the event in case it's not already in the database
-	err = evIndexer.SyncEvent(ctx, &selector)
+	// ensure that the event selector is included in the indexer's set for upcoming polling loop syncs
+	err = evIndexer.AddEventSelector(ctx, &selector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add event selector: %w", err)
 	}
 
 	return eventConfig, nil
@@ -584,24 +720,24 @@ func (s *suiChainReader) validateContractBindingAndConfig(name string, address s
 }
 
 // callFunction calls a contract function and returns the result
-func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifier, params any, functionConfig *config.ChainReaderFunction) ([]any, error) {
+func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifier, params any, functionConfig *sui.ChainReaderFunction) ([]any, error) {
 	argMap, err := s.parseParams(params, functionConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	args, argTypes, err := s.prepareArguments(ctx, argMap, functionConfig, parsed)
+	args, argTypes, mutabilities, err := s.prepareArguments(ctx, argMap, functionConfig, parsed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare arguments: %w", err)
 	}
 
 	// Extract generic type tags from function params
-	typeArgs, err := s.extractGenericTypeTags(ctx, parsed, functionConfig)
+	typeArgs, err := s.extractGenericTypeTags(ctx, parsed, functionConfig, args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract generic type tags: %w", err)
 	}
 
-	responseValues, err := s.executeFunction(ctx, parsed, functionConfig, args, argTypes, typeArgs)
+	responseValues, err := s.executeFunction(ctx, parsed, functionConfig, args, argTypes, mutabilities, typeArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -610,7 +746,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 }
 
 // Helper function to extract generic type tags
-func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction) ([]string, error) {
+func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *readIdentifier, functionConfig *sui.ChainReaderFunction, args []any) ([]string, error) {
 	if functionConfig.Params == nil {
 		return []string{}, nil
 	}
@@ -619,7 +755,7 @@ func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *rea
 	uniqueTags := make(map[string]struct{})
 	keyOrder := make([]string, 0)
 
-	for _, param := range functionConfig.Params {
+	for paramIndex, param := range functionConfig.Params {
 		if param.GenericType != nil && *param.GenericType != "" {
 			genericType := *param.GenericType
 			// Only add if not already present
@@ -627,8 +763,8 @@ func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *rea
 				keyOrder = append(keyOrder, genericType)
 				uniqueTags[genericType] = struct{}{}
 			}
-		} else if param.GenericDependency != nil && *param.GenericDependency != "" {
-			genericType, err := s.fetchGenericDependency(ctx, functionConfig.SignerAddress, parsed, &param)
+		} else if param.GenericDependency != nil && *param.GenericDependency != "" && paramIndex < len(args) {
+			genericType, err := s.fetchGenericDependency(ctx, &param, args[paramIndex])
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch generic dependency: %w", err)
 			}
@@ -642,57 +778,42 @@ func (s *suiChainReader) extractGenericTypeTags(ctx context.Context, parsed *rea
 	return keyOrder, nil
 }
 
-func (s *suiChainReader) fetchGenericDependency(ctx context.Context, signerAddress string, parsed *readIdentifier, param *codec.SuiFunctionParam) (string, error) {
+func (s *suiChainReader) fetchGenericDependency(
+	ctx context.Context,
+	param *sui.SuiFunctionParam,
+	paramValue any,
+) (string, error) {
 	if param == nil || param.GenericDependency == nil || *param.GenericDependency == "" {
 		return "", fmt.Errorf("generic dependency is not set")
 	}
 
 	switch *param.GenericDependency {
 	case "get_token_pool_state_type":
-		// Try to get the CCIP / TokenAdminRegistry package address from the package resolver (requires that it has been bound to CR)
-		ccipPackageAddress, err := s.packageResolver.ResolvePackageAddress("token_admin_registry")
-		if err != nil {
-			// Attempt getting the ccip package address via the offramp binding as a fallback
-			offrampPackageAddress, err := s.packageResolver.ResolvePackageAddress("offramp")
-			if err != nil {
-				return "", fmt.Errorf("get_token_pool_state_type requires that the OffRamp package has been bound to ChainReader: %w", err)
-			}
-
-			s.logger.Debugw("get_token_pool_state_type falling back to OffRamp package", "offrampPackageAddress", offrampPackageAddress)
-
-			ccipPackageAddress, err = s.client.GetCCIPPackageID(ctx, offrampPackageAddress, signerAddress)
-			if err != nil {
-				return "", fmt.Errorf("failed to get CCIP package ID from offramp package address in fetchGenericDependency: %w", err)
-			}
-
-			latestCcipPackageAddress, err := s.client.GetLatestPackageId(ctx, ccipPackageAddress, "state_object")
-			if err != nil {
-				return "", fmt.Errorf("failed to get latest CCIP package address from offramp package address in fetchGenericDependency: %w", err)
-			}
-
-			s.logger.Debugw("get_token_pool_state_type using latest CCIP package address", "latestCcipPackageAddress", latestCcipPackageAddress)
-
-			ccipPackageAddress = latestCcipPackageAddress
-
-			if ccipPackageAddress == "" {
-				return "", fmt.Errorf("get_token_pool_state_type requires that the CCIP / TokenAdminRegistry package has been bound to ChainReader: %w", err)
-			}
+		if paramValue == nil || paramValue.(string) == "" {
+			return "", fmt.Errorf("param value is nil or empty string")
 		}
 
-		s.logger.Warnw("get_token_pool_state_type using CCIP package address", "ccipPackageAddress", ccipPackageAddress)
-
-		tokenConfig, err := s.client.GetTokenPoolConfigByPackageAddress(ctx, signerAddress, parsed.address, ccipPackageAddress)
+		// Use the state object ID to deduce the type
+		stateObject, err := s.client.ReadObjectId(ctx, paramValue.(string))
 		if err != nil {
-			return "", fmt.Errorf("failed to get token pool state type: %w", err)
+			return "", fmt.Errorf("failed to read state object: %w", err)
 		}
-		return tokenConfig.TokenType, nil
+
+		s.logger.Debugw("stateObjectType", "stateObjectType", stateObject.GetObjectType())
+
+		genericType, err := parseGenericTypeFromObjectType(stateObject.GetObjectType())
+		if err != nil {
+			return "", err
+		}
+
+		return genericType, nil
 	default:
 		return "", fmt.Errorf("unknown generic dependency: %s", *param.GenericDependency)
 	}
 }
 
 // parseParams parses input parameters based on whether we're running as a LOOP plugin
-func (s *suiChainReader) parseParams(params any, functionConfig *config.ChainReaderFunction) (map[string]any, error) {
+func (s *suiChainReader) parseParams(params any, functionConfig *sui.ChainReaderFunction) (map[string]any, error) {
 	argMap := make(map[string]any)
 
 	if params == nil {
@@ -716,7 +837,7 @@ func (s *suiChainReader) parseParams(params any, functionConfig *config.ChainRea
 }
 
 // parseLoopParams handles parameter parsing for LOOP plugin mode
-func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.ChainReaderFunction) (map[string]any, error) {
+func (s *suiChainReader) parseLoopParams(params any, functionConfig *sui.ChainReaderFunction) (map[string]any, error) {
 	paramBytes, ok := params.(*[]byte)
 	if !ok {
 		return nil, fmt.Errorf("expected *[]byte for LOOP plugin params, got %T", params)
@@ -740,10 +861,13 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 					return nil, fmt.Errorf("failed to convert parameter %s of type %s: %w",
 						paramConfig.Name, paramConfig.Type, err)
 				}
+				s.logger.Debugw("parseLoopParams convertedValue", "convertedValue", convertedValue, "rawValue", jsonValue)
 				argMap[paramConfig.Name] = convertedValue
 			}
 		}
 	}
+
+	s.logger.Debugw("parseLoopParams argMap", "argMap", argMap)
 
 	return argMap, nil
 }
@@ -756,9 +880,9 @@ type pointerMapEntry struct {
 // prepareArguments prepares function arguments and types for the call.
 // For pointer tags, it looks up cached parent object IDs (pre-loaded during Bind) and derives
 // child object IDs using the derivation keys specified in the pointer tags.
-func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *config.ChainReaderFunction, identifier *readIdentifier) ([]any, []string, error) {
+func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *sui.ChainReaderFunction, identifier *readIdentifier) ([]any, []string, []bool, error) {
 	if functionConfig.Params == nil {
-		return []any{}, []string{}, nil
+		return []any{}, []string{}, []bool{}, nil
 	}
 
 	// a map of object selector "module::object" to array of fields
@@ -774,7 +898,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 		}
 
 		if err := paramConfig.PointerTag.Validate(); err != nil {
-			return nil, nil, fmt.Errorf("invalid pointer tag for parameter %s: %w", paramConfig.Name, err)
+			return nil, nil, nil, fmt.Errorf("invalid pointer tag for parameter %s: %w", paramConfig.Name, err)
 		}
 
 		pointerTag := paramConfig.PointerTag
@@ -802,9 +926,9 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 				// Special case for OffRamp->CCIP pointer (legacy behavior)
 				// This is needed to override the specified address (will be offramp package ID) with the CCIP package ID
 				// Only handle offRamp case because other modules are within ccip package
-				ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address, functionConfig.SignerAddress)
+				ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address)
 				if err != nil {
-					return nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
+					return nil, nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
 				}
 				readIdentifierForPointer.address = ccipPackageID
 			}
@@ -838,7 +962,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 				ctx, selector.address, selector.contractName, selector.readName,
 			)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to get parent object ID: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to get parent object ID: %w", err)
 			}
 
 			// Cache it for next time
@@ -851,9 +975,9 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 		// Derive each field's object ID from parent using derivation key and add to arg map
 		for _, pointerVal := range pointerVals {
-			derivedID, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(pointerVal.derivationKey))
+			derivedID, err := client.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(pointerVal.derivationKey))
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to derive object ID for %s using key %s: %w", pointerVal.paramName, pointerVal.derivationKey, err)
+				return nil, nil, nil, fmt.Errorf("failed to derive object ID for %s using key %s: %w", pointerVal.paramName, pointerVal.derivationKey, err)
 			}
 			argMap[pointerVal.paramName] = derivedID
 		}
@@ -861,26 +985,35 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 	args := make([]any, 0, len(functionConfig.Params))
 	argTypes := make([]string, 0, len(functionConfig.Params))
+	mutabilities := make([]bool, 0, len(functionConfig.Params))
 
 	// ensure that all the required arguments are present
 	for _, paramConfig := range functionConfig.Params {
 		argValue, ok := argMap[paramConfig.Name]
 		if !ok {
 			if paramConfig.Required {
-				return nil, nil, fmt.Errorf("missing required argument: %s", paramConfig.Name)
+				return nil, nil, nil, fmt.Errorf("missing required argument: %s", paramConfig.Name)
 			}
 			argValue = paramConfig.DefaultValue
 		}
 
+		// Object arguments default to mutable unless the param explicitly opts out (e.g. view
+		// functions taking immutable references). Non-object args ignore this downstream.
+		mutable := true
+		if paramConfig.IsMutable != nil {
+			mutable = *paramConfig.IsMutable
+		}
+
 		args = append(args, argValue)
 		argTypes = append(argTypes, paramConfig.Type)
+		mutabilities = append(mutabilities, mutable)
 	}
 
-	return args, argTypes, nil
+	return args, argTypes, mutabilities, nil
 }
 
 // executeFunction executes the actual function call
-func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction, args []any, argTypes []string, typeArgs []string) ([]any, error) {
+func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, functionConfig *sui.ChainReaderFunction, args []any, argTypes []string, mutabilities []bool, typeArgs []string) ([]any, error) {
 	s.logger.Debugw("Calling ReadFunction",
 		"address", parsed.address,
 		"module", parsed.contractName,
@@ -896,11 +1029,50 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 	if err != nil {
 		return []any{}, err
 	}
+	// Guard against an empty package ID: simulating against it would resolve to the zero package
+	// (0x0) and fail with a confusing "Dependent package not found on-chain" error. Fail loudly
+	// so the read is retried instead of silently targeting 0x0.
+	if latestPackageId == "" {
+		return []any{}, fmt.Errorf("resolved empty latest package id for contract %s (module %s)", parsed.contractName, common.GetModuleForContract(parsed.contractName))
+	}
 
 	// this is the upgraded pkgID
 	parsed.address = latestPackageId
 
-	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, parsed.contractName, parsed.readName, args, argTypes, typeArgs)
+	if len(functionConfig.StaticResponse) > 0 {
+		return functionConfig.StaticResponse, nil
+	} else if len(functionConfig.ResponseFromInputs) > 0 {
+		// Build the response from the resolved inputs instead of calling the chain. This is used for
+		// reads whose Move function does not exist on the Sui contract (e.g. the EVM-shaped RMNProxy
+		// get_arm), where the value is supplied via config (a param's DefaultValue) or at call time and
+		// simply mapped back out. Each selection is either the reserved "package_id" token or the name of
+		// a configured parameter, whose resolved arg value (DefaultValue when not passed) is echoed.
+		response := make([]any, 0, len(functionConfig.ResponseFromInputs))
+		for _, pluckFromInput := range functionConfig.ResponseFromInputs {
+			if pluckFromInput == "package_id" {
+				response = append(response, latestPackageId)
+				continue
+			}
+
+			paramIdx := -1
+			for i, param := range functionConfig.Params {
+				if param.Name == pluckFromInput {
+					paramIdx = i
+					break
+				}
+			}
+			if paramIdx < 0 || paramIdx >= len(args) {
+				return nil, fmt.Errorf("response from inputs selection %q matches no configured parameter", pluckFromInput)
+			}
+
+			response = append(response, args[paramIdx])
+		}
+
+		return response, nil
+	}
+
+	values, err := s.client.ReadFunctionWithMutability(ctx, parsed.address, parsed.contractName, parsed.readName, args, argTypes, mutabilities, typeArgs)
+
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
 			"error", err,
@@ -917,10 +1089,63 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 
 	s.logger.Debugw("Sui ReadFunction response", "returnValues", values)
 
-	// TODO: Remove this once bindings are used in CR, this is a temporary fix for data ingestion
-	hexified := common.ConvertBytesToHex(values).([]any)
+	return values, nil
+}
 
-	return hexified, nil
+func (s *suiChainReader) applyResultFieldRenames(value any, renames map[string]aptosCRConfig.RenamedField) error {
+	if renames == nil {
+		return nil
+	}
+
+	if err := aptosCRUtils.MaybeRenameFields(value, renames); err != nil {
+		return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
+	}
+
+	return nil
+}
+
+// prepareFunctionReadResult shapes JSON-native ReadFunction results (from Json.AsInterface)
+// for LOOP encoding or native typed decoding.
+func (s *suiChainReader) prepareFunctionReadResult(results []any, cfg *sui.ChainReaderFunction, forLoop bool) (any, error) {
+	if cfg.ResultTupleToStruct != nil {
+		if len(results) < len(cfg.ResultTupleToStruct) {
+			return nil, fmt.Errorf("expected %d results, got %d", len(cfg.ResultTupleToStruct), len(results))
+		}
+
+		structResult := make(map[string]any, len(cfg.ResultTupleToStruct))
+		for i, mapKey := range cfg.ResultTupleToStruct {
+			structResult[mapKey] = results[i]
+		}
+
+		if err := s.applyResultFieldRenames(structResult, cfg.ResultFieldRenames); err != nil {
+			return nil, err
+		}
+
+		return structResult, nil
+	}
+
+	if forLoop {
+		if err := s.applyResultFieldRenames(results, cfg.ResultFieldRenames); err != nil {
+			return nil, err
+		}
+
+		return results, nil
+	}
+
+	responseValues := make([]any, len(results))
+	for i, result := range results {
+		current := result
+		if err := s.applyResultFieldRenames(current, cfg.ResultFieldRenames); err != nil {
+			return nil, err
+		}
+		responseValues[i] = current
+	}
+
+	if len(results) == 1 {
+		return results[0], nil
+	}
+
+	return responseValues, nil
 }
 
 // encodeLoopResult encodes results for LOOP plugin mode
@@ -960,7 +1185,7 @@ func (s *suiChainReader) encodeLoopResult(valueField any, returnVal any) error {
 }
 
 // getEventConfig retrieves event configuration for the given key
-func (s *suiChainReader) getEventConfig(moduleConfig *config.ChainReaderModule, eventKey string) (*config.ChainReaderEvent, error) {
+func (s *suiChainReader) getEventConfig(moduleConfig *sui.ChainReaderModule, eventKey string) (*sui.ChainReaderEvent, error) {
 	if moduleConfig.Events == nil {
 		return nil, fmt.Errorf("no events configured for contract")
 	}
@@ -975,9 +1200,9 @@ func (s *suiChainReader) getEventConfig(moduleConfig *config.ChainReaderModule, 
 }
 
 // queryEvents queries events from the database instead of the Sui blockchain
-func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.ChainReaderEvent, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
+func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *sui.ChainReaderEvent, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
 	// Create the event handle for database lookup
-	eventHandle := fmt.Sprintf("%s::%s::%s", eventConfig.Package, eventConfig.Name, eventConfig.EventType)
+	eventHandle := fmt.Sprintf("%s::%s::%s", eventConfig.Package, eventConfig.EventSelector.Module, eventConfig.EventType)
 
 	s.logger.Debugw("Querying events from database",
 		"address", eventConfig.Package,
@@ -1059,22 +1284,26 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 
 	for _, record := range eventRecords {
 		t := reflect.TypeOf(expectedEventType)
-		if t == nil || t.Kind() != reflect.Ptr {
+		if t == nil || t.Kind() != reflect.Pointer {
 			return nil, fmt.Errorf("sequenceDataType must be a non-nil pointer type")
 		}
 		eventData := reflect.New(t.Elem()).Interface()
 
 		s.logger.Debugw("Processing database event record", "data", record.Data, "offset", record.EventOffset, "eventDataType", reflect.TypeOf(eventData).Elem())
 
+		// This is needed by the data ingestion pipeline events data transform vec<u8> to base64 strings.
+		// The data ingestion pipeline expects to read those values (e.g., an ethereum address) as hex strings.
+		normalizedData := codec.ConvertBase64StringsToHex(record.Data)
+
 		// if we are running in loop plugin mode, we will want to decode into JSON and then into JSON bytes always
 		if s.config.IsLoopPlugin {
 			// decode into JSON and then into JSON bytes
-			jsonData, err := json.Marshal(record.Data)
+			jsonData, err := json.Marshal(normalizedData)
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal data for LOOP: %w", err)
 			}
 			eventData = &jsonData
-		} else if err := codec.DecodeSuiJsonValue(record.Data, eventData); err != nil {
+		} else if err := codec.DecodeSuiJsonValue(normalizedData, eventData); err != nil {
 			return nil, fmt.Errorf("failed to decode event data: %w", err)
 		}
 
@@ -1122,4 +1351,16 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 	s.logger.Debugw("Successfully transformed events to sequences", "sequenceCount", len(sequences), "sequences", sequences)
 
 	return sequences, nil
+}
+
+func parseGenericTypeFromObjectType(objectType string) (string, error) {
+	startIdx := strings.Index(objectType, "<")
+	endIdx := strings.LastIndex(objectType, ">")
+
+	if startIdx == -1 || endIdx == -1 || startIdx >= endIdx {
+		return "", fmt.Errorf("invalid object type format, expected generic type parameter: %s", objectType)
+	}
+
+	genericType := objectType[startIdx+1 : endIdx]
+	return genericType, nil
 }

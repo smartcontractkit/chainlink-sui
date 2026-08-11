@@ -4,8 +4,8 @@ package deploy
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/block-vision/sui-go-sdk/sui"
 	cselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -14,16 +14,20 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
+	"github.com/smartcontractkit/chainlink-sui/deployment"
+	"github.com/smartcontractkit/chainlink-sui/deployment/changesets"
 	opregistry "github.com/smartcontractkit/chainlink-sui/deployment/ops/registry"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 type DeployTestSuite struct {
 	suite.Suite
 	lggr   logger.Logger
 	signer bindutils.SuiSigner
-	client sui.ISuiAPI
+	client client.SuiPTBClient
 	env    cldf.Environment
 
 	// Cached deployment addresses
@@ -33,6 +37,7 @@ type DeployTestSuite struct {
 	ccipPackageID          string
 	ccipObjectRef          string
 	mcmsPackageID          string
+	fastMcmsPackageID      string
 	deployerAddr           string
 }
 
@@ -41,11 +46,7 @@ func (s *DeployTestSuite) SetupSuite() {
 	s.lggr = logger.Test(s.T())
 
 	// Setup operation registry
-	ops := make([]*cld_ops.Operation[any, any, any], len(opregistry.AllOperations))
-	for i := range opregistry.AllOperations {
-		ops[i] = &opregistry.AllOperations[i]
-	}
-	registry := cld_ops.NewOperationRegistry(ops...)
+	registry := cld_ops.NewOperationRegistry(opregistry.AllOperations...)
 
 	bundle := cld_ops.NewBundle(
 		func() context.Context { return s.T().Context() },
@@ -70,4 +71,39 @@ func (s *DeployTestSuite) SetupSuite() {
 			}),
 		OperationsBundle: bundle,
 	}
+}
+
+// findUnusedManagedTokenMinterCapID finds the mint cap ID that wasn't consumed by the faucet.
+// The faucet consumes its mint cap during initialization, so we check which mint caps still
+// exist on-chain. The one that exists is the unused one (from ConfigureDeployerAsMinter).
+func (s *DeployTestSuite) findUnusedManagedTokenMinterCapID() (string, error) {
+	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
+	if err != nil {
+		return "", fmt.Errorf("failed to get addresses: %w", err)
+	}
+
+	ctx := s.T().Context()
+	var unusedMintCapID string
+
+	// Find all mint caps and check which ones still exist on-chain
+	for addr, typeAndVersion := range addresses {
+		if typeAndVersion.Type == deployment.SuiManagedTokenMinterCapID {
+			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
+				// Check if this object still exists on-chain (not consumed/deleted by faucet)
+				resp, err := bind.ReadObject(ctx, addr, s.client)
+				// If the object exists (no error and has data), it's the unused one
+				if err == nil && resp != nil && resp.Data != nil {
+					unusedMintCapID = addr
+					s.T().Logf("Found unused managed token minter cap ID: %s", addr)
+					break
+				}
+			}
+		}
+	}
+
+	if unusedMintCapID == "" {
+		return "", fmt.Errorf("no unused managed token minter cap ID found (all may have been consumed)")
+	}
+
+	return unusedMintCapID, nil
 }

@@ -4,10 +4,15 @@ package txm_test
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"errors"
 	"math/big"
 	"testing"
 
+	"github.com/block-vision/sui-go-sdk/models"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/stretchr/testify/assert"
@@ -15,9 +20,17 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/mocks"
+	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
+
+func newTestPTB(gasBudget uint64) *transaction.Transaction {
+	ptb := transaction.NewTransaction()
+	ptb.SetGasBudget(gasBudget)
+	return ptb
+}
 
 func TestNewSuiGasManager(t *testing.T) {
 	t.Parallel()
@@ -114,7 +127,7 @@ func TestSuiGasManager_EstimateGasBudget(t *testing.T) {
 				TransactionID: "test-tx-id",
 				Sender:        "0x123",
 				Metadata:      &commontypes.TxMeta{GasLimit: big.NewInt(1000000)},
-				Payload:       "dGVzdC10eC1ieXRlcw==", // base64 encoded "test-tx-bytes"
+				Ptb:           newTestPTB(1_000_000),
 				Functions: []*txm.SuiFunction{
 					{
 						PackageId: "0x456",
@@ -274,12 +287,12 @@ func TestSuiGasManager_GasBump(t *testing.T) {
 			expectedError:   nil,
 		},
 		{
-			name:            "successful gas bump with custom percentage (note: implementation uses constant 120%)",
+			name:            "successful gas bump with custom percentage",
 			maxGasBudget:    big.NewInt(20000000),
 			txGasBudget:     big.NewInt(1500000),
 			currentGasLimit: big.NewInt(1000000),
-			percentIncrease: 150,                 // This is ignored by current implementation
-			expectedGas:     big.NewInt(1200000), // Always uses 120% regardless of percentIncrease field
+			percentIncrease: 150,
+			expectedGas:     big.NewInt(1500000), // 1000000 * 150 / 100
 			expectedError:   nil,
 		},
 		{
@@ -292,13 +305,13 @@ func TestSuiGasManager_GasBump(t *testing.T) {
 			expectedError:   nil,
 		},
 		{
-			name:            "no error when current gas limit equals max budget",
+			name:            "error when current gas limit equals max budget",
 			maxGasBudget:    big.NewInt(1000000),
 			txGasBudget:     big.NewInt(1500000),
 			currentGasLimit: big.NewInt(1000000),
 			percentIncrease: 0,
-			expectedGas:     big.NewInt(1000000),
-			expectedError:   nil,
+			expectedGas:     big.NewInt(0),
+			expectedError:   errors.New("gas budget is already at max gas limit"),
 		},
 		{
 			name:            "error when current gas limit exceeds max budget",
@@ -339,7 +352,7 @@ func TestSuiGasManager_GasBump(t *testing.T) {
 				Sender:        "0x123",
 				Metadata:      &commontypes.TxMeta{GasLimit: tt.currentGasLimit},
 				GasBudget:     tt.txGasBudget.Uint64(),
-				Payload:       "dGVzdC10eC1ieXRlcw==",
+				Ptb:           newTestPTB(tt.currentGasLimit.Uint64()),
 				Functions: []*txm.SuiFunction{
 					{
 						PackageId: "0x456",
@@ -377,7 +390,7 @@ func TestSuiGasManager_EstimateGasBudget_CounterIncrementExample(t *testing.T) {
 	// Set up mock to return a realistic gas estimate for counter increment
 	expectedGasForCounterIncrement := uint64(1234567) // Typical gas for simple counter increment
 	mockClient.EXPECT().
-		EstimateGas(gomock.Any(), gomock.Eq("dGVzdC1jb3VudGVyLWluY3JlbWVudC1ieXRlcw==")).
+		EstimateGas(gomock.Any(), gomock.Any()).
 		Return(expectedGasForCounterIncrement, nil).
 		Times(1)
 
@@ -388,7 +401,7 @@ func TestSuiGasManager_EstimateGasBudget_CounterIncrementExample(t *testing.T) {
 		TransactionID: "counter-increment-tx",
 		Sender:        "0x742d35cc6db32e18ac22c0e3b5c4c7c0e5e1a7c3d2b1a0f9e8d7c6b5a4938271",
 		Metadata:      &commontypes.TxMeta{GasLimit: big.NewInt(2000000)},
-		Payload:       "dGVzdC1jb3VudGVyLWluY3JlbWVudC1ieXRlcw==", // base64 encoded counter increment tx bytes
+		Ptb:           newTestPTB(2_000_000),
 		Functions: []*txm.SuiFunction{
 			{
 				PackageId: "0x456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123",
@@ -432,7 +445,7 @@ func TestSuiGasManager_IntegrationWithCounterContract(t *testing.T) {
 		Sender:        "0x742d35cc6db32e18ac22c0e3b5c4c7c0e5e1a7c3d2b1a0f9e8d7c6b5a4938271",
 		Metadata:      &commontypes.TxMeta{GasLimit: txMaxGasLimit},
 		GasBudget:     txGasBudget.Uint64(),
-		Payload:       "counter_increment_payload_bytes",
+		Ptb:           newTestPTB(txMaxGasLimit.Uint64()),
 		Functions: []*txm.SuiFunction{
 			{
 				PackageId: "0x123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef01",
@@ -445,7 +458,7 @@ func TestSuiGasManager_IntegrationWithCounterContract(t *testing.T) {
 
 	// Test gas estimation
 	mockClient.EXPECT().
-		EstimateGas(gomock.Any(), "counter_increment_payload_bytes").
+		EstimateGas(gomock.Any(), gomock.Any()).
 		Return(uint64(1800000), nil).
 		Times(1)
 
@@ -462,4 +475,130 @@ func TestSuiGasManager_IntegrationWithCounterContract(t *testing.T) {
 
 	// Verify the bumped gas is still within the max budget
 	assert.True(t, bumpedGas.Cmp(maxGasBudget) <= 0, "Bumped gas should not exceed max budget")
+}
+
+// TestUpdateTransactionGas verifies that a gas update is applied to both gas fields and to the
+// rebuilt BCS payload: Metadata.GasLimit alone is never serialized, so the store must also sync
+// tx.GasBudget before rebuilding, otherwise gas-bump retries rebroadcast the old budget.
+func TestUpdateTransactionGas(t *testing.T) {
+	t.Parallel()
+
+	lggr := logger.Test(t)
+	store := txm.NewTxmStoreImpl(lggr)
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockClient := mocks.NewMockSuiPTBClient(ctrl)
+
+	objectID := "0x1234567890abcdef1234567890abcdef12345678"
+	digest := "9WzSXdwbky8tNbH7juvyaui4QzMUYEjdCEKMrMgLhXHT"
+	coinType := "0x2::sui::SUI"
+	version := uint64(1)
+	balance := uint64(100000000)
+	testCoin := &suirpcv2.Object{
+		ObjectId:   &objectID,
+		Version:    &version,
+		Digest:     &digest,
+		ObjectType: &coinType,
+		Balance:    &balance,
+	}
+
+	mockClient.EXPECT().
+		QueryCoinsByAddress(gomock.Any(), gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return([]*suirpcv2.Object{testCoin}, nil)
+
+	mockClient.EXPECT().
+		GetReferenceGasPrice(gomock.Any()).
+		AnyTimes().
+		Return(big.NewInt(1000), nil)
+
+	mockClient.EXPECT().
+		HashTxBytes(gomock.Any()).
+		AnyTimes().
+		Return([]byte("hashed-tx-bytes"))
+
+	keystoreInstance := testutils.NewTestKeystore(t)
+	publicKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	keystoreInstance.AddKey(privKey)
+	publicKeyBytes := []byte(publicKey)
+
+	address, err := client.GetAddressFromPublicKey(publicKeyBytes)
+	require.NoError(t, err)
+
+	initialGasBudget := uint64(6000000)
+	ptb := transaction.NewTransaction()
+	ptb.SetGasBudget(initialGasBudget)
+	ptb.SetSender(models.SuiAddress(address))
+	ptb.SetGasOwner(models.SuiAddress(address))
+	ptb.SetGasPrice(1000)
+
+	txID := "tx-update-gas-test"
+	tx := txm.SuiTx{
+		TransactionID: txID,
+		Sender:        address,
+		PublicKey:     publicKeyBytes,
+		Metadata:      &commontypes.TxMeta{GasLimit: big.NewInt(int64(initialGasBudget))},
+		Timestamp:     txm.GetCurrentUnixTimestamp(),
+		Payload:       "original-payload",
+		Signatures:    []string{"signature"},
+		RequestType:   "WaitForEffectsCert",
+		State:         txm.StatePending,
+		LastUpdatedAt: txm.GetCurrentUnixTimestamp(),
+		GasBudget:     initialGasBudget,
+		Ptb:           ptb,
+		CoinManager:   txm.NewGasCoinManager(lggr, mockClient),
+	}
+	require.NoError(t, store.AddTransaction(tx))
+
+	bumpedGasBudget := big.NewInt(7200000)
+	err = store.UpdateTransactionGas(context.Background(), keystoreInstance, mockClient, txID, bumpedGasBudget)
+	require.NoError(t, err)
+
+	updatedTx, err := store.GetTransaction(txID)
+	require.NoError(t, err)
+	require.Equal(t, bumpedGasBudget, updatedTx.Metadata.GasLimit)
+	require.Equal(t, bumpedGasBudget.Uint64(), updatedTx.GasBudget)
+	require.NotEqual(t, "original-payload", updatedTx.Payload, "BCS payload should be rebuilt")
+	require.NotNil(t, updatedTx.Ptb.Data.V1.GasData.Budget)
+	require.Equal(t, bumpedGasBudget.Uint64(), *updatedTx.Ptb.Data.V1.GasData.Budget,
+		"rebuilt transaction should serialize the bumped gas budget")
+}
+
+func TestUpdateTransactionGas_InvalidInputs(t *testing.T) {
+	t.Parallel()
+
+	lggr := logger.Test(t)
+	store := txm.NewTxmStoreImpl(lggr)
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockClient := mocks.NewMockSuiPTBClient(ctrl)
+	keystoreInstance := testutils.NewTestKeystore(t)
+
+	initialGasBudget := uint64(6000000)
+	txID := "tx-update-gas-invalid-test"
+	tx := txm.SuiTx{
+		TransactionID: txID,
+		Metadata:      &commontypes.TxMeta{GasLimit: big.NewInt(int64(initialGasBudget))},
+		State:         txm.StatePending,
+		GasBudget:     initialGasBudget,
+	}
+	require.NoError(t, store.AddTransaction(tx))
+
+	err := store.UpdateTransactionGas(context.Background(), keystoreInstance, mockClient, "missing-tx", big.NewInt(7200000))
+	require.ErrorContains(t, err, "transaction not found")
+
+	err = store.UpdateTransactionGas(context.Background(), keystoreInstance, mockClient, txID, nil)
+	require.ErrorContains(t, err, "invalid gas budget")
+
+	err = store.UpdateTransactionGas(context.Background(), keystoreInstance, mockClient, txID, big.NewInt(-1))
+	require.ErrorContains(t, err, "invalid gas budget")
+
+	// A rejected update must leave the transaction untouched.
+	unchangedTx, err := store.GetTransaction(txID)
+	require.NoError(t, err)
+	require.Equal(t, big.NewInt(int64(initialGasBudget)), unchangedTx.Metadata.GasLimit)
+	require.Equal(t, initialGasBudget, unchangedTx.GasBudget)
 }

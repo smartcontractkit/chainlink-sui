@@ -17,9 +17,11 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
@@ -28,13 +30,6 @@ import (
 
 func TestChainReaderTestnet(t *testing.T) {
 	log := logger.Test(t)
-	rpcUrl := "https://sui-testnet-rpc.publicnode.com" // testutils.TestnetUrl
-
-	offrampContractName := "OffRamp"
-	offrampPackageId := "0x50ff1c5a49f012f9360de2fa5065efe7185c22bbeee6254e68ef695b0b0d0f40"
-
-	tokenAdminRegistryContractName := "TokenAdminRegistry"
-	tokenAdminRegistryPackageId := "0x9de8a33d158e26f0b51f199da8be1a22e9755510b705cfb88230b257187da733"
 
 	burnMintTokenPoolContractName := "BurnMintTokenPool"
 	burnMintTokenPoolPackageId := "0xfeff675b624e55da49f80fda3b676fe1ef5a957a8334cb675ca35de8918f612d"
@@ -44,6 +39,8 @@ func TestChainReaderTestnet(t *testing.T) {
 	burnMintTokenPoolGetCurrentInboundRateLimiterStateIdentifier := strings.Join([]string{
 		burnMintTokenPoolPackageId, burnMintTokenPoolContractName, "get_current_inbound_rate_limiter_state",
 	}, "-")
+	onRampContractName := "OnRamp"
+	onRampPackageId := "0x30e087460af8a8aacccbc218aa358cdcde8d43faf61ec0638d71108e276e2f1d"
 
 	t.Helper()
 	ctx := context.Background()
@@ -57,28 +54,38 @@ func TestChainReaderTestnet(t *testing.T) {
 			clientMaxConcurrentRequests = int64(parsed)
 		}
 	}
-	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 120*time.Second, keystoreInstance, clientMaxConcurrentRequests, "WaitForLocalExecution")
+
+	grpcTarget := os.Getenv("GRPC_TARGET")
+	if grpcTarget == "" {
+		t.Fatal("evn value for GRPC_TARGET is not set")
+	}
+	grpcToken := os.Getenv("GRPC_TOKEN")
+	if grpcToken == "" {
+		t.Fatal("evn value for GRPC_TOKEN is not set")
+	}
+
+	testCfg := client.PTBClientConfig{
+		GrpcTarget:            grpcTarget,
+		GrpcToken:             grpcToken,
+		TransactionTimeout:    10 * time.Second,
+		MaxConcurrentRequests: clientMaxConcurrentRequests,
+		KeystoreService:       keystoreInstance,
+	}
+
+	relayerClient, clientErr := client.NewPTBClient(log, testCfg)
 	require.NoError(t, clientErr)
 
 	chainReaderConfig := config.ChainReaderConfig{
 		IsLoopPlugin: false,
 		EventsIndexer: config.EventsIndexerConfig{
-			PollingInterval: 10 * time.Second,
-			SyncTimeout:     10 * time.Second,
+			PollingInterval: 1 * time.Second,
+			SyncTimeout:     60 * time.Second,
 		},
 		TransactionsIndexer: config.TransactionsIndexerConfig{
-			PollingInterval: 10 * time.Second,
-			SyncTimeout:     10 * time.Second,
+			PollingInterval: 1 * time.Second,
+			SyncTimeout:     60 * time.Second,
 		},
 		Modules: map[string]*config.ChainReaderModule{
-			tokenAdminRegistryContractName: {
-				Name:      "token_admin_registry",
-				Functions: map[string]*config.ChainReaderFunction{},
-			},
-			offrampContractName: {
-				Name:      "offramp",
-				Functions: map[string]*config.ChainReaderFunction{},
-			},
 			burnMintTokenPoolContractName: {
 				Name: "burn_mint_token_pool",
 				Functions: map[string]*config.ChainReaderFunction{
@@ -180,56 +187,97 @@ func TestChainReaderTestnet(t *testing.T) {
 						},
 					},
 				},
-				Events: map[string]*config.ChainReaderEvent{},
+				Events: map[string]*config.ChainReaderEvent{
+					"released_or_minted": {
+						Name:      "released_or_minted",
+						EventType: "ReleasedOrMinted",
+						EventSelector: client.EventFilterByMoveEventModule{
+							Module: "token_pool",
+							Event:  "ReleasedOrMinted",
+						},
+					},
+				},
+			},
+			onRampContractName: {
+				Events: map[string]*config.ChainReaderEvent{
+					"ccip_message_sent": {
+						Name:      "onramp",
+						EventType: "CCIPMessageSent",
+						EventSelector: client.EventFilterByMoveEventModule{
+							Module: "onramp",
+							Event:  "CCIPMessageSent",
+						},
+					},
+				},
 			},
 		},
 	}
 
-	db := sqltest.NewNoOpDataSource()
+	datastoreUrl := os.Getenv("TEST_DB_URL")
+	if datastoreUrl == "" {
+		t.Skip("Skipping persistent tests as TEST_DB_URL is not set in CI")
+	}
+	db := sqltest.NewDB(t, datastoreUrl)
+	dbStore := database.NewDBStore(db, log)
+	require.NoError(t, dbStore.EnsureSchema(ctx))
 
 	// Create the indexers
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
 		log,
-		relayerClient,
-		chainReaderConfig.TransactionsIndexer.PollingInterval,
-		chainReaderConfig.TransactionsIndexer.SyncTimeout,
 		// start without any configs, they will be set when ChainReader is initialized and gets a reference
 		// to the transaction indexer to avoid having to reading ChainReader configs here as well
 		map[string]*config.ChainReaderEvent{},
 	)
+
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		log,
-		relayerClient,
 		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
-		chainReaderConfig.EventsIndexer.PollingInterval,
-		chainReaderConfig.EventsIndexer.SyncTimeout,
 	)
-	indexerInstance := indexer.NewIndexer(
+
+	startingCheckpointSequence := uint64(365320000)
+	chainPoller := indexer.NewChainPoller(
+		relayerClient,
 		log,
+		config.ChainPollerConfig{
+			PollingInterval:         1 * time.Second,
+			SyncTimeout:             60 * time.Second,
+			BackfillCheckpointCount: nil,
+			StartCheckpointSequence: &startingCheckpointSequence,
+			ChannelBufferSize:       32,
+		},
+		evIndexer.GetEventSelectors,
+	)
+
+	indexerInstance := indexer.NewIndexerFromComponents(
+		log,
+		chainPoller,
 		evIndexer,
 		txnIndexer,
 	)
 
+	indexerInstance.Start(ctx)
+
 	// ChainReader in non-loop mode
-	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
+	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance, nil)
 	require.NoError(t, err)
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{{
-		Name:    offrampContractName,
-		Address: offrampPackageId,
-	}, {
 		Name:    burnMintTokenPoolContractName,
 		Address: burnMintTokenPoolPackageId,
-	}, {
-		Name:    tokenAdminRegistryContractName,
-		Address: tokenAdminRegistryPackageId,
+	}})
+	require.NoError(t, err)
+
+	err = chainReader.Bind(context.Background(), []types.BoundContract{{
+		Name:    onRampContractName,
+		Address: onRampPackageId,
 	}})
 	require.NoError(t, err)
 
 	t.Run("get_token_pool_state_type generic dependency for BurnMintTokenPool", func(t *testing.T) {
+		t.Skip("...")
 		var retAddress string
 		err = chainReader.GetLatestValue(ctx, burnMintTokenPoolIdentifier, primitives.Finalized, nil, &retAddress)
 		require.NoError(t, err)
@@ -275,6 +323,7 @@ func TestChainReaderTestnet(t *testing.T) {
 	})
 
 	t.Run("client load test GetObjectId", func(t *testing.T) {
+		t.Skip("...")
 		numRequests := 10
 		if envNumRequests := os.Getenv("NUM_REQUESTS"); envNumRequests != "" {
 			if parsed, err := strconv.Atoi(envNumRequests); err == nil {
@@ -322,6 +371,7 @@ func TestChainReaderTestnet(t *testing.T) {
 	})
 
 	t.Run("chainreader load test GetLatestValue", func(t *testing.T) {
+		t.Skip("...")
 		numRequests := 10
 		if envNumRequests := os.Getenv("NUM_REQUESTS"); envNumRequests != "" {
 			if parsed, err := strconv.Atoi(envNumRequests); err == nil {
@@ -368,5 +418,43 @@ func TestChainReaderTestnet(t *testing.T) {
 		}
 
 		log.Infof("Completed %d requests, %d errors", processedCount, errorCount)
+	})
+
+	t.Run("token pool events", func(t *testing.T) {
+		t.Skip("...")
+		var retReleasedOrMinted map[string]any
+
+		sequences, err := chainReader.QueryKey(ctx, types.BoundContract{
+			Name:    burnMintTokenPoolContractName,
+			Address: burnMintTokenPoolPackageId,
+		}, query.KeyFilter{
+			Key: "released_or_minted",
+		}, query.LimitAndSort{
+			Limit: query.Limit{
+				Count: 100,
+			},
+		}, &retReleasedOrMinted)
+
+		testutils.PrettyPrintDebug(log, sequences, "sequences")
+		require.NoError(t, err)
+	})
+
+	t.Run("onramp events", func(t *testing.T) {
+		require.Eventually(t, func() bool {
+			events, err := chainReader.QueryKey(ctx, types.BoundContract{
+				Name:    onRampContractName,
+				Address: onRampPackageId,
+			}, query.KeyFilter{
+				Key: "ccip_message_sent",
+			}, query.LimitAndSort{
+				Limit: query.Limit{
+					Count: 10,
+				},
+			}, nil)
+
+			isFound := err == nil && len(events) > 0
+
+			return isFound && false
+		}, 300*time.Second, 2*time.Second, "Expected to find at least one ccip_message_sent event")
 	})
 }

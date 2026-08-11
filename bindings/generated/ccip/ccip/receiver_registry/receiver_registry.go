@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -30,6 +29,7 @@ type IReceiverRegistry interface {
 	GetReceiverConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	GetReceiverConfigFields(ctx context.Context, opts *bind.CallOpts, rc ReceiverConfig) (*models.SuiTransactionBlockResponse, error)
 	GetReceiverInfo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
+	McmsUnregisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IReceiverRegistryDevInspect
 	Encoder() ReceiverRegistryEncoder
 	Bound() bind.IBoundContract
@@ -60,6 +60,8 @@ type ReceiverRegistryEncoder interface {
 	GetReceiverConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetReceiverInfo(ref bind.Object, receiverPackageId string) (*bind.EncodedCall, error)
 	GetReceiverInfoWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsUnregisterReceiver(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsUnregisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type ReceiverRegistryContract struct {
@@ -75,8 +77,8 @@ type ReceiverRegistryDevInspect struct {
 var _ IReceiverRegistry = (*ReceiverRegistryContract)(nil)
 var _ IReceiverRegistryDevInspect = (*ReceiverRegistryDevInspect)(nil)
 
-func NewReceiverRegistry(packageID string, client sui.ISuiAPI) (IReceiverRegistry, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "receiver_registry", client)
+func NewReceiverRegistry(packageID string, chainClient client.BindingsClient) (IReceiverRegistry, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip", "receiver_registry", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -119,131 +121,6 @@ type ReceiverRegistered struct {
 
 type ReceiverUnregistered struct {
 	ReceiverPackageId string `move:"address"`
-}
-
-type bcsReceiverRegistered struct {
-	ReceiverPackageId  [32]byte
-	ReceiverModuleName string
-	ProofTypename      string
-}
-
-func convertReceiverRegisteredFromBCS(bcs bcsReceiverRegistered) (ReceiverRegistered, error) {
-
-	return ReceiverRegistered{
-		ReceiverPackageId:  fmt.Sprintf("0x%x", bcs.ReceiverPackageId),
-		ReceiverModuleName: bcs.ReceiverModuleName,
-		ProofTypename:      bcs.ProofTypename,
-	}, nil
-}
-
-type bcsReceiverUnregistered struct {
-	ReceiverPackageId [32]byte
-}
-
-func convertReceiverUnregisteredFromBCS(bcs bcsReceiverUnregistered) (ReceiverUnregistered, error) {
-
-	return ReceiverUnregistered{
-		ReceiverPackageId: fmt.Sprintf("0x%x", bcs.ReceiverPackageId),
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverConfig", func(data []byte) (interface{}, error) {
-		var result ReceiverConfig
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ReceiverConfig
-	bind.RegisterStructDecoder("vector<ccip::receiver_registry::ReceiverConfig>", func(data []byte) (interface{}, error) {
-		var results []ReceiverConfig
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverRegistry", func(data []byte) (interface{}, error) {
-		var result ReceiverRegistry
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ReceiverRegistry
-	bind.RegisterStructDecoder("vector<ccip::receiver_registry::ReceiverRegistry>", func(data []byte) (interface{}, error) {
-		var results []ReceiverRegistry
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverRegistered", func(data []byte) (interface{}, error) {
-		var temp bcsReceiverRegistered
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertReceiverRegisteredFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ReceiverRegistered
-	bind.RegisterStructDecoder("vector<ccip::receiver_registry::ReceiverRegistered>", func(data []byte) (interface{}, error) {
-		var temps []bcsReceiverRegistered
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]ReceiverRegistered, len(temps))
-		for i, temp := range temps {
-			result, err := convertReceiverRegisteredFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverUnregistered", func(data []byte) (interface{}, error) {
-		var temp bcsReceiverUnregistered
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertReceiverUnregisteredFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ReceiverUnregistered
-	bind.RegisterStructDecoder("vector<ccip::receiver_registry::ReceiverUnregistered>", func(data []byte) (interface{}, error) {
-		var temps []bcsReceiverUnregistered
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]ReceiverUnregistered, len(temps))
-		for i, temp := range temps {
-			result, err := convertReceiverUnregisteredFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -326,6 +203,16 @@ func (c *ReceiverRegistryContract) GetReceiverInfo(ctx context.Context, opts *bi
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// McmsUnregisterReceiver executes the mcms_unregister_receiver Move function.
+func (c *ReceiverRegistryContract) McmsUnregisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.receiverRegistryEncoder.McmsUnregisterReceiver(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // TypeAndVersion executes the type_and_version Move function using DevInspect to get return values.
 //
 // Returns: 0x1::string::String
@@ -341,9 +228,9 @@ func (d *ReceiverRegistryDevInspect) TypeAndVersion(ctx context.Context, opts *b
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -363,9 +250,9 @@ func (d *ReceiverRegistryDevInspect) IsRegisteredReceiver(ctx context.Context, o
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -385,9 +272,9 @@ func (d *ReceiverRegistryDevInspect) GetReceiverConfig(ctx context.Context, opts
 	if len(results) == 0 {
 		return ReceiverConfig{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(ReceiverConfig)
-	if !ok {
-		return ReceiverConfig{}, fmt.Errorf("unexpected return type: expected ReceiverConfig, got %T", results[0])
+	var result ReceiverConfig
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return ReceiverConfig{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -403,7 +290,25 @@ func (d *ReceiverRegistryDevInspect) GetReceiverConfigFields(ctx context.Context
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 string
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 string
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 // GetReceiverInfo executes the get_receiver_info Move function using DevInspect to get return values.
@@ -417,7 +322,25 @@ func (d *ReceiverRegistryDevInspect) GetReceiverInfo(ctx context.Context, opts *
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 string
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 string
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 type receiverRegistryEncoder struct {
@@ -676,4 +599,36 @@ func (c receiverRegistryEncoder) GetReceiverInfoWithArgs(args ...any) (*bind.Enc
 		"0x1::string::String",
 		"ascii::String",
 	})
+}
+
+// McmsUnregisterReceiver encodes a call to the mcms_unregister_receiver Move function.
+func (c receiverRegistryEncoder) McmsUnregisterReceiver(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_unregister_receiver", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsUnregisterReceiverWithArgs encodes a call to the mcms_unregister_receiver Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c receiverRegistryEncoder) McmsUnregisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_unregister_receiver", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

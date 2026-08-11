@@ -84,13 +84,19 @@ The **SUI Relayer** is the central orchestrator that manages all interactions wi
 #### Architecture
 ```go
 type SuiRelayer struct {
+    lggr logger.Logger
+    db   sqlutil.DataSource
+
     client         *client.PTBClient
     txm            *txm.SuiTxm
     balanceMonitor services.Service
-    chainReader    types.ContractReader
-    chainWriter    types.ContractWriter
+
+    indexer     *indexer.Indexer // ChainPoller + EventsIndexer + TransactionsIndexer
+    readerCache *chainreader.Cache
 }
 ```
+
+The relayer owns and starts the `indexer` (the checkpoint-based indexing pipeline). `ContractReader` and `ContractWriter` instances are created on demand via `NewContractReader` / `NewContractWriter` and share the relayer's PTB client, database, indexer, and reader cache.
 
 ### 3. ChainReader
 
@@ -103,17 +109,18 @@ The **ChainReader** provides read-only access to the Sui blockchain, enabling ef
 - **Historical Data**: Query historical blockchain state
 
 #### Event Indexing Architecture
+
+A single `ChainPoller` streams checkpoints from the node over gRPC and fans their contents out to two consumers — the `EventsIndexer` (matching, real events) and the `TransactionsIndexer` (synthetic events for failed transactions). Both write to PostgreSQL, which the ChainReader queries. See [Event Indexing](../relayer/event-indexing.md).
+
 ```mermaid
 graph LR
-    SuiNode[Sui Node] --> Indexer[Event Indexer]
-    Indexer --> DB[(PostgreSQL)]
+    SuiNode[Sui Node - gRPC] -->|checkpoints| CP[ChainPoller]
+    CP -->|events channel| EI[EventsIndexer]
+    CP -->|transactions channel| TI[TransactionsIndexer]
+    EI --> DB[(PostgreSQL)]
+    TI --> DB
     DB --> ChainReader[ChainReader]
     ChainReader --> App[Application]
-    
-    subgraph "Indexer Components"
-        EventIndexer[Event Indexer]
-        TxIndexer[Transaction Indexer]
-    end
 ```
 
 ### 4. ChainWriter
@@ -200,15 +207,21 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant SuiNode as Sui Node
-    participant Indexer as Event Indexer
+    participant Poller as ChainPoller
+    participant Indexer as EventsIndexer
     participant DB as PostgreSQL
     participant Reader as ChainReader
     participant App as Application
-    
-    SuiNode->>Indexer: Stream Events
-    Indexer->>DB: Store Events
-    App->>Reader: Query Events
-    Reader->>DB: Retrieve Events
+
+    loop per checkpoint
+        Poller->>SuiNode: GetCheckpointData(seq)
+        SuiNode-->>Poller: transactions + events
+        Poller->>Indexer: matching events (channel)
+        Indexer->>DB: Insert events (ON CONFLICT DO NOTHING)
+    end
+    App->>Reader: QueryKey
+    Reader->>Indexer: register selector
+    Reader->>DB: Retrieve events
     DB-->>Reader: Event Data
     Reader-->>App: Filtered Events
 ```

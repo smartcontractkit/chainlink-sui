@@ -55,6 +55,11 @@ func NewDecodedTOMLConfig(rawConfig string) (*TOMLConfig, error) {
 	}
 	cfg.EventsIndexer.setDefaults()
 
+	if cfg.ChainPoller == nil {
+		cfg.ChainPoller = &ChainPollerConfig{}
+	}
+	cfg.ChainPoller.setDefaults()
+
 	return &cfg, nil
 }
 
@@ -159,6 +164,12 @@ func setFromNode(n, f *NodeConfig) {
 	if f.URL != nil {
 		n.URL = f.URL
 	}
+	if f.GrpcTarget != nil {
+		n.GrpcTarget = f.GrpcTarget
+	}
+	if f.GrpcToken != nil {
+		n.GrpcToken = f.GrpcToken
+	}
 }
 
 type TransactionManagerConfig struct {
@@ -186,6 +197,55 @@ func (i *IndexerConfig) setDefaults() {
 	if i.SyncTimeoutSecs == nil {
 		v := DefaultIndexerSyncTimeoutSecs
 		i.SyncTimeoutSecs = &v
+	}
+}
+
+// ChainPollerConfig holds the configuration for the ChainPoller which fetches
+// checkpoint data and fans it out to the EventsIndexer and TransactionsIndexer.
+type ChainPollerConfig struct {
+	PollingIntervalSecs     *uint64
+	SyncTimeoutSecs         *uint64
+	BackfillCheckpointCount *uint64
+	StartCheckpointSequence *uint64
+	ChannelBufferSize       *uint64
+	// MaxConcurrentWorkers is the number of goroutines fetching checkpoint chunks concurrently.
+	MaxConcurrentWorkers *uint64
+	// CatchupChunkSize is the number of checkpoints per catch-up chunk handed to a worker.
+	CatchupChunkSize *uint64
+	// ReplayCheckpointCount is how many checkpoints a Replay request re-scans, starting from the
+	// requested checkpoint. An explicit 0 re-scans all the way to the latest checkpoint; the
+	// default only applies when the field is unset.
+	ReplayCheckpointCount *uint64
+}
+
+func (c *ChainPollerConfig) setDefaults() {
+	if c.PollingIntervalSecs == nil {
+		v := DefaultChainPollerPollIntervalSecs
+		c.PollingIntervalSecs = &v
+	}
+	if c.SyncTimeoutSecs == nil {
+		v := DefaultChainPollerSyncTimeoutSecs
+		c.SyncTimeoutSecs = &v
+	}
+	if c.ChannelBufferSize == nil {
+		v := DefaultChainPollerChannelBufferSize
+		c.ChannelBufferSize = &v
+	}
+	if c.BackfillCheckpointCount == nil {
+		v := DefaultChainPollerBackfillCheckpointCount
+		c.BackfillCheckpointCount = &v
+	}
+	if c.MaxConcurrentWorkers == nil {
+		v := DefaultChainPollerMaxConcurrentWorkers
+		c.MaxConcurrentWorkers = &v
+	}
+	if c.CatchupChunkSize == nil {
+		v := DefaultChainPollerCatchupChunkSize
+		c.CatchupChunkSize = &v
+	}
+	if c.ReplayCheckpointCount == nil {
+		v := DefaultChainPollerReplayCheckpointCount
+		c.ReplayCheckpointCount = &v
 	}
 }
 
@@ -256,6 +316,8 @@ func (b *BalanceMonitorConfig) setDefaults() {
 //	[[Sui.Nodes]]
 //	Name = 'primary'
 //	URL = "https://fullnode.devnet.sui.io:443"
+//	GrpcTarget = "sui-devnet-grpc.blockvision.org:443"  # optional
+//	GrpcToken = "your-api-key"                          # optional
 //
 //	[Sui.TransactionManager]
 //	BroadcastChanSize = 100
@@ -295,6 +357,10 @@ type TOMLConfig struct {
 	// Events indexer configs (without any event selectors, those are attached later)
 	EventsIndexer *IndexerConfig
 
+	// ChainPoller config drives checkpoint-based polling and fans out to indexers.
+	// When set, it supersedes EventsIndexer.PollingIntervalSecs and TransactionsIndexer.PollingIntervalSecs.
+	ChainPoller *ChainPollerConfig
+
 	// Nodes is a collection of node configurations for this chain
 	Nodes NodeConfigs
 }
@@ -324,6 +390,40 @@ func (c *TOMLConfig) SetFrom(f *TOMLConfig) {
 		setFromBalanceMonitor(c.BalanceMonitor, f.BalanceMonitor)
 	}
 	c.Nodes.SetFrom(&f.Nodes)
+	if f.ChainPoller != nil {
+		if c.ChainPoller == nil {
+			c.ChainPoller = &ChainPollerConfig{}
+			c.ChainPoller.setDefaults()
+		}
+		setFromChainPoller(c.ChainPoller, f.ChainPoller)
+	}
+}
+
+func setFromChainPoller(c, f *ChainPollerConfig) {
+	if f.PollingIntervalSecs != nil {
+		c.PollingIntervalSecs = f.PollingIntervalSecs
+	}
+	if f.SyncTimeoutSecs != nil {
+		c.SyncTimeoutSecs = f.SyncTimeoutSecs
+	}
+	if f.BackfillCheckpointCount != nil {
+		c.BackfillCheckpointCount = f.BackfillCheckpointCount
+	}
+	if f.StartCheckpointSequence != nil {
+		c.StartCheckpointSequence = f.StartCheckpointSequence
+	}
+	if f.ChannelBufferSize != nil {
+		c.ChannelBufferSize = f.ChannelBufferSize
+	}
+	if f.MaxConcurrentWorkers != nil {
+		c.MaxConcurrentWorkers = f.MaxConcurrentWorkers
+	}
+	if f.CatchupChunkSize != nil {
+		c.CatchupChunkSize = f.CatchupChunkSize
+	}
+	if f.ReplayCheckpointCount != nil {
+		c.ReplayCheckpointCount = f.ReplayCheckpointCount
+	}
 }
 
 func setFromTransactionManager(c, f *TransactionManagerConfig) {

@@ -155,10 +155,10 @@ const EInvalidOwnerCap: u64 = 20;
 const EInvalidTokenReceiver: u64 = 21;
 const ESourcePoolMismatch: u64 = 22;
 
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
 
 public fun type_and_version(): String {
-    string::utf8(b"OnRamp 1.6.0")
+    string::utf8(b"OnRamp 1.6.1")
 }
 
 public struct ONRAMP has drop {}
@@ -1079,7 +1079,7 @@ public fun mcms_accept_ownership(
     verify_function_allowed(
         ref,
         string::utf8(b"onramp"),
-        string::utf8(b"accept_ownership"),
+        string::utf8(b"mcms_accept_ownership"),
         VERSION,
     );
     let data = mcms_registry::get_accept_ownership_data(
@@ -1417,8 +1417,8 @@ public fun mcms_execute_ownership_transfer(
     let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
-
+    // Release the upgrade cap before `release_cap`, which removes the registry proof state
+    // that `release_upgrade_cap` depends on.
     if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
@@ -1427,6 +1427,8 @@ public fun mcms_execute_ownership_transfer(
         );
         transfer::public_transfer(upgrade_cap, to);
     };
+
+    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
 
     execute_ownership_transfer(ref, owner_cap, state, to, ctx);
 }

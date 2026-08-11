@@ -43,7 +43,7 @@ var executeOwnershipTransferToMcmsManagedTokenPoolHandler = func(b cld_ops.Bundl
 	if err != nil {
 		return sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsManagedTokenPoolObjects]{}, fmt.Errorf("failed to encode ExecuteOwnershipTransferToMcms call: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, input.TypeArgs)
 	if err != nil {
 		return sui_ops.OpTxResult[ExecuteOwnershipTransferToMcmsManagedTokenPoolObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}

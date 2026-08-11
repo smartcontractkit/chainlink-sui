@@ -9,10 +9,9 @@ import (
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 var (
@@ -201,8 +200,8 @@ type OnrampDevInspect struct {
 var _ IOnramp = (*OnrampContract)(nil)
 var _ IOnrampDevInspect = (*OnrampDevInspect)(nil)
 
-func NewOnramp(packageID string, client sui.ISuiAPI) (IOnramp, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_onramp", "onramp", client)
+func NewOnramp(packageID string, chainClient client.BindingsClient) (IOnramp, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip_onramp", "onramp", chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -334,723 +333,6 @@ type McmsCallback struct {
 }
 
 type McmsAcceptOwnershipProof struct {
-}
-
-type bcsOnRampState struct {
-	Id                string
-	PackageIds        [][32]byte
-	ChainSelector     uint64
-	FeeAggregator     [32]byte
-	AllowlistAdmin    [32]byte
-	DestChainConfigs  bind.Object
-	FeeTokens         bind.Object
-	NonceManagerCap   *bind.Object
-	SourceTransferCap *bind.Object
-	OwnableState      bind.Object
-}
-
-func convertOnRampStateFromBCS(bcs bcsOnRampState) (OnRampState, error) {
-
-	return OnRampState{
-		Id: bcs.Id,
-		PackageIds: func() []string {
-			addrs := make([]string, len(bcs.PackageIds))
-			for i, addr := range bcs.PackageIds {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		ChainSelector:     bcs.ChainSelector,
-		FeeAggregator:     fmt.Sprintf("0x%x", bcs.FeeAggregator),
-		AllowlistAdmin:    fmt.Sprintf("0x%x", bcs.AllowlistAdmin),
-		DestChainConfigs:  bcs.DestChainConfigs,
-		FeeTokens:         bcs.FeeTokens,
-		NonceManagerCap:   bcs.NonceManagerCap,
-		SourceTransferCap: bcs.SourceTransferCap,
-		OwnableState:      bcs.OwnableState,
-	}, nil
-}
-
-type bcsOnRampStatePointer struct {
-	Id             string
-	OnRampObjectId [32]byte
-}
-
-func convertOnRampStatePointerFromBCS(bcs bcsOnRampStatePointer) (OnRampStatePointer, error) {
-
-	return OnRampStatePointer{
-		Id:             bcs.Id,
-		OnRampObjectId: fmt.Sprintf("0x%x", bcs.OnRampObjectId),
-	}, nil
-}
-
-type bcsDestChainConfig struct {
-	SequenceNumber   uint64
-	AllowlistEnabled bool
-	AllowedSenders   [][32]byte
-	Router           [32]byte
-}
-
-func convertDestChainConfigFromBCS(bcs bcsDestChainConfig) (DestChainConfig, error) {
-
-	return DestChainConfig{
-		SequenceNumber:   bcs.SequenceNumber,
-		AllowlistEnabled: bcs.AllowlistEnabled,
-		AllowedSenders: func() []string {
-			addrs := make([]string, len(bcs.AllowedSenders))
-			for i, addr := range bcs.AllowedSenders {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		Router: fmt.Sprintf("0x%x", bcs.Router),
-	}, nil
-}
-
-type bcsSui2AnyRampMessage struct {
-	Header         RampMessageHeader
-	Sender         [32]byte
-	Data           []byte
-	Receiver       []byte
-	ExtraArgs      []byte
-	FeeToken       [32]byte
-	FeeTokenAmount uint64
-	FeeValueJuels  [32]byte
-	TokenAmounts   []Sui2AnyTokenTransfer
-}
-
-func convertSui2AnyRampMessageFromBCS(bcs bcsSui2AnyRampMessage) (Sui2AnyRampMessage, error) {
-	FeeValueJuelsField, err := bind.DecodeU256Value(bcs.FeeValueJuels)
-	if err != nil {
-		return Sui2AnyRampMessage{}, fmt.Errorf("failed to decode u256 field FeeValueJuels: %w", err)
-	}
-
-	return Sui2AnyRampMessage{
-		Header:         bcs.Header,
-		Sender:         fmt.Sprintf("0x%x", bcs.Sender),
-		Data:           bcs.Data,
-		Receiver:       bcs.Receiver,
-		ExtraArgs:      bcs.ExtraArgs,
-		FeeToken:       fmt.Sprintf("0x%x", bcs.FeeToken),
-		FeeTokenAmount: bcs.FeeTokenAmount,
-		FeeValueJuels:  FeeValueJuelsField,
-		TokenAmounts:   bcs.TokenAmounts,
-	}, nil
-}
-
-type bcsSui2AnyTokenTransfer struct {
-	SourcePoolAddress [32]byte
-	DestTokenAddress  []byte
-	ExtraData         []byte
-	Amount            uint64
-	DestExecData      []byte
-}
-
-func convertSui2AnyTokenTransferFromBCS(bcs bcsSui2AnyTokenTransfer) (Sui2AnyTokenTransfer, error) {
-
-	return Sui2AnyTokenTransfer{
-		SourcePoolAddress: fmt.Sprintf("0x%x", bcs.SourcePoolAddress),
-		DestTokenAddress:  bcs.DestTokenAddress,
-		ExtraData:         bcs.ExtraData,
-		Amount:            bcs.Amount,
-		DestExecData:      bcs.DestExecData,
-	}, nil
-}
-
-type bcsDynamicConfig struct {
-	FeeAggregator  [32]byte
-	AllowlistAdmin [32]byte
-}
-
-func convertDynamicConfigFromBCS(bcs bcsDynamicConfig) (DynamicConfig, error) {
-
-	return DynamicConfig{
-		FeeAggregator:  fmt.Sprintf("0x%x", bcs.FeeAggregator),
-		AllowlistAdmin: fmt.Sprintf("0x%x", bcs.AllowlistAdmin),
-	}, nil
-}
-
-type bcsConfigSet struct {
-	StaticConfig  StaticConfig
-	DynamicConfig bcsDynamicConfig
-}
-
-func convertConfigSetFromBCS(bcs bcsConfigSet) (ConfigSet, error) {
-	DynamicConfigField, err := convertDynamicConfigFromBCS(bcs.DynamicConfig)
-	if err != nil {
-		return ConfigSet{}, fmt.Errorf("failed to convert nested struct DynamicConfig: %w", err)
-	}
-
-	return ConfigSet{
-		StaticConfig:  bcs.StaticConfig,
-		DynamicConfig: DynamicConfigField,
-	}, nil
-}
-
-type bcsDestChainConfigSet struct {
-	DestChainSelector uint64
-	SequenceNumber    uint64
-	AllowlistEnabled  bool
-	Router            [32]byte
-}
-
-func convertDestChainConfigSetFromBCS(bcs bcsDestChainConfigSet) (DestChainConfigSet, error) {
-
-	return DestChainConfigSet{
-		DestChainSelector: bcs.DestChainSelector,
-		SequenceNumber:    bcs.SequenceNumber,
-		AllowlistEnabled:  bcs.AllowlistEnabled,
-		Router:            fmt.Sprintf("0x%x", bcs.Router),
-	}, nil
-}
-
-type bcsCCIPMessageSent struct {
-	DestChainSelector uint64
-	SequenceNumber    uint64
-	Message           bcsSui2AnyRampMessage
-}
-
-func convertCCIPMessageSentFromBCS(bcs bcsCCIPMessageSent) (CCIPMessageSent, error) {
-	MessageField, err := convertSui2AnyRampMessageFromBCS(bcs.Message)
-	if err != nil {
-		return CCIPMessageSent{}, fmt.Errorf("failed to convert nested struct Message: %w", err)
-	}
-
-	return CCIPMessageSent{
-		DestChainSelector: bcs.DestChainSelector,
-		SequenceNumber:    bcs.SequenceNumber,
-		Message:           MessageField,
-	}, nil
-}
-
-type bcsAllowlistSendersAdded struct {
-	DestChainSelector uint64
-	Senders           [][32]byte
-}
-
-func convertAllowlistSendersAddedFromBCS(bcs bcsAllowlistSendersAdded) (AllowlistSendersAdded, error) {
-
-	return AllowlistSendersAdded{
-		DestChainSelector: bcs.DestChainSelector,
-		Senders: func() []string {
-			addrs := make([]string, len(bcs.Senders))
-			for i, addr := range bcs.Senders {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-	}, nil
-}
-
-type bcsAllowlistSendersRemoved struct {
-	DestChainSelector uint64
-	Senders           [][32]byte
-}
-
-func convertAllowlistSendersRemovedFromBCS(bcs bcsAllowlistSendersRemoved) (AllowlistSendersRemoved, error) {
-
-	return AllowlistSendersRemoved{
-		DestChainSelector: bcs.DestChainSelector,
-		Senders: func() []string {
-			addrs := make([]string, len(bcs.Senders))
-			for i, addr := range bcs.Senders {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-	}, nil
-}
-
-type bcsFeeTokenWithdrawn struct {
-	FeeAggregator [32]byte
-	FeeToken      [32]byte
-	Amount        uint64
-}
-
-func convertFeeTokenWithdrawnFromBCS(bcs bcsFeeTokenWithdrawn) (FeeTokenWithdrawn, error) {
-
-	return FeeTokenWithdrawn{
-		FeeAggregator: fmt.Sprintf("0x%x", bcs.FeeAggregator),
-		FeeToken:      fmt.Sprintf("0x%x", bcs.FeeToken),
-		Amount:        bcs.Amount,
-	}, nil
-}
-
-func init() {
-	bind.RegisterStructDecoder("ccip_onramp::onramp::OnRampState", func(data []byte) (interface{}, error) {
-		var temp bcsOnRampState
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOnRampStateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OnRampState
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::OnRampState>", func(data []byte) (interface{}, error) {
-		var temps []bcsOnRampState
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OnRampState, len(temps))
-		for i, temp := range temps {
-			result, err := convertOnRampStateFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::OnRampObject", func(data []byte) (interface{}, error) {
-		var result OnRampObject
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OnRampObject
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::OnRampObject>", func(data []byte) (interface{}, error) {
-		var results []OnRampObject
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::OnRampStatePointer", func(data []byte) (interface{}, error) {
-		var temp bcsOnRampStatePointer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOnRampStatePointerFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OnRampStatePointer
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::OnRampStatePointer>", func(data []byte) (interface{}, error) {
-		var temps []bcsOnRampStatePointer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OnRampStatePointer, len(temps))
-		for i, temp := range temps {
-			result, err := convertOnRampStatePointerFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::DestChainConfig", func(data []byte) (interface{}, error) {
-		var temp bcsDestChainConfig
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertDestChainConfigFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DestChainConfig
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::DestChainConfig>", func(data []byte) (interface{}, error) {
-		var temps []bcsDestChainConfig
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]DestChainConfig, len(temps))
-		for i, temp := range temps {
-			result, err := convertDestChainConfigFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::RampMessageHeader", func(data []byte) (interface{}, error) {
-		var result RampMessageHeader
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for RampMessageHeader
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::RampMessageHeader>", func(data []byte) (interface{}, error) {
-		var results []RampMessageHeader
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::Sui2AnyRampMessage", func(data []byte) (interface{}, error) {
-		var temp bcsSui2AnyRampMessage
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertSui2AnyRampMessageFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Sui2AnyRampMessage
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::Sui2AnyRampMessage>", func(data []byte) (interface{}, error) {
-		var temps []bcsSui2AnyRampMessage
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Sui2AnyRampMessage, len(temps))
-		for i, temp := range temps {
-			result, err := convertSui2AnyRampMessageFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::Sui2AnyTokenTransfer", func(data []byte) (interface{}, error) {
-		var temp bcsSui2AnyTokenTransfer
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertSui2AnyTokenTransferFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for Sui2AnyTokenTransfer
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::Sui2AnyTokenTransfer>", func(data []byte) (interface{}, error) {
-		var temps []bcsSui2AnyTokenTransfer
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]Sui2AnyTokenTransfer, len(temps))
-		for i, temp := range temps {
-			result, err := convertSui2AnyTokenTransferFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::StaticConfig", func(data []byte) (interface{}, error) {
-		var result StaticConfig
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for StaticConfig
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::StaticConfig>", func(data []byte) (interface{}, error) {
-		var results []StaticConfig
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::DynamicConfig", func(data []byte) (interface{}, error) {
-		var temp bcsDynamicConfig
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertDynamicConfigFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DynamicConfig
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::DynamicConfig>", func(data []byte) (interface{}, error) {
-		var temps []bcsDynamicConfig
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]DynamicConfig, len(temps))
-		for i, temp := range temps {
-			result, err := convertDynamicConfigFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::ConfigSet", func(data []byte) (interface{}, error) {
-		var temp bcsConfigSet
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertConfigSetFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ConfigSet
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::ConfigSet>", func(data []byte) (interface{}, error) {
-		var temps []bcsConfigSet
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]ConfigSet, len(temps))
-		for i, temp := range temps {
-			result, err := convertConfigSetFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::DestChainConfigSet", func(data []byte) (interface{}, error) {
-		var temp bcsDestChainConfigSet
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertDestChainConfigSetFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for DestChainConfigSet
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::DestChainConfigSet>", func(data []byte) (interface{}, error) {
-		var temps []bcsDestChainConfigSet
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]DestChainConfigSet, len(temps))
-		for i, temp := range temps {
-			result, err := convertDestChainConfigSetFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::CCIPMessageSent", func(data []byte) (interface{}, error) {
-		var temp bcsCCIPMessageSent
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertCCIPMessageSentFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for CCIPMessageSent
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::CCIPMessageSent>", func(data []byte) (interface{}, error) {
-		var temps []bcsCCIPMessageSent
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]CCIPMessageSent, len(temps))
-		for i, temp := range temps {
-			result, err := convertCCIPMessageSentFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::AllowlistSendersAdded", func(data []byte) (interface{}, error) {
-		var temp bcsAllowlistSendersAdded
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertAllowlistSendersAddedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for AllowlistSendersAdded
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::AllowlistSendersAdded>", func(data []byte) (interface{}, error) {
-		var temps []bcsAllowlistSendersAdded
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]AllowlistSendersAdded, len(temps))
-		for i, temp := range temps {
-			result, err := convertAllowlistSendersAddedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::AllowlistSendersRemoved", func(data []byte) (interface{}, error) {
-		var temp bcsAllowlistSendersRemoved
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertAllowlistSendersRemovedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for AllowlistSendersRemoved
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::AllowlistSendersRemoved>", func(data []byte) (interface{}, error) {
-		var temps []bcsAllowlistSendersRemoved
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]AllowlistSendersRemoved, len(temps))
-		for i, temp := range temps {
-			result, err := convertAllowlistSendersRemovedFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::FeeTokenWithdrawn", func(data []byte) (interface{}, error) {
-		var temp bcsFeeTokenWithdrawn
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertFeeTokenWithdrawnFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for FeeTokenWithdrawn
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::FeeTokenWithdrawn>", func(data []byte) (interface{}, error) {
-		var temps []bcsFeeTokenWithdrawn
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]FeeTokenWithdrawn, len(temps))
-		for i, temp := range temps {
-			result, err := convertFeeTokenWithdrawnFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::ONRAMP", func(data []byte) (interface{}, error) {
-		var result ONRAMP
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for ONRAMP
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::ONRAMP>", func(data []byte) (interface{}, error) {
-		var results []ONRAMP
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::McmsCallback", func(data []byte) (interface{}, error) {
-		var result McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsCallback
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::McmsCallback>", func(data []byte) (interface{}, error) {
-		var results []McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
-		var result McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsAcceptOwnershipProof
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
-		var results []McmsAcceptOwnershipProof
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -1518,9 +800,9 @@ func (d *OnrampDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallOp
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1540,9 +822,9 @@ func (d *OnrampDevInspect) IsChainSupported(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1562,9 +844,9 @@ func (d *OnrampDevInspect) GetExpectedNextSequenceNumber(ctx context.Context, op
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1584,9 +866,9 @@ func (d *OnrampDevInspect) GetFee(ctx context.Context, opts *bind.CallOpts, type
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1603,7 +885,30 @@ func (d *OnrampDevInspect) GetDestChainConfig(ctx context.Context, opts *bind.Ca
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 3 {
+		return nil, fmt.Errorf("expected 3 return values, got %d", len(results))
+	}
+	decoded := make([]any, 3)
+	var ret0 uint64
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 bool
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	var ret2 string
+	if err := bind.DecodeJSONReturn(results[2], &ret2); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 2: %w", err)
+	}
+	decoded[2] = ret2
+	return decoded, nil
 }
 
 // GetAllowedSendersList executes the get_allowed_senders_list Move function using DevInspect to get return values.
@@ -1617,7 +922,25 @@ func (d *OnrampDevInspect) GetAllowedSendersList(ctx context.Context, opts *bind
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 bool
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 []string
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 // GetOutboundNonce executes the get_outbound_nonce Move function using DevInspect to get return values.
@@ -1635,9 +958,9 @@ func (d *OnrampDevInspect) GetOutboundNonce(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1657,9 +980,9 @@ func (d *OnrampDevInspect) GetStaticConfig(ctx context.Context, opts *bind.CallO
 	if len(results) == 0 {
 		return StaticConfig{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(StaticConfig)
-	if !ok {
-		return StaticConfig{}, fmt.Errorf("unexpected return type: expected StaticConfig, got %T", results[0])
+	var result StaticConfig
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return StaticConfig{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1679,9 +1002,9 @@ func (d *OnrampDevInspect) GetStaticConfigFields(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
-	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	var result uint64
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return 0, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1701,9 +1024,9 @@ func (d *OnrampDevInspect) GetDynamicConfig(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return DynamicConfig{}, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(DynamicConfig)
-	if !ok {
-		return DynamicConfig{}, fmt.Errorf("unexpected return type: expected DynamicConfig, got %T", results[0])
+	var result DynamicConfig
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return DynamicConfig{}, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1719,7 +1042,25 @@ func (d *OnrampDevInspect) GetDynamicConfigFields(ctx context.Context, opts *bin
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("expected 2 return values, got %d", len(results))
+	}
+	decoded := make([]any, 2)
+	var ret0 string
+	if err := bind.DecodeJSONReturn(results[0], &ret0); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 0: %w", err)
+	}
+	decoded[0] = ret0
+	var ret1 string
+	if err := bind.DecodeJSONReturn(results[1], &ret1); err != nil {
+		return nil, fmt.Errorf("failed to decode return value 1: %w", err)
+	}
+	decoded[1] = ret1
+	return decoded, nil
 }
 
 // CalculateMessageHash executes the calculate_message_hash Move function using DevInspect to get return values.
@@ -1737,9 +1078,9 @@ func (d *OnrampDevInspect) CalculateMessageHash(ctx context.Context, opts *bind.
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1759,9 +1100,9 @@ func (d *OnrampDevInspect) CalculateMetadataHash(ctx context.Context, opts *bind
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1781,9 +1122,9 @@ func (d *OnrampDevInspect) CcipSend(ctx context.Context, opts *bind.CallOpts, ty
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	var result []byte
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1803,9 +1144,9 @@ func (d *OnrampDevInspect) GetCcipPackageId(ctx context.Context, opts *bind.Call
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1825,9 +1166,9 @@ func (d *OnrampDevInspect) Owner(ctx context.Context, opts *bind.CallOpts, state
 	if len(results) == 0 {
 		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(string)
-	if !ok {
-		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	var result string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return "", fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1847,9 +1188,9 @@ func (d *OnrampDevInspect) HasPendingTransfer(ctx context.Context, opts *bind.Ca
 	if len(results) == 0 {
 		return false, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	var result bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return false, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1869,9 +1210,9 @@ func (d *OnrampDevInspect) PendingTransferFrom(ctx context.Context, opts *bind.C
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1891,9 +1232,9 @@ func (d *OnrampDevInspect) PendingTransferTo(ctx context.Context, opts *bind.Cal
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*string)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	var result *string
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }
@@ -1913,9 +1254,9 @@ func (d *OnrampDevInspect) PendingTransferAccepted(ctx context.Context, opts *bi
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(*bool)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected *bool, got %T", results[0])
+	var result *bool
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return nil, fmt.Errorf("failed to decode return value: %w", err)
 	}
 	return result, nil
 }

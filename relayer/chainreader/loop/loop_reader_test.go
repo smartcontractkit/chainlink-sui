@@ -1,9 +1,10 @@
 //go:build integration
 
-package loop
+package loop_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
@@ -16,9 +17,12 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
+	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 	"github.com/stretchr/testify/require"
+
+	aptosCRConfig "github.com/smartcontractkit/chainlink-common/pkg/types/aptos"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	chainreaderConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
@@ -26,6 +30,8 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
+
+	codecLoop "github.com/smartcontractkit/chainlink-sui/codec/loop"
 )
 
 //nolint:paralleltest
@@ -35,8 +41,12 @@ func TestLoopChainReaderLocal(t *testing.T) {
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
+	testutils.CleanupTestContracts()
+
 	// Ensure the process is killed when the test completes.
 	t.Cleanup(func() {
+		testutils.CleanupTestContracts()
+
 		if cmd.Process != nil {
 			perr := cmd.Process.Kill()
 			if perr != nil {
@@ -47,7 +57,7 @@ func TestLoopChainReaderLocal(t *testing.T) {
 
 	log.Debugw("Started Sui node")
 
-	runLoopChainReaderEchoTest(t, log, testutils.LocalUrl)
+	runLoopChainReaderEchoTest(t, log, testutils.LocalGrpcURL)
 }
 
 func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) {
@@ -57,11 +67,23 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	keystoreInstance := testutils.NewTestKeystore(t)
 	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
-	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	relayerClient, clientErr := client.NewPTBClient(log, client.PTBClientConfig{
+		GrpcTarget:            rpcUrl,
+		GrpcToken:             "test",
+		TransactionTimeout:    10 * time.Second,
+		MaxConcurrentRequests: 5,
+		KeystoreService:       keystoreInstance,
+		DefaultRequestType:    client.TransactionRequestType("WaitForLocalExecution"),
+	})
 	require.NoError(t, clientErr)
 
 	faucetFundErr := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
 	require.NoError(t, faucetFundErr)
+
+	chainID, err := testutils.GetChainIdentifier(rpcUrl)
+	require.NoError(t, err)
+	testutils.PatchEnvironmentTOML("contracts/test", "local", chainID)
+	testutils.PatchEnvironmentTOML("contracts/test_secondary", "local", chainID)
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	gasBudget := int(2000000000)
@@ -196,9 +218,35 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 						Params:        []codec.SuiFunctionParam{},
 						// used to wrap entire result
 						ResultTupleToStruct: []string{"OCRConfig"},
+						// The Sui node renders the Move struct with snake_case keys. The core node decodes the LOOP
+						// bytes into cciptypes.OCRConfigResponse via DecodeSuiJsonValue (mapstructure), whose fuzzy
+						// matcher strips underscores and is case-insensitive: config_info->ConfigInfo,
+						// config_digest->ConfigDigest, n->N, is_signature_verification_enabled->... all match on their
+						// own. The lone exception is `big_f` ("bigf") which does NOT match `F` ("f"), so F silently
+						// decodes to 0. Rename it so it lands on OCRConfigResponse.ConfigInfo.F. This mirrors the fix
+						// in chainlink core's Sui contract_reader.go for the OffRamp latest_config_details read.
+						ResultFieldRenames: map[string]aptosCRConfig.RenamedField{
+							"OCRConfig": {
+								SubFieldRenames: map[string]aptosCRConfig.RenamedField{
+									"config_info": {
+										SubFieldRenames: map[string]aptosCRConfig.RenamedField{
+											"big_f": {NewName: "f"},
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
+		},
+		EventsIndexer: config.EventsIndexerConfig{
+			PollingInterval: 2 * time.Second,
+			SyncTimeout:     60 * time.Second,
+		},
+		TransactionsIndexer: config.TransactionsIndexerConfig{
+			PollingInterval: 2 * time.Second,
+			SyncTimeout:     60 * time.Second,
 		},
 	}
 
@@ -223,36 +271,44 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
 		log,
-		relayerClient,
-		chainReaderConfigs.TransactionsIndexer.PollingInterval,
-		chainReaderConfigs.TransactionsIndexer.SyncTimeout,
-		// start without any configs, they will be set when ChainReader is initialized and gets a reference
-		// to the transaction indexer to avoid having to reading ChainReader configs here as well
 		map[string]*config.ChainReaderEvent{},
 	)
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		log,
-		relayerClient,
-		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
-		chainReaderConfigs.EventsIndexer.PollingInterval,
-		chainReaderConfigs.EventsIndexer.SyncTimeout,
 	)
-	indexerInstance := indexer.NewIndexer(
+
+	chainPoller := indexer.NewChainPoller(
+		relayerClient,
 		log,
+		config.ChainPollerConfig{
+			PollingInterval:         1 * time.Second,
+			SyncTimeout:             60 * time.Second,
+			BackfillCheckpointCount: testutils.Uint64Pointer(uint64(1)),
+		},
+		evIndexer.GetEventSelectors,
+	)
+
+	indexerInstance := indexer.NewIndexerFromComponents(
+		log,
+		chainPoller,
 		evIndexer,
 		txnIndexer,
 	)
 
-	chainReader, err := reader.NewChainReader(ctx, log, relayerClient, chainReaderConfigs, db, indexerInstance)
+	chainReader, err := reader.NewChainReader(ctx, log, relayerClient, chainReaderConfigs, db, indexerInstance, nil)
 	require.NoError(t, err)
 
 	// Wrap the base chain reader with loop chain reader
-	loopReader := NewLoopChainReader(log, chainReader)
+	loopReader := codecLoop.NewLoopChainReader(log, chainReader)
 
 	// Bind the contracts
 	err = loopReader.Bind(context.Background(), []types.BoundContract{echoBinding, counterBinding})
+	require.NoError(t, err)
+
+	// Start the indexers
+	err = indexerInstance.Start(ctx)
 	require.NoError(t, err)
 
 	log.Debugw("LoopChainReader setup complete")
@@ -402,17 +458,21 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			//nolint:govet
 			var err error
 
+			evIndexer.AddEventSelector(ctx, &client.EventSelector{
+				Package: packageId,
+				Module:  "echo",
+				Event:   "SingleValueEvent",
+			})
+
 			// Use relayerClient to call increment instead of using CLI
 			moveCallReq := client.MoveCallRequest{
 				Signer:          accountAddress,
 				PackageObjectId: packageId,
 				Module:          "echo",
 				Function:        "simple_event_echo",
-				TypeArguments: []any{
-					"u64",
-				},
+				TypeArguments:   []any{},
 				Arguments: []any{
-					fmt.Sprintf("%d", testNumber),
+					uint64(testNumber),
 				},
 				GasBudget: 2000000,
 			}
@@ -422,8 +482,15 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			txMetadata, err := relayerClient.MoveCall(ctx, moveCallReq)
 			require.NoError(t, err)
 
-			_, err = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+			txResponse, err := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes)
 			require.NoError(t, err)
+
+			// Make sure the transaction succeeded to make sure the event is indexed
+			require.Eventually(t, func() bool {
+				status, err := relayerClient.GetTransactionStatus(ctx, txResponse.Transaction.GetDigest())
+				log.Debugw("Transaction status for SingleValueEvent", "status", status, "error", err)
+				return err == nil && status.Status == "success"
+			}, 30*time.Second, 1*time.Second)
 
 			require.Eventually(t, func() bool {
 				sequences, err = loopReader.QueryKey(
@@ -443,7 +510,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 				}
 
 				return err == nil && len(sequences) > 0
-			}, 30*time.Second, 1*time.Second)
+			}, 60*time.Second, 1*time.Second)
 
 			require.NoError(t, err)
 			require.NotEmpty(t, sequences, "Expected to find SingleValueEvent")
@@ -506,5 +573,53 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		require.NoError(t, err)
 		require.NotEmpty(t, retOCRConfig, "Expected to find OCRConfig")
 		log.Debugw("retOCRConfig", "retOCRConfig", retOCRConfig)
+	})
+
+	// Regression for the EVM->Sui commit blocker. The commit plugin's report-acceptance check
+	// (plugincommon.ConfigDigestsMatch -> ccipReader.GetOffRampConfigDigest) reads the OffRamp
+	// latest_config_details and decodes the relayer's LOOP bytes into cciptypes.OCRConfigResponse,
+	// then compares ConfigInfo.ConfigDigest against the DON's digest.
+	//
+	// IMPORTANT: the core node's Sui LOOP reader (suiloop.loopChainReader.decodeGLVReturnValue) does NOT
+	// plain json.Unmarshal into the typed target. It json.Unmarshals the LOOP bytes into a generic map and then
+	// runs codec.DecodeSuiJsonValue (mapstructure with a fuzzy, underscore-insensitive field matcher and
+	// hex/base64 type-conversion hooks). That decoder happily maps the Sui node's snake_case keys and
+	// decodes the base64 digest / 0x-hex transmitters correctly. The one field it can NOT map on its own is
+	// `big_f` -> `F` (the fuzzy matcher compares "bigf" vs "f"), so without a rename F silently stays 0.
+	//
+	// This test exercises that exact production path (via the loopReader wrapper into a typed
+	// OCRConfigResponse) and relies on the get_ocr_config ResultFieldRenames (big_f -> f) above. It guards
+	// that the OffRamp OCR config the commit plugin consumes decodes fully and correctly.
+	t.Run("LoopReader_GetOCRConfig_DecodesIntoCCIPOCRConfigResponse", func(t *testing.T) {
+		readID := strings.Join([]string{packageId, counterBinding.Name, "get_ocr_config"}, "-")
+
+		// Capture the exact JSON bytes that cross the LOOP boundary (params/returnVal are *[]byte in
+		// IsLoopPlugin mode) purely for diagnostics on failure.
+		paramBytes, mErr := json.Marshal(map[string]any{})
+		require.NoError(t, mErr)
+		var rawBytes []byte
+		require.NoError(t, chainReader.GetLatestValue(ctx, readID, primitives.Finalized, &paramBytes, &rawBytes))
+		log.Debugw("relayer-emitted get_ocr_config JSON", "json", string(rawBytes))
+
+		// Decode exactly like the core node does: the loopReader wrapper json.Unmarshals the LOOP bytes and
+		// then runs DecodeSuiJsonValue into the typed OCRConfigResponse.
+		var resp cciptypes.OCRConfigResponse
+		require.NoErrorf(t,
+			loopReader.GetLatestValue(ctx, readID, primitives.Finalized, map[string]any{}, &resp),
+			"relayer output must decode into OCRConfigResponse via the LOOP path; raw bytes: %s", string(rawBytes))
+
+		// get_ocr_config returns config_digest [2,3,4,5], big_f 1, n 2, signature verification enabled.
+		info := resp.OCRConfig.ConfigInfo
+		require.Falsef(t, info.ConfigDigest.IsEmpty(),
+			"ConfigDigest decoded to zero from relayer output %s — a zero digest is exactly what makes the "+
+				"commit plugin reject all EVM->Sui reports", string(rawBytes))
+		require.Equal(t, []byte{2, 3, 4, 5}, info.ConfigDigest[:4],
+			"Move config_digest bytes must land in OCRConfigResponse.ConfigInfo.ConfigDigest")
+		require.Equal(t, uint8(1), info.F, "Move big_f must map (via rename) to OCRConfigResponse.ConfigInfo.F")
+		require.Equal(t, uint8(2), info.N, "Move n must map to OCRConfigResponse.ConfigInfo.N")
+		require.True(t, info.IsSignatureVerificationEnabled,
+			"Move is_signature_verification_enabled must map to OCRConfigResponse.ConfigInfo.IsSignatureVerificationEnabled")
+		require.NotEmpty(t, resp.OCRConfig.Signers, "signers must decode")
+		require.NotEmpty(t, resp.OCRConfig.Transmitters, "transmitters (vector<address>, 0x-hex) must decode")
 	})
 }

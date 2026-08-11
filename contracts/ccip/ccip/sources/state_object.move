@@ -169,7 +169,14 @@ public fun execute_ownership_transfer_to_mcms(
         to,
         publisher_wrapper,
         McmsCallback {},
-        vector[b"fee_quoter", b"rmn_remote", b"state_object", b"token_admin_registry"],
+        vector[
+            b"fee_quoter",
+            b"rmn_remote",
+            b"receiver_registry",
+            b"state_object",
+            b"token_admin_registry",
+            b"upgrade_registry",
+        ],
         ctx,
     );
 }
@@ -341,8 +348,8 @@ public fun mcms_execute_ownership_transfer(
     let package_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
-
+    // Release the upgrade cap before `release_cap`, which removes the registry proof state
+    // that `release_upgrade_cap` depends on.
     if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
         let upgrade_cap = mcms_deployer::release_upgrade_cap(
             deployer_state,
@@ -351,6 +358,8 @@ public fun mcms_execute_ownership_transfer(
         );
         transfer::public_transfer(upgrade_cap, to);
     };
+
+    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
 
     execute_ownership_transfer(ref, owner_cap, to, ctx);
 }

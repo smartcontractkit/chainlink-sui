@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
+	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
@@ -22,10 +24,11 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
 	aptosBalanceMonitor "github.com/smartcontractkit/chainlink-aptos/relayer/monitor"
-	chainreaderConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	aptosTypes "github.com/smartcontractkit/chainlink-aptos/relayer/types"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	chainreader "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
-	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
@@ -45,7 +48,8 @@ type SuiRelayer struct {
 	txm            *txm.SuiTxm
 	balanceMonitor services.Service
 
-	indexer *indexer.Indexer
+	indexer     *indexer.Indexer
+	readerCache *chainreader.Cache
 }
 
 var _ types.Relayer = &SuiRelayer{}
@@ -71,6 +75,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node config: %w", err)
 	}
+	loggerInstance.Infof("Selected Sui node %q for chain %s", *nodeConfig.Name, id)
 	store := txm.NewTxmStoreImpl(loggerInstance)
 
 	timeout, err := time.ParseDuration(*cfg.TransactionManager.TransactionTimeout)
@@ -93,63 +98,88 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		TransactionRetentionSecs: *cfg.TransactionManager.TransactionRetentionSecs,
 	}
 
+	// One ReaderCache is shared by the read client (object-metadata caching) and the ChainReader (read-call
+	// caching) so each relayer instance stops re-fetching the same version-stable shared objects on every
+	// config-poll cycle.
+	readerCache := chainreader.NewCache(loggerInstance, chainreader.DefaultCacheConfig())
+
+	ptbClientConfig := client.PTBClientConfig{
+		GrpcTarget:            *nodeConfig.GrpcTarget,
+		GrpcToken:             *nodeConfig.GrpcToken,
+		TransactionTimeout:    timeout,
+		MaxConcurrentRequests: maxConcurrentRequests * 3,
+		KeystoreService:       keystore,
+		DefaultRequestType:    client.TransactionRequestType(requestType),
+		ObjectCache:           readerCache,
+	}
+
 	// Use config values instead of constants
-	suiClient, err := client.NewPTBClient(
-		loggerInstance,
-		nodeConfig.URL.String(),
-		nil,
-		timeout,
-		keystore,
-		// Use 3 times more concurrency allowance for the main client due to core making
-		// frequent RPC calls to get latest values
-		maxConcurrentRequests*3,
-		client.TransactionRequestType(requestType),
-	)
+	suiClient, err := client.NewPTBClient(loggerInstance, ptbClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
+	}
+
+	indexerClientConfig := client.PTBClientConfig{
+		GrpcTarget:            *nodeConfig.GrpcTarget,
+		GrpcToken:             *nodeConfig.GrpcToken,
+		TransactionTimeout:    timeout,
+		MaxConcurrentRequests: maxConcurrentRequests,
+		KeystoreService:       keystore,
+		DefaultRequestType:    client.TransactionRequestType(requestType),
 	}
 
 	// Use a separate client for the indexers to avoid rate limiting
-	suiClientIndexers, err := client.NewPTBClient(
-		loggerInstance,
-		nodeConfig.URL.String(),
-		nil,
-		timeout,
-		keystore,
-		maxConcurrentRequests,
-		client.TransactionRequestType(requestType),
-	)
+	suiClientIndexers, err := client.NewPTBClient(loggerInstance, indexerClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
 
-	// Setup indexers
-	txnIndexer := indexer.NewTransactionsIndexer(
-		db,
-		loggerInstance,
-		suiClientIndexers,
-		time.Duration(*cfg.TransactionsIndexer.PollingIntervalSecs)*time.Second,
-		time.Duration(*cfg.TransactionsIndexer.SyncTimeoutSecs)*time.Second,
-		// start without any configs, they will be set when ChainReader is initialized and gets a reference
-		// to the transaction indexer to avoid having to reading ChainReader configs here as well
-		map[string]*chainreaderConfig.ChainReaderEvent{},
-	)
+	// Setup indexers with checkpoint-based architecture.
+	// The ChainPoller fetches checkpoints and fans them out to the EventsIndexer and
+	// TransactionsIndexer. NewIndexer constructs and wires all three together; selectors and
+	// transaction configs are registered later when the ChainReader binds contracts.
 
-	evIndexer := indexer.NewEventIndexer(
-		db,
-		loggerInstance,
-		suiClientIndexers,
-		// start without any selectors, they will be added during .Bind() calls on ChainReader
-		[]*client.EventSelector{},
-		time.Duration(*cfg.EventsIndexer.PollingIntervalSecs)*time.Second,
-		time.Duration(*cfg.EventsIndexer.SyncTimeoutSecs)*time.Second,
-	)
+	// Build ChainPoller config from TOML settings
+	pollingInterval, err := common.DurationFromSeconds(*cfg.ChainPoller.PollingIntervalSecs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller polling interval: %w", err)
+	}
+	syncTimeout, err := common.DurationFromSeconds(*cfg.ChainPoller.SyncTimeoutSecs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller sync timeout: %w", err)
+	}
+	channelBufferSize, err := common.IntFromUint64(*cfg.ChainPoller.ChannelBufferSize)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller channel buffer size: %w", err)
+	}
+	pollerWorkers, err := common.IntFromUint64(*cfg.ChainPoller.MaxConcurrentWorkers)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller max concurrent workers: %w", err)
+	}
+	pollerChunkSize, err := common.IntFromUint64(*cfg.ChainPoller.CatchupChunkSize)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain poller catchup chunk size: %w", err)
+	}
 
-	indexerInstance := indexer.NewIndexer(
-		loggerInstance,
-		evIndexer,
-		txnIndexer,
-	)
+	pollerConfig := sui.ChainPollerConfig{
+		PollingInterval:         pollingInterval,
+		SyncTimeout:             syncTimeout,
+		BackfillCheckpointCount: cfg.ChainPoller.BackfillCheckpointCount,
+		StartCheckpointSequence: cfg.ChainPoller.StartCheckpointSequence,
+		ChannelBufferSize:       channelBufferSize,
+	}
+
+	// Create main indexer that constructs and orchestrates the poller + consumer indexers.
+	// A separate client (suiClientIndexers) is used for the poller to avoid rate limiting.
+	indexerInstance := indexer.NewIndexer(indexer.Params{
+		Logger:                      loggerInstance,
+		DB:                          db,
+		Client:                      suiClientIndexers,
+		PollerConfig:                pollerConfig,
+		PollerWorkers:               pollerWorkers,
+		PollerChunkSize:             pollerChunkSize,
+		PollerReplayCheckpointCount: *cfg.ChainPoller.ReplayCheckpointCount,
+	})
 
 	loggerInstance.Infof("Creating retry manager. NumberRetries: %d", *cfg.TransactionManager.MaxTxRetryAttempts)
 	//nolint:gosec
@@ -169,14 +199,14 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		return nil, fmt.Errorf("error in NewRelayer (monitor) - invalid balance poll period: %w", err)
 	}
 	balanceMonitorService, err := monitor.NewBalanceMonitor(monitor.BalanceMonitorOpts{
-		ChainInfo: aptosBalanceMonitor.ChainInfo{
+		ChainInfo: aptosTypes.ChainInfo{
 			ChainFamilyName: "sui",
 			ChainID:         *cfg.ChainID,
 			NetworkName:     *cfg.NetworkName,
 			NetworkNameFull: *cfg.NetworkNameFull,
 		},
 		Config: aptosBalanceMonitor.GenericBalanceConfig{
-			BalancePollPeriod: balancePollPeriod,
+			BalancePollPeriod: &balancePollPeriod,
 		},
 		Logger:   loggerInstance,
 		Keystore: keystore,
@@ -198,6 +228,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		balanceMonitor: balanceMonitorService,
 		db:             db,
 		indexer:        indexerInstance,
+		readerCache:    readerCache,
 	}, nil
 }
 
@@ -226,7 +257,14 @@ func (r *SuiRelayer) Close() error {
 	return r.StopOnce("SuiRelayer", func() error {
 		r.lggr.Debug("Stopping Sui Relayer")
 
-		return services.CloseAll(r.txm, r.indexer, r.balanceMonitor)
+		closeErr := services.CloseAll(r.txm, r.indexer, r.balanceMonitor)
+		if r.client != nil {
+			if err := r.client.Close(); err != nil {
+				closeErr = errors.Join(closeErr, fmt.Errorf("failed to close Sui client: %w", err))
+			}
+		}
+
+		return closeErr
 	})
 }
 
@@ -270,7 +308,7 @@ func (r *SuiRelayer) Transact(ctx context.Context, from, to string, amount *big.
 
 // Relayer interface
 func (r *SuiRelayer) NewContractWriter(_ context.Context, configBytes []byte) (types.ContractWriter, error) {
-	chainConfig := cwConfig.ChainWriterConfig{}
+	chainConfig := sui.ChainWriterConfig{}
 	err := json.Unmarshal(configBytes, &chainConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractWriter: %w", err)
@@ -287,14 +325,14 @@ func (r *SuiRelayer) NewContractWriter(_ context.Context, configBytes []byte) (t
 }
 
 func (r *SuiRelayer) NewContractReader(ctx context.Context, contractReaderConfig []byte) (types.ContractReader, error) {
-	chainConfig := chainreaderConfig.ChainReaderConfig{}
+	chainConfig := sui.ChainReaderConfig{}
 	err := json.Unmarshal(contractReaderConfig, &chainConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractReader: %w", err)
 	}
 
 	// TODO: validate chainConfig
-	chainReader, err := chainreader.NewChainReader(ctx, r.lggr, r.client, chainConfig, r.db, r.indexer)
+	chainReader, err := chainreader.NewChainReader(ctx, r.lggr, r.client, chainConfig, r.db, r.indexer, r.readerCache)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractReader: %w", err)
 	}
@@ -333,10 +371,17 @@ func (r *SuiRelayer) NewAutomationProvider(ctx context.Context, rargs types.Rela
 	return nil, errors.New("automation not supported for Sui")
 }
 
-// Replay implements the transaction replay functionality.
-// Currently not supported for Sui.
-func (r *SuiRelayer) Replay(ctx context.Context, chainID string, data map[string]any) error {
-	return errors.New("replay not supported for Sui")
+// Replay re-scans a window of checkpoints starting at the given sequence (ChainPoller's
+// ReplayCheckpointCount, capped at the chain tip; 0 re-scans to the tip) so their events and
+// transactions are re-indexed. fromBlock is a Sui checkpoint sequence number in decimal; args
+// is unused. Re-inserts are idempotent, so replaying already-indexed checkpoints is safe.
+func (r *SuiRelayer) Replay(ctx context.Context, fromBlock string, args map[string]any) error {
+	fromSeq, err := strconv.ParseUint(fromBlock, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid fromBlock %q: expected a Sui checkpoint sequence number: %w", fromBlock, err)
+	}
+
+	return r.indexer.RescanFromCheckpoint(ctx, fromSeq)
 }
 
 // NewCCIPCommitProvider returns a new CCIP commit provider for the given relay and plugin arguments.

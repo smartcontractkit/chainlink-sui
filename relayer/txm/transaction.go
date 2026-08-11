@@ -6,15 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/google/uuid"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -24,6 +24,7 @@ import (
 )
 
 const defaultGasBudget = 200000000
+const suiCoinType = "0x2::coin::Coin<0x2::sui::SUI>"
 
 type SuiFunction struct {
 	PackageId string
@@ -63,9 +64,11 @@ type SuiTx struct {
 	Digest                string
 	LastUpdatedAt         uint64
 	TxError               *suierrors.SuiError
+	BroadcastError        string
 	GasBudget             uint64
 	Ptb                   *transaction.Transaction
 	PaymentCoinsObjectRef []transaction.SuiObjectRef
+	CoinManager           GasCoinManager
 }
 
 // UpdateBSCPayload regenerates the BCS payload and signatures for the SuiTx.
@@ -91,7 +94,7 @@ func (tx *SuiTx) UpdateBSCPayload(
 		return fmt.Errorf("failed to get address from public key: %w", err)
 	}
 
-	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, tx.Ptb, tx.GasBudget, lggr)
+	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, tx.Ptb, tx.GasBudget, lggr, tx.CoinManager, tx.TransactionID)
 	if err != nil {
 		return fmt.Errorf("failed to prepare PTB transaction: %w", err)
 	}
@@ -155,6 +158,7 @@ func TransactionIDGenerator() string {
 //   - ptb: The ProgrammableTransaction block containing the commands to be executed.
 //   - simulateTx: Boolean flag indicating whether to simulate the transaction (currently unused).
 //   - gasManager: Gas manager for estimating gas requirements.
+//   - coinManager: Coin manager for managing gas coins.
 //
 // Returns:
 //   - *SuiTx: A complete transaction object ready for submission with accurate gas estimation.
@@ -171,6 +175,7 @@ func GeneratePTBTransactionWithGasEstimation(
 	ptb *transaction.Transaction,
 	simulateTx bool,
 	gasManager GasManager,
+	coinManager GasCoinManager,
 ) (*SuiTx, error) {
 	signerAddress, err := client.GetAddressFromPublicKey(pubKey)
 	if err != nil {
@@ -182,7 +187,7 @@ func GeneratePTBTransactionWithGasEstimation(
 
 	// Step 1: Determine initial gas budget for preliminary transaction
 	var preliminaryGasBudget uint64
-	if txMetadata.GasLimit != nil {
+	if txMetadata != nil && txMetadata.GasLimit != nil {
 		preliminaryGasBudget = txMetadata.GasLimit.Uint64()
 	} else {
 		preliminaryGasBudget = uint64(defaultGasBudget)
@@ -193,7 +198,8 @@ func GeneratePTBTransactionWithGasEstimation(
 		"preliminaryGasBudget", preliminaryGasBudget)
 
 	preliminaryTx, err := buildPreliminaryTransaction(
-		ctx, signerAddress, suiClient, ptb, preliminaryGasBudget, lggr,
+		ctx, signerAddress, suiClient, ptb,
+		preliminaryGasBudget, lggr, coinManager, transactionID,
 	)
 	if err != nil {
 		lggr.Errorf("failed to build preliminary transaction: %v", err)
@@ -275,65 +281,24 @@ func GeneratePTBTransactionWithGasEstimation(
 		LastUpdatedAt:         GetCurrentUnixTimestamp(),
 		TxError:               nil,
 		GasBudget:             finalGasBudget,
+		CoinManager:           coinManager,
 		Ptb:                   ptb,
 		PaymentCoinsObjectRef: preliminaryTx.PaymentCoinsObjectRef, // Use the coins selected in preliminary tx
 	}, nil
 }
 
-// SelectCoinsForGasBudget selects the optimal set of coins that match the required gas budget.
-// It tries to find coins whose total balance is equal to or greater than the gas budget.
-// If exact match isn't possible, it returns coins with the smallest excess over the budget.
-func SelectCoinsForGasBudget(gasBudget uint64, availableCoins []models.CoinData) ([]models.CoinData, error) {
-	if len(availableCoins) == 0 {
-		return nil, fmt.Errorf("no coins available for gas budget")
-	}
-
-	// Filter only SUI coins for gas use
-	var suiCoins []models.CoinData
-	for _, coin := range availableCoins {
-		if strings.HasPrefix(coin.CoinType, "0x2::sui::SUI") {
-			suiCoins = append(suiCoins, coin)
-		}
-	}
-
+// SelectCoinsForGasBudget selects the set of SUI coin objects that match the required gas budget.
+func SelectCoinsForGasBudget(gasBudget uint64, suiCoins []*suirpcv2.Object) ([]*suirpcv2.Object, error) {
 	if len(suiCoins) == 0 {
-		return nil, fmt.Errorf("no SUI coins available for gas budget")
+		return nil, errors.New("no coins available for gas budget")
 	}
 
-	// parse all balances once
-	balances := make([]uint64, len(suiCoins))
-	for i, coin := range suiCoins {
-		var balance uint64
-		_, err := fmt.Sscanf(coin.Balance, "%d", &balance)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse coin balance: %w", err)
-		}
-		balances[i] = balance
-	}
+	totalBalance := uint64(0)
+	selected := make([]*suirpcv2.Object, 0, len(suiCoins))
 
-	// create index slice and sort by balance (descending)
-	indices := make([]int, len(suiCoins))
-	for i := range indices {
-		indices[i] = i
-	}
-	sort.Slice(indices, func(i, j int) bool {
-		return balances[indices[i]] > balances[indices[j]]
-	})
-
-	// check if there's a single coin that covers the gas budget
-	for _, idx := range indices {
-		if balances[idx] >= gasBudget {
-			return []models.CoinData{suiCoins[idx]}, nil
-		}
-	}
-
-	// if no single coin is sufficient, find the minimal combination
-	selected := make([]models.CoinData, 0)
-	var totalBalance uint64
-
-	for _, idx := range indices {
-		selected = append(selected, suiCoins[idx])
-		totalBalance += balances[idx]
+	for _, coin := range suiCoins {
+		selected = append(selected, coin)
+		totalBalance += coin.GetBalance()
 
 		if totalBalance >= gasBudget {
 			break
@@ -358,33 +323,28 @@ func preparePTBTransaction(
 	ptb *transaction.Transaction,
 	gasBudget uint64,
 	lggr logger.Logger,
+	coinManager GasCoinManager,
+	txID string,
 ) (txBytes string, paymentCoins []transaction.SuiObjectRef, err error) {
-	// Get current epoch
-	epoch, err := suiClient.GetLatestEpoch(ctx)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to get current epoch: %w", err)
-	}
-
-	lggr.Debugw("Current epoch", "epoch", epoch)
-
-	// Parse epoch into uint64
-	epochUint, err := strconv.ParseUint(epoch, 10, 64)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to parse epoch: %w", err)
-	}
-
-	// Get available coins for gas
-	coinData, err := suiClient.GetCoinsByAddress(ctx, signerAddress)
+	// Get available sui coins for gas
+	coinData, err := suiClient.QueryCoinsByAddress(ctx, signerAddress, suiCoinType)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get coins by address: %w", err)
 	}
 
 	// Filter coins that are not locked
-	filteredCoinData := make([]models.CoinData, 0)
+	filteredCoinData := make([]*suirpcv2.Object, 0, len(coinData))
 	for _, coin := range coinData {
-		if coin.LockedUntilEpoch == 0 || coin.LockedUntilEpoch < epochUint {
-			filteredCoinData = append(filteredCoinData, coin)
+		coinObjectIDBytes, coinErr := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coin.GetObjectId()))
+		if coinErr != nil {
+			return "", nil, fmt.Errorf("failed to convert coin object ID to bytes: %w", coinErr)
 		}
+
+		if coinManager.IsCoinReserved(*coinObjectIDBytes) {
+			continue
+		}
+
+		filteredCoinData = append(filteredCoinData, coin)
 	}
 
 	// Select coins for gas budget
@@ -395,29 +355,33 @@ func preparePTBTransaction(
 
 	lggr.Debugw("Gas budget coins selected",
 		"gasBudget", gasBudget,
-		"numCoins", len(gasBudgetCoins),
-		"gasBudgetCoins", gasBudgetCoins)
+		"numCoins", len(gasBudgetCoins))
 
 	// Create payment coins using block-vision SDK format
+	// TODO: use mapGrpcCoinToObjectRef instead
 	paymentCoins = make([]transaction.SuiObjectRef, 0, len(gasBudgetCoins))
 	for _, coin := range gasBudgetCoins {
-		coinObjectIdBytes, coinErr := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coin.CoinObjectId))
+		coinObjectIDBytes, coinErr := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coin.GetObjectId()))
 		if coinErr != nil {
 			return "", nil, coinErr
 		}
-		versionUint, coinErr := strconv.ParseUint(coin.Version, 10, 64)
-		if coinErr != nil {
-			return "", nil, fmt.Errorf("failed to parse version: %w", coinErr)
-		}
-		digestBytes, coinErr := transaction.ConvertObjectDigestStringToBytes(models.ObjectDigest(coin.Digest))
+		digestBytes, coinErr := transaction.ConvertObjectDigestStringToBytes(models.ObjectDigest(coin.GetDigest()))
 		if coinErr != nil {
 			return "", nil, fmt.Errorf("failed to convert object digest for payment coin: %w", coinErr)
 		}
 		paymentCoins = append(paymentCoins, transaction.SuiObjectRef{
-			ObjectId: *coinObjectIdBytes,
-			Version:  versionUint,
+			ObjectId: *coinObjectIDBytes,
+			Version:  coin.GetVersion(),
 			Digest:   *digestBytes,
 		})
+	}
+
+	// Reserve the selected coins atomically before they are baked into the signed
+	// payload. Selection above only filters against the current reservation view;
+	// claiming the set here (under the coin manager's lock) prevents two concurrent
+	// transactions from selecting and signing against the same gas coin.
+	if err = coinManager.TryReserveCoins(ctx, txID, paymentCoins, nil); err != nil {
+		return "", nil, fmt.Errorf("failed to reserve selected coins: %w", err)
 	}
 
 	// Set transaction parameters
@@ -425,6 +389,14 @@ func preparePTBTransaction(
 	ptb.SetSender(models.SuiAddress(signerAddress))
 	ptb.SetGasOwner(models.SuiAddress(signerAddress))
 	ptb.SetGasPayment(paymentCoins)
+	ptb.SetSigner(&signer.Signer{Address: signerAddress})
+
+	// Set the gas price
+	gasPrice, err := suiClient.GetReferenceGasPrice(ctx)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get reference gas price: %w", err)
+	}
+	ptb.SetGasPrice(gasPrice.Uint64())
 
 	// Get transaction bytes
 	txBytes, err = toBCSBase64(ctx, ptb, signerAddress, lggr, gasBudget)
@@ -444,9 +416,11 @@ func buildPreliminaryTransaction(
 	ptb *transaction.Transaction,
 	gasBudget uint64,
 	lggr logger.Logger,
+	coinManager GasCoinManager,
+	txID string,
 ) (*SuiTx, error) {
 	// Use common preparation logic
-	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, ptb, gasBudget, lggr)
+	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, ptb, gasBudget, lggr, coinManager, txID)
 	if err != nil {
 		return nil, err
 	}
@@ -457,6 +431,7 @@ func buildPreliminaryTransaction(
 		Metadata:              &commontypes.TxMeta{GasLimit: big.NewInt(int64(gasBudget))},
 		Sender:                signerAddress,
 		PaymentCoinsObjectRef: paymentCoins,
+		Ptb:                   ptb,
 	}, nil
 }
 
@@ -490,8 +465,6 @@ func toBCSBase64(
 	if !tx.Data.V1.GasData.IsAllSet() {
 		return "", errors.New("gas data not all set")
 	}
-
-	lggr.Debugw("Transaction Data", "Transaction Data", tx.Data)
 
 	bcsEncodedMsg, err := tx.Data.Marshal()
 	if err != nil {

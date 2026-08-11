@@ -11,6 +11,7 @@ import (
     module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
     module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
     module_upgrade_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/upgrade_registry"
+    module_ccip_burn_mint_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_burn_mint_token/ccip_burn_mint_token"
     module_dummy_receiver "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_dummy_receiver/ccip_dummy_receiver"
     module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
     module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
@@ -19,8 +20,8 @@ import (
     module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
     module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
     module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
-    module_usdc_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/usdc_token_pool"
     module_managed_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/managed_token/managed_token"
+    module_faucet "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/managed_token_faucet/managed_token_faucet"
     module_mock_eth_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/mock_eth_token/mock_eth_token"
     module_mock_link_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/mock_link_token/mock_link_token"
     module_link "github.com/smartcontractkit/chainlink-sui/bindings/generated/link/link"
@@ -43,6 +44,7 @@ var FunctionInfoByModule = map[string]string{
     "state_object": module_state_object.FunctionInfo,
     "token_admin_registry": module_token_admin_registry.FunctionInfo,
     "upgrade_registry": module_upgrade_registry.FunctionInfo,
+    "ccip_burn_mint_token": module_ccip_burn_mint_token.FunctionInfo,
     "dummy_receiver": module_dummy_receiver.FunctionInfo,
     "offramp": module_offramp.FunctionInfo,
     "onramp": module_onramp.FunctionInfo,
@@ -51,8 +53,8 @@ var FunctionInfoByModule = map[string]string{
     "burn_mint_token_pool": module_burn_mint_token_pool.FunctionInfo,
     "lock_release_token_pool": module_lock_release_token_pool.FunctionInfo,
     "managed_token_pool": module_managed_token_pool.FunctionInfo,
-    "usdc_token_pool": module_usdc_token_pool.FunctionInfo,
     "managed_token": module_managed_token.FunctionInfo,
+    "faucet": module_faucet.FunctionInfo,
     "mock_eth_token": module_mock_eth_token.FunctionInfo,
     "mock_link_token": module_mock_link_token.FunctionInfo,
     "link": module_link.FunctionInfo,

@@ -17,11 +17,13 @@ type ManagedTokenPoolDeployInput struct {
 	CCIPPackageId         string
 	ManagedTokenPackageId string
 	MCMSAddress           string
+	FastMcmsAddress       string
 	MCMSOwnerAddress      string
 }
 
 type ManagedTokenPoolDeployOutput struct {
-	OwnerCapObjectId string
+	OwnerCapObjectId   string
+	UpgradeCapObjectId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolDeployInput) (output sui_ops.OpTxResult[ManagedTokenPoolDeployOutput], err error) {
@@ -34,6 +36,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedT
 		input.CCIPPackageId,
 		input.ManagedTokenPackageId,
 		input.MCMSAddress,
+		input.FastMcmsAddress,
 		input.MCMSOwnerAddress,
 		deps.SuiRPC,
 	)
@@ -46,11 +49,17 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedT
 		return sui_ops.OpTxResult[ManagedTokenPoolDeployOutput]{}, fmt.Errorf("failed to find OwnerCap object ID: %w", err)
 	}
 
+	upgradeCap, err := bind.FindObjectIdFromPublishTx(*tx, "package", "UpgradeCap")
+	if err != nil {
+		return sui_ops.OpTxResult[ManagedTokenPoolDeployOutput]{}, fmt.Errorf("failed to find UpgradeCap object ID: %w", err)
+	}
+
 	return sui_ops.OpTxResult[ManagedTokenPoolDeployOutput]{
 		Digest:    tx.Digest,
 		PackageId: tokenPoolPackage.Address(),
 		Objects: ManagedTokenPoolDeployOutput{
-			OwnerCapObjectId: ownerCapObj,
+			OwnerCapObjectId:   ownerCapObj,
+			UpgradeCapObjectId: upgradeCap,
 		},
 	}, err
 }

@@ -450,6 +450,12 @@ module test::offramp {
         };
         event::emit(config_set);
 
+        let config_set2 = SourceChainConfigSet {
+            source_chain_selector: 14767482510784806043,
+            source_chain_config: config
+        };
+        event::emit(config_set2);
+
         let mut off_ramp_object = OffRampObject {
             id: object::new(ctx)
         };

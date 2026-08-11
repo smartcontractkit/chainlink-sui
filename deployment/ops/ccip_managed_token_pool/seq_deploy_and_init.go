@@ -11,17 +11,18 @@ import (
 type DeployAndInitManagedTokenPoolInput struct {
 	// deploy
 	CCIPPackageId         string
-	ManagedTokenPackageId string
+	ManagedTokenPackageId string // ManagedToken
 	MCMSAddress           string
+	FastMcmsAddress       string
 	MCMSOwnerAddress      string
 	// initialize
-	CoinObjectTypeArg         string
-	CCIPObjectRefObjectId     string
-	ManagedTokenStateObjectId string
-	ManagedTokenOwnerCapId    string
-	CoinMetadataObjectId      string
-	MintCapObjectId           string
-	TokenPoolAdministrator    string
+	CoinObjectTypeArg         string // CCIPBnM Token TypeArgs
+	CCIPObjectRefObjectId     string // CCIP ObjectRef
+	ManagedTokenStateObjectId string // ManagedToken
+	ManagedTokenOwnerCapId    string // ManagedToken
+	CoinMetadataObjectId      string // CCIPBnM Token
+	MintCapObjectId           string // ManagedToken
+	TokenPoolAdministrator    string // put yourself
 	// apply chain updates
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -38,8 +39,9 @@ type DeployAndInitManagedTokenPoolInput struct {
 }
 
 type DeployManagedTokenPoolObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	OwnerCapObjectId   string
+	StateObjectId      string
+	UpgradeCapObjectId string
 }
 
 type DeployManagedTokenPoolOutput struct {
@@ -57,6 +59,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 			CCIPPackageId:         input.CCIPPackageId,
 			ManagedTokenPackageId: input.ManagedTokenPackageId,
 			MCMSAddress:           input.MCMSAddress,
+			FastMcmsAddress:       input.FastMcmsAddress,
 			MCMSOwnerAddress:      input.MCMSOwnerAddress,
 		})
 		if err != nil {
@@ -144,8 +147,9 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 		return DeployManagedTokenPoolOutput{
 			ManagedTPPackageId: deployReport.Output.PackageId,
 			Objects: DeployManagedTokenPoolObjects{
-				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
-				StateObjectId:    initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectId:   deployReport.Output.Objects.OwnerCapObjectId,
+				StateObjectId:      initReport.Output.Objects.StateObjectId,
+				UpgradeCapObjectId: deployReport.Output.Objects.UpgradeCapObjectId,
 			},
 		}, nil
 	},

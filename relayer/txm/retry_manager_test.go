@@ -35,7 +35,7 @@ func TestCallbackRetryManager_IsRetryable_Scenarios(t *testing.T) {
 		{
 			name:          "Gas error with retries available returns GasBump",
 			txRetries:     0,
-			errMessage:    "Transaction failed: GasPriceTooHigh", // Should map to GasErrors by suierrors mapping
+			errMessage:    "Transaction failed: GasPriceTooHigh", // GasBump
 			maxRetries:    3,
 			expectedRetry: true,
 			expectedStrat: txm.GasBump,
@@ -43,14 +43,22 @@ func TestCallbackRetryManager_IsRetryable_Scenarios(t *testing.T) {
 		{
 			name:          "Non gas retryable error returns ExponentialBackoff",
 			txRetries:     0,
-			errMessage:    "Transaction failed: PackageVerificationTimeout", // Should fall under default (non gas) retryable
+			errMessage:    "Transaction failed: PackageVerificationTimeout", // ExponentialBackoff
 			maxRetries:    3,
 			expectedRetry: true,
 			expectedStrat: txm.ExponentialBackoff,
 		},
 		{
+			name:          "Locked coin error returns CoinRefresh",
+			txRetries:     0,
+			errMessage:    "Transaction failed: already locked by a different transaction", // CoinRefresh
+			maxRetries:    3,
+			expectedRetry: true,
+			expectedStrat: txm.CoinRefresh,
+		},
+		{
 			name:          "Exceeded max retries returns NoRetry",
-			txRetries:     3,
+			txRetries:     4,
 			errMessage:    "Transaction failed: GasPriceTooHigh",
 			maxRetries:    3,
 			expectedRetry: false,

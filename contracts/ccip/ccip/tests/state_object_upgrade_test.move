@@ -11,6 +11,7 @@ use sui::test_scenario::{Self as ts, Scenario};
 
 const ADMIN: address = @0xA;
 const PACKAGE_OWNER: address = @0xB;
+const TEST_PACKAGE: address = @0xCCCC;
 
 fun init_mcms_and_ccip(ctx: &mut TxContext) {
     mcms_account::test_init(ctx);
@@ -62,16 +63,14 @@ fun test_upgrade_flow_updates_state_correctly() {
 
     ts::next_tx(&mut scenario, PACKAGE_OWNER);
     let mut deployer_state = ts::take_shared<DeployerState>(&scenario);
-    let registry = ts::take_shared<Registry>(&scenario);
     let ctx = ts::ctx(&mut scenario);
 
-    let upgrade_cap = package::test_publish(@ccip.to_id(), ctx);
+    let upgrade_cap = package::test_publish(TEST_PACKAGE.to_id(), ctx);
     let old_package_address = upgrade_cap.package().to_address();
     let cap_id = object::id(&upgrade_cap);
 
-    mcms_deployer::register_upgrade_cap(
+    mcms_deployer::test_register_upgrade_cap(
         &mut deployer_state,
-        &registry,
         upgrade_cap,
         ctx,
     );
@@ -80,7 +79,6 @@ fun test_upgrade_flow_updates_state_correctly() {
     assert!(mcms_deployer::has_upgrade_cap(&deployer_state, old_package_address), 0);
 
     ts::return_shared(deployer_state);
-    ts::return_shared(registry);
 
     // Perform upgrade: authorize -> upgrade -> commit
     ts::next_tx(&mut scenario, ADMIN);
@@ -165,21 +163,18 @@ fun test_cannot_authorize_upgrade_with_old_package_address_after_upgrade() {
     {
         ts::next_tx(&mut scenario, PACKAGE_OWNER);
         let mut deployer_state = ts::take_shared<DeployerState>(&scenario);
-        let registry = ts::take_shared<Registry>(&scenario);
         let ctx = ts::ctx(&mut scenario);
 
-        let upgrade_cap = package::test_publish(@ccip.to_id(), ctx);
+        let upgrade_cap = package::test_publish(TEST_PACKAGE.to_id(), ctx);
         old_package_address = upgrade_cap.package().to_address();
 
-        mcms_deployer::register_upgrade_cap(
+        mcms_deployer::test_register_upgrade_cap(
             &mut deployer_state,
-            &registry,
             upgrade_cap,
             ctx,
         );
 
         ts::return_shared(deployer_state);
-        ts::return_shared(registry);
     };
 
     // Perform one upgrade
@@ -247,21 +242,18 @@ fun test_multiple_upgrades_chain_correctly() {
     {
         ts::next_tx(&mut scenario, PACKAGE_OWNER);
         let mut deployer_state = ts::take_shared<DeployerState>(&scenario);
-        let registry = ts::take_shared<Registry>(&scenario);
         let ctx = ts::ctx(&mut scenario);
 
-        let upgrade_cap = package::test_publish(@ccip.to_id(), ctx);
+        let upgrade_cap = package::test_publish(TEST_PACKAGE.to_id(), ctx);
         current_package_address = upgrade_cap.package().to_address();
 
-        mcms_deployer::register_upgrade_cap(
+        mcms_deployer::test_register_upgrade_cap(
             &mut deployer_state,
-            &registry,
             upgrade_cap,
             ctx,
         );
 
         ts::return_shared(deployer_state);
-        ts::return_shared(registry);
     };
 
     // Perform 3 consecutive upgrades

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
@@ -60,28 +60,28 @@ func (p CCIPPackage) TokenAdminRegistry() module_token_admin_registry.ITokenAdmi
 	return p.tokenAdminRegistry
 }
 
-func NewCCIP(address string, client sui.ISuiAPI) (CCIP, error) {
-	feeQuoterContract, err := module_fee_quoter.NewFeeQuoter(address, client)
+func NewCCIP(address string, chainClient client.BindingsClient) (CCIP, error) {
+	feeQuoterContract, err := module_fee_quoter.NewFeeQuoter(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
 
-	nonceManagerContract, err := module_nonce_manager.NewNonceManager(address, client)
+	nonceManagerContract, err := module_nonce_manager.NewNonceManager(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
 
-	receiverRegistryContract, err := module_receiver_registry.NewReceiverRegistry(address, client)
+	receiverRegistryContract, err := module_receiver_registry.NewReceiverRegistry(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
 
-	rmnRemoteContract, err := module_rmn_remote.NewRmnRemote(address, client)
+	rmnRemoteContract, err := module_rmn_remote.NewRmnRemote(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
 
-	tokenAdminRegistryContract, err := module_token_admin_registry.NewTokenAdminRegistry(address, client)
+	tokenAdminRegistryContract, err := module_token_admin_registry.NewTokenAdminRegistry(address, chainClient)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func NewCCIP(address string, client sui.ISuiAPI) (CCIP, error) {
 	}, nil
 }
 
-func PublishCCIP(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, mcmsAddress string, mcmsOwner string, suiRPC string) (CCIP, *models.SuiTransactionBlockResponse, error) {
+func PublishCCIP(ctx context.Context, opts *bind.CallOpts, chainClient client.BindingsClient, mcmsAddress string, fastMcmsAddress string, mcmsOwner string, suiRPC string) (CCIP, *models.SuiTransactionBlockResponse, error) {
 	signerAddr, err := opts.Signer.GetAddress()
 	if err != nil {
 		return nil, nil, err
@@ -109,6 +109,7 @@ func PublishCCIP(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, m
 
 	artifact, err := bind.CompilePackage(contracts.CCIP, map[string]string{
 		"mcms":       mcmsAddress,
+		"fast_mcms":  fastMcmsAddress,
 		"mcms_owner": mcmsOwner,
 		"ccip":       "0x0",
 		"signer":     signerAddr,
@@ -117,7 +118,8 @@ func PublishCCIP(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, m
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
+	//nolint:revive // var-naming: generated bindings keep packageId naming
+	packageId, tx, err := bind.PublishPackage(ctx, opts, chainClient, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
@@ -125,7 +127,7 @@ func PublishCCIP(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, m
 		return nil, nil, err
 	}
 
-	contract, err := NewCCIP(packageId, client)
+	contract, err := NewCCIP(packageId, chainClient)
 	if err != nil {
 		return nil, nil, err
 	}

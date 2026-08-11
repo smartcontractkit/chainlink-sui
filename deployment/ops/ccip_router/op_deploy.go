@@ -44,6 +44,7 @@ import (
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/router"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 type DeployCCIPRouterInput struct {
@@ -55,6 +56,7 @@ type DeployCCIPRouterObjects struct {
 	OwnerCapObjectId           string
 	RouterStateObjectId        string
 	RouterStatePointerObjectId string
+	UpgradeCapObjectId         string
 }
 
 var DeployCCIPRouterOp = cld_ops.NewOperation(
@@ -84,20 +86,21 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to find RouterObject ID in publish tx: %w", err)
 	}
 
-	ownerCapId, err := bind.DeriveObjectIDWithVectorU8Key(routerObjectId, []byte("CCIP_OWNABLE"))
+	ownerCapId, err := client.DeriveObjectIDWithVectorU8Key(routerObjectId, []byte("CCIP_OWNABLE"))
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to derive OwnerCap ID: %w", err)
 	}
 
-	routerStateId, err := bind.DeriveObjectIDWithVectorU8Key(routerObjectId, []byte("RouterState"))
+	routerStateId, err := client.DeriveObjectIDWithVectorU8Key(routerObjectId, []byte("RouterState"))
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to derive RouterState ID: %w", err)
 	}
 
 	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "router", "RouterState")
+	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "package", "UpgradeCap")
 
-	if err1 != nil || err2 != nil {
+	if err1 != nil || err2 != nil || err3 != nil {
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err)
 	}
 
@@ -163,12 +166,14 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 			OwnerCapObjectId:           ownerCapId,
 			RouterStateObjectId:        routerStateId,
 			RouterStatePointerObjectId: routerStatePointerId,
+			UpgradeCapObjectId:         obj3,
 		},
 	}, nil
 }
 
 type SetOnRampsInput struct {
 	RouterPackageId     string
+	LatestPackageId     string // optional: upgraded package ID for PTB execution when RouterPackageId is the MCMS registry identity
 	RouterStateObjectId string
 	OwnerCapObjectId    string
 	DestChainSelectors  []uint64
@@ -187,7 +192,11 @@ var SetOnRampsOp = cld_ops.NewOperation(
 )
 
 var setOnRampsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetOnRampsInput) (output sui_ops.OpTxResult[SetOnRampsObjects], err error) {
-	routerPackage, err := module_router.NewRouter(input.RouterPackageId, deps.Client)
+	binaryPkgId := input.RouterPackageId
+	if input.LatestPackageId != "" {
+		binaryPkgId = input.LatestPackageId
+	}
+	routerPackage, err := module_router.NewRouter(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[SetOnRampsObjects]{}, err
 	}
@@ -204,6 +213,10 @@ var setOnRampsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetO
 	call, err := sui_ops.ToTransactionCall(encodedCall, input.RouterStateObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[SetOnRampsObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestPackageId != "" {
+		call.LatestPackageID = call.PackageID
+		call.PackageID = input.RouterPackageId
 	}
 	if deps.Signer == nil {
 		b.Logger.Infow("Skipping execution of SetOnRamps on Router as per no Signer provided",

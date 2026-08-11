@@ -28,6 +28,7 @@ const TOKEN_ADDRESS_1: address =
 const TOKEN_POOL_ADDRESS_1: address =
     @0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270;
 const SOURCE_CHAIN_SELECTOR: u64 = 1000;
+const SOURCE_AMOUNT_18_DEC: u256 = 1_000_000_000_000_000_000;
 
 fun setup_test(): (Scenario, OwnerCap, CCIPObjectRef, DestTransferCap) {
     let mut scenario = ts::begin(OWNER);
@@ -48,6 +49,7 @@ fun setup_test(): (Scenario, OwnerCap, CCIPObjectRef, DestTransferCap) {
 
     // Initialize token admin registry
     registry::initialize(&mut ref, &owner_cap, scenario.ctx());
+    registry::initialize_local_decimals(&mut ref, &owner_cap, scenario.ctx());
 
     // Initialize receiver registry
     receiver_registry::initialize(&mut ref, &owner_cap, scenario.ctx());
@@ -195,7 +197,7 @@ public fun test_complete_token_transfer() {
     let (mut scenario, owner_cap, mut ref, dest_cap) = setup_test();
 
     // Register a token in the token admin registry
-    registry::register_pool_as_owner(
+    registry::register_pool_as_owner_v2(
         &owner_cap,
         &mut ref,
         TOKEN_ADDRESS_1,
@@ -206,6 +208,7 @@ public fun test_complete_token_transfer() {
         type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        9, // local_decimals
         scenario.ctx(),
     );
 
@@ -385,7 +388,7 @@ public fun test_complete_token_transfer_twice_should_fail() {
     let (mut scenario, owner_cap, mut ref, dest_cap) = setup_test();
 
     // Register a token in the token admin registry
-    registry::register_pool_as_owner(
+    registry::register_pool_as_owner_v2(
         &owner_cap,
         &mut ref,
         TOKEN_ADDRESS_1,
@@ -396,6 +399,7 @@ public fun test_complete_token_transfer_twice_should_fail() {
         type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
+        9, // local_decimals
         scenario.ctx(),
     );
 
@@ -433,6 +437,128 @@ public fun test_complete_token_transfer_twice_should_fail() {
     );
 
     // The following code won't be reached due to the expected failure above
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
+
+fun populate_token_message_receiver_params(
+    dest_cap: &DestTransferCap,
+    receiver_params: &mut offramp_state_helper::ReceiverParams,
+) {
+    // ABI-encoded u256(18) = remote decimals
+    let source_pool_data =
+        x"0000000000000000000000000000000000000000000000000000000000000012";
+
+    offramp_state_helper::add_dest_token_transfer(
+        dest_cap,
+        receiver_params,
+        RECEIVER_ADDRESS,
+        SOURCE_CHAIN_SELECTOR,
+        SOURCE_AMOUNT_18_DEC,
+        TOKEN_ADDRESS_1,
+        TOKEN_POOL_ADDRESS_1,
+        b"source_pool_address",
+        source_pool_data,
+        b"offchain_data",
+    );
+
+    let dest_token_amounts = client::new_dest_token_amounts(
+        vector[TOKEN_ADDRESS_1],
+        vector[SOURCE_AMOUNT_18_DEC],
+    );
+    let test_message = client::new_any2sui_message(
+        b"message_id_32_bytes_long_test_msg",
+        SOURCE_CHAIN_SELECTOR,
+        b"sender_address",
+        b"test_data",
+        @0x5432,
+        @0x12345,
+        dest_token_amounts,
+    );
+    offramp_state_helper::populate_message(dest_cap, receiver_params, test_message);
+}
+
+#[test]
+#[expected_failure(abort_code = offramp_state_helper::ETokenTransferNotCompleted)]
+public fun test_extract_before_complete_on_token_message_path() {
+    let (scenario, owner_cap, ref, dest_cap) = setup_test();
+
+    let mut receiver_params = offramp_state_helper::create_receiver_params(
+        &dest_cap,
+        SOURCE_CHAIN_SELECTOR,
+    );
+    populate_token_message_receiver_params(&dest_cap, &mut receiver_params);
+
+    let message = offramp_state_helper::extract_any2sui_message(&mut receiver_params);
+    client::consume_any2sui_message(message, @0x5432);
+
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
+
+#[test]
+public fun test_message_only_extract_unaffected_by_guard() {
+    let (scenario, owner_cap, ref, dest_cap) = setup_test();
+
+    let mut receiver_params = offramp_state_helper::create_receiver_params(
+        &dest_cap,
+        SOURCE_CHAIN_SELECTOR,
+    );
+
+    let test_message = client::new_any2sui_message(
+        b"message_id_32_bytes_long_test_msg",
+        SOURCE_CHAIN_SELECTOR,
+        b"sender_address",
+        b"test_data",
+        @0x5432,
+        @0x12345,
+        vector[],
+    );
+    offramp_state_helper::populate_message(&dest_cap, &mut receiver_params, test_message);
+
+    let message = offramp_state_helper::extract_any2sui_message(&mut receiver_params);
+    client::consume_any2sui_message(message, @0x5432);
+
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
+
+#[test]
+public fun test_extract_token_message_after_complete_succeeds() {
+    let (mut scenario, owner_cap, mut ref, dest_cap) = setup_test();
+
+    registry::register_pool_as_owner_v2(
+        &owner_cap,
+        &mut ref,
+        TOKEN_ADDRESS_1,
+        TOKEN_POOL_ADDRESS_1,
+        string::utf8(b"test_pool"),
+        ascii::string(b"TestType"),
+        OWNER,
+        type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
+        vector<address>[],
+        vector<address>[],
+        9, // local_decimals
+        scenario.ctx(),
+    );
+
+    let mut receiver_params = offramp_state_helper::create_receiver_params(
+        &dest_cap,
+        SOURCE_CHAIN_SELECTOR,
+    );
+    populate_token_message_receiver_params(&dest_cap, &mut receiver_params);
+
+    offramp_state_helper::complete_token_transfer(
+        &ref,
+        &mut receiver_params,
+        TestTypeProof {},
+    );
+
+    let message = offramp_state_helper::extract_any2sui_message(&mut receiver_params);
+    let (_, _, _, _, _, _, dest_token_amounts) = client::consume_any2sui_message(message, @0x5432);
+    // After fix: amount is recomputed from 18-dec to 9-dec
+    assert!(client::get_amount(&dest_token_amounts[0]) == 1_000_000_000);
+
     offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
     cleanup_test(scenario, owner_cap, ref, dest_cap);
 }

@@ -3,8 +3,10 @@ package changesets
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/mcms"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
@@ -13,14 +15,17 @@ import (
 	lockreleasetokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
 	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_managed_token_pool"
 	tokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
 
 type TPConfigureConfig struct {
 	SuiChainSelector   uint64
 	TokenPoolTypes     []string
-	ManagedTPInput     managedtokenpoolops.DeployAndInitManagedTokenPoolInput
+	ManagedTPInput     managedtokenpoolops.ConfigureManagedTokenPoolInput
 	LockReleaseTPInput lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput
 	BurnMintTpInput    burnminttokenpoolops.ConfigureBurnMintTokenPoolInput
+	TimelockConfig     *utils.TimelockConfig
 }
 
 // ConnectSuiToEVM connects sui chain with EVM
@@ -31,6 +36,7 @@ var _ cldf.ChangeSetV2[TPConfigureConfig] = TPConfigure{}
 // Apply implements deployment.ChangeSetV2.
 func (d TPConfigure) Apply(e cldf.Environment, config TPConfigureConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	state, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
@@ -59,6 +65,14 @@ func (d TPConfigure) Apply(e cldf.Environment, config TPConfigureConfig) (cldf.C
 		SuiRPC: suiChain.URL,
 	}
 
+	// If timelock proposal is to be generated, disable signer in deps
+	if config.TimelockConfig != nil {
+		deps.Signer = nil
+	}
+
+	defs := []operations.Definition{}
+	inputs := []any{}
+
 	// Populate state information for each token pool type
 	for _, tokenPoolType := range config.TokenPoolTypes {
 		switch tokenPoolType {
@@ -70,7 +84,10 @@ func (d TPConfigure) Apply(e cldf.Environment, config TPConfigureConfig) (cldf.C
 		case "lnr":
 			// TODO
 		case "managed":
-			// TODO
+			config.ManagedTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
+			config.ManagedTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
+			// TODO: MCMSOwner address should come state
+			config.ManagedTPInput.MCMSOwnerAddress = deployerAddr
 		}
 	}
 
@@ -83,14 +100,42 @@ func (d TPConfigure) Apply(e cldf.Environment, config TPConfigureConfig) (cldf.C
 		BurnMintTpInput:    config.BurnMintTpInput,
 	}
 
-	_, err = operations.ExecuteSequence(e.OperationsBundle, tokenpoolops.ConfigureAllTokenPoolsSequence, deps, tokenPoolInput)
+	report, err := operations.ExecuteSequence(e.OperationsBundle, tokenpoolops.ConfigureAllTokenPoolsSequence, deps, tokenPoolInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy token pools: %w", err)
 	}
 
+	for _, r := range report.Output.Reports {
+		defs = append(defs, r.Def)
+		inputs = append(inputs, r.Input)
+	}
+
+	mcmsProposal := mcms.TimelockProposal{}
+	if config.TimelockConfig != nil {
+		mcmsConfig := mcmsops.ProposalGenerateInput{
+			ChainSelector:      config.SuiChainSelector,
+			Defs:               defs,
+			Inputs:             inputs,
+			MmcsPackageID:      state[config.SuiChainSelector].MCMSPackageID,
+			McmsStateObjID:     state[config.SuiChainSelector].MCMSStateObjectID,
+			TimelockObjID:      state[config.SuiChainSelector].MCMSTimelockObjectID,
+			AccountObjID:       state[config.SuiChainSelector].MCMSAccountStateObjectID,
+			RegistryObjID:      state[config.SuiChainSelector].MCMSRegistryObjectID,
+			DeployerStateObjID: state[config.SuiChainSelector].MCMSDeployerStateObjectID,
+			TimelockConfig:     *config.TimelockConfig,
+		}
+		result, err := operations.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, mcmsConfig)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to execute sequence: %w", err)
+		}
+		mcmsProposal = result.Output
+	}
+
 	return cldf.ChangesetOutput{
-		AddressBook: ab,
-		Reports:     seqReports,
+		AddressBook:           ab,
+		DataStore:             ds,
+		Reports:               seqReports,
+		MCMSTimelockProposals: []mcms.TimelockProposal{mcmsProposal},
 	}, nil
 }
 

@@ -34,6 +34,7 @@ const EFunctionNotAllowed: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 const EAlreadyInitialized: u64 = 3;
 const EInvalidFunction: u64 = 4;
+const EEmptyFunctionName: u64 = 5;
 
 public struct UpgradeRegistry has key, store {
     id: UID,
@@ -94,10 +95,12 @@ public fun unblock_version(
         return
     };
     let blocked_versions = registry.function_restrictions.borrow_mut(module_name);
+    // A version-level block is encoded as exactly `vector[version]`. Match the full
+    // encoding so a function-specific entry `vector[version, ..name]` is never removed here.
+    let version_block = vector[version];
     let mut i = 0;
     while (i < blocked_versions.length()) {
-        let blocked_version = &blocked_versions[i];
-        if (blocked_version[0] == version) {
+        if (blocked_versions[i] == version_block) {
             blocked_versions.swap_remove(i);
             event::emit(VersionUnblocked {
                 module_name,
@@ -118,6 +121,8 @@ public fun block_function(
     _: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    // An empty function name would encode as `vector[version]`, colliding with a version block.
+    assert!(!function_name.as_bytes().is_empty(), EEmptyFunctionName);
 
     let registry = state_object::borrow_mut<UpgradeRegistry>(ref);
     if (!registry.function_restrictions.contains(module_name)) {
@@ -142,6 +147,8 @@ public fun unblock_function(
     _: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    // Mirror `block_function`: an empty name would target the version-block encoding.
+    assert!(!function_name.as_bytes().is_empty(), EEmptyFunctionName);
 
     let registry = state_object::borrow_mut<UpgradeRegistry>(ref);
     if (!registry.function_restrictions.contains(module_name)) {
@@ -217,7 +224,36 @@ public fun verify_function_allowed(
 
 // =================== MCMS Functions =================== //
 
-public struct McmsCallback has drop {}
+public struct McmsCallback has drop {} // not used, kept for compatibility
+
+// MCMS-routed initializer: the registry cannot exist yet, so this must not call
+// verify_function_allowed (which borrows the registry). The OwnerCap is handed over
+// by the MCMS registry callback, same as the other mcms_* entry points.
+public fun mcms_initialize(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        state_object::mcms_callback(),
+        params,
+    );
+    assert!(function == string::utf8(b"initialize"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    initialize(ref, owner_cap, ctx);
+}
 
 public fun mcms_block_version(
     ref: &mut CCIPObjectRef,
@@ -226,11 +262,11 @@ public fun mcms_block_version(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"block_version"), EInvalidFunction);
@@ -255,11 +291,11 @@ public fun mcms_unblock_version(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"unblock_version"), EInvalidFunction);
@@ -284,11 +320,11 @@ public fun mcms_block_function(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"block_function"), EInvalidFunction);
@@ -314,11 +350,11 @@ public fun mcms_unblock_function(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"unblock_function"), EInvalidFunction);

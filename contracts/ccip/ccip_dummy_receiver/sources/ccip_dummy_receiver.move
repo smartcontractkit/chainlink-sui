@@ -1,3 +1,19 @@
+/// Reference receiver for tests and documentation. Not for production.
+///
+/// Implements the singleton tail-argument pattern for V1 destination execution.
+/// Tail slots: shared `Clock` at `@0x6` and the single `CCIPReceiverState`
+/// from `init`. See `contracts/ccip/docs/receiver-integration-guide.md`.
+///
+/// WARNING: registration ordering is the sender's responsibility. The OffRamp
+/// populates and delivers an Any2SuiMessage only when this package is
+/// registered in the receiver registry at execution time. If a message
+/// carrying data or a gas limit arrives while this package is not registered,
+/// the OffRamp skips the receiver callback yet still marks the execution
+/// SUCCESS, which makes the message terminal with no retry. A token leg in
+/// the same message completes independently, so assets can be released without
+/// the receiver-side application logic ever running. Register the receiver
+/// before any messages are sent to it; re-registering after a message has
+/// landed does not retroactively execute it.
 module ccip_dummy_receiver::dummy_receiver;
 
 use ccip::client;
@@ -15,8 +31,11 @@ use sui::transfer::Receiving;
 
 const EMessageIdMismatch: u64 = 0;
 
+/// One-time witness for package publish. Consumed in `init`.
 public struct DUMMY_RECEIVER has drop {}
 
+/// Admin capability for registration and coin receive helpers.
+/// Stored by the deployer; not passed to `ccip_receive`.
 public struct OwnerCap has key, store {
     id: UID,
     receiver_address: address,
@@ -35,6 +54,8 @@ public struct AlwaysAbortToggled has copy, drop {
     always_abort: bool,
 }
 
+/// Singleton delivery state. Created once in `init`; `has key` only so this
+/// module retains transfer and share control.
 public struct CCIPReceiverState has key {
     id: UID,
     counter: u64,
@@ -49,6 +70,7 @@ public struct CCIPReceiverState has key {
     always_abort: bool,
 }
 
+/// Type proof for `receiver_registry` and `consume_any2sui_message`.
 public struct DummyReceiverProof has drop {}
 
 public struct PublisherKey has copy, drop, store {}
@@ -62,6 +84,7 @@ public fun type_and_version(): String {
     string::utf8(b"DummyReceiver 1.6.0")
 }
 
+/// Sole constructor for `CCIPReceiverState`.
 fun init(otw: DUMMY_RECEIVER, ctx: &mut TxContext) {
     let state = CCIPReceiverState {
         id: object::new(ctx),
@@ -89,6 +112,13 @@ fun init(otw: DUMMY_RECEIVER, ctx: &mut TxContext) {
     transfer::transfer(owner_cap, ctx.sender());
 }
 
+/// Registers this package in the OffRamp receiver registry.
+///
+/// WARNING: must be called before any messages are sent to this receiver. The
+/// OffRamp checks registration at execution time; an unregistered receiver
+/// causes the message to be marked SUCCESS without running the callback and
+/// with no retry. See the module doc for the full consequence, including the
+/// token-leg behavior.
 public fun register_receiver(owner_cap: &OwnerCap, ref: &mut CCIPObjectRef) {
     let publisher: &Publisher = df::borrow(&owner_cap.id, PublisherKey {});
     let publisher_wrapper = publisher_wrapper::create(publisher, DummyReceiverProof {});
@@ -115,6 +145,7 @@ public fun get_token_amount_amount(token_amount: &TokenAmount): u256 {
     token_amount.amount
 }
 
+/// Accepts coins sent to the shared state object via transfer-to-object.
 public fun receive_and_send_coin<T>(
     state: &mut CCIPReceiverState,
     _: &OwnerCap,
@@ -133,6 +164,7 @@ public fun receive_coin<T>(
     transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving)
 }
 
+// DO NOT USE THIS FUNCTION IN PRODUCTION. IT IS ONLY FOR TESTING PURPOSES.
 public fun receive_and_send_coin_no_owner_cap<T>(
     state: &mut CCIPReceiverState,
     coin_receiving: Receiving<Coin<T>>,
@@ -142,6 +174,7 @@ public fun receive_and_send_coin_no_owner_cap<T>(
     transfer::public_transfer(c, recipient);
 }
 
+// DO NOT USE THIS FUNCTION IN PRODUCTION. IT IS ONLY FOR TESTING PURPOSES.
 public fun receive_coin_no_owner_cap<T>(
     state: &mut CCIPReceiverState,
     coin_receiving: Receiving<Coin<T>>,
@@ -149,16 +182,18 @@ public fun receive_coin_no_owner_cap<T>(
     transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving)
 }
 
-// any ccip receiver must implement this function with the same signature
+/// CCIP entrypoint. Both tail types are singletons so manual executors cannot
+/// substitute an alternate object of the same type.
 public fun ccip_receive(
     expected_message_id: vector<u8>,
     ref: &CCIPObjectRef,
     message: client::Any2SuiMessage,
-    _: &Clock, // this is a precompile, but remain the same across all messages
-    state: &mut CCIPReceiverState, // this is a singleton, but remain the same across all messages
+    clock: &Clock,
+    state: &mut CCIPReceiverState,
 ) {
     // Check if always_abort is enabled
     assert!(!state.always_abort, 1);
+    clock; // read-only tail slot example; use `clock.timestamp_ms()` when needed
 
     let (
         message_id,
