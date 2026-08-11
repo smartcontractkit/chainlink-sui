@@ -23,7 +23,7 @@ func TestMergeSuiCoins(t *testing.T) {
 
 	// Only need env name + private key — no run config needed.
 	envName := "testnet"
-	suiPrivKey, _, err := config.LoadEnvConfig(envName)
+	suiPrivKey, _, _, err := config.LoadEnvConfig(envName)
 	if err != nil {
 		t.Fatalf("LoadEnvConfig: %v", err)
 	}

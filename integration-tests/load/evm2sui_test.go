@@ -294,7 +294,11 @@ func runEVM2SuiWASP(
 	if err != nil {
 		t.Fatalf("Failed to get chain ID: %v", err)
 	}
-	wallets, err := wallet.GenerateEVMWallets(N, chainID)
+	seed, err := wallet.ParseSeed(cfg.WalletSeed)
+	if err != nil {
+		t.Fatalf("Failed to parse wallet seed: %v", err)
+	}
+	wallets, err := wallet.GenerateEVMWallets(N, chainID, seed)
 	if err != nil {
 		t.Fatalf("Failed to generate EVM wallets: %v", err)
 	}

@@ -22,7 +22,7 @@ func estimateSuiFunding(cfg *config.LoadTestConfig, numWallets int, splitAmount 
 	base := uint64(requiredCoins) * splitAmount //nolint:gosec // bounded by run config input
 
 	// Add a fixed buffer for PTB gas and merge/split operations.
-	gasBuffer := uint64(600_000_000) // 0.6 SUI
+	gasBuffer := uint64(150_000_000) // 0.15 SUI
 
 	return base + gasBuffer
 }

@@ -17,24 +17,26 @@ import (
 )
 
 // LoadEnvConfig loads secrets from a .env.<env> file.
-// Returns the Sui and EVM private keys.
-func LoadEnvConfig(envName string) (suiPrivKey string, evmPrivKey string, err error) {
+// Returns the Sui and EVM private keys and an optional wallet seed.
+func LoadEnvConfig(envName string) (suiPrivKey string, evmPrivKey string, walletSeed string, err error) {
 	path := fmt.Sprintf(".env.%s", envName)
 	if err := godotenv.Load(path); err != nil {
-		return "", "", fmt.Errorf("failed to load env file %s: %w", path, err)
+		return "", "", "", fmt.Errorf("failed to load env file %s: %w", path, err)
 	}
 
 	suiPrivKey = os.Getenv("SUI_PRIVATE_KEY")
 	if suiPrivKey == "" {
-		return "", "", fmt.Errorf("SUI_PRIVATE_KEY not set in %s", path)
+		return "", "", "", fmt.Errorf("SUI_PRIVATE_KEY not set in %s", path)
 	}
 
 	evmPrivKey = os.Getenv("EVM_PRIVATE_KEY")
 	if evmPrivKey == "" {
-		return "", "", fmt.Errorf("EVM_PRIVATE_KEY not set in %s", path)
+		return "", "", "", fmt.Errorf("EVM_PRIVATE_KEY not set in %s", path)
 	}
 
-	return suiPrivKey, evmPrivKey, nil
+	walletSeed = os.Getenv("WALLET_SEED")
+
+	return suiPrivKey, evmPrivKey, walletSeed, nil
 }
 
 // LoadAddressBook loads contract addresses from an addresses-<env>.json file
@@ -145,7 +147,7 @@ func LoadFullConfig(runName string) (*LoadTestConfig, error) {
 	envName := runCfg.Run.Env
 
 	// Layer 1: Secrets
-	suiPrivKey, evmPrivKey, err := LoadEnvConfig(envName)
+	suiPrivKey, evmPrivKey, walletSeed, err := LoadEnvConfig(envName)
 	if err != nil {
 		return nil, fmt.Errorf("layer 1 (env): %w", err)
 	}
@@ -195,6 +197,7 @@ func LoadFullConfig(runName string) (*LoadTestConfig, error) {
 		LoadWallets:         runCfg.Load.Wallets,
 		SuiPrivateKey:       suiPrivKey,
 		EVMPrivateKey:       evmPrivKey,
+		WalletSeed:          walletSeed,
 		AddressBook:         addressBook,
 		Networks:            networks,
 	}

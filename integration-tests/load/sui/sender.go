@@ -21,12 +21,12 @@ import (
 const minSplitAmountPerCoin uint64 = 250_000_000 // 0.25 SUI
 
 // RecommendedSplitAmountPerCoin returns a conservative split amount for SUI fee coins
-// based on estimated onramp fee, plus buffer for fee fluctuations.
+// based on estimated onramp fee, plus a small buffer for fee fluctuations.
 func RecommendedSplitAmountPerCoin(estimatedFee uint64) uint64 {
 	if estimatedFee == 0 {
 		return minSplitAmountPerCoin
 	}
-	withBuffer := estimatedFee*2 + 200_000_000 // 2x fee + 0.2 SUI buffer
+	withBuffer := estimatedFee + 50_000_000 // fee + 0.05 SUI buffer
 	if withBuffer < minSplitAmountPerCoin {
 		return minSplitAmountPerCoin
 	}

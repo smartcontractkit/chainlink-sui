@@ -369,8 +369,12 @@ func runSui2EVMWASP(
 	ctx := context.Background()
 	N := cfg.LoadWallets
 
-	// Step 1: Generate N wallets.
-	wallets, err := wallet.GenerateSuiWallets(N)
+	// Step 1: Generate N wallets (deterministic when WALLET_SEED is set).
+	seed, err := wallet.ParseSeed(cfg.WalletSeed)
+	if err != nil {
+		t.Fatalf("Failed to parse wallet seed: %v", err)
+	}
+	wallets, err := wallet.GenerateSuiWallets(N, seed)
 	if err != nil {
 		t.Fatalf("Failed to generate Sui wallets: %v", err)
 	}

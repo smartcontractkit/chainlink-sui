@@ -79,6 +79,7 @@ type LoadTestConfig struct {
 	// Secrets (from .env)
 	SuiPrivateKey string
 	EVMPrivateKey string
+	WalletSeed    string // optional hex seed for deterministic load-test wallets
 
 	// Address book (from addresses.json, uses cldf.AddressBook)
 	AddressBook cldf.AddressBook
