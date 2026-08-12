@@ -3,6 +3,8 @@ package load
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/smartcontractkit/chainlink-testing-framework/wasp"
@@ -14,10 +16,16 @@ import (
 )
 
 // Sui2EVMMsgGun sends message-only CCIP messages from Sui to EVM.
-// Each instance owns one wallet and its gas coin pool exclusively.
+// Each instance owns one wallet and two dedicated coins:
+// - gasCoinID for PTB gas
+// - feeCoinID for ccip_send fee splits
 type Sui2EVMMsgGun struct {
 	wallet            *wallet.Wallet
-	gasPool           *sui.SuiCoinPool
+	gasCoinID         string
+	feeCoinID         string
+	feeAmount         uint64
+	callSeq           uint64
+	mu                sync.Mutex
 	ptbClient         *client.PTBClient
 	ccipPkgID         string
 	onRampPkgID       string
@@ -34,23 +42,30 @@ type Sui2EVMMsgGun struct {
 }
 
 // Call implements the wasp.Gun interface.
-// It pops two SUI coins (gas + fee) from the wallet's pool and sends a message-only CCIP request.
+// It sends a message-only CCIP request using one persistent gas coin and one persistent fee coin.
 func (g *Sui2EVMMsgGun) Call(_ *wasp.Generator) *wasp.Response {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.callSeq++
+	seq := g.callSeq
+
 	ctx := context.Background()
 	group := "sui->evm"
+	start := time.Now()
 
-	gasCoin, err := g.gasPool.Pop(ctx)
-	if err != nil {
+	slog.Info("Sui message send started",
+		"wallet", g.wallet.Address,
+		"callSeq", seq,
+		"destChainSelector", g.destChainSelector,
+	)
+
+	if g.gasCoinID == "" || g.feeCoinID == "" {
+		err := fmt.Errorf("missing gas/fee coin IDs: gas=%q fee=%q", g.gasCoinID, g.feeCoinID)
 		g.pushResult(false, "", "", 0, err)
-		return &wasp.Response{Failed: true, Error: fmt.Sprintf("gas coin pop: %v", err), Group: group}
+		return &wasp.Response{Failed: true, Error: err.Error(), Group: group}
 	}
-	feeCoin, err := g.gasPool.Pop(ctx)
-	if err != nil {
-		g.pushResult(false, "", "", 0, err)
-		return &wasp.Response{Failed: true, Error: fmt.Sprintf("fee coin pop: %v", err), Group: group}
-	}
-	if gasCoin == feeCoin {
-		g.pushResult(false, "", "", 0, fmt.Errorf("gas and fee coin IDs are equal: %s", gasCoin))
+	if g.gasCoinID == g.feeCoinID {
+		g.pushResult(false, "", "", 0, fmt.Errorf("gas and fee coin IDs are equal: %s", g.gasCoinID))
 		return &wasp.Response{Failed: true, Error: "gas and fee coin IDs are equal", Group: group}
 	}
 
@@ -62,10 +77,11 @@ func (g *Sui2EVMMsgGun) Call(_ *wasp.Generator) *wasp.Response {
 		g.onRampPkgID,
 		g.ccipObjectRefID,
 		g.onRampStateID,
-		gasCoin,
+		g.gasCoinID,
 		g.feeTokenType,
 		g.suiCoinMetaID,
-		feeCoin,
+		g.feeCoinID,
+		g.feeAmount,
 		g.destChainSelector,
 		g.receiver,
 		g.data,
@@ -74,9 +90,23 @@ func (g *Sui2EVMMsgGun) Call(_ *wasp.Generator) *wasp.Response {
 	)
 
 	if err != nil {
+		slog.Error("Sui message send failed",
+			"wallet", g.wallet.Address,
+			"callSeq", seq,
+			"elapsedMs", time.Since(start).Milliseconds(),
+			"error", err,
+		)
 		g.pushResult(false, "", "", 0, err)
 		return &wasp.Response{Failed: true, Error: err.Error(), Group: group}
 	}
+
+	slog.Info("Sui message send completed",
+		"wallet", g.wallet.Address,
+		"callSeq", seq,
+		"elapsedMs", time.Since(start).Milliseconds(),
+		"txDigest", txDigest,
+		"messageID", messageID,
+	)
 
 	g.pushResult(true, messageID, txDigest, seqNum, nil)
 	return &wasp.Response{
@@ -103,5 +133,9 @@ func (g *Sui2EVMMsgGun) pushResult(success bool, messageID, txDigest string, seq
 	if err != nil {
 		msg.Error = err.Error()
 	}
-	g.resultsCh <- msg
+	select {
+	case g.resultsCh <- msg:
+	default:
+		slog.Warn("Dropping result due to full results channel", "destChainSelector", g.destChainSelector)
+	}
 }

@@ -7,11 +7,11 @@ import (
 
 // RunConfig is loaded from a TOML run config file (Layer 4).
 type RunConfig struct {
-	Run         RunParams         `toml:"run"`
-	Receiver    ReceiverParams    `toml:"receiver"`
-	Gas         GasParams         `toml:"gas"`
-	Load        *LoadParams       `toml:"load,omitempty"`
-	Token       *TokenParams      `toml:"token,omitempty"`
+	Run         RunParams          `toml:"run"`
+	Receiver    ReceiverParams     `toml:"receiver"`
+	Gas         GasParams          `toml:"gas"`
+	Load        *LoadParams        `toml:"load,omitempty"`
+	Token       *TokenParams       `toml:"token,omitempty"`
 	SuiReceiver *SuiReceiverParams `toml:"sui_receiver,omitempty"`
 }
 
@@ -80,6 +80,7 @@ type LoadTestConfig struct {
 	SuiPrivateKey string
 	EVMPrivateKey string
 	WalletSeed    string // optional hex seed for deterministic load-test wallets
+	SuiGrpcToken  string // optional gRPC auth token for Sui providers
 
 	// Address book (from addresses.json, uses cldf.AddressBook)
 	AddressBook cldf.AddressBook
@@ -116,9 +117,11 @@ type NetworkConfig struct {
 
 // RPCConfig describes an RPC endpoint.
 type RPCConfig struct {
-	RPCName string `yaml:"rpc_name"`
-	HTTPURL string `yaml:"http_url"`
-	WSURL   string `yaml:"ws_url"`
+	RPCName    string `yaml:"rpc_name"`
+	HTTPURL    string `yaml:"http_url"`
+	WSURL      string `yaml:"ws_url"`
+	GrpcTarget string `yaml:"grpc_target,omitempty"`
+	GrpcToken  string `yaml:"grpc_token,omitempty"`
 }
 
 // UnmarshalYAML allows RPCs to be either a list of RPC configs or a single RPC config.
@@ -126,8 +129,8 @@ type RPCConfig struct {
 // (with `-` markers), others as a single map.
 func (n *NetworkConfig) UnmarshalYAML(value *yaml.Node) error {
 	type rawNetworkConfig struct {
-		Type          string `yaml:"type"`
-		ChainSelector uint64 `yaml:"chain_selector"`
+		Type          string    `yaml:"type"`
+		ChainSelector uint64    `yaml:"chain_selector"`
 		RPCs          yaml.Node `yaml:"rpcs"`
 	}
 	var raw rawNetworkConfig

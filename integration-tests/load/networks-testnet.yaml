@@ -84,6 +84,7 @@ networks:
   - type: testnet
     chain_selector: 9762610643973837292
     rpcs:
-      - rpc_name: LinkPool
+      - rpc_name: Alchemy
         preferred_url_scheme: *preferred_url_scheme
-        http_url: fullnode.testnet.sui.io:443
+        http_url: https://rpcs.cldev.sh/sui/testnet
+        grpc_target: sui-testnet.g.alchemy.com:443

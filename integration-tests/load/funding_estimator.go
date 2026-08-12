@@ -4,12 +4,13 @@ import (
 	"math/big"
 
 	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/config"
-	"github.com/smartcontractkit/chainlink-sui/integration-tests/load/sui"
 )
 
 // estimateSuiFunding calculates how much SUI (in MIST) each wallet needs.
-// Formula: (requiredCoinsPerWallet × splitAmount) + gasBudgetBuffer.
-// requiredCoinsPerWallet follows PrepareSuiCoinPool coin math to avoid underfunding.
+// Formula:
+//   msgPerWallet × splitAmount   (CCIP fee reserve)
+// + msgPerWallet × 5_000_000     (network gas for send PTBs)
+// + 1_500_000_000                (merge + single split setup buffer)
 func estimateSuiFunding(cfg *config.LoadTestConfig, numWallets int, splitAmount uint64) uint64 {
 	if numWallets <= 0 {
 		numWallets = 1
@@ -18,13 +19,11 @@ func estimateSuiFunding(cfg *config.LoadTestConfig, numWallets int, splitAmount 
 	if msgPerWallet < 1 {
 		msgPerWallet = 1
 	}
-	requiredCoins := sui.CalculateRequiredSuiCoins(msgPerWallet)
-	base := uint64(requiredCoins) * splitAmount //nolint:gosec // bounded by run config input
+	ccipFees := uint64(msgPerWallet) * splitAmount //nolint:gosec
+	networkGas := uint64(msgPerWallet) * 5_000_000 //nolint:gosec
+	setupBuffer := uint64(1_500_000_000)
 
-	// Add a fixed buffer for PTB gas and merge/split operations.
-	gasBuffer := uint64(150_000_000) // 0.15 SUI
-
-	return base + gasBuffer
+	return ccipFees + networkGas + setupBuffer
 }
 
 // estimateEvmFunding calculates how much ETH (in wei) each wallet needs.

@@ -23,7 +23,7 @@ func TestMergeSuiCoins(t *testing.T) {
 
 	// Only need env name + private key — no run config needed.
 	envName := "testnet"
-	suiPrivKey, _, _, err := config.LoadEnvConfig(envName)
+	suiPrivKey, _, _, suiGrpcToken, err := config.LoadEnvConfig(envName)
 	if err != nil {
 		t.Fatalf("LoadEnvConfig: %v", err)
 	}
@@ -42,7 +42,12 @@ func TestMergeSuiCoins(t *testing.T) {
 		t.Fatal("no RPCs for Sui network")
 	}
 
-	ptbClient, err := sui.NewSuiClient(t, suiNetwork.RPCs[0].HTTPURL)
+	rpc := suiNetwork.RPCs[0]
+	grpcToken := suiGrpcToken
+	if grpcToken == "" {
+		grpcToken = rpc.GrpcToken
+	}
+	ptbClient, err := sui.NewSuiClient(t, rpc.HTTPURL, rpc.GrpcTarget, grpcToken)
 	if err != nil {
 		t.Fatalf("NewSuiClient: %v", err)
 	}

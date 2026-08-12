@@ -1,0 +1,22 @@
+[run]
+env = "testnet"
+source_chain_selector = "9762610643973837292"
+dest_chain_selector = "10344971235874465080"
+message_count = 180
+message_data = "hello from sui arb load test"
+
+[receiver]
+# 32-byte EVM receiver address (left-padded with zeros)
+address = "0x320f4dE5B482a8732fdEEf358e96D785a3C0De30"
+
+[gas]
+sui_gas_budget = 250000000
+evm_gas_limit = 100000
+evm_callback_gas_limit = 200000
+
+[load]
+# Defaults — override via flags per tier.
+rps = 1
+wallets = 4 # ~3 seconds per message send, so we need 4 wallets to keep an RPS of 1
+
+# go test -run TestSui2EVM -v --run-name sui-to-evm-arb-load-run-1.toml

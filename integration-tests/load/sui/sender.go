@@ -131,6 +131,7 @@ func SendMessage(
 	feeTokenType string,
 	feeTokenMetadataID string,
 	feeTokenCoinID string,
+	feeAmount uint64,
 	destChainSelector uint64,
 	receiver []byte,
 	data []byte,
@@ -149,6 +150,7 @@ func SendMessage(
 		feeTokenType,
 		feeTokenMetadataID,
 		feeTokenCoinID,
+		feeAmount,
 		"", // no token coin for message-only
 		"", // no token address for message-only
 		"", // no token coin type for message-only
@@ -184,8 +186,9 @@ func SendTokenMessage(
 	feeTokenType string,
 	feeTokenMetadataID string,
 	feeTokenCoinID string,
+	feeAmount uint64,
 	tokenCoinID string,
-	tokenAddress string,
+	_ string,
 	tokenCoinType string,
 	tokenPoolPkgID string,
 	tokenPoolStateID string,
@@ -207,6 +210,9 @@ func SendTokenMessage(
 	signerAddress, err := signer.GetAddress()
 	if err != nil {
 		return "", "", 0, fmt.Errorf("failed to get signer address: %w", err)
+	}
+	if feeAmount == 0 {
+		return "", "", 0, fmt.Errorf("feeAmount must be > 0")
 	}
 
 	// Build PTB
@@ -290,50 +296,6 @@ func SendTokenMessage(
 	// NOT the Sui PTB gas budget.
 	extraArgs := MakeBCSEVMExtraArgsV2(big.NewInt(int64(evmCallbackGasLimit)), true)
 
-	tokenAddresses := []string{}
-	tokenAmounts := []uint64{}
-	if tokenCoinID != "" {
-		tokenAddresses = []string{tokenAddress}
-		tokenAmounts = []uint64{0} // amount is encoded via the token coin object itself
-	}
-
-	estimatedFee, err := onRampContract.DevInspect().GetFee(
-		ctx,
-		&bind.CallOpts{Signer: signer},
-		[]string{feeTokenType},
-		bind.Object{Id: ccipObjectRefID},
-		bind.Object{Id: "0x6"},
-		destChainSelector,
-		receiver,
-		data,
-		tokenAddresses,
-		tokenAmounts,
-		bind.Object{Id: feeTokenMetadataID},
-		extraArgs,
-	)
-	if err != nil {
-		return "", "", 0, fmt.Errorf("failed to estimate get_fee preflight: %w", err)
-	}
-
-	feeCoinBalance, err := fetchCoinBalanceByID(ctx, ptbClient, signerAddress, feeTokenCoinID)
-	if err != nil {
-		return "", "", 0, fmt.Errorf("failed to read fee coin balance: %w", err)
-	}
-	if feeCoinBalance < estimatedFee {
-		return "", "", 0, fmt.Errorf(
-			"fee coin balance too low for ccip_send: coin=%s balance=%d estimatedFee=%d (increase split amount per coin)",
-			feeTokenCoinID,
-			feeCoinBalance,
-			estimatedFee,
-		)
-	}
-
-	slog.Info("Sui fee preflight",
-		"feeCoinId", feeTokenCoinID,
-		"feeCoinBalance", feeCoinBalance,
-		"estimatedFee", estimatedFee,
-	)
-
 	// Use the encoder's CcipSendWithArgs to pass the PTB argument from step 1.
 	// All object IDs are resolved from the address book — no placeholders.
 	encodedSend, err := onRampContract.Encoder().CcipSendWithArgs(
@@ -346,7 +308,7 @@ func SendTokenMessage(
 		data,
 		tokenParamsResult,                   // TokenTransferParams from step 1
 		bind.Object{Id: feeTokenMetadataID}, // CoinMetadata<T> (from address book)
-		bind.Object{Id: feeTokenCoinID},     // Coin<T> (real coin from signer's wallet)
+		bind.Object{Id: feeTokenCoinID},
 		extraArgs,
 	)
 	if err != nil {

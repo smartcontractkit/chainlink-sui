@@ -24,7 +24,7 @@ EVM → SUI (token):         Approve Router → GetFee → Router.ccipSend (nati
 
 | Layer | File | Content |
 |-------|------|---------|
-| 1 | `.env.<env>` | Secrets: `SUI_PRIVATE_KEY`, `EVM_PRIVATE_KEY` |
+| 1 | `.env.<env>` | Secrets: `SUI_PRIVATE_KEY`, `EVM_PRIVATE_KEY`, optional `SUI_GRPC_TOKEN` |
 | 2 | `addresses-<env>.json` | Contract addresses (cldf AddressBook format) |
 | 3 | `networks-<env>.yaml` | Chain RPC endpoints (unified EVM + Sui) |
 | 4 | `runs/<name>.toml` | Run-specific parameters |
@@ -34,6 +34,7 @@ EVM → SUI (token):         Approve Router → GetFee → Router.ccipSend (nati
 ```bash
 SUI_PRIVATE_KEY=suiprivkey1...
 EVM_PRIVATE_KEY=0x...
+SUI_GRPC_TOKEN=optional-provider-grpc-token
 ```
 
 ### Layer 2: `addresses-testnet.json`
@@ -49,6 +50,8 @@ networks:
     rpcs:
       - rpc_name: Public
         http_url: https://fullnode.testnet.sui.io:443
+        # optional for providers that require explicit gRPC endpoint host:port
+        grpc_target: sui-testnet.g.alchemy.com:443
   - type: testnet
     chain_selector: 16015286601757825753  # Sepolia
     rpcs:

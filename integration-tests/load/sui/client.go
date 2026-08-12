@@ -4,6 +4,9 @@ import (
 	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
+	"net"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,15 +19,23 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
-// NewSuiClient creates a Sui PTB client from an RPC URL.
-// The PTBClient requires gRPC for coin queries and other operations.
-// Public Sui nodes serve gRPC on the same host as the JSON-RPC URL.
-// We set a non-empty GrpcToken to enable the gRPC path (the token is not
-// validated by public nodes, it just needs to be non-empty to pass grpcEnabled()).
-func NewSuiClient(t *testing.T, rpcURL string) (*client.PTBClient, error) {
+// NewSuiClient creates a Sui PTB client.
+// grpcTarget should be host:port. If empty, it is derived from rpcURL.
+func NewSuiClient(t *testing.T, rpcURL string, grpcTarget string, grpcToken string) (*client.PTBClient, error) {
+	normalizedTarget, err := normalizeGrpcTarget(rpcURL, grpcTarget)
+	if err != nil {
+		return nil, fmt.Errorf("failed to normalize gRPC target: %w", err)
+	}
+
+	if strings.TrimSpace(grpcToken) == "" {
+		// Keep backwards compatibility with public nodes where token is optional
+		// while still enabling the gRPC path in PTBClient config.
+		grpcToken = "unused"
+	}
+
 	cfg := client.PTBClientConfig{
-		GrpcTarget:         rpcURL,
-		GrpcToken:          "unused",
+		GrpcTarget:         normalizedTarget,
+		GrpcToken:          grpcToken,
 		TransactionTimeout: 60 * time.Second,
 		DefaultRequestType: client.WaitForLocalExecution,
 	}
@@ -37,6 +48,52 @@ func NewSuiClient(t *testing.T, rpcURL string) (*client.PTBClient, error) {
 	}
 
 	return ptbClient, nil
+}
+
+func normalizeGrpcTarget(rpcURL string, grpcTarget string) (string, error) {
+	target := strings.TrimSpace(grpcTarget)
+	if target != "" {
+		return target, nil
+	}
+
+	rpcURL = strings.TrimSpace(rpcURL)
+	if rpcURL == "" {
+		return "", fmt.Errorf("rpcURL is empty and grpcTarget is not set")
+	}
+
+	if strings.Contains(rpcURL, "://") {
+		u, err := url.Parse(rpcURL)
+		if err != nil {
+			return "", fmt.Errorf("invalid rpcURL %q: %w", rpcURL, err)
+		}
+		host := u.Hostname()
+		if host == "" {
+			return "", fmt.Errorf("invalid rpcURL %q: missing hostname", rpcURL)
+		}
+		port := u.Port()
+		if port == "" {
+			switch u.Scheme {
+			case "https":
+				port = "443"
+			case "http":
+				port = "80"
+			default:
+				return "", fmt.Errorf("unsupported rpcURL scheme %q", u.Scheme)
+			}
+		}
+		return net.JoinHostPort(host, port), nil
+	}
+
+	if _, _, err := net.SplitHostPort(rpcURL); err == nil {
+		return rpcURL, nil
+	}
+
+	if strings.Contains(rpcURL, "/") {
+		return "", fmt.Errorf("invalid grpc target %q: expected host:port", rpcURL)
+	}
+
+	// Bare host without explicit port defaults to TLS endpoint.
+	return net.JoinHostPort(rpcURL, "443"), nil
 }
 
 // NewSuiSigner creates a Sui signer from a bech32-encoded private key.

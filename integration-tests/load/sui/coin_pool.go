@@ -16,6 +16,7 @@ import (
 )
 
 const suiCoinObjectType = "0x2::coin::Coin<0x2::sui::SUI>"
+const networkGasPerMessage uint64 = 5_000_000
 
 func normalizeCoinObjectType(typeTag string) string {
 	trimmed := strings.TrimSpace(typeTag)
@@ -94,6 +95,98 @@ func (p *TokenCoinPool) CoinType() string {
 
 func (p *TokenCoinPool) AmountPerCoin() uint64 {
 	return p.amountPerCoin
+}
+
+// SetupWalletCoins prepares one gas coin and one reusable fee coin for a wallet.
+// It merges all SUI first, then performs a single split to create the gas coin.
+// The merged source coin remains as the reusable fee coin.
+func SetupWalletCoins(
+	ctx context.Context,
+	ptbClient *client.PTBClient,
+	signer bindutils.SuiSigner,
+	signerAddress string,
+	msgCount int,
+	gasBudget uint64,
+	feeAmount uint64,
+) (gasCoinID string, feeCoinID string, err error) {
+	if msgCount < 1 {
+		return "", "", fmt.Errorf("invalid message count: %d", msgCount)
+	}
+	if feeAmount == 0 {
+		return "", "", fmt.Errorf("fee amount must be > 0")
+	}
+
+	mergedCoinID, err := MergeAllSuiCoins(ctx, ptbClient, signer, signerAddress)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to merge wallet SUI coins: %w", err)
+	}
+
+	mergedCoins, err := ptbClient.QueryCoinsByAddress(ctx, signerAddress, suiCoinObjectType)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to query merged SUI coin: %w", err)
+	}
+	var mergedBalance uint64
+	for _, c := range mergedCoins {
+		if c.GetObjectId() == mergedCoinID {
+			mergedBalance = c.GetBalance()
+			break
+		}
+	}
+	if mergedBalance == 0 {
+		return "", "", fmt.Errorf("merged SUI coin %s not found after merge", mergedCoinID)
+	}
+
+	gasAmount := uint64(msgCount)*networkGasPerMessage + gasBudget //nolint:gosec
+	feeReserve := uint64(msgCount) * feeAmount           //nolint:gosec
+	minRequired := gasAmount + feeReserve
+	if mergedBalance <= minRequired {
+		return "", "", fmt.Errorf(
+			"insufficient SUI for wallet setup: have=%d required>%d (gas=%d feeReserve=%d)",
+			mergedBalance,
+			minRequired,
+			gasAmount,
+			feeReserve,
+		)
+	}
+
+	ptb := transaction.NewTransaction()
+	feeCoinArg := ptb.Gas()
+	gasCoinArg := ptb.SplitCoins(feeCoinArg, []transaction.Argument{ptb.Pure(gasAmount)})
+	ptb.TransferObjects([]transaction.Argument{gasCoinArg}, ptb.Pure(signerAddress))
+
+	splitGasBudget := uint64(100_000_000)
+	callOpts := &bind.CallOpts{
+		Signer:           signer,
+		GasObject:        mergedCoinID,
+		GasBudget:        &splitGasBudget,
+		WaitForExecution: true,
+	}
+
+	resp, err := bind.ExecutePTB(ctx, callOpts, ptbClient, ptb)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to split wallet gas coin: %w", err)
+	}
+
+	coins, err := ptbClient.QueryCoinsByAddress(ctx, signerAddress, suiCoinObjectType)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to query SUI coins after wallet setup: %w", err)
+	}
+
+	gasCoinID = ""
+	for _, c := range coins {
+		if c.GetObjectId() == mergedCoinID {
+			continue
+		}
+		if c.GetBalance() == gasAmount {
+			gasCoinID = c.GetObjectId()
+			break
+		}
+	}
+	if gasCoinID == "" {
+		return "", "", fmt.Errorf("failed to locate gas coin with balance %d after setup tx %s", gasAmount, resp.Digest)
+	}
+
+	return gasCoinID, mergedCoinID, nil
 }
 
 // CalculateRequiredSuiCoins returns how many SUI objects to pre-split for a run.

@@ -1,0 +1,33 @@
+# Run config for Sui → EVM arb load test
+# Measures median, p95, p99 completion time under increasing load.
+#
+# NOTE: The current WASP generator uses a constant-RPS Plain schedule.
+# To run stepped load (1→2→5 RPS), the test code needs to be updated to
+# use wasp.Steps or Combine schedules. For now, run each RPS tier separately:
+#
+#   Tier 1 (low):    --run-name sui-to-evm-arb-load-run --load-rps 1 --load-wallets 1
+#   Tier 2 (medium): --run-name sui-to-evm-arb-load-run --load-rps 2 --load-wallets 2
+#   Tier 3 (high):   --run-name sui-to-evm-arb-load-run --load-rps 5 --load-wallets 5
+
+[run]
+env = "testnet"
+source_chain_selector = "9762610643973837292"
+dest_chain_selector = "10344971235874465080"
+message_count = 600
+message_data = "hello from sui arb load test"
+
+[receiver]
+# 32-byte EVM receiver address (left-padded with zeros)
+address = "0x320f4dE5B482a8732fdEEf358e96D785a3C0De30"
+
+[gas]
+sui_gas_budget = 250000000
+evm_gas_limit = 100000
+evm_callback_gas_limit = 200000
+
+[load]
+# Defaults — override via flags per tier.
+rps = 10
+wallets = 10
+
+# go test -run TestSui2EVM -v --run-name sui-to-evm-arb-load-run-3.toml

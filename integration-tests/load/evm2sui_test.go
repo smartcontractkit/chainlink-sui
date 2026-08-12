@@ -116,8 +116,12 @@ func TestEVM2Sui(t *testing.T) {
 			if len(destNetwork.RPCs) == 0 {
 				t.Fatal("Destination chain has no RPC endpoints")
 			}
-			suiDestRPCURL := destNetwork.RPCs[0].HTTPURL
-			suiDestClient, err := sui.NewSuiClient(t, suiDestRPCURL)
+			suiDestRPC := destNetwork.RPCs[0]
+			grpcToken := cfg.SuiGrpcToken
+			if grpcToken == "" {
+				grpcToken = suiDestRPC.GrpcToken
+			}
+			suiDestClient, err := sui.NewSuiClient(t, suiDestRPC.HTTPURL, suiDestRPC.GrpcTarget, grpcToken)
 			if err != nil {
 				t.Fatalf("Failed to create Sui destination client: %v", err)
 			}

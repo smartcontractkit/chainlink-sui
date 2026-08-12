@@ -47,10 +47,14 @@ func TestSui2EVM(t *testing.T) {
 	if len(srcNetwork.RPCs) == 0 {
 		t.Fatal("Source chain has no RPC endpoints")
 	}
-	suiRPCURL := srcNetwork.RPCs[0].HTTPURL
+	suiRPC := srcNetwork.RPCs[0]
+	grpcToken := cfg.SuiGrpcToken
+	if grpcToken == "" {
+		grpcToken = suiRPC.GrpcToken
+	}
 
 	// Create Sui client and signer
-	ptbClient, err := sui.NewSuiClient(t, suiRPCURL)
+	ptbClient, err := sui.NewSuiClient(t, suiRPC.HTTPURL, suiRPC.GrpcTarget, grpcToken)
 	if err != nil {
 		t.Fatalf("Failed to create Sui client: %v", err)
 	}
@@ -98,6 +102,30 @@ func TestSui2EVM(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Invalid EVM receiver address %q: %v", cfg.ReceiverAddress, err)
 	}
+
+	estimatedFee, err := sui.EstimateSuiToEVMFee(
+		ctx,
+		ptbClient,
+		suiSigner,
+		ccipPkgID,
+		onRampPkgID,
+		ccipObjectRefID,
+		onRampStateID,
+		feeTokenType,
+		suiCoinMetadataID,
+		cfg.DestChainSelector,
+		receiverBytes,
+		cfg.MessageData,
+		cfg.EvmCallbackGasLimit,
+	)
+	if err != nil {
+		t.Fatalf("Failed to estimate Sui fee: %v", err)
+	}
+	splitAmountPerCoin := sui.RecommendedSplitAmountPerCoin(estimatedFee)
+	slog.Info("Using dynamic SUI split amount",
+		"estimatedFee", estimatedFee,
+		"splitAmountPerCoin", splitAmountPerCoin,
+	)
 
 	// Determine mode: message-only vs token transfer
 	isTokenMode := cfg.TokenConfig != nil
@@ -155,40 +183,42 @@ func TestSui2EVM(t *testing.T) {
 		}
 	}
 
-	estimatedFee, err := sui.EstimateSuiToEVMFee(
-		ctx,
-		ptbClient,
-		suiSigner,
-		ccipPkgID,
-		onRampPkgID,
-		ccipObjectRefID,
-		onRampStateID,
-		feeTokenType,
-		suiCoinMetadataID,
-		cfg.DestChainSelector,
-		receiverBytes,
-		cfg.MessageData,
-		cfg.EvmCallbackGasLimit,
-	)
-	if err != nil {
-		t.Fatalf("Failed to estimate Sui fee: %v", err)
-	}
-	splitAmountPerCoin := sui.RecommendedSplitAmountPerCoin(estimatedFee)
-	slog.Info("Using dynamic SUI split amount",
-		"estimatedFee", estimatedFee,
-		"splitAmountPerCoin", splitAmountPerCoin,
-	)
+	// Token transfers stay sequential; message-only uses WASP wallet pool.
+	if isTokenMode {
+		coinPool, prepErr := sui.PrepareSuiCoinPool(
+			ctx,
+			ptbClient,
+			suiSigner,
+			senderAddress,
+			cfg.MessageCount,
+			splitAmountPerCoin,
+		)
+		if prepErr != nil {
+			t.Fatalf("Failed to prepare SUI coin pool: %v", prepErr)
+		}
 
-	coinPool, err := sui.PrepareSuiCoinPool(
-		ctx,
-		ptbClient,
-		suiSigner,
-		senderAddress,
-		cfg.MessageCount,
-		splitAmountPerCoin,
-	)
-	if err != nil {
-		t.Fatalf("Failed to prepare SUI coin pool: %v", err)
+		slog.Info("Resolved Sui addresses",
+			"ccip", ccipPkgID,
+			"onramp", onRampPkgID,
+			"ccipObjectRef", ccipObjectRefID,
+			"onRampState", onRampStateID,
+			"linkTokenMetadata", linkTokenMetadataID,
+			"coinPoolSize", coinPool.Size(),
+			"tokenCoinPoolSize", func() int {
+				if tokenCoinPool == nil {
+					return 0
+				}
+				return tokenCoinPool.Size()
+			}(),
+		)
+
+		runSui2EVMSequential(t, cfg, ptbClient, suiSigner, coinPool, tokenCoinPool,
+			ccipPkgID, onRampPkgID, ccipObjectRefID, onRampStateID,
+			feeTokenType, suiCoinMetadataID,
+			estimatedFee, splitAmountPerCoin,
+			tokenCoinType, tokenPoolPkgID, tokenPoolStateID, denyListObjectID, tokenStateObjectID,
+			receiverBytes)
+		return
 	}
 
 	slog.Info("Resolved Sui addresses",
@@ -197,28 +227,12 @@ func TestSui2EVM(t *testing.T) {
 		"ccipObjectRef", ccipObjectRefID,
 		"onRampState", onRampStateID,
 		"linkTokenMetadata", linkTokenMetadataID,
-		"coinPoolSize", coinPool.Size(),
-		"tokenCoinPoolSize", func() int {
-			if tokenCoinPool == nil {
-				return 0
-			}
-			return tokenCoinPool.Size()
-		}(),
 	)
-
-	// Token transfers stay sequential; message-only uses WASP wallet pool.
-	if isTokenMode {
-		runSui2EVMSequential(t, cfg, ptbClient, suiSigner, coinPool, tokenCoinPool,
-			ccipPkgID, onRampPkgID, ccipObjectRefID, onRampStateID,
-			feeTokenType, suiCoinMetadataID,
-			tokenCoinType, tokenPoolPkgID, tokenPoolStateID, denyListObjectID, tokenStateObjectID,
-			receiverBytes)
-		return
-	}
 
 	runSui2EVMWASP(t, cfg, ptbClient, suiSigner, senderAddress,
 		ccipPkgID, onRampPkgID, ccipObjectRefID, onRampStateID,
 		feeTokenType, suiCoinMetadataID,
+		estimatedFee, splitAmountPerCoin,
 		receiverBytes)
 }
 
@@ -232,6 +246,7 @@ func runSui2EVMSequential(
 	tokenCoinPool *sui.TokenCoinPool,
 	ccipPkgID, onRampPkgID, ccipObjectRefID, onRampStateID string,
 	feeTokenType, suiCoinMetadataID string,
+	estimatedFee, splitAmountPerCoin uint64,
 	tokenCoinType, tokenPoolPkgID, tokenPoolStateID, denyListObjectID, tokenStateObjectID string,
 	receiverBytes []byte,
 ) {
@@ -303,6 +318,7 @@ func runSui2EVMSequential(
 			feeTokenType,
 			suiCoinMetadataID,
 			feeCoinID,
+			splitAmountPerCoin,
 			tokenCoinID,
 			cfg.TokenConfig.TokenIdentifier,
 			tokenCoinType,
@@ -350,6 +366,8 @@ func runSui2EVMSequential(
 		"total", results.TotalMessages,
 	)
 
+	_ = estimatedFee // reserved for run-level diagnostics parity with WASP mode
+
 	if results.FailedMessages > 0 {
 		t.Fatalf("Run completed with failed messages: failed=%d total=%d", results.FailedMessages, results.TotalMessages)
 	}
@@ -364,6 +382,7 @@ func runSui2EVMWASP(
 	mainAddress string,
 	ccipPkgID, onRampPkgID, ccipObjectRefID, onRampStateID string,
 	feeTokenType, suiCoinMetadataID string,
+	estimatedFee, splitAmount uint64,
 	receiverBytes []byte,
 ) {
 	ctx := context.Background()
@@ -384,49 +403,38 @@ func runSui2EVMWASP(
 		}
 	})
 
-	// Step 2: Estimate fee and compute split amount before funding.
-	estimatedFee, err := sui.EstimateSuiToEVMFee(
-		ctx, ptbClient, mainSigner,
-		ccipPkgID, onRampPkgID, ccipObjectRefID, onRampStateID,
-		feeTokenType, suiCoinMetadataID,
-		cfg.DestChainSelector, receiverBytes, cfg.MessageData, cfg.EvmCallbackGasLimit,
-	)
-	if err != nil {
-		t.Fatalf("Failed to estimate Sui fee: %v", err)
-	}
-	splitAmount := sui.RecommendedSplitAmountPerCoin(estimatedFee)
-
-	// Step 3: Fund each wallet using the actual split amount requirement.
+	// Step 2: Fund each wallet using the precomputed split amount requirement.
 	fundingPerWallet := estimateSuiFunding(cfg, N, splitAmount)
 	if err := wallet.FundSuiWallets(ctx, ptbClient, mainSigner, mainAddress, wallets, fundingPerWallet); err != nil {
 		t.Fatalf("Failed to fund Sui wallets: %v", err)
 	}
 
-	// Step 4: Prepare all gas coin pools BEFORE creating any generators.
+	// Step 3: Prepare one gas coin + one reusable fee coin per wallet BEFORE creating generators.
 	// CRITICAL: wasp.NewGenerator starts a context.WithTimeout at construction time,
 	// not at Run() time. Any slow work (like Sui RPC calls for coin splitting) done
 	// between NewGenerator and p.Run() eats into the generator's lifetime.
-	// With 5 wallets × ~3s per PrepareSuiCoinPool = ~15s of sequential prep,
+	// With 5 wallets × ~3s of sequential prep,
 	// a 2s duration would expire before p.Run() is even called for early wallets.
 	msgPerWallet := cfg.MessageCount / N
 	if msgPerWallet < 1 {
 		msgPerWallet = 1
 	}
-	type walletPool struct {
-		w       *wallet.Wallet
-		gasPool *sui.SuiCoinPool
+	type walletCoins struct {
+		w         *wallet.Wallet
+		gasCoinID string
+		feeCoinID string
 	}
-	pools := make([]walletPool, N)
+	coins := make([]walletCoins, N)
 	for i := 0; i < N; i++ {
 		w := wallets[i]
-		gasPool, err := sui.PrepareSuiCoinPool(ctx, ptbClient, w.SuiSigner, w.Address, msgPerWallet, splitAmount)
+		gasCoinID, feeCoinID, err := sui.SetupWalletCoins(ctx, ptbClient, w.SuiSigner, w.Address, msgPerWallet, cfg.SuiGasBudget, splitAmount)
 		if err != nil {
-			t.Fatalf("Failed to prepare SUI coin pool for wallet %d: %v", i, err)
+			t.Fatalf("Failed to setup wallet coins for wallet %d: %v", i, err)
 		}
-		pools[i] = walletPool{w: w, gasPool: gasPool}
+		coins[i] = walletCoins{w: w, gasCoinID: gasCoinID, feeCoinID: feeCoinID}
 	}
 
-	// Step 5: Create all generators and run immediately.
+	// Step 4: Create all generators and run immediately.
 	// Generators are created in a tight loop right before p.Run() to minimize
 	// the gap between NewGenerator (context start) and Run (actual execution).
 	resultsCh := make(chan config.SentMessage, cfg.MessageCount)
@@ -440,10 +448,12 @@ func runSui2EVMWASP(
 	duration := time.Duration(msgPerWallet) * time.Second / time.Duration(rpsPerWallet)
 
 	for i := 0; i < N; i++ {
-		pool := pools[i]
+		walletCoins := coins[i]
 		gun := &Sui2EVMMsgGun{
-			wallet:            pool.w,
-			gasPool:           pool.gasPool,
+			wallet:            walletCoins.w,
+			gasCoinID:         walletCoins.gasCoinID,
+			feeCoinID:         walletCoins.feeCoinID,
+			feeAmount:         splitAmount,
 			ptbClient:         ptbClient,
 			ccipPkgID:         ccipPkgID,
 			onRampPkgID:       onRampPkgID,
@@ -468,13 +478,14 @@ func runSui2EVMWASP(
 		p.Add(gen, err)
 	}
 
-	// Step 6: Run all generators in parallel.
+	// Step 5: Run all generators in parallel.
 	if _, err := p.Run(true); err != nil {
 		t.Fatalf("WASP profile run failed: %v", err)
 	}
-	close(resultsCh)
 
-	// Step 7: Collect and save results.
+	_ = estimatedFee // retained for parity/debug parity in caller-level logging
+
+	// Step 6: Collect and save results.
 	results := collectResults(cfg, resultsCh)
 	if err := config.SaveResults(results); err != nil {
 		t.Fatalf("Failed to save results: %v", err)
