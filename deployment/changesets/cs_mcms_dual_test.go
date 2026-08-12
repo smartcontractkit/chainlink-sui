@@ -6,6 +6,7 @@ import (
 	cselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
@@ -30,7 +31,7 @@ func TestDeployMCMS_VerifyPreconditions_RejectsDuplicateInstance(t *testing.T) {
 
 	selector := cselectors.SUI_TESTNET.Selector
 	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -56,7 +57,7 @@ func TestDeployMCMS_VerifyPreconditions_RejectsDuplicateFastInstance(t *testing.
 
 	selector := cselectors.SUI_TESTNET.Selector
 	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xfast_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xfast_state",
@@ -82,7 +83,7 @@ func TestDeployMCMS_VerifyPreconditions_AllowsFastWhenOnlySlowExists(t *testing.
 
 	selector := cselectors.SUI_TESTNET.Selector
 	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -107,7 +108,7 @@ func TestRegisterCurserCap_VerifyPreconditions_RequiresBothMCMSInstances(t *test
 
 	selector := cselectors.SUI_TESTNET.Selector
 	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -129,7 +130,7 @@ func TestRegisterCurserCap_VerifyPreconditions_RequiresBothMCMSInstances(t *test
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "fastcurse MCMS must be deployed")
 
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xfast_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xfast_state",

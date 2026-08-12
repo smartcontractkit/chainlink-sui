@@ -3,6 +3,7 @@ package changesets
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -25,6 +26,7 @@ type MintLinkToken struct{}
 func (d MintLinkToken) Apply(e cldf.Environment, config MintLinkTokenConfig) (cldf.ChangesetOutput, error) {
 
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]operations.Report[any, any], 0)
 
 	suiChains := e.BlockChains.SuiChains()
@@ -59,6 +61,7 @@ func (d MintLinkToken) Apply(e cldf.Environment, config MintLinkTokenConfig) (cl
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
+		DataStore:   ds,
 		Reports:     seqReports,
 	}, nil
 }

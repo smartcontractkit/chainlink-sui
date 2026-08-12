@@ -27,18 +27,48 @@ type InitUpgradeRegistryObjects struct {
 }
 
 type InitUpgradeRegistryInput struct {
-	CCIPPackageId    string
-	StateObjectId    string
-	OwnerCapObjectId string
+	CCIPPackageId       string // original package ID (MCMS registry identity; used as binary when LatestCCIPPackageId is "")
+	LatestCCIPPackageId string // optional: upgraded package ID (PTB execution target when set)
+	StateObjectId       string
+	OwnerCapObjectId    string
 }
 
 var initUpgradeRegistryHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitUpgradeRegistryInput) (output sui_ops.OpTxResult[InitUpgradeRegistryObjects], err error) {
 	if err := requireCCIPPackageID(input.CCIPPackageId); err != nil {
 		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, err
 	}
-	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
+	binaryPkgId := input.CCIPPackageId
+	if input.LatestCCIPPackageId != "" {
+		binaryPkgId = input.LatestCCIPPackageId
+	}
+	contract, err := module_upgrade_registry.NewUpgradeRegistry(binaryPkgId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
+	}
+
+	ref := bind.Object{Id: input.StateObjectId}
+	ownerCap := bind.Object{Id: input.OwnerCapObjectId}
+	encodedCall, err := contract.Encoder().Initialize(ref, ownerCap)
+	if err != nil {
+		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, fmt.Errorf("failed to encode Initialize call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if input.LatestCCIPPackageId != "" {
+		call.LatestPackageID = call.PackageID // current PackageID is the latest (from binaryPkgId)
+		call.PackageID = input.CCIPPackageId  // replace with original for on-chain identity
+	}
+
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of UpgradeRegistry initialize as per no Signer provided")
+		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   InitUpgradeRegistryObjects{},
+			Call:      call,
+		}, nil
 	}
 
 	opts := deps.GetCallOpts()
@@ -46,8 +76,8 @@ var initUpgradeRegistryHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 	tx, err := contract.Initialize(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		ref,
+		ownerCap,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[InitUpgradeRegistryObjects]{}, fmt.Errorf("failed to execute UpgradeRegistry initialization: %w", err)

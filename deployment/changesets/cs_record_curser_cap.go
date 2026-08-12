@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/smartcontractkit/chainlink-sui/deployment"
@@ -55,12 +56,13 @@ func (c RecordCurserCap) Apply(e cldf.Environment, cfg RecordCurserCapConfig) (c
 	}
 
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	tv := cldf.NewTypeAndVersion(deployment.SuiCurserCapObjectIDType, deployment.Version1_0_0)
-	if err := ab.Save(cfg.SuiChainSelector, capID, tv); err != nil {
+	if err := deployment.SaveSuiAddress(ab, ds.Addresses(), cfg.SuiChainSelector, capID, tv); err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("save CurserCap to address book: %w", err)
 	}
 
-	return cldf.ChangesetOutput{AddressBook: ab}, nil
+	return cldf.ChangesetOutput{AddressBook: ab, DataStore: ds}, nil
 }
 
 func resolveCurserCapIDForRecord(e cldf.Environment, cfg RecordCurserCapConfig) (string, error) {

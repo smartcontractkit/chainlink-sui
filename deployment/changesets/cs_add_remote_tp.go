@@ -1,6 +1,7 @@
 package changesets
 
 import (
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -31,6 +32,7 @@ type AddRemoteTP struct{}
 // Apply implements deployment.ChangeSetV2.
 func (d AddRemoteTP) Apply(e cldf.Environment, config AddRemoteTPConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	suiChains := e.BlockChains.SuiChains()
@@ -119,6 +121,7 @@ func (d AddRemoteTP) Apply(e cldf.Environment, config AddRemoteTPConfig) (cldf.C
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
+		DataStore:   ds,
 		Reports:     seqReports,
 	}, nil
 }

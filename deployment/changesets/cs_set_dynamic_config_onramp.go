@@ -5,6 +5,7 @@ import (
 
 	"github.com/smartcontractkit/mcms"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -35,6 +36,7 @@ func (SetDynamicConfigOnRamp) VerifyPreconditions(e cldf.Environment, config Set
 // Apply implements deployment.ChangeSetV2.
 func (SetDynamicConfigOnRamp) Apply(e cldf.Environment, config SetDynamicConfigOnRampConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	state, err := deployment.LoadOnchainStatesui(e)
@@ -104,6 +106,7 @@ func (SetDynamicConfigOnRamp) Apply(e cldf.Environment, config SetDynamicConfigO
 
 	return cldf.ChangesetOutput{
 		AddressBook:           ab,
+		DataStore:             ds,
 		Reports:               seqReports,
 		MCMSTimelockProposals: timelockProposals,
 	}, nil

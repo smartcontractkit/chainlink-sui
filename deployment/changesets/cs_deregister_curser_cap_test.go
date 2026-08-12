@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
@@ -75,7 +76,7 @@ func TestDeregisterCurserCap_VerifyPreconditions_SucceedsWithSlowMCMS(t *testing
 	require.NoError(t, ab.Save(selector, "0xccip_pkg", cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
 	require.NoError(t, ab.Save(selector, "0xccip_ref", cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)))
 	require.NoError(t, ab.Save(selector, "0xowner_cap", cldf.NewTypeAndVersion(deployment.SuiCCIPOwnerCapObjectIDType, deployment.Version1_0_0)))
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",

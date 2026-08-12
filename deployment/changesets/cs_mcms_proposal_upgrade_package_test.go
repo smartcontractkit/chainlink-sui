@@ -5,6 +5,7 @@ import (
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/stretchr/testify/require"
 
@@ -18,7 +19,7 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_RequiresFastMCMSForCCIP(
 
 	selector := cselectors.SUI_TESTNET.Selector
 	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -47,7 +48,7 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_SucceedsWithFastMCMSInAd
 
 	selector := cselectors.SUI_TESTNET.Selector
 	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -58,7 +59,7 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_SucceedsWithFastMCMSInAd
 			McmsDeployerStateObjectId:   "0xslow_deployer",
 		},
 	}, deployment.MCMSInstanceSlow))
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xfast_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xfast_state",
@@ -87,7 +88,7 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_ExplicitFastMCMSOverride
 
 	selector := cselectors.SUI_TESTNET.Selector
 	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -119,7 +120,7 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_LINKDoesNotRequireFastMC
 
 	selector := cselectors.SUI_TESTNET.Selector
 	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",

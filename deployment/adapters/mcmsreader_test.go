@@ -7,6 +7,7 @@ import (
 	ccipmcms "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldfsui "github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
@@ -44,7 +45,7 @@ func TestMCMSReader_FastCurseQualifiers_SelectFastMCMS(t *testing.T) {
 	ab := cldf.NewMemoryAddressBook()
 	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPPackageID, cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
 	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPObjectRef, cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)))
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: testFastMcmsPackageID,
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   testFastMcmsState,
@@ -90,7 +91,7 @@ func TestMCMSReader_RMNMCMSQualifier_SelectsFastMCMS(t *testing.T) {
 	ab := cldf.NewMemoryAddressBook()
 	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPPackageID, cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
 	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPObjectRef, cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)))
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: testFastMcmsPackageID,
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   testFastMcmsState,
@@ -133,7 +134,7 @@ func TestMCMSReader_EmptyQualifier_SelectsSlowMCMS(t *testing.T) {
 	ab := cldf.NewMemoryAddressBook()
 	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPPackageID, cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
 	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPObjectRef, cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)))
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: testSlowMcmsPackageID,
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   testSlowMcmsState,

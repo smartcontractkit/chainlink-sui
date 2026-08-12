@@ -29,6 +29,7 @@ type IUpgradeRegistry interface {
 	GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string) (*models.SuiTransactionBlockResponse, error)
 	IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error)
 	VerifyFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error)
+	McmsInitialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsBlockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsUnblockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsBlockFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -60,6 +61,8 @@ type UpgradeRegistryEncoder interface {
 	IsFunctionAllowedWithArgs(args ...any) (*bind.EncodedCall, error)
 	VerifyFunctionAllowed(ref bind.Object, moduleName string, functionName string, version byte) (*bind.EncodedCall, error)
 	VerifyFunctionAllowedWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsInitialize(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsInitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsBlockVersion(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsBlockVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsUnblockVersion(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -212,6 +215,16 @@ func (c *UpgradeRegistryContract) IsFunctionAllowed(ctx context.Context, opts *b
 // VerifyFunctionAllowed executes the verify_function_allowed Move function.
 func (c *UpgradeRegistryContract) VerifyFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.upgradeRegistryEncoder.VerifyFunctionAllowed(ref, moduleName, functionName, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsInitialize executes the mcms_initialize Move function.
+func (c *UpgradeRegistryContract) McmsInitialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.McmsInitialize(ref, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -587,6 +600,38 @@ func (c upgradeRegistryEncoder) VerifyFunctionAllowedWithArgs(args ...any) (*bin
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("verify_function_allowed", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsInitialize encodes a call to the mcms_initialize Move function.
+func (c upgradeRegistryEncoder) McmsInitialize(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_initialize", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsInitializeWithArgs encodes a call to the mcms_initialize Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c upgradeRegistryEncoder) McmsInitializeWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsBlockVersion encodes a call to the mcms_block_version Move function.

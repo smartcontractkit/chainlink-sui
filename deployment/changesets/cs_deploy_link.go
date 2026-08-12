@@ -3,6 +3,7 @@ package changesets
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -24,6 +25,7 @@ type DeployLinkToken struct{}
 // Apply implements deployment.ChangeSetV2.
 func (d DeployLinkToken) Apply(e cldf.Environment, config DeployLinkTokenConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	suiChains := e.BlockChains.SuiChains()
@@ -51,34 +53,35 @@ func (d DeployLinkToken) Apply(e cldf.Environment, config DeployLinkTokenConfig)
 
 	// save LinkToken address to the addressbook
 	typeAndVersionLinkToken := cldf.NewTypeAndVersion(deployment.SuiLinkTokenType, deployment.Version1_0_0)
-	err = ab.Save(config.ChainSelector, linkTokenReport.Output.PackageId, typeAndVersionLinkToken)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, linkTokenReport.Output.PackageId, typeAndVersionLinkToken)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LinkToken address %s for Sui chain %d: %w", linkTokenReport.Output.PackageId, config.ChainSelector, err)
 	}
 
 	// save LinkTokenCoinMetadataId address to the addressbook
 	typeAndVersionCoinMetadataId := cldf.NewTypeAndVersion(deployment.SuiLinkTokenObjectMetadataID, deployment.Version1_0_0)
-	err = ab.Save(config.ChainSelector, linkTokenReport.Output.Objects.CoinMetadataObjectId, typeAndVersionCoinMetadataId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, linkTokenReport.Output.Objects.CoinMetadataObjectId, typeAndVersionCoinMetadataId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LinkToken CoinmetadataObjectId address %s for Sui chain %d: %w", linkTokenReport.Output.Objects.CoinMetadataObjectId, config.ChainSelector, err)
 	}
 
 	// save LinkTokenTreasuryCapId address to the addressbook
 	typeAndVersionTreasuryCapId := cldf.NewTypeAndVersion(deployment.SuiLinkTokenTreasuryCapID, deployment.Version1_0_0)
-	err = ab.Save(config.ChainSelector, linkTokenReport.Output.Objects.TreasuryCapObjectId, typeAndVersionTreasuryCapId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, linkTokenReport.Output.Objects.TreasuryCapObjectId, typeAndVersionTreasuryCapId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LinkToken TreasuryCapObjectId address %s for Sui chain %d: %w", linkTokenReport.Output.Objects.TreasuryCapObjectId, config.ChainSelector, err)
 	}
 
 	// save LinkTokenUpgradeCapId address to the addressbook
 	typeAndVersionUpgradeCapID := cldf.NewTypeAndVersion(deployment.SuiLinkTokenUpgradeCapID, deployment.Version1_0_0)
-	err = ab.Save(config.ChainSelector, linkTokenReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapID)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, linkTokenReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapID)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LinkToken UpgradeCapObjectId address %s for Sui chain %d: %w", linkTokenReport.Output.Objects.UpgradeCapObjectId, config.ChainSelector, err)
 	}
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
+		DataStore:   ds,
 		Reports:     seqReports,
 	}, nil
 }

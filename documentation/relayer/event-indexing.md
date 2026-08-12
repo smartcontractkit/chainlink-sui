@@ -157,9 +157,11 @@ Selectors are registered with the `EventsIndexer` (and therefore become visible 
 
 `AddEventSelector` is idempotent, so re-binding never creates duplicates.
 
-### Rescans on new selectors
+### Replay (rescanning checkpoints)
 
-A selector can only be registered once its contract is discovered and bound. By then the poller may have already processed — and, lacking the selector, discarded — checkpoints that carried matching events. To recover them, registering a new selector triggers `RescanRecent`, which rewinds the poller's in-memory `lastProcessed` cursor so those recent checkpoints are re-scanned. The rewind span is the configured backfill window (`BackfillCheckpointCount`, default `100`); re-inserts are idempotent.
+The core node can request a replay via the relayer's `Replay(ctx, fromBlock, args)` command, where `fromBlock` is a checkpoint sequence number in decimal. The relayer forwards it to the poller's `RescanFrom`, which re-enqueues a window of `ReplayCheckpointCount` checkpoints (default `100`; an explicit `0` re-scans all the way to the latest checkpoint) starting at the requested checkpoint, capped at the chain tip. Re-inserts are idempotent, so replaying already-indexed checkpoints is safe.
+
+A replay request is rejected with an error when the requested checkpoint is ahead of the chain tip or has been pruned from the RPC provider's history (the error names the lowest available checkpoint so the request can be retried from there).
 
 ## Backfill & start sequence
 
@@ -190,8 +192,9 @@ type ChainPollerConfig struct {
 | `PollingIntervalSecs` | `2` | How often live polling checks for new checkpoints |
 | `SyncTimeoutSecs` | `60` | Timeout for processing a single checkpoint |
 | `ChannelBufferSize` | `16` | Buffer size of the events/transactions channels |
-| `BackfillCheckpointCount` | `100` | Backfill window (start at `latest - N`) and rescan rewind span |
+| `BackfillCheckpointCount` | `100` | Backfill window (start at `latest - N`) |
 | `StartCheckpointSequence` | _unset_ | Explicit start sequence (overrides backfill) |
+| `ReplayCheckpointCount` | `100` | Checkpoints re-scanned per Replay request, starting at the requested checkpoint; an explicit `0` re-scans to the latest checkpoint |
 
 > The legacy `[Sui.ChainReader] EventsIndexer.*` / `TransactionsIndexer.*` polling settings no longer drive checkpoint fetching — the single ChainPoller does. See [Configuration](./configuration.md).
 
@@ -236,7 +239,7 @@ On `Close`, the poller's context is cancelled, which closes the channels; the co
 | Symptom | Likely cause | What to check |
 |---------|--------------|---------------|
 | Events for a contract never appear | Selector never registered | Confirm the contract was bound and `AddEventSelector` ran; check the "Registered event selector" log line |
-| Events around bind time are missing | Poller advanced past them before the selector existed | Confirm a rescan fired (`Rewinding poller to re-scan...`); increase `BackfillCheckpointCount` |
+| Events around bind time are missing | Poller advanced past them before the selector existed | Trigger a `Replay` from a checkpoint before the bind; increase `BackfillCheckpointCount` |
 | Indexer lags the chain | `PollingInterval` too high or node slow on `GetCheckpointData` | Lower `PollingIntervalSecs`; check node gRPC latency and the indexer client's connection pool |
 | `checkpoint not found` warnings | The poller reached a checkpoint not yet produced | Benign at the chain tip; the poller retries on the next tick |
 | No synthetic failure events | Transmitters/OffRamp not yet known | Confirm OffRamp is bound and a `ConfigSet` event has been indexed |

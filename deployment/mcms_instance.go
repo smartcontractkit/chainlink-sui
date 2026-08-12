@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
@@ -77,9 +78,11 @@ func (s CCIPChainState) MCMSStateByInstance(instance MCMSInstance) MCMSStateFiel
 	}
 }
 
-// StoreMCMSInAddressBook saves one MCMS deployment into the address book under the
-// correct instance label so slow and fastcurse entries can coexist on one chain.
-func StoreMCMSInAddressBook(ab *cldf.AddressBookMap, chainSelector uint64, mcmsReport mcmsops.DeployMCMSSeqOutput, instance MCMSInstance) error {
+// StoreMCMSInAddressBook saves one MCMS deployment's seven object IDs to both the
+// address book and the datastore under the correct instance label, so slow and
+// fastcurse entries can coexist on one chain. Each entry is dual-written via
+// SaveSuiAddress.
+func StoreMCMSInAddressBook(ab *cldf.AddressBookMap, ds fdatastore.MutableAddressRefStore, chainSelector uint64, mcmsReport mcmsops.DeployMCMSSeqOutput, instance MCMSInstance) error {
 	addLabel := func(tv cldf.TypeAndVersion) cldf.TypeAndVersion {
 		if label := instance.AddressBookLabel(); label != "" {
 			tv.Labels.Add(label)
@@ -88,7 +91,7 @@ func StoreMCMSInAddressBook(ab *cldf.AddressBookMap, chainSelector uint64, mcmsR
 	}
 
 	save := func(addr string, typ cldf.ContractType) error {
-		return ab.Save(chainSelector, addr, addLabel(cldf.NewTypeAndVersion(typ, Version1_0_0)))
+		return SaveSuiAddress(ab, ds, chainSelector, addr, addLabel(cldf.NewTypeAndVersion(typ, Version1_0_0)))
 	}
 
 	if err := save(mcmsReport.PackageId, SuiMcmsPackageIDType); err != nil {
