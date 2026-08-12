@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"os/signal"
 	"strings"
@@ -397,17 +398,17 @@ func runSui2EVMWASP(
 	if err != nil {
 		t.Fatalf("Failed to generate Sui wallets: %v", err)
 	}
-	t.Cleanup(func() {
-		if err := wallet.SweepSuiWallets(ctx, ptbClient, wallets, mainAddress); err != nil {
-			slog.Error("Failed to sweep Sui wallets during cleanup", "error", err)
-		}
-	})
 
 	// Step 2: Fund each wallet using the precomputed split amount requirement.
 	fundingPerWallet := estimateSuiFunding(cfg, N, splitAmount)
 	if err := wallet.FundSuiWallets(ctx, ptbClient, mainSigner, mainAddress, wallets, fundingPerWallet); err != nil {
 		t.Fatalf("Failed to fund Sui wallets: %v", err)
 	}
+	t.Cleanup(func() {
+		if err := wallet.SweepSuiWallets(ctx, ptbClient, wallets, mainAddress); err != nil {
+			slog.Error("Failed to sweep Sui wallets during cleanup", "error", err)
+		}
+	})
 
 	// Step 3: Prepare one gas coin + one reusable fee coin per wallet BEFORE creating generators.
 	// CRITICAL: wasp.NewGenerator starts a context.WithTimeout at construction time,
@@ -415,10 +416,39 @@ func runSui2EVMWASP(
 	// between NewGenerator and p.Run() eats into the generator's lifetime.
 	// With 5 wallets × ~3s of sequential prep,
 	// a 2s duration would expire before p.Run() is even called for early wallets.
-	msgPerWallet := cfg.MessageCount / N
-	if msgPerWallet < 1 {
-		msgPerWallet = 1
+	msgPerWalletBase := cfg.MessageCount / N
+	msgRemainder := cfg.MessageCount % N
+	msgCounts := make([]int, N)
+	for i := 0; i < N; i++ {
+		msgCounts[i] = msgPerWalletBase
+		if i < msgRemainder {
+			msgCounts[i]++
+		}
+		if msgCounts[i] < 1 {
+			msgCounts[i] = 1
+		}
 	}
+
+	targetPerWalletRPS := float64(cfg.LoadRPS) / float64(N)
+	if targetPerWalletRPS <= 0 {
+		t.Fatalf("invalid target per-wallet RPS %.4f from load.rps=%d wallets=%d", targetPerWalletRPS, cfg.LoadRPS, N)
+	}
+	minInterval := time.Duration(float64(time.Second) / targetPerWalletRPS)
+
+	// WASP schedule requires integer RPS. We over-drive the scheduler and enforce
+	// the exact fractional per-wallet rate in the gun via minCallInterval.
+	scheduleRPS := int64(math.Ceil(targetPerWalletRPS))
+	if scheduleRPS < 1 {
+		scheduleRPS = 1
+	}
+
+	slog.Info("WASP rate configuration",
+		"globalTargetRPS", cfg.LoadRPS,
+		"wallets", N,
+		"targetPerWalletRPS", targetPerWalletRPS,
+		"scheduleRPSPerWallet", scheduleRPS,
+		"minCallIntervalMs", minInterval.Milliseconds(),
+	)
 	type walletCoins struct {
 		w         *wallet.Wallet
 		gasCoinID string
@@ -427,7 +457,7 @@ func runSui2EVMWASP(
 	coins := make([]walletCoins, N)
 	for i := 0; i < N; i++ {
 		w := wallets[i]
-		gasCoinID, feeCoinID, err := sui.SetupWalletCoins(ctx, ptbClient, w.SuiSigner, w.Address, msgPerWallet, cfg.SuiGasBudget, splitAmount)
+		gasCoinID, feeCoinID, err := sui.SetupWalletCoins(ctx, ptbClient, w.SuiSigner, w.Address, msgCounts[i], cfg.SuiGasBudget, splitAmount)
 		if err != nil {
 			t.Fatalf("Failed to setup wallet coins for wallet %d: %v", i, err)
 		}
@@ -439,21 +469,23 @@ func runSui2EVMWASP(
 	// the gap between NewGenerator (context start) and Run (actual execution).
 	resultsCh := make(chan config.SentMessage, cfg.MessageCount)
 	p := wasp.NewProfile()
-	rpsPerWallet := int64(cfg.LoadRPS / N)
-	if rpsPerWallet < 1 {
-		rpsPerWallet = 1
-	}
-	// Each wallet sends msgPerWallet messages at rpsPerWallet RPS.
-	// duration = msgPerWallet / rpsPerWallet seconds.
-	duration := time.Duration(msgPerWallet) * time.Second / time.Duration(rpsPerWallet)
 
 	for i := 0; i < N; i++ {
 		walletCoins := coins[i]
+		msgCount := msgCounts[i]
+		durationSec := int64(math.Ceil(float64(msgCount) / targetPerWalletRPS))
+		if durationSec < 1 {
+			durationSec = 1
+		}
+		duration := time.Duration(durationSec) * time.Second
+
 		gun := &Sui2EVMMsgGun{
 			wallet:            walletCoins.w,
 			gasCoinID:         walletCoins.gasCoinID,
 			feeCoinID:         walletCoins.feeCoinID,
 			feeAmount:         splitAmount,
+			maxCalls:          msgCount,
+			minCallInterval:   minInterval,
 			ptbClient:         ptbClient,
 			ccipPkgID:         ccipPkgID,
 			onRampPkgID:       onRampPkgID,
@@ -470,10 +502,11 @@ func runSui2EVMWASP(
 		}
 
 		gen, err := wasp.NewGenerator(&wasp.Config{
-			GenName:  fmt.Sprintf("sui2evm-w%d", i),
-			LoadType: wasp.RPS,
-			Schedule: wasp.Plain(rpsPerWallet, duration),
-			Gun:      gun,
+			GenName:     fmt.Sprintf("sui2evm-w%d", i),
+			LoadType:    wasp.RPS,
+			Schedule:    wasp.Plain(scheduleRPS, duration),
+			CallTimeout: 30 * time.Second,
+			Gun:         gun,
 		})
 		p.Add(gen, err)
 	}

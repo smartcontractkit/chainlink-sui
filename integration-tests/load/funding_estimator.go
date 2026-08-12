@@ -10,7 +10,7 @@ import (
 // Formula:
 //   msgPerWallet × splitAmount   (CCIP fee reserve)
 // + msgPerWallet × 5_000_000     (network gas for send PTBs)
-// + 1_500_000_000                (merge + single split setup buffer)
+// + 400_000_000                  (merge/split setup + safety buffer)
 func estimateSuiFunding(cfg *config.LoadTestConfig, numWallets int, splitAmount uint64) uint64 {
 	if numWallets <= 0 {
 		numWallets = 1
@@ -21,7 +21,7 @@ func estimateSuiFunding(cfg *config.LoadTestConfig, numWallets int, splitAmount 
 	}
 	ccipFees := uint64(msgPerWallet) * splitAmount //nolint:gosec
 	networkGas := uint64(msgPerWallet) * 5_000_000 //nolint:gosec
-	setupBuffer := uint64(1_500_000_000)
+	setupBuffer := uint64(400_000_000)
 
 	return ccipFees + networkGas + setupBuffer
 }

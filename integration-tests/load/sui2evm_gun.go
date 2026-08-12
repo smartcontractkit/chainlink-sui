@@ -24,6 +24,10 @@ type Sui2EVMMsgGun struct {
 	gasCoinID         string
 	feeCoinID         string
 	feeAmount         uint64
+	maxCalls          int
+	minCallInterval   time.Duration
+	lastCallStart     time.Time
+	exhaustedLogged   bool
 	callSeq           uint64
 	mu                sync.Mutex
 	ptbClient         *client.PTBClient
@@ -44,13 +48,33 @@ type Sui2EVMMsgGun struct {
 // Call implements the wasp.Gun interface.
 // It sends a message-only CCIP request using one persistent gas coin and one persistent fee coin.
 func (g *Sui2EVMMsgGun) Call(_ *wasp.Generator) *wasp.Response {
+	group := "sui->evm"
+
 	g.mu.Lock()
 	defer g.mu.Unlock()
+
+	if g.maxCalls > 0 && int(g.callSeq) >= g.maxCalls {
+		if !g.exhaustedLogged {
+			slog.Info("Sui wallet reached planned send count",
+				"wallet", g.wallet.Address,
+				"maxCalls", g.maxCalls,
+			)
+			g.exhaustedLogged = true
+		}
+		return &wasp.Response{Failed: false, Group: group}
+	}
+
+	if g.minCallInterval > 0 && !g.lastCallStart.IsZero() {
+		nextAllowed := g.lastCallStart.Add(g.minCallInterval)
+		if wait := time.Until(nextAllowed); wait > 0 {
+			time.Sleep(wait)
+		}
+	}
+	g.lastCallStart = time.Now()
 	g.callSeq++
 	seq := g.callSeq
 
 	ctx := context.Background()
-	group := "sui->evm"
 	start := time.Now()
 
 	slog.Info("Sui message send started",

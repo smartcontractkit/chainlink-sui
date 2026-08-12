@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -97,7 +98,7 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 		t.Fatalf("invalid run_ended %q: %v", results.RunEnded, err)
 	}
 	fromTime := runStart.Add(-5 * time.Minute)
-	toTime := runEnd.Add(30 * time.Minute)
+	toTime := runEnd.Add(10 * time.Minute)
 
 	latest, err := client.HeaderByNumber(ctx, nil)
 	if err != nil {
@@ -224,10 +225,6 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 		}
 	}
 
-	// ── Query commit events ──
-	// Commit events are batch-level (Merkle roots with seq number ranges), not per-message.
-	// We fetch all commit events in the block range, then match each message to the
-	// commit batch whose [MinSeqNr, MaxSeqNr] interval contains the message's sequence number.
 	type commitBatch struct {
 		Block     uint64
 		Timestamp time.Time
@@ -237,12 +234,16 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 	}
 	commitBatches := make([]commitBatch, 0)
 
+	// Commits happen within the same run window as execution; reuse the same block range.
+	commitFilterOpts := filterOpts
+
 	if isV160 {
+		// v1.6.0 OffRamp emits CommitReportAccepted directly.
 		filterer, err := offramp160.NewOffRampFilterer(offRampAddr, client)
 		if err != nil {
 			t.Fatalf("NewOffRampFilterer (commit): %v", err)
 		}
-		iter, err := filterer.FilterCommitReportAccepted(filterOpts)
+		iter, err := filterer.FilterCommitReportAccepted(commitFilterOpts)
 		if err != nil {
 			t.Fatalf("FilterCommitReportAccepted: %v", err)
 		}
@@ -254,11 +255,15 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 			if header != nil {
 				ts = time.Unix(int64(header.Time), 0)
 			}
-			// Only keep blessed roots (committed); unblessed roots are not yet committed.
-			for _, root := range e.BlessedMerkleRoots {
+			// Check both blessed and unblessed roots — on testnet RMN is often disabled
+			// so commits arrive as unblessed. Integration tests (helpers.go) do the same.
+			for _, root := range append(e.BlessedMerkleRoots, e.UnblessedMerkleRoots...) {
 				if root.SourceChainSelector != results.SourceChainSelector {
 					continue
 				}
+				t.Logf("OffRamp CommitReportAccepted: block=%d seqNr=[%d,%d] blessed=%v tx=%s",
+					e.Raw.BlockNumber, root.MinSeqNr, root.MaxSeqNr,
+					len(e.BlessedMerkleRoots) > 0, e.Raw.TxHash.Hex())
 				commitBatches = append(commitBatches, commitBatch{
 					Block:     e.Raw.BlockNumber,
 					Timestamp: ts,
@@ -266,6 +271,43 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 					MinSeqNr:  root.MinSeqNr,
 					MaxSeqNr:  root.MaxSeqNr,
 				})
+			}
+		}
+		// Fallback: if OffRamp emitted no matching roots, try CommitStore contracts.
+		if len(commitBatches) == 0 {
+			for addrStr, tv := range destAddrs {
+				if !strings.Contains(string(tv.Type), "CommitStore") {
+					continue
+				}
+				commitStoreAddr := common.HexToAddress(addrStr)
+				csFilterer, err := commitstore.NewCommitStoreFilterer(commitStoreAddr, client)
+				if err != nil {
+					continue
+				}
+				iter, err := csFilterer.FilterReportAccepted(commitFilterOpts)
+				if err != nil {
+					continue
+				}
+				func() {
+					defer iter.Close()
+					for iter.Next() {
+						e := iter.Event
+						t.Logf("CommitStore %s: block=%d seqNr=[%d,%d] tx=%s",
+							addrStr, e.Raw.BlockNumber, e.Report.Interval.Min, e.Report.Interval.Max, e.Raw.TxHash.Hex())
+						header, _ := client.HeaderByNumber(ctx, big.NewInt(int64(e.Raw.BlockNumber)))
+						ts := time.Time{}
+						if header != nil {
+							ts = time.Unix(int64(header.Time), 0)
+						}
+						commitBatches = append(commitBatches, commitBatch{
+							Block:     e.Raw.BlockNumber,
+							Timestamp: ts,
+							TxHash:    e.Raw.TxHash.Hex(),
+							MinSeqNr:  e.Report.Interval.Min,
+							MaxSeqNr:  e.Report.Interval.Max,
+						})
+					}
+				}()
 			}
 		}
 	} else {
@@ -286,7 +328,7 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewCommitStoreFilterer: %v", err)
 		}
-		iter, err := csFilterer.FilterReportAccepted(filterOpts)
+		iter, err := csFilterer.FilterReportAccepted(commitFilterOpts)
 		if err != nil {
 			t.Fatalf("FilterReportAccepted: %v", err)
 		}
@@ -378,6 +420,7 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 
 	var sentToCommitSum, commitToExecSum time.Duration
 	var timingCount int
+	var sentToCommitSamples, commitToExecSamples []float64
 
 	for _, msg := range results.Messages {
 		seq := parseUint64(msg.SequenceNumber)
@@ -421,11 +464,13 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 			d := commitTime.Sub(sentTime)
 			sentToCommitStr = fmt.Sprintf("%.1fs", d.Seconds())
 			sentToCommitSum += d
+			sentToCommitSamples = append(sentToCommitSamples, d.Seconds())
 		}
 		if !commitTime.IsZero() && !execTime.IsZero() {
 			d := execTime.Sub(commitTime)
 			commitToExecStr = fmt.Sprintf("%.1fs", d.Seconds())
 			commitToExecSum += d
+			commitToExecSamples = append(commitToExecSamples, d.Seconds())
 		}
 		if !sentTime.IsZero() && !commitTime.IsZero() && !execTime.IsZero() {
 			timingCount++
@@ -437,8 +482,13 @@ func TestCheckCommitAndExecuteOnDest(t *testing.T) {
 
 	fmt.Println(strings.Repeat("─", 130))
 	if timingCount > 0 {
+		n := float64(timingCount)
 		fmt.Printf("Avg latencies (n=%d):  Sent→Commit = %.1fs   Commit→Execute = %.1fs\n",
-			timingCount, sentToCommitSum.Seconds()/float64(timingCount), commitToExecSum.Seconds()/float64(timingCount))
+			timingCount, sentToCommitSum.Seconds()/n, commitToExecSum.Seconds()/n)
+		fmt.Printf("Sent→Commit:    median=%.1fs  p95=%.1fs  p99=%.1fs\n",
+			percentile(sentToCommitSamples, 50), percentile(sentToCommitSamples, 95), percentile(sentToCommitSamples, 99))
+		fmt.Printf("Commit→Execute: median=%.1fs  p95=%.1fs  p99=%.1fs\n",
+			percentile(commitToExecSamples, 50), percentile(commitToExecSamples, 95), percentile(commitToExecSamples, 99))
 	} else {
 		fmt.Println("No complete timing data (need sent + commit + execute timestamps)")
 	}
@@ -523,4 +573,20 @@ func txExplorerURL(chainID uint64, txHash string) string {
 func TestMain(m *testing.M) {
 	flag.Parse()
 	os.Exit(m.Run())
+}
+
+func percentile(samples []float64, p float64) float64 {
+	if len(samples) == 0 {
+		return 0
+	}
+	sorted := make([]float64, len(samples))
+	copy(sorted, samples)
+	sort.Float64s(sorted)
+	idx := p / 100 * float64(len(sorted)-1)
+	lo := int(idx)
+	hi := lo + 1
+	if hi >= len(sorted) {
+		return sorted[lo]
+	}
+	return sorted[lo] + (idx-float64(lo))*(sorted[hi]-sorted[lo])
 }
