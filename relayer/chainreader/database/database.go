@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -17,25 +18,34 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 )
 
+const defaultSchemaName = "sui"
+
 type DBStore struct {
-	ds  sqlutil.DataSource
-	lgr logger.Logger
+	ds      sqlutil.DataSource
+	lgr     logger.Logger
+	queries *queries
 }
 
 func NewDBStore(ds sqlutil.DataSource, lgr logger.Logger) *DBStore {
+	schemaName := os.Getenv("SUI_DB_SCHEMA")
+	if schemaName == "" {
+		schemaName = defaultSchemaName
+	}
+
 	return &DBStore{
-		ds:  ds,
-		lgr: logger.Named(lgr, "SuiDBStore"),
+		ds:      ds,
+		lgr:     logger.Named(lgr, "SuiDBStore"),
+		queries: buildQueries(schemaName),
 	}
 }
 
 func (store *DBStore) EnsureSchema(ctx context.Context) error {
-	_, err := store.ds.ExecContext(ctx, CreateSchema)
+	_, err := store.ds.ExecContext(ctx, store.queries.createSchema)
 	if err != nil {
 		return fmt.Errorf("failed to create sui schema: %w", err)
 	}
 
-	_, err = store.ds.ExecContext(ctx, CreateEventsTable)
+	_, err = store.ds.ExecContext(ctx, store.queries.createEventsTable)
 	if err != nil {
 		return fmt.Errorf("failed to create sui.events table: %w", err)
 	}
@@ -66,7 +76,7 @@ func (store *DBStore) InsertEvents(ctx context.Context, records []EventRecord) e
 			return fmt.Errorf("failed to marshal event data for handle %s at offset %d: %w", record.EventHandle, record.EventOffset, err)
 		}
 
-		_, err = store.ds.ExecContext(ctx, InsertEvent,
+		_, err = store.ds.ExecContext(ctx, store.queries.insertEvent,
 			record.EventAccountAddress,
 			record.EventHandle,
 			record.EventOffset,
@@ -86,7 +96,7 @@ func (store *DBStore) InsertEvents(ctx context.Context, records []EventRecord) e
 }
 
 func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, eventHandle string, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]EventRecord, error) {
-	baseSQL := QueryEventsBase
+	baseSQL := store.queries.queryEventsBase
 
 	args := []any{eventAccountAddress, eventHandle}
 	argCount := 3
@@ -156,7 +166,7 @@ func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, 
 	var offset uint64
 	var txDigest string
 	var totalCount uint64
-	err := store.ds.QueryRowxContext(ctx, QueryEventsOffset, eventAccountAddress, eventHandle).Scan(&offset, &txDigest, &totalCount)
+	err := store.ds.QueryRowxContext(ctx, store.queries.queryEventsOffset, eventAccountAddress, eventHandle).Scan(&offset, &txDigest, &totalCount)
 	if err != nil {
 		store.lgr.Errorw("failed to get latest offset", "error", err, "eventAccountAddress", eventAccountAddress, "eventHandle", eventHandle)
 		// no rows found in DB, return a nil index
@@ -182,7 +192,7 @@ func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, 
 
 func (store *DBStore) GetTxDigestByEventId(ctx context.Context, eventID uint64) (string, error) {
 	var txDigest string
-	err := store.ds.QueryRowxContext(ctx, GetTxDigestById, eventID).Scan(&txDigest)
+	err := store.ds.QueryRowxContext(ctx, store.queries.getTxDigestById, eventID).Scan(&txDigest)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", fmt.Errorf("no transaction found for event ID %d: %w", eventID, err)
