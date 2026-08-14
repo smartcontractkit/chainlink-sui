@@ -115,23 +115,17 @@ func (a *SuiTokenAdapter) DeriveTokenDecimals(e deployment.Environment, chainSel
 
 // SetTokenPoolRateLimits sets the default-lane rate limits on a Sui token pool as an MCMS
 // proposal. Sui pools have a single bucket per remote lane, so fastFinality buckets are
-// not supported and only the default bucket is applied.
-//
-// KNOWN ISSUE — NOT YET FIXED. This ignores input.SkipIfMissingPermissions, and when
-// GetBucketForFinality(false) returns no default bucket it logs a warning and returns an empty
-// OnChainOutput (no error, no ops) — a silent no-op if the caller expected rate limits to be
-// applied. EVM's PoolAdapter honors SkipIfMissingPermissions. Consider honoring that flag
-// and/or erroring when the default bucket is unexpectedly absent.
+// not supported and only the default bucket is applied. A missing default bucket is treated as
+// a misconfiguration and returns an error rather than silently no-oping.
 func (a *SuiTokenAdapter) SetTokenPoolRateLimits() *cldf_ops.Sequence[tokensapi.TPRLRemotes, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"sui-adapter:set-token-pool-rate-limits",
-		semver.MustParse("1.6.0"),
+		&suideploy.Version1_0_0,
 		"Set rate limits on a Sui token pool as an MCMS proposal",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input tokensapi.TPRLRemotes) (sequences.OnChainOutput, error) {
 			rl, ok := input.GetBucketForFinality(false)
 			if !ok {
-				b.Logger.Warnf("sui SetTokenPoolRateLimits: no default rate-limit bucket for pool %s on chain %d; skipping", input.TokenPoolRef.Address, input.ChainSelector)
-				return sequences.OnChainOutput{}, nil
+				return sequences.OnChainOutput{}, fmt.Errorf("sui SetTokenPoolRateLimits: no default rate-limit bucket for pool %s on chain %d", input.TokenPoolRef.Address, input.ChainSelector)
 			}
 
 			chain, ok := chains.SuiChains()[input.ChainSelector]
@@ -212,40 +206,25 @@ func (a *SuiTokenAdapter) SetTokenPoolRateLimits() *cldf_ops.Sequence[tokensapi.
 	)
 }
 
-// UpdateAuthorities is intended to transfer a Sui token pool's ownership to the MCMS timelock.
+// UpdateAuthorities returns ownership step 2 of 3 as an MCMS proposal: the MCMS timelock
+// calls accept_ownership on the pool, which asserts ctx.sender() == pending_transfer.to == MCMS.
 //
-// KNOWN ISSUE — NOT YET FIXED (open design decision). Sui ownership transfer to MCMS is a
-// 3-step EOA/MCMS/EOA process, but this method currently builds only the third step as an MCMS
-// proposal, which aborts on-chain without the first two:
-//  1. EOA calls transfer_ownership(To: MCMS) directly via the OwnerCap — sets a pending
-//     transfer (not accepted). Done at deploy time by the Sui seq_deploy_and_init
-//     (TransferOwnership...Op), but NOT by this adapter's DeployTokenPoolForToken.
-//  2. MCMS calls accept_ownership — the ONLY step that is an MCMS proposal. The Move
-//     accept_ownership asserts ctx.sender() == pending_transfer.to == MCMS.
-//  3. EOA calls execute_ownership_transfer_to_mcms directly (the OwnerCap is still EOA-held
-//     after steps 1-2); consumes the OwnerCap, sets owner = MCMS, registers the MCMS
-//     entrypoint. ownable::execute_ownership_transfer_to_mcms asserts pending_transfer.is_some()
-//     (ENoPendingTransfer) and pending_transfer.accepted (ETransferNotAccepted), so step 3
-//     cannot run before steps 1-2.
+// The full Sui pool→MCMS ownership flow is EOA/MCMS/EOA:
+//  1. EOA transfer_ownership(To: MCMS) — performed by DeployTokenPoolForToken at deploy time,
+//     setting a pending (not-yet-accepted) transfer.
+//  2. MCMS accept_ownership — this method, returned as an MCMS proposal (Signer=nil → Call).
+//  3. EOA execute_ownership_transfer_to_mcms — consumes the OwnerCap and registers the MCMS
+//     entrypoint; run EOA-direct via the Sui cs_mcms_execute_ownership_transfer changeset
+//     after this accept proposal lands. ownable::execute_ownership_transfer_to_mcms asserts
+//     pending_transfer.is_some() (ENoPendingTransfer) and pending_transfer.accepted
+//     (ETransferNotAccepted), so it cannot run before steps 1-2.
 //
-// This method returns only step 3 as an MCMS proposal, which is doubly wrong: step 3 is an
-// EOA-direct call (cs_mcms_execute_ownership_transfer uses the EOA signer, not an MCMS
-// proposal), and it is missing the step 1/2 prerequisites. The target is the normal
-// (non-fastcurse) MCMS package id with the MCMS registry.
-//
-// Open design choice (deferred): how to map the EOA/MCMS/EOA steps onto the generic adapter
-// methods, given OnChainOutput.BatchOps can only carry MCMS proposals. Maintainer leans toward:
-//
-//	(1) DeployTokenPoolForToken does step 1 (EOA); UpdateAuthorities returns step 2 (MCMS
-//	    accept proposal); step 3 (EOA execute) stays in cs_mcms_execute_ownership_transfer,
-//	    run after the accept proposal lands.
-//	(3) Make UpdateAuthorities a no-op (like ManualRegistration) and handle all 3 steps via
-//	    the Sui-specific changesets.
+// OnChainOutput.BatchOps can only carry MCMS proposals, so only step 2 belongs here.
 func (a *SuiTokenAdapter) UpdateAuthorities() *cldf_ops.Sequence[tokensapi.UpdateAuthoritiesInput, sequences.OnChainOutput, *deployment.Environment] {
 	return cldf_ops.NewSequence(
 		"sui-adapter:update-authorities",
-		semver.MustParse("1.6.0"),
-		"Transfer Sui token pool ownership to the MCMS timelock as an MCMS proposal",
+		&suideploy.Version1_0_0,
+		"Propose MCMS accept_ownership of a Sui token pool (ownership step 2 of 3)",
 		func(b cldf_ops.Bundle, e *deployment.Environment, input tokensapi.UpdateAuthoritiesInput) (sequences.OnChainOutput, error) {
 			chain, ok := e.BlockChains.SuiChains()[input.ChainSelector]
 			if !ok {
@@ -255,18 +234,9 @@ func (a *SuiTokenAdapter) UpdateAuthorities() *cldf_ops.Sequence[tokensapi.Updat
 			if coinType == "" {
 				return sequences.OnChainOutput{}, fmt.Errorf("token ref has no coin type address on chain %d", input.ChainSelector)
 			}
-			stateObjID, ownerCapID, err := resolveSuiPoolObjects(e.DataStore, input.ChainSelector, input.TokenPoolRef.Type, input.TokenPoolRef.Qualifier)
+			stateObjID, _, err := resolveSuiPoolObjects(e.DataStore, input.ChainSelector, input.TokenPoolRef.Type, input.TokenPoolRef.Qualifier)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to resolve sui pool objects: %w", err)
-			}
-
-			mcmsPkgRef, ok := findRefExcludingLabel(findRefsByType(e.DataStore, input.ChainSelector, datastore.ContractType(suideploy.SuiMcmsPackageIDType)), suideploy.MCMSFastCurseLabel)
-			if !ok {
-				return sequences.OnChainOutput{}, fmt.Errorf("normal (non-fastcurse) MCMS package not found on chain %d", input.ChainSelector)
-			}
-			mcmsRegRef, ok := findRefExcludingLabel(findRefsByType(e.DataStore, input.ChainSelector, datastore.ContractType(suideploy.SuiMcmsRegistryObjectIDType)), suideploy.MCMSFastCurseLabel)
-			if !ok {
-				return sequences.OnChainOutput{}, fmt.Errorf("normal (non-fastcurse) MCMS registry not found on chain %d", input.ChainSelector)
 			}
 
 			deps := suiDeps(chain)
@@ -274,29 +244,23 @@ func (a *SuiTokenAdapter) UpdateAuthorities() *cldf_ops.Sequence[tokensapi.Updat
 			var call sui_ops.TransactionCall
 			switch input.TokenPoolRef.Type {
 			case datastore.ContractType(suideploy.SuiBnMTokenPoolType):
-				r, err := cldf_ops.ExecuteOperation(b, burnminttokenpoolops.ExecuteOwnershipTransferToMcmsBurnMintTokenPoolOp, deps, burnminttokenpoolops.ExecuteOwnershipTransferToMcmsBurnMintTokenPoolInput{
+				r, err := cldf_ops.ExecuteOperation(b, burnminttokenpoolops.AcceptOwnershipBurnMintTokenPoolOp, deps, burnminttokenpoolops.AcceptOwnershipBurnMintTokenPoolInput{
 					BurnMintTokenPoolPackageId: input.TokenPoolRef.Address,
 					TypeArgs:                   typeArgs,
-					OwnerCapObjectId:           ownerCapID,
 					StateObjectId:              stateObjID,
-					RegistryObjectId:           mcmsRegRef.Address,
-					To:                         mcmsPkgRef.Address,
 				})
 				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to transfer burn-mint pool ownership to MCMS: %w", err)
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to propose accept_ownership for burn-mint pool: %w", err)
 				}
 				call = r.Output.Call
 			case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
-				r, err := cldf_ops.ExecuteOperation(b, managedtokenpoolops.ExecuteOwnershipTransferToMcmsManagedTokenPoolOp, deps, managedtokenpoolops.ExecuteOwnershipTransferToMcmsManagedTokenPoolInput{
+				r, err := cldf_ops.ExecuteOperation(b, managedtokenpoolops.AcceptOwnershipManagedTokenPoolOp, deps, managedtokenpoolops.AcceptOwnershipManagedTokenPoolInput{
 					ManagedTokenPoolPackageId: input.TokenPoolRef.Address,
 					TypeArgs:                  typeArgs,
-					OwnerCapObjectId:          ownerCapID,
 					StateObjectId:             stateObjID,
-					RegistryObjectId:          mcmsRegRef.Address,
-					To:                        mcmsPkgRef.Address,
 				})
 				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to transfer managed pool ownership to MCMS: %w", err)
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to propose accept_ownership for managed pool: %w", err)
 				}
 				call = r.Output.Call
 			default:
@@ -375,7 +339,7 @@ func (a *SuiTokenAdapter) ResolveTokenRef(b cldf_ops.Bundle, chains cldf_chain.B
 func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequence[tokensapi.ConfigureTokenForTransfersInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"sui-adapter:configure-token-for-transfers",
-		semver.MustParse("1.6.0"),
+		&suideploy.Version1_0_0,
 		"Configure a Sui token pool for cross-chain transfers as an MCMS proposal",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input tokensapi.ConfigureTokenForTransfersInput) (sequences.OnChainOutput, error) {
 			chain, ok := chains.SuiChains()[input.ChainSelector]
@@ -457,7 +421,7 @@ func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 					}
 					calls = append(calls, rlCall)
 				case !obOk && !ibOk:
-					b.Logger.Warnf("sui ConfigureTokenForTransfers: skipping rate limits for remote %d (no default bucket)", remoteSelector)
+					return sequences.OnChainOutput{}, fmt.Errorf("sui ConfigureTokenForTransfers: remote %d has no default rate-limit bucket (outbound and inbound must both be specified or both omitted)", remoteSelector)
 				default:
 					return sequences.OnChainOutput{}, fmt.Errorf("default outbound and inbound rate limits must both be specified or both omitted for remote %d", remoteSelector)
 				}
@@ -561,7 +525,7 @@ func (a *SuiTokenAdapter) DeriveTokenAddress(e deployment.Environment, chainSele
 func (a *SuiTokenAdapter) ManualRegistration() *cldf_ops.Sequence[tokensapi.ManualRegistrationSequenceInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"sui-adapter:manual-registration",
-		semver.MustParse("1.6.0"),
+		&suideploy.Version1_0_0,
 		"No-op: Sui pools self-register in the TokenAdminRegistry during initialization",
 		func(b cldf_ops.Bundle, _ cldf_chain.BlockChains, input tokensapi.ManualRegistrationSequenceInput) (sequences.OnChainOutput, error) {
 			b.Logger.Infow("Sui ManualRegistration is a no-op: token pools self-register in the TokenAdminRegistry during pool initialization",
@@ -571,34 +535,42 @@ func (a *SuiTokenAdapter) ManualRegistration() *cldf_ops.Sequence[tokensapi.Manu
 	)
 }
 
-// DeployToken is not implemented yet. Sui token deployment publishes a fixed-kind Move
-// package (managed token or BnM token) whose deploy op takes only MCMS config, not the
-// symbol/decimals/supply/pre-mint/senders that the generic DeployTokenInput carries. The
-// token identity is determined by the published package, so the generic input does not map
-// cleanly. This needs a decision on how to represent Sui token deploy in the generic flow
-// before wiring; it returns nil until then.
+// DeployToken is not supported for Sui through the generic token adapter. Sui token
+// deployment publishes a fixed-kind Move package (managed token or BnM token) whose deploy op
+// takes only MCMS config, not the symbol/decimals/supply/pre-mint/senders that the generic
+// DeployTokenInput carries; the token identity is determined by the published package, so the
+// generic input does not map cleanly. Sui tokens are deployed via the Sui-specific token deploy
+// changesets instead. This returns a sequence that errors so a misconfigured Sui chain fails
+// with a clear message rather than nil-panicking the generic flow (which calls it unguarded).
 func (a *SuiTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployTokenInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
-	return nil
+	return cldf_ops.NewSequence(
+		"sui-adapter:deploy-token",
+		&suideploy.Version1_0_0,
+		"Not supported: Sui tokens are deployed via the Sui-specific token deploy changesets",
+		func(_ cldf_ops.Bundle, _ cldf_chain.BlockChains, _ tokensapi.DeployTokenInput) (sequences.OnChainOutput, error) {
+			return sequences.OnChainOutput{}, fmt.Errorf("DeployToken is not supported for Sui via the generic token adapter; deploy Sui tokens with the Sui-specific token deploy changesets")
+		},
+	)
 }
 
 // DeployTokenPoolForToken deploys and initializes a Sui token pool for an existing token.
-// It publishes a Move package and initializes the pool, so it executes directly with the
-// chain signer (not as an MCMS proposal) and returns the deployed pool's AddressRefs.
+// It publishes a Move package, initializes the pool, and transfers pool ownership to MCMS
+// (ownership step 1), so it executes directly with the chain signer (not as an MCMS proposal)
+// and returns the deployed pool's AddressRefs.
 //
 // PoolType accepts either the Sui short form ("bnm"/"managed"/"lnr") or the contract-type
 // string ("SuiBnMTokenPool"/"SuiManagedTokenPool"). The token's coin type comes from
 // TokenRef.Address and the symbol from TokenRef.Qualifier; CCIP/MCMS state is resolved from
 // the datastore. For managed pools, the first mint-cap ref found for the symbol is used.
 //
-// KNOWN ISSUE — NOT YET FIXED. Unlike the Sui seq_deploy_and_init, this deploy does NOT call
-// transfer_ownership(To: MCMS) (ownership step 1) after initialize. So a pool deployed here is
-// owned by the deployer with no pending transfer to MCMS, and a later
-// execute_ownership_transfer_to_mcms would abort with ENoPendingTransfer. See UpdateAuthorities
-// for the open 3-step ownership design decision.
+// After initialize this calls transfer_ownership(To: MCMS) EOA-direct, setting a pending
+// transfer that UpdateAuthorities' accept_ownership MCMS proposal (step 2) then accepts. The
+// final execute_ownership_transfer_to_mcms (step 3) is EOA-direct and handled by the Sui
+// cs_mcms_execute_ownership_transfer changeset after the accept proposal lands.
 func (a *SuiTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi.DeployTokenPoolInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"sui-adapter:deploy-token-pool-for-token",
-		semver.MustParse("1.6.0"),
+		&suideploy.Version1_0_0,
 		"Deploy and initialize a Sui token pool for an existing token (direct execution)",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input tokensapi.DeployTokenPoolInput) (sequences.OnChainOutput, error) {
 			chain, ok := chains.SuiChains()[input.ChainSelector]
@@ -683,6 +655,17 @@ func (a *SuiTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to initialize burn-mint token pool: %w", err)
 				}
+				// Ownership step 1 of 3: transfer pool ownership to MCMS (EOA-direct). Sets a pending
+				// transfer that UpdateAuthorities' accept_ownership proposal (step 2) then accepts.
+				if _, err := cldf_ops.ExecuteOperation(b, burnminttokenpoolops.TransferOwnershipBurnMintTokenPoolOp, deps, burnminttokenpoolops.TransferOwnershipBurnMintTokenPoolInput{
+					BurnMintTokenPoolPackageId: poolPkg,
+					TypeArgs:                   []string{coinType},
+					StateObjectId:              initReport.Output.Objects.StateObjectId,
+					OwnerCapObjectId:           deployReport.Output.Objects.OwnerCapObjectId,
+					To:                         mcmsPkg.Address,
+				}); err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to transfer burn-mint pool ownership to MCMS: %w", err)
+				}
 				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId)
 			case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
 				managedPkg := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiManagedTokenPackageIDType)), symbol))
@@ -716,6 +699,17 @@ func (a *SuiTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				})
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to initialize managed token pool: %w", err)
+				}
+				// Ownership step 1 of 3: transfer pool ownership to MCMS (EOA-direct). Sets a pending
+				// transfer that UpdateAuthorities' accept_ownership proposal (step 2) then accepts.
+				if _, err := cldf_ops.ExecuteOperation(b, managedtokenpoolops.TransferOwnershipManagedTokenPoolOp, deps, managedtokenpoolops.TransferOwnershipManagedTokenPoolInput{
+					ManagedTokenPoolPackageId: poolPkg,
+					TypeArgs:                  []string{coinType},
+					StateObjectId:             initReport.Output.Objects.StateObjectId,
+					OwnerCapObjectId:          deployReport.Output.Objects.OwnerCapObjectId,
+					To:                        mcmsPkg.Address,
+				}); err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to transfer managed pool ownership to MCMS: %w", err)
 				}
 				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId)
 			default:
@@ -807,9 +801,9 @@ func appendSuiPoolAddresses(in []datastore.AddressRef, selector uint64, poolType
 	}
 	version := semver.MustParse("1.0.0")
 	return append(in,
-		datastore.AddressRef{ChainSelector: selector, Type: poolType, Address: poolPkg, Version: version, Labels: datastore.NewLabelSet(symbol)},
-		datastore.AddressRef{ChainSelector: selector, Type: stateType, Address: stateObjID, Version: version, Labels: datastore.NewLabelSet(symbol)},
-		datastore.AddressRef{ChainSelector: selector, Type: ownerType, Address: ownerCapID, Version: version, Labels: datastore.NewLabelSet(symbol)},
+		datastore.AddressRef{ChainSelector: selector, Type: poolType, Address: poolPkg, Version: version, Qualifier: fmt.Sprintf("%s-%s", poolPkg, poolType), Labels: datastore.NewLabelSet(symbol)},
+		datastore.AddressRef{ChainSelector: selector, Type: stateType, Address: stateObjID, Version: version, Qualifier: fmt.Sprintf("%s-%s", stateObjID, stateType), Labels: datastore.NewLabelSet(symbol)},
+		datastore.AddressRef{ChainSelector: selector, Type: ownerType, Address: ownerCapID, Version: version, Qualifier: fmt.Sprintf("%s-%s", ownerCapID, ownerType), Labels: datastore.NewLabelSet(symbol)},
 	)
 }
 
@@ -983,8 +977,6 @@ func suiTokenType(coinType string) datastore.ContractType {
 	switch {
 	case strings.Contains(coinType, "::link::"):
 		return datastore.ContractType(suideploy.SuiLinkTokenType)
-	case strings.Contains(coinType, "managed_token"):
-		return datastore.ContractType(suideploy.SuiManagedTokenType)
 	default:
 		return datastore.ContractType(suideploy.SuiManagedTokenType)
 	}
