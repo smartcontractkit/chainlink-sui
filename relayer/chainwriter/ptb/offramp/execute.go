@@ -406,6 +406,20 @@ func ProcessReceivers(
 					"error", err)
 				continue
 			}
+			if errors.Is(err, ErrTransmitterOwnedReceiverObject) {
+				// Permanent failure: a receiver tail object is address-owned by the execution
+				// transmitter. Wiring it into ccip_receive as &mut would let the receiver mutate
+				// a transmitter-owned object under the transmitter's signature. Skip the receiver
+				// leg so the object is never passed in. extract_any2sui_message already appended
+				// upstream leaves a dangling non-drop Any2SuiMessage, so the PTB aborts on-chain,
+				// the indexer synthesizes an ExecutionStateChanged(FAILURE) event, and the
+				// message is marked failed — non-retryable, no drain. Same mechanism as
+				// ErrUnsupportedReceiverABI above.
+				lggr.Errorw("skipping receiver command; tail object owned by execution transmitter",
+					"receiver", receiverPackageId,
+					"error", err)
+				continue
+			}
 			return nil, fmt.Errorf("failed to build receiver command for %s: %w", receiverPackageId, err)
 		}
 		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
