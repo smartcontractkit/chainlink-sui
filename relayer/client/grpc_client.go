@@ -66,6 +66,7 @@ var RateLimitWeights = map[string]int64{
 	"ReadFilterOwnedObjectIds":             0,
 	"ReadOwnedObjects":                     0,
 	"ReadObjectId":                         0,
+	"ReadObjectMetadata":                   0,
 	"GetLatestPackageId":                   0,
 	"LoadModulePackageIds":                 0,
 	"GetParentObjectID":                    0,
@@ -99,6 +100,7 @@ type SuiPTBClient interface {
 	ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor []byte) ([]*suirpcv2.Object, error)
 	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor []byte) ([]*suirpcv2.Object, error)
 	ReadObjectId(ctx context.Context, objectId string) (*suirpcv2.Object, error)
+	ReadObjectMetadata(ctx context.Context, objectId string) (*suirpcv2.Object, error)
 	ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string, typeArgs []string) ([]any, error)
 	SimulatePTB(ctx context.Context, bcsBytes []byte) ([]any, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte) (*suirpcv2.ExecuteTransactionResponse, error)
@@ -339,6 +341,20 @@ func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (*suirpcv
 	err := c.WithRateLimit(ctx, "ReadObjectId", func(ctx context.Context) error {
 		var err error
 		result, err = c.readObjectIdInternal(ctx, objectId)
+		return err
+	})
+	return result, err
+}
+
+// ReadObjectMetadata returns the lightweight reference metadata of an object
+// (object_type, owner, version, digest) without fetching contents/json. It is the
+// public, rate-limited entry point for callers that only need ownership/kind
+// information, such as receiver tail-object ownership validation.
+func (c *PTBClient) ReadObjectMetadata(ctx context.Context, objectId string) (*suirpcv2.Object, error) {
+	var result *suirpcv2.Object
+	err := c.WithRateLimit(ctx, "ReadObjectMetadata", func(ctx context.Context) error {
+		var err error
+		result, err = c.readObjectMetadataInternal(ctx, objectId)
 		return err
 	})
 	return result, err

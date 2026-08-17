@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/transaction"
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/mitchellh/mapstructure"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -170,6 +171,7 @@ func BuildOffRampExecutePTB(
 		callOpts,
 		initExecuteResult,
 		offrampArgs.ExtraData.ExtraArgsDecoded,
+		signerAddress,
 	)
 	if err != nil {
 		return err
@@ -327,6 +329,7 @@ func ProcessReceivers(
 	callOpts *bind.CallOpts,
 	receiverParams *transaction.Argument,
 	extraArgs map[string]any,
+	signerAddress string,
 ) ([]transaction.Argument, error) {
 	// Create a receiver binding interface to filter out non-registered receivers
 	receiverRegistryPkg, err := receiver_registry.NewReceiverRegistry(addressMappings.CcipPackageId, ptbClient)
@@ -386,6 +389,7 @@ func ProcessReceivers(
 			message.Header.MessageID,
 			receiverParams,
 			extraArgs,
+			signerAddress,
 		)
 		if err != nil {
 			if errors.Is(err, ErrUnsupportedReceiverABI) {
@@ -439,6 +443,7 @@ func AppendPTBCommandForReceiver(
 	messageID [32]byte,
 	receiverParams *transaction.Argument,
 	extraArgs map[string]any,
+	signerAddress string,
 ) (*transaction.Argument, error) {
 	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, chainClient)
 	if err != nil {
@@ -505,8 +510,16 @@ func AppendPTBCommandForReceiver(
 
 	extraArgsValues := extractReceiverObjectIDs(lggr, extraArgs)
 	for _, value := range extraArgsValues {
-		objectId := hex.EncodeToString(value)
-		paramValues = append(paramValues, bind.Object{Id: "0x" + objectId})
+		objectId := "0x" + hex.EncodeToString(value)
+		// Reject tail objects owned by the execution transmitter before they become PTB inputs.
+		// The transmitter signs this transaction, so any address-owned object it owns is authorized
+		// for mutation by that signature; a malicious receiver declaring &mut over such an object
+		// could drain it. Shared and immutable objects, and objects owned by other addresses, are
+		// unaffected. See contracts/ccip/docs/receiver-integration-guide.md for the tail-object model.
+		if err := validateReceiverObjectOwner(ctx, chainClient, objectId, signerAddress); err != nil {
+			return nil, err
+		}
+		paramValues = append(paramValues, bind.Object{Id: objectId})
 	}
 
 	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(
@@ -556,4 +569,38 @@ func extractReceiverObjectIDs(lggr logger.Logger, extraArgs map[string]any) [][]
 		lggr.Errorw("unexpected receiverObjectIds type", "type", fmt.Sprintf("%T", raw))
 		return nil
 	}
+}
+
+// ErrTransmitterOwnedReceiverObject indicates a receiver tail object is address-owned by the
+// execution transmitter. Such an object must not be fed into a receiver callback because the
+// transmitter's signature on this transaction would authorize the receiver to mutate it.
+var ErrTransmitterOwnedReceiverObject = errors.New("receiver tail object is owned by the execution transmitter")
+
+// validateReceiverObjectOwner rejects receiver tail objects that are address-owned by the
+// execution transmitter. Shared and immutable objects, and objects owned by other addresses,
+// are allowed through. The transmitter signature authorizes mutation of any address-owned
+// object it owns, so letting a permissionlessly registered receiver take &mut over one would
+// let the receiver drain it.
+func validateReceiverObjectOwner(
+	ctx context.Context,
+	chainClient client.SuiPTBClient,
+	objectId string,
+	transmitter string,
+) error {
+	meta, err := chainClient.ReadObjectMetadata(ctx, objectId)
+	if err != nil || meta == nil {
+		return fmt.Errorf("failed to read receiver object metadata for ownership check %s: %w", objectId, err)
+	}
+	owner := meta.GetOwner()
+	if owner == nil || owner.GetKind() != suirpcv2.Owner_ADDRESS {
+		return nil
+	}
+	ownerAddr := owner.GetAddress()
+	if ownerAddr == "" {
+		return nil
+	}
+	if codec.NormalizeSuiAddress(ownerAddr) == codec.NormalizeSuiAddress(transmitter) {
+		return fmt.Errorf("%w: object %s owned by transmitter %s", ErrTransmitterOwnedReceiverObject, objectId, transmitter)
+	}
+	return nil
 }

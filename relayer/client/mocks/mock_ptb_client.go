@@ -490,6 +490,21 @@ func (mr *MockSuiPTBClientMockRecorder) ReadObjectId(ctx, objectId interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadObjectId", reflect.TypeOf((*MockSuiPTBClient)(nil).ReadObjectId), ctx, objectId)
 }
 
+// ReadObjectMetadata mocks base method.
+func (m *MockSuiPTBClient) ReadObjectMetadata(ctx context.Context, objectId string) (*v2.Object, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReadObjectMetadata", ctx, objectId)
+	ret0, _ := ret[0].(*v2.Object)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ReadObjectMetadata indicates an expected call of ReadObjectMetadata.
+func (mr *MockSuiPTBClientMockRecorder) ReadObjectMetadata(ctx, objectId interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadObjectMetadata", reflect.TypeOf((*MockSuiPTBClient)(nil).ReadObjectMetadata), ctx, objectId)
+}
+
 // ReadOwnedObjects mocks base method.
 func (m *MockSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor []byte) ([]*v2.Object, error) {
 	m.ctrl.T.Helper()

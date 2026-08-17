@@ -39,6 +39,10 @@ func (c *FakeSuiPTBClient) ReadObjectId(ctx context.Context, objectId string) (*
 	return nil, nil
 }
 
+func (c *FakeSuiPTBClient) ReadObjectMetadata(ctx context.Context, objectId string) (*suirpcv2.Object, error) {
+	return nil, nil
+}
+
 func (c *FakeSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, cursor []byte) ([]*suirpcv2.Object, error) {
 	return nil, nil
 }

@@ -9,6 +9,9 @@ import (
 var AccountZero = codec.AccountZero
 
 //go:fix inline
+var NormalizeSuiAddress = codec.NormalizeSuiAddress
+
+//go:fix inline
 type PTBCommandDependency = common.PTBCommandDependency
 
 //go:fix inline
