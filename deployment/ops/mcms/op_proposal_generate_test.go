@@ -87,6 +87,12 @@ func (c *proposalGenerateMockClient) GetMoveModuleFunction(
 	return nil, nil
 }
 
+// ReadObjectMetadata shims the method added to client.SuiPTBClient so the wrapper still
+// satisfies the interface. Not invoked by MCMS proposal-generation ops.
+func (c *proposalGenerateMockClient) ReadObjectMetadata(_ context.Context, _ string) (*suirpcv2.Object, error) {
+	return nil, nil
+}
+
 func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 	t.Parallel()
 
