@@ -12,8 +12,8 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/block-vision/sui-go-sdk/transaction"
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/mitchellh/mapstructure"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -510,16 +510,16 @@ func AppendPTBCommandForReceiver(
 
 	extraArgsValues := extractReceiverObjectIDs(lggr, extraArgs)
 	for _, value := range extraArgsValues {
-		objectId := "0x" + hex.EncodeToString(value)
+		objectID := "0x" + hex.EncodeToString(value)
 		// Reject tail objects owned by the execution transmitter before they become PTB inputs.
 		// The transmitter signs this transaction, so any address-owned object it owns is authorized
 		// for mutation by that signature; a malicious receiver declaring &mut over such an object
 		// could drain it. Shared and immutable objects, and objects owned by other addresses, are
 		// unaffected. See contracts/ccip/docs/receiver-integration-guide.md for the tail-object model.
-		if err := validateReceiverObjectOwner(ctx, chainClient, objectId, signerAddress); err != nil {
-			return nil, err
+		if err1 := validateReceiverObjectOwner(ctx, chainClient, objectID, signerAddress); err1 != nil {
+			return nil, err1
 		}
-		paramValues = append(paramValues, bind.Object{Id: objectId})
+		paramValues = append(paramValues, codec.Object{Id: objectID})
 	}
 
 	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(

@@ -505,7 +505,10 @@ func (m *metadataPTBClient) ReadObjectMetadata(context.Context, string) (*suirpc
 	return m.obj, m.err
 }
 
-func strPtr(s string) *string { return &s }
+func strPtr(s string) *string {
+	return &s
+}
+
 func ownerKindPtr(k suirpcv2.Owner_OwnerKind) *suirpcv2.Owner_OwnerKind { return &k }
 
 func TestValidateReceiverObjectOwner(t *testing.T) {
