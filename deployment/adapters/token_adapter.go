@@ -115,8 +115,8 @@ func (a *SuiTokenAdapter) DeriveTokenDecimals(e deployment.Environment, chainSel
 
 // SetTokenPoolRateLimits sets the default-lane rate limits on a Sui token pool as an MCMS
 // proposal. Sui pools have a single bucket per remote lane, so fastFinality buckets are
-// not supported and only the default bucket is applied. A missing default bucket is treated as
-// a misconfiguration and returns an error rather than silently no-oping.
+// not supported and only the default bucket is applied. A missing default bucket means no
+// rate-limit update for this lane and the sequence no-ops.
 func (a *SuiTokenAdapter) SetTokenPoolRateLimits() *cldf_ops.Sequence[tokensapi.TPRLRemotes, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"sui-adapter:set-token-pool-rate-limits",
@@ -125,7 +125,8 @@ func (a *SuiTokenAdapter) SetTokenPoolRateLimits() *cldf_ops.Sequence[tokensapi.
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input tokensapi.TPRLRemotes) (sequences.OnChainOutput, error) {
 			rl, ok := input.GetBucketForFinality(false)
 			if !ok {
-				return sequences.OnChainOutput{}, fmt.Errorf("sui SetTokenPoolRateLimits: no default rate-limit bucket for pool %s on chain %d", input.TokenPoolRef.Address, input.ChainSelector)
+				b.Logger.Warnf("skipping rate limiter config for token pool (%s) on chain %d since no default bucket was provided", input.TokenPoolRef.Address, input.ChainSelector)
+				return sequences.OnChainOutput{}, nil
 			}
 
 			chain, ok := chains.SuiChains()[input.ChainSelector]
@@ -421,7 +422,7 @@ func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 					}
 					calls = append(calls, rlCall)
 				case !obOk && !ibOk:
-					return sequences.OnChainOutput{}, fmt.Errorf("sui ConfigureTokenForTransfers: remote %d has no default rate-limit bucket (outbound and inbound must both be specified or both omitted)", remoteSelector)
+					// No rate-limit update for this remote; keep the chain-config call already in calls.
 				default:
 					return sequences.OnChainOutput{}, fmt.Errorf("default outbound and inbound rate limits must both be specified or both omitted for remote %d", remoteSelector)
 				}
