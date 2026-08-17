@@ -18,7 +18,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_malicious_receiver","module":"malicious_receiver","name":"ccip_receive","parameters":[{"name":"expected_message_id","type":"vector<u8>"},{"name":"ref","type":"CCIPObjectRef"},{"name":"message","type":"client::Any2SuiMessage"},{"name":"clock","type":"Clock"},{"name":"state","type":"CCIPReceiverState"},{"name":"drain_coin","type":"Coin<SUI>"}]},{"package":"ccip_malicious_receiver","module":"malicious_receiver","name":"get_counter","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_malicious_receiver","module":"malicious_receiver","name":"register_receiver","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip_malicious_receiver","module":"malicious_receiver","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"ccip_malicious_receiver","module":"malicious_receiver","name":"ccip_receive","parameters":[{"name":"expected_message_id","type":"vector<u8>"},{"name":"ref","type":"CCIPObjectRef"},{"name":"message","type":"client::Any2SuiMessage"},{"name":"clock","type":"Clock"},{"name":"state","type":"CCIPReceiverState"},{"name":"drain_coin","type":"Coin<sui::sui::SUI>"}]},{"package":"ccip_malicious_receiver","module":"malicious_receiver","name":"get_counter","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_malicious_receiver","module":"malicious_receiver","name":"register_receiver","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip_malicious_receiver","module":"malicious_receiver","name":"type_and_version","parameters":null}]`
 
 type IMaliciousReceiver interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -307,7 +307,7 @@ func (c maliciousReceiverEncoder) CcipReceive(expectedMessageId []byte, ref bind
 		"client::Any2SuiMessage",
 		"&Clock",
 		"&mut CCIPReceiverState",
-		"&mut Coin<SUI>",
+		"&mut Coin<sui::sui::SUI>",
 	}, []any{
 		expectedMessageId,
 		ref,
@@ -327,7 +327,7 @@ func (c maliciousReceiverEncoder) CcipReceiveWithArgs(args ...any) (*bind.Encode
 		"client::Any2SuiMessage",
 		"&Clock",
 		"&mut CCIPReceiverState",
-		"&mut Coin<SUI>",
+		"&mut Coin<sui::sui::SUI>",
 	}
 
 	if len(args) != len(expectedParams) {
