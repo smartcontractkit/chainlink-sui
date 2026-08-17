@@ -584,12 +584,12 @@ var ErrTransmitterOwnedReceiverObject = errors.New("receiver tail object is owne
 func validateReceiverObjectOwner(
 	ctx context.Context,
 	chainClient client.SuiPTBClient,
-	objectId string,
+	objectID string,
 	transmitter string,
 ) error {
-	meta, err := chainClient.ReadObjectMetadata(ctx, objectId)
+	meta, err := chainClient.ReadObjectMetadata(ctx, objectID)
 	if err != nil || meta == nil {
-		return fmt.Errorf("failed to read receiver object metadata for ownership check %s: %w", objectId, err)
+		return fmt.Errorf("failed to read receiver object metadata for ownership check %s: %w", objectID, err)
 	}
 	owner := meta.GetOwner()
 	if owner == nil || owner.GetKind() != suirpcv2.Owner_ADDRESS {
@@ -600,7 +600,7 @@ func validateReceiverObjectOwner(
 		return nil
 	}
 	if codec.NormalizeSuiAddress(ownerAddr) == codec.NormalizeSuiAddress(transmitter) {
-		return fmt.Errorf("%w: object %s owned by transmitter %s", ErrTransmitterOwnedReceiverObject, objectId, transmitter)
+		return fmt.Errorf("%w: object %s owned by transmitter %s", ErrTransmitterOwnedReceiverObject, objectID, transmitter)
 	}
 	return nil
 }
