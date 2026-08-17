@@ -67,7 +67,7 @@ type Params struct {
 	DB     sqlutil.DataSource
 	Client client.SuiPTBClient
 	// Poller cursor ID (defaults to "chain_poller")
-	PollerCursorId string
+	PollerCursorID string
 	PollerConfig   sui.ChainPollerConfig
 	// PollerWorkers is the number of concurrent checkpoint catch-up workers; non-positive
 	// values use the ChainPoller default.
@@ -110,8 +110,8 @@ func NewIndexer(p Params) *Indexer {
 	// Allow overwriting the name of the default cursor ID (stored in DB) to enable running
 	// multiple instances of the indexer using the same database.
 	checkpointCursor := checkpointCursorID
-	if p.PollerCursorId != "" {
-		checkpointCursor = p.PollerCursorId
+	if p.PollerCursorID != "" {
+		checkpointCursor = p.PollerCursorID
 	}
 
 	chainPoller := NewChainPoller(
