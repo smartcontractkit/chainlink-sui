@@ -5,6 +5,7 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
+	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 )
 
@@ -19,4 +20,10 @@ func init() {
 
 	mcmsRegistry := changesets.GetRegistry()
 	mcmsRegistry.RegisterMCMSReader(chainsel.FamilySui, &MCMSReader{})
+
+	// Version must match the version Sui pool refs are saved under (deployment.Version1_0_0).
+	v := semver.MustParse("1.0.0")
+	tokenRegistry := tokensapi.GetTokenAdapterRegistry()
+	tokenRegistry.RegisterTokenRefResolver(chainsel.FamilySui, &SuiTokenAdapter{})
+	tokenRegistry.RegisterTokenAdapter(chainsel.FamilySui, v, &SuiTokenAdapter{})
 }

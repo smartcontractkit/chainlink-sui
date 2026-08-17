@@ -41,7 +41,7 @@ func TestSuiTokenAdapter_StubReturns(t *testing.T) {
 
 	require.Nil(t, a.MigrateLockReleasePoolLiquiditySequence())
 	require.NotNil(t, a.ManualRegistration())
-	require.Nil(t, a.DeployToken())
+	require.NotNil(t, a.DeployToken())
 	require.NotNil(t, a.DeployTokenPoolForToken())
 	require.NotNil(t, a.ConfigureTokenForTransfersSequence())
 	require.NotNil(t, a.SetTokenPoolRateLimits())
@@ -55,6 +55,20 @@ func TestSuiTokenAdapter_StubReturns(t *testing.T) {
 	// DeriveTokenAddress errors when no symbol/package is resolvable.
 	_, err = a.DeriveTokenAddress(cldf.Environment{}, 0, datastore.AddressRef{})
 	require.Error(t, err)
+}
+
+func TestSuiTokenAdapter_DeployToken_Errors(t *testing.T) {
+	t.Parallel()
+	a := &SuiTokenAdapter{}
+
+	_, err := cldf_ops.ExecuteSequence(
+		mcmstest.Bundle(t),
+		a.DeployToken(),
+		cldf_chain.BlockChains{},
+		tokensapi.DeployTokenInput{},
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not supported")
 }
 
 func TestDeriveSuiCoinType(t *testing.T) {
