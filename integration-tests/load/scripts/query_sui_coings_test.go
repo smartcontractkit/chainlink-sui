@@ -54,7 +54,7 @@ func TestQuerySuiCoins(t *testing.T) {
 	}
 
 	senderAddress := "0x3f6d6a9e3f7707485bf51c02a6bc6cb6e17dffe7f3e160b3c5520d55d1de8398"
-	coins, err := ptbClient.QueryCoinsByAddress(ctx, senderAddress, "0x2::coin::Coin")
+	coins, err := ptbClient.QueryCoinsByAddress(ctx, senderAddress, "0x2::coin::Coin<0x2::sui::SUI>")
 	if err != nil {
 		t.Fatalf("query SUI coins for sender: %v", err)
 	}
