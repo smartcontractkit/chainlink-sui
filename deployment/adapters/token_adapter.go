@@ -137,7 +137,7 @@ func (a *SuiTokenAdapter) SetTokenPoolRateLimits() *cldf_ops.Sequence[tokensapi.
 			if coinType == "" {
 				return sequences.OnChainOutput{}, fmt.Errorf("token ref has no coin type address on chain %d", input.ChainSelector)
 			}
-			stateObjID, ownerCapID, err := resolveSuiPoolObjects(input.ExistingDataStore, input.ChainSelector, input.TokenPoolRef.Type, input.TokenPoolRef.Qualifier)
+			stateObjID, ownerCapID, err := resolveSuiPoolObjects(input.ExistingDataStore, input.ChainSelector, input.TokenPoolRef.Type, suiPoolSymbol(input.TokenPoolRef))
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to resolve sui pool objects: %w", err)
 			}
@@ -235,7 +235,7 @@ func (a *SuiTokenAdapter) UpdateAuthorities() *cldf_ops.Sequence[tokensapi.Updat
 			if coinType == "" {
 				return sequences.OnChainOutput{}, fmt.Errorf("token ref has no coin type address on chain %d", input.ChainSelector)
 			}
-			stateObjID, _, err := resolveSuiPoolObjects(e.DataStore, input.ChainSelector, input.TokenPoolRef.Type, input.TokenPoolRef.Qualifier)
+			stateObjID, _, err := resolveSuiPoolObjects(e.DataStore, input.ChainSelector, input.TokenPoolRef.Type, suiPoolSymbol(input.TokenPoolRef))
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to resolve sui pool objects: %w", err)
 			}
@@ -359,7 +359,7 @@ func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("unsupported sui pool type %q on chain %d: %w", input.PoolType, input.ChainSelector, err)
 			}
-			stateObjID, ownerCapID, err := resolveSuiPoolObjects(input.ExistingDataStore, input.ChainSelector, poolType, input.TokenRef.Qualifier)
+			stateObjID, ownerCapID, err := resolveSuiPoolObjects(input.ExistingDataStore, input.ChainSelector, poolType, suiPoolSymbol(input.TokenRef))
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to resolve sui pool objects: %w", err)
 			}
@@ -513,7 +513,7 @@ func suiSetChainRateLimitCall(
 // the module::STRUCT convention for each Sui token kind (managed token, BnM token, LINK),
 // disambiguated by the contract type the package is stored under.
 func (a *SuiTokenAdapter) DeriveTokenAddress(e deployment.Environment, chainSelector uint64, poolRef datastore.AddressRef) (string, error) {
-	return deriveSuiCoinType(e.DataStore, chainSelector, poolRef.Qualifier)
+	return deriveSuiCoinType(e.DataStore, chainSelector, suiPoolSymbol(poolRef))
 }
 
 // ManualRegistration is a no-op on Sui. Unlike EVM/Solana, a Sui token pool self-registers
@@ -969,6 +969,17 @@ func symbolFromLabels(r datastore.AddressRef) string {
 		return labels[0]
 	}
 	return ""
+}
+
+// suiPoolSymbol returns the token symbol used to match pool state/owner-cap and token-package
+// refs by label. The generic datastore-first resolver returns a raw ref whose Qualifier is the
+// synthetic "<addr>-<type>" rather than the symbol, while the symbol is reliably carried as the
+// first label, so prefer labels and fall back to the qualifier only when no label is set.
+func suiPoolSymbol(ref datastore.AddressRef) string {
+	if s := symbolFromLabels(ref); s != "" {
+		return s
+	}
+	return ref.Qualifier
 }
 
 // suiTokenType maps a coin type to a datastore contract type on a best-effort basis. CCIP

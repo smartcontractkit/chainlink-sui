@@ -181,6 +181,61 @@ func TestSymbolFromLabels(t *testing.T) {
 	require.Empty(t, symbolFromLabels(datastore.AddressRef{Labels: datastore.NewLabelSet()}))
 }
 
+func TestSuiPoolSymbol(t *testing.T) {
+	t.Parallel()
+	// The generic datastore-first resolver returns a raw ref whose Qualifier is the synthetic
+	// "<addr>-<type>" form; the symbol is carried as the first label, so it must win.
+	poolRef := datastore.AddressRef{
+		Qualifier: "0xpool-SuiManagedTokenPool",
+		Labels:    datastore.NewLabelSet("CCIP BnM"),
+	}
+	require.Equal(t, "CCIP BnM", suiPoolSymbol(poolRef))
+
+	// With no label, fall back to the qualifier rather than returning empty.
+	require.Equal(t, "0xpool-SuiManagedTokenPool",
+		suiPoolSymbol(datastore.AddressRef{Qualifier: "0xpool-SuiManagedTokenPool"}))
+	require.Empty(t, suiPoolSymbol(datastore.AddressRef{}))
+}
+
+// TestSuiTokenAdapter_DeriveTokenAddress_FromPoolLabels pins label-based coin-type derivation
+// when the pool ref arrives from the generic resolver with a synthetic "<addr>-<type>" qualifier
+// but the correct symbol label. Reading the symbol from the qualifier would fail to match any
+// token package ref; reading it from the label derives the coin type.
+func TestSuiTokenAdapter_DeriveTokenAddress_FromPoolLabels(t *testing.T) {
+	t.Parallel()
+	const selector uint64 = 123
+	ds := datastore.NewMemoryDataStore()
+	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
+		ChainSelector: selector,
+		Type:          datastore.ContractType(suideploy.SuiManagedTokenPackageIDType),
+		Address:       "0xmanagedpkg",
+		Version:       semver.MustParse("1.0.0"),
+		Labels:        datastore.NewLabelSet("CCIP BnM"),
+	}))
+	env := cldf.Environment{DataStore: ds.Seal()}
+	a := &SuiTokenAdapter{}
+
+	// Generic-resolver-style pool ref: synthetic qualifier, symbol as label.
+	got, err := a.DeriveTokenAddress(env, selector, datastore.AddressRef{
+		Type:      datastore.ContractType(suideploy.SuiManagedTokenPoolType),
+		Address:   "0xpool",
+		Qualifier: "0xpool-SuiManagedTokenPool",
+		Labels:    datastore.NewLabelSet("CCIP BnM"),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "0xmanagedpkg::managed_token::MANAGED_TOKEN", got)
+
+	// Same ref without the label: falls back to the synthetic qualifier, which matches no
+	// package ref, so derivation errors.
+	_, err = a.DeriveTokenAddress(env, selector, datastore.AddressRef{
+		Type:      datastore.ContractType(suideploy.SuiManagedTokenPoolType),
+		Address:   "0xpool",
+		Qualifier: "0xpool-SuiManagedTokenPool",
+		Labels:    datastore.NewLabelSet(),
+	})
+	require.Error(t, err)
+}
+
 func TestBatchOpFromCall(t *testing.T) {
 	t.Parallel()
 	call := sui_ops.TransactionCall{

@@ -53,6 +53,7 @@ func (d DeployLinkToken) Apply(e cldf.Environment, config DeployLinkTokenConfig)
 
 	// save LinkToken address to the addressbook
 	typeAndVersionLinkToken := cldf.NewTypeAndVersion(deployment.SuiLinkTokenType, deployment.Version1_0_0)
+	typeAndVersionLinkToken.AddLabel("LINK")
 	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, linkTokenReport.Output.PackageId, typeAndVersionLinkToken)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LinkToken address %s for Sui chain %d: %w", linkTokenReport.Output.PackageId, config.ChainSelector, err)
@@ -60,6 +61,7 @@ func (d DeployLinkToken) Apply(e cldf.Environment, config DeployLinkTokenConfig)
 
 	// save LinkTokenCoinMetadataId address to the addressbook
 	typeAndVersionCoinMetadataId := cldf.NewTypeAndVersion(deployment.SuiLinkTokenObjectMetadataID, deployment.Version1_0_0)
+	typeAndVersionCoinMetadataId.AddLabel("LINK")
 	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, linkTokenReport.Output.Objects.CoinMetadataObjectId, typeAndVersionCoinMetadataId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LinkToken CoinmetadataObjectId address %s for Sui chain %d: %w", linkTokenReport.Output.Objects.CoinMetadataObjectId, config.ChainSelector, err)
@@ -67,6 +69,7 @@ func (d DeployLinkToken) Apply(e cldf.Environment, config DeployLinkTokenConfig)
 
 	// save LinkTokenTreasuryCapId address to the addressbook
 	typeAndVersionTreasuryCapId := cldf.NewTypeAndVersion(deployment.SuiLinkTokenTreasuryCapID, deployment.Version1_0_0)
+	typeAndVersionTreasuryCapId.AddLabel("LINK")
 	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, linkTokenReport.Output.Objects.TreasuryCapObjectId, typeAndVersionTreasuryCapId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LinkToken TreasuryCapObjectId address %s for Sui chain %d: %w", linkTokenReport.Output.Objects.TreasuryCapObjectId, config.ChainSelector, err)
@@ -74,6 +77,7 @@ func (d DeployLinkToken) Apply(e cldf.Environment, config DeployLinkTokenConfig)
 
 	// save LinkTokenUpgradeCapId address to the addressbook
 	typeAndVersionUpgradeCapID := cldf.NewTypeAndVersion(deployment.SuiLinkTokenUpgradeCapID, deployment.Version1_0_0)
+	typeAndVersionUpgradeCapID.AddLabel("LINK")
 	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, linkTokenReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapID)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LinkToken UpgradeCapObjectId address %s for Sui chain %d: %w", linkTokenReport.Output.Objects.UpgradeCapObjectId, config.ChainSelector, err)
