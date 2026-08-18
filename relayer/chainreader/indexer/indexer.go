@@ -15,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
 )
 
 // checkpointCursorID namespaces the ChainPoller's row in sui.checkpoint_cursors.
@@ -44,6 +45,9 @@ type Indexer struct {
 	pollerErr    atomic.Value // stores error from poller goroutine
 
 	wg sync.WaitGroup // wait for poller + both indexer goroutines to exit
+
+	// Health metrics for monitoring (optional). Must be set before Start.
+	healthMetrics *monitor.HealthMetrics
 }
 
 // IndexerApi defines the interface for the combined indexer orchestration.
@@ -145,6 +149,16 @@ func (i *Indexer) Name() string {
 // When the poller stops, it closes the channels, which signals the consumers to exit.
 func (i *Indexer) Start(_ context.Context) error {
 	return i.starter.StartOnce(i.Name(), func() error {
+		// Set up health metrics callbacks before the consumer indexers start
+		if i.healthMetrics != nil {
+			i.eventsIndexer.SetOnSyncSuccess(func(ctx context.Context) {
+				i.healthMetrics.RecordLastSuccess(ctx, monitor.ComponentEventsIndexer)
+			})
+			i.transactionIndexer.SetOnSyncSuccess(func(ctx context.Context) {
+				i.healthMetrics.RecordLastSuccess(ctx, monitor.ComponentTransactionsIndexer)
+			})
+		}
+
 		// Ensure the database schema exists before the poller starts: the poller reads the
 		// persisted checkpoint cursor at startup. (EventsIndexer.Start also ensures the schema,
 		// idempotently, for tests that start it standalone.)
@@ -264,6 +278,12 @@ func (i *Indexer) Close() error {
 
 		return closeErr
 	})
+}
+
+// SetHealthMetrics sets the health metrics instance for the indexer so the consumer
+// indexers report successful checkpoint processing. Must be called before Start.
+func (i *Indexer) SetHealthMetrics(hm *monitor.HealthMetrics) {
+	i.healthMetrics = hm
 }
 
 func (i *Indexer) GetEventIndexer() EventsIndexerApi {

@@ -32,6 +32,10 @@ type EventsIndexer struct {
 	eventConfigurations []*sui.EventFilterByMoveEventModule
 	configMutex         sync.RWMutex
 
+	// Optional callback invoked after a checkpoint batch is processed successfully.
+	// Must be set before Start.
+	onSyncSuccess func(ctx context.Context)
+
 	starter services.StateMachine
 }
 
@@ -50,6 +54,9 @@ type EventsIndexerApi interface {
 	// SetEventOffsetOverrides is deprecated; kept for backward compatibility.
 	// Events are now checkpoint-ordered; this method logs a warning.
 	SetEventOffsetOverrides(ctx context.Context, overrides map[string]sui.EventId) error
+	// SetOnSyncSuccess registers a callback invoked after a checkpoint batch is
+	// processed successfully. Must be called before Start.
+	SetOnSyncSuccess(callback func(ctx context.Context))
 	Ready() error
 	Close() error
 }
@@ -106,6 +113,9 @@ func (eIndexer *EventsIndexer) run(ctx context.Context, eventsCh <-chan Checkpoi
 				eIndexer.logger.Errorw("Failed to process checkpoint events",
 					"sequence", batch.Checkpoint.SequenceNumber,
 					"error", err)
+			} else if eIndexer.onSyncSuccess != nil {
+				// Record successful sync for health metrics
+				eIndexer.onSyncSuccess(ctx)
 			}
 		}
 	}
@@ -334,6 +344,12 @@ func (eIndexer *EventsIndexer) isEventSelectorAddedLocked(eConfig sui.EventFilte
 }
 
 // Ready returns nil if the indexer has started successfully.
+// SetOnSyncSuccess sets a callback function that is called after a checkpoint batch
+// is processed successfully. Must be called before Start.
+func (eIndexer *EventsIndexer) SetOnSyncSuccess(callback func(ctx context.Context)) {
+	eIndexer.onSyncSuccess = callback
+}
+
 func (eIndexer *EventsIndexer) Ready() error {
 	return eIndexer.starter.Ready()
 }

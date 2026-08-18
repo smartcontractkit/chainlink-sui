@@ -84,7 +84,7 @@ func checkConfirmations(loopCtx context.Context, txm *SuiTxm) {
 
 		switch resp.Status {
 		case success:
-			if err := handleSuccess(txm, tx); err != nil {
+			if err := handleSuccess(loopCtx, txm, tx); err != nil {
 				txm.lggr.Errorw("Error handling successful transaction", "transactionID", tx.TransactionID, "error", err)
 			}
 		case failure:
@@ -97,12 +97,15 @@ func checkConfirmations(loopCtx context.Context, txm *SuiTxm) {
 	}
 }
 
-func handleSuccess(txm *SuiTxm, tx SuiTx) error {
+func handleSuccess(ctx context.Context, txm *SuiTxm, tx SuiTx) error {
 	if err := txm.transactionRepository.ChangeState(tx.TransactionID, StateFinalized); err != nil {
 		txm.lggr.Errorw("Failed to update transaction state", "transactionID", tx.TransactionID, "error", err)
 		return err
 	}
 	txm.lggr.Infow("Transaction finalized", "transactionID", tx.TransactionID)
+
+	// Record successful transaction in health metrics
+	txm.recordLastSuccess(ctx)
 
 	if err := tx.CoinManager.ReleaseCoins(tx.TransactionID); err != nil {
 		// This error is not critical, can be safely ignored as the coins will auto-release after the default TTL
