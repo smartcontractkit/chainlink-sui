@@ -864,11 +864,14 @@ func deriveSuiCoinType(ds datastore.DataStore, selector uint64, symbol string) (
 	if symbol == "" {
 		return "", fmt.Errorf("symbol is required to derive the sui coin type")
 	}
+	// Each candidate maps the contract type a coin's package id is stored under to that coin's
+	// module::STRUCT type. The managed_token package is a generic management framework over
+	// TreasuryCap<T>; its init only claims the one-time witness and never calls create_currency,
+	// so managed_token::MANAGED_TOKEN is not a coin type and must not be used here.
 	candidates := []struct {
 		contractType datastore.ContractType
 		suffix       string
 	}{
-		{datastore.ContractType(suideploy.SuiManagedTokenPackageIDType), "managed_token::MANAGED_TOKEN"},
 		{datastore.ContractType(suideploy.SuiManagedTokenType), "ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"},
 		{datastore.ContractType(suideploy.SuiLinkTokenType), "link::LINK"},
 	}

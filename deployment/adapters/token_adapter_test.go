@@ -76,7 +76,8 @@ func TestDeriveSuiCoinType(t *testing.T) {
 	ds := datastore.NewMemoryDataStore()
 	const selector uint64 = 123
 
-	// Managed token package -> 0x<pkg>::managed_token::MANAGED_TOKEN
+	// The managed_token wrapper package (SuiManagedTokenPackageIDType) is a management framework
+	// over TreasuryCap<T>, not a coin, so a ref stored under it must not derive a coin type.
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
 		Type:          datastore.ContractType(suideploy.SuiManagedTokenPackageIDType),
@@ -95,11 +96,11 @@ func TestDeriveSuiCoinType(t *testing.T) {
 
 	sealed := ds.Seal()
 
-	got, err := deriveSuiCoinType(sealed, selector, "MT")
-	require.NoError(t, err)
-	require.Equal(t, "0xmanagedpkg::managed_token::MANAGED_TOKEN", got)
+	// "MT" only has a wrapper-package ref, which is not a coin source -> error.
+	_, err := deriveSuiCoinType(sealed, selector, "MT")
+	require.Error(t, err)
 
-	got, err = deriveSuiCoinType(sealed, selector, "CCIP BnM")
+	got, err := deriveSuiCoinType(sealed, selector, "CCIP BnM")
 	require.NoError(t, err)
 	require.Equal(t, "0xbnmpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", got)
 
@@ -205,9 +206,10 @@ func TestSuiTokenAdapter_DeriveTokenAddress_FromPoolLabels(t *testing.T) {
 	t.Parallel()
 	const selector uint64 = 123
 	ds := datastore.NewMemoryDataStore()
+	// The BnM coin package (ccip_burn_mint_token), stored under SuiManagedTokenType.
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
-		Type:          datastore.ContractType(suideploy.SuiManagedTokenPackageIDType),
+		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
 		Address:       "0xmanagedpkg",
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("CCIP BnM"),
@@ -223,10 +225,10 @@ func TestSuiTokenAdapter_DeriveTokenAddress_FromPoolLabels(t *testing.T) {
 		Labels:    datastore.NewLabelSet("CCIP BnM"),
 	})
 	require.NoError(t, err)
-	require.Equal(t, "0xmanagedpkg::managed_token::MANAGED_TOKEN", got)
+	require.Equal(t, "0xmanagedpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", got)
 
 	// Same ref without the label: falls back to the synthetic qualifier, which matches no
-	// package ref, so derivation errors.
+	// coin package ref, so derivation errors.
 	_, err = a.DeriveTokenAddress(env, selector, datastore.AddressRef{
 		Type:      datastore.ContractType(suideploy.SuiManagedTokenPoolType),
 		Address:   "0xpool",
