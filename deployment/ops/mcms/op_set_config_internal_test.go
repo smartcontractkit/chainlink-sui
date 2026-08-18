@@ -37,6 +37,12 @@ func (c *setConfigMockClient) GetMoveModuleFunction(
 	return nil, nil
 }
 
+// ReadObjectMetadata shims the method added to client.SuiPTBClient so the wrapper still
+// satisfies the interface. Not invoked by MCMS set-config ops.
+func (c *setConfigMockClient) ReadObjectMetadata(_ context.Context, _ string) (*suirpcv2.Object, error) {
+	return nil, nil
+}
+
 // mockSharedSuiObjectForSetConfig produces a minimal shared-object descriptor
 // the ObjectResolver can consume during DevInspect BCS assembly.
 func mockSharedSuiObjectForSetConfig(objectID string) *suirpcv2.Object {

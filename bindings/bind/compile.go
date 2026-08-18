@@ -475,7 +475,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		}
 	}
 
-	if packageName == contracts.CCIPDummyReceiver || packageName == contracts.CCIPBrokenReceiver {
+	if packageName == contracts.CCIPDummyReceiver || packageName == contracts.CCIPBrokenReceiver || packageName == contracts.CCIPMaliciousReceiver {
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")

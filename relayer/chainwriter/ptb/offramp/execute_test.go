@@ -2,7 +2,10 @@
 package offramp
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
+	"errors"
 	"math/big"
 	"testing"
 
@@ -43,6 +46,9 @@ func (s *stubPTBClient) ReadFilterOwnedObjectIds(context.Context, string, string
 	return nil, nil
 }
 func (s *stubPTBClient) ReadObjectId(context.Context, string) (*suirpcv2.Object, error) {
+	return nil, nil
+}
+func (s *stubPTBClient) ReadObjectMetadata(context.Context, string) (*suirpcv2.Object, error) {
 	return nil, nil
 }
 func (s *stubPTBClient) ReadFunction(context.Context, string, string, string, []any, []string, []string) ([]any, error) {
@@ -419,7 +425,7 @@ func TestProcessReceivers_SkipPaths(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			results, err := ProcessReceivers(
 				ctx, lggr, fakeClient, ptb,
-				tc.messages, mappings, callOpts, receiverParams, tc.extraArgs,
+				tc.messages, mappings, callOpts, receiverParams, tc.extraArgs, validSuiAddress(),
 			)
 			require.NoError(t, err)
 			assert.Empty(t, results)
@@ -485,4 +491,95 @@ func TestNeedsAppDelivery_ReturnsTrueForPositiveGasLimit(t *testing.T) {
 
 	assert.True(t, needsAppDelivery(msg, extraArgs),
 		"message with gasLimit > 0 should need app delivery")
+}
+
+// metadataPTBClient wraps stubPTBClient so the rest of the SuiPTBClient interface stays
+// no-op, while ReadObjectMetadata returns a scripted object for ownership-guard tests.
+type metadataPTBClient struct {
+	stubPTBClient
+	obj *suirpcv2.Object
+	err error
+}
+
+func (m *metadataPTBClient) ReadObjectMetadata(context.Context, string) (*suirpcv2.Object, error) {
+	return m.obj, m.err
+}
+
+func strPtr(s string) *string {
+	return &s
+}
+
+func ownerKindPtr(k suirpcv2.Owner_OwnerKind) *suirpcv2.Owner_OwnerKind { return &k }
+
+func TestValidateReceiverObjectOwner(t *testing.T) {
+	ctx := context.Background()
+	transmitter := validSuiAddress() // 0x...0001
+	otherAddr := "0x0000000000000000000000000000000000000000000000000000000000000002"
+	objectId := "0x" + hex.EncodeToString(bytes.Repeat([]byte{0xa1}, 32))
+
+	tests := []struct {
+		name    string
+		owner   *suirpcv2.Owner
+		readErr error
+		wantErr bool
+	}{
+		{
+			name:    "transmitter-owned address object is rejected",
+			owner:   &suirpcv2.Owner{Kind: ownerKindPtr(suirpcv2.Owner_ADDRESS), Address: strPtr(transmitter)},
+			wantErr: true,
+		},
+		{
+			name:    "transmitter-owned but uppercased address still rejected after normalization",
+			owner:   &suirpcv2.Owner{Kind: ownerKindPtr(suirpcv2.Owner_ADDRESS), Address: strPtr("0x0000000000000000000000000000000000000000000000000000000000000001")},
+			wantErr: true,
+		},
+		{
+			name:  "address-owned by a different address is allowed",
+			owner: &suirpcv2.Owner{Kind: ownerKindPtr(suirpcv2.Owner_ADDRESS), Address: strPtr(otherAddr)},
+		},
+		{
+			name:  "shared object is allowed",
+			owner: &suirpcv2.Owner{Kind: ownerKindPtr(suirpcv2.Owner_SHARED)},
+		},
+		{
+			name:  "immutable object is allowed",
+			owner: &suirpcv2.Owner{Kind: ownerKindPtr(suirpcv2.Owner_IMMUTABLE)},
+		},
+		{
+			name:    "metadata read error is surfaced",
+			readErr: errors.New("rpc unavailable"),
+			wantErr: true,
+		},
+		{
+			name:    "nil metadata is surfaced",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var obj *suirpcv2.Object
+			if tc.readErr == nil && tc.owner != nil {
+				obj = &suirpcv2.Object{Owner: tc.owner}
+			}
+			cli := &metadataPTBClient{obj: obj, err: tc.readErr}
+
+			err := validateReceiverObjectOwner(ctx, cli, objectId, transmitter)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+
+	t.Run("transmitter-owned rejection wraps sentinel", func(t *testing.T) {
+		cli := &metadataPTBClient{
+			obj: &suirpcv2.Object{Owner: &suirpcv2.Owner{
+				Kind: ownerKindPtr(suirpcv2.Owner_ADDRESS), Address: strPtr(transmitter),
+			}},
+		}
+		err := validateReceiverObjectOwner(ctx, cli, objectId, transmitter)
+		require.ErrorIs(t, err, ErrTransmitterOwnedReceiverObject)
+	})
 }
