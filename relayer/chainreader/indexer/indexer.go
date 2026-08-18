@@ -63,10 +63,12 @@ type IndexerApi interface {
 
 // Params holds the dependencies needed to construct a fully-wired Indexer via NewIndexer.
 type Params struct {
-	Logger       logger.Logger
-	DB           sqlutil.DataSource
-	Client       client.SuiPTBClient
-	PollerConfig sui.ChainPollerConfig
+	Logger logger.Logger
+	DB     sqlutil.DataSource
+	Client client.SuiPTBClient
+	// Poller cursor ID (defaults to "chain_poller")
+	PollerCursorID string
+	PollerConfig   sui.ChainPollerConfig
 	// PollerWorkers is the number of concurrent checkpoint catch-up workers; non-positive
 	// values use the ChainPoller default.
 	PollerWorkers int
@@ -100,16 +102,25 @@ func NewIndexer(p Params) *Indexer {
 
 	txnIndexer := NewTransactionsIndexer(p.DB, p.Logger, txnConfigs)
 	eventsIndexer := NewEventIndexer(p.DB, p.Logger, eventSelectors)
+
 	// The poller pulls the live selector set from the events indexer on each checkpoint, so
 	// selectors added later (e.g. during Bind) are picked up without re-wiring.
 	dbStore := database.NewDBStore(p.DB, p.Logger)
+
+	// Allow overwriting the name of the default cursor ID (stored in DB) to enable running
+	// multiple instances of the indexer using the same database.
+	checkpointCursor := checkpointCursorID
+	if p.PollerCursorID != "" {
+		checkpointCursor = p.PollerCursorID
+	}
+
 	chainPoller := NewChainPoller(
 		p.Client,
 		p.Logger,
 		p.PollerConfig,
 		eventsIndexer.GetEventSelectors,
 		WithWorkerPool(p.PollerWorkers, p.PollerChunkSize),
-		WithCursorStore(dbStore, checkpointCursorID),
+		WithCursorStore(dbStore, checkpointCursor),
 		WithRescanCheckpointCount(p.PollerReplayCheckpointCount),
 	)
 
