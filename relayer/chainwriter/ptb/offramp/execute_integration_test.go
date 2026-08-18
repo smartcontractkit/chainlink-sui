@@ -20,12 +20,6 @@ import (
 // decision logic with synthetic owners; this test verifies the contract that real ReadObjectMetadata
 // returns Owner.Kind == ADDRESS + Owner.Address for a coin owned by the signer, so the guard
 // actually rejects transmitter-owned tail objects and allows everything else.
-//
-// It uses only the local node started by testutils.StartSuiNode — never mainnet or a public testnet.
-//
-// Lives in an external test package (offramp_test) because an internal one cannot import testutils
-// without forming an import cycle (testutils -> txm -> offramp). The unexported guard is surfaced
-// via the test-only export ValidateReceiverObjectOwner in export_test.go.
 func TestValidateReceiverObjectOwner_Integration(t *testing.T) {
 	lggr := logger.Test(t)
 	gasBudget := int64(1_000_000_000)

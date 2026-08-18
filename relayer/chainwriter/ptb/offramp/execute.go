@@ -530,7 +530,7 @@ func AppendPTBCommandForReceiver(
 		// for mutation by that signature; a malicious receiver declaring &mut over such an object
 		// could drain it. Shared and immutable objects, and objects owned by other addresses, are
 		// unaffected. See contracts/ccip/docs/receiver-integration-guide.md for the tail-object model.
-		if err1 := validateReceiverObjectOwner(ctx, chainClient, objectID, signerAddress); err1 != nil {
+		if err1 := ValidateReceiverObjectOwner(ctx, chainClient, objectID, signerAddress); err1 != nil {
 			return nil, err1
 		}
 		paramValues = append(paramValues, codec.Object{Id: objectID})
@@ -590,12 +590,12 @@ func extractReceiverObjectIDs(lggr logger.Logger, extraArgs map[string]any) [][]
 // transmitter's signature on this transaction would authorize the receiver to mutate it.
 var ErrTransmitterOwnedReceiverObject = errors.New("receiver tail object is owned by the execution transmitter")
 
-// validateReceiverObjectOwner rejects receiver tail objects that are address-owned by the
+// ValidateReceiverObjectOwner rejects receiver tail objects that are address-owned by the
 // execution transmitter. Shared and immutable objects, and objects owned by other addresses,
 // are allowed through. The transmitter signature authorizes mutation of any address-owned
 // object it owns, so letting a permissionlessly registered receiver take &mut over one would
 // let the receiver drain it.
-func validateReceiverObjectOwner(
+func ValidateReceiverObjectOwner(
 	ctx context.Context,
 	chainClient client.SuiPTBClient,
 	objectID string,
