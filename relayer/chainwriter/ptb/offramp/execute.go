@@ -24,7 +24,7 @@ import (
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/ccip"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/offramp"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
@@ -608,6 +608,10 @@ func ValidateObjectOwner(
 	objectID string,
 	transmitter string,
 ) error {
+	if !codec.IsSuiAddress(objectID) {
+		return fmt.Errorf("invalid Sui address for owner validation during execution: %s", objectID)
+	}
+
 	meta, err := chainClient.ReadObjectMetadata(ctx, objectID)
 	if err != nil || meta == nil {
 		return fmt.Errorf("failed to read receiver object metadata for ownership check %s: %w", objectID, err)
