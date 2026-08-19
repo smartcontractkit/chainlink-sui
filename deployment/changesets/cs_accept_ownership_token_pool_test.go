@@ -19,15 +19,6 @@ func TestAcceptOwnershipTokenPool_VerifyPreconditions(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "chainSelector is required")
 
-	// Fastcurse is rejected: CCIP token-pool ownership must go to the slow MCMS instance.
-	err = cs.VerifyPreconditions(cldf.Environment{}, AcceptOwnershipTokenPoolConfig{
-		ChainSelector:               9762610643973837292,
-		IsFastCurse:                 true,
-		ManagedTokenPoolTokenSymbol: "CCIP BnM",
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "fastcurse MCMS cannot receive CCIP ownership transfer")
-
 	// No token pool selected.
 	err = cs.VerifyPreconditions(cldf.Environment{}, AcceptOwnershipTokenPoolConfig{
 		ChainSelector: 9762610643973837292,

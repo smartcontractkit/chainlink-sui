@@ -32,7 +32,6 @@ type AcceptOwnershipTokenPool struct{}
 
 type AcceptOwnershipTokenPoolConfig struct {
 	ChainSelector  uint64               `json:"chainSelector" yaml:"chainSelector"`
-	IsFastCurse    bool                 `json:"isFastCurse,omitempty" yaml:"isFastCurse,omitempty"`
 	TimelockConfig utils.TimelockConfig `json:"timelockConfig" yaml:"timelockConfig"`
 
 	// Select the token pool(s) to accept. TypeArg is applied to every selected
@@ -55,7 +54,8 @@ func (d AcceptOwnershipTokenPool) Apply(e cldf.Environment, config AcceptOwnersh
 		return cldf.ChangesetOutput{}, fmt.Errorf("no Sui chain state for chain selector %d", config.ChainSelector)
 	}
 
-	mcmsFields := state.MCMSState(config.IsFastCurse)
+	// Token-pool ownership always transfers to the slow MCMS instance.
+	mcmsFields := state.MCMSState(false)
 
 	suiChain := e.BlockChains.SuiChains()[config.ChainSelector]
 	deps := sui_ops.OpTxDeps{
@@ -137,11 +137,6 @@ func (d AcceptOwnershipTokenPool) Apply(e cldf.Environment, config AcceptOwnersh
 func (d AcceptOwnershipTokenPool) VerifyPreconditions(e cldf.Environment, config AcceptOwnershipTokenPoolConfig) error {
 	if config.ChainSelector == 0 {
 		return fmt.Errorf("chainSelector is required")
-	}
-	// CCIP token-pool ownership must go to the slow MCMS instance, matching
-	// MCMSExecuteTransferOwnership which forbids fastcurse receiving CCIP ownership.
-	if config.IsFastCurse {
-		return fmt.Errorf("fastcurse MCMS cannot receive CCIP ownership transfer; CCIP token-pool OwnerCap must remain with slow MCMS")
 	}
 	if config.ManagedTokenPoolTokenSymbol == "" && config.BurnMintTokenPoolTokenSymbol == "" && config.LockReleaseTokenPoolTokenSymbol == "" {
 		return fmt.Errorf("at least one token pool symbol must be selected for accept ownership")
