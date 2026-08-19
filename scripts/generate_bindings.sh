@@ -69,6 +69,9 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_dummy_receiver --input
 # CCIP - Malicious Receiver (TEST-only; used by the transmitter-ownership guard E2E smoke test)
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_malicious_receiver --input ./contracts/ccip/ccip_malicious_receiver/sources/malicious_receiver.move --output ./bindings/generated/ccip/ccip_malicious_receiver/ccip_malicious_receiver
 
+# CCIP - Malicious Token Pool (TEST-only; used by the ReleaseOrMintParams ownership guard E2E smoke test)
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_malicious_token_pool --input ./contracts/ccip/ccip_malicious_token_pool/sources/malicious_token_pool.move --output ./bindings/generated/ccip/ccip_malicious_token_pool/malicious_token_pool
+
 # MCMS User for testing
 go run bindgen/main.go --moveConfig ./contracts/mcms/mcms_test --input ./contracts/mcms/mcms_test/sources/mcms_user.move --output ./bindings/generated/mcms/mcms_user
 

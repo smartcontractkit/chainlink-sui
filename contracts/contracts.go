@@ -12,21 +12,22 @@ type Package string
 
 const (
 	// CCIP
-	CCIP                  = Package("ccip")
-	CCIPBrokenReceiver    = Package("ccip_broken_receiver")
-	CCIPDummyReceiver     = Package("ccip_dummy_receiver")
-	CCIPMaliciousReceiver = Package("ccip_malicious_receiver")
-	CCIPOfframp           = Package("ccip_offramp")
-	CCIPOnramp            = Package("ccip_onramp")
-	CCIPRouter            = Package("ccip_router")
-	LockReleaseTokenPool  = Package("lock_release_token_pool")
-	BurnMintTokenPool     = Package("burn_mint_token_pool")
-	ManagedTokenPool      = Package("managed_token_pool")
-	USDCTokenPool         = Package("usdc_token_pool")
-	ManagedToken          = Package("managed_token")
-	ManagedTokenFaucet    = Package("managed_token_faucet")
-	MockLinkToken         = Package("mock_link_token")
-	MockEthToken          = Package("mock_eth_token")
+	CCIP                   = Package("ccip")
+	CCIPBrokenReceiver     = Package("ccip_broken_receiver")
+	CCIPDummyReceiver      = Package("ccip_dummy_receiver")
+	CCIPMaliciousReceiver  = Package("ccip_malicious_receiver")
+	CCIPMaliciousTokenPool = Package("ccip_malicious_token_pool")
+	CCIPOfframp            = Package("ccip_offramp")
+	CCIPOnramp             = Package("ccip_onramp")
+	CCIPRouter             = Package("ccip_router")
+	LockReleaseTokenPool   = Package("lock_release_token_pool")
+	BurnMintTokenPool      = Package("burn_mint_token_pool")
+	ManagedTokenPool       = Package("managed_token_pool")
+	USDCTokenPool          = Package("usdc_token_pool")
+	ManagedToken           = Package("managed_token")
+	ManagedTokenFaucet     = Package("managed_token_faucet")
+	MockLinkToken          = Package("mock_link_token")
+	MockEthToken           = Package("mock_eth_token")
 	// LINK
 	LINK    = Package("link")
 	CCIPBnM = Package("ccip_burn_mint_token")
@@ -43,21 +44,22 @@ const (
 // Contracts maps packages to their respective root directories within Embed
 var Contracts map[Package]string = map[Package]string{
 	// CCIP
-	CCIP:                  filepath.Join("ccip", "ccip"),
-	CCIPBrokenReceiver:    filepath.Join("ccip", "ccip_broken_receiver"),
-	CCIPDummyReceiver:     filepath.Join("ccip", "ccip_dummy_receiver"),
-	CCIPMaliciousReceiver: filepath.Join("ccip", "ccip_malicious_receiver"),
-	CCIPBnM:               filepath.Join("ccip", "ccip_burn_mint_token"),
-	CCIPOfframp:           filepath.Join("ccip", "ccip_offramp"),
-	CCIPOnramp:            filepath.Join("ccip", "ccip_onramp"),
-	CCIPRouter:            filepath.Join("ccip", "ccip_router"),
-	LockReleaseTokenPool:  filepath.Join("ccip", "ccip_token_pools", "lock_release_token_pool"),
-	BurnMintTokenPool:     filepath.Join("ccip", "ccip_token_pools", "burn_mint_token_pool"),
-	ManagedTokenPool:      filepath.Join("ccip", "ccip_token_pools", "managed_token_pool"),
-	ManagedToken:          filepath.Join("ccip", "managed_token"),
-	ManagedTokenFaucet:    filepath.Join("ccip", "managed_token_faucet"),
-	MockLinkToken:         filepath.Join("ccip", "mock_link_token"),
-	MockEthToken:          filepath.Join("ccip", "mock_eth_token"),
+	CCIP:                   filepath.Join("ccip", "ccip"),
+	CCIPBrokenReceiver:     filepath.Join("ccip", "ccip_broken_receiver"),
+	CCIPDummyReceiver:      filepath.Join("ccip", "ccip_dummy_receiver"),
+	CCIPMaliciousReceiver:  filepath.Join("ccip", "ccip_malicious_receiver"),
+	CCIPMaliciousTokenPool: filepath.Join("ccip", "ccip_malicious_token_pool"),
+	CCIPBnM:                filepath.Join("ccip", "ccip_burn_mint_token"),
+	CCIPOfframp:            filepath.Join("ccip", "ccip_offramp"),
+	CCIPOnramp:             filepath.Join("ccip", "ccip_onramp"),
+	CCIPRouter:             filepath.Join("ccip", "ccip_router"),
+	LockReleaseTokenPool:   filepath.Join("ccip", "ccip_token_pools", "lock_release_token_pool"),
+	BurnMintTokenPool:      filepath.Join("ccip", "ccip_token_pools", "burn_mint_token_pool"),
+	ManagedTokenPool:       filepath.Join("ccip", "ccip_token_pools", "managed_token_pool"),
+	ManagedToken:           filepath.Join("ccip", "managed_token"),
+	ManagedTokenFaucet:     filepath.Join("ccip", "managed_token_faucet"),
+	MockLinkToken:          filepath.Join("ccip", "mock_link_token"),
+	MockEthToken:           filepath.Join("ccip", "mock_eth_token"),
 	// LINK
 	LINK: filepath.Join("link"),
 	// MCMS
