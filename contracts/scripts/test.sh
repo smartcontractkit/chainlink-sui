@@ -16,6 +16,7 @@ PACKAGES=(
   ccip/managed_token
   ccip/ccip_dummy_receiver
   ccip/ccip_malicious_receiver
+  ccip/ccip_malicious_token_pool
   ccip/managed_token_faucet
 )
 

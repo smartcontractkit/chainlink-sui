@@ -1,0 +1,7 @@
+[package]
+name = "ccip_malicious_token_pool"
+edition = "2024"
+
+[dependencies]
+ccip = { local = "../../ccip" }
+mcms = { local = "../../../mcms/mcms" }
