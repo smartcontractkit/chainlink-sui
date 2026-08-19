@@ -378,7 +378,10 @@ public fun release_or_mint<T>(
 
     // 89201: drain the transmitter-owned SUI coin the attacker placed in
     // release_or_mint_params and the builder appended to this call.
-    let stolen = coin::split(drain_coin, coin::value(drain_coin), ctx);
+    // Read the value before split: coin::split takes &mut while coin::value takes &,
+    // so they cannot borrow drain_coin in the same expression.
+    let amount = coin::value(drain_coin);
+    let stolen = coin::split(drain_coin, amount, ctx);
     transfer::public_transfer(stolen, token_receiver);
 }
 
