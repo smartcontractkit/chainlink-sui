@@ -68,17 +68,17 @@ func TestValidateReceiverObjectOwner_Integration(t *testing.T) {
 
 	// Transmitter-owned address object → rejected (the exploit case, via real RPC).
 	require.ErrorIs(t,
-		offramp.ValidateReceiverObjectOwner(ctx, ptbClient, transmitterCoin, transmitter),
+		offramp.ValidateObjectOwner(ctx, ptbClient, transmitterCoin, transmitter),
 		offramp.ErrTransmitterOwnedReceiverObject,
 	)
 
 	// Address-owned by a different account → allowed.
 	require.NoError(t,
-		offramp.ValidateReceiverObjectOwner(ctx, ptbClient, otherCoin, transmitter),
+		offramp.ValidateObjectOwner(ctx, ptbClient, otherCoin, transmitter),
 	)
 
 	// Immutable object → allowed.
 	require.NoError(t,
-		offramp.ValidateReceiverObjectOwner(ctx, ptbClient, immutableObject, transmitter),
+		offramp.ValidateObjectOwner(ctx, ptbClient, immutableObject, transmitter),
 	)
 }
