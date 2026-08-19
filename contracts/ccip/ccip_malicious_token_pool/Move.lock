@@ -23,19 +23,19 @@ manifest_digest = "21E7A88B8C8BAD0F3FC13C2BC93F282648C8C4479BCA99200ADD9B6FDDA49
 deps = { ccip = "ccip", mcms = "mcms_1", std = "MoveStdlib", sui = "Sui" }
 
 [pinned.testnet.ccip]
-source = { local = "../../ccip" }
+source = { local = "../ccip" }
 use_environment = "testnet"
 manifest_digest = "E5912E2FA12F49E878734EC73B1CAC461C88F1562C6C02B940082B986AE865FE"
 deps = { fast_mcms = "mcms", mcms = "mcms_1", std = "MoveStdlib", sui = "Sui" }
 
 [pinned.testnet.mcms]
-source = { local = "../../../mcms/fast_mcms" }
+source = { local = "../../mcms/fast_mcms" }
 use_environment = "testnet"
 manifest_digest = "5745706258F61D6CE210904B3E6AE87A73CE9D31A6F93BE4718C442529332A87"
 deps = { std = "MoveStdlib", sui = "Sui" }
 
 [pinned.testnet.mcms_1]
-source = { local = "../../../mcms/mcms" }
+source = { local = "../../mcms/mcms" }
 use_environment = "testnet"
 manifest_digest = "5745706258F61D6CE210904B3E6AE87A73CE9D31A6F93BE4718C442529332A87"
 deps = { std = "MoveStdlib", sui = "Sui" }
