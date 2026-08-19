@@ -83,6 +83,7 @@ func getExpectedSuiChainState() CCIPChainState {
 		CCIPUpgradeCapObjectId:      "0x99aef4fefc921681d57823e479fc424f43457ef9ebdf6cf1cbd91379c27ef19c",
 		CCIPRouterAddress:           "0xed4613bd35004954c07150c3e9b10230f5e23e3058bc2ca0e3e676cb43eb4dc1",
 		CCIPRouterStateObjectID:     "0xbb2486d233b0d358f82fb8c4c5c75881e65069ea8ebe5ab692a636c9e0eff7cd",
+		CCIPRouterOwnerCapObjectId:  "0xb000000000000000000000000000000000000000000000000000000000000001",
 		FeeQuoterCapId:              "0xceac727ef0d9a8494323478ece8b883877d9178a573e1678565e5195eac878e8",
 		OnRampAddress:               "0xf87c6010be571a304f0d860857204bc66f037842156f0f6c9d80be265fd83752",
 		OnRampStateObjectId:         "0x75ec1e10b4302f7c69476eb196c88a0aa43a4d509bbbe5cc1feb213e4b6dd58b",
