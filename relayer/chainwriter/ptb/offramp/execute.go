@@ -81,9 +81,7 @@ func BuildOffRampExecutePTB(
 			messages = append(messages, message)
 			for _, tokenAmount := range message.TokenAmounts {
 				destTokenAddress := "0x" + hex.EncodeToString(tokenAmount.DestTokenAddress)
-
 				lggr.Debugw("found token metadata address", "address", destTokenAddress)
-
 				coinMetadataAddresses = append(coinMetadataAddresses, destTokenAddress)
 			}
 		}
@@ -153,6 +151,7 @@ func BuildOffRampExecutePTB(
 		callOpts,
 		coinMetadataAddresses,
 		initExecuteResult,
+		signerAddress,
 	)
 	if err != nil {
 		return err
@@ -200,6 +199,7 @@ func ProcessTokenPools(
 	callOpts *bind.CallOpts,
 	coinMetadataAddresses []string,
 	receiverParams *transaction.Argument,
+	signerAddress string,
 ) ([]transaction.Argument, error) {
 	lggr.Debugw("processing token pools for offramp execution...", "coinMetadataAddresses", coinMetadataAddresses)
 
@@ -237,6 +237,7 @@ func ProcessTokenPools(
 			addressMappings,
 			&tokenConfig,
 			receiverParams,
+			signerAddress,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append token pool command to PTB: %w", err)
@@ -257,6 +258,7 @@ func AppendPTBCommandForTokenPool(
 	addressMappings *OffRampAddressMappings,
 	tokenPoolConfigs *module_token_admin_registry.TokenConfig,
 	receiverParams *transaction.Argument,
+	signerAddress string,
 ) (*transaction.Argument, error) {
 	poolBoundContract, err := bind.NewBoundContract(
 		tokenPoolConfigs.TokenPoolPackageId,
@@ -284,6 +286,11 @@ func AppendPTBCommandForTokenPool(
 	// Append dynamic values (addresses) to the paramValues for the token pool call.
 	// This allows an unknown set of addresses to be passed in.
 	for _, value := range tokenPoolConfigs.ReleaseOrMintParams {
+		// Check that the destination token address specified by the message is not owned
+		// by the transmitter. This is the same check that we apply to the receiver set objects.
+		if invalidParamOwnerErr := ValidateObjectOwner(ctx, chainClient, value, signerAddress); invalidParamOwnerErr != nil {
+			return nil, invalidParamOwnerErr
+		}
 		paramValues = append(paramValues, value)
 	}
 
@@ -530,7 +537,7 @@ func AppendPTBCommandForReceiver(
 		// for mutation by that signature; a malicious receiver declaring &mut over such an object
 		// could drain it. Shared and immutable objects, and objects owned by other addresses, are
 		// unaffected. See contracts/ccip/docs/receiver-integration-guide.md for the tail-object model.
-		if err1 := ValidateReceiverObjectOwner(ctx, chainClient, objectID, signerAddress); err1 != nil {
+		if err1 := ValidateObjectOwner(ctx, chainClient, objectID, signerAddress); err1 != nil {
 			return nil, err1
 		}
 		paramValues = append(paramValues, codec.Object{Id: objectID})
@@ -590,12 +597,12 @@ func extractReceiverObjectIDs(lggr logger.Logger, extraArgs map[string]any) [][]
 // transmitter's signature on this transaction would authorize the receiver to mutate it.
 var ErrTransmitterOwnedReceiverObject = errors.New("receiver tail object is owned by the execution transmitter")
 
-// ValidateReceiverObjectOwner rejects receiver tail objects that are address-owned by the
+// ValidateObjectOwner rejects receiver tail objects that are address-owned by the
 // execution transmitter. Shared and immutable objects, and objects owned by other addresses,
 // are allowed through. The transmitter signature authorizes mutation of any address-owned
 // object it owns, so letting a permissionlessly registered receiver take &mut over one would
 // let the receiver drain it.
-func ValidateReceiverObjectOwner(
+func ValidateObjectOwner(
 	ctx context.Context,
 	chainClient client.SuiPTBClient,
 	objectID string,
