@@ -12,7 +12,7 @@ import (
 // addressesForSuiChain loads address/type metadata for one Sui chain.
 // It prefers env.DataStore address refs (address_refs.json) when present and
 // falls back to env.ExistingAddresses (addresses.json).
-func addressesForSuiChain(env cldf.Environment, chainSelector uint64) (map[string]cldf.TypeAndVersion, error) {
+func addressesForSuiChain(env cldf.Environment, chainSelector uint64) (map[string][]cldf.TypeAndVersion, error) {
 	if addresses, ok, err := addressesForSuiChainFromDatastore(env, chainSelector); err != nil {
 		return nil, err
 	} else if ok {
@@ -21,7 +21,7 @@ func addressesForSuiChain(env cldf.Environment, chainSelector uint64) (map[strin
 	return addressesForSuiChainFromAddressBook(env, chainSelector)
 }
 
-func addressesForSuiChainFromDatastore(env cldf.Environment, chainSelector uint64) (map[string]cldf.TypeAndVersion, bool, error) {
+func addressesForSuiChainFromDatastore(env cldf.Environment, chainSelector uint64) (map[string][]cldf.TypeAndVersion, bool, error) {
 	if env.DataStore == nil {
 		return nil, false, nil
 	}
@@ -29,24 +29,31 @@ func addressesForSuiChainFromDatastore(env cldf.Environment, chainSelector uint6
 	if len(refs) == 0 {
 		return nil, false, nil
 	}
-	addresses := make(map[string]cldf.TypeAndVersion, len(refs))
+	// One Sui object address can carry several typed refs — the MCMS state object id
+	// is reused by the generic Proposer/Canceller/Bypasser role refs — so keep every ref
+	// per address instead of last-write-wins, which would drop the MCMS state entry.
+	addresses := make(map[string][]cldf.TypeAndVersion, len(refs))
 	for _, ref := range refs {
 		tv, err := typeAndVersionFromDatastoreRef(ref)
 		if err != nil {
 			return nil, false, fmt.Errorf("datastore ref %s chain %d: %w", ref.Address, chainSelector, err)
 		}
-		addresses[ref.Address] = tv
+		addresses[ref.Address] = append(addresses[ref.Address], tv)
 	}
 	return addresses, true, nil
 }
 
-func addressesForSuiChainFromAddressBook(env cldf.Environment, chainSelector uint64) (map[string]cldf.TypeAndVersion, error) {
-	addresses, err := env.ExistingAddresses.AddressesForChain(chainSelector)
+func addressesForSuiChainFromAddressBook(env cldf.Environment, chainSelector uint64) (map[string][]cldf.TypeAndVersion, error) {
+	abAddresses, err := env.ExistingAddresses.AddressesForChain(chainSelector)
 	if err != nil {
 		if errors.Is(err, cldf.ErrChainNotFound) {
-			return make(map[string]cldf.TypeAndVersion), nil
+			return make(map[string][]cldf.TypeAndVersion), nil
 		}
 		return nil, fmt.Errorf("failed to get addresses for chain %d: %w", chainSelector, err)
+	}
+	addresses := make(map[string][]cldf.TypeAndVersion, len(abAddresses))
+	for addr, tv := range abAddresses {
+		addresses[addr] = []cldf.TypeAndVersion{tv}
 	}
 	return addresses, nil
 }

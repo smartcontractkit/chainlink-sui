@@ -132,3 +132,74 @@ func TestDatastoreRefLabels_ignoresAddressTypeQualifier(t *testing.T) {
 	})
 	require.Empty(t, labels)
 }
+
+// TestLoadOnchainStatesui_fromDatastore_mcmsRoleRefCollision pins that the generic MCMS
+// role refs (Canceller/BypasserManyChainMultiSig), which reuse the SuiManyChainMultisigObjectID
+// address because roles are internal to the Sui MCMS state object, do not clobber the MCMS
+// state entry. The loader must keep every ref per address instead of last-write-wins.
+func TestLoadOnchainStatesui_fromDatastore_mcmsRoleRefCollision(t *testing.T) {
+	t.Parallel()
+
+	selector := cselectors.SUI_TESTNET.Selector
+
+	ds := fdatastore.NewMemoryDataStore()
+	// Slow MCMS instance: the state object id is reused by two generic role refs.
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xslow_state",
+		Type:          fdatastore.ContractType(SuiMcmsObjectIDType),
+		Version:       &Version1_0_0,
+	}))
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xslow_state",
+		Type:          fdatastore.ContractType("CancellerManyChainMultiSig"),
+		Version:       &Version1_0_0,
+	}))
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xslow_state",
+		Type:          fdatastore.ContractType("BypasserManyChainMultiSig"),
+		Version:       &Version1_0_0,
+	}))
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xslow_package",
+		Type:          fdatastore.ContractType(SuiMcmsPackageIDType),
+		Version:       &Version1_0_0,
+	}))
+	// Fastcurse MCMS instance: no role refs share its state object id.
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xfast_state",
+		Type:          fdatastore.ContractType(SuiMcmsObjectIDType),
+		Version:       &Version1_0_0,
+		Qualifier:     MCMSFastCurseLabel,
+		Labels:        fdatastore.NewLabelSet(MCMSFastCurseLabel),
+	}))
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xfast_package",
+		Type:          fdatastore.ContractType(SuiMcmsPackageIDType),
+		Version:       &Version1_0_0,
+		Qualifier:     MCMSFastCurseLabel,
+		Labels:        fdatastore.NewLabelSet(MCMSFastCurseLabel),
+	}))
+
+	got, err := LoadOnchainStatesui(cldf.Environment{
+		DataStore: ds.Seal(),
+		BlockChains: chain.NewBlockChains(map[uint64]chain.BlockChain{
+			selector: sui.Chain{},
+		}),
+	})
+	require.NoError(t, err)
+
+	chainState := got[selector]
+	slowFields := chainState.MCMSState(false)
+	fastFields := chainState.MCMSState(true)
+	require.Equal(t, "0xslow_state", slowFields.StateObjectID,
+		"slow MCMS state object must survive the role-ref collision")
+	require.Equal(t, "0xslow_package", slowFields.PackageID)
+	require.Equal(t, "0xfast_state", fastFields.StateObjectID)
+	require.Equal(t, "0xfast_package", fastFields.PackageID)
+}

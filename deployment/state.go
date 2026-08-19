@@ -436,7 +436,7 @@ func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error
 	return suiChains, nil
 }
 
-func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (CCIPChainState, error) {
+func loadsuiChainStateFromAddresses(addresses map[string][]cldf.TypeAndVersion) (CCIPChainState, error) {
 	chainState := CCIPChainState{
 		ManagedTokens:       make(map[string]ManagedTokenState),
 		ManagedTokenFaucets: make(map[string]ManagedTokenFaucetState),
@@ -444,7 +444,22 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		LnRTokenPools:       make(map[string]CCIPPoolState),
 		ManagedTokenPools:   make(map[string]CCIPPoolState),
 	}
-	for addr, typeAndVersion := range addresses {
+	// Flatten the per-address slices so every typed ref is visited. A single object
+	// address can carry multiple refs (the MCMS state object id is shared with the
+	// generic role refs); iterating the map values directly would drop all but one.
+	type addrRef struct {
+		addr string
+		tv   cldf.TypeAndVersion
+	}
+	var refs []addrRef
+	for addr, tvs := range addresses {
+		for _, tv := range tvs {
+			refs = append(refs, addrRef{addr, tv})
+		}
+	}
+	for _, r := range refs {
+		addr := r.addr
+		typeAndVersion := r.tv
 		// Determine whether this address belongs to the fastcurse MCMS instance.
 		isFastCurse := typeAndVersion.Labels.Contains(MCMSFastCurseLabel)
 
