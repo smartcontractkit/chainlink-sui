@@ -21,6 +21,7 @@ require (
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260624154507-ea7ff77a0ddb
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260713194119-2689c5708c8b
 	github.com/smartcontractkit/chainlink-sui/codec v0.0.0-20260713202800-ac352a2c68f0
+	github.com/smartcontractkit/chainlink-testing-framework/wasp v1.51.1
 	github.com/stretchr/testify v1.11.1
 	github.com/test-go/testify v1.1.4
 	go.opentelemetry.io/otel v1.44.0
