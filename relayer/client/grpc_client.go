@@ -555,7 +555,7 @@ func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction
 
 		executionStatus := response.GetTransaction().GetEffects().GetStatus()
 		if !executionStatus.GetSuccess() {
-			return fmt.Errorf("transaction successfully estimated gas with a failed status repsonse")
+			return errors.New("transaction successfully estimated gas with a failed status response")
 		}
 
 		gasUsed := response.GetTransaction().GetEffects().GetGasUsed()
