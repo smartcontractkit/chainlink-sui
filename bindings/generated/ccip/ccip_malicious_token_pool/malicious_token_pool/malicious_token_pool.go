@@ -1,7 +1,7 @@
 // Code generated - DO NOT EDIT.
 // This file is a generated binding and any manual changes will be lost.
 
-package module_burn_mint_token_pool
+package module_malicious_token_pool
 
 import (
 	"context"
@@ -18,9 +18,9 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"destroy_token_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"get_current_inbound_rate_limiter_state","parameters":[{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"get_current_outbound_rate_limiter_state","parameters":[{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"get_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"get_token_symbol","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"initialize","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"token_pool_administrator","type":"address"},{"name":"attacker_release_or_mint_params","type":"vector<address>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"owner","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"pool","type":"BurnMintTokenPoolState<T>"},{"name":"drain_coin","type":"Coin<sui::sui::SUI>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"enabled","type":"bool"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_malicious_token_pool","module":"burn_mint_token_pool","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"destroy_token_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"get_current_inbound_rate_limiter_state","parameters":[{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"get_current_outbound_rate_limiter_state","parameters":[{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"get_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"get_token_symbol","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"initialize","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"token_pool_administrator","type":"address"},{"name":"attacker_release_or_mint_params","type":"vector<address>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"owner","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"pool","type":"BurnMintTokenPoolState<T>"},{"name":"drain_coin","type":"Coin<sui::sui::SUI>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"enabled","type":"bool"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_malicious_token_pool","module":"malicious_token_pool","name":"type_and_version","parameters":null}]`
 
-type IBurnMintTokenPool interface {
+type IMaliciousTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string, attackerReleaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -69,12 +69,12 @@ type IBurnMintTokenPool interface {
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	DevInspect() IBurnMintTokenPoolDevInspect
-	Encoder() BurnMintTokenPoolEncoder
+	DevInspect() IMaliciousTokenPoolDevInspect
+	Encoder() MaliciousTokenPoolEncoder
 	Bound() bind.IBoundContract
 }
 
-type IBurnMintTokenPoolDevInspect interface {
+type IMaliciousTokenPoolDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
 	GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (byte, error)
@@ -96,7 +96,7 @@ type IBurnMintTokenPoolDevInspect interface {
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*bool, error)
 }
 
-type BurnMintTokenPoolEncoder interface {
+type MaliciousTokenPoolEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(typeArgs []string, ownerCap bind.Object, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string, attackerReleaseOrMintParams []string) (*bind.EncodedCall, error)
@@ -195,46 +195,46 @@ type BurnMintTokenPoolEncoder interface {
 	McmsRemoveAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 }
 
-type BurnMintTokenPoolContract struct {
+type MaliciousTokenPoolContract struct {
 	*bind.BoundContract
-	burnMintTokenPoolEncoder
-	devInspect *BurnMintTokenPoolDevInspect
+	maliciousTokenPoolEncoder
+	devInspect *MaliciousTokenPoolDevInspect
 }
 
-type BurnMintTokenPoolDevInspect struct {
-	contract *BurnMintTokenPoolContract
+type MaliciousTokenPoolDevInspect struct {
+	contract *MaliciousTokenPoolContract
 }
 
-var _ IBurnMintTokenPool = (*BurnMintTokenPoolContract)(nil)
-var _ IBurnMintTokenPoolDevInspect = (*BurnMintTokenPoolDevInspect)(nil)
+var _ IMaliciousTokenPool = (*MaliciousTokenPoolContract)(nil)
+var _ IMaliciousTokenPoolDevInspect = (*MaliciousTokenPoolDevInspect)(nil)
 
-func NewBurnMintTokenPool(packageID string, chainClient client.BindingsClient) (IBurnMintTokenPool, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_malicious_token_pool", "burn_mint_token_pool", chainClient)
+func NewMaliciousTokenPool(packageID string, chainClient client.BindingsClient) (IMaliciousTokenPool, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip_malicious_token_pool", "malicious_token_pool", chainClient)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &BurnMintTokenPoolContract{
-		BoundContract:            contract,
-		burnMintTokenPoolEncoder: burnMintTokenPoolEncoder{BoundContract: contract},
+	c := &MaliciousTokenPoolContract{
+		BoundContract:             contract,
+		maliciousTokenPoolEncoder: maliciousTokenPoolEncoder{BoundContract: contract},
 	}
-	c.devInspect = &BurnMintTokenPoolDevInspect{contract: c}
+	c.devInspect = &MaliciousTokenPoolDevInspect{contract: c}
 	return c, nil
 }
 
-func (c *BurnMintTokenPoolContract) Bound() bind.IBoundContract {
+func (c *MaliciousTokenPoolContract) Bound() bind.IBoundContract {
 	return c.BoundContract
 }
 
-func (c *BurnMintTokenPoolContract) Encoder() BurnMintTokenPoolEncoder {
-	return c.burnMintTokenPoolEncoder
+func (c *MaliciousTokenPoolContract) Encoder() MaliciousTokenPoolEncoder {
+	return c.maliciousTokenPoolEncoder
 }
 
-func (c *BurnMintTokenPoolContract) DevInspect() IBurnMintTokenPoolDevInspect {
+func (c *MaliciousTokenPoolContract) DevInspect() IMaliciousTokenPoolDevInspect {
 	return c.devInspect
 }
 
-type BURN_MINT_TOKEN_POOL struct {
+type MALICIOUS_TOKEN_POOL struct {
 }
 
 type BurnMintTokenPoolObject struct {
@@ -271,8 +271,8 @@ type McmsAcceptOwnershipProof struct {
 }
 
 // TypeAndVersion executes the type_and_version Move function.
-func (c *BurnMintTokenPoolContract) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.TypeAndVersion()
+func (c *MaliciousTokenPoolContract) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.TypeAndVersion()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -281,8 +281,8 @@ func (c *BurnMintTokenPoolContract) TypeAndVersion(ctx context.Context, opts *bi
 }
 
 // Initialize executes the initialize Move function.
-func (c *BurnMintTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string, attackerReleaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.Initialize(typeArgs, ownerCap, ref, coinMetadata, treasuryCap, tokenPoolAdministrator, attackerReleaseOrMintParams)
+func (c *MaliciousTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string, attackerReleaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.Initialize(typeArgs, ownerCap, ref, coinMetadata, treasuryCap, tokenPoolAdministrator, attackerReleaseOrMintParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -291,8 +291,8 @@ func (c *BurnMintTokenPoolContract) Initialize(ctx context.Context, opts *bind.C
 }
 
 // GetToken executes the get_token Move function.
-func (c *BurnMintTokenPoolContract) GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.GetToken(typeArgs, state)
+func (c *MaliciousTokenPoolContract) GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.GetToken(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -301,8 +301,8 @@ func (c *BurnMintTokenPoolContract) GetToken(ctx context.Context, opts *bind.Cal
 }
 
 // GetTokenDecimals executes the get_token_decimals Move function.
-func (c *BurnMintTokenPoolContract) GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.GetTokenDecimals(typeArgs, state)
+func (c *MaliciousTokenPoolContract) GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.GetTokenDecimals(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -311,8 +311,8 @@ func (c *BurnMintTokenPoolContract) GetTokenDecimals(ctx context.Context, opts *
 }
 
 // GetTokenSymbol executes the get_token_symbol Move function.
-func (c *BurnMintTokenPoolContract) GetTokenSymbol(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.GetTokenSymbol(typeArgs, state)
+func (c *MaliciousTokenPoolContract) GetTokenSymbol(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.GetTokenSymbol(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -321,8 +321,8 @@ func (c *BurnMintTokenPoolContract) GetTokenSymbol(ctx context.Context, opts *bi
 }
 
 // GetRemotePools executes the get_remote_pools Move function.
-func (c *BurnMintTokenPoolContract) GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.GetRemotePools(typeArgs, state, remoteChainSelector)
+func (c *MaliciousTokenPoolContract) GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.GetRemotePools(typeArgs, state, remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -331,8 +331,8 @@ func (c *BurnMintTokenPoolContract) GetRemotePools(ctx context.Context, opts *bi
 }
 
 // IsRemotePool executes the is_remote_pool Move function.
-func (c *BurnMintTokenPoolContract) IsRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.IsRemotePool(typeArgs, state, remoteChainSelector, remotePoolAddress)
+func (c *MaliciousTokenPoolContract) IsRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.IsRemotePool(typeArgs, state, remoteChainSelector, remotePoolAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -341,8 +341,8 @@ func (c *BurnMintTokenPoolContract) IsRemotePool(ctx context.Context, opts *bind
 }
 
 // GetRemoteToken executes the get_remote_token Move function.
-func (c *BurnMintTokenPoolContract) GetRemoteToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.GetRemoteToken(typeArgs, state, remoteChainSelector)
+func (c *MaliciousTokenPoolContract) GetRemoteToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.GetRemoteToken(typeArgs, state, remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -351,8 +351,8 @@ func (c *BurnMintTokenPoolContract) GetRemoteToken(ctx context.Context, opts *bi
 }
 
 // AddRemotePool executes the add_remote_pool Move function.
-func (c *BurnMintTokenPoolContract) AddRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.AddRemotePool(typeArgs, state, ownerCap, remoteChainSelector, remotePoolAddress)
+func (c *MaliciousTokenPoolContract) AddRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.AddRemotePool(typeArgs, state, ownerCap, remoteChainSelector, remotePoolAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -361,8 +361,8 @@ func (c *BurnMintTokenPoolContract) AddRemotePool(ctx context.Context, opts *bin
 }
 
 // RemoveRemotePool executes the remove_remote_pool Move function.
-func (c *BurnMintTokenPoolContract) RemoveRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.RemoveRemotePool(typeArgs, state, ownerCap, remoteChainSelector, remotePoolAddress)
+func (c *MaliciousTokenPoolContract) RemoveRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.RemoveRemotePool(typeArgs, state, ownerCap, remoteChainSelector, remotePoolAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -371,8 +371,8 @@ func (c *BurnMintTokenPoolContract) RemoveRemotePool(ctx context.Context, opts *
 }
 
 // IsSupportedChain executes the is_supported_chain Move function.
-func (c *BurnMintTokenPoolContract) IsSupportedChain(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.IsSupportedChain(typeArgs, state, remoteChainSelector)
+func (c *MaliciousTokenPoolContract) IsSupportedChain(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.IsSupportedChain(typeArgs, state, remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -381,8 +381,8 @@ func (c *BurnMintTokenPoolContract) IsSupportedChain(ctx context.Context, opts *
 }
 
 // GetSupportedChains executes the get_supported_chains Move function.
-func (c *BurnMintTokenPoolContract) GetSupportedChains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.GetSupportedChains(typeArgs, state)
+func (c *MaliciousTokenPoolContract) GetSupportedChains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.GetSupportedChains(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -391,8 +391,8 @@ func (c *BurnMintTokenPoolContract) GetSupportedChains(ctx context.Context, opts
 }
 
 // ApplyChainUpdates executes the apply_chain_updates Move function.
-func (c *BurnMintTokenPoolContract) ApplyChainUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelectorsToRemove []uint64, remoteChainSelectorsToAdd []uint64, remotePoolAddressesToAdd [][][]byte, remoteTokenAddressesToAdd [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.ApplyChainUpdates(typeArgs, state, ownerCap, remoteChainSelectorsToRemove, remoteChainSelectorsToAdd, remotePoolAddressesToAdd, remoteTokenAddressesToAdd)
+func (c *MaliciousTokenPoolContract) ApplyChainUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelectorsToRemove []uint64, remoteChainSelectorsToAdd []uint64, remotePoolAddressesToAdd [][][]byte, remoteTokenAddressesToAdd [][]byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.ApplyChainUpdates(typeArgs, state, ownerCap, remoteChainSelectorsToRemove, remoteChainSelectorsToAdd, remotePoolAddressesToAdd, remoteTokenAddressesToAdd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -401,8 +401,8 @@ func (c *BurnMintTokenPoolContract) ApplyChainUpdates(ctx context.Context, opts 
 }
 
 // GetAllowlistEnabled executes the get_allowlist_enabled Move function.
-func (c *BurnMintTokenPoolContract) GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.GetAllowlistEnabled(typeArgs, state)
+func (c *MaliciousTokenPoolContract) GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.GetAllowlistEnabled(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -411,8 +411,8 @@ func (c *BurnMintTokenPoolContract) GetAllowlistEnabled(ctx context.Context, opt
 }
 
 // GetAllowlist executes the get_allowlist Move function.
-func (c *BurnMintTokenPoolContract) GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.GetAllowlist(typeArgs, state)
+func (c *MaliciousTokenPoolContract) GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.GetAllowlist(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -421,8 +421,8 @@ func (c *BurnMintTokenPoolContract) GetAllowlist(ctx context.Context, opts *bind
 }
 
 // SetAllowlistEnabled executes the set_allowlist_enabled Move function.
-func (c *BurnMintTokenPoolContract) SetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, enabled bool) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.SetAllowlistEnabled(typeArgs, state, ownerCap, enabled)
+func (c *MaliciousTokenPoolContract) SetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, enabled bool) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.SetAllowlistEnabled(typeArgs, state, ownerCap, enabled)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -431,8 +431,8 @@ func (c *BurnMintTokenPoolContract) SetAllowlistEnabled(ctx context.Context, opt
 }
 
 // ApplyAllowlistUpdates executes the apply_allowlist_updates Move function.
-func (c *BurnMintTokenPoolContract) ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.ApplyAllowlistUpdates(typeArgs, state, ownerCap, removes, adds)
+func (c *MaliciousTokenPoolContract) ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.ApplyAllowlistUpdates(typeArgs, state, ownerCap, removes, adds)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -441,8 +441,8 @@ func (c *BurnMintTokenPoolContract) ApplyAllowlistUpdates(ctx context.Context, o
 }
 
 // LockOrBurn executes the lock_or_burn Move function.
-func (c *BurnMintTokenPoolContract) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, tokenTransferParams bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.LockOrBurn(typeArgs, ref, tokenTransferParams, c_, remoteChainSelector, clock, state)
+func (c *MaliciousTokenPoolContract) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, tokenTransferParams bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.LockOrBurn(typeArgs, ref, tokenTransferParams, c_, remoteChainSelector, clock, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -451,8 +451,8 @@ func (c *BurnMintTokenPoolContract) LockOrBurn(ctx context.Context, opts *bind.C
 }
 
 // ReleaseOrMint executes the release_or_mint Move function.
-func (c *BurnMintTokenPoolContract) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, clock bind.Object, pool bind.Object, drainCoin bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, clock, pool, drainCoin)
+func (c *MaliciousTokenPoolContract) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, clock bind.Object, pool bind.Object, drainCoin bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, clock, pool, drainCoin)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -461,8 +461,8 @@ func (c *BurnMintTokenPoolContract) ReleaseOrMint(ctx context.Context, opts *bin
 }
 
 // SetChainRateLimiterConfigs executes the set_chain_rate_limiter_configs Move function.
-func (c *BurnMintTokenPoolContract) SetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.SetChainRateLimiterConfigs(typeArgs, state, ownerCap, clock, remoteChainSelectors, outboundIsEnableds, outboundCapacities, outboundRates, inboundIsEnableds, inboundCapacities, inboundRates)
+func (c *MaliciousTokenPoolContract) SetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.SetChainRateLimiterConfigs(typeArgs, state, ownerCap, clock, remoteChainSelectors, outboundIsEnableds, outboundCapacities, outboundRates, inboundIsEnableds, inboundCapacities, inboundRates)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -471,8 +471,8 @@ func (c *BurnMintTokenPoolContract) SetChainRateLimiterConfigs(ctx context.Conte
 }
 
 // SetChainRateLimiterConfig executes the set_chain_rate_limiter_config Move function.
-func (c *BurnMintTokenPoolContract) SetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.SetChainRateLimiterConfig(typeArgs, state, ownerCap, clock, remoteChainSelector, outboundIsEnabled, outboundCapacity, outboundRate, inboundIsEnabled, inboundCapacity, inboundRate)
+func (c *MaliciousTokenPoolContract) SetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.SetChainRateLimiterConfig(typeArgs, state, ownerCap, clock, remoteChainSelector, outboundIsEnabled, outboundCapacity, outboundRate, inboundIsEnabled, inboundCapacity, inboundRate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -481,8 +481,8 @@ func (c *BurnMintTokenPoolContract) SetChainRateLimiterConfig(ctx context.Contex
 }
 
 // GetCurrentInboundRateLimiterState executes the get_current_inbound_rate_limiter_state Move function.
-func (c *BurnMintTokenPoolContract) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.GetCurrentInboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
+func (c *MaliciousTokenPoolContract) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.GetCurrentInboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -491,8 +491,8 @@ func (c *BurnMintTokenPoolContract) GetCurrentInboundRateLimiterState(ctx contex
 }
 
 // GetCurrentOutboundRateLimiterState executes the get_current_outbound_rate_limiter_state Move function.
-func (c *BurnMintTokenPoolContract) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.GetCurrentOutboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
+func (c *MaliciousTokenPoolContract) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.GetCurrentOutboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -501,8 +501,8 @@ func (c *BurnMintTokenPoolContract) GetCurrentOutboundRateLimiterState(ctx conte
 }
 
 // DestroyTokenPool executes the destroy_token_pool Move function.
-func (c *BurnMintTokenPoolContract) DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.DestroyTokenPool(typeArgs, ref, state, ownerCap)
+func (c *MaliciousTokenPoolContract) DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.DestroyTokenPool(typeArgs, ref, state, ownerCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -511,8 +511,8 @@ func (c *BurnMintTokenPoolContract) DestroyTokenPool(ctx context.Context, opts *
 }
 
 // McmsDestroyTokenPool executes the mcms_destroy_token_pool Move function.
-func (c *BurnMintTokenPoolContract) McmsDestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsDestroyTokenPool(typeArgs, ref, state, registry, params)
+func (c *MaliciousTokenPoolContract) McmsDestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsDestroyTokenPool(typeArgs, ref, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -521,8 +521,8 @@ func (c *BurnMintTokenPoolContract) McmsDestroyTokenPool(ctx context.Context, op
 }
 
 // Owner executes the owner Move function.
-func (c *BurnMintTokenPoolContract) Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.Owner(typeArgs, state)
+func (c *MaliciousTokenPoolContract) Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.Owner(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -531,8 +531,8 @@ func (c *BurnMintTokenPoolContract) Owner(ctx context.Context, opts *bind.CallOp
 }
 
 // HasPendingTransfer executes the has_pending_transfer Move function.
-func (c *BurnMintTokenPoolContract) HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.HasPendingTransfer(typeArgs, state)
+func (c *MaliciousTokenPoolContract) HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.HasPendingTransfer(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -541,8 +541,8 @@ func (c *BurnMintTokenPoolContract) HasPendingTransfer(ctx context.Context, opts
 }
 
 // PendingTransferFrom executes the pending_transfer_from Move function.
-func (c *BurnMintTokenPoolContract) PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.PendingTransferFrom(typeArgs, state)
+func (c *MaliciousTokenPoolContract) PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.PendingTransferFrom(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -551,8 +551,8 @@ func (c *BurnMintTokenPoolContract) PendingTransferFrom(ctx context.Context, opt
 }
 
 // PendingTransferTo executes the pending_transfer_to Move function.
-func (c *BurnMintTokenPoolContract) PendingTransferTo(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.PendingTransferTo(typeArgs, state)
+func (c *MaliciousTokenPoolContract) PendingTransferTo(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.PendingTransferTo(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -561,8 +561,8 @@ func (c *BurnMintTokenPoolContract) PendingTransferTo(ctx context.Context, opts 
 }
 
 // PendingTransferAccepted executes the pending_transfer_accepted Move function.
-func (c *BurnMintTokenPoolContract) PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.PendingTransferAccepted(typeArgs, state)
+func (c *MaliciousTokenPoolContract) PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.PendingTransferAccepted(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -571,8 +571,8 @@ func (c *BurnMintTokenPoolContract) PendingTransferAccepted(ctx context.Context,
 }
 
 // TransferOwnership executes the transfer_ownership Move function.
-func (c *BurnMintTokenPoolContract) TransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.TransferOwnership(typeArgs, state, ownerCap, newOwner)
+func (c *MaliciousTokenPoolContract) TransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.TransferOwnership(typeArgs, state, ownerCap, newOwner)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -581,8 +581,8 @@ func (c *BurnMintTokenPoolContract) TransferOwnership(ctx context.Context, opts 
 }
 
 // AcceptOwnership executes the accept_ownership Move function.
-func (c *BurnMintTokenPoolContract) AcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.AcceptOwnership(typeArgs, state)
+func (c *MaliciousTokenPoolContract) AcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.AcceptOwnership(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -591,8 +591,8 @@ func (c *BurnMintTokenPoolContract) AcceptOwnership(ctx context.Context, opts *b
 }
 
 // AcceptOwnershipFromObject executes the accept_ownership_from_object Move function.
-func (c *BurnMintTokenPoolContract) AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.AcceptOwnershipFromObject(typeArgs, state, from)
+func (c *MaliciousTokenPoolContract) AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.AcceptOwnershipFromObject(typeArgs, state, from)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -601,8 +601,8 @@ func (c *BurnMintTokenPoolContract) AcceptOwnershipFromObject(ctx context.Contex
 }
 
 // McmsAcceptOwnership executes the mcms_accept_ownership Move function.
-func (c *BurnMintTokenPoolContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsAcceptOwnership(typeArgs, state, registry, params)
+func (c *MaliciousTokenPoolContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsAcceptOwnership(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -611,8 +611,8 @@ func (c *BurnMintTokenPoolContract) McmsAcceptOwnership(ctx context.Context, opt
 }
 
 // ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
-func (c *BurnMintTokenPoolContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.ExecuteOwnershipTransfer(typeArgs, ownerCap, state, to)
+func (c *MaliciousTokenPoolContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.ExecuteOwnershipTransfer(typeArgs, ownerCap, state, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -621,8 +621,8 @@ func (c *BurnMintTokenPoolContract) ExecuteOwnershipTransfer(ctx context.Context
 }
 
 // ExecuteOwnershipTransferToMcms executes the execute_ownership_transfer_to_mcms Move function.
-func (c *BurnMintTokenPoolContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.ExecuteOwnershipTransferToMcms(typeArgs, ownerCap, state, registry, to)
+func (c *MaliciousTokenPoolContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.ExecuteOwnershipTransferToMcms(typeArgs, ownerCap, state, registry, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -631,8 +631,8 @@ func (c *BurnMintTokenPoolContract) ExecuteOwnershipTransferToMcms(ctx context.C
 }
 
 // McmsRegisterUpgradeCap executes the mcms_register_upgrade_cap Move function.
-func (c *BurnMintTokenPoolContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsRegisterUpgradeCap(upgradeCap, registry, state)
+func (c *MaliciousTokenPoolContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsRegisterUpgradeCap(upgradeCap, registry, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -641,8 +641,8 @@ func (c *BurnMintTokenPoolContract) McmsRegisterUpgradeCap(ctx context.Context, 
 }
 
 // McmsSetAllowlistEnabled executes the mcms_set_allowlist_enabled Move function.
-func (c *BurnMintTokenPoolContract) McmsSetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsSetAllowlistEnabled(typeArgs, state, registry, params)
+func (c *MaliciousTokenPoolContract) McmsSetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsSetAllowlistEnabled(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -651,8 +651,8 @@ func (c *BurnMintTokenPoolContract) McmsSetAllowlistEnabled(ctx context.Context,
 }
 
 // McmsApplyAllowlistUpdates executes the mcms_apply_allowlist_updates Move function.
-func (c *BurnMintTokenPoolContract) McmsApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsApplyAllowlistUpdates(typeArgs, state, registry, params)
+func (c *MaliciousTokenPoolContract) McmsApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsApplyAllowlistUpdates(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -661,8 +661,8 @@ func (c *BurnMintTokenPoolContract) McmsApplyAllowlistUpdates(ctx context.Contex
 }
 
 // McmsApplyChainUpdates executes the mcms_apply_chain_updates Move function.
-func (c *BurnMintTokenPoolContract) McmsApplyChainUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsApplyChainUpdates(typeArgs, state, registry, params)
+func (c *MaliciousTokenPoolContract) McmsApplyChainUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsApplyChainUpdates(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -671,8 +671,8 @@ func (c *BurnMintTokenPoolContract) McmsApplyChainUpdates(ctx context.Context, o
 }
 
 // McmsAddRemotePool executes the mcms_add_remote_pool Move function.
-func (c *BurnMintTokenPoolContract) McmsAddRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsAddRemotePool(typeArgs, state, registry, params)
+func (c *MaliciousTokenPoolContract) McmsAddRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsAddRemotePool(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -681,8 +681,8 @@ func (c *BurnMintTokenPoolContract) McmsAddRemotePool(ctx context.Context, opts 
 }
 
 // McmsRemoveRemotePool executes the mcms_remove_remote_pool Move function.
-func (c *BurnMintTokenPoolContract) McmsRemoveRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsRemoveRemotePool(typeArgs, state, registry, params)
+func (c *MaliciousTokenPoolContract) McmsRemoveRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsRemoveRemotePool(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -691,8 +691,8 @@ func (c *BurnMintTokenPoolContract) McmsRemoveRemotePool(ctx context.Context, op
 }
 
 // McmsSetChainRateLimiterConfigs executes the mcms_set_chain_rate_limiter_configs Move function.
-func (c *BurnMintTokenPoolContract) McmsSetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsSetChainRateLimiterConfigs(typeArgs, state, registry, params, clock)
+func (c *MaliciousTokenPoolContract) McmsSetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsSetChainRateLimiterConfigs(typeArgs, state, registry, params, clock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -701,8 +701,8 @@ func (c *BurnMintTokenPoolContract) McmsSetChainRateLimiterConfigs(ctx context.C
 }
 
 // McmsSetChainRateLimiterConfig executes the mcms_set_chain_rate_limiter_config Move function.
-func (c *BurnMintTokenPoolContract) McmsSetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsSetChainRateLimiterConfig(typeArgs, state, registry, params, clock)
+func (c *MaliciousTokenPoolContract) McmsSetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsSetChainRateLimiterConfig(typeArgs, state, registry, params, clock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -711,8 +711,8 @@ func (c *BurnMintTokenPoolContract) McmsSetChainRateLimiterConfig(ctx context.Co
 }
 
 // McmsTransferOwnership executes the mcms_transfer_ownership Move function.
-func (c *BurnMintTokenPoolContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsTransferOwnership(typeArgs, state, registry, params)
+func (c *MaliciousTokenPoolContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsTransferOwnership(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -721,8 +721,8 @@ func (c *BurnMintTokenPoolContract) McmsTransferOwnership(ctx context.Context, o
 }
 
 // McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
-func (c *BurnMintTokenPoolContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsExecuteOwnershipTransfer(typeArgs, state, registry, deployerState, params)
+func (c *MaliciousTokenPoolContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsExecuteOwnershipTransfer(typeArgs, state, registry, deployerState, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -731,8 +731,8 @@ func (c *BurnMintTokenPoolContract) McmsExecuteOwnershipTransfer(ctx context.Con
 }
 
 // McmsAddAllowedModules executes the mcms_add_allowed_modules Move function.
-func (c *BurnMintTokenPoolContract) McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsAddAllowedModules(typeArgs, registry, params)
+func (c *MaliciousTokenPoolContract) McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsAddAllowedModules(typeArgs, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -741,8 +741,8 @@ func (c *BurnMintTokenPoolContract) McmsAddAllowedModules(ctx context.Context, o
 }
 
 // McmsRemoveAllowedModules executes the mcms_remove_allowed_modules Move function.
-func (c *BurnMintTokenPoolContract) McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsRemoveAllowedModules(typeArgs, registry, params)
+func (c *MaliciousTokenPoolContract) McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.maliciousTokenPoolEncoder.McmsRemoveAllowedModules(typeArgs, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -753,8 +753,8 @@ func (c *BurnMintTokenPoolContract) McmsRemoveAllowedModules(ctx context.Context
 // TypeAndVersion executes the type_and_version Move function using DevInspect to get return values.
 //
 // Returns: 0x1::string::String
-func (d *BurnMintTokenPoolDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.TypeAndVersion()
+func (d *MaliciousTokenPoolDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.TypeAndVersion()
 	if err != nil {
 		return "", fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -775,8 +775,8 @@ func (d *BurnMintTokenPoolDevInspect) TypeAndVersion(ctx context.Context, opts *
 // GetToken executes the get_token Move function using DevInspect to get return values.
 //
 // Returns: address
-func (d *BurnMintTokenPoolDevInspect) GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.GetToken(typeArgs, state)
+func (d *MaliciousTokenPoolDevInspect) GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.GetToken(typeArgs, state)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -797,8 +797,8 @@ func (d *BurnMintTokenPoolDevInspect) GetToken(ctx context.Context, opts *bind.C
 // GetTokenDecimals executes the get_token_decimals Move function using DevInspect to get return values.
 //
 // Returns: u8
-func (d *BurnMintTokenPoolDevInspect) GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (byte, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.GetTokenDecimals(typeArgs, state)
+func (d *MaliciousTokenPoolDevInspect) GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (byte, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.GetTokenDecimals(typeArgs, state)
 	if err != nil {
 		return 0, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -819,8 +819,8 @@ func (d *BurnMintTokenPoolDevInspect) GetTokenDecimals(ctx context.Context, opts
 // GetTokenSymbol executes the get_token_symbol Move function using DevInspect to get return values.
 //
 // Returns: ascii::String
-func (d *BurnMintTokenPoolDevInspect) GetTokenSymbol(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.GetTokenSymbol(typeArgs, state)
+func (d *MaliciousTokenPoolDevInspect) GetTokenSymbol(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.GetTokenSymbol(typeArgs, state)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -841,8 +841,8 @@ func (d *BurnMintTokenPoolDevInspect) GetTokenSymbol(ctx context.Context, opts *
 // GetRemotePools executes the get_remote_pools Move function using DevInspect to get return values.
 //
 // Returns: vector<vector<u8>>
-func (d *BurnMintTokenPoolDevInspect) GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([][]byte, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.GetRemotePools(typeArgs, state, remoteChainSelector)
+func (d *MaliciousTokenPoolDevInspect) GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([][]byte, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.GetRemotePools(typeArgs, state, remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -863,8 +863,8 @@ func (d *BurnMintTokenPoolDevInspect) GetRemotePools(ctx context.Context, opts *
 // IsRemotePool executes the is_remote_pool Move function using DevInspect to get return values.
 //
 // Returns: bool
-func (d *BurnMintTokenPoolDevInspect) IsRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (bool, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.IsRemotePool(typeArgs, state, remoteChainSelector, remotePoolAddress)
+func (d *MaliciousTokenPoolDevInspect) IsRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (bool, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.IsRemotePool(typeArgs, state, remoteChainSelector, remotePoolAddress)
 	if err != nil {
 		return false, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -885,8 +885,8 @@ func (d *BurnMintTokenPoolDevInspect) IsRemotePool(ctx context.Context, opts *bi
 // GetRemoteToken executes the get_remote_token Move function using DevInspect to get return values.
 //
 // Returns: vector<u8>
-func (d *BurnMintTokenPoolDevInspect) GetRemoteToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([]byte, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.GetRemoteToken(typeArgs, state, remoteChainSelector)
+func (d *MaliciousTokenPoolDevInspect) GetRemoteToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([]byte, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.GetRemoteToken(typeArgs, state, remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -907,8 +907,8 @@ func (d *BurnMintTokenPoolDevInspect) GetRemoteToken(ctx context.Context, opts *
 // IsSupportedChain executes the is_supported_chain Move function using DevInspect to get return values.
 //
 // Returns: bool
-func (d *BurnMintTokenPoolDevInspect) IsSupportedChain(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (bool, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.IsSupportedChain(typeArgs, state, remoteChainSelector)
+func (d *MaliciousTokenPoolDevInspect) IsSupportedChain(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (bool, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.IsSupportedChain(typeArgs, state, remoteChainSelector)
 	if err != nil {
 		return false, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -929,8 +929,8 @@ func (d *BurnMintTokenPoolDevInspect) IsSupportedChain(ctx context.Context, opts
 // GetSupportedChains executes the get_supported_chains Move function using DevInspect to get return values.
 //
 // Returns: vector<u64>
-func (d *BurnMintTokenPoolDevInspect) GetSupportedChains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]uint64, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.GetSupportedChains(typeArgs, state)
+func (d *MaliciousTokenPoolDevInspect) GetSupportedChains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]uint64, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.GetSupportedChains(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -951,8 +951,8 @@ func (d *BurnMintTokenPoolDevInspect) GetSupportedChains(ctx context.Context, op
 // GetAllowlistEnabled executes the get_allowlist_enabled Move function using DevInspect to get return values.
 //
 // Returns: bool
-func (d *BurnMintTokenPoolDevInspect) GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.GetAllowlistEnabled(typeArgs, state)
+func (d *MaliciousTokenPoolDevInspect) GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.GetAllowlistEnabled(typeArgs, state)
 	if err != nil {
 		return false, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -973,8 +973,8 @@ func (d *BurnMintTokenPoolDevInspect) GetAllowlistEnabled(ctx context.Context, o
 // GetAllowlist executes the get_allowlist Move function using DevInspect to get return values.
 //
 // Returns: vector<address>
-func (d *BurnMintTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]string, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.GetAllowlist(typeArgs, state)
+func (d *MaliciousTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]string, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.GetAllowlist(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -995,8 +995,8 @@ func (d *BurnMintTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts *bi
 // GetCurrentInboundRateLimiterState executes the get_current_inbound_rate_limiter_state Move function using DevInspect to get return values.
 //
 // Returns: TokenBucketWrapper
-func (d *BurnMintTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.GetCurrentInboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
+func (d *MaliciousTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.GetCurrentInboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
 	if err != nil {
 		return TokenBucketWrapper{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1017,8 +1017,8 @@ func (d *BurnMintTokenPoolDevInspect) GetCurrentInboundRateLimiterState(ctx cont
 // GetCurrentOutboundRateLimiterState executes the get_current_outbound_rate_limiter_state Move function using DevInspect to get return values.
 //
 // Returns: TokenBucketWrapper
-func (d *BurnMintTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.GetCurrentOutboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
+func (d *MaliciousTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx context.Context, opts *bind.CallOpts, typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (TokenBucketWrapper, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.GetCurrentOutboundRateLimiterState(typeArgs, clock, state, remoteChainSelector)
 	if err != nil {
 		return TokenBucketWrapper{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1039,8 +1039,8 @@ func (d *BurnMintTokenPoolDevInspect) GetCurrentOutboundRateLimiterState(ctx con
 // DestroyTokenPool executes the destroy_token_pool Move function using DevInspect to get return values.
 //
 // Returns: TreasuryCap<T>
-func (d *BurnMintTokenPoolDevInspect) DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (any, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.DestroyTokenPool(typeArgs, ref, state, ownerCap)
+func (d *MaliciousTokenPoolDevInspect) DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (any, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.DestroyTokenPool(typeArgs, ref, state, ownerCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1057,8 +1057,8 @@ func (d *BurnMintTokenPoolDevInspect) DestroyTokenPool(ctx context.Context, opts
 // Owner executes the owner Move function using DevInspect to get return values.
 //
 // Returns: address
-func (d *BurnMintTokenPoolDevInspect) Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.Owner(typeArgs, state)
+func (d *MaliciousTokenPoolDevInspect) Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.Owner(typeArgs, state)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1079,8 +1079,8 @@ func (d *BurnMintTokenPoolDevInspect) Owner(ctx context.Context, opts *bind.Call
 // HasPendingTransfer executes the has_pending_transfer Move function using DevInspect to get return values.
 //
 // Returns: bool
-func (d *BurnMintTokenPoolDevInspect) HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.HasPendingTransfer(typeArgs, state)
+func (d *MaliciousTokenPoolDevInspect) HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.HasPendingTransfer(typeArgs, state)
 	if err != nil {
 		return false, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1101,8 +1101,8 @@ func (d *BurnMintTokenPoolDevInspect) HasPendingTransfer(ctx context.Context, op
 // PendingTransferFrom executes the pending_transfer_from Move function using DevInspect to get return values.
 //
 // Returns: 0x1::option::Option<address>
-func (d *BurnMintTokenPoolDevInspect) PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*string, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.PendingTransferFrom(typeArgs, state)
+func (d *MaliciousTokenPoolDevInspect) PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*string, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.PendingTransferFrom(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1123,8 +1123,8 @@ func (d *BurnMintTokenPoolDevInspect) PendingTransferFrom(ctx context.Context, o
 // PendingTransferTo executes the pending_transfer_to Move function using DevInspect to get return values.
 //
 // Returns: 0x1::option::Option<address>
-func (d *BurnMintTokenPoolDevInspect) PendingTransferTo(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*string, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.PendingTransferTo(typeArgs, state)
+func (d *MaliciousTokenPoolDevInspect) PendingTransferTo(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*string, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.PendingTransferTo(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1145,8 +1145,8 @@ func (d *BurnMintTokenPoolDevInspect) PendingTransferTo(ctx context.Context, opt
 // PendingTransferAccepted executes the pending_transfer_accepted Move function using DevInspect to get return values.
 //
 // Returns: 0x1::option::Option<bool>
-func (d *BurnMintTokenPoolDevInspect) PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*bool, error) {
-	encoded, err := d.contract.burnMintTokenPoolEncoder.PendingTransferAccepted(typeArgs, state)
+func (d *MaliciousTokenPoolDevInspect) PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*bool, error) {
+	encoded, err := d.contract.maliciousTokenPoolEncoder.PendingTransferAccepted(typeArgs, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1164,12 +1164,12 @@ func (d *BurnMintTokenPoolDevInspect) PendingTransferAccepted(ctx context.Contex
 	return result, nil
 }
 
-type burnMintTokenPoolEncoder struct {
+type maliciousTokenPoolEncoder struct {
 	*bind.BoundContract
 }
 
 // TypeAndVersion encodes a call to the type_and_version Move function.
-func (c burnMintTokenPoolEncoder) TypeAndVersion() (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) TypeAndVersion() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("type_and_version", typeArgsList, typeParamsList, []string{}, []any{}, []string{
@@ -1179,7 +1179,7 @@ func (c burnMintTokenPoolEncoder) TypeAndVersion() (*bind.EncodedCall, error) {
 
 // TypeAndVersionWithArgs encodes a call to the type_and_version Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
@@ -1193,7 +1193,7 @@ func (c burnMintTokenPoolEncoder) TypeAndVersionWithArgs(args ...any) (*bind.Enc
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c burnMintTokenPoolEncoder) Initialize(typeArgs []string, ownerCap bind.Object, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string, attackerReleaseOrMintParams []string) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) Initialize(typeArgs []string, ownerCap bind.Object, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string, attackerReleaseOrMintParams []string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1217,7 +1217,7 @@ func (c burnMintTokenPoolEncoder) Initialize(typeArgs []string, ownerCap bind.Ob
 
 // InitializeWithArgs encodes a call to the initialize Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut OwnerCap",
 		"&mut CCIPObjectRef",
@@ -1238,7 +1238,7 @@ func (c burnMintTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args ...
 }
 
 // GetToken encodes a call to the get_token Move function.
-func (c burnMintTokenPoolEncoder) GetToken(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetToken(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1254,7 +1254,7 @@ func (c burnMintTokenPoolEncoder) GetToken(typeArgs []string, state bind.Object)
 
 // GetTokenWithArgs encodes a call to the get_token Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) GetTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 	}
@@ -1272,7 +1272,7 @@ func (c burnMintTokenPoolEncoder) GetTokenWithArgs(typeArgs []string, args ...an
 }
 
 // GetTokenDecimals encodes a call to the get_token_decimals Move function.
-func (c burnMintTokenPoolEncoder) GetTokenDecimals(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetTokenDecimals(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1288,7 +1288,7 @@ func (c burnMintTokenPoolEncoder) GetTokenDecimals(typeArgs []string, state bind
 
 // GetTokenDecimalsWithArgs encodes a call to the get_token_decimals Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) GetTokenDecimalsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetTokenDecimalsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 	}
@@ -1306,7 +1306,7 @@ func (c burnMintTokenPoolEncoder) GetTokenDecimalsWithArgs(typeArgs []string, ar
 }
 
 // GetTokenSymbol encodes a call to the get_token_symbol Move function.
-func (c burnMintTokenPoolEncoder) GetTokenSymbol(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetTokenSymbol(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1322,7 +1322,7 @@ func (c burnMintTokenPoolEncoder) GetTokenSymbol(typeArgs []string, state bind.O
 
 // GetTokenSymbolWithArgs encodes a call to the get_token_symbol Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) GetTokenSymbolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetTokenSymbolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 	}
@@ -1340,7 +1340,7 @@ func (c burnMintTokenPoolEncoder) GetTokenSymbolWithArgs(typeArgs []string, args
 }
 
 // GetRemotePools encodes a call to the get_remote_pools Move function.
-func (c burnMintTokenPoolEncoder) GetRemotePools(typeArgs []string, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetRemotePools(typeArgs []string, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1358,7 +1358,7 @@ func (c burnMintTokenPoolEncoder) GetRemotePools(typeArgs []string, state bind.O
 
 // GetRemotePoolsWithArgs encodes a call to the get_remote_pools Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) GetRemotePoolsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetRemotePoolsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 		"u64",
@@ -1377,7 +1377,7 @@ func (c burnMintTokenPoolEncoder) GetRemotePoolsWithArgs(typeArgs []string, args
 }
 
 // IsRemotePool encodes a call to the is_remote_pool Move function.
-func (c burnMintTokenPoolEncoder) IsRemotePool(typeArgs []string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) IsRemotePool(typeArgs []string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1397,7 +1397,7 @@ func (c burnMintTokenPoolEncoder) IsRemotePool(typeArgs []string, state bind.Obj
 
 // IsRemotePoolWithArgs encodes a call to the is_remote_pool Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) IsRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) IsRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 		"u64",
@@ -1417,7 +1417,7 @@ func (c burnMintTokenPoolEncoder) IsRemotePoolWithArgs(typeArgs []string, args .
 }
 
 // GetRemoteToken encodes a call to the get_remote_token Move function.
-func (c burnMintTokenPoolEncoder) GetRemoteToken(typeArgs []string, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetRemoteToken(typeArgs []string, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1435,7 +1435,7 @@ func (c burnMintTokenPoolEncoder) GetRemoteToken(typeArgs []string, state bind.O
 
 // GetRemoteTokenWithArgs encodes a call to the get_remote_token Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) GetRemoteTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetRemoteTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 		"u64",
@@ -1454,7 +1454,7 @@ func (c burnMintTokenPoolEncoder) GetRemoteTokenWithArgs(typeArgs []string, args
 }
 
 // AddRemotePool encodes a call to the add_remote_pool Move function.
-func (c burnMintTokenPoolEncoder) AddRemotePool(typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) AddRemotePool(typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1474,7 +1474,7 @@ func (c burnMintTokenPoolEncoder) AddRemotePool(typeArgs []string, state bind.Ob
 
 // AddRemotePoolWithArgs encodes a call to the add_remote_pool Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) AddRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) AddRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&OwnerCap",
@@ -1493,7 +1493,7 @@ func (c burnMintTokenPoolEncoder) AddRemotePoolWithArgs(typeArgs []string, args 
 }
 
 // RemoveRemotePool encodes a call to the remove_remote_pool Move function.
-func (c burnMintTokenPoolEncoder) RemoveRemotePool(typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) RemoveRemotePool(typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1513,7 +1513,7 @@ func (c burnMintTokenPoolEncoder) RemoveRemotePool(typeArgs []string, state bind
 
 // RemoveRemotePoolWithArgs encodes a call to the remove_remote_pool Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) RemoveRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) RemoveRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&OwnerCap",
@@ -1532,7 +1532,7 @@ func (c burnMintTokenPoolEncoder) RemoveRemotePoolWithArgs(typeArgs []string, ar
 }
 
 // IsSupportedChain encodes a call to the is_supported_chain Move function.
-func (c burnMintTokenPoolEncoder) IsSupportedChain(typeArgs []string, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) IsSupportedChain(typeArgs []string, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1550,7 +1550,7 @@ func (c burnMintTokenPoolEncoder) IsSupportedChain(typeArgs []string, state bind
 
 // IsSupportedChainWithArgs encodes a call to the is_supported_chain Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) IsSupportedChainWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) IsSupportedChainWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 		"u64",
@@ -1569,7 +1569,7 @@ func (c burnMintTokenPoolEncoder) IsSupportedChainWithArgs(typeArgs []string, ar
 }
 
 // GetSupportedChains encodes a call to the get_supported_chains Move function.
-func (c burnMintTokenPoolEncoder) GetSupportedChains(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetSupportedChains(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1585,7 +1585,7 @@ func (c burnMintTokenPoolEncoder) GetSupportedChains(typeArgs []string, state bi
 
 // GetSupportedChainsWithArgs encodes a call to the get_supported_chains Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) GetSupportedChainsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetSupportedChainsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 	}
@@ -1603,7 +1603,7 @@ func (c burnMintTokenPoolEncoder) GetSupportedChainsWithArgs(typeArgs []string, 
 }
 
 // ApplyChainUpdates encodes a call to the apply_chain_updates Move function.
-func (c burnMintTokenPoolEncoder) ApplyChainUpdates(typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelectorsToRemove []uint64, remoteChainSelectorsToAdd []uint64, remotePoolAddressesToAdd [][][]byte, remoteTokenAddressesToAdd [][]byte) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) ApplyChainUpdates(typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelectorsToRemove []uint64, remoteChainSelectorsToAdd []uint64, remotePoolAddressesToAdd [][][]byte, remoteTokenAddressesToAdd [][]byte) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1627,7 +1627,7 @@ func (c burnMintTokenPoolEncoder) ApplyChainUpdates(typeArgs []string, state bin
 
 // ApplyChainUpdatesWithArgs encodes a call to the apply_chain_updates Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) ApplyChainUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) ApplyChainUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&OwnerCap",
@@ -1648,7 +1648,7 @@ func (c burnMintTokenPoolEncoder) ApplyChainUpdatesWithArgs(typeArgs []string, a
 }
 
 // GetAllowlistEnabled encodes a call to the get_allowlist_enabled Move function.
-func (c burnMintTokenPoolEncoder) GetAllowlistEnabled(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetAllowlistEnabled(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1664,7 +1664,7 @@ func (c burnMintTokenPoolEncoder) GetAllowlistEnabled(typeArgs []string, state b
 
 // GetAllowlistEnabledWithArgs encodes a call to the get_allowlist_enabled Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) GetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 	}
@@ -1682,7 +1682,7 @@ func (c burnMintTokenPoolEncoder) GetAllowlistEnabledWithArgs(typeArgs []string,
 }
 
 // GetAllowlist encodes a call to the get_allowlist Move function.
-func (c burnMintTokenPoolEncoder) GetAllowlist(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetAllowlist(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1698,7 +1698,7 @@ func (c burnMintTokenPoolEncoder) GetAllowlist(typeArgs []string, state bind.Obj
 
 // GetAllowlistWithArgs encodes a call to the get_allowlist Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) GetAllowlistWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetAllowlistWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 	}
@@ -1716,7 +1716,7 @@ func (c burnMintTokenPoolEncoder) GetAllowlistWithArgs(typeArgs []string, args .
 }
 
 // SetAllowlistEnabled encodes a call to the set_allowlist_enabled Move function.
-func (c burnMintTokenPoolEncoder) SetAllowlistEnabled(typeArgs []string, state bind.Object, ownerCap bind.Object, enabled bool) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) SetAllowlistEnabled(typeArgs []string, state bind.Object, ownerCap bind.Object, enabled bool) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1734,7 +1734,7 @@ func (c burnMintTokenPoolEncoder) SetAllowlistEnabled(typeArgs []string, state b
 
 // SetAllowlistEnabledWithArgs encodes a call to the set_allowlist_enabled Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) SetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) SetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&OwnerCap",
@@ -1752,7 +1752,7 @@ func (c burnMintTokenPoolEncoder) SetAllowlistEnabledWithArgs(typeArgs []string,
 }
 
 // ApplyAllowlistUpdates encodes a call to the apply_allowlist_updates Move function.
-func (c burnMintTokenPoolEncoder) ApplyAllowlistUpdates(typeArgs []string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) ApplyAllowlistUpdates(typeArgs []string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1772,7 +1772,7 @@ func (c burnMintTokenPoolEncoder) ApplyAllowlistUpdates(typeArgs []string, state
 
 // ApplyAllowlistUpdatesWithArgs encodes a call to the apply_allowlist_updates Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) ApplyAllowlistUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) ApplyAllowlistUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&OwnerCap",
@@ -1791,7 +1791,7 @@ func (c burnMintTokenPoolEncoder) ApplyAllowlistUpdatesWithArgs(typeArgs []strin
 }
 
 // LockOrBurn encodes a call to the lock_or_burn Move function.
-func (c burnMintTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, tokenTransferParams bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, tokenTransferParams bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1815,7 +1815,7 @@ func (c burnMintTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object,
 
 // LockOrBurnWithArgs encodes a call to the lock_or_burn Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
 		"&mut onramp_sh::TokenTransferParams",
@@ -1836,7 +1836,7 @@ func (c burnMintTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args ...
 }
 
 // ReleaseOrMint encodes a call to the release_or_mint Move function.
-func (c burnMintTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, clock bind.Object, pool bind.Object, drainCoin bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, clock bind.Object, pool bind.Object, drainCoin bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1858,7 +1858,7 @@ func (c burnMintTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Obje
 
 // ReleaseOrMintWithArgs encodes a call to the release_or_mint Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
 		"&mut offramp_sh::ReceiverParams",
@@ -1878,7 +1878,7 @@ func (c burnMintTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args 
 }
 
 // SetChainRateLimiterConfigs encodes a call to the set_chain_rate_limiter_configs Move function.
-func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfigs(typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) SetChainRateLimiterConfigs(typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1910,7 +1910,7 @@ func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfigs(typeArgs []string, 
 
 // SetChainRateLimiterConfigsWithArgs encodes a call to the set_chain_rate_limiter_configs Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) SetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&OwnerCap",
@@ -1935,7 +1935,7 @@ func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfigsWithArgs(typeArgs []
 }
 
 // SetChainRateLimiterConfig encodes a call to the set_chain_rate_limiter_config Move function.
-func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfig(typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) SetChainRateLimiterConfig(typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1967,7 +1967,7 @@ func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfig(typeArgs []string, s
 
 // SetChainRateLimiterConfigWithArgs encodes a call to the set_chain_rate_limiter_config Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfigWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) SetChainRateLimiterConfigWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&OwnerCap",
@@ -1992,7 +1992,7 @@ func (c burnMintTokenPoolEncoder) SetChainRateLimiterConfigWithArgs(typeArgs []s
 }
 
 // GetCurrentInboundRateLimiterState encodes a call to the get_current_inbound_rate_limiter_state Move function.
-func (c burnMintTokenPoolEncoder) GetCurrentInboundRateLimiterState(typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetCurrentInboundRateLimiterState(typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2006,13 +2006,13 @@ func (c burnMintTokenPoolEncoder) GetCurrentInboundRateLimiterState(typeArgs []s
 		state,
 		remoteChainSelector,
 	}, []string{
-		"ccip_malicious_token_pool::burn_mint_token_pool::TokenBucketWrapper",
+		"ccip_malicious_token_pool::malicious_token_pool::TokenBucketWrapper",
 	})
 }
 
 // GetCurrentInboundRateLimiterStateWithArgs encodes a call to the get_current_inbound_rate_limiter_state Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) GetCurrentInboundRateLimiterStateWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetCurrentInboundRateLimiterStateWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&Clock",
 		"&BurnMintTokenPoolState<T>",
@@ -2027,12 +2027,12 @@ func (c burnMintTokenPoolEncoder) GetCurrentInboundRateLimiterStateWithArgs(type
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("get_current_inbound_rate_limiter_state", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip_malicious_token_pool::burn_mint_token_pool::TokenBucketWrapper",
+		"ccip_malicious_token_pool::malicious_token_pool::TokenBucketWrapper",
 	})
 }
 
 // GetCurrentOutboundRateLimiterState encodes a call to the get_current_outbound_rate_limiter_state Move function.
-func (c burnMintTokenPoolEncoder) GetCurrentOutboundRateLimiterState(typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetCurrentOutboundRateLimiterState(typeArgs []string, clock bind.Object, state bind.Object, remoteChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2046,13 +2046,13 @@ func (c burnMintTokenPoolEncoder) GetCurrentOutboundRateLimiterState(typeArgs []
 		state,
 		remoteChainSelector,
 	}, []string{
-		"ccip_malicious_token_pool::burn_mint_token_pool::TokenBucketWrapper",
+		"ccip_malicious_token_pool::malicious_token_pool::TokenBucketWrapper",
 	})
 }
 
 // GetCurrentOutboundRateLimiterStateWithArgs encodes a call to the get_current_outbound_rate_limiter_state Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) GetCurrentOutboundRateLimiterStateWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) GetCurrentOutboundRateLimiterStateWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&Clock",
 		"&BurnMintTokenPoolState<T>",
@@ -2067,12 +2067,12 @@ func (c burnMintTokenPoolEncoder) GetCurrentOutboundRateLimiterStateWithArgs(typ
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("get_current_outbound_rate_limiter_state", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip_malicious_token_pool::burn_mint_token_pool::TokenBucketWrapper",
+		"ccip_malicious_token_pool::malicious_token_pool::TokenBucketWrapper",
 	})
 }
 
 // DestroyTokenPool encodes a call to the destroy_token_pool Move function.
-func (c burnMintTokenPoolEncoder) DestroyTokenPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) DestroyTokenPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2092,7 +2092,7 @@ func (c burnMintTokenPoolEncoder) DestroyTokenPool(typeArgs []string, ref bind.O
 
 // DestroyTokenPoolWithArgs encodes a call to the destroy_token_pool Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) DestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) DestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
 		"BurnMintTokenPoolState<T>",
@@ -2112,7 +2112,7 @@ func (c burnMintTokenPoolEncoder) DestroyTokenPoolWithArgs(typeArgs []string, ar
 }
 
 // McmsDestroyTokenPool encodes a call to the mcms_destroy_token_pool Move function.
-func (c burnMintTokenPoolEncoder) McmsDestroyTokenPool(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsDestroyTokenPool(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2132,7 +2132,7 @@ func (c burnMintTokenPoolEncoder) McmsDestroyTokenPool(typeArgs []string, ref bi
 
 // McmsDestroyTokenPoolWithArgs encodes a call to the mcms_destroy_token_pool Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsDestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsDestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
 		"BurnMintTokenPoolState<T>",
@@ -2151,7 +2151,7 @@ func (c burnMintTokenPoolEncoder) McmsDestroyTokenPoolWithArgs(typeArgs []string
 }
 
 // Owner encodes a call to the owner Move function.
-func (c burnMintTokenPoolEncoder) Owner(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) Owner(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2167,7 +2167,7 @@ func (c burnMintTokenPoolEncoder) Owner(typeArgs []string, state bind.Object) (*
 
 // OwnerWithArgs encodes a call to the owner Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) OwnerWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) OwnerWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 	}
@@ -2185,7 +2185,7 @@ func (c burnMintTokenPoolEncoder) OwnerWithArgs(typeArgs []string, args ...any) 
 }
 
 // HasPendingTransfer encodes a call to the has_pending_transfer Move function.
-func (c burnMintTokenPoolEncoder) HasPendingTransfer(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) HasPendingTransfer(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2201,7 +2201,7 @@ func (c burnMintTokenPoolEncoder) HasPendingTransfer(typeArgs []string, state bi
 
 // HasPendingTransferWithArgs encodes a call to the has_pending_transfer Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) HasPendingTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) HasPendingTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 	}
@@ -2219,7 +2219,7 @@ func (c burnMintTokenPoolEncoder) HasPendingTransferWithArgs(typeArgs []string, 
 }
 
 // PendingTransferFrom encodes a call to the pending_transfer_from Move function.
-func (c burnMintTokenPoolEncoder) PendingTransferFrom(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) PendingTransferFrom(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2235,7 +2235,7 @@ func (c burnMintTokenPoolEncoder) PendingTransferFrom(typeArgs []string, state b
 
 // PendingTransferFromWithArgs encodes a call to the pending_transfer_from Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) PendingTransferFromWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) PendingTransferFromWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 	}
@@ -2253,7 +2253,7 @@ func (c burnMintTokenPoolEncoder) PendingTransferFromWithArgs(typeArgs []string,
 }
 
 // PendingTransferTo encodes a call to the pending_transfer_to Move function.
-func (c burnMintTokenPoolEncoder) PendingTransferTo(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) PendingTransferTo(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2269,7 +2269,7 @@ func (c burnMintTokenPoolEncoder) PendingTransferTo(typeArgs []string, state bin
 
 // PendingTransferToWithArgs encodes a call to the pending_transfer_to Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) PendingTransferToWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) PendingTransferToWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 	}
@@ -2287,7 +2287,7 @@ func (c burnMintTokenPoolEncoder) PendingTransferToWithArgs(typeArgs []string, a
 }
 
 // PendingTransferAccepted encodes a call to the pending_transfer_accepted Move function.
-func (c burnMintTokenPoolEncoder) PendingTransferAccepted(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) PendingTransferAccepted(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2303,7 +2303,7 @@ func (c burnMintTokenPoolEncoder) PendingTransferAccepted(typeArgs []string, sta
 
 // PendingTransferAcceptedWithArgs encodes a call to the pending_transfer_accepted Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) PendingTransferAcceptedWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) PendingTransferAcceptedWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&BurnMintTokenPoolState<T>",
 	}
@@ -2321,7 +2321,7 @@ func (c burnMintTokenPoolEncoder) PendingTransferAcceptedWithArgs(typeArgs []str
 }
 
 // TransferOwnership encodes a call to the transfer_ownership Move function.
-func (c burnMintTokenPoolEncoder) TransferOwnership(typeArgs []string, state bind.Object, ownerCap bind.Object, newOwner string) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) TransferOwnership(typeArgs []string, state bind.Object, ownerCap bind.Object, newOwner string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2339,7 +2339,7 @@ func (c burnMintTokenPoolEncoder) TransferOwnership(typeArgs []string, state bin
 
 // TransferOwnershipWithArgs encodes a call to the transfer_ownership Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) TransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) TransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&OwnerCap",
@@ -2357,7 +2357,7 @@ func (c burnMintTokenPoolEncoder) TransferOwnershipWithArgs(typeArgs []string, a
 }
 
 // AcceptOwnership encodes a call to the accept_ownership Move function.
-func (c burnMintTokenPoolEncoder) AcceptOwnership(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) AcceptOwnership(typeArgs []string, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2371,7 +2371,7 @@ func (c burnMintTokenPoolEncoder) AcceptOwnership(typeArgs []string, state bind.
 
 // AcceptOwnershipWithArgs encodes a call to the accept_ownership Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) AcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) AcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 	}
@@ -2387,7 +2387,7 @@ func (c burnMintTokenPoolEncoder) AcceptOwnershipWithArgs(typeArgs []string, arg
 }
 
 // AcceptOwnershipFromObject encodes a call to the accept_ownership_from_object Move function.
-func (c burnMintTokenPoolEncoder) AcceptOwnershipFromObject(typeArgs []string, state bind.Object, from string) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) AcceptOwnershipFromObject(typeArgs []string, state bind.Object, from string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2403,7 +2403,7 @@ func (c burnMintTokenPoolEncoder) AcceptOwnershipFromObject(typeArgs []string, s
 
 // AcceptOwnershipFromObjectWithArgs encodes a call to the accept_ownership_from_object Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) AcceptOwnershipFromObjectWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) AcceptOwnershipFromObjectWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut UID",
@@ -2420,7 +2420,7 @@ func (c burnMintTokenPoolEncoder) AcceptOwnershipFromObjectWithArgs(typeArgs []s
 }
 
 // McmsAcceptOwnership encodes a call to the mcms_accept_ownership Move function.
-func (c burnMintTokenPoolEncoder) McmsAcceptOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsAcceptOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2438,7 +2438,7 @@ func (c burnMintTokenPoolEncoder) McmsAcceptOwnership(typeArgs []string, state b
 
 // McmsAcceptOwnershipWithArgs encodes a call to the mcms_accept_ownership Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsAcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsAcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
@@ -2456,7 +2456,7 @@ func (c burnMintTokenPoolEncoder) McmsAcceptOwnershipWithArgs(typeArgs []string,
 }
 
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
-func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2474,7 +2474,7 @@ func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransfer(typeArgs []string, ow
 
 // ExecuteOwnershipTransferWithArgs encodes a call to the execute_ownership_transfer Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"OwnerCap",
 		"&mut BurnMintTokenPoolState<T>",
@@ -2492,7 +2492,7 @@ func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferWithArgs(typeArgs []st
 }
 
 // ExecuteOwnershipTransferToMcms encodes a call to the execute_ownership_transfer_to_mcms Move function.
-func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2512,7 +2512,7 @@ func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferToMcms(typeArgs []stri
 
 // ExecuteOwnershipTransferToMcmsWithArgs encodes a call to the execute_ownership_transfer_to_mcms Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"OwnerCap",
 		"&mut BurnMintTokenPoolState<T>",
@@ -2531,7 +2531,7 @@ func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferToMcmsWithArgs(typeArg
 }
 
 // McmsRegisterUpgradeCap encodes a call to the mcms_register_upgrade_cap Move function.
-func (c burnMintTokenPoolEncoder) McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_register_upgrade_cap", typeArgsList, typeParamsList, []string{
@@ -2547,7 +2547,7 @@ func (c burnMintTokenPoolEncoder) McmsRegisterUpgradeCap(upgradeCap bind.Object,
 
 // McmsRegisterUpgradeCapWithArgs encodes a call to the mcms_register_upgrade_cap Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"UpgradeCap",
 		"&mut Registry",
@@ -2563,7 +2563,7 @@ func (c burnMintTokenPoolEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*
 }
 
 // McmsSetAllowlistEnabled encodes a call to the mcms_set_allowlist_enabled Move function.
-func (c burnMintTokenPoolEncoder) McmsSetAllowlistEnabled(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsSetAllowlistEnabled(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2581,7 +2581,7 @@ func (c burnMintTokenPoolEncoder) McmsSetAllowlistEnabled(typeArgs []string, sta
 
 // McmsSetAllowlistEnabledWithArgs encodes a call to the mcms_set_allowlist_enabled Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsSetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsSetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
@@ -2599,7 +2599,7 @@ func (c burnMintTokenPoolEncoder) McmsSetAllowlistEnabledWithArgs(typeArgs []str
 }
 
 // McmsApplyAllowlistUpdates encodes a call to the mcms_apply_allowlist_updates Move function.
-func (c burnMintTokenPoolEncoder) McmsApplyAllowlistUpdates(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsApplyAllowlistUpdates(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2617,7 +2617,7 @@ func (c burnMintTokenPoolEncoder) McmsApplyAllowlistUpdates(typeArgs []string, s
 
 // McmsApplyAllowlistUpdatesWithArgs encodes a call to the mcms_apply_allowlist_updates Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsApplyAllowlistUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsApplyAllowlistUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
@@ -2635,7 +2635,7 @@ func (c burnMintTokenPoolEncoder) McmsApplyAllowlistUpdatesWithArgs(typeArgs []s
 }
 
 // McmsApplyChainUpdates encodes a call to the mcms_apply_chain_updates Move function.
-func (c burnMintTokenPoolEncoder) McmsApplyChainUpdates(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsApplyChainUpdates(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2653,7 +2653,7 @@ func (c burnMintTokenPoolEncoder) McmsApplyChainUpdates(typeArgs []string, state
 
 // McmsApplyChainUpdatesWithArgs encodes a call to the mcms_apply_chain_updates Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsApplyChainUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsApplyChainUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
@@ -2671,7 +2671,7 @@ func (c burnMintTokenPoolEncoder) McmsApplyChainUpdatesWithArgs(typeArgs []strin
 }
 
 // McmsAddRemotePool encodes a call to the mcms_add_remote_pool Move function.
-func (c burnMintTokenPoolEncoder) McmsAddRemotePool(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsAddRemotePool(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2689,7 +2689,7 @@ func (c burnMintTokenPoolEncoder) McmsAddRemotePool(typeArgs []string, state bin
 
 // McmsAddRemotePoolWithArgs encodes a call to the mcms_add_remote_pool Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsAddRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsAddRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
@@ -2707,7 +2707,7 @@ func (c burnMintTokenPoolEncoder) McmsAddRemotePoolWithArgs(typeArgs []string, a
 }
 
 // McmsRemoveRemotePool encodes a call to the mcms_remove_remote_pool Move function.
-func (c burnMintTokenPoolEncoder) McmsRemoveRemotePool(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsRemoveRemotePool(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2725,7 +2725,7 @@ func (c burnMintTokenPoolEncoder) McmsRemoveRemotePool(typeArgs []string, state 
 
 // McmsRemoveRemotePoolWithArgs encodes a call to the mcms_remove_remote_pool Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsRemoveRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsRemoveRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
@@ -2743,7 +2743,7 @@ func (c burnMintTokenPoolEncoder) McmsRemoveRemotePoolWithArgs(typeArgs []string
 }
 
 // McmsSetChainRateLimiterConfigs encodes a call to the mcms_set_chain_rate_limiter_configs Move function.
-func (c burnMintTokenPoolEncoder) McmsSetChainRateLimiterConfigs(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsSetChainRateLimiterConfigs(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2763,7 +2763,7 @@ func (c burnMintTokenPoolEncoder) McmsSetChainRateLimiterConfigs(typeArgs []stri
 
 // McmsSetChainRateLimiterConfigsWithArgs encodes a call to the mcms_set_chain_rate_limiter_configs Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsSetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsSetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
@@ -2782,7 +2782,7 @@ func (c burnMintTokenPoolEncoder) McmsSetChainRateLimiterConfigsWithArgs(typeArg
 }
 
 // McmsSetChainRateLimiterConfig encodes a call to the mcms_set_chain_rate_limiter_config Move function.
-func (c burnMintTokenPoolEncoder) McmsSetChainRateLimiterConfig(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsSetChainRateLimiterConfig(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2802,7 +2802,7 @@ func (c burnMintTokenPoolEncoder) McmsSetChainRateLimiterConfig(typeArgs []strin
 
 // McmsSetChainRateLimiterConfigWithArgs encodes a call to the mcms_set_chain_rate_limiter_config Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsSetChainRateLimiterConfigWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsSetChainRateLimiterConfigWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
@@ -2821,7 +2821,7 @@ func (c burnMintTokenPoolEncoder) McmsSetChainRateLimiterConfigWithArgs(typeArgs
 }
 
 // McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.
-func (c burnMintTokenPoolEncoder) McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2839,7 +2839,7 @@ func (c burnMintTokenPoolEncoder) McmsTransferOwnership(typeArgs []string, state
 
 // McmsTransferOwnershipWithArgs encodes a call to the mcms_transfer_ownership Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsTransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsTransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
@@ -2857,7 +2857,7 @@ func (c burnMintTokenPoolEncoder) McmsTransferOwnershipWithArgs(typeArgs []strin
 }
 
 // McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.
-func (c burnMintTokenPoolEncoder) McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, deployerState bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2877,7 +2877,7 @@ func (c burnMintTokenPoolEncoder) McmsExecuteOwnershipTransfer(typeArgs []string
 
 // McmsExecuteOwnershipTransferWithArgs encodes a call to the mcms_execute_ownership_transfer Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
@@ -2896,7 +2896,7 @@ func (c burnMintTokenPoolEncoder) McmsExecuteOwnershipTransferWithArgs(typeArgs 
 }
 
 // McmsAddAllowedModules encodes a call to the mcms_add_allowed_modules Move function.
-func (c burnMintTokenPoolEncoder) McmsAddAllowedModules(typeArgs []string, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsAddAllowedModules(typeArgs []string, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2912,7 +2912,7 @@ func (c burnMintTokenPoolEncoder) McmsAddAllowedModules(typeArgs []string, regis
 
 // McmsAddAllowedModulesWithArgs encodes a call to the mcms_add_allowed_modules Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsAddAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsAddAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -2929,7 +2929,7 @@ func (c burnMintTokenPoolEncoder) McmsAddAllowedModulesWithArgs(typeArgs []strin
 }
 
 // McmsRemoveAllowedModules encodes a call to the mcms_remove_allowed_modules Move function.
-func (c burnMintTokenPoolEncoder) McmsRemoveAllowedModules(typeArgs []string, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsRemoveAllowedModules(typeArgs []string, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2945,7 +2945,7 @@ func (c burnMintTokenPoolEncoder) McmsRemoveAllowedModules(typeArgs []string, re
 
 // McmsRemoveAllowedModulesWithArgs encodes a call to the mcms_remove_allowed_modules Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsRemoveAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c maliciousTokenPoolEncoder) McmsRemoveAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Registry",
 		"ExecutingCallbackParams",

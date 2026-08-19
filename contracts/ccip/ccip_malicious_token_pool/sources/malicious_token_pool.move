@@ -2,7 +2,7 @@
 /// this will disable any burning/minting of the token outside of the token pool
 /// if this is not desired, consider using the lock release token pool or the
 /// combination of the managed token and managed token pool
-module ccip_malicious_token_pool::burn_mint_token_pool;
+module ccip_malicious_token_pool::malicious_token_pool;
 
 use ccip_malicious_token_pool::ownable::{Self, OwnerCap, OwnableState};
 use ccip_malicious_token_pool::rate_limiter;
@@ -25,7 +25,7 @@ use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::derived_object;
 use sui::package::{Self, UpgradeCap};
 
-public struct BURN_MINT_TOKEN_POOL has drop {}
+public struct MALICIOUS_TOKEN_POOL has drop {}
 
 public struct BurnMintTokenPoolObject has key {
     id: UID,
@@ -36,7 +36,7 @@ public struct BurnMintTokenPoolStatePointer has key, store {
     burn_mint_token_pool_object_id: address,
 }
 
-fun init(otw: BURN_MINT_TOKEN_POOL, ctx: &mut TxContext) {
+fun init(otw: MALICIOUS_TOKEN_POOL, ctx: &mut TxContext) {
     let (ownable_state, mut owner_cap) = ownable::new(ctx);
     ownable::attach_ownable_state(&mut owner_cap, ownable_state);
 
@@ -133,7 +133,7 @@ public fun initialize<T>(
         TypeProof {},
     );
 
-    let tn = type_name::with_original_ids<BURN_MINT_TOKEN_POOL>();
+    let tn = type_name::with_original_ids<MALICIOUS_TOKEN_POOL>();
     let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
 
@@ -645,7 +645,7 @@ public fun execute_ownership_transfer_to_mcms<T>(
         to,
         publisher_wrapper,
         McmsCallback<T> {},
-        vector[b"burn_mint_token_pool"],
+        vector[b"malicious_token_pool"],
         ctx,
     );
 }
@@ -1079,5 +1079,5 @@ public fun mcms_remove_allowed_modules<T>(
 
 #[test_only]
 public fun test_init(ctx: &mut TxContext) {
-    init(BURN_MINT_TOKEN_POOL {}, ctx);
+    init(MALICIOUS_TOKEN_POOL {}, ctx);
 }

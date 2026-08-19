@@ -8,7 +8,7 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	module_malicious_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_malicious_token_pool/burn_mint_token_pool"
+	module_malicious_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_malicious_token_pool/malicious_token_pool"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
@@ -91,7 +91,7 @@ var deployMaliciousTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDe
 
 	// Initialize the pool, forwarding the attacker ReleaseOrMintParams into
 	// register_pool. The pool self-registers here, same as all Sui pools.
-	contract, err := module_malicious_token_pool.NewBurnMintTokenPool(packageId, deps.Client)
+	contract, err := module_malicious_token_pool.NewMaliciousTokenPool(packageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployMaliciousTokenPoolObjects]{}, fmt.Errorf("failed to create malicious token pool contract: %w", err)
 	}
@@ -111,7 +111,7 @@ var deployMaliciousTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDe
 		return sui_ops.OpTxResult[DeployMaliciousTokenPoolObjects]{}, fmt.Errorf("failed to execute malicious token pool initialization: %w", err)
 	}
 
-	stateObj, err := bind.FindObjectIdFromPublishTx(*initTx, "burn_mint_token_pool", "BurnMintTokenPoolState")
+	stateObj, err := bind.FindObjectIdFromPublishTx(*initTx, "malicious_token_pool", "BurnMintTokenPoolState")
 	if err != nil {
 		return sui_ops.OpTxResult[DeployMaliciousTokenPoolObjects]{}, fmt.Errorf("failed to find BurnMintTokenPoolState object ID: %w", err)
 	}
