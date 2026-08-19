@@ -58,6 +58,7 @@ func authMetadata(token string) metadata.MD {
 		"authorization", "Bearer "+token,
 		"x-api-key", token,
 		"x-token", token,
+		"x-spectrum-auth", token,
 	)
 }
 
