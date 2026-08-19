@@ -553,6 +553,11 @@ func (c *PTBClient) EstimateGas(ctx context.Context, tx *transaction.Transaction
 			return fmt.Errorf("failed to simulate transaction: %w", simErr)
 		}
 
+		executionStatus := response.GetTransaction().GetEffects().GetStatus()
+		if !executionStatus.GetSuccess() {
+			return errors.New("transaction successfully estimated gas with a failed status response")
+		}
+
 		gasUsed := response.GetTransaction().GetEffects().GetGasUsed()
 
 		computationCost := gasUsed.GetComputationCost()

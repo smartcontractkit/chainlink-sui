@@ -14,6 +14,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
 )
 
 const numberGoroutines = 3
@@ -39,6 +40,9 @@ type SuiTxm struct {
 	done                  sync.WaitGroup
 	broadcastChannel      chan string
 	stopChannel           chan struct{}
+
+	// Health metrics for monitoring (optional). Must be set before Start.
+	healthMetrics *monitor.HealthMetrics
 }
 
 func NewSuiTxm(
@@ -193,6 +197,19 @@ func (txm *SuiTxm) Start(_ context.Context) error {
 // GetClient returns the Sui client instance used by the transaction manager.
 func (txm *SuiTxm) GetClient() client.SuiPTBClient {
 	return txm.suiGateway
+}
+
+// SetHealthMetrics sets the health metrics instance for the transaction manager.
+// Must be called before Start to enable health metrics reporting.
+func (txm *SuiTxm) SetHealthMetrics(hm *monitor.HealthMetrics) {
+	txm.healthMetrics = hm
+}
+
+// recordLastSuccess records a successful operation to the health metrics.
+func (txm *SuiTxm) recordLastSuccess(ctx context.Context) {
+	if txm.healthMetrics != nil {
+		txm.healthMetrics.RecordLastSuccess(ctx, monitor.ComponentTxM)
+	}
 }
 
 func (txm *SuiTxm) GetGasManager() GasManager {

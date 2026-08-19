@@ -20,12 +20,6 @@ import (
 // decision logic with synthetic owners; this test verifies the contract that real ReadObjectMetadata
 // returns Owner.Kind == ADDRESS + Owner.Address for a coin owned by the signer, so the guard
 // actually rejects transmitter-owned tail objects and allows everything else.
-//
-// It uses only the local node started by testutils.StartSuiNode — never mainnet or a public testnet.
-//
-// Lives in an external test package (offramp_test) because an internal one cannot import testutils
-// without forming an import cycle (testutils -> txm -> offramp). The unexported guard is surfaced
-// via the test-only export ValidateReceiverObjectOwner in export_test.go.
 func TestValidateReceiverObjectOwner_Integration(t *testing.T) {
 	lggr := logger.Test(t)
 	gasBudget := int64(1_000_000_000)
@@ -74,17 +68,17 @@ func TestValidateReceiverObjectOwner_Integration(t *testing.T) {
 
 	// Transmitter-owned address object → rejected (the exploit case, via real RPC).
 	require.ErrorIs(t,
-		offramp.ValidateReceiverObjectOwner(ctx, ptbClient, transmitterCoin, transmitter),
+		offramp.ValidateObjectOwner(ctx, ptbClient, transmitterCoin, transmitter),
 		offramp.ErrTransmitterOwnedReceiverObject,
 	)
 
 	// Address-owned by a different account → allowed.
 	require.NoError(t,
-		offramp.ValidateReceiverObjectOwner(ctx, ptbClient, otherCoin, transmitter),
+		offramp.ValidateObjectOwner(ctx, ptbClient, otherCoin, transmitter),
 	)
 
 	// Immutable object → allowed.
 	require.NoError(t,
-		offramp.ValidateReceiverObjectOwner(ctx, ptbClient, immutableObject, transmitter),
+		offramp.ValidateObjectOwner(ctx, ptbClient, immutableObject, transmitter),
 	)
 }

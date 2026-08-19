@@ -33,6 +33,9 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
 
+// HealthMetricsPollInterval defines how often health metrics are published
+const HealthMetricsPollInterval = 15 * time.Second
+
 type SuiRelayer struct {
 	types.UnimplementedRelayer
 	services.StateMachine
@@ -50,6 +53,11 @@ type SuiRelayer struct {
 
 	indexer     *indexer.Indexer
 	readerCache *chainreader.Cache
+
+	// Health metrics for monitoring
+	healthMetrics  *monitor.HealthMetrics
+	healthStopChan chan struct{}
+	healthDone     chan struct{}
 }
 
 var _ types.Relayer = &SuiRelayer{}
@@ -198,13 +206,14 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	if err != nil {
 		return nil, fmt.Errorf("error in NewRelayer (monitor) - invalid balance poll period: %w", err)
 	}
+	chainInfo := aptosTypes.ChainInfo{
+		ChainFamilyName: "sui",
+		ChainID:         *cfg.ChainID,
+		NetworkName:     *cfg.NetworkName,
+		NetworkNameFull: *cfg.NetworkNameFull,
+	}
 	balanceMonitorService, err := monitor.NewBalanceMonitor(monitor.BalanceMonitorOpts{
-		ChainInfo: aptosTypes.ChainInfo{
-			ChainFamilyName: "sui",
-			ChainID:         *cfg.ChainID,
-			NetworkName:     *cfg.NetworkName,
-			NetworkNameFull: *cfg.NetworkNameFull,
-		},
+		ChainInfo: chainInfo,
 		Config: aptosBalanceMonitor.GenericBalanceConfig{
 			BalancePollPeriod: &balancePollPeriod,
 		},
@@ -218,6 +227,16 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		return nil, fmt.Errorf("error in NewRelayer (monitor) - failed to create new balance monitor: %w", err)
 	}
 
+	// Initialize health metrics for monitoring
+	healthMetrics, err := monitor.NewHealthMetrics(chainInfo)
+	if err != nil {
+		return nil, fmt.Errorf("error in NewRelayer - failed to create health metrics: %w", err)
+	}
+
+	// Set health metrics on components that support it
+	txManager.SetHealthMetrics(healthMetrics)
+	indexerInstance.SetHealthMetrics(healthMetrics)
+
 	return &SuiRelayer{
 		chainId:        id,
 		chainIdNum:     idNum,
@@ -229,6 +248,9 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		db:             db,
 		indexer:        indexerInstance,
 		readerCache:    readerCache,
+		healthMetrics:  healthMetrics,
+		healthStopChan: make(chan struct{}),
+		healthDone:     make(chan struct{}),
 	}, nil
 }
 
@@ -249,13 +271,24 @@ func (r *SuiRelayer) Start(ctx context.Context) error {
 		r.lggr.Debug("Starting Sui Relayer")
 
 		var ms services.MultiStart
-		return ms.Start(ctx, r.txm, r.indexer, r.balanceMonitor)
+		if err := ms.Start(ctx, r.txm, r.indexer, r.balanceMonitor); err != nil {
+			return err
+		}
+
+		// Start health metrics publishing goroutine
+		go r.healthMetricsLoop()
+
+		return nil
 	})
 }
 
 func (r *SuiRelayer) Close() error {
 	return r.StopOnce("SuiRelayer", func() error {
 		r.lggr.Debug("Stopping Sui Relayer")
+
+		// Stop health metrics goroutine
+		close(r.healthStopChan)
+		<-r.healthDone
 
 		closeErr := services.CloseAll(r.txm, r.indexer, r.balanceMonitor)
 		if r.client != nil {
@@ -280,8 +313,50 @@ func (r *SuiRelayer) Ready() error {
 func (r *SuiRelayer) HealthReport() map[string]error {
 	report := map[string]error{r.Name(): r.Healthy()}
 	services.CopyHealth(report, r.txm.HealthReport())
+	services.CopyHealth(report, r.indexer.HealthReport())
 
 	return report
+}
+
+// healthMetricsLoop periodically publishes health metrics for all components.
+func (r *SuiRelayer) healthMetricsLoop() {
+	defer close(r.healthDone)
+
+	ticker := time.NewTicker(HealthMetricsPollInterval)
+	defer ticker.Stop()
+
+	r.lggr.Info("Starting health metrics publishing loop")
+
+	for {
+		select {
+		case <-r.healthStopChan:
+			r.lggr.Info("Health metrics loop stopped")
+			return
+		case <-ticker.C:
+			r.publishHealthMetrics()
+		}
+	}
+}
+
+// publishHealthMetrics collects and publishes health metrics for all components.
+func (r *SuiRelayer) publishHealthMetrics() {
+	ctx := context.Background()
+
+	// Collect health reports from all components
+	report := r.HealthReport()
+
+	// Record health status for each component
+	r.healthMetrics.RecordHealthFromReport(ctx, report)
+
+	// Update processing lag for all components
+	r.healthMetrics.UpdateProcessingLag(ctx)
+
+	r.lggr.Debugw("Published health metrics", "report", report)
+}
+
+// GetHealthMetrics returns the health metrics instance for external access.
+func (r *SuiRelayer) GetHealthMetrics() *monitor.HealthMetrics {
+	return r.healthMetrics
 }
 
 // ChainService interface
@@ -320,6 +395,7 @@ func (r *SuiRelayer) NewContractWriter(_ context.Context, configBytes []byte) (t
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractWriter: %w", err)
 	}
+	chainWriter.SetHealthMetrics(r.healthMetrics)
 
 	return chainWriter, nil
 }

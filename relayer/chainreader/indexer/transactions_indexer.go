@@ -52,6 +52,10 @@ type TransactionsIndexer struct {
 	configEventKey          string
 	executeFunction         string
 
+	// Optional callback invoked after a checkpoint batch is processed successfully.
+	// Must be set before Start.
+	onSyncSuccess func(ctx context.Context)
+
 	starter services.StateMachine
 }
 
@@ -64,6 +68,9 @@ type TransactionsIndexerApi interface {
 	ProcessCheckpointTransactions(ctx context.Context, batch CheckpointTransactionsBatch) error
 	// SetOffRampPackage sets the offramp package IDs.
 	SetOffRampPackage(pkg string, latestPkg string)
+	// SetOnSyncSuccess registers a callback invoked after a checkpoint batch is
+	// processed successfully. Must be called before Start.
+	SetOnSyncSuccess(callback func(ctx context.Context))
 	Ready() error
 	Close() error
 }
@@ -138,6 +145,9 @@ func (tIndexer *TransactionsIndexer) run(ctx context.Context, transactionsCh <-c
 				tIndexer.logger.Errorw("Failed to process checkpoint transactions",
 					"sequence", batch.Checkpoint.SequenceNumber,
 					"error", err)
+			} else if tIndexer.onSyncSuccess != nil {
+				// Record successful sync for health metrics
+				tIndexer.onSyncSuccess(ctx)
 			}
 		}
 	}
@@ -755,6 +765,12 @@ func (tIndexer *TransactionsIndexer) parseMoveAbort(s string) (*MoveAbort, error
 }
 
 // Ready returns nil if the indexer has started successfully.
+// SetOnSyncSuccess sets a callback function that is called after a checkpoint batch
+// is processed successfully. Must be called before Start.
+func (tIndexer *TransactionsIndexer) SetOnSyncSuccess(callback func(ctx context.Context)) {
+	tIndexer.onSyncSuccess = callback
+}
+
 func (tIndexer *TransactionsIndexer) Ready() error {
 	return tIndexer.starter.Ready()
 }

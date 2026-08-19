@@ -564,7 +564,7 @@ func TestValidateReceiverObjectOwner(t *testing.T) {
 			}
 			cli := &metadataPTBClient{obj: obj, err: tc.readErr}
 
-			err := validateReceiverObjectOwner(ctx, cli, objectId, transmitter)
+			err := ValidateObjectOwner(ctx, cli, objectId, transmitter)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -579,7 +579,7 @@ func TestValidateReceiverObjectOwner(t *testing.T) {
 				Kind: ownerKindPtr(suirpcv2.Owner_ADDRESS), Address: strPtr(transmitter),
 			}},
 		}
-		err := validateReceiverObjectOwner(ctx, cli, objectId, transmitter)
+		err := ValidateObjectOwner(ctx, cli, objectId, transmitter)
 		require.ErrorIs(t, err, ErrTransmitterOwnedReceiverObject)
 	})
 }
