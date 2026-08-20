@@ -71,6 +71,16 @@ jobs:
             sui_version: mainnet-v1.75.2
           - test_name: Test_CCIP_EVM2Sui_ZeroReceiver
             sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIP_Messaging_EVM2Sui_TransmitterOwnedTail_Rejected
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIP_TokenTransfer_EVM2Sui_PoolReleaseOrMintTransmitterOwned_Rejected
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIP_EVM2Sui_DestTokenAmount_ReportsLocalAmount
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIP_ReceiverNotRegistered_EVM2Sui
+            sui_version: mainnet-v1.75.2
+          - test_name: Test_CCIP_ReceiverReverts_EVM2Sui
+            sui_version: mainnet-v1.75.2
 
     env:
       DEFAULT_CORE_REF: develop
