@@ -24,12 +24,26 @@ func TestInit_RegistersSuiCurseAndSubjectAdapters(t *testing.T) {
 }
 
 func TestInit_RegistersSuiTokenAdminRegistryReader(t *testing.T) {
+  // Required by the generic token changesets whenever autoMigrateRemoteChains is enabled,
+	// to read the pool registered for a token from the on-chain TokenAdminRegistry.
+	_, ok := reg.GetTokenAdminRegistryReader(chainsel.FamilySui)
+	require.True(t, ok, "sui token admin registry reader must be registered")
+}
+  
+  
+func TestInit_RegistersSuiTokenAdapter(t *testing.T) {
 	t.Parallel()
 
 	reg := tokensapi.GetTokenAdapterRegistry()
 
-	// Required by the generic token changesets whenever autoMigrateRemoteChains is enabled,
-	// to read the pool registered for a token from the on-chain TokenAdminRegistry.
-	_, ok := reg.GetTokenAdminRegistryReader(chainsel.FamilySui)
-	require.True(t, ok, "sui token admin registry reader must be registered")
+	// 1.6.0 is the dispatch version generic token changesets request via TokenPoolVersion.
+	_, ok := reg.GetTokenAdapter(chainsel.FamilySui, semver.MustParse("1.6.0"))
+	require.True(t, ok, "sui token adapter must be registered for v1.6.0 so token_expansion can dispatch it")
+
+	// 1.0.0 is the version existing Sui pool refs are saved under; ResolveAdapter keys off it.
+	_, ok = reg.GetTokenAdapter(chainsel.FamilySui, semver.MustParse("1.0.0"))
+	require.True(t, ok, "sui token adapter must be registered for v1.0.0 so ResolveAdapter can resolve stored pool refs")
+
+	_, ok = reg.GetTokenRefResolver(chainsel.FamilySui)
+	require.True(t, ok, "sui token ref resolver must be registered")
 }
