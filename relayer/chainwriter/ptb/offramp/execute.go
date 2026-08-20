@@ -252,7 +252,6 @@ func ProcessTokenPools(
 				lggr.Errorw("skipping token pool command; release_or_mint_params entry owned by execution transmitter",
 					"tokenPool", tokenConfig.TokenPoolPackageId,
 					"error", err)
-				continue
 			}
 			return nil, fmt.Errorf("failed to append token pool command to PTB: %w", err)
 		}
@@ -439,7 +438,6 @@ func ProcessReceivers(
 				lggr.Errorw("skipping receiver command; tail object owned by execution transmitter",
 					"receiver", receiverPackageId,
 					"error", err)
-				continue
 			}
 			return nil, fmt.Errorf("failed to build receiver command for %s: %w", receiverPackageId, err)
 		}
