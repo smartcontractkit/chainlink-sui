@@ -23,6 +23,14 @@ func TestInit_RegistersSuiCurseAndSubjectAdapters(t *testing.T) {
 	require.True(t, ok, "sui curse adapter must be registered for v1.6.0")
 }
 
+func TestInit_RegistersSuiTokenAdminRegistryReader(t *testing.T) {
+  // Required by the generic token changesets whenever autoMigrateRemoteChains is enabled,
+	// to read the pool registered for a token from the on-chain TokenAdminRegistry.
+	_, ok := reg.GetTokenAdminRegistryReader(chainsel.FamilySui)
+	require.True(t, ok, "sui token admin registry reader must be registered")
+}
+  
+  
 func TestInit_RegistersSuiTokenAdapter(t *testing.T) {
 	t.Parallel()
 
