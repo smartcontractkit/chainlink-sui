@@ -26,4 +26,5 @@ func init() {
 	tokenRegistry := tokensapi.GetTokenAdapterRegistry()
 	tokenRegistry.RegisterTokenRefResolver(chainsel.FamilySui, &SuiTokenAdapter{})
 	tokenRegistry.RegisterTokenAdapter(chainsel.FamilySui, v, &SuiTokenAdapter{})
+	tokenRegistry.RegisterTokenAdminRegistryReader(chainsel.FamilySui, &SuiTokenAdminRegistryReader{})
 }
