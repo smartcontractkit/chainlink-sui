@@ -278,6 +278,7 @@ func ProcessTokenPools(
 					"tokenPool", tokenConfig.TokenPoolPackageId,
 					"coinMetadataAddress", coinMetadataAddress,
 					"error", err)
+				continue
 			}
 			return nil, fmt.Errorf("failed to append token pool command to PTB: %w", err)
 		}
@@ -464,6 +465,7 @@ func ProcessReceivers(
 				lggr.Errorw("skipping receiver command; tail object owned by execution transmitter",
 					"receiver", receiverPackageId,
 					"error", err)
+				continue
 			}
 			return nil, fmt.Errorf("failed to build receiver command for %s: %w", receiverPackageId, err)
 		}
