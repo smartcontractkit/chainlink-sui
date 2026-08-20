@@ -98,3 +98,11 @@ var (
 var (
 	Version1_0_0 = *semver.MustParse("1.0.0")
 )
+
+// Coin type suffixes (module::STRUCT) for the BnM and LINK coins. The coin deploy changesets
+// attach these as a coinType= label on the coin package ref so deriveSuiCoinType can build the
+// correct coin type for any token, including ones whose suffix differs, from that label.
+var (
+	SuiCCIPBnMCoinTypeSuffix = "ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"
+	SuiLinkCoinTypeSuffix    = "link::LINK"
+)

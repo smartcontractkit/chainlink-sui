@@ -54,6 +54,7 @@ func (d DeployLinkToken) Apply(e cldf.Environment, config DeployLinkTokenConfig)
 	// save LinkToken address to the addressbook
 	typeAndVersionLinkToken := cldf.NewTypeAndVersion(deployment.SuiLinkTokenType, deployment.Version1_0_0)
 	typeAndVersionLinkToken.AddLabel("LINK")
+	typeAndVersionLinkToken.AddLabel("coinType=" + deployment.SuiLinkCoinTypeSuffix)
 	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, linkTokenReport.Output.PackageId, typeAndVersionLinkToken)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LinkToken address %s for Sui chain %d: %w", linkTokenReport.Output.PackageId, config.ChainSelector, err)

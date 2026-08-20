@@ -509,9 +509,10 @@ func suiSetChainRateLimitCall(
 
 // DeriveTokenAddress derives the Sui coin type for a pool from the datastore. It is a
 // fallback used when the caller does not provide a token ref; the primary path threads the
-// coin type through the token ref. The coin type is built from the token's package id using
-// the module::STRUCT convention for each Sui token kind (managed token, BnM token, LINK),
-// disambiguated by the contract type the package is stored under.
+// coin type through the token ref. The coin type is built from the coin package ref matched by
+// symbol, using the module::STRUCT suffix that ref carries as a coinType= label. This is
+// token-agnostic: BnM, LINK, and any newly added coin derive identically, and the result is the
+// same whether the coin sits behind a BurnMint or a Managed token pool.
 func (a *SuiTokenAdapter) DeriveTokenAddress(e deployment.Environment, chainSelector uint64, poolRef datastore.AddressRef) (string, error) {
 	return deriveSuiCoinType(e.DataStore, chainSelector, suiPoolSymbol(poolRef))
 }
@@ -857,30 +858,30 @@ func suiDecimals(b cldf_ops.Bundle, chain cldfsui.Chain, coinType string) (uint8
 	return uint8(report.Output.Decimals), nil
 }
 
-// deriveSuiCoinType builds the coin type for a token symbol by locating the token's package id
-// in the datastore. Each Sui token kind stores its package id under a distinct contract type
-// and uses a distinct module::STRUCT coin type suffix.
+// deriveSuiCoinType builds the coin type for a token symbol by locating the token's coin package
+// ref in the datastore. The coin package ref carries the coin's module::STRUCT suffix as a
+// coinType= label (set by whichever changeset saved the coin package id), so the coin type is
+// normalizeCoinType(ref.Address) + "::" + that suffix. The ref is matched by symbol label plus the
+// coinType label, independent of the contract type it is filed under, so every token — BnM, LINK,
+// or any newly added coin behind a BurnMint or Managed pool — derives through the same path.
 func deriveSuiCoinType(ds datastore.DataStore, selector uint64, symbol string) (string, error) {
 	if symbol == "" {
 		return "", fmt.Errorf("symbol is required to derive the sui coin type")
 	}
-	// Each candidate maps the contract type a coin's package id is stored under to that coin's
-	// module::STRUCT type. The managed_token package is a generic management framework over
-	// TreasuryCap<T>; its init only claims the one-time witness and never calls create_currency,
-	// so managed_token::MANAGED_TOKEN is not a coin type and must not be used here.
-	candidates := []struct {
-		contractType datastore.ContractType
-		suffix       string
-	}{
-		{datastore.ContractType(suideploy.SuiManagedTokenType), "ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"},
-		{datastore.ContractType(suideploy.SuiLinkTokenType), "link::LINK"},
+	if ds == nil {
+		return "", fmt.Errorf("could not derive sui coin type for symbol %s on chain %d: datastore is nil", symbol, selector)
 	}
-	for _, c := range candidates {
-		if ref, ok := findRefByLabel(findRefsByType(ds, selector, c.contractType), symbol); ok {
-			return normalizeCoinType(ref.Address) + "::" + c.suffix, nil
+	for _, ref := range ds.Addresses().Filter(datastore.AddressRefByChainSelector(selector)) {
+		if !ref.Labels.Contains(symbol) {
+			continue
 		}
+		suffix := coinTypeSuffixFromLabels(ref)
+		if suffix == "" {
+			continue
+		}
+		return normalizeCoinType(ref.Address) + "::" + suffix, nil
 	}
-	return "", fmt.Errorf("could not derive sui coin type for symbol %s on chain %d: no token package ref found", symbol, selector)
+	return "", fmt.Errorf("could not derive sui coin type for symbol %s on chain %d: no coin package ref carrying a coinType= label found for that symbol", symbol, selector)
 }
 
 func findRefsByType(ds datastore.DataStore, selector uint64, contractType datastore.ContractType) []datastore.AddressRef {
@@ -983,6 +984,22 @@ func suiPoolSymbol(ref datastore.AddressRef) string {
 		return s
 	}
 	return ref.Qualifier
+}
+
+// suiCoinTypeLabelPrefix marks a label carrying a coin package's module::STRUCT suffix. The coin
+// deploy changesets add it so deriveSuiCoinType can build the correct coin type for tokens whose
+// suffix is not one of the hardcoded BnM/LINK fallbacks.
+const suiCoinTypeLabelPrefix = "coinType="
+
+// coinTypeSuffixFromLabels returns the module::STRUCT suffix stored in a coinType= label on the
+// ref, or "" when no such label is set.
+func coinTypeSuffixFromLabels(r datastore.AddressRef) string {
+	for _, l := range r.Labels.List() {
+		if strings.HasPrefix(l, suiCoinTypeLabelPrefix) {
+			return strings.TrimPrefix(l, suiCoinTypeLabelPrefix)
+		}
+	}
+	return ""
 }
 
 // suiTokenType maps a coin type to a datastore contract type on a best-effort basis. CCIP

@@ -240,6 +240,20 @@ func ProcessTokenPools(
 			signerAddress,
 		)
 		if err != nil {
+			if errors.Is(err, ErrTransmitterOwnedReceiverObject) {
+				// Permanent failure: a release_or_mint_params entry is address-owned by the
+				// execution transmitter. Wiring it into release_or_mint as &mut would let the
+				// pool mutate a transmitter-owned object (e.g. drain a SUI gas coin) under the
+				// transmitter's signature. Skip the token-pool leg so the object is never
+				// passed in. init_execute left a dangling non-drop hot potato, so the PTB
+				// aborts on-chain, the indexer synthesizes an ExecutionStateChanged(FAILURE)
+				// event, and the message is marked failed — non-retryable, no drain.
+				// Same mechanism as the receiver-leg skip in ProcessReceivers.
+				lggr.Errorw("skipping token pool command; release_or_mint_params entry owned by execution transmitter",
+					"tokenPool", tokenConfig.TokenPoolPackageId,
+					"error", err)
+				continue
+			}
 			return nil, fmt.Errorf("failed to append token pool command to PTB: %w", err)
 		}
 
