@@ -24,13 +24,16 @@ func TestInit_RegistersSuiCurseAndSubjectAdapters(t *testing.T) {
 }
 
 func TestInit_RegistersSuiTokenAdminRegistryReader(t *testing.T) {
-  // Required by the generic token changesets whenever autoMigrateRemoteChains is enabled,
+	t.Parallel()
+
+	reg := tokensapi.GetTokenAdapterRegistry()
+
+	// Required by the generic token changesets whenever autoMigrateRemoteChains is enabled,
 	// to read the pool registered for a token from the on-chain TokenAdminRegistry.
 	_, ok := reg.GetTokenAdminRegistryReader(chainsel.FamilySui)
 	require.True(t, ok, "sui token admin registry reader must be registered")
 }
-  
-  
+
 func TestInit_RegistersSuiTokenAdapter(t *testing.T) {
 	t.Parallel()
 
