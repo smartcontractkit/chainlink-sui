@@ -278,7 +278,6 @@ func ProcessTokenPools(
 					"tokenPool", tokenConfig.TokenPoolPackageId,
 					"coinMetadataAddress", coinMetadataAddress,
 					"error", err)
-				continue
 			}
 			return nil, fmt.Errorf("failed to append token pool command to PTB: %w", err)
 		}
