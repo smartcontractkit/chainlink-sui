@@ -23,7 +23,6 @@ func init() {
 
 	tokenRegistry := tokensapi.GetTokenAdapterRegistry()
 	tokenRegistry.RegisterTokenRefResolver(chainsel.FamilySui, &SuiTokenAdapter{})
-	tokenRegistry.RegisterTokenAdapter(chainsel.FamilySui, v, &SuiTokenAdapter{})
 	tokenRegistry.RegisterTokenAdminRegistryReader(chainsel.FamilySui, &SuiTokenAdminRegistryReader{})
 	// Sui CCIP ships on the 1.6.0 release line, so generic token changesets dispatch the Sui
 	// adapter under family version 1.6.0, matching the curse adapter above and the Solana
