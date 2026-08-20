@@ -55,6 +55,7 @@ func (r *SuiTokenAdminRegistryReader) GetActivePool(
 	}
 
 	// The TAR is keyed by coin metadata object id, so resolve the coin type to its CoinMetadata id.
+	// The coin metadata read uses a direct RPC, so the nil-signer proposal deps suffice.
 	deps := suiDeps(chain)
 	coinMetaReport, err := cldf_ops.ExecuteOperation(e.OperationsBundle, coin_ops.GetCoinSymbolOp, deps, coinType)
 	if err != nil {
@@ -69,8 +70,14 @@ func (r *SuiTokenAdminRegistryReader) GetActivePool(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create token admin registry contract: %w", err)
 	}
+	// The binding's DevInspect path builds a PTB and simulates it, which requires a signer
+	// as the PTB sender even though no transaction is signed or submitted. Use the execution
+	// deps and thread the signer onto the call opts, matching the opts.Signer = deps.Signer
+	// idiom used by the token-pool ops.
 	ctx := e.OperationsBundle.GetContext()
-	opts := deps.GetCallOpts()
+	execDeps := suiDepsExec(chain)
+	opts := execDeps.GetCallOpts()
+	opts.Signer = execDeps.Signer
 	tarRef := bind.Object{Id: ccipObjRef}
 
 	registered, err := contract.DevInspect().IsPoolRegistered(ctx, opts, tarRef, coinMetaID)
