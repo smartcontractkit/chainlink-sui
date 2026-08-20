@@ -495,8 +495,8 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		mcmsAddr := namedAddresses["mcms"]
 		if !isZeroAddress(mcmsAddr) {
 			mcmsDir := filepath.Join(dstRoot, "mcms", "mcms")
-			if err := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err != nil {
-				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err)
+			if err1 := managePackage(mcmsDir, 1, rpcURL, env, mcmsAddr, mcmsAddr, pubfilePath); err1 != nil {
+				return PackageArtifact{}, fmt.Errorf("failed to manage MCMS dependency: %w", err1)
 			}
 		} else {
 			fmt.Println("Skipping manage-package for MCMS (no published address found)")
