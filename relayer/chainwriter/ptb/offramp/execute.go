@@ -87,6 +87,25 @@ func BuildOffRampExecutePTB(
 		}
 	}
 
+	// Diagnostic: one execute report == one PTB == one BuildOffRampExecutePTB call.
+	// Log every message in this report so we can tell whether multiple sequences are
+	// bundled into a single PTB (e.g. an exploit seq together with a later legit seq),
+	// which determines whether skipping a leg rolls back the whole report.
+	msgSummary := make([]string, 0, len(messages))
+	for _, m := range messages {
+		tokens := make([]string, 0, len(m.TokenAmounts))
+		for _, ta := range m.TokenAmounts {
+			tokens = append(tokens, "0x"+hex.EncodeToString(ta.DestTokenAddress))
+		}
+		msgSummary = append(msgSummary, fmt.Sprintf("seq=%d msgID=%x tokens=%d%v",
+			m.Header.SequenceNumber, m.Header.MessageID, len(tokens), tokens))
+	}
+	lggr.Infow("building OffRamp execute PTB",
+		"numReports", len(offrampArgs.Info.AbstractReports),
+		"numMessages", len(messages),
+		"messages", msgSummary,
+		"coinMetadataAddresses", coinMetadataAddresses)
+
 	// An interface used to make dev inspect calls in bindings, actual signing does not happen here.
 	devInspectSigner := signer.NewDevInspectSigner(signerAddress)
 
@@ -176,6 +195,12 @@ func BuildOffRampExecutePTB(
 		return err
 	}
 
+	// Diagnostic: reaching here means every pool + receiver command was appended; the
+	// PTB will be submitted. If a leg had been skipped we would have returned above, so
+	// this line distinguishes a submitted report from a discarded one.
+	lggr.Infow("OffRamp execute PTB build complete, appending finish_execute",
+		"numMessages", len(messages))
+
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
 	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.CcipObjectRef}, bind.Object{Id: addressMappings.OffRampState}, initExecuteResult)
 	if err != nil {
@@ -251,7 +276,9 @@ func ProcessTokenPools(
 				// Same mechanism as the receiver-leg skip in ProcessReceivers.
 				lggr.Errorw("skipping token pool command; release_or_mint_params entry owned by execution transmitter",
 					"tokenPool", tokenConfig.TokenPoolPackageId,
+					"coinMetadataAddress", coinMetadataAddress,
 					"error", err)
+				continue
 			}
 			return nil, fmt.Errorf("failed to append token pool command to PTB: %w", err)
 		}
