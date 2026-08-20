@@ -6,6 +6,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
+	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,4 +21,21 @@ func TestInit_RegistersSuiCurseAndSubjectAdapters(t *testing.T) {
 
 	_, ok = reg.GetCurseAdapter(chainsel.FamilySui, semver.MustParse("1.6.0"))
 	require.True(t, ok, "sui curse adapter must be registered for v1.6.0")
+}
+
+func TestInit_RegistersSuiTokenAdapter(t *testing.T) {
+	t.Parallel()
+
+	reg := tokensapi.GetTokenAdapterRegistry()
+
+	// 1.6.0 is the dispatch version generic token changesets request via TokenPoolVersion.
+	_, ok := reg.GetTokenAdapter(chainsel.FamilySui, semver.MustParse("1.6.0"))
+	require.True(t, ok, "sui token adapter must be registered for v1.6.0 so token_expansion can dispatch it")
+
+	// 1.0.0 is the version existing Sui pool refs are saved under; ResolveAdapter keys off it.
+	_, ok = reg.GetTokenAdapter(chainsel.FamilySui, semver.MustParse("1.0.0"))
+	require.True(t, ok, "sui token adapter must be registered for v1.0.0 so ResolveAdapter can resolve stored pool refs")
+
+	_, ok = reg.GetTokenRefResolver(chainsel.FamilySui)
+	require.True(t, ok, "sui token ref resolver must be registered")
 }
