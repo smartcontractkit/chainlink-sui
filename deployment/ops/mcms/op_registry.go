@@ -109,4 +109,5 @@ var AllOperationsMCMS = []any{
 	*MCMSExecuteTransferOwnershipOp,
 	*SetConfigMCMSOp,
 	*AddModulesMCMSOp,
+	*UpdateMinDelayMCMSOp,
 }
