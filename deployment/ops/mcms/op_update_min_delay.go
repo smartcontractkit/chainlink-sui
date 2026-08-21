@@ -55,12 +55,12 @@ var updateMinDelayHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("unexpected transaction type %T from TimelockConfigurer.UpdateDelay", result.RawData)
 	}
 
-	// The configurer serializes the inner callback data, a 32-byte timelock
-	// address followed by a u64 new_min_delay. The proposal dispatches that data
-	// through the public mcms::mcms_timelock_update_min_delay entrypoint, so the
-	// call is rebuilt here against that function rather than the configurer's
-	// internal name. This also lets assertUpdateMinDelayWithinCap recognize and
-	// cap-check the call.
+	// The configurer serializes the inner callback data: a 32-byte timelock
+	// address followed by a u64 new_min_delay. The call carries the inner
+	// callback name because the timelock stores it verbatim and the
+	// mcms::mcms_timelock_update_min_delay entry asserts it on execute; the
+	// executor maps the inner name back to that entry when building the PTB.
+	// The named constant also lets assertUpdateMinDelayWithinCap cap-check it.
 	call := sui_ops.TransactionCall{
 		PackageID:  input.McmsPackageID,
 		Module:     mcmsModuleName,
