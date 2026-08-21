@@ -18,10 +18,14 @@ import (
 // mcmsModuleName is the on-chain module that owns the timelock admin surface.
 const mcmsModuleName = "mcms"
 
-// updateMinDelayFunctionName is the mcms-module callback that mutates the
-// timelock's global min_delay. Kept as a named constant because it is
-// referenced by both the F30 forbidden-in-bypass set and the F8 payload cap.
-const updateMinDelayFunctionName = "mcms_timelock_update_min_delay"
+// updateMinDelayFunctionName is the inner mcms-module callback name that
+// mutates the timelock's global min_delay. The timelock stores the function
+// name verbatim in each batch entry, and the public mcms::mcms_timelock_update_min_delay
+// entry asserts it equals this inner name on execute; the executor maps the
+// inner name back to that entry when building the PTB. Kept as a named
+// constant because it is referenced by both the F30 forbidden-in-bypass set
+// and the F8 payload cap.
+const updateMinDelayFunctionName = "timelock_update_min_delay"
 
 // updateMinDelayPayloadLen is the exact BCS payload size the Move callback
 // expects: 32-byte timelock object address + 8-byte little-endian u64
@@ -38,11 +42,11 @@ const updateMinDelayPayloadLen = 32 + 8
 // deploy-side belt is to refuse to build such a proposal in the first place.
 // See finding F30 in findings-deduped.md.
 var bypassForbiddenMcmsFunctions = map[string]struct{}{
-	"mcms_timelock_update_min_delay": {},
-	"mcms_timelock_block_function":   {},
-	"mcms_timelock_unblock_function": {},
-	"mcms_timelock_cancel":           {},
-	"mcms_set_config":                {},
+	"timelock_update_min_delay": {},
+	"timelock_block_function":   {},
+	"timelock_unblock_function": {},
+	"timelock_cancel":           {},
+	"set_config":                {},
 }
 
 // assertBypassAllowsCall rejects calls that must not flow through the

@@ -27,11 +27,11 @@ func TestAssertBypassAllowsCall(t *testing.T) {
 	t.Parallel()
 
 	forbidden := []string{
-		"mcms_timelock_update_min_delay",
-		"mcms_timelock_block_function",
-		"mcms_timelock_unblock_function",
-		"mcms_timelock_cancel",
-		"mcms_set_config",
+		"timelock_update_min_delay",
+		"timelock_block_function",
+		"timelock_unblock_function",
+		"timelock_cancel",
+		"set_config",
 	}
 
 	t.Run("bypass rejects each forbidden mcms admin function", func(t *testing.T) {
@@ -83,7 +83,7 @@ func TestAssertBypassAllowsCall(t *testing.T) {
 		t.Parallel()
 		err := assertBypassAllowsCall(types.TimelockActionCancel, sui_ops.TransactionCall{
 			Module:   mcmsModuleName,
-			Function: "mcms_timelock_cancel",
+			Function: "timelock_cancel",
 		})
 		require.NoError(t, err)
 	})
@@ -172,7 +172,7 @@ func TestAssertUpdateMinDelayWithinCap(t *testing.T) {
 		t.Parallel()
 		err := assertUpdateMinDelayWithinCap(sui_ops.TransactionCall{
 			Module:   mcmsModuleName,
-			Function: "mcms_timelock_block_function",
+			Function: "timelock_block_function",
 			Data:     make([]byte, 100),
 		})
 		require.NoError(t, err)
