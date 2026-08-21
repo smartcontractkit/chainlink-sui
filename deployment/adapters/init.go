@@ -5,6 +5,7 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
+	fees "github.com/smartcontractkit/chainlink-ccip/deployment/fees"
 	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 )
@@ -31,4 +32,8 @@ func init() {
 	// a 1.0.0 entry too. The version key only selects dispatch; the same stateless adapter serves both.
 	tokenRegistry.RegisterTokenAdapter(chainsel.FamilySui, semver.MustParse("1.6.0"), &SuiTokenAdapter{})
 	tokenRegistry.RegisterTokenAdapter(chainsel.FamilySui, semver.MustParse("1.0.0"), &SuiTokenAdapter{})
+
+	feeRegistry := fees.GetRegistry()
+	feeRegistry.RegisterFeeResolver(chainsel.FamilySui, &SuiFeeResolver{})
+	feeRegistry.RegisterFeeAdapter(chainsel.FamilySui, semver.MustParse("1.6.0"), &SuiFeeAdapter{})
 }
