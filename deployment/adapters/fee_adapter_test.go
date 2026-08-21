@@ -200,10 +200,9 @@ func TestFqConfigToArgs(t *testing.T) {
 func TestSuiFeeAdapter_ImplementedAndStubs(t *testing.T) {
 	t.Parallel()
 	a := &SuiFeeAdapter{}
-	// Implemented sequence methods return non-nil.
+	// Both sequence methods return non-nil sequences.
 	require.NotNil(t, a.SetTokenTransferFee(nil, datastore.AddressRef{}))
-	// Still-stubbed sequence method returns nil.
-	require.Nil(t, a.ApplyDestChainConfigUpdates(nil, datastore.AddressRef{}))
+	require.NotNil(t, a.ApplyDestChainConfigUpdates(nil, datastore.AddressRef{}))
 
 	// GetOnchainTokenTransferFeeConfig errors without a Sui chain / valid fee ref.
 	_, err := a.GetOnchainTokenTransferFeeConfig(cldf_ops.Bundle{}, cldf_chain.BlockChains{}, datastore.AddressRef{}, 1, 2, "0xtoken")

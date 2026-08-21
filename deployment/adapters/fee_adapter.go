@@ -19,8 +19,8 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
 	suideploy "github.com/smartcontractkit/chainlink-sui/deployment"
-	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	suilanes "github.com/smartcontractkit/chainlink-sui/deployment/lanes"
+	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 )
 
 var (
@@ -206,7 +206,14 @@ func (a *SuiFeeAdapter) GetOnchainTokenTransferFeeConfig(b cldf_ops.Bundle, chai
 // ================================================================
 
 func (a *SuiFeeAdapter) ApplyDestChainConfigUpdates(_ datastore.DataStore, _ datastore.AddressRef) *cldf_ops.Sequence[fees.ApplyDestChainConfigSequenceInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
-	return nil
+	return cldf_ops.NewSequence(
+		"sui-fee-adapter:apply-dest-chain-config-updates",
+		semver.MustParse("1.6.0"),
+		"Apply FeeQuoter destination chain config updates on Sui as an MCMS proposal (not yet implemented)",
+		func(_ cldf_ops.Bundle, _ cldf_chain.BlockChains, _ fees.ApplyDestChainConfigSequenceInput) (sequences.OnChainOutput, error) {
+			return sequences.OnChainOutput{}, fmt.Errorf("ApplyDestChainConfigUpdates is not implemented on SuiFeeAdapter yet")
+		},
+	)
 }
 
 func (a *SuiFeeAdapter) GetOnchainDestChainConfig(_ cldf_ops.Bundle, _ cldf_chain.BlockChains, _ datastore.AddressRef, _ uint64, _ uint64) (lanes.FeeQuoterDestChainConfig, error) {
