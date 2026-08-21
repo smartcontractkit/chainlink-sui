@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -493,8 +494,8 @@ func (tIndexer *TransactionsIndexer) processFailedTransaction(
 	executionStateChanged := map[string]any{
 		"source_chain_selector": strconv.FormatUint(sourceChainSelector, 10),
 		"sequence_number":       strconv.FormatUint(execReport.Message.Header.SequenceNumber, 10),
-		"message_id":            codec0.BytesToAnySlice(execReport.Message.Header.MessageID),
-		"message_hash":          codec0.BytesToAnySlice(messageHash[:]),
+		"message_id":            base64.StdEncoding.EncodeToString(execReport.Message.Header.MessageID),
+		"message_hash":          base64.StdEncoding.EncodeToString(messageHash[:]),
 		"state":                 uint8(3), // 3 = FAILURE
 	}
 
