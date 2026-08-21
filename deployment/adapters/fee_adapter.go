@@ -31,6 +31,8 @@ var (
 // Label keys stashed on the FeeQuoter ref by GetFeeContractRef so the downstream
 // SetTokenTransferFee / GetOnchainTokenTransferFeeConfig can recover the CCIP state object
 // ref, owner cap, and upgraded package id without a datastore of their own. Format: "<key>:<id>".
+// These live only on the in-memory AddressRef value returned by GetFeeContractRef for the
+// duration of one changeset run; they are never written back to the datastore or addressbook.
 const (
 	suiFeeCCIPObjectRefLabel = "ccip-object-ref"
 	suiFeeCCIPOwnerCapLabel  = "ccip-owner-cap"
