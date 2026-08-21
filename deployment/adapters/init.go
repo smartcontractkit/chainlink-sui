@@ -21,9 +21,14 @@ func init() {
 	mcmsRegistry := changesets.GetRegistry()
 	mcmsRegistry.RegisterMCMSReader(chainsel.FamilySui, &MCMSReader{})
 
-	// Version must match the version Sui pool refs are saved under (deployment.Version1_0_0).
-	v := semver.MustParse("1.0.0")
 	tokenRegistry := tokensapi.GetTokenAdapterRegistry()
 	tokenRegistry.RegisterTokenRefResolver(chainsel.FamilySui, &SuiTokenAdapter{})
-	tokenRegistry.RegisterTokenAdapter(chainsel.FamilySui, v, &SuiTokenAdapter{})
+	tokenRegistry.RegisterTokenAdminRegistryReader(chainsel.FamilySui, &SuiTokenAdminRegistryReader{})
+	// Sui CCIP ships on the 1.6.0 release line, so generic token changesets dispatch the Sui
+	// adapter under family version 1.6.0, matching the curse adapter above and the Solana
+	// sibling. Sui Move pool packages are themselves versioned 1.0.0 and existing pool refs are
+	// saved under that version, so ResolveAdapter paths that key off the stored ref version need
+	// a 1.0.0 entry too. The version key only selects dispatch; the same stateless adapter serves both.
+	tokenRegistry.RegisterTokenAdapter(chainsel.FamilySui, semver.MustParse("1.6.0"), &SuiTokenAdapter{})
+	tokenRegistry.RegisterTokenAdapter(chainsel.FamilySui, semver.MustParse("1.0.0"), &SuiTokenAdapter{})
 }

@@ -115,7 +115,6 @@ flowchart LR
 	chainlink-canton --> chainlink-ccv/deployment
 	chainlink-canton --> chainlink-common/keystore
 	chainlink-canton --> chainlink-evm
-	chainlink-canton --> chainlink-evm/gethwrappers
 	chainlink-canton --> chainlink-framework/chains
 	chainlink-canton --> chainlink-framework/multinode
 	chainlink-canton --> chainlink-protos/chainlink-ccv/committee-verifier
@@ -167,10 +166,9 @@ flowchart LR
 	click chainlink-common/pkg/chipingress href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-common/pkg/monitoring
 	click chainlink-common/pkg/monitoring href "https://github.com/smartcontractkit/chainlink-common"
-	chainlink-common/pkg/values
-	click chainlink-common/pkg/values href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-deployments-framework --> ccip-owner-contracts
 	chainlink-deployments-framework --> chainlink-ccip/chains/evm
+	chainlink-deployments-framework --> chainlink-evm/gethwrappers
 	chainlink-deployments-framework --> chainlink-protos/op-catalog
 	chainlink-deployments-framework --> chainlink-testing-framework/seth
 	chainlink-deployments-framework --> mcms
@@ -225,7 +223,7 @@ flowchart LR
 	click chainlink-sui href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/codec --> chainlink-aptos/codec
 	click chainlink-sui/codec href "https://github.com/smartcontractkit/chainlink-sui"
-	chainlink-sui/deployment --> chainlink-ccip/deployment
+	chainlink-sui/deployment
 	click chainlink-sui/deployment href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/integration-tests --> chainlink-sui/deployment
 	click chainlink-sui/integration-tests href "https://github.com/smartcontractkit/chainlink-sui"
@@ -240,9 +238,11 @@ flowchart LR
 	chainlink-ton --> chainlink-ccip
 	chainlink-ton --> chainlink-common/pkg/monitoring
 	chainlink-ton --> chainlink-framework/metrics
+	chainlink-ton --> chainlink-ton/cciplib
 	click chainlink-ton href "https://github.com/smartcontractkit/chainlink-ton"
+	chainlink-ton/cciplib --> chainlink-common
+	click chainlink-ton/cciplib href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-tron/relayer --> chainlink-common
-	chainlink-tron/relayer --> chainlink-common/pkg/values
 	click chainlink-tron/relayer href "https://github.com/smartcontractkit/chainlink-tron"
 	chainlink/deployment
 	click chainlink/deployment href "https://github.com/smartcontractkit/chainlink"
@@ -304,7 +304,6 @@ flowchart LR
 		 chainlink-common/keystore
 		 chainlink-common/pkg/chipingress
 		 chainlink-common/pkg/monitoring
-		 chainlink-common/pkg/values
 	end
 	click chainlink-common-repo href "https://github.com/smartcontractkit/chainlink-common"
 
@@ -358,6 +357,12 @@ flowchart LR
 	end
 	click chainlink-testing-framework-repo href "https://github.com/smartcontractkit/chainlink-testing-framework"
 
+	subgraph chainlink-ton-repo[chainlink-ton]
+		 chainlink-ton
+		 chainlink-ton/cciplib
+	end
+	click chainlink-ton-repo href "https://github.com/smartcontractkit/chainlink-ton"
+
 	classDef outline stroke-dasharray:6,fill:none;
-	class chainlink-repo,chainlink-aptos-repo,chainlink-ccip-repo,chainlink-ccv-repo,chainlink-common-repo,chainlink-evm-repo,chainlink-framework-repo,chainlink-protos-repo,chainlink-sui-repo,chainlink-testing-framework-repo outline
+	class chainlink-repo,chainlink-aptos-repo,chainlink-ccip-repo,chainlink-ccv-repo,chainlink-common-repo,chainlink-evm-repo,chainlink-framework-repo,chainlink-protos-repo,chainlink-sui-repo,chainlink-testing-framework-repo,chainlink-ton-repo outline
 ```
