@@ -43,6 +43,8 @@ func (s *DeployTestSuite) TestDeployAndConfigureSuiChain() {
 	s.DeployLinkBurnMintTokenPool()
 	// Phase 6: Deploy CCIP BnM Token
 	s.DeployBnMToken()
+	// Phase 6b: Deploy CCIP LnR Token
+	s.DeployLnRToken()
 	// Phase 7: Deploy Managed Token
 	s.DeployManagedToken()
 	// Phase 8: Deploy Managed Token Faucet
@@ -246,6 +248,23 @@ func (s *DeployTestSuite) DeployBnMToken() {
 	s.Require().NoError(err, "failed to deploy CCIP BnM Token")
 	err = s.env.ExistingAddresses.Merge(out.AddressBook)
 	s.Require().NoError(err, "failed to merge CCIP BnM Token addresses")
+}
+
+func (s *DeployTestSuite) DeployLnRToken() {
+	s.T().Log("Phase 6b: Deploying CCIP LnR Token...")
+
+	owner, err := s.signer.GetAddress()
+	s.Require().NoError(err, "failed to get signer address")
+
+	out, err := changesets.DeployCCIPLnRToken{}.Apply(s.env, changesets.DeployCCIPLnRTokenConfig{
+		ChainSelector: SuiChainSelector,
+		MintAmount:    1000,
+		MintToAddress: owner,
+	})
+
+	s.Require().NoError(err, "failed to deploy CCIP LnR Token")
+	err = s.env.ExistingAddresses.Merge(out.AddressBook)
+	s.Require().NoError(err, "failed to merge CCIP LnR Token addresses")
 }
 
 func (s *DeployTestSuite) DeployManagedToken() {

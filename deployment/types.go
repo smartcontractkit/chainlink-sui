@@ -104,5 +104,6 @@ var (
 // correct coin type for any token, including ones whose suffix differs, from that label.
 var (
 	SuiCCIPBnMCoinTypeSuffix = "ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"
+	SuiCCIPLnRCoinTypeSuffix = "ccip_lock_release_token::CCIP_LOCK_RELEASE_TOKEN"
 	SuiLinkCoinTypeSuffix    = "link::LINK"
 )

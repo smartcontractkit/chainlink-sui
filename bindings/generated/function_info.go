@@ -13,6 +13,7 @@ import (
     module_upgrade_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/upgrade_registry"
     module_ccip_burn_mint_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_burn_mint_token/ccip_burn_mint_token"
     module_dummy_receiver "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_dummy_receiver/ccip_dummy_receiver"
+    module_ccip_lock_release_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_lock_release_token/ccip_lock_release_token"
     module_malicious_receiver "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_malicious_receiver/ccip_malicious_receiver"
     module_malicious_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_malicious_token_pool/malicious_token_pool"
     module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
@@ -48,6 +49,7 @@ var FunctionInfoByModule = map[string]string{
     "upgrade_registry": module_upgrade_registry.FunctionInfo,
     "ccip_burn_mint_token": module_ccip_burn_mint_token.FunctionInfo,
     "dummy_receiver": module_dummy_receiver.FunctionInfo,
+    "ccip_lock_release_token": module_ccip_lock_release_token.FunctionInfo,
     "malicious_receiver": module_malicious_receiver.FunctionInfo,
     "malicious_token_pool": module_malicious_token_pool.FunctionInfo,
     "offramp": module_offramp.FunctionInfo,

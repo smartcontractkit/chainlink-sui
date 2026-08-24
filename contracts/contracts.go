@@ -31,6 +31,7 @@ const (
 	// LINK
 	LINK    = Package("link")
 	CCIPBnM = Package("ccip_burn_mint_token")
+	CCIPLnR = Package("ccip_lock_release_token")
 	// MCMS
 	MCMS       = Package("mcms")
 	FastMCMS   = Package("fast_mcms")
@@ -50,6 +51,7 @@ var Contracts map[Package]string = map[Package]string{
 	CCIPMaliciousReceiver:  filepath.Join("ccip", "ccip_malicious_receiver"),
 	CCIPMaliciousTokenPool: filepath.Join("ccip", "ccip_malicious_token_pool"),
 	CCIPBnM:                filepath.Join("ccip", "ccip_burn_mint_token"),
+	CCIPLnR:                filepath.Join("ccip", "ccip_lock_release_token"),
 	CCIPOfframp:            filepath.Join("ccip", "ccip_offramp"),
 	CCIPOnramp:             filepath.Join("ccip", "ccip_onramp"),
 	CCIPRouter:             filepath.Join("ccip", "ccip_router"),

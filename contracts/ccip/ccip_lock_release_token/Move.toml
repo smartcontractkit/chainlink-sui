@@ -1,0 +1,6 @@
+[package]
+name = "ccip_lock_release_token"
+edition = "2024"
+
+[addresses]
+ccip_lock_release_token = "0x0"

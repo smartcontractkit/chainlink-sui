@@ -23,6 +23,7 @@ import (
 	suideploy "github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
+	lockreleasetokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
 	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_managed_token_pool"
 	coin_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/coin"
 	suideployutils "github.com/smartcontractkit/chainlink-sui/deployment/utils"
@@ -199,6 +200,24 @@ func (a *SuiTokenAdapter) SetTokenPoolRateLimits() *cldf_ops.Sequence[tokensapi.
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to set rate limits on managed pool: %w", err)
 				}
 				call = r.Output.Call
+			case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
+				r, err := cldf_ops.ExecuteOperation(b, lockreleasetokenpoolops.LockReleaseTokenPoolSetChainRateLimiterOp, deps, lockreleasetokenpoolops.LockReleaseTokenPoolSetChainRateLimiterInput{
+					LockReleasePackageId: input.TokenPoolRef.Address,
+					CoinObjectTypeArg:    coinType,
+					StateObjectId:        stateObjID,
+					OwnerCap:             ownerCapID,
+					RemoteChainSelectors: []uint64{remote},
+					OutboundIsEnableds:   []bool{rl.OutboundRateLimiterConfig.IsEnabled},
+					OutboundCapacities:   []uint64{obCap},
+					OutboundRates:        []uint64{obRate},
+					InboundIsEnableds:    []bool{rl.InboundRateLimiterConfig.IsEnabled},
+					InboundCapacities:    []uint64{ibCap},
+					InboundRates:         []uint64{ibRate},
+				})
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to set rate limits on lock-release pool: %w", err)
+				}
+				call = r.Output.Call
 			default:
 				return sequences.OnChainOutput{}, fmt.Errorf("unsupported sui token pool type %s for SetTokenPoolRateLimits", input.TokenPoolRef.Type)
 			}
@@ -262,6 +281,16 @@ func (a *SuiTokenAdapter) UpdateAuthorities() *cldf_ops.Sequence[tokensapi.Updat
 				})
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to propose accept_ownership for managed pool: %w", err)
+				}
+				call = r.Output.Call
+			case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
+				r, err := cldf_ops.ExecuteOperation(b, lockreleasetokenpoolops.AcceptOwnershipLockReleaseTokenPoolOp, deps, lockreleasetokenpoolops.AcceptOwnershipLockReleaseTokenPoolInput{
+					LockReleaseTokenPoolPackageId: input.TokenPoolRef.Address,
+					TypeArgs:                      typeArgs,
+					StateObjectId:                 stateObjID,
+				})
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to propose accept_ownership for lock-release pool: %w", err)
 				}
 				call = r.Output.Call
 			default:
@@ -407,6 +436,20 @@ func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 						return sequences.OnChainOutput{}, fmt.Errorf("apply chain updates for remote %d: %w", remoteSelector, err)
 					}
 					calls = append(calls, r.Output.Call)
+				case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
+					r, err := cldf_ops.ExecuteOperation(b, lockreleasetokenpoolops.LockReleaseTokenPoolApplyChainUpdatesOp, deps, lockreleasetokenpoolops.LockReleaseTokenPoolApplyChainUpdatesInput{
+						LockReleasePackageId:      pkgID,
+						CoinObjectTypeArg:         coinType,
+						StateObjectId:             stateObjID,
+						OwnerCap:                  ownerCapID,
+						RemoteChainSelectorsToAdd: []uint64{remoteSelector},
+						RemotePoolAddressesToAdd:  [][]string{{remotePoolHex}},
+						RemoteTokenAddressesToAdd: []string{remoteTokenHex},
+					})
+					if err != nil {
+						return sequences.OnChainOutput{}, fmt.Errorf("apply chain updates for remote %d: %w", remoteSelector, err)
+					}
+					calls = append(calls, r.Output.Call)
 				default:
 					return sequences.OnChainOutput{}, fmt.Errorf("unsupported sui token pool type %s for ConfigureTokenForTransfers", poolType)
 				}
@@ -497,6 +540,24 @@ func suiSetChainRateLimitCall(
 			InboundIsEnableds:         []bool{ibRL.IsEnabled},
 			InboundCapacities:         []uint64{ibCap},
 			InboundRates:              []uint64{ibRate},
+		})
+		if err != nil {
+			return sui_ops.TransactionCall{}, fmt.Errorf("set rate limits: %w", err)
+		}
+		return r.Output.Call, nil
+	case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
+		r, err := cldf_ops.ExecuteOperation(b, lockreleasetokenpoolops.LockReleaseTokenPoolSetChainRateLimiterOp, deps, lockreleasetokenpoolops.LockReleaseTokenPoolSetChainRateLimiterInput{
+			LockReleasePackageId: pkgID,
+			CoinObjectTypeArg:    coinType,
+			StateObjectId:        stateObjID,
+			OwnerCap:             ownerCapID,
+			RemoteChainSelectors: remotes,
+			OutboundIsEnableds:   []bool{obRL.IsEnabled},
+			OutboundCapacities:   []uint64{obCap},
+			OutboundRates:        []uint64{obRate},
+			InboundIsEnableds:    []bool{ibRL.IsEnabled},
+			InboundCapacities:    []uint64{ibCap},
+			InboundRates:         []uint64{ibRate},
 		})
 		if err != nil {
 			return sui_ops.TransactionCall{}, fmt.Errorf("set rate limits: %w", err)
@@ -712,6 +773,46 @@ func (a *SuiTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					To:                        mcmsPkg.Address,
 				}); err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to transfer managed pool ownership to MCMS: %w", err)
+				}
+				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId)
+			case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
+				treasuryCap := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiManagedTokenTreasuryCapIDType)), symbol))
+				if treasuryCap == "" {
+					return sequences.OnChainOutput{}, fmt.Errorf("token treasury cap not found for symbol %s on chain %d", symbol, input.ChainSelector)
+				}
+				deployReport, err := cldf_ops.ExecuteOperation(b, lockreleasetokenpoolops.DeployCCIPLockReleaseTokenPoolOp, deps, lockreleasetokenpoolops.LockReleaseTokenPoolDeployInput{
+					CCIPPackageId:    ccipPkg,
+					MCMSAddress:      mcmsPkg.Address,
+					FastMcmsAddress:  fastMcmsPkg.Address,
+					MCMSOwnerAddress: deployer,
+				})
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy lock-release token pool: %w", err)
+				}
+				poolPkg := deployReport.Output.PackageId
+				initReport, err := cldf_ops.ExecuteOperation(b, lockreleasetokenpoolops.LockReleaseTokenPoolInitializeOp, deps, lockreleasetokenpoolops.LockReleaseTokenPoolInitializeInput{
+					LockReleasePackageId:   poolPkg,
+					OwnerCapObjectId:       deployReport.Output.Objects.OwnerCapObjectId,
+					CoinObjectTypeArg:      coinType,
+					StateObjectId:          ccipObjRef,
+					CoinMetadataObjectId:   coinMeta,
+					TreasuryCapObjectId:    treasuryCap,
+					TokenPoolAdministrator: admin,
+					Rebalancer:             deployer,
+				})
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to initialize lock-release token pool: %w", err)
+				}
+				// Ownership step 1 of 3: transfer pool ownership to MCMS (EOA-direct). Sets a pending
+				// transfer that UpdateAuthorities' accept_ownership proposal (step 2) then accepts.
+				if _, err := cldf_ops.ExecuteOperation(b, lockreleasetokenpoolops.TransferOwnershipLockReleaseTokenPoolOp, deps, lockreleasetokenpoolops.TransferOwnershipLockReleaseTokenPoolInput{
+					LockReleaseTokenPoolPackageId: poolPkg,
+					TypeArgs:                      []string{coinType},
+					StateObjectId:                 initReport.Output.Objects.StateObjectId,
+					OwnerCapObjectId:              deployReport.Output.Objects.OwnerCapObjectId,
+					To:                            mcmsPkg.Address,
+				}); err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to transfer lock-release pool ownership to MCMS: %w", err)
 				}
 				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId)
 			default:
