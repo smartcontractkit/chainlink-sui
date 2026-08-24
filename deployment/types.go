@@ -82,6 +82,11 @@ var (
 	SuiLnRTokenPoolStateType           deployment.ContractType = "SuiLnRTokenPoolState"
 	SuiLnRTokenPoolOwnerIDType         deployment.ContractType = "SuiLnRTokenPoolOwnerID"
 	SuiLnRTokenPoolRebalancerCapIDType deployment.ContractType = "SuiLnRTokenPoolRebalancerCapID"
+	// the lock-release coin itself, recorded under its own type rather than the managed-token bucket
+	SuiLnRTokenType               deployment.ContractType = "SuiLnRToken"
+	SuiLnRTokenCoinMetadataIDType deployment.ContractType = "SuiLnRTokenCoinMetadataID"
+	SuiLnRTokenTreasuryCapIDType  deployment.ContractType = "SuiLnRTokenTreasuryCapID"
+	SuiLnRTokenUpgradeCapIDType   deployment.ContractType = "SuiLnRTokenUpgradeCapID"
 
 	// Managed Token Pool related
 	SuiManagedTokenPoolType        deployment.ContractType = "SuiManagedTokenPool"
