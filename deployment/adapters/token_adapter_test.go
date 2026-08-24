@@ -279,6 +279,15 @@ func TestDeriveSuiCoinType_CoinTypeLabel(t *testing.T) {
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("CCIP BnM", "coinType=ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"),
 	}))
+	// LnR coin ref carrying its coinType label, the same shape as the BnM ref above.
+	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
+		ChainSelector: selector,
+		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Address:       "0xlnrpkg",
+		Qualifier:     "0xlnrpkg-SuiManagedToken",
+		Version:       semver.MustParse("1.0.0"),
+		Labels:        datastore.NewLabelSet("CCIP LnR", "coinType="+suideploy.SuiCCIPLnRCoinTypeSuffix),
+	}))
 	// A ref with only the symbol label and no coinType= label must not derive.
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
@@ -299,6 +308,11 @@ func TestDeriveSuiCoinType_CoinTypeLabel(t *testing.T) {
 	got, err = deriveSuiCoinType(sealed, selector, "CCIP BnM")
 	require.NoError(t, err)
 	require.Equal(t, "0xbnmpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", got)
+
+	// LnR derives through the identical label-driven path as BnM and the new coin.
+	got, err = deriveSuiCoinType(sealed, selector, "CCIP LnR")
+	require.NoError(t, err)
+	require.Equal(t, "0xlnrpkg::ccip_lock_release_token::CCIP_LOCK_RELEASE_TOKEN", got)
 
 	// A coin package ref without a coinType= label does not derive.
 	_, err = deriveSuiCoinType(sealed, selector, "UNLABELED")

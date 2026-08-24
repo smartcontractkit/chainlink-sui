@@ -307,6 +307,7 @@ func compilePackageInternal(packageName contracts.Package, namedAddresses map[st
 		filepath.Join(dstRoot, "ccip", "ccip_onramp"),
 		filepath.Join(dstRoot, "ccip", "ccip_offramp"),
 		filepath.Join(dstRoot, "ccip", "ccip_burn_mint_token"),
+		filepath.Join(dstRoot, "ccip", "ccip_lock_release_token"),
 		filepath.Join(dstRoot, "ccip", "ccip_dummy_receiver"),
 		filepath.Join(dstRoot, "ccip", "ccip_broken_receiver"),
 		filepath.Join(dstRoot, "ccip", "managed_token"),
@@ -859,7 +860,7 @@ func ownPackageAddressKey(packageName contracts.Package) string {
 		contracts.CCIPRouter, contracts.CCIPDummyReceiver, contracts.CCIPBrokenReceiver,
 		contracts.LockReleaseTokenPool, contracts.BurnMintTokenPool,
 		contracts.ManagedTokenPool,
-		contracts.ManagedToken, contracts.ManagedTokenFaucet, contracts.CCIPBnM,
+		contracts.ManagedToken, contracts.ManagedTokenFaucet, contracts.CCIPBnM, contracts.CCIPLnR,
 		contracts.MCMS, contracts.FastMCMS, contracts.MCMSUser, contracts.MCMSUserV2,
 		contracts.LINK, contracts.MockLinkToken, contracts.MockEthToken,
 		contracts.Test, contracts.TestSecondary:
