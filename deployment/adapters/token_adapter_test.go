@@ -85,11 +85,11 @@ func TestDeriveSuiCoinType(t *testing.T) {
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("MT"),
 	}))
-	// BnM coin package (stored as SuiManagedTokenType), carrying its module::STRUCT as a
+	// BnM coin package (stored as SuiTokenType), carrying its module::STRUCT as a
 	// coinType= label -> ::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN.
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
-		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Type:          datastore.ContractType(suideploy.SuiTokenType),
 		Address:       "0xbnmpkg",
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("CCIP BnM", "coinType="+suideploy.SuiCCIPBnMCoinTypeSuffix),
@@ -141,12 +141,10 @@ func TestSuiTokenType(t *testing.T) {
 	t.Parallel()
 	require.Equal(t, datastore.ContractType(suideploy.SuiLinkTokenType),
 		suiTokenType("0x1::link::LINK"))
-	require.Equal(t, datastore.ContractType(suideploy.SuiManagedTokenType),
+	require.Equal(t, datastore.ContractType(suideploy.SuiTokenType),
 		suiTokenType("0x1::managed_token::MANAGED_TOKEN"))
-	require.Equal(t, datastore.ContractType(suideploy.SuiManagedTokenType),
+	require.Equal(t, datastore.ContractType(suideploy.SuiTokenType),
 		suiTokenType("0x1::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"))
-	require.Equal(t, datastore.ContractType(suideploy.SuiLnRTokenType),
-		suiTokenType("0x1::ccip_lock_release_token::CCIP_LOCK_RELEASE_TOKEN"))
 }
 
 func TestPoolObjectTypes(t *testing.T) {
@@ -209,11 +207,11 @@ func TestSuiTokenAdapter_DeriveTokenAddress_FromPoolLabels(t *testing.T) {
 	t.Parallel()
 	const selector uint64 = 123
 	ds := datastore.NewMemoryDataStore()
-	// The BnM coin package (ccip_burn_mint_token), stored under SuiManagedTokenType, carrying
+	// The BnM coin package (ccip_burn_mint_token), stored under SuiTokenType, carrying
 	// its module::STRUCT as a coinType= label.
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
-		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Type:          datastore.ContractType(suideploy.SuiTokenType),
 		Address:       "0xmanagedpkg",
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("CCIP BnM", "coinType="+suideploy.SuiCCIPBnMCoinTypeSuffix),
@@ -263,39 +261,39 @@ func TestDeriveSuiCoinType_CoinTypeLabel(t *testing.T) {
 	ds := datastore.NewMemoryDataStore()
 	const selector uint64 = 123
 
-	// A genuinely new coin (USDC) filed under SuiManagedTokenType, carrying its coinType suffix.
+	// A genuinely new coin (USDC) filed under SuiTokenType, carrying its coinType suffix.
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
-		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Type:          datastore.ContractType(suideploy.SuiTokenType),
 		Address:       "0xusdcpkg",
-		Qualifier:     "0xusdcpkg-SuiManagedToken",
+		Qualifier:     "0xusdcpkg-SuiToken",
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("USDC", "coinType=usdc::USDC"),
 	}))
 	// BnM coin ref carrying its coinType label, the same shape as the USDC ref above.
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
-		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Type:          datastore.ContractType(suideploy.SuiTokenType),
 		Address:       "0xbnmpkg",
-		Qualifier:     "0xbnmpkg-SuiManagedToken",
+		Qualifier:     "0xbnmpkg-SuiToken",
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("CCIP BnM", "coinType=ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"),
 	}))
 	// LnR coin ref carrying its coinType label, the same shape as the BnM ref above.
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
-		Type:          datastore.ContractType(suideploy.SuiLnRTokenType),
+		Type:          datastore.ContractType(suideploy.SuiTokenType),
 		Address:       "0xlnrpkg",
-		Qualifier:     "0xlnrpkg-SuiLnRToken",
+		Qualifier:     "0xlnrpkg-SuiToken",
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("CCIP LnR", "coinType="+suideploy.SuiCCIPLnRCoinTypeSuffix),
 	}))
 	// A ref with only the symbol label and no coinType= label must not derive.
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
-		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Type:          datastore.ContractType(suideploy.SuiTokenType),
 		Address:       "0xunlabeledpkg",
-		Qualifier:     "0xunlabeledpkg-SuiManagedToken",
+		Qualifier:     "0xunlabeledpkg-SuiToken",
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("UNLABELED"),
 	}))
@@ -331,7 +329,7 @@ func TestSuiTokenAdapter_DeriveTokenAddress_NewCoinFromLabels(t *testing.T) {
 	ds := datastore.NewMemoryDataStore()
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
-		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Type:          datastore.ContractType(suideploy.SuiTokenType),
 		Address:       "0xusdcpkg",
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("USDC", "coinType=usdc::USDC"),
@@ -358,7 +356,7 @@ func TestSuiTokenAdapter_DeriveTokenAddress_PoolFamilyAgnostic(t *testing.T) {
 	ds := datastore.NewMemoryDataStore()
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
-		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Type:          datastore.ContractType(suideploy.SuiTokenType),
 		Address:       "0xusdcpkg",
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("USDC", "coinType=usdc::USDC"),

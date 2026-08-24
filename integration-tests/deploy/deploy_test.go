@@ -276,12 +276,12 @@ func (s *DeployTestSuite) DeployManagedToken() {
 
 	var bnmPackageID, bnmTreasuryCapID string
 	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenType {
+		if typeAndVersion.Type == deployment.SuiTokenType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				bnmPackageID = addr
 			}
 		}
-		if typeAndVersion.Type == deployment.SuiManagedTokenTreasuryCapIDType {
+		if typeAndVersion.Type == deployment.SuiTokenTreasuryCapIDType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				bnmTreasuryCapID = addr
 			}
@@ -343,7 +343,7 @@ func (s *DeployTestSuite) ConfigureDeployerAsMinter() {
 	// Get the BnM token package ID for coin type
 	var bnmPackageID string
 	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenType {
+		if typeAndVersion.Type == deployment.SuiTokenType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				bnmPackageID = addr
 				break
@@ -380,7 +380,7 @@ func (s *DeployTestSuite) DeployManagedTokenFaucet() {
 
 	var bnmPackageID string
 	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenType {
+		if typeAndVersion.Type == deployment.SuiTokenType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				bnmPackageID = addr
 				break
@@ -428,7 +428,7 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 	)
 
 	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenType {
+		if typeAndVersion.Type == deployment.SuiTokenType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				managedTokenPackageID = addr
 			}
@@ -443,7 +443,7 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 				managedTokenOwnerCapID = addr
 			}
 		}
-		if typeAndVersion.Type == deployment.SuiManagedTokenCoinMetadataIDType {
+		if typeAndVersion.Type == deployment.SuiTokenCoinMetadataIDType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				bnmCoinMetadataID = addr
 			}
@@ -466,7 +466,7 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 	// Construct coin type from CCIP BnM token package ID
 	bnmPackageID := ""
 	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenType {
+		if typeAndVersion.Type == deployment.SuiTokenType {
 			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
 				bnmPackageID = addr
 				break

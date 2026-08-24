@@ -692,7 +692,7 @@ func (a *SuiTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			var addresses []datastore.AddressRef
 			switch poolType {
 			case datastore.ContractType(suideploy.SuiBnMTokenPoolType):
-				treasuryCap := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiManagedTokenTreasuryCapIDType)), symbol))
+				treasuryCap := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiTokenTreasuryCapIDType)), symbol))
 				if treasuryCap == "" {
 					return sequences.OnChainOutput{}, fmt.Errorf("BnM token treasury cap not found for symbol %s on chain %d", symbol, input.ChainSelector)
 				}
@@ -776,7 +776,7 @@ func (a *SuiTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				}
 				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId)
 			case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
-				treasuryCap := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiLnRTokenTreasuryCapIDType)), symbol))
+				treasuryCap := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiTokenTreasuryCapIDType)), symbol))
 				if treasuryCap == "" {
 					return sequences.OnChainOutput{}, fmt.Errorf("token treasury cap not found for symbol %s on chain %d", symbol, input.ChainSelector)
 				}
@@ -1103,17 +1103,14 @@ func coinTypeSuffixFromLabels(r datastore.AddressRef) string {
 	return ""
 }
 
-// suiTokenType maps a coin type to a datastore contract type on a best-effort basis. CCIP
-// burn-mint test tokens on Sui are managed coins, so non-LINK coins default to the managed
-// token type.
+// suiTokenType maps a coin type to a datastore contract type on a best-effort basis. LINK maps
+// to its own type; every other CCIP coin is a generic token recorded under SuiToken.
 func suiTokenType(coinType string) datastore.ContractType {
 	switch {
 	case strings.Contains(coinType, "::link::"):
 		return datastore.ContractType(suideploy.SuiLinkTokenType)
-	case strings.Contains(coinType, "::ccip_lock_release_token::"):
-		return datastore.ContractType(suideploy.SuiLnRTokenType)
 	default:
-		return datastore.ContractType(suideploy.SuiManagedTokenType)
+		return datastore.ContractType(suideploy.SuiTokenType)
 	}
 }
 

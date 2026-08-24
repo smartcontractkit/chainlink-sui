@@ -578,67 +578,34 @@ func loadsuiChainStateFromAddresses(addresses map[string][]cldf.TypeAndVersion) 
 			managed_token := chainState.ManagedTokens[symbol]
 			managed_token.PackageID = addr
 			chainState.ManagedTokens[symbol] = managed_token
-		case SuiManagedTokenCoinMetadataIDType:
+		case SuiTokenCoinMetadataIDType:
 			symbol, err := getTokenSymbol(typeAndVersion)
 			if err != nil {
-				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for token: %w", err)
 			}
 			managed_token := chainState.ManagedTokens[symbol]
 			managed_token.TokenCoinMetadataID = addr
 			chainState.ManagedTokens[symbol] = managed_token
-		case SuiManagedTokenUpgradeCapIDType:
+		case SuiTokenUpgradeCapIDType:
 			symbol, err := getTokenSymbol(typeAndVersion)
 			if err != nil {
-				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for token: %w", err)
 			}
 			managed_token := chainState.ManagedTokens[symbol]
 			managed_token.TokenUpgradeCapID = addr
 			chainState.ManagedTokens[symbol] = managed_token
-		case SuiManagedTokenTreasuryCapIDType:
+		case SuiTokenTreasuryCapIDType:
 			symbol, err := getTokenSymbol(typeAndVersion)
 			if err != nil {
-				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for token: %w", err)
 			}
 			managed_token := chainState.ManagedTokens[symbol]
 			managed_token.TokenTreasuryCapID = addr
 			chainState.ManagedTokens[symbol] = managed_token
-		case SuiManagedTokenType:
+		case SuiTokenType:
 			symbol, err := getTokenSymbol(typeAndVersion)
 			if err != nil {
-				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token: %w", err)
-			}
-			managed_token := chainState.ManagedTokens[symbol]
-			managed_token.TokenPackageID = addr
-			chainState.ManagedTokens[symbol] = managed_token
-		// Lock-release coin mirrors the managed-token coin fields under its own contract types
-		case SuiLnRTokenCoinMetadataIDType:
-			symbol, err := getTokenSymbol(typeAndVersion)
-			if err != nil {
-				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token: %w", err)
-			}
-			managed_token := chainState.ManagedTokens[symbol]
-			managed_token.TokenCoinMetadataID = addr
-			chainState.ManagedTokens[symbol] = managed_token
-		case SuiLnRTokenUpgradeCapIDType:
-			symbol, err := getTokenSymbol(typeAndVersion)
-			if err != nil {
-				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token: %w", err)
-			}
-			managed_token := chainState.ManagedTokens[symbol]
-			managed_token.TokenUpgradeCapID = addr
-			chainState.ManagedTokens[symbol] = managed_token
-		case SuiLnRTokenTreasuryCapIDType:
-			symbol, err := getTokenSymbol(typeAndVersion)
-			if err != nil {
-				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token: %w", err)
-			}
-			managed_token := chainState.ManagedTokens[symbol]
-			managed_token.TokenTreasuryCapID = addr
-			chainState.ManagedTokens[symbol] = managed_token
-		case SuiLnRTokenType:
-			symbol, err := getTokenSymbol(typeAndVersion)
-			if err != nil {
-				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token: %w", err)
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for token: %w", err)
 			}
 			managed_token := chainState.ManagedTokens[symbol]
 			managed_token.TokenPackageID = addr

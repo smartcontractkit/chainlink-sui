@@ -55,13 +55,12 @@ var (
 	SuiLinkTokenUpgradeCapID     deployment.ContractType = "SuiLinkTokenUpgradeCapID"
 	SuiLinkTokenType             deployment.ContractType = "SuiLinkToken"
 
-	// Managed Token related
-	// the coins under management
-	SuiManagedTokenType               deployment.ContractType = "SuiManagedToken"
-	SuiManagedTokenCoinMetadataIDType deployment.ContractType = "SuiManagedTokenCoinMetadataID"
-	SuiManagedTokenTreasuryCapIDType  deployment.ContractType = "SuiManagedTokenTreasuryCapID"
-	SuiManagedTokenUpgradeCapIDType   deployment.ContractType = "SuiManagedTokenUpgradeCapID"
-	// the managed token wrapper package for the tokens
+	// Token related: generic CCIP coins, pool-agnostic; the symbol label distinguishes them
+	SuiTokenType               deployment.ContractType = "SuiToken"
+	SuiTokenCoinMetadataIDType deployment.ContractType = "SuiTokenCoinMetadataID"
+	SuiTokenTreasuryCapIDType  deployment.ContractType = "SuiTokenTreasuryCapID"
+	SuiTokenUpgradeCapIDType   deployment.ContractType = "SuiTokenUpgradeCapID"
+	// Managed token wrapper package that wraps a token for managed-pool use
 	SuiManagedTokenPackageIDType     deployment.ContractType = "SuiManagedTokenPackageID"
 	SuiManagedTokenOwnerCapObjectID  deployment.ContractType = "SuiManagedTokenOwnerCapObjectID"
 	SuiManagedTokenStateObjectID     deployment.ContractType = "SuiManagedTokenStateObjectID"
@@ -82,11 +81,6 @@ var (
 	SuiLnRTokenPoolStateType           deployment.ContractType = "SuiLnRTokenPoolState"
 	SuiLnRTokenPoolOwnerIDType         deployment.ContractType = "SuiLnRTokenPoolOwnerID"
 	SuiLnRTokenPoolRebalancerCapIDType deployment.ContractType = "SuiLnRTokenPoolRebalancerCapID"
-	// the lock-release coin itself, recorded under its own type rather than the managed-token bucket
-	SuiLnRTokenType               deployment.ContractType = "SuiLnRToken"
-	SuiLnRTokenCoinMetadataIDType deployment.ContractType = "SuiLnRTokenCoinMetadataID"
-	SuiLnRTokenTreasuryCapIDType  deployment.ContractType = "SuiLnRTokenTreasuryCapID"
-	SuiLnRTokenUpgradeCapIDType   deployment.ContractType = "SuiLnRTokenUpgradeCapID"
 
 	// Managed Token Pool related
 	SuiManagedTokenPoolType        deployment.ContractType = "SuiManagedTokenPool"

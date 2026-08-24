@@ -56,7 +56,7 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 	}
 
 	// save CCIPBnMToken package ID to the addressbook
-	typeAndVersionCCIPBnMToken := cldf.NewTypeAndVersion(deployment.SuiManagedTokenType, deployment.Version1_0_0)
+	typeAndVersionCCIPBnMToken := cldf.NewTypeAndVersion(deployment.SuiTokenType, deployment.Version1_0_0)
 	typeAndVersionCCIPBnMToken.AddLabel(CCIPBnMSymbol)
 	typeAndVersionCCIPBnMToken.AddLabel("coinType=" + deployment.SuiCCIPBnMCoinTypeSuffix)
 	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipBnMTokenReport.Output.PackageId, typeAndVersionCCIPBnMToken)
@@ -65,7 +65,7 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 	}
 
 	// save CCIPBnMTokenCoinMetadataId address to the addressbook
-	typeAndVersionCoinMetadataId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenCoinMetadataIDType, deployment.Version1_0_0)
+	typeAndVersionCoinMetadataId := cldf.NewTypeAndVersion(deployment.SuiTokenCoinMetadataIDType, deployment.Version1_0_0)
 	typeAndVersionCoinMetadataId.AddLabel(CCIPBnMSymbol)
 	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipBnMTokenReport.Output.Objects.CoinMetadataObjectId, typeAndVersionCoinMetadataId)
 	if err != nil {
@@ -73,7 +73,7 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 	}
 
 	// save CCIPBnMTokenTreasuryCapId address to the addressbook
-	typeAndVersionTreasuryCapId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenTreasuryCapIDType, deployment.Version1_0_0)
+	typeAndVersionTreasuryCapId := cldf.NewTypeAndVersion(deployment.SuiTokenTreasuryCapIDType, deployment.Version1_0_0)
 	typeAndVersionTreasuryCapId.AddLabel(CCIPBnMSymbol)
 	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipBnMTokenReport.Output.Objects.TreasuryCapObjectId, typeAndVersionTreasuryCapId)
 	if err != nil {
@@ -81,7 +81,7 @@ func (d DeployCCIPBnMToken) Apply(e cldf.Environment, config DeployCCIPBnMTokenC
 	}
 
 	// save CCIPBnMTokenUpgradeCapId address to the addressbook
-	typeAndVersionUpgradeCapId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenUpgradeCapIDType, deployment.Version1_0_0)
+	typeAndVersionUpgradeCapId := cldf.NewTypeAndVersion(deployment.SuiTokenUpgradeCapIDType, deployment.Version1_0_0)
 	typeAndVersionUpgradeCapId.AddLabel(CCIPBnMSymbol)
 	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipBnMTokenReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapId)
 	if err != nil {
