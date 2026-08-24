@@ -145,6 +145,8 @@ func TestSuiTokenType(t *testing.T) {
 		suiTokenType("0x1::managed_token::MANAGED_TOKEN"))
 	require.Equal(t, datastore.ContractType(suideploy.SuiManagedTokenType),
 		suiTokenType("0x1::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"))
+	require.Equal(t, datastore.ContractType(suideploy.SuiLnRTokenType),
+		suiTokenType("0x1::ccip_lock_release_token::CCIP_LOCK_RELEASE_TOKEN"))
 }
 
 func TestPoolObjectTypes(t *testing.T) {
@@ -282,9 +284,9 @@ func TestDeriveSuiCoinType_CoinTypeLabel(t *testing.T) {
 	// LnR coin ref carrying its coinType label, the same shape as the BnM ref above.
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
-		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Type:          datastore.ContractType(suideploy.SuiLnRTokenType),
 		Address:       "0xlnrpkg",
-		Qualifier:     "0xlnrpkg-SuiManagedToken",
+		Qualifier:     "0xlnrpkg-SuiLnRToken",
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("CCIP LnR", "coinType="+suideploy.SuiCCIPLnRCoinTypeSuffix),
 	}))
