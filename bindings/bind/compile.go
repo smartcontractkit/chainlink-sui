@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,9 +19,11 @@ import (
 	"strings"
 	"sync"
 
+	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/smartcontractkit/chainlink-sui/contracts"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 const env = "local"
@@ -1082,28 +1085,62 @@ func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, 
 }
 
 func getChainIdentifier(rpcURL string) (string, error) {
-	// Use the Sui CLI's chain-identifier command to get the chain ID
-	// This ensures we get the same chain ID that the CLI will use for publish
+	// Primary: the Sui CLI's chain-identifier command, which yields the same chain ID the CLI uses for publish.
 	cmd := exec.Command("sui", "client", "chain-identifier")
 	cmd.Env = os.Environ()
 	out, err := cmd.Output()
-	if err != nil {
-		// Fallback to curl if CLI command fails
-		req := `{"jsonrpc":"2.0","id":1,"method":"sui_getChainIdentifier"}`
-		curlCmd := exec.Command("curl", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", req, rpcURL)
-		curlOut, curlErr := curlCmd.Output()
-		if curlErr != nil {
-			return "", fmt.Errorf("failed to query chain identifier via CLI (%v) and curl (%w)", err, curlErr)
-		}
-		var resp struct {
-			Result string `json:"result"`
-		}
-		if err := json.Unmarshal(curlOut, &resp); err != nil {
-			return "", fmt.Errorf("failed to parse chain identifier: %w\nResponse:\n%s", err, string(curlOut))
-		}
-		return resp.Result, nil
+	if err == nil {
+		return strings.TrimSpace(string(out)), nil
 	}
-	return strings.TrimSpace(string(out)), nil
+
+	// Fallback: gRPC LedgerService.GetServiceInfo. The JSON-RPC sui_getChainIdentifier method is
+	// deprecated and being disabled on Sui fullnodes, so the previous curl fallback is replaced with
+	// the gRPC equivalent.
+	chainID, grpcErr := getChainIdentifierViaGRPC(context.Background(), rpcURL)
+	if grpcErr != nil {
+		return "", fmt.Errorf("failed to query chain identifier via CLI (%w) and gRPC (%w)", err, grpcErr)
+	}
+	return chainID, nil
+}
+
+// getChainIdentifierViaGRPC queries the chain identifier via gRPC LedgerService.GetServiceInfo,
+// deriving the gRPC target host:port from the JSON-RPC URL.
+func getChainIdentifierViaGRPC(ctx context.Context, rpcURL string) (string, error) {
+	target, err := grpcTargetFromURL(rpcURL)
+	if err != nil {
+		return "", err
+	}
+	grpcClient := client.NewSuiGrpcClient(client.DefaultGrpcConfig(target, ""))
+	ledgerService, err := grpcClient.LedgerService(ctx)
+	if err != nil {
+		return "", fmt.Errorf("get ledger service for %s: %w", target, err)
+	}
+	resp, err := ledgerService.GetServiceInfo(ctx, &suirpcv2.GetServiceInfoRequest{})
+	if err != nil {
+		return "", fmt.Errorf("GetServiceInfo for %s: %w", target, err)
+	}
+	chainID := resp.GetChainId()
+	if chainID == "" {
+		return "", errors.New("GetServiceInfo returned empty chain id")
+	}
+	return chainID, nil
+}
+
+// grpcTargetFromURL derives a host:port gRPC target from a JSON-RPC URL, defaulting to port 443.
+func grpcTargetFromURL(rpcURL string) (string, error) {
+	u, err := url.Parse(rpcURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid RPC URL %q: %w", rpcURL, err)
+	}
+	host := u.Hostname()
+	if host == "" {
+		return "", fmt.Errorf("invalid RPC URL %q: no host", rpcURL)
+	}
+	port := u.Port()
+	if port == "" {
+		port = "443"
+	}
+	return host + ":" + port, nil
 }
 
 func getDynamicSuiRPC() (string, error) {

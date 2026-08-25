@@ -15,7 +15,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/signer"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/semaphore"
@@ -134,11 +133,9 @@ type SuiPTBClient interface {
 }
 
 // PTBClient implements SuiClient interface using the blockvision SDK.
-// During the gRPC migration, JSON-RPC (client) and gRPC (grpcClient) coexist:
-// migrated methods use gRPC service accessors; others continue via JSON-RPC.
+// All read/write operations go through gRPC service accessors backed by connPool.
 type PTBClient struct {
-	log              logger.Logger
-	moveModuleClient sui.ISuiAPI // internal JSON-RPC client for unmigrated read APIs
+	log logger.Logger
 	// connPool holds one or more independent gRPC connections to the node, handed out round-robin by the
 	// service getters. Using several connections multiplies the available concurrent HTTP/2 streams so a
 	// single connection's stream limit does not become a head-of-line bottleneck under bursty reads.
@@ -1371,7 +1368,10 @@ func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, m
 	return result, err
 }
 
-// getNormalizedModuleInternal is the internal implementation without rate limiting
+// getNormalizedModuleInternal is the internal implementation without rate limiting.
+// It fetches the package via gRPC MovePackageService.GetPackage and reconstructs the
+// JSON-RPC-shaped GetNormalizedMoveModuleResponse so consumers of the normalized module ABI
+// are unaffected by Sui's JSON-RPC deprecation.
 func (c *PTBClient) getNormalizedModuleInternal(ctx context.Context, packageId string, module string) (models.GetNormalizedMoveModuleResponse, error) {
 	// check if the normalized module is already cached
 	normalizedModule, ok := c.normalizedModules[packageId][module]
@@ -1379,26 +1379,151 @@ func (c *PTBClient) getNormalizedModuleInternal(ctx context.Context, packageId s
 		return normalizedModule, nil
 	}
 
-	if c.moveModuleClient == nil {
-		return models.GetNormalizedMoveModuleResponse{}, errors.New("move module client not configured")
+	movePkgService, err := c.getMovePackageService(ctx)
+	if err != nil {
+		return models.GetNormalizedMoveModuleResponse{}, fmt.Errorf("failed to get move package service: %w", err)
 	}
 
-	normalizedModule, err := c.moveModuleClient.SuiGetNormalizedMoveModule(ctx, models.GetNormalizedMoveModuleRequest{
-		Package:    packageId,
-		ModuleName: module,
+	resp, err := movePkgService.GetPackage(ctx, &suirpcv2.GetPackageRequest{
+		PackageId: &packageId,
 	})
 	if err != nil {
-		return models.GetNormalizedMoveModuleResponse{}, fmt.Errorf("failed to get normalized module: %w", err)
+		return models.GetNormalizedMoveModuleResponse{}, fmt.Errorf("failed to get package %s: %w", packageId, err)
+	}
+
+	pkg := resp.GetPackage()
+	if pkg == nil {
+		return models.GetNormalizedMoveModuleResponse{}, fmt.Errorf("package %s returned no package data", packageId)
+	}
+
+	var targetModule *suirpcv2.Module
+	for _, m := range pkg.GetModules() {
+		if m.GetName() == module {
+			targetModule = m
+			break
+		}
+	}
+	if targetModule == nil {
+		return models.GetNormalizedMoveModuleResponse{}, fmt.Errorf("module %q not found in package %s", module, packageId)
+	}
+
+	exposedFunctions := make(map[string]any, len(targetModule.GetFunctions()))
+	for _, fn := range targetModule.GetFunctions() {
+		exposedFunctions[fn.GetName()] = FunctionDescriptorToNormalizedFunctionMap(fn)
+	}
+
+	normalizedModule = models.GetNormalizedMoveModuleResponse{
+		Name:             module,
+		ExposedFunctions: exposedFunctions,
 	}
 
 	if _, ok := c.normalizedModules[packageId]; !ok {
 		c.normalizedModules[packageId] = make(map[string]models.GetNormalizedMoveModuleResponse)
 	}
-
-	// cache the normalized module
 	c.normalizedModules[packageId][module] = normalizedModule
 
 	return normalizedModule, nil
+}
+
+// FunctionDescriptorToNormalizedFunctionMap converts a gRPC FunctionDescriptor into the untyped
+// map[string]any shape that JSON-RPC sui_getNormalizedMoveModule returns for a single function, so
+// callers reading the "parameters" key (e.g. offramp.DecodeParameters) work unchanged. The parameter
+// conversion mirrors offramp.decodeOpenSignature so DecodeParameters(funcMap) and
+// DecodeParametersFromFunctionDescriptor(fn) produce the same argument types.
+func FunctionDescriptorToNormalizedFunctionMap(fn *suirpcv2.FunctionDescriptor) map[string]any {
+	parameters := make([]any, 0, len(fn.GetParameters()))
+	for _, p := range fn.GetParameters() {
+		parameters = append(parameters, openSignatureToNormalizedType(p))
+	}
+	return map[string]any{
+		"parameters": parameters,
+	}
+}
+
+// openSignatureToNormalizedType converts a gRPC OpenSignature into the JSON-RPC normalized-type
+// shape consumed by offramp.decodeParam. A Vector body takes precedence over the outer reference,
+// matching decodeOpenSignature; otherwise the value is wrapped in Reference/MutableReference.
+func openSignatureToNormalizedType(sig *suirpcv2.OpenSignature) any {
+	if sig == nil {
+		return "unknown"
+	}
+	body := sig.GetBody()
+	if body == nil {
+		return "unknown"
+	}
+
+	if body.GetType() == suirpcv2.OpenSignatureBody_VECTOR {
+		elements := body.GetTypeParameterInstantiation()
+		if len(elements) != 1 {
+			return "unknown"
+		}
+		return map[string]any{"Vector": openSignatureBodyToNormalizedType(elements[0])}
+	}
+
+	inner := openSignatureBodyToNormalizedType(body)
+	if sig.GetReference() == suirpcv2.OpenSignature_MUTABLE {
+		return map[string]any{"MutableReference": inner}
+	}
+	return map[string]any{"Reference": inner}
+}
+
+// openSignatureBodyToNormalizedType converts a gRPC OpenSignatureBody into the JSON-RPC
+// normalized-type shape. Structs omit typeArguments, matching offramp.parseSignatureBodyType's
+// DATATYPE handling which derives the Move type from the qualified type name only.
+func openSignatureBodyToNormalizedType(body *suirpcv2.OpenSignatureBody) any {
+	if body == nil {
+		return "unknown"
+	}
+	switch body.GetType() {
+	case suirpcv2.OpenSignatureBody_ADDRESS:
+		return "Address"
+	case suirpcv2.OpenSignatureBody_BOOL:
+		return "Bool"
+	case suirpcv2.OpenSignatureBody_U8:
+		return "U8"
+	case suirpcv2.OpenSignatureBody_U16:
+		return "U16"
+	case suirpcv2.OpenSignatureBody_U32:
+		return "U32"
+	case suirpcv2.OpenSignatureBody_U64:
+		return "U64"
+	case suirpcv2.OpenSignatureBody_U128:
+		return "U128"
+	case suirpcv2.OpenSignatureBody_U256:
+		return "U256"
+	case suirpcv2.OpenSignatureBody_VECTOR:
+		elements := body.GetTypeParameterInstantiation()
+		if len(elements) != 1 {
+			return "unknown"
+		}
+		return map[string]any{"Vector": openSignatureBodyToNormalizedType(elements[0])}
+	case suirpcv2.OpenSignatureBody_DATATYPE:
+		return map[string]any{"Struct": datatypeToStructMap(body)}
+	case suirpcv2.OpenSignatureBody_TYPE_PARAMETER:
+		return map[string]any{"TypeParameter": float64(0)}
+	default:
+		return "unknown"
+	}
+}
+
+// datatypeToStructMap builds the JSON-RPC Struct map (address/module/name) from a DATATYPE
+// OpenSignatureBody, splitting the qualified type name returned by GetTypeName.
+func datatypeToStructMap(body *suirpcv2.OpenSignatureBody) map[string]any {
+	address, module, name := splitQualifiedTypeName(body.GetTypeName())
+	return map[string]any{
+		"address": address,
+		"module":  module,
+		"name":    name,
+	}
+}
+
+// splitQualifiedTypeName splits a "<address>::<module>::<name>" Move type name into its parts.
+func splitQualifiedTypeName(typeName string) (address, module, name string) {
+	parts := strings.Split(typeName, "::")
+	if len(parts) != 3 {
+		return typeName, "", ""
+	}
+	return parts[0], parts[1], parts[2]
 }
 
 func (c *PTBClient) GetMoveModuleFunction(ctx context.Context, packageId string, moduleId string, functionName string) (*suirpcv2.FunctionDescriptor, error) {
