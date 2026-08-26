@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
@@ -59,8 +60,12 @@ type ManagedTokenState struct {
 }
 
 type ManagedTokenFaucetState struct {
-	PackageID          string
-	StateObjectId      string
+	PackageID     string
+	StateObjectID string
+	// MinterCapObjectId is the managed-token minter cap the faucet mints with. Refs written
+	// before the faucet cap had its own contract type land in
+	// ManagedTokenState.MinterCapObjectIds instead, so this is empty for those deployments.
+	MinterCapObjectID  string
 	UpgradeCapObjectId string
 }
 
@@ -437,7 +442,7 @@ func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error
 	return suiChains, nil
 }
 
-func loadsuiChainStateFromAddresses(addresses map[string][]cldf.TypeAndVersion) (CCIPChainState, error) {
+func loadsuiChainStateFromAddresses(addresses map[string][]suiAddressRef) (CCIPChainState, error) {
 	chainState := CCIPChainState{
 		ManagedTokens:       make(map[string]ManagedTokenState),
 		ManagedTokenFaucets: make(map[string]ManagedTokenFaucetState),
@@ -445,24 +450,20 @@ func loadsuiChainStateFromAddresses(addresses map[string][]cldf.TypeAndVersion) 
 		LnRTokenPools:       make(map[string]CCIPPoolState),
 		ManagedTokenPools:   make(map[string]CCIPPoolState),
 	}
-	// Flatten the per-address slices so every typed ref is visited. A single object
-	// address can carry multiple refs (the MCMS state object id is shared with the
-	// generic role refs); iterating the map values directly would drop all but one.
-	type addrRef struct {
-		addr string
-		tv   cldf.TypeAndVersion
-	}
-	var refs []addrRef
-	for addr, tvs := range addresses {
-		for _, tv := range tvs {
-			refs = append(refs, addrRef{addr, tv})
-		}
+	// Flatten the per-address slices so every typed ref is visited. Keep the qualifier
+	// alongside the TypeAndVersion because it is not part of the legacy address-book format.
+	var refs []suiAddressRef
+	for _, addressRefs := range addresses {
+		refs = append(refs, addressRefs...)
 	}
 	for _, r := range refs {
-		addr := r.addr
+		addr := r.address
 		typeAndVersion := r.tv
 		// Determine whether this address belongs to the fastcurse MCMS instance.
 		isFastCurse := typeAndVersion.Labels.Contains(MCMSFastCurseLabel)
+		if instance, ok := MCMSInstanceFromQualifier(r.qualifier); ok {
+			isFastCurse = instance.IsFastCurse()
+		}
 
 		switch typeAndVersion.Type {
 
@@ -690,7 +691,15 @@ func loadsuiChainStateFromAddresses(addresses map[string][]cldf.TypeAndVersion) 
 				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token faucet: %w", err)
 			}
 			faucet := chainState.ManagedTokenFaucets[symbol]
-			faucet.StateObjectId = addr
+			faucet.StateObjectID = addr
+			chainState.ManagedTokenFaucets[symbol] = faucet
+		case SuiManagedTokenFaucetMinterCapIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token faucet: %w", err)
+			}
+			faucet := chainState.ManagedTokenFaucets[symbol]
+			faucet.MinterCapObjectID = addr
 			chainState.ManagedTokenFaucets[symbol] = faucet
 		case SuiManagedTokenFaucetUpgradeCapObjectIDType:
 			symbol, err := getTokenSymbol(typeAndVersion)
@@ -824,13 +833,19 @@ func loadsuiChainStateFromAddresses(addresses map[string][]cldf.TypeAndVersion) 
 }
 
 func getTokenSymbol(typeAndVersion cldf.TypeAndVersion) (string, error) {
-	if typeAndVersion.Labels.IsEmpty() {
-		return "", fmt.Errorf("no labels found for type %s", typeAndVersion.Type)
+	var symbols []string
+	for _, label := range typeAndVersion.Labels.List() {
+		if label == "" || strings.HasPrefix(label, "coinType=") {
+			continue
+		}
+		symbols = append(symbols, label)
 	}
-	labels := typeAndVersion.Labels.List()
-	symbolStr := labels[0]
-	if symbolStr == "" {
-		return "", fmt.Errorf("empty symbol label for type %s", typeAndVersion.Type)
+	switch len(symbols) {
+	case 0:
+		return "", fmt.Errorf("no token symbol label found for type %s", typeAndVersion.Type)
+	case 1:
+		return symbols[0], nil
+	default:
+		return "", fmt.Errorf("multiple token symbol labels found for type %s: %s", typeAndVersion.Type, strings.Join(symbols, ", "))
 	}
-	return symbolStr, nil
 }

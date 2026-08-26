@@ -23,6 +23,10 @@ type DeploySuiChainConfig struct {
 	DestChainSelector             uint64 // dest chain selector
 	DestChainOnRampAddressBytes   []byte // onRamp of the destination chain we are connecting to
 	LinkTokenCoinMetadataObjectId string // this defines the initial feeToken
+	// ReplaceExisting allows this changeset to take datastore keys that are already recorded,
+	// as re-running a chain deployment does. Without it, an occupied key is an error raised
+	// before anything is deployed.
+	ReplaceExisting bool `yaml:"replaceExisting"`
 }
 
 var _ cldf.ChangeSetV2[DeploySuiChainConfig] = DeploySuiChain{}
@@ -127,25 +131,25 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 
 	// save Router address to the addressbook
 	typeAndVersionRouter := cldf.NewTypeAndVersion(deployment.SuiCCIPRouterType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, routerReport.Output.PackageId, typeAndVersionRouter)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, routerReport.Output.PackageId, typeAndVersionRouter, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save Router address %s for Sui chain %d: %w", routerReport.Output.PackageId, config.SuiChainSelector, err)
 	}
 
 	typeAndVersionRouterObject := cldf.NewTypeAndVersion(deployment.SuiCCIPRouterStateObjectType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, routerReport.Output.Objects.RouterStateObjectId, typeAndVersionRouterObject)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, routerReport.Output.Objects.RouterStateObjectId, typeAndVersionRouterObject, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save Router state object Id %s for Sui chain %d: %w", routerReport.Output.Objects.RouterStateObjectId, config.SuiChainSelector, err)
 	}
 
 	typeAndVersionRouterOwnerCap := cldf.NewTypeAndVersion(deployment.SuiCCIPRouterOwnerCapObjectIDType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, routerReport.Output.Objects.OwnerCapObjectId, typeAndVersionRouterOwnerCap)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, routerReport.Output.Objects.OwnerCapObjectId, typeAndVersionRouterOwnerCap, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save Router owner cap object Id %s for Sui chain %d: %w", routerReport.Output.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 	}
 
 	typeAndVersionRouterUpgradeCapId := cldf.NewTypeAndVersion(deployment.SuiRouterUpgradeCapObjectIDType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, routerReport.Output.Objects.UpgradeCapObjectId, typeAndVersionRouterUpgradeCapId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, routerReport.Output.Objects.UpgradeCapObjectId, typeAndVersionRouterUpgradeCapId, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save RouterUpgradeCapId  %s for Sui chain %d: %w", routerReport.Output.Objects.UpgradeCapObjectId, config.SuiChainSelector, err)
 	}
@@ -171,34 +175,34 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 
 	// save CCIP address to the addressbook
 	typeAndVersionCCIP := cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipSeqReport.Output.CCIPPackageId, typeAndVersionCCIP)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipSeqReport.Output.CCIPPackageId, typeAndVersionCCIP, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIP address %s for Sui chain %d: %w", ccipSeqReport.Output.CCIPPackageId, config.SuiChainSelector, err)
 	}
 
 	// save CCIP ObjectRef address to the addressbook
 	typeAndVersionCCIPObjectRef := cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipSeqReport.Output.Objects.CCIPObjectRefObjectId, typeAndVersionCCIPObjectRef)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipSeqReport.Output.Objects.CCIPObjectRefObjectId, typeAndVersionCCIPObjectRef, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIP objectRef Id %s for Sui chain %d: %w", ccipSeqReport.Output.Objects.CCIPObjectRefObjectId, config.SuiChainSelector, err)
 	}
 
 	// save CCIP FeeQuoterCapObjectId address to the addressbook
 	typeAndVersionCCIPFeeQuoterCapIdRef := cldf.NewTypeAndVersion(deployment.SuiFeeQuoterCapType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipSeqReport.Output.Objects.FeeQuoterCapObjectId, typeAndVersionCCIPFeeQuoterCapIdRef)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipSeqReport.Output.Objects.FeeQuoterCapObjectId, typeAndVersionCCIPFeeQuoterCapIdRef, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIP FeeQuoter CapId Id %s for Sui chain %d: %w", ccipSeqReport.Output.Objects.FeeQuoterCapObjectId, config.SuiChainSelector, err)
 	}
 
 	// save CCIP ObjectRef address to the addressbook
 	typeAndVersionCCIPOwnerCapObjectId := cldf.NewTypeAndVersion(deployment.SuiCCIPOwnerCapObjectIDType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipSeqReport.Output.Objects.OwnerCapObjectId, typeAndVersionCCIPOwnerCapObjectId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipSeqReport.Output.Objects.OwnerCapObjectId, typeAndVersionCCIPOwnerCapObjectId, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIP ownerCapObjectId %s for Sui chain %d: %w", ccipSeqReport.Output.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 	}
 
 	typeAndVersionCCIPUpgradeCapObjectId := cldf.NewTypeAndVersion(deployment.SuiCCIPUpgradeCapObjectIDType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipSeqReport.Output.Objects.UpgradeCapObjectId, typeAndVersionCCIPUpgradeCapObjectId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipSeqReport.Output.Objects.UpgradeCapObjectId, typeAndVersionCCIPUpgradeCapObjectId, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIP UpgradeCapObjectId %s for Sui chain %d: %w", ccipSeqReport.Output.Objects.UpgradeCapObjectId, config.SuiChainSelector, err)
 	}
@@ -248,28 +252,28 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 
 	// save onRamp address to the addressbook
 	typeAndVersionOnRamp := cldf.NewTypeAndVersion(deployment.SuiOnRampType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOnRampSeqReport.Output.CCIPOnRampPackageId, typeAndVersionOnRamp)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOnRampSeqReport.Output.CCIPOnRampPackageId, typeAndVersionOnRamp, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save onRamp address %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.CCIPOnRampPackageId, config.DestChainSelector, err)
 	}
 
 	// save onRampStateId address to the addressbook
 	typeAndVersionOnRampStateId := cldf.NewTypeAndVersion(deployment.SuiOnRampStateObjectIDType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOnRampSeqReport.Output.Objects.StateObjectId, typeAndVersionOnRampStateId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOnRampSeqReport.Output.Objects.StateObjectId, typeAndVersionOnRampStateId, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save onRamp state object Id  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
 	}
 
 	// save OnRampOwnerCapObjectID to addressbook
 	typeAndVersionOnRampOwnerCapObjectId := cldf.NewTypeAndVersion(deployment.SuiOnRampOwnerCapObjectIDType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOnRampSeqReport.Output.Objects.OwnerCapObjectId, typeAndVersionOnRampOwnerCapObjectId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOnRampSeqReport.Output.Objects.OwnerCapObjectId, typeAndVersionOnRampOwnerCapObjectId, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save OnRampOwnerCapObjectID  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
 	}
 
 	// save OnRampUpgradeCapId to addressbook
 	typeAndVersionOnRampUpgradeCapId := cldf.NewTypeAndVersion(deployment.SuiOnRampUpgradeCapObjectIDType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOnRampSeqReport.Output.Objects.UpgradeCapObjectId, typeAndVersionOnRampUpgradeCapId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOnRampSeqReport.Output.Objects.UpgradeCapObjectId, typeAndVersionOnRampUpgradeCapId, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save OnRampUpgradeCapId  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
 	}
@@ -304,28 +308,28 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 
 	// save offRamp address to the addressbook
 	typeAndVersionOffRamp := cldf.NewTypeAndVersion(deployment.SuiOffRampType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOffRampSeqReport.Output.CCIPOffRampPackageId, typeAndVersionOffRamp)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOffRampSeqReport.Output.CCIPOffRampPackageId, typeAndVersionOffRamp, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save offRamp address %s for Sui chain %d: %w", ccipOffRampSeqReport.Output.CCIPOffRampPackageId, config.SuiChainSelector, err)
 	}
 
 	// save offRamp ownerCapId to the addressbook
 	typeAndVersionOffRampOwnerCapId := cldf.NewTypeAndVersion(deployment.SuiOffRampOwnerCapObjectIDType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOffRampSeqReport.Output.Objects.OwnerCapId, typeAndVersionOffRampOwnerCapId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOffRampSeqReport.Output.Objects.OwnerCapId, typeAndVersionOffRampOwnerCapId, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save offRamp ObjectCapId address %s for Sui chain %d: %w", ccipOffRampSeqReport.Output.CCIPOffRampPackageId, config.SuiChainSelector, err)
 	}
 
 	// save offRamp stateObjectId to the addressbook
 	typeAndVersionOffRampObjectStateId := cldf.NewTypeAndVersion(deployment.SuiOffRampStateObjectIDType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOffRampSeqReport.Output.Objects.StateObjectId, typeAndVersionOffRampObjectStateId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOffRampSeqReport.Output.Objects.StateObjectId, typeAndVersionOffRampObjectStateId, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save offRamp StateObjectId %s for Sui chain %d: %w", ccipOffRampSeqReport.Output.Objects.StateObjectId, config.SuiChainSelector, err)
 	}
 
 	// save OnRampUpgradeCapId to addressbook
 	typeAndVersionOffRampUpgradeCapId := cldf.NewTypeAndVersion(deployment.SuiOffRampUpgradeCapObjectIDType, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOffRampSeqReport.Output.Objects.UpgradeCapObjectId, typeAndVersionOffRampUpgradeCapId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, ccipOffRampSeqReport.Output.Objects.UpgradeCapObjectId, typeAndVersionOffRampUpgradeCapId, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save OnRampUpgradeCapId  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
 	}
@@ -339,8 +343,45 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	}, nil
 }
 
-// TODO
 // VerifyPreconditions implements deployment.ChangeSetV2.
 func (d DeploySuiChain) VerifyPreconditions(e cldf.Environment, config DeploySuiChainConfig) error {
-	return nil
+	return deployment.ValidateNoDatastoreConflicts(e, config.SuiChainSelector, config.ReplaceExisting,
+		func() ([]deployment.PlannedRef, error) {
+			// The core protocol objects are chain singletons deployed unconditionally.
+			planned := []deployment.PlannedRef{
+				{Type: deployment.SuiCCIPRouterType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiCCIPRouterStateObjectType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiCCIPRouterOwnerCapObjectIDType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiRouterUpgradeCapObjectIDType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiCCIPType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiCCIPObjectRefType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiFeeQuoterCapType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiCCIPOwnerCapObjectIDType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiCCIPUpgradeCapObjectIDType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiOnRampType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiOnRampStateObjectIDType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiOnRampOwnerCapObjectIDType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiOnRampUpgradeCapObjectIDType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiOffRampType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiOffRampOwnerCapObjectIDType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiOffRampStateObjectIDType, Qualifier: deployment.ChainSingletonQualifier},
+				{Type: deployment.SuiOffRampUpgradeCapObjectIDType, Qualifier: deployment.ChainSingletonQualifier},
+			}
+
+			// Apply deploys each MCMS instance only when the recorded chain state has none;
+			// mirror that condition so the plan covers exactly the keys Apply would write.
+			state, err := deployment.LoadOnchainStatesui(e)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load onchain state: %w", err)
+			}
+			chainState := state[config.SuiChainSelector]
+			if chainState.MCMSPackageID == "" {
+				planned = append(planned, deployment.PlannedMCMSRefs(deployment.MCMSInstanceSlow)...)
+			}
+			if chainState.FastCurseMCMSPackageID == "" {
+				planned = append(planned, deployment.PlannedMCMSRefs(deployment.MCMSInstanceFastCurse)...)
+			}
+
+			return planned, nil
+		})
 }

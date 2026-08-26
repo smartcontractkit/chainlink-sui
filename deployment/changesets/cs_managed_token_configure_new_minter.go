@@ -1,6 +1,7 @@
 package changesets
 
 import (
+	"errors"
 	"fmt"
 
 	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -24,6 +25,10 @@ type ManagedTokenConfigureNewMinterConfig struct {
 	Allowance             uint64
 	IsUnlimited           bool
 	Source                string
+	// ReplaceExisting allows this changeset to take a datastore key that is already recorded,
+	// which is what re-authorising a minter that already holds a cap does. Without it, an
+	// occupied key is an error raised before anything is deployed.
+	ReplaceExisting bool `yaml:"replaceExisting"`
 }
 
 var _ cldf.ChangeSetV2[ManagedTokenConfigureNewMinterConfig] = ManagedTokenConfigureNewMinter{}
@@ -32,7 +37,21 @@ type ManagedTokenConfigureNewMinter struct{}
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
 func (d ManagedTokenConfigureNewMinter) VerifyPreconditions(e cldf.Environment, config ManagedTokenConfigureNewMinterConfig) error {
-	return nil
+	if config.MinterAddress == "" {
+		return errors.New("minterAddress must be provided: it identifies the minter cap this changeset records")
+	}
+	return deployment.ValidateNoDatastoreConflicts(e, config.SuiChainSelector, config.ReplaceExisting,
+		func() ([]deployment.PlannedRef, error) {
+			symbol, err := coinSymbol(e, config.SuiChainSelector, config.CoinObjectTypeArg)
+			if err != nil {
+				return nil, err
+			}
+
+			return []deployment.PlannedRef{{
+				Type:      deployment.SuiManagedTokenMinterCapID,
+				Qualifier: deployment.MinterCapQualifier(symbol, config.MinterAddress),
+			}}, nil
+		})
 }
 
 // Apply implements deployment.ChangeSetV2.
@@ -78,7 +97,11 @@ func (d ManagedTokenConfigureNewMinter) Apply(e cldf.Environment, config Managed
 	// save ManagedTokenMinterCapID address to the addressbook
 	typeAndVersionMinterCapID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenMinterCapID, deployment.Version1_0_0)
 	typeAndVersionMinterCapID.AddLabel(symbolReport.Output.Symbol)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, configureNewMinterReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID)
+	// holder-scoped: each minter this changeset authorises gets its own cap. Re-running it for
+	// a minter that already holds one takes the same key, which VerifyPreconditions rejects
+	// unless ReplaceExisting was set.
+	minterCapQualifier := deployment.MinterCapQualifier(symbolReport.Output.Symbol, config.MinterAddress)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, configureNewMinterReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID, minterCapQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken MinterCapObjectId address %s for Sui chain %d: %w", configureNewMinterReport.Output.Objects.MinterCapObjectId, config.SuiChainSelector, err)
 	}

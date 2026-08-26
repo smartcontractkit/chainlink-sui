@@ -19,6 +19,10 @@ type DeployCCIPLnRTokenConfig struct {
 	ChainSelector uint64 `yaml:"chainSelector"`
 	MintAmount    uint64 `yaml:"mintAmount"`
 	MintToAddress string `yaml:"mintToAddress"`
+	// ReplaceExisting allows this changeset to take datastore keys that are already
+	// recorded, as a redeploy of this token does. Without it, an occupied key is an error
+	// raised before anything is deployed.
+	ReplaceExisting bool `yaml:"replaceExisting"`
 }
 
 var _ cldf.ChangeSetV2[DeployCCIPLnRTokenConfig] = DeployCCIPLnRToken{}
@@ -59,7 +63,7 @@ func (d DeployCCIPLnRToken) Apply(e cldf.Environment, config DeployCCIPLnRTokenC
 	typeAndVersionCCIPLnRToken := cldf.NewTypeAndVersion(deployment.SuiLnRTokenType, deployment.Version1_0_0)
 	typeAndVersionCCIPLnRToken.AddLabel(CCIPLnRSymbol)
 	typeAndVersionCCIPLnRToken.AddLabel("coinType=" + deployment.SuiCCIPLnRCoinTypeSuffix)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipLnRTokenReport.Output.PackageId, typeAndVersionCCIPLnRToken)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipLnRTokenReport.Output.PackageId, typeAndVersionCCIPLnRToken, deployment.TokenQualifier(CCIPLnRSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPLnRToken package ID %s for Sui chain %d: %w", ccipLnRTokenReport.Output.PackageId, config.ChainSelector, err)
 	}
@@ -67,7 +71,7 @@ func (d DeployCCIPLnRToken) Apply(e cldf.Environment, config DeployCCIPLnRTokenC
 	// save CCIPLnRTokenCoinMetadataId address to the addressbook
 	typeAndVersionCoinMetadataId := cldf.NewTypeAndVersion(deployment.SuiLnRTokenCoinMetadataIDType, deployment.Version1_0_0)
 	typeAndVersionCoinMetadataId.AddLabel(CCIPLnRSymbol)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipLnRTokenReport.Output.Objects.CoinMetadataObjectId, typeAndVersionCoinMetadataId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipLnRTokenReport.Output.Objects.CoinMetadataObjectId, typeAndVersionCoinMetadataId, deployment.TokenQualifier(CCIPLnRSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPLnRToken CoinmetadataObjectId address %s for Sui chain %d: %w", ccipLnRTokenReport.Output.Objects.CoinMetadataObjectId, config.ChainSelector, err)
 	}
@@ -75,7 +79,7 @@ func (d DeployCCIPLnRToken) Apply(e cldf.Environment, config DeployCCIPLnRTokenC
 	// save CCIPLnRTokenTreasuryCapId address to the addressbook
 	typeAndVersionTreasuryCapId := cldf.NewTypeAndVersion(deployment.SuiLnRTokenTreasuryCapIDType, deployment.Version1_0_0)
 	typeAndVersionTreasuryCapId.AddLabel(CCIPLnRSymbol)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipLnRTokenReport.Output.Objects.TreasuryCapObjectId, typeAndVersionTreasuryCapId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipLnRTokenReport.Output.Objects.TreasuryCapObjectId, typeAndVersionTreasuryCapId, deployment.TokenQualifier(CCIPLnRSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPLnRToken TreasuryCapObjectId address %s for Sui chain %d: %w", ccipLnRTokenReport.Output.Objects.TreasuryCapObjectId, config.ChainSelector, err)
 	}
@@ -83,7 +87,7 @@ func (d DeployCCIPLnRToken) Apply(e cldf.Environment, config DeployCCIPLnRTokenC
 	// save CCIPLnRTokenUpgradeCapId address to the addressbook
 	typeAndVersionUpgradeCapId := cldf.NewTypeAndVersion(deployment.SuiLnRTokenUpgradeCapIDType, deployment.Version1_0_0)
 	typeAndVersionUpgradeCapId.AddLabel(CCIPLnRSymbol)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipLnRTokenReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, ccipLnRTokenReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapId, deployment.TokenQualifier(CCIPLnRSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIPLnRToken UpgradeCapObjectId address %s for Sui chain %d: %w", ccipLnRTokenReport.Output.Objects.UpgradeCapObjectId, config.ChainSelector, err)
 	}
@@ -110,5 +114,15 @@ func (d DeployCCIPLnRToken) Apply(e cldf.Environment, config DeployCCIPLnRTokenC
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
 func (d DeployCCIPLnRToken) VerifyPreconditions(e cldf.Environment, config DeployCCIPLnRTokenConfig) error {
-	return nil
+	qualifier := deployment.TokenQualifier(CCIPLnRSymbol)
+
+	return deployment.ValidateNoDatastoreConflicts(e, config.ChainSelector, config.ReplaceExisting,
+		func() ([]deployment.PlannedRef, error) {
+			return []deployment.PlannedRef{
+				{Type: deployment.SuiLnRTokenType, Qualifier: qualifier},
+				{Type: deployment.SuiLnRTokenCoinMetadataIDType, Qualifier: qualifier},
+				{Type: deployment.SuiLnRTokenTreasuryCapIDType, Qualifier: qualifier},
+				{Type: deployment.SuiLnRTokenUpgradeCapIDType, Qualifier: qualifier},
+			}, nil
+		})
 }

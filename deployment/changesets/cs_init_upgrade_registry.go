@@ -23,6 +23,10 @@ type UpgradeRegistryConfig struct {
 	StateObjectId       string                `yaml:"stateObjectId"`
 	OwnerCapObjectId    string                `yaml:"ownerCapObjectId"`
 	TimelockConfig      *utils.TimelockConfig `yaml:"timelockConfig,omitempty"`
+	// ReplaceExisting allows this changeset to take the datastore key that is already
+	// recorded, as re-initializing an upgrade registry does. Without it, an occupied key is
+	// an error raised before anything is deployed.
+	ReplaceExisting bool `yaml:"replaceExisting"`
 }
 
 var _ cldf.ChangeSetV2[UpgradeRegistryConfig] = UpgradeRegistry{}
@@ -103,7 +107,7 @@ func (d UpgradeRegistry) Apply(e cldf.Environment, config UpgradeRegistryConfig)
 	ab := cldf.NewMemoryAddressBook()
 	ds := fdatastore.NewMemoryDataStore()
 	typeAndVersionUpgradeRegistryObjectId := cldf.NewTypeAndVersion(deployment.SuiUpgradeRegistryObjectId, deployment.Version1_0_0)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, upgradeRegistryInitializeOp.Output.Objects.UpgradeRegistryObjectId, typeAndVersionUpgradeRegistryObjectId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, upgradeRegistryInitializeOp.Output.Objects.UpgradeRegistryObjectId, typeAndVersionUpgradeRegistryObjectId, deployment.ChainSingletonQualifier)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save UpgradeRegistryInitializeOp address %s for Sui chain %d: %w", upgradeRegistryInitializeOp.Output.Objects.UpgradeRegistryObjectId, config.SuiChainSelector, err)
 	}
@@ -117,5 +121,15 @@ func (d UpgradeRegistry) Apply(e cldf.Environment, config UpgradeRegistryConfig)
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
 func (d UpgradeRegistry) VerifyPreconditions(e cldf.Environment, config UpgradeRegistryConfig) error {
-	return nil
+	return deployment.ValidateNoDatastoreConflicts(e, config.SuiChainSelector, config.ReplaceExisting,
+		func() ([]deployment.PlannedRef, error) {
+			// With a timelock config the registry object is created by the proposal's
+			// execution and recorded by post-execution state generation; Apply writes nothing.
+			if config.TimelockConfig != nil {
+				return nil, nil
+			}
+			return []deployment.PlannedRef{
+				{Type: deployment.SuiUpgradeRegistryObjectId, Qualifier: deployment.ChainSingletonQualifier},
+			}, nil
+		})
 }

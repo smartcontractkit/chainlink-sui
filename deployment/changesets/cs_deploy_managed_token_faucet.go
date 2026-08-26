@@ -1,6 +1,7 @@
 package changesets
 
 import (
+	"errors"
 	"fmt"
 
 	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -19,6 +20,10 @@ type DeployManagedTokenFaucetConfig struct {
 	TokenSymbol     string `yaml:"tokenSymbol"`
 	CoinType        string `yaml:"coinType"`
 	MintCapObjectId string `yaml:"mintCapObjectId"`
+	// ReplaceExisting allows this changeset to take datastore keys that are already recorded,
+	// as redeploying a faucet for a token does. Without it, an occupied key is an error raised
+	// before anything is deployed.
+	ReplaceExisting bool `yaml:"replaceExisting"`
 }
 
 var _ cldf.ChangeSetV2[DeployManagedTokenFaucetConfig] = DeployManagedTokenFaucet{}
@@ -105,10 +110,16 @@ func (d DeployManagedTokenFaucet) Apply(e cldf.Environment, config DeployManaged
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to configure deployer as minter for chain %d: %w", config.ChainSelector, err)
 		}
 
-		// Save the minter cap for the deployer
-		typeAndVersionMinterCapID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenMinterCapID, deployment.Version1_0_0)
+		// Save the minter cap for the deployer.
+		//
+		// This cap gets its own type rather than SuiManagedTokenMinterCapID: it is held by the
+		// deployer, as is the cap minted at token deploy time, so holder-scoping alone would
+		// not separate the two. A faucet is a singleton per token, so its cap is token-scoped
+		// and also becomes resolvable by type instead of by position in MinterCapObjectIds.
+		typeAndVersionMinterCapID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenFaucetMinterCapIDType, deployment.Version1_0_0)
 		typeAndVersionMinterCapID.AddLabel(config.TokenSymbol)
-		if err := deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, minterReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID); err != nil {
+		// multi-instance token; token symbol qualifier
+		if err := deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, minterReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID, deployment.TokenQualifier(config.TokenSymbol)); err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to save managed token minter cap id %s: %w", minterReport.Output.Objects.MinterCapObjectId, err)
 		}
 		mintCapObjectId = minterReport.Output.Objects.MinterCapObjectId
@@ -125,19 +136,22 @@ func (d DeployManagedTokenFaucet) Apply(e cldf.Environment, config DeployManaged
 
 	typeAndVersionPackageID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenFaucetPackageIDType, deployment.Version1_0_0)
 	typeAndVersionPackageID.AddLabel(config.TokenSymbol)
-	if err := deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, deployReport.Output.PackageId, typeAndVersionPackageID); err != nil {
+	// multi-instance token; token symbol qualifier
+	if err := deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, deployReport.Output.PackageId, typeAndVersionPackageID, deployment.TokenQualifier(config.TokenSymbol)); err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save managed token faucet package id %s: %w", deployReport.Output.PackageId, err)
 	}
 
 	typeAndVersionUpgradeCapID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenFaucetUpgradeCapObjectIDType, deployment.Version1_0_0)
 	typeAndVersionUpgradeCapID.AddLabel(config.TokenSymbol)
-	if err := deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, deployReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapID); err != nil {
+	// multi-instance token; token symbol qualifier
+	if err := deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, deployReport.Output.Objects.UpgradeCapObjectId, typeAndVersionUpgradeCapID, deployment.TokenQualifier(config.TokenSymbol)); err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save managed token faucet upgrade cap id %s: %w", deployReport.Output.Objects.UpgradeCapObjectId, err)
 	}
 
 	typeAndVersionStateID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenFaucetStateObjectIDType, deployment.Version1_0_0)
 	typeAndVersionStateID.AddLabel(config.TokenSymbol)
-	if err := deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, initReport.Output.Objects.FaucetStateObjectId, typeAndVersionStateID); err != nil {
+	// multi-instance token; token symbol qualifier
+	if err := deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, initReport.Output.Objects.FaucetStateObjectId, typeAndVersionStateID, deployment.TokenQualifier(config.TokenSymbol)); err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save managed token faucet state object id %s: %w", initReport.Output.Objects.FaucetStateObjectId, err)
 	}
 
@@ -149,5 +163,31 @@ func (d DeployManagedTokenFaucet) Apply(e cldf.Environment, config DeployManaged
 }
 
 func (d DeployManagedTokenFaucet) VerifyPreconditions(e cldf.Environment, config DeployManagedTokenFaucetConfig) error {
-	return nil
+	// Validate here as well as in Apply: the symbol is the datastore key for every ref this
+	// changeset plans, so it must be known before the conflict check runs, not after.
+	if config.TokenSymbol == "" {
+		return errors.New("tokenSymbol must be provided")
+	}
+	if config.CoinType == "" {
+		return errors.New("coinType must be provided")
+	}
+	return deployment.ValidateNoDatastoreConflicts(e, config.ChainSelector, config.ReplaceExisting,
+		func() ([]deployment.PlannedRef, error) {
+			qualifier := deployment.TokenQualifier(config.TokenSymbol)
+
+			planned := []deployment.PlannedRef{
+				{Type: deployment.SuiManagedTokenFaucetPackageIDType, Qualifier: qualifier},
+				{Type: deployment.SuiManagedTokenFaucetUpgradeCapObjectIDType, Qualifier: qualifier},
+				{Type: deployment.SuiManagedTokenFaucetStateObjectIDType, Qualifier: qualifier},
+			}
+			// Apply mints a cap for the deployer only when the caller did not supply one.
+			if config.MintCapObjectId == "" {
+				planned = append(planned, deployment.PlannedRef{
+					Type:      deployment.SuiManagedTokenFaucetMinterCapIDType,
+					Qualifier: qualifier,
+				})
+			}
+
+			return planned, nil
+		})
 }

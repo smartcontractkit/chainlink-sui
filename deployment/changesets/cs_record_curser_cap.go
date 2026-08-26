@@ -16,6 +16,10 @@ type RecordCurserCapConfig struct {
 	SuiChainSelector  uint64 `yaml:"suiChainSelector"`
 	TxDigest          string `yaml:"txDigest,omitempty"`
 	CurserCapObjectId string `yaml:"curserCapObjectId,omitempty"`
+	// ReplaceExisting allows this changeset to take a datastore key already held by a
+	// *different* cap object. Without it that is an error, raised before anything is written;
+	// re-recording the cap already under the key is a no-op and needs no flag.
+	ReplaceExisting bool `yaml:"replaceExisting"`
 }
 
 var _ cldf.ChangeSetV2[RecordCurserCapConfig] = RecordCurserCap{}
@@ -31,7 +35,18 @@ func (c RecordCurserCap) VerifyPreconditions(e cldf.Environment, cfg RecordCurse
 			return fmt.Errorf("no Sui chain client for selector %d (required to resolve txDigest)", cfg.SuiChainSelector)
 		}
 	}
-	return nil
+	return deployment.ValidateNoDatastoreConflicts(e, cfg.SuiChainSelector, cfg.ReplaceExisting,
+		func() ([]deployment.PlannedRef, error) {
+			// The cap ID is known upfront (import path), so the plan carries it: re-recording
+			// the same cap is then a no-op rather than a conflict.
+			capID, err := resolveCurserCapIDForRecord(e, cfg)
+			if err != nil {
+				return nil, err
+			}
+			return []deployment.PlannedRef{
+				{Type: deployment.SuiCurserCapObjectIDType, Qualifier: deployment.ChainSingletonQualifier, Address: capID},
+			}, nil
+		})
 }
 
 func (c RecordCurserCap) Apply(e cldf.Environment, cfg RecordCurserCapConfig) (cldf.ChangesetOutput, error) {
@@ -58,7 +73,8 @@ func (c RecordCurserCap) Apply(e cldf.Environment, cfg RecordCurserCapConfig) (c
 	ab := cldf.NewMemoryAddressBook()
 	ds := fdatastore.NewMemoryDataStore()
 	tv := cldf.NewTypeAndVersion(deployment.SuiCurserCapObjectIDType, deployment.Version1_0_0)
-	if err := deployment.SaveSuiAddress(ab, ds.Addresses(), cfg.SuiChainSelector, capID, tv); err != nil {
+	// chain singleton; empty qualifier
+	if err := deployment.SaveSuiAddress(ab, ds.Addresses(), cfg.SuiChainSelector, capID, tv, deployment.ChainSingletonQualifier); err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("save CurserCap to address book: %w", err)
 	}
 

@@ -121,7 +121,7 @@ func getExpectedSuiChainState() CCIPChainState {
 		ManagedTokenFaucets: map[string]ManagedTokenFaucetState{
 			"LINK": {
 				PackageID:          "0x52f33e4724128431084e207406304383c05660042000016240438147268f1851",
-				StateObjectId:      "0x52f33e4724128431084e207406304383c05660042000016240438147268f184f",
+				StateObjectID:      "0x52f33e4724128431084e207406304383c05660042000016240438147268f184f",
 				UpgradeCapObjectId: "0x52f33e4724128431084e207406304383c05660042000016240438147268f1850",
 			},
 		},
@@ -153,4 +153,35 @@ func getExpectedSuiChainState() CCIPChainState {
 			},
 		},
 	}
+}
+
+// LabelSet.List returns labels sorted, so the symbol is the first label that is not a
+// coinType= annotation — including when the annotation would sort ahead of the symbol.
+func TestGetTokenSymbol_skipsCoinTypeAnnotations(t *testing.T) {
+	t.Parallel()
+
+	tv := cldf.NewTypeAndVersion(SuiManagedTokenType, Version1_0_0)
+	tv.AddLabel("usdc-test") // lowercase: sorts after the coinType= annotation
+	tv.AddLabel("coinType=managed_token::MANAGED_TOKEN")
+
+	symbol, err := getTokenSymbol(tv)
+	require.NoError(t, err)
+	require.Equal(t, "usdc-test", symbol)
+
+	// No usable symbol label: a loud error, not a coinType= annotation returned as "symbol".
+	tvNoSymbol := cldf.NewTypeAndVersion(SuiManagedTokenType, Version1_0_0)
+	tvNoSymbol.Labels.Add("coinType=managed_token::MANAGED_TOKEN")
+	_, err = getTokenSymbol(tvNoSymbol)
+	require.ErrorContains(t, err, "no token symbol label")
+
+	// No labels at all.
+	_, err = getTokenSymbol(cldf.NewTypeAndVersion(SuiManagedTokenType, Version1_0_0))
+	require.ErrorContains(t, err, "no token symbol label")
+
+	// Multiple non-annotation labels are ambiguous and must not be resolved by label order.
+	tvAmbiguous := cldf.NewTypeAndVersion(SuiManagedTokenType, Version1_0_0)
+	tvAmbiguous.AddLabel("BnM")
+	tvAmbiguous.AddLabel("LnR")
+	_, err = getTokenSymbol(tvAmbiguous)
+	require.ErrorContains(t, err, "multiple token symbol labels")
 }
