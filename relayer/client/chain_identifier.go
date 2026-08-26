@@ -26,8 +26,9 @@ const chainIdentifierHexLen = 8
 // [environments] and Published.toml chain-id require. GetChainIdentifier decodes and truncates here
 // so callers get the JSON-RPC-equivalent value without speaking JSON-RPC.
 //
-// rpcURL is a JSON-RPC-style URL (http(s)://host:port). The scheme is stripped to obtain the gRPC
-// dial target and TLS is selected by grpcTargetUsesTLS (local/non-443 plaintext, :443 TLS), matching
+// rpcURL is a JSON-RPC-style URL (http(s)://host:port) or a bare gRPC target (host:port). The
+// scheme is stripped when present to obtain the gRPC dial target, and TLS is selected by
+// grpcTargetUsesTLS (local/non-443 plaintext, :443 TLS), matching
 // how NewPTBClientFromConfig dials the same node. No auth token is injected, so this is suitable for
 // local nodes; authenticated public endpoints should go through a fully-configured PTBClient instead.
 func GetChainIdentifier(ctx context.Context, rpcURL string) (string, error) {
@@ -81,17 +82,20 @@ func chainIdentifierFromDigest(b58Digest string) (string, error) {
 	return full[:chainIdentifierHexLen], nil
 }
 
-// grpcTargetFromRPCURL converts a JSON-RPC URL (http(s)://host:port) into a gRPC dial target and
-// reports whether TLS should be used. It reuses grpcTargetUsesTLS so TLS selection stays consistent
-// with NewPTBClientFromConfig (e.g. local 127.0.0.1:9000 stays plaintext, public :443 uses TLS).
+// grpcTargetFromRPCURL converts an RPC endpoint into a gRPC dial target and reports whether TLS
+// should be used. It accepts both a JSON-RPC URL (http(s)://host:port) and a bare gRPC target
+// (host:port, as used by LocalGrpcURL and a scheme-less SUI_RPC_URL); the scheme is stripped when
+// present. It reuses grpcTargetUsesTLS so TLS selection stays consistent with
+// NewPTBClientFromConfig (e.g. local 127.0.0.1:9000 stays plaintext, public :443 uses TLS).
 func grpcTargetFromRPCURL(rpcURL string) (target string, useTLS bool, err error) {
-	switch {
-	case strings.HasPrefix(rpcURL, "https://"):
-		target = strings.TrimPrefix(rpcURL, "https://")
-	case strings.HasPrefix(rpcURL, "http://"):
-		target = strings.TrimPrefix(rpcURL, "http://")
-	default:
-		return "", false, fmt.Errorf("rpc url must include an http(s) scheme: %q", rpcURL)
+	rpcURL = strings.TrimSpace(rpcURL)
+	if rpcURL == "" {
+		return "", false, errors.New("empty rpc url")
+	}
+	if i := strings.Index(rpcURL, "://"); i >= 0 {
+		target = rpcURL[i+3:]
+	} else {
+		target = rpcURL
 	}
 	if target == "" {
 		return "", false, fmt.Errorf("rpc url has an empty host: %q", rpcURL)
