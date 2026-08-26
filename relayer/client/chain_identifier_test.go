@@ -14,9 +14,13 @@ import (
 // It is independent of any live node: a known digest is base58-encoded, then decoded back and
 // truncated by chainIdentifierFromDigest, which must yield the first 8 hex chars of the digest.
 func TestChainIdentifierFromDigest(t *testing.T) {
-	// 32-byte genesis checkpoint digest whose first 4 bytes are 78 25 f4 0f.
-	digest, err := hex.DecodeString("7825f40f" + "a1b2c3d4e5f60718293a4b5c6d7e8f90" + "00112233445566778899aabbccddeeff")
-	require.NoError(t, err)
+	// 32-byte genesis checkpoint digest whose first 4 bytes are 78 25 f4 0f. Built programmatically
+	// to avoid hand-typing 64 hex chars; the remaining bytes are arbitrary.
+	digest := make([]byte, 32)
+	for i := range digest {
+		digest[i] = byte(i)
+	}
+	digest[0], digest[1], digest[2], digest[3] = 0x78, 0x25, 0xf4, 0x0f
 	require.Len(t, digest, 32)
 
 	encoded := base58.Encode(digest)
