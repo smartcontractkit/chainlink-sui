@@ -1082,28 +1082,30 @@ func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, 
 }
 
 func getChainIdentifier(rpcURL string) (string, error) {
-	// Use the Sui CLI's chain-identifier command to get the chain ID
-	// This ensures we get the same chain ID that the CLI will use for publish
-	cmd := exec.Command("sui", "client", "chain-identifier")
-	cmd.Env = os.Environ()
-	out, err := cmd.Output()
-	if err != nil {
-		// Fallback to curl if CLI command fails
-		req := `{"jsonrpc":"2.0","id":1,"method":"sui_getChainIdentifier"}`
-		curlCmd := exec.Command("curl", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", req, rpcURL)
-		curlOut, curlErr := curlCmd.Output()
-		if curlErr != nil {
-			return "", fmt.Errorf("failed to query chain identifier via CLI (%v) and curl (%w)", err, curlErr)
-		}
+	// Prefer the RPC: sui_getChainIdentifier returns the clean chain id that Move.toml
+	// [environments] expects. The `sui client chain-identifier` CLI prints a labeled,
+	// multi-line "Base58: ..." form on newer CLIs that breaks TOML when written verbatim.
+	req := `{"jsonrpc":"2.0","id":1,"method":"sui_getChainIdentifier"}`
+	curlCmd := exec.Command("curl", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", req, rpcURL)
+	curlOut, err := curlCmd.Output()
+	if err == nil {
 		var resp struct {
 			Result string `json:"result"`
 		}
-		if err := json.Unmarshal(curlOut, &resp); err != nil {
-			return "", fmt.Errorf("failed to parse chain identifier: %w\nResponse:\n%s", err, string(curlOut))
+		if jErr := json.Unmarshal(curlOut, &resp); jErr == nil {
+			if id := strings.TrimSpace(resp.Result); id != "" {
+				return id, nil
+			}
 		}
-		return resp.Result, nil
 	}
-	return strings.TrimSpace(string(out)), nil
+	// Fallback to the CLI, sanitized to a single line.
+	cmd := exec.Command("sui", "client", "chain-identifier")
+	cmd.Env = os.Environ()
+	out, cliErr := cmd.Output()
+	if cliErr != nil {
+		return "", fmt.Errorf("failed to query chain identifier via RPC (%v) and CLI (%w)", err, cliErr)
+	}
+	return strings.SplitN(strings.TrimSpace(string(out)), "\n", 2)[0], nil
 }
 
 func getDynamicSuiRPC() (string, error) {
