@@ -1086,7 +1086,7 @@ func getChainIdentifier(rpcURL string) (string, error) {
 	// [environments] expects. The `sui client chain-identifier` CLI prints a labeled,
 	// multi-line "Base58: ..." form on newer CLIs that breaks TOML when written verbatim.
 	req := `{"jsonrpc":"2.0","id":1,"method":"sui_getChainIdentifier"}`
-	curlCmd := exec.Command("curl", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", req, rpcURL)
+	curlCmd := exec.CommandContext(context.Background(), "curl", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", req, rpcURL)
 	curlOut, err := curlCmd.Output()
 	if err == nil {
 		var resp struct {
@@ -1099,11 +1099,11 @@ func getChainIdentifier(rpcURL string) (string, error) {
 		}
 	}
 	// Fallback to the CLI, sanitized to a single line.
-	cmd := exec.Command("sui", "client", "chain-identifier")
+	cmd := exec.CommandContext(context.Background(), "sui", "client", "chain-identifier")
 	cmd.Env = os.Environ()
 	out, cliErr := cmd.Output()
 	if cliErr != nil {
-		return "", fmt.Errorf("failed to query chain identifier via RPC (%v) and CLI (%w)", err, cliErr)
+		return "", fmt.Errorf("failed to query chain identifier via RPC (%w) and CLI (%w)", err, cliErr)
 	}
 	return strings.SplitN(strings.TrimSpace(string(out)), "\n", 2)[0], nil
 }
