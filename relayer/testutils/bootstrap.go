@@ -2,8 +2,6 @@ package testutils
 
 import (
 	context0 "context"
-	"encoding/json"
-	"fmt"
 	"math/big"
 	"os/exec"
 	"testing"
@@ -166,17 +164,10 @@ func SetupTestSigner(
 }
 
 func GetChainIdentifier(rpcURL string) (string, error) {
-	req := `{"jsonrpc":"2.0","id":1,"method":"sui_getChainIdentifier"}`
-	cmd := exec.Command("curl", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", req, rpcURL)
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to query chain identifier: %w", err)
-	}
-	var resp struct {
-		Result string `json:"result"`
-	}
-	if err := json.Unmarshal(out, &resp); err != nil {
-		return "", fmt.Errorf("failed to parse chain identifier: %w\nResponse:\n%s", err, string(out))
-	}
-	return resp.Result, nil
+	// Query the chain identifier over gRPC via GetServiceInfo. Its chain_id field is the digest of
+	// the genesis checkpoint, the same value sui_getChainIdentifier returns. This replaces the
+	// JSON-RPC/curl path so the test bootstrap speaks gRPC like the relayer and compile flow.
+	ctx, cancel := context0.WithTimeout(context0.Background(), 30*time.Second)
+	defer cancel()
+	return client.GetChainIdentifier(ctx, rpcURL)
 }

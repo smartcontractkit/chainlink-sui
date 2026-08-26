@@ -17,10 +17,12 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/smartcontractkit/chainlink-sui/contracts"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 const env = "local"
@@ -1082,28 +1084,26 @@ func managePackage(packageRoot string, version int, rpcURL, env, originalPkgId, 
 }
 
 func getChainIdentifier(rpcURL string) (string, error) {
-	// Use the Sui CLI's chain-identifier command to get the chain ID
-	// This ensures we get the same chain ID that the CLI will use for publish
-	cmd := exec.Command("sui", "client", "chain-identifier")
-	cmd.Env = os.Environ()
-	out, err := cmd.Output()
-	if err != nil {
-		// Fallback to curl if CLI command fails
-		req := `{"jsonrpc":"2.0","id":1,"method":"sui_getChainIdentifier"}`
-		curlCmd := exec.Command("curl", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", req, rpcURL)
-		curlOut, curlErr := curlCmd.Output()
-		if curlErr != nil {
-			return "", fmt.Errorf("failed to query chain identifier via CLI (%v) and curl (%w)", err, curlErr)
-		}
-		var resp struct {
-			Result string `json:"result"`
-		}
-		if err := json.Unmarshal(curlOut, &resp); err != nil {
-			return "", fmt.Errorf("failed to parse chain identifier: %w\nResponse:\n%s", err, string(curlOut))
-		}
-		return resp.Result, nil
+	// Query the chain identifier over gRPC via GetServiceInfo. Its chain_id field is the digest of
+	// the genesis checkpoint, the same clean identifier that Move.toml [environments] expects.
+	// This replaces the JSON-RPC sui_getChainIdentifier path, migrating the compile flow to gRPC.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	id, grpcErr := client.GetChainIdentifier(ctx, rpcURL)
+	if grpcErr == nil {
+		return id, nil
 	}
-	return strings.TrimSpace(string(out)), nil
+	log.Printf("warning: gRPC chain identifier query failed (%v); falling back to sui client chain-identifier\n", grpcErr)
+
+	// Fallback to the CLI, sanitized to a single line. The `sui client chain-identifier` CLI prints
+	// a labeled, multi-line "Base58: ..." form on newer CLIs that breaks TOML when written verbatim.
+	cmd := exec.CommandContext(context.Background(), "sui", "client", "chain-identifier")
+	cmd.Env = os.Environ()
+	out, cliErr := cmd.Output()
+	if cliErr != nil {
+		return "", fmt.Errorf("failed to query chain identifier via gRPC (%w) and CLI (%w)", grpcErr, cliErr)
+	}
+	return strings.SplitN(strings.TrimSpace(string(out)), "\n", 2)[0], nil
 }
 
 func getDynamicSuiRPC() (string, error) {
