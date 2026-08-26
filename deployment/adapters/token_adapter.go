@@ -17,6 +17,7 @@ import (
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
+	cciputils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -621,10 +622,13 @@ func (a *SuiTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 // (ownership step 1), so it executes directly with the chain signer (not as an MCMS proposal)
 // and returns the deployed pool's AddressRefs.
 //
-// PoolType accepts either the Sui short form ("bnm"/"managed"/"lnr") or the contract-type
-// string ("SuiBnMTokenPool"/"SuiManagedTokenPool"). The token's coin type comes from
-// TokenRef.Address and the symbol from TokenRef.Qualifier; CCIP/MCMS state is resolved from
-// the datastore. For managed pools, the first mint-cap ref found for the symbol is used.
+// PoolType accepts the Sui short form ("bnm"/"managed"/"lnr"), the Sui contract-type string
+// ("SuiBnMTokenPool"/"SuiManagedTokenPool"/"SuiLnRTokenPool"), or the generic cross-family
+// contract-type strings used by EVM/Solana ("BurnMintTokenPool"/"LockReleaseTokenPool"). The
+// generic names let a single token_expansion YAML use one poolType across families. The token's
+// coin type comes from TokenRef.Address and the symbol from TokenRef.Qualifier; CCIP/MCMS state
+// is resolved from the datastore. For managed pools, the first mint-cap ref found for the symbol
+// is used.
 //
 // After initialize this calls transfer_ownership(To: MCMS) EOA-direct, setting a pending
 // transfer that UpdateAuthorities' accept_ownership MCMS proposal (step 2) then accepts. The
@@ -859,11 +863,11 @@ func suiDepsExec(chain cldfsui.Chain) sui_ops.OpTxDeps {
 // Sui short form ("bnm"/"managed"/"lnr") and the contract-type string.
 func suiPoolTypeFromStr(s string) (datastore.ContractType, error) {
 	switch s {
-	case "bnm", string(suideploy.SuiBnMTokenPoolType):
+	case "bnm", string(suideploy.SuiBnMTokenPoolType), string(cciputils.BurnMintTokenPool):
 		return datastore.ContractType(suideploy.SuiBnMTokenPoolType), nil
 	case "managed", string(suideploy.SuiManagedTokenPoolType):
 		return datastore.ContractType(suideploy.SuiManagedTokenPoolType), nil
-	case "lnr", string(suideploy.SuiLnRTokenPoolType):
+	case "lnr", string(suideploy.SuiLnRTokenPoolType), string(cciputils.LockReleaseTokenPool):
 		return datastore.ContractType(suideploy.SuiLnRTokenPoolType), nil
 	default:
 		return "", fmt.Errorf("unsupported sui pool type %q", s)

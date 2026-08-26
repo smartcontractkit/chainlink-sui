@@ -460,6 +460,20 @@ func TestSuiPoolTypeFromStr(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, datastore.ContractType(suideploy.SuiManagedTokenPoolType), mng)
 
+	lnr, err := suiPoolTypeFromStr("lnr")
+	require.NoError(t, err)
+	require.Equal(t, datastore.ContractType(suideploy.SuiLnRTokenPoolType), lnr)
+
+	// Generic cross-family contract-type strings used by EVM/Solana YAMLs map to the Sui pool
+	// types so a single token_expansion YAML can use one poolType across families.
+	bnmGeneric, err := suiPoolTypeFromStr("BurnMintTokenPool")
+	require.NoError(t, err)
+	require.Equal(t, datastore.ContractType(suideploy.SuiBnMTokenPoolType), bnmGeneric)
+
+	lnrGeneric, err := suiPoolTypeFromStr("LockReleaseTokenPool")
+	require.NoError(t, err)
+	require.Equal(t, datastore.ContractType(suideploy.SuiLnRTokenPoolType), lnrGeneric)
+
 	_, err = suiPoolTypeFromStr("nonsense")
 	require.Error(t, err)
 }
