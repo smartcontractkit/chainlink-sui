@@ -73,6 +73,8 @@ func ConfigureAllTokenPoolsSeq(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 				return ConfigureAllTokenPoolsOutput{}, fmt.Errorf("failed to get coin symbol: %w", err)
 			}
 			output.DeployLockReleaseTokenPoolOutput.TokenSymbol = symbol
+			output.DeployLockReleaseTokenPoolOutput.LockReleaseTPPackageID = input.LockReleaseTPInput.TokenPoolPkgID
+			output.DeployLockReleaseTokenPoolOutput.Objects = report.Output.Objects
 			output.Reports = append(output.Reports, report.Output.Reports...)
 		case "managed":
 			report, err := cld_ops.ExecuteSequence(env, managedtokenpoolops.ConfigureManagedTokenPoolSequence, deps, input.ManagedTPInput)
