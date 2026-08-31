@@ -22,7 +22,7 @@ type ConfigureAllTokenPoolsInput struct {
 
 	// Token pool specific inputs
 	ManagedTPInput     managedtokenpoolops.ConfigureManagedTokenPoolInput
-	LockReleaseTPInput lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput
+	LockReleaseTPInput lockreleasetokenpoolops.ConfigureLockReleaseTokenPoolInput
 	BurnMintTpInput    burnminttokenpoolops.ConfigureBurnMintTokenPoolInput
 }
 
@@ -63,7 +63,17 @@ func ConfigureAllTokenPoolsSeq(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 			output.DeployBurnMintTokenPoolOutput.TokenSymbol = symbol
 			output.Reports = append(output.Reports, report.Output.Reports...)
 		case "lnr":
-			// todo
+			report, err := cld_ops.ExecuteSequence(env, lockreleasetokenpoolops.ConfigureLockReleaseTokenPoolSequence, deps, input.LockReleaseTPInput)
+			if err != nil {
+				return ConfigureAllTokenPoolsOutput{}, fmt.Errorf("failed to configure lock release token pool: %w", err)
+			}
+
+			symbol, err := getSymbol(env, deps, input.LockReleaseTPInput.CoinObjectTypeArg)
+			if err != nil {
+				return ConfigureAllTokenPoolsOutput{}, fmt.Errorf("failed to get coin symbol: %w", err)
+			}
+			output.DeployLockReleaseTokenPoolOutput.TokenSymbol = symbol
+			output.Reports = append(output.Reports, report.Output.Reports...)
 		case "managed":
 			report, err := cld_ops.ExecuteSequence(env, managedtokenpoolops.ConfigureManagedTokenPoolSequence, deps, input.ManagedTPInput)
 			if err != nil {

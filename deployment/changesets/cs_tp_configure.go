@@ -23,7 +23,7 @@ type TPConfigureConfig struct {
 	SuiChainSelector   uint64
 	TokenPoolTypes     []string
 	ManagedTPInput     managedtokenpoolops.ConfigureManagedTokenPoolInput
-	LockReleaseTPInput lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput
+	LockReleaseTPInput lockreleasetokenpoolops.ConfigureLockReleaseTokenPoolInput
 	BurnMintTpInput    burnminttokenpoolops.ConfigureBurnMintTokenPoolInput
 	TimelockConfig     *utils.TimelockConfig
 }
@@ -82,7 +82,8 @@ func (d TPConfigure) Apply(e cldf.Environment, config TPConfigureConfig) (cldf.C
 			// TODO: MCMSOwner address should come state
 			config.BurnMintTpInput.MCMSOwnerAddress = deployerAddr
 		case "lnr":
-			// TODO
+			// Pool object ids and coin type are caller-supplied in LockReleaseTPInput.
+			// The direct config ops are OwnerCap-gated and need no MCMS/CCIP state.
 		case "managed":
 			config.ManagedTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.ManagedTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
