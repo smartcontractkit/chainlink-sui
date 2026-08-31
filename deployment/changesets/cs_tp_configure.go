@@ -15,6 +15,7 @@ import (
 	lockreleasetokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
 	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_managed_token_pool"
 	tokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
+	coin_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/coin"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	"github.com/smartcontractkit/chainlink-sui/deployment/utils"
 )
@@ -82,8 +83,22 @@ func (d TPConfigure) Apply(e cldf.Environment, config TPConfigureConfig) (cldf.C
 			// TODO: MCMSOwner address should come state
 			config.BurnMintTpInput.MCMSOwnerAddress = deployerAddr
 		case "lnr":
-			// Pool object ids and coin type are caller-supplied in LockReleaseTPInput.
-			// The direct config ops are OwnerCap-gated and need no MCMS/CCIP state.
+			// Resolve the already-deployed pool's object ids from on-chain state by symbol,
+			// mirroring AcceptOwnershipTokenPool. The pool is keyed by the coin symbol derived
+			// from CoinObjectTypeArg, the same key used at deploy. The config ops are dual-mode:
+			// EOA-direct when a Signer is set, MCMS-encoded operation when Signer is nil
+			// (the TimelockConfig branch above). Remote/rate-limit data stay caller-supplied.
+			symbolReport, err := operations.ExecuteOperation(e.OperationsBundle, coin_ops.GetCoinSymbolOp, deps, config.LockReleaseTPInput.CoinObjectTypeArg)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to get coin symbol: %w", err)
+			}
+			pool, ok := state[config.SuiChainSelector].LnRTokenPools[symbolReport.Output.Symbol]
+			if !ok {
+				return cldf.ChangesetOutput{}, fmt.Errorf("lock release token pool not found for symbol %s", symbolReport.Output.Symbol)
+			}
+			config.LockReleaseTPInput.TokenPoolPkgID = pool.PackageID
+			config.LockReleaseTPInput.StateObjectId = pool.StateObjectId
+			config.LockReleaseTPInput.OwnerCap = pool.OwnerCapObjectId
 		case "managed":
 			config.ManagedTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.ManagedTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
