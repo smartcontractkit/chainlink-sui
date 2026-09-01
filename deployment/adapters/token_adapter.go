@@ -138,9 +138,9 @@ func (a *SuiTokenAdapter) SetTokenPoolRateLimits() *cldf_ops.Sequence[tokensapi.
 			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("sui chain with selector %d not found", input.ChainSelector)
 			}
-			coinType := input.TokenRef.Address
-			if coinType == "" {
-				return sequences.OnChainOutput{}, fmt.Errorf("token ref has no coin type address on chain %d", input.ChainSelector)
+			coinType, _, err := resolveSuiCoinType(input.ExistingDataStore, input.ChainSelector, input.TokenRef)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("resolve sui token ref on chain %d: %w", input.ChainSelector, err)
 			}
 			stateObjID, ownerCapID, err := resolveSuiPoolObjects(input.ExistingDataStore, input.ChainSelector, input.TokenPoolRef.Type, suiPoolSymbol(input.TokenPoolRef))
 			if err != nil {
@@ -254,9 +254,9 @@ func (a *SuiTokenAdapter) UpdateAuthorities() *cldf_ops.Sequence[tokensapi.Updat
 			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("sui chain with selector %d not found", input.ChainSelector)
 			}
-			coinType := input.TokenRef.Address
-			if coinType == "" {
-				return sequences.OnChainOutput{}, fmt.Errorf("token ref has no coin type address on chain %d", input.ChainSelector)
+			coinType, _, err := resolveSuiCoinType(e.DataStore, input.ChainSelector, input.TokenRef)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("resolve sui token ref on chain %d: %w", input.ChainSelector, err)
 			}
 			stateObjID, _, err := resolveSuiPoolObjects(e.DataStore, input.ChainSelector, input.TokenPoolRef.Type, suiPoolSymbol(input.TokenPoolRef))
 			if err != nil {
@@ -334,14 +334,33 @@ func (a *SuiTokenAdapter) ResolveTokenPoolRef(_ cldf_ops.Bundle, _ cldf_chain.Bl
 	return datastore.AddressRef{}, fmt.Errorf("address %s on chain %d is not a recognized sui token pool type", address, chainSelector)
 }
 
-// ResolveTokenRef resolves a Sui coin type string to an AddressRef. The coin type is the
-// canonical token identifier on Sui. The symbol is fetched from on-chain coin metadata on
-// a best-effort basis (falling back to the coin type) so it can be used as the qualifier.
-func (a *SuiTokenAdapter) ResolveTokenRef(b cldf_ops.Bundle, chains cldf_chain.BlockChains, _ datastore.DataStore, chainSelector uint64, address string) (datastore.AddressRef, error) {
-	coinType := normalizeCoinType(address)
-	if !strings.Contains(coinType, "::") {
-		return datastore.AddressRef{}, fmt.Errorf("sui token address %q is not a valid coin type (expected 0x<package>::<module>::<STRUCT>)", address)
+// ResolveTokenRef resolves a Sui token reference to an AddressRef. The address may be either
+// a bare package id or the full coin type string 0x<package>::<module>::<STRUCT>. A bare id is
+// resolved against the datastore, deriving the full coin type from the matching coin ref's
+// coinType= label and the symbol from its labels, so no on-chain call is needed. A full coin
+// type is used verbatim, with the symbol fetched from on-chain coin metadata on a best-effort
+// basis. The returned Address always holds the full coin type, the canonical token identifier.
+func (a *SuiTokenAdapter) ResolveTokenRef(b cldf_ops.Bundle, chains cldf_chain.BlockChains, ds datastore.DataStore, chainSelector uint64, address string) (datastore.AddressRef, error) {
+	if address == "" {
+		return datastore.AddressRef{}, fmt.Errorf("sui token ref has empty address on chain %d", chainSelector)
 	}
+	if !strings.Contains(address, "::") {
+		pkgID := normalizeSuiAddr(address)
+		coinRef, ok := coinRefByAddress(ds, chainSelector, pkgID)
+		if !ok {
+			return datastore.AddressRef{}, fmt.Errorf("no sui coin package ref with a coinType= label found for address %s on chain %d", pkgID, chainSelector)
+		}
+		coinType := pkgID + "::" + coinTypeSuffixFromLabels(coinRef)
+		return datastore.AddressRef{
+			ChainSelector: chainSelector,
+			Type:          suiTokenType(coinType),
+			Address:       coinType,
+			Qualifier:     symbolFromLabels(coinRef),
+			Version:       semver.MustParse("1.0.0"),
+			Labels:        coinRef.Labels,
+		}, nil
+	}
+	coinType := normalizeCoinType(address)
 	chain, ok := chains.SuiChains()[chainSelector]
 	if !ok {
 		return datastore.AddressRef{}, fmt.Errorf("sui chain with selector %d not found", chainSelector)
@@ -380,9 +399,9 @@ func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("sui chain with selector %d not found", input.ChainSelector)
 			}
-			coinType := input.TokenRef.Address
-			if coinType == "" {
-				return sequences.OnChainOutput{}, fmt.Errorf("token ref has no coin type address on chain %d", input.ChainSelector)
+			coinType, symbol, err := resolveSuiCoinType(input.ExistingDataStore, input.ChainSelector, input.TokenRef)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("resolve sui token ref on chain %d: %w", input.ChainSelector, err)
 			}
 			pkgID := input.TokenPoolAddress
 			if pkgID == "" {
@@ -392,7 +411,7 @@ func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("unsupported sui pool type %q on chain %d: %w", input.PoolType, input.ChainSelector, err)
 			}
-			stateObjID, ownerCapID, err := resolveSuiPoolObjects(input.ExistingDataStore, input.ChainSelector, poolType, suiPoolSymbol(input.TokenRef))
+			stateObjID, ownerCapID, err := resolveSuiPoolObjects(input.ExistingDataStore, input.ChainSelector, poolType, symbol)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to resolve sui pool objects: %w", err)
 			}
@@ -672,10 +691,9 @@ func (a *SuiTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			if input.TokenRef == nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("token ref is required to deploy a sui token pool")
 			}
-			coinType := input.TokenRef.Address
-			symbol := input.TokenRef.Qualifier
-			if coinType == "" || symbol == "" {
-				return sequences.OnChainOutput{}, fmt.Errorf("token ref must carry the coin type (address) and symbol (qualifier) on chain %d", input.ChainSelector)
+			coinType, symbol, err := resolveSuiCoinType(input.ExistingDataStore, input.ChainSelector, *input.TokenRef)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("resolve sui token ref on chain %d: %w", input.ChainSelector, err)
 			}
 			poolType, err := suiPoolTypeFromStr(input.PoolType)
 			if err != nil {
@@ -1058,6 +1076,49 @@ func deriveSuiCoinType(ds datastore.DataStore, selector uint64, symbol string) (
 		return normalizeCoinType(ref.Address) + "::" + suffix, nil
 	}
 	return "", fmt.Errorf("could not derive sui coin type for symbol %s on chain %d: no coin package ref carrying a coinType= label found for that symbol", symbol, selector)
+}
+
+// resolveSuiCoinType resolves a token ref's coin type and symbol for the op methods. The ref
+// address is either a bare coin package id (the simple form operators write in CLOPS YAML) or
+// the full coin type string 0x<pkg>::<module>::<STRUCT> (the in-memory ResolveAdapterAndRefs
+// ref, or a legacy YAML). For a bare id the coin type is rebuilt from the coin package ref's
+// coinType= label in the datastore, so tokens are disambiguated by address without ever placing
+// the long coin-type string in the address field. The symbol comes from the qualifier when set,
+// else from the coin ref's symbol label.
+func resolveSuiCoinType(ds datastore.DataStore, selector uint64, ref datastore.AddressRef) (coinType, symbol string, err error) {
+	if ref.Address == "" {
+		return "", "", fmt.Errorf("sui token ref has empty address on chain %d", selector)
+	}
+	if strings.Contains(ref.Address, "::") {
+		coinType = normalizeCoinType(ref.Address)
+		symbol = ref.Qualifier
+		if symbol == "" {
+			symbol = symbolFromLabels(ref)
+		}
+		return coinType, symbol, nil
+	}
+	pkgID := normalizeSuiAddr(ref.Address)
+	coinRef, ok := coinRefByAddress(ds, selector, pkgID)
+	if !ok {
+		return "", "", fmt.Errorf("no sui coin package ref with a coinType= label found for address %s on chain %d", pkgID, selector)
+	}
+	coinType = pkgID + "::" + coinTypeSuffixFromLabels(coinRef)
+	symbol = ref.Qualifier
+	if symbol == "" {
+		symbol = symbolFromLabels(coinRef)
+	}
+	return coinType, symbol, nil
+}
+
+// coinRefByAddress returns the first ref at the given address that carries a coinType= label,
+// i.e. the coin package ref whose module::STRUCT suffix lets the adapter rebuild the coin type.
+func coinRefByAddress(ds datastore.DataStore, selector uint64, address string) (datastore.AddressRef, bool) {
+	for _, r := range findRefsByAddress(ds, selector, address) {
+		if coinTypeSuffixFromLabels(r) != "" {
+			return r, true
+		}
+	}
+	return datastore.AddressRef{}, false
 }
 
 func findRefsByType(ds datastore.DataStore, selector uint64, contractType datastore.ContractType) []datastore.AddressRef {

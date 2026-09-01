@@ -544,3 +544,114 @@ func TestSuiTokenAdapter_ManualRegistration_Noop(t *testing.T) {
 	require.Empty(t, report.Output.BatchOps)
 	require.Empty(t, report.Output.Addresses)
 }
+
+// TestResolveSuiCoinType pins that the op-method helper rebuilds the full coin type from a bare
+// coin package id plus the coinType= label, and passes a full coin type through unchanged. The
+// symbol comes from the qualifier when set, else from the coin ref's first label. A bare id whose
+// ref carries no coinType= label, an unknown bare id, and an empty address all fail loudly.
+func TestResolveSuiCoinType(t *testing.T) {
+	t.Parallel()
+	ds := datastore.NewMemoryDataStore()
+	const selector uint64 = 123
+
+	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
+		ChainSelector: selector,
+		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Address:       "0xbnmpkg",
+		Qualifier:     "0xbnmpkg-SuiManagedToken",
+		Version:       semver.MustParse("1.0.0"),
+		Labels:        datastore.NewLabelSet("CCIP BnM", "coinType=ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"),
+	}))
+	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
+		ChainSelector: selector,
+		Type:          datastore.ContractType(suideploy.SuiLnRTokenType),
+		Address:       "0xlnrpkg",
+		Qualifier:     "0xlnrpkg-SuiLnRToken",
+		Version:       semver.MustParse("1.0.0"),
+		Labels:        datastore.NewLabelSet("CCIP LnR", "coinType="+suideploy.SuiCCIPLnRCoinTypeSuffix),
+	}))
+	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
+		ChainSelector: selector,
+		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Address:       "0xunlabeledpkg",
+		Qualifier:     "0xunlabeledpkg-SuiManagedToken",
+		Version:       semver.MustParse("1.0.0"),
+		Labels:        datastore.NewLabelSet("UNLABELED"),
+	}))
+
+	sealed := ds.Seal()
+
+	// Bare id resolves to the full coin type via the coinType= label; symbol from the ref's first label.
+	coinType, symbol, err := resolveSuiCoinType(sealed, selector, datastore.AddressRef{Address: "0xbnmpkg"})
+	require.NoError(t, err)
+	require.Equal(t, "0xbnmpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", coinType)
+	require.Equal(t, "CCIP BnM", symbol)
+
+	// A qualifier on the token ref wins over the coin ref's symbol label.
+	_, symbol, err = resolveSuiCoinType(sealed, selector, datastore.AddressRef{Address: "0xbnmpkg", Qualifier: "override"})
+	require.NoError(t, err)
+	require.Equal(t, "override", symbol)
+
+	// A bare id without a 0x prefix or with mixed case is normalized before lookup.
+	coinType, _, err = resolveSuiCoinType(sealed, selector, datastore.AddressRef{Address: "0xBnMpKg"})
+	require.NoError(t, err)
+	require.Equal(t, "0xbnmpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", coinType)
+
+	// A full coin type passes through unchanged; symbol from the qualifier.
+	coinType, symbol, err = resolveSuiCoinType(sealed, selector, datastore.AddressRef{
+		Address:   "0xlnrpkg::ccip_lock_release_token::CCIP_LOCK_RELEASE_TOKEN",
+		Qualifier: "CCIP LnR",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "0xlnrpkg::ccip_lock_release_token::CCIP_LOCK_RELEASE_TOKEN", coinType)
+	require.Equal(t, "CCIP LnR", symbol)
+
+	// A bare id whose ref carries no coinType= label does not resolve.
+	_, _, err = resolveSuiCoinType(sealed, selector, datastore.AddressRef{Address: "0xunlabeledpkg"})
+	require.Error(t, err)
+
+	// An unknown bare id does not resolve.
+	_, _, err = resolveSuiCoinType(sealed, selector, datastore.AddressRef{Address: "0xnope"})
+	require.Error(t, err)
+
+	// An empty address fails.
+	_, _, err = resolveSuiCoinType(sealed, selector, datastore.AddressRef{})
+	require.Error(t, err)
+}
+
+// TestResolveTokenRef_BareID pins that ResolveTokenRef accepts a bare coin package id and returns
+// a ref whose Address is the full coin type, rebuilt from the datastore coinType= label, with the
+// symbol as the qualifier and the coin ref's labels carried through. The bare-id path is
+// datastore-only, so no on-chain client is needed.
+func TestResolveTokenRef_BareID(t *testing.T) {
+	t.Parallel()
+	ds := datastore.NewMemoryDataStore()
+	const selector uint64 = 123
+
+	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
+		ChainSelector: selector,
+		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Address:       "0xbnmpkg",
+		Qualifier:     "0xbnmpkg-SuiManagedToken",
+		Version:       semver.MustParse("1.0.0"),
+		Labels:        datastore.NewLabelSet("CCIP BnM", "coinType=ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"),
+	}))
+	sealed := ds.Seal()
+
+	a := &SuiTokenAdapter{}
+	got, err := a.ResolveTokenRef(cldf_ops.Bundle{}, cldf_chain.BlockChains{}, sealed, selector, "0xbnmpkg")
+	require.NoError(t, err)
+	require.Equal(t, "0xbnmpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", got.Address)
+	require.Equal(t, "CCIP BnM", got.Qualifier)
+	require.Equal(t, datastore.ContractType(suideploy.SuiManagedTokenType), got.Type)
+	require.True(t, got.Labels.Contains("CCIP BnM"))
+	require.True(t, got.Labels.Contains("coinType=ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"))
+
+	// An unknown bare id fails.
+	_, err = a.ResolveTokenRef(cldf_ops.Bundle{}, cldf_chain.BlockChains{}, sealed, selector, "0xnope")
+	require.Error(t, err)
+
+	// An empty address fails.
+	_, err = a.ResolveTokenRef(cldf_ops.Bundle{}, cldf_chain.BlockChains{}, sealed, selector, "")
+	require.Error(t, err)
+}
