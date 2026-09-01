@@ -137,10 +137,8 @@ func TestNormalizeCoinType(t *testing.T) {
 	require.Equal(t, "0x1::m::T", normalizeCoinType("1::m::T"))
 }
 
-// TestNormalizeSuiAddr pins the address normalization that the configure-before-own guard relies
-// on to compare the on-chain pool owner against the deployer signer. The deployer still owns a
-// freshly deployed pool, so owner == deployer must hold regardless of casing, leading 0x, or
-// surrounding whitespace coming back from DevInspect vs GetAddress.
+// TestNormalizeSuiAddr pins the normalization the configure-before-own guard relies on to
+// compare the on-chain pool owner against the deployer signer across casing/0x/whitespace.
 func TestNormalizeSuiAddr(t *testing.T) {
 	t.Parallel()
 	require.Equal(t, "0xabc", normalizeSuiAddr("0xABC"))
@@ -151,8 +149,7 @@ func TestNormalizeSuiAddr(t *testing.T) {
 }
 
 // TestSuiAddrEqual pins the configure-before-own guard predicate: deployer-owned pools route
-// EOA-direct, MCMS-owned pools keep the collect path. Equality must be insensitive to the same
-// casing/0x/whitespace differences normalizeSuiAddr absorbs.
+// EOA-direct, MCMS-owned pools keep the collect path.
 func TestSuiAddrEqual(t *testing.T) {
 	t.Parallel()
 	deployer := "0x40d438a47eafc6bee64a7f0addeb468d2939920f5661462f90cd8dbae2cdd9cb"

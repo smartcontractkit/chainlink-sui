@@ -401,13 +401,10 @@ func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, err
 			}
 
-			// Configure-before-own: when the deployer still owns the pool (fresh deploy,
-			// pre-accept_ownership), execute the OwnerCap-gated config entrypoints directly
-			// with the deployer key instead of bundling them as MCMS ops. MCMS-governed config
-			// requires the package to be registered with mcms_registry (only done by step 3,
-			// execute_ownership_transfer_to_mcms), which token_expansion does not run, so a
-			// bundled config op would abort. After accept_ownership the owner is MCMS and we
-			// fall back to the MCMS-collect path so already-MCMS-owned pools keep working.
+			// Configure-before-own: while the deployer still owns the pool, run the
+			// OwnerCap-gated config entrypoints directly. A bundled MCMS config op would
+			// abort because token_expansion never registers the package with mcms_registry;
+			// only step 3 execute_ownership_transfer does. MCMS-owned pools fall back to collect.
 			deployerAddr, err := chain.Signer.GetAddress()
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get deployer address on chain %d: %w", input.ChainSelector, err)
@@ -495,9 +492,8 @@ func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 					return sequences.OnChainOutput{}, fmt.Errorf("default outbound and inbound rate limits must both be specified or both omitted for remote %d", remoteSelector)
 				}
 
-				// In EOA-direct mode the ops above already executed on-chain; their Calls are
-				// discarded and no MCMS batch op is produced. The tx digests surface via the
-				// sequence's ExecutionReports, consumed by processTokenConfigForChain.
+				// EOA-direct mode already executed the ops on-chain; skip collecting their
+				// Calls into batchOps. Tx digests surface via ExecutionReports.
 				if !eoDirect {
 					out, err := batchOpFromCalls(input.ChainSelector, calls)
 					if err != nil {
@@ -888,10 +884,8 @@ func suiDepsExec(chain cldfsui.Chain) sui_ops.OpTxDeps {
 	}
 }
 
-// suiPoolOwner reads the pool's current ownable owner address on-chain via DevInspect.
-// All Sui pool types expose NewXxxTokenPool -> DevInspect().Owner(ctx, opts, typeArgs, state).
-// Used to decide configure-before-own: while the deployer still owns the pool the OwnerCap-gated
-// config entrypoints can be executed directly, avoiding a premature MCMS-bundled config op.
+// suiPoolOwner reads the pool's ownable owner on-chain via DevInspect to decide
+// configure-before-own: a deployer-owned pool can run OwnerCap-gated config directly.
 func suiPoolOwner(b cldf_ops.Bundle, chain cldfsui.Chain, poolType datastore.ContractType,
 	pkgID, coinType, stateObjID string,
 ) (string, error) {
