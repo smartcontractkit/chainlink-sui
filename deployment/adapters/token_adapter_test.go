@@ -655,3 +655,121 @@ func TestResolveTokenRef_BareID(t *testing.T) {
 	_, err = a.ResolveTokenRef(cldf_ops.Bundle{}, cldf_chain.BlockChains{}, sealed, selector, "")
 	require.Error(t, err)
 }
+
+// TestCoinTypeFromRef pins that a coinType= label holding a module::STRUCT suffix is joined to the
+// ref's own package id, while one holding a full coin type 0x<pkg>::<module>::STRUCT is used
+// verbatim so a managed-token wrapper can stand in for its underlying coin. A ref with no
+// coinType= label does not resolve.
+func TestCoinTypeFromRef(t *testing.T) {
+	t.Parallel()
+
+	got, ok := coinTypeFromRef(datastore.AddressRef{
+		Address: "0xcoinpkg",
+		Labels:  datastore.NewLabelSet("CCIP BnM", "coinType=ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"),
+	})
+	require.True(t, ok)
+	require.Equal(t, "0xcoinpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", got)
+
+	got, ok = coinTypeFromRef(datastore.AddressRef{
+		Address: "0xwrapperpkg",
+		Labels:  datastore.NewLabelSet("CCIP BnM", "coinType=0xcoinpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"),
+	})
+	require.True(t, ok)
+	require.Equal(t, "0xcoinpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", got)
+
+	_, ok = coinTypeFromRef(datastore.AddressRef{Address: "0xpkg", Labels: datastore.NewLabelSet("X")})
+	require.False(t, ok)
+}
+
+// TestDeriveSuiCoinType_WrapperFullType pins that deriving by symbol resolves to the underlying
+// coin type even when a managed-token wrapper ref carrying a full-type coinType= label shares the
+// symbol, so the symbol-based path cannot return the wrapper package id as the coin type.
+func TestDeriveSuiCoinType_WrapperFullType(t *testing.T) {
+	t.Parallel()
+	ds := datastore.NewMemoryDataStore()
+	const selector uint64 = 123
+
+	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
+		ChainSelector: selector,
+		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Address:       "0xcoinpkg",
+		Qualifier:     "0xcoinpkg-SuiManagedToken",
+		Version:       semver.MustParse("1.0.0"),
+		Labels:        datastore.NewLabelSet("CCIP BnM", "coinType=ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"),
+	}))
+	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
+		ChainSelector: selector,
+		Type:          datastore.ContractType(suideploy.SuiManagedTokenPackageIDType),
+		Address:       "0xwrapperpkg",
+		Qualifier:     "0xwrapperpkg-SuiManagedTokenPackageID",
+		Version:       semver.MustParse("1.0.0"),
+		Labels:        datastore.NewLabelSet("CCIP BnM", "coinType=0xcoinpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"),
+	}))
+	sealed := ds.Seal()
+
+	got, err := deriveSuiCoinType(sealed, selector, "CCIP BnM")
+	require.NoError(t, err)
+	require.Equal(t, "0xcoinpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", got)
+}
+
+// TestResolveSuiCoinType_WrapperFullType pins that a bare managed-token wrapper package id
+// resolves to the underlying coin type via the wrapper's full-type coinType= label, while the bare
+// coin id still resolves to the same type through its suffix label.
+func TestResolveSuiCoinType_WrapperFullType(t *testing.T) {
+	t.Parallel()
+	ds := datastore.NewMemoryDataStore()
+	const selector uint64 = 123
+
+	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
+		ChainSelector: selector,
+		Type:          datastore.ContractType(suideploy.SuiManagedTokenType),
+		Address:       "0xcoinpkg",
+		Qualifier:     "0xcoinpkg-SuiManagedToken",
+		Version:       semver.MustParse("1.0.0"),
+		Labels:        datastore.NewLabelSet("CCIP BnM", "coinType=ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"),
+	}))
+	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
+		ChainSelector: selector,
+		Type:          datastore.ContractType(suideploy.SuiManagedTokenPackageIDType),
+		Address:       "0xwrapperpkg",
+		Qualifier:     "0xwrapperpkg-SuiManagedTokenPackageID",
+		Version:       semver.MustParse("1.0.0"),
+		Labels:        datastore.NewLabelSet("CCIP BnM", "coinType=0xcoinpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"),
+	}))
+	sealed := ds.Seal()
+
+	coinType, symbol, err := resolveSuiCoinType(sealed, selector, datastore.AddressRef{Address: "0xwrapperpkg"})
+	require.NoError(t, err)
+	require.Equal(t, "0xcoinpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", coinType)
+	require.Equal(t, "CCIP BnM", symbol)
+
+	coinType, _, err = resolveSuiCoinType(sealed, selector, datastore.AddressRef{Address: "0xcoinpkg"})
+	require.NoError(t, err)
+	require.Equal(t, "0xcoinpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", coinType)
+}
+
+// TestResolveTokenRef_WrapperBareID pins that ResolveTokenRef accepts a bare managed-token
+// wrapper package id and returns a ref whose Address is the underlying coin type (from the
+// wrapper's full-type coinType= label), with the symbol as the qualifier.
+func TestResolveTokenRef_WrapperBareID(t *testing.T) {
+	t.Parallel()
+	ds := datastore.NewMemoryDataStore()
+	const selector uint64 = 123
+
+	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
+		ChainSelector: selector,
+		Type:          datastore.ContractType(suideploy.SuiManagedTokenPackageIDType),
+		Address:       "0xwrapperpkg",
+		Qualifier:     "0xwrapperpkg-SuiManagedTokenPackageID",
+		Version:       semver.MustParse("1.0.0"),
+		Labels:        datastore.NewLabelSet("CCIP BnM", "coinType=0xcoinpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"),
+	}))
+	sealed := ds.Seal()
+
+	a := &SuiTokenAdapter{}
+	got, err := a.ResolveTokenRef(cldf_ops.Bundle{}, cldf_chain.BlockChains{}, sealed, selector, "0xwrapperpkg")
+	require.NoError(t, err)
+	require.Equal(t, "0xcoinpkg::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", got.Address)
+	require.Equal(t, "CCIP BnM", got.Qualifier)
+	require.Equal(t, datastore.ContractType(suideploy.SuiManagedTokenType), got.Type)
+}
