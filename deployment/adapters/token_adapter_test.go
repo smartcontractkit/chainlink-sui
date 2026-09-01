@@ -137,6 +137,35 @@ func TestNormalizeCoinType(t *testing.T) {
 	require.Equal(t, "0x1::m::T", normalizeCoinType("1::m::T"))
 }
 
+// TestNormalizeSuiAddr pins the address normalization that the configure-before-own guard relies
+// on to compare the on-chain pool owner against the deployer signer. The deployer still owns a
+// freshly deployed pool, so owner == deployer must hold regardless of casing, leading 0x, or
+// surrounding whitespace coming back from DevInspect vs GetAddress.
+func TestNormalizeSuiAddr(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "0xabc", normalizeSuiAddr("0xABC"))
+	require.Equal(t, "0xabc", normalizeSuiAddr("ABC"))
+	require.Equal(t, "0xabc", normalizeSuiAddr("  0xAbC  "))
+	require.Empty(t, normalizeSuiAddr(""))
+	require.Empty(t, normalizeSuiAddr("   "))
+}
+
+// TestSuiAddrEqual pins the configure-before-own guard predicate: deployer-owned pools route
+// EOA-direct, MCMS-owned pools keep the collect path. Equality must be insensitive to the same
+// casing/0x/whitespace differences normalizeSuiAddr absorbs.
+func TestSuiAddrEqual(t *testing.T) {
+	t.Parallel()
+	deployer := "0x40d438a47eafc6bee64a7f0addeb468d2939920f5661462f90cd8dbae2cdd9cb"
+
+	// On-chain owner reported without a leading 0x, deployer with one -> still equal.
+	require.True(t, suiAddrEqual("40d438a47eafc6bee64a7f0addeb468d2939920f5661462f90cd8dbae2cdd9cb", deployer))
+	// Casing and whitespace differences collapse to the same address.
+	require.True(t, suiAddrEqual("  0x40D438A47EAFC6BEE64A7F0ADDEB468D2939920F5661462F90CD8DBAE2CDD9CB  ", deployer))
+	// A different owner, e.g. MCMS after accept_ownership, must not match the deployer.
+	require.False(t, suiAddrEqual("0xdeadbeef", deployer))
+	require.False(t, suiAddrEqual("", deployer))
+}
+
 func TestSuiTokenType(t *testing.T) {
 	t.Parallel()
 	require.Equal(t, datastore.ContractType(suideploy.SuiLinkTokenType),

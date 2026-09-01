@@ -30,6 +30,13 @@ type ConfigureMCMSSeqInput struct {
 	// false, preserving the prior behavior where the old root stays executable
 	// until it expires or exhausts its op-count range.
 	ClearRoot bool `yaml:"clearRoot,omitempty"`
+	// IsInitialConfig forwards MCMSSetConfigInput.IsInitialConfig to each
+	// SetConfigMCMSOp invocation. Set true on bootstrap/initial-config paths
+	// (e.g. from DeployMCMSSequence, or the fast MCMS bootstrap) to downgrade
+	// the F7 ClearRoot=false warning to info, since no previous root exists.
+	// Leave false on reconfigure/rotation paths so the defensive F7 warning
+	// still fires. Defaults to false.
+	IsInitialConfig bool `yaml:"isInitialConfig,omitempty"`
 
 	// Optional configs for each timelock role
 	// If nil, the role will not be configured
@@ -76,6 +83,7 @@ func configureMCMS(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input ConfigureMCM
 			Role:             roleConfig.role,
 			Config:           *roleConfig.config,
 			ClearRoot:        input.ClearRoot,
+			IsInitialConfig:  input.IsInitialConfig,
 		}
 
 		report, err := cld_ops.ExecuteOperation(env, SetConfigMCMSOp, deps, setConfigInput)

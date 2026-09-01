@@ -79,6 +79,7 @@ func (s *CCIPCurseMCMSTestSuite) deployFastMCMS() {
 		McmsMultisigStateObjectId:   s.fastMcmsObj,
 		Bypasser:                    s.bypasserConfig.Config,
 		Proposer:                    s.proposerConfig.Config,
+		IsInitialConfig:             true,
 	})
 	s.Require().NoError(err, "configuring fast MCMS contract")
 

@@ -61,6 +61,7 @@ func deployMCMS(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployMCMSSeqIn
 		Bypasser:                    input.Bypasser,
 		Proposer:                    input.Proposer,
 		Canceller:                   input.Canceller,
+		IsInitialConfig:             true,
 	}
 	_, err = cld_ops.ExecuteSequence(env, ConfigureMCMSSequence, deps, cfgMCMSInput)
 	if err != nil {
