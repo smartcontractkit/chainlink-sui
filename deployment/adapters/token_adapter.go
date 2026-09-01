@@ -21,6 +21,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
+	module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
+	module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
 	suideploy "github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
@@ -398,7 +401,25 @@ func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, err
 			}
 
-			deps := suiDeps(chain)
+			// Configure-before-own: while the deployer still owns the pool, run the
+			// OwnerCap-gated config entrypoints directly. A bundled MCMS config op would
+			// abort because token_expansion never registers the package with mcms_registry;
+			// only step 3 execute_ownership_transfer does. MCMS-owned pools fall back to collect.
+			deployerAddr, err := chain.Signer.GetAddress()
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get deployer address on chain %d: %w", input.ChainSelector, err)
+			}
+			owner, err := suiPoolOwner(b, chain, poolType, pkgID, coinType, stateObjID)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to read pool owner on chain %d: %w", input.ChainSelector, err)
+			}
+			eoDirect := suiAddrEqual(owner, deployerAddr)
+			var deps sui_ops.OpTxDeps
+			if eoDirect {
+				deps = suiDepsExec(chain)
+			} else {
+				deps = suiDeps(chain)
+			}
 			batchOps := make([]mcmstypes.BatchOperation, 0)
 			for remoteSelector, rc := range input.RemoteChains {
 				if err := rc.Validate(); err != nil {
@@ -471,11 +492,15 @@ func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 					return sequences.OnChainOutput{}, fmt.Errorf("default outbound and inbound rate limits must both be specified or both omitted for remote %d", remoteSelector)
 				}
 
-				out, err := batchOpFromCalls(input.ChainSelector, calls)
-				if err != nil {
-					return sequences.OnChainOutput{}, err
+				// EOA-direct mode already executed the ops on-chain; skip collecting their
+				// Calls into batchOps. Tx digests surface via ExecutionReports.
+				if !eoDirect {
+					out, err := batchOpFromCalls(input.ChainSelector, calls)
+					if err != nil {
+						return sequences.OnChainOutput{}, err
+					}
+					batchOps = append(batchOps, out.BatchOps...)
 				}
-				batchOps = append(batchOps, out.BatchOps...)
 			}
 			return sequences.OnChainOutput{BatchOps: batchOps}, nil
 		},
@@ -857,6 +882,52 @@ func suiDepsExec(chain cldfsui.Chain) sui_ops.OpTxDeps {
 		},
 		SuiRPC: chain.URL,
 	}
+}
+
+// suiPoolOwner reads the pool's ownable owner on-chain via DevInspect to decide
+// configure-before-own: a deployer-owned pool can run OwnerCap-gated config directly.
+func suiPoolOwner(b cldf_ops.Bundle, chain cldfsui.Chain, poolType datastore.ContractType,
+	pkgID, coinType, stateObjID string,
+) (string, error) {
+	opts := &bind.CallOpts{Signer: chain.Signer}
+	state := bind.Object{Id: stateObjID}
+	typeArgs := []string{coinType}
+	switch poolType {
+	case datastore.ContractType(suideploy.SuiBnMTokenPoolType):
+		contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(pkgID, chain.Client)
+		if err != nil {
+			return "", fmt.Errorf("failed to create burn-mint token pool contract: %w", err)
+		}
+		return contract.DevInspect().Owner(b.GetContext(), opts, typeArgs, state)
+	case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
+		contract, err := module_managed_token_pool.NewManagedTokenPool(pkgID, chain.Client)
+		if err != nil {
+			return "", fmt.Errorf("failed to create managed token pool contract: %w", err)
+		}
+		return contract.DevInspect().Owner(b.GetContext(), opts, typeArgs, state)
+	case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
+		contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(pkgID, chain.Client)
+		if err != nil {
+			return "", fmt.Errorf("failed to create lock-release token pool contract: %w", err)
+		}
+		return contract.DevInspect().Owner(b.GetContext(), opts, typeArgs, state)
+	default:
+		return "", fmt.Errorf("unsupported sui token pool type %s for owner read", poolType)
+	}
+}
+
+// suiAddrEqual compares two Sui addresses after normalizing to lowercase with a 0x prefix.
+func suiAddrEqual(a, b string) bool {
+	return normalizeSuiAddr(a) == normalizeSuiAddr(b)
+}
+
+func normalizeSuiAddr(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.ToLower(s)
+	if s != "" && !strings.HasPrefix(s, "0x") {
+		s = "0x" + s
+	}
+	return s
 }
 
 // suiPoolTypeFromStr maps a PoolType string to a Sui pool contract type, accepting both the

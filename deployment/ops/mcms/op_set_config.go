@@ -38,6 +38,12 @@ type MCMSSetConfigInput struct {
 	// Config related
 	Config    types.Config `yaml:"config"`
 	ClearRoot bool         `yaml:"clearRoot"`
+	// IsInitialConfig marks this set_config as the first-ever configuration of
+	// a freshly-deployed MCMS instance (no previous root installed). When true
+	// the F7 ClearRoot=false warning is downgraded to info, since there is no
+	// prior root whose surviving op-count window could be consumed. Defaults to
+	// false so signer-set rotations on an existing instance still warn.
+	IsInitialConfig bool `yaml:"isInitialConfig,omitempty"`
 }
 
 var SetConfigMCMSOp = cld_ops.NewOperation(
@@ -111,12 +117,21 @@ var setConfigMcmsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input M
 	}
 
 	if !input.ClearRoot {
-		b.Logger.Warnw(
-			"F7: set_config invoked with ClearRoot=false; if this changes the signer set, the previous root and its remaining [pre_op_count, post_op_count) window survive and the old (or newly-installed) signers can still consume it",
-			"role", input.Role,
-			"chainSelector", input.ChainSelector,
-			"newSignerCount", len(signers),
-		)
+		if input.IsInitialConfig {
+			b.Logger.Infow(
+				"F7: set_config invoked with ClearRoot=false on initial MCMS config; no previous root exists to clear, so ClearRoot=false is the expected bootstrap choice",
+				"role", input.Role,
+				"chainSelector", input.ChainSelector,
+				"newSignerCount", len(signers),
+			)
+		} else {
+			b.Logger.Warnw(
+				"F7: set_config invoked with ClearRoot=false; if this changes the signer set, the previous root and its remaining [pre_op_count, post_op_count) window survive and the old (or newly-installed) signers can still consume it",
+				"role", input.Role,
+				"chainSelector", input.ChainSelector,
+				"newSignerCount", len(signers),
+			)
+		}
 	}
 
 	encodedCall, err := mcms.Encoder().SetConfig(
