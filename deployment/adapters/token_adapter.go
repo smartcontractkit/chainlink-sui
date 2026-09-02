@@ -350,7 +350,10 @@ func (a *SuiTokenAdapter) ResolveTokenRef(b cldf_ops.Bundle, chains cldf_chain.B
 		if !ok {
 			return datastore.AddressRef{}, fmt.Errorf("no sui coin package ref with a coinType= label found for address %s on chain %d", pkgID, chainSelector)
 		}
-		coinType := pkgID + "::" + coinTypeSuffixFromLabels(coinRef)
+		coinType, ok := coinTypeFromRef(coinRef)
+		if !ok {
+			return datastore.AddressRef{}, fmt.Errorf("sui coin package ref at address %s on chain %d carries no coinType= label", pkgID, chainSelector)
+		}
 		return datastore.AddressRef{
 			ChainSelector: chainSelector,
 			Type:          suiTokenType(coinType),
@@ -1053,11 +1056,11 @@ func suiDecimals(b cldf_ops.Bundle, chain cldfsui.Chain, coinType string) (uint8
 }
 
 // deriveSuiCoinType builds the coin type for a token symbol by locating the token's coin package
-// ref in the datastore. The coin package ref carries the coin's module::STRUCT suffix as a
-// coinType= label (set by whichever changeset saved the coin package id), so the coin type is
-// normalizeCoinType(ref.Address) + "::" + that suffix. The ref is matched by symbol label plus the
-// coinType label, independent of the contract type it is filed under, so every token — BnM, LINK,
-// or any newly added coin behind a BurnMint or Managed pool — derives through the same path.
+// ref in the datastore. The matched ref carries a coinType= label that is either the coin's
+// module::STRUCT suffix (joined to the ref's own package id) or, for a managed-token wrapper, the
+// full underlying coin type (used verbatim). The ref is matched by symbol label plus the coinType
+// label, independent of the contract type it is filed under, so every token — BnM, LINK, or any
+// newly added coin behind a BurnMint or Managed pool — derives through the same path.
 func deriveSuiCoinType(ds datastore.DataStore, selector uint64, symbol string) (string, error) {
 	if symbol == "" {
 		return "", fmt.Errorf("symbol is required to derive the sui coin type")
@@ -1069,11 +1072,9 @@ func deriveSuiCoinType(ds datastore.DataStore, selector uint64, symbol string) (
 		if !ref.Labels.Contains(symbol) {
 			continue
 		}
-		suffix := coinTypeSuffixFromLabels(ref)
-		if suffix == "" {
-			continue
+		if coinType, ok := coinTypeFromRef(ref); ok {
+			return coinType, nil
 		}
-		return normalizeCoinType(ref.Address) + "::" + suffix, nil
 	}
 	return "", fmt.Errorf("could not derive sui coin type for symbol %s on chain %d: no coin package ref carrying a coinType= label found for that symbol", symbol, selector)
 }
@@ -1102,7 +1103,10 @@ func resolveSuiCoinType(ds datastore.DataStore, selector uint64, ref datastore.A
 	if !ok {
 		return "", "", fmt.Errorf("no sui coin package ref with a coinType= label found for address %s on chain %d", pkgID, selector)
 	}
-	coinType = pkgID + "::" + coinTypeSuffixFromLabels(coinRef)
+	coinType, ok = coinTypeFromRef(coinRef)
+	if !ok {
+		return "", "", fmt.Errorf("sui coin package ref at address %s on chain %d carries no coinType= label", pkgID, selector)
+	}
 	symbol = ref.Qualifier
 	if symbol == "" {
 		symbol = symbolFromLabels(coinRef)
@@ -1237,6 +1241,23 @@ func coinTypeSuffixFromLabels(r datastore.AddressRef) string {
 		}
 	}
 	return ""
+}
+
+// coinTypeFromRef rebuilds the full coin type from a ref's coinType= label. The label holds either
+// the module::STRUCT suffix for a coin minted by that ref's own package, or the full coin type
+// 0x<pkg>::<module>::STRUCT for a managed-token wrapper whose underlying coin lives at a different
+// package. A full type, detected by a 0x prefix, is used verbatim so the wrapper package id can
+// stand in for the underlying coin in a token ref; a suffix is joined to the ref's own address.
+// Returns false when the ref carries no coinType= label.
+func coinTypeFromRef(ref datastore.AddressRef) (string, bool) {
+	suffix := coinTypeSuffixFromLabels(ref)
+	if suffix == "" {
+		return "", false
+	}
+	if strings.HasPrefix(suffix, "0x") {
+		return normalizeCoinType(suffix), true
+	}
+	return normalizeSuiAddr(ref.Address) + "::" + suffix, true
 }
 
 // suiTokenType maps a coin type to a datastore contract type on a best-effort basis. CCIP
