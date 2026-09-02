@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -456,6 +457,28 @@ func loadsuiChainStateFromAddresses(addresses map[string][]suiAddressRef) (CCIPC
 	for _, addressRefs := range addresses {
 		refs = append(refs, addressRefs...)
 	}
+	sort.Slice(refs, func(i, j int) bool {
+		iLegacy := isLegacySuiAddressRef(refs[i])
+		jLegacy := isLegacySuiAddressRef(refs[j])
+		if iLegacy != jLegacy {
+			// Legacy address-derived rows are a compatibility fallback. Process them first so
+			// an active semantic row wins when both rows describe the same state slot.
+			return iLegacy
+		}
+		if refs[i].tv.Type != refs[j].tv.Type {
+			return refs[i].tv.Type < refs[j].tv.Type
+		}
+		if refs[i].tv.Version.String() != refs[j].tv.Version.String() {
+			return refs[i].tv.Version.String() < refs[j].tv.Version.String()
+		}
+		if refs[i].qualifier != refs[j].qualifier {
+			return refs[i].qualifier < refs[j].qualifier
+		}
+		if refs[i].address != refs[j].address {
+			return refs[i].address < refs[j].address
+		}
+		return strings.Join(refs[i].tv.Labels.List(), "\x00") < strings.Join(refs[j].tv.Labels.List(), "\x00")
+	})
 	for _, r := range refs {
 		addr := r.address
 		typeAndVersion := r.tv
@@ -830,6 +853,13 @@ func loadsuiChainStateFromAddresses(addresses map[string][]suiAddressRef) (CCIPC
 		}
 	}
 	return chainState, nil
+}
+
+func isLegacySuiAddressRef(ref suiAddressRef) bool {
+	if ref.address == "" || ref.qualifier == "" {
+		return false
+	}
+	return strings.EqualFold(ref.qualifier, ref.address+"-"+string(ref.tv.Type))
 }
 
 func getTokenSymbol(typeAndVersion cldf.TypeAndVersion) (string, error) {

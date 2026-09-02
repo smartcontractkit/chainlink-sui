@@ -36,9 +36,6 @@ func SaveSuiAddress(
 			qualifier, tv.Type,
 		)
 	}
-	if err := ab.Save(chainSelector, address, tv); err != nil {
-		return fmt.Errorf("save to address book: %w", err)
-	}
 	version := tv.Version
 	ref := fdatastore.AddressRef{
 		ChainSelector: chainSelector,
@@ -48,6 +45,19 @@ func SaveSuiAddress(
 		Qualifier:     qualifier,
 		Labels:        fdatastore.NewLabelSet(tv.Labels.List()...),
 	}
+	planned := PlannedRef{Type: tv.Type, Qualifier: qualifier, Version: &version}
+	if _, err := ds.Get(ref.Key()); err != nil && !errors.Is(err, fdatastore.ErrAddressRefNotFound) {
+		return fmt.Errorf("check datastore before saving %s: %w", describe(planned), err)
+	} else if err == nil {
+		return fmt.Errorf(
+			"this changeset already wrote a %s: two objects cannot share one (chain, type, version, qualifier), so one of them needs a distinct qualifier: %w",
+			describe(planned), fdatastore.ErrAddressRefExists,
+		)
+	}
+
+	if err := ab.Save(chainSelector, address, tv); err != nil {
+		return fmt.Errorf("save to address book: %w", err)
+	}
 	// Add, not Upsert: within one changeset run, writing the same key twice is always a bug —
 	// there is no redeploy interpretation available, because both writes belong to the same
 	// deployment. Upsert would drop the first ref and report success, leaving an object on
@@ -56,10 +66,17 @@ func SaveSuiAddress(
 	// merge into the environment datastore happens after the changeset returns) — those are
 	// checked upfront by ValidateNoDatastoreConflicts.
 	if err := ds.Add(ref); err != nil {
+		rollback := cldf.NewMemoryAddressBook()
+		if rollbackErr := rollback.Save(chainSelector, address, tv); rollbackErr != nil {
+			return fmt.Errorf("save to datastore: %w; prepare address-book rollback: %v", err, rollbackErr)
+		}
+		if rollbackErr := ab.Remove(rollback); rollbackErr != nil {
+			return fmt.Errorf("save to datastore: %w; roll back address-book write: %v", err, rollbackErr)
+		}
 		if errors.Is(err, fdatastore.ErrAddressRefExists) {
 			return fmt.Errorf(
 				"this changeset already wrote a %s: two objects cannot share one (chain, type, version, qualifier), so one of them needs a distinct qualifier: %w",
-				describe(PlannedRef{Type: tv.Type, Qualifier: qualifier, Version: &version}), err,
+				describe(planned), err,
 			)
 		}
 		return fmt.Errorf("save to datastore: %w", err)

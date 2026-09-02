@@ -58,15 +58,9 @@ func (p PlannedRef) version() *semver.Version {
 // new one means re-qualifying it, which is a key change and belongs to the re-qualification
 // tooling, not to a deploy changeset.
 //
-// Two data-shape caveats follow from reading only the datastore. On a chain whose datastore
-// is empty the check is vacuous (the address book may still hold rows there), and rows
-// recorded under an earlier qualifier scheme — the address-derived shims existing env data
-// carries — occupy different keys, so redeploying an already-recorded contract does not
-// conflict with its old row: both are kept, and the re-qualification tooling retires the old
-// one.
-// plan is invoked only when the chain has refs recorded, so a changeset can resolve its
-// qualifiers with on-chain reads without paying for them or failing on them in an
-// environment where nothing could conflict yet.
+// This check reads only the datastore, not the address book, and legacy address-derived rows
+// occupy different keys from their semantic replacements. The state loader gives semantic rows
+// deterministic precedence while the re-qualification tooling retires the legacy rows.
 func ValidateNoDatastoreConflicts(
 	e cldf.Environment,
 	chainSelector uint64,
@@ -74,9 +68,6 @@ func ValidateNoDatastoreConflicts(
 	plan func() ([]PlannedRef, error),
 ) error {
 	if e.DataStore == nil {
-		return nil
-	}
-	if len(e.DataStore.Addresses().Filter(fdatastore.AddressRefByChainSelector(chainSelector))) == 0 {
 		return nil
 	}
 

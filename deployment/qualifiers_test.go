@@ -23,10 +23,12 @@ func TestTokenQualifier_usesSymbolFormNotDisplayName(t *testing.T) {
 	require.Equal(t, "USDC", TokenQualifier("USDC"))
 }
 
-func TestMinterCapQualifier_keepsHolderAddressAsPassed(t *testing.T) {
+func TestMinterCapQualifier_normalizesHolderAddress(t *testing.T) {
 	t.Parallel()
 	require.Equal(t, "CCIP-BnM-0xab", MinterCapQualifier("CCIP BnM", "0xab"))
-	require.Equal(t, "CCIP-BnM-0xAB", MinterCapQualifier("CCIP BnM", "0xAB"))
+	require.Equal(t, "CCIP-BnM-0xab", MinterCapQualifier("CCIP BnM", "0xAB"))
+	require.Equal(t, "CCIP-BnM-0xab", MinterCapQualifier("CCIP BnM", "ab"))
+	require.Equal(t, "CCIP-BnM-0xab", MinterCapQualifier("CCIP BnM", " 0xAb "))
 }
 
 func TestSaveSuiAddress_rejectsAddressDerivedQualifier(t *testing.T) {
@@ -129,4 +131,7 @@ func TestSaveSuiAddress_rejectsDuplicateKeyWithinOneChangeset(t *testing.T) {
 	refs := ds.Addresses().Filter(fdatastore.AddressRefByChainSelector(selector))
 	require.Len(t, refs, 1)
 	require.Equal(t, "0xcap-v1", refs[0].Address)
+	abAddrs, abErr := ab.AddressesForChain(selector)
+	require.NoError(t, abErr)
+	require.NotContains(t, abAddrs, "0xcap-v2")
 }

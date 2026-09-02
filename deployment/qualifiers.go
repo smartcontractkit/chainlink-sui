@@ -15,5 +15,9 @@ func TokenQualifier(symbol string) string {
 
 // MinterCapQualifier qualifies a token minter capability by token and holder.
 func MinterCapQualifier(symbol string, holder string) string {
+	holder = strings.TrimSpace(strings.ToLower(holder))
+	if holder != "" && !strings.HasPrefix(holder, "0x") {
+		holder = "0x" + holder
+	}
 	return TokenQualifier(symbol) + "-" + holder
 }

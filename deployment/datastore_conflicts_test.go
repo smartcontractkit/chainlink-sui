@@ -84,9 +84,9 @@ func TestValidateNoDatastoreConflicts_replaceExistingIsOptIn(t *testing.T) {
 	require.NoError(t, ValidateNoDatastoreConflicts(e, selector, true, plan))
 }
 
-// The plan may need on-chain reads to resolve a qualifier. Nothing can conflict on a chain
-// with no refs recorded, so the check must not make the caller pay for them.
-func TestValidateNoDatastoreConflicts_skipsPlanWhenChainHasNoRefs(t *testing.T) {
+// The plan is evaluated when a datastore exists, even if it has no refs, so duplicate keys within
+// the current changeset are caught before Apply. An absent datastore skips conflict validation.
+func TestValidateNoDatastoreConflicts_validatesPlanWithoutExistingRefs(t *testing.T) {
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
@@ -95,19 +95,20 @@ func TestValidateNoDatastoreConflicts_skipsPlanWhenChainHasNoRefs(t *testing.T) 
 	planned := false
 	plan := func() ([]PlannedRef, error) {
 		planned = true
-		return nil, errors.New("plan should not have run")
+		return nil, nil
 	}
 
 	// Empty datastore.
 	require.NoError(t, ValidateNoDatastoreConflicts(conflictEnv(t, selector), selector, false, plan))
-	require.False(t, planned)
+	require.True(t, planned)
 
 	// Refs exist, but for a different chain.
 	e := conflictEnv(t, otherSelector, minterCapRef(otherSelector, "0xcap", "CCIP-BnM-0xminter"))
 	require.NoError(t, ValidateNoDatastoreConflicts(e, selector, false, plan))
-	require.False(t, planned)
+	require.True(t, planned)
 
 	// No datastore at all.
+	planned = false
 	require.NoError(t, ValidateNoDatastoreConflicts(cldf.Environment{}, selector, false, plan))
 	require.False(t, planned)
 }
@@ -135,11 +136,6 @@ func TestValidateNoDatastoreConflicts_rejectsDuplicateKeysWithinPlan(t *testing.
 	selector := cselectors.SUI_TESTNET.Selector
 	qualifier := MinterCapQualifier("CCIP BnM", "0xminter")
 
-	// The chain needs one recorded ref for the plan to run at all: on an empty chain the
-	// check is skipped (see TestValidateNoDatastoreConflicts_skipsPlanWhenChainHasNoRefs) and
-	// a duplicate write is caught by SaveSuiAddress in Apply instead.
-	e := conflictEnv(t, selector, minterCapRef(selector, "0xcap", MinterCapQualifier("CCIP BnM", "0xanother-minter")))
-
 	plan := func() ([]PlannedRef, error) {
 		return []PlannedRef{
 			{Type: SuiManagedTokenMinterCapID, Qualifier: qualifier},
@@ -148,7 +144,7 @@ func TestValidateNoDatastoreConflicts_rejectsDuplicateKeysWithinPlan(t *testing.
 	}
 
 	for _, replaceExisting := range []bool{false, true} {
-		err := ValidateNoDatastoreConflicts(e, selector, replaceExisting, plan)
+		err := ValidateNoDatastoreConflicts(conflictEnv(t, selector), selector, replaceExisting, plan)
 		require.ErrorContains(t, err, "twice")
 		require.ErrorContains(t, err, "SuiManagedTokenMinterCapID")
 	}

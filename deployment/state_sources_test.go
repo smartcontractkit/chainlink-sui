@@ -154,6 +154,29 @@ func TestAddressesForSuiChainFromDatastore_preservesQualifier(t *testing.T) {
 	require.Equal(t, "CCIP-BnM", refs["0xpool"][0].qualifier)
 }
 
+func TestLoadOnchainStatesui_prefersSemanticRefOverLegacyShim(t *testing.T) {
+	t.Parallel()
+
+	symbol := "CCIP BnM"
+	tv := cldf.NewTypeAndVersion(SuiBnMTokenPoolType, Version1_0_0)
+	tv.AddLabel(symbol)
+
+	state, err := loadsuiChainStateFromAddresses(map[string][]suiAddressRef{
+		"0xlegacy": {{
+			address:   "0xlegacy",
+			tv:        tv,
+			qualifier: "0xlegacy-" + string(SuiBnMTokenPoolType),
+		}},
+		"0xcurrent": {{
+			address:   "0xcurrent",
+			tv:        tv,
+			qualifier: TokenQualifier(symbol),
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "0xcurrent", state.BnMTokenPools[symbol].PackageID)
+}
+
 // TestLoadOnchainStatesui_fromDatastore_mcmsRoleRefCollision pins that the generic MCMS
 // role refs (Canceller/BypasserManyChainMultiSig), which reuse the SuiManyChainMultisigObjectID
 // address because roles are internal to the Sui MCMS state object, do not clobber the MCMS

@@ -251,14 +251,14 @@ func plannedTokenPoolRefs(e cldf.Environment, config DeployTPAndConfigureConfig)
 			types = []cldf.ContractType{
 				deployment.SuiBnMTokenPoolType,
 				deployment.SuiBnMTokenPoolStateType,
-				deployment.SuiBnMTokenPoolOwnerIDType,
+				deployment.SuiBnMTokenPoolOwnerCapObjectIDType,
 			}
 		case deployment.TokenPoolTypeLockRelease:
 			coinObjectTypeArg = config.LockReleaseTPInput.CoinObjectTypeArg
 			types = []cldf.ContractType{
 				deployment.SuiLnRTokenPoolType,
 				deployment.SuiLnRTokenPoolStateType,
-				deployment.SuiLnRTokenPoolOwnerIDType,
+				deployment.SuiLnRTokenPoolOwnerCapObjectIDType,
 				deployment.SuiLnRTokenPoolRebalancerCapIDType,
 			}
 		case deployment.TokenPoolTypeManaged:
@@ -266,7 +266,7 @@ func plannedTokenPoolRefs(e cldf.Environment, config DeployTPAndConfigureConfig)
 			types = []cldf.ContractType{
 				deployment.SuiManagedTokenPoolType,
 				deployment.SuiManagedTokenPoolStateType,
-				deployment.SuiManagedTokenPoolOwnerIDType,
+				deployment.SuiManagedTokenPoolOwnerCapObjectIDType,
 			}
 		default:
 			return nil, fmt.Errorf("unknown token pool type %v", tokenPoolType)
