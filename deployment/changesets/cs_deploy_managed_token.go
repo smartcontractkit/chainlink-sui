@@ -65,6 +65,10 @@ func (d DeployManagedToken) Apply(e cldf.Environment, config DeployManagedTokenC
 	// save the new managed token package id address to the addressbook
 	typeAndVersionManagedTokenPackageID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPackageIDType, deployment.Version1_0_0)
 	typeAndVersionManagedTokenPackageID.AddLabel(managedTokenReport.Output.TokenSymbol)
+	// The wrapper package mints no coin; its pool's coin is the underlying coin bound at init.
+	// Stamp that coin's full type so a token ref can name this wrapper by its package id and the
+	// adapter resolves the underlying coin type from it.
+	typeAndVersionManagedTokenPackageID.AddLabel("coinType=" + config.CoinObjectTypeArg)
 	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, managedTokenReport.Output.ManagedTokenPackageId, typeAndVersionManagedTokenPackageID)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken address %s for Sui chain %d: %w", managedTokenReport.Output.ManagedTokenPackageId, config.ChainSelector, err)
