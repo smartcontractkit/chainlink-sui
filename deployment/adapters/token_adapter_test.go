@@ -180,17 +180,17 @@ func TestPoolObjectTypes(t *testing.T) {
 	st, ot, err := poolObjectTypes(datastore.ContractType(suideploy.SuiBnMTokenPoolType))
 	require.NoError(t, err)
 	require.Equal(t, datastore.ContractType(suideploy.SuiBnMTokenPoolStateType), st)
-	require.Equal(t, datastore.ContractType(suideploy.SuiBnMTokenPoolOwnerIDType), ot)
+	require.Equal(t, datastore.ContractType(suideploy.SuiBnMTokenPoolOwnerCapObjectIDType), ot)
 
 	st, ot, err = poolObjectTypes(datastore.ContractType(suideploy.SuiManagedTokenPoolType))
 	require.NoError(t, err)
 	require.Equal(t, datastore.ContractType(suideploy.SuiManagedTokenPoolStateType), st)
-	require.Equal(t, datastore.ContractType(suideploy.SuiManagedTokenPoolOwnerIDType), ot)
+	require.Equal(t, datastore.ContractType(suideploy.SuiManagedTokenPoolOwnerCapObjectIDType), ot)
 
 	st, ot, err = poolObjectTypes(datastore.ContractType(suideploy.SuiLnRTokenPoolType))
 	require.NoError(t, err)
 	require.Equal(t, datastore.ContractType(suideploy.SuiLnRTokenPoolStateType), st)
-	require.Equal(t, datastore.ContractType(suideploy.SuiLnRTokenPoolOwnerIDType), ot)
+	require.Equal(t, datastore.ContractType(suideploy.SuiLnRTokenPoolOwnerCapObjectIDType), ot)
 
 	_, _, err = poolObjectTypes(datastore.ContractType("unknown"))
 	require.Error(t, err)
@@ -430,7 +430,7 @@ func TestResolveSuiPoolObjects_ManagedByLabel(t *testing.T) {
 	}))
 	require.NoError(t, ds.Addresses().Add(datastore.AddressRef{
 		ChainSelector: selector,
-		Type:          datastore.ContractType(suideploy.SuiManagedTokenPoolOwnerIDType),
+		Type:          datastore.ContractType(suideploy.SuiManagedTokenPoolOwnerCapObjectIDType),
 		Address:       "0xusdcowner",
 		Version:       semver.MustParse("1.0.0"),
 		Labels:        datastore.NewLabelSet("USDC"),
@@ -506,14 +506,17 @@ func TestSuiPoolTypeFromStr(t *testing.T) {
 
 func TestAppendSuiPoolAddresses(t *testing.T) {
 	t.Parallel()
-	refs := appendSuiPoolAddresses(nil, 7, datastore.ContractType(suideploy.SuiBnMTokenPoolType), "BnM", "0xpool", "0xstate", "0xownercap")
-	require.Len(t, refs, 3)
+	refs := appendSuiPoolAddresses(nil, 7, datastore.ContractType(suideploy.SuiBnMTokenPoolType), "BnM", "0xpool", "0xstate", "0xownercap", "0xupgradecap")
+	require.Len(t, refs, 4)
 	require.Equal(t, "0xpool", refs[0].Address)
 	require.Equal(t, datastore.ContractType(suideploy.SuiBnMTokenPoolType), refs[0].Type)
 	require.Equal(t, "0xstate", refs[1].Address)
 	require.Equal(t, datastore.ContractType(suideploy.SuiBnMTokenPoolStateType), refs[1].Type)
 	require.Equal(t, "0xownercap", refs[2].Address)
-	require.Equal(t, datastore.ContractType(suideploy.SuiBnMTokenPoolOwnerIDType), refs[2].Type)
+	require.Equal(t, datastore.ContractType(suideploy.SuiBnMTokenPoolOwnerCapObjectIDType), refs[2].Type)
+	require.Equal(t, "0xupgradecap", refs[3].Address)
+	require.Equal(t, datastore.ContractType(suideploy.SuiBnMTokenPoolUpgradeCapObjectIDType), refs[3].Type)
+	require.Equal(t, "0xupgradecap-SuiBnMTokenPoolUpgradeCapObjectID", refs[3].Qualifier)
 	for _, r := range refs {
 		require.Equal(t, uint64(7), r.ChainSelector)
 		require.True(t, r.Labels.Contains("BnM"))

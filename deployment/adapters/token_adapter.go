@@ -779,7 +779,7 @@ func (a *SuiTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				}); err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to transfer burn-mint pool ownership to MCMS: %w", err)
 				}
-				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId)
+				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId, deployReport.Output.Objects.UpgradeCapObjectId)
 			case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
 				managedPkg := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiManagedTokenPackageIDType)), symbol))
 				mtState := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiManagedTokenStateObjectID)), symbol))
@@ -824,7 +824,7 @@ func (a *SuiTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				}); err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to transfer managed pool ownership to MCMS: %w", err)
 				}
-				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId)
+				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId, deployReport.Output.Objects.UpgradeCapObjectId)
 			case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
 				treasuryCap := refAddress(findRefByLabel(findRefsByType(ds, input.ChainSelector, datastore.ContractType(suideploy.SuiLnRTokenTreasuryCapIDType)), symbol))
 				if treasuryCap == "" {
@@ -864,7 +864,7 @@ func (a *SuiTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				}); err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to transfer lock-release pool ownership to MCMS: %w", err)
 				}
-				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId)
+				addresses = appendSuiPoolAddresses(addresses, input.ChainSelector, poolType, symbol, poolPkg, initReport.Output.Objects.StateObjectId, deployReport.Output.Objects.OwnerCapObjectId, deployReport.Output.Objects.UpgradeCapObjectId)
 			default:
 				return sequences.OnChainOutput{}, fmt.Errorf("unsupported sui pool type %s for DeployTokenPoolForToken", poolType)
 			}
@@ -983,26 +983,30 @@ func refAddress(ref datastore.AddressRef, ok bool) string {
 }
 
 // appendSuiPoolAddresses builds the AddressRefs for a freshly deployed pool (package, state,
-// owner cap) keyed by the token symbol label, matching the refs saved by the Sui
+// owner cap, upgrade cap) keyed by the token symbol label, matching the refs saved by the Sui
 // DeployTPAndConfigure changeset.
-func appendSuiPoolAddresses(in []datastore.AddressRef, selector uint64, poolType datastore.ContractType, symbol, poolPkg, stateObjID, ownerCapID string) []datastore.AddressRef {
-	var stateType, ownerType datastore.ContractType
+func appendSuiPoolAddresses(in []datastore.AddressRef, selector uint64, poolType datastore.ContractType, symbol, poolPkg, stateObjID, ownerCapID, upgradeCapID string) []datastore.AddressRef {
+	var stateType, ownerType, upgradeType datastore.ContractType
 	switch poolType {
 	case datastore.ContractType(suideploy.SuiBnMTokenPoolType):
 		stateType = datastore.ContractType(suideploy.SuiBnMTokenPoolStateType)
-		ownerType = datastore.ContractType(suideploy.SuiBnMTokenPoolOwnerIDType)
+		ownerType = datastore.ContractType(suideploy.SuiBnMTokenPoolOwnerCapObjectIDType)
+		upgradeType = datastore.ContractType(suideploy.SuiBnMTokenPoolUpgradeCapObjectIDType)
 	case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
 		stateType = datastore.ContractType(suideploy.SuiManagedTokenPoolStateType)
-		ownerType = datastore.ContractType(suideploy.SuiManagedTokenPoolOwnerIDType)
+		ownerType = datastore.ContractType(suideploy.SuiManagedTokenPoolOwnerCapObjectIDType)
+		upgradeType = datastore.ContractType(suideploy.SuiManagedTokenPoolUpgradeCapObjectIDType)
 	case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
 		stateType = datastore.ContractType(suideploy.SuiLnRTokenPoolStateType)
-		ownerType = datastore.ContractType(suideploy.SuiLnRTokenPoolOwnerIDType)
+		ownerType = datastore.ContractType(suideploy.SuiLnRTokenPoolOwnerCapObjectIDType)
+		upgradeType = datastore.ContractType(suideploy.SuiLnRTokenPoolUpgradeCapObjectIDType)
 	}
 	version := semver.MustParse("1.0.0")
 	return append(in,
 		datastore.AddressRef{ChainSelector: selector, Type: poolType, Address: poolPkg, Version: version, Qualifier: fmt.Sprintf("%s-%s", poolPkg, poolType), Labels: datastore.NewLabelSet(symbol)},
 		datastore.AddressRef{ChainSelector: selector, Type: stateType, Address: stateObjID, Version: version, Qualifier: fmt.Sprintf("%s-%s", stateObjID, stateType), Labels: datastore.NewLabelSet(symbol)},
 		datastore.AddressRef{ChainSelector: selector, Type: ownerType, Address: ownerCapID, Version: version, Qualifier: fmt.Sprintf("%s-%s", ownerCapID, ownerType), Labels: datastore.NewLabelSet(symbol)},
+		datastore.AddressRef{ChainSelector: selector, Type: upgradeType, Address: upgradeCapID, Version: version, Qualifier: fmt.Sprintf("%s-%s", upgradeCapID, upgradeType), Labels: datastore.NewLabelSet(symbol)},
 	)
 }
 
@@ -1187,11 +1191,11 @@ func resolveSuiPoolObjects(ds datastore.DataStore, selector uint64, poolType dat
 func poolObjectTypes(poolType datastore.ContractType) (stateType, ownerType datastore.ContractType, err error) {
 	switch poolType {
 	case datastore.ContractType(suideploy.SuiBnMTokenPoolType):
-		return datastore.ContractType(suideploy.SuiBnMTokenPoolStateType), datastore.ContractType(suideploy.SuiBnMTokenPoolOwnerIDType), nil
+		return datastore.ContractType(suideploy.SuiBnMTokenPoolStateType), datastore.ContractType(suideploy.SuiBnMTokenPoolOwnerCapObjectIDType), nil
 	case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
-		return datastore.ContractType(suideploy.SuiManagedTokenPoolStateType), datastore.ContractType(suideploy.SuiManagedTokenPoolOwnerIDType), nil
+		return datastore.ContractType(suideploy.SuiManagedTokenPoolStateType), datastore.ContractType(suideploy.SuiManagedTokenPoolOwnerCapObjectIDType), nil
 	case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
-		return datastore.ContractType(suideploy.SuiLnRTokenPoolStateType), datastore.ContractType(suideploy.SuiLnRTokenPoolOwnerIDType), nil
+		return datastore.ContractType(suideploy.SuiLnRTokenPoolStateType), datastore.ContractType(suideploy.SuiLnRTokenPoolOwnerCapObjectIDType), nil
 	default:
 		return "", "", fmt.Errorf("unsupported sui token pool type %s", poolType)
 	}
