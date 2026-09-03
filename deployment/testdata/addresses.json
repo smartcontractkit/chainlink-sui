@@ -57,7 +57,7 @@
       }
     },
     "0x78dde1c270c6edf64e586850b04cba3701d259441f4390e3bc4490407a9ecc86": {
-      "Type": "SuiBnMTokenPoolOwnerID",
+      "Type": "SuiBnMTokenPoolOwnerCapObjectID",
       "Version": "1.0.0",
       "Labels": {
         "CCIP-BnM": {}
@@ -78,7 +78,7 @@
       }
     },
     "0x89eef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd97": {
-      "Type": "SuiBnMTokenPoolOwnerID",
+      "Type": "SuiBnMTokenPoolOwnerCapObjectID",
       "Version": "1.0.0",
       "Labels": {
         "CCIP-BnM2": {}
@@ -99,7 +99,7 @@
       }
     },
     "0x9aeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd98": {
-      "Type": "SuiLnRTokenPoolOwnerID",
+      "Type": "SuiLnRTokenPoolOwnerCapObjectID",
       "Version": "1.0.0",
       "Labels": {
         "CCIP-LnR": {}
@@ -134,7 +134,7 @@
       }
     },
     "0xabeef2d381d70fe075970961c15dcb4812e36a5520549f4cd559150589afdd99": {
-      "Type": "SuiManagedTokenPoolOwnerID",
+      "Type": "SuiManagedTokenPoolOwnerCapObjectID",
       "Version": "1.0.0",
       "Labels": {
         "LINK": {}

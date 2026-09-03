@@ -143,7 +143,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			}
 
 			// save BnM Pool OwnerId to the addressBook
-			typeAndVersionBurnMintTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolOwnerIDType, deployment.Version1_0_0)
+			typeAndVersionBurnMintTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolOwnerCapObjectIDType, deployment.Version1_0_0)
 			typeAndVersionBurnMintTokenPoolOwnerId.AddLabel(tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.TokenSymbol)
 			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionBurnMintTokenPoolOwnerId)
 			if err != nil {
@@ -168,7 +168,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			}
 
 			// save LnR Pool OwnerId to the addressBook
-			typeAndVersionLnRTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolOwnerIDType, deployment.Version1_0_0)
+			typeAndVersionLnRTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolOwnerCapObjectIDType, deployment.Version1_0_0)
 			typeAndVersionLnRTokenPoolOwnerId.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
 			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionLnRTokenPoolOwnerId)
 			if err != nil {
@@ -200,7 +200,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			}
 
 			// save Managed Pool OwnerId to the addressBook
-			typeAndVersionManagedTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPoolOwnerIDType, deployment.Version1_0_0)
+			typeAndVersionManagedTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPoolOwnerCapObjectIDType, deployment.Version1_0_0)
 			typeAndVersionManagedTokenPoolOwnerId.AddLabel(tokenPoolReport.Output.DeployManagedTokenPoolOutput.TokenSymbol)
 			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionManagedTokenPoolOwnerId)
 			if err != nil {

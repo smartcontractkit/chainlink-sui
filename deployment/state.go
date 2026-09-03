@@ -39,10 +39,11 @@ type SuiChainView struct {
 }
 
 type CCIPPoolState struct {
-	PackageID        string
-	StateObjectId    string
-	OwnerCapObjectId string
-	RebalancerCapIds []string // only applicable for LR TP
+	PackageID          string
+	StateObjectId      string
+	OwnerCapObjectId   string
+	UpgradeCapObjectId string
+	RebalancerCapIds   []string // only applicable for LR TP
 }
 
 type ManagedTokenState struct {
@@ -725,13 +726,21 @@ func loadsuiChainStateFromAddresses(addresses map[string][]cldf.TypeAndVersion) 
 			pool := chainState.BnMTokenPools[symbol]
 			pool.StateObjectId = addr
 			chainState.BnMTokenPools[symbol] = pool
-		case SuiBnMTokenPoolOwnerIDType:
+		case SuiBnMTokenPoolOwnerCapObjectIDType:
 			symbol, err := getTokenSymbol(typeAndVersion)
 			if err != nil {
 				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for BnM token pool: %w", err)
 			}
 			pool := chainState.BnMTokenPools[symbol]
 			pool.OwnerCapObjectId = addr
+			chainState.BnMTokenPools[symbol] = pool
+		case SuiBnMTokenPoolUpgradeCapObjectIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for BnM token pool: %w", err)
+			}
+			pool := chainState.BnMTokenPools[symbol]
+			pool.UpgradeCapObjectId = addr
 			chainState.BnMTokenPools[symbol] = pool
 
 		//  LnR Token pools related
@@ -751,13 +760,21 @@ func loadsuiChainStateFromAddresses(addresses map[string][]cldf.TypeAndVersion) 
 			pool := chainState.LnRTokenPools[symbol]
 			pool.StateObjectId = addr
 			chainState.LnRTokenPools[symbol] = pool
-		case SuiLnRTokenPoolOwnerIDType:
+		case SuiLnRTokenPoolOwnerCapObjectIDType:
 			symbol, err := getTokenSymbol(typeAndVersion)
 			if err != nil {
 				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token pool: %w", err)
 			}
 			pool := chainState.LnRTokenPools[symbol]
 			pool.OwnerCapObjectId = addr
+			chainState.LnRTokenPools[symbol] = pool
+		case SuiLnRTokenPoolUpgradeCapObjectIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for LnR token pool: %w", err)
+			}
+			pool := chainState.LnRTokenPools[symbol]
+			pool.UpgradeCapObjectId = addr
 			chainState.LnRTokenPools[symbol] = pool
 		case SuiLnRTokenPoolRebalancerCapIDType:
 			symbol, err := getTokenSymbol(typeAndVersion)
@@ -785,13 +802,21 @@ func loadsuiChainStateFromAddresses(addresses map[string][]cldf.TypeAndVersion) 
 			pool := chainState.ManagedTokenPools[symbol]
 			pool.StateObjectId = addr
 			chainState.ManagedTokenPools[symbol] = pool
-		case SuiManagedTokenPoolOwnerIDType:
+		case SuiManagedTokenPoolOwnerCapObjectIDType:
 			symbol, err := getTokenSymbol(typeAndVersion)
 			if err != nil {
 				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token pool: %w", err)
 			}
 			pool := chainState.ManagedTokenPools[symbol]
 			pool.OwnerCapObjectId = addr
+			chainState.ManagedTokenPools[symbol] = pool
+		case SuiManagedTokenPoolUpgradeCapObjectIDType:
+			symbol, err := getTokenSymbol(typeAndVersion)
+			if err != nil {
+				return CCIPChainState{}, fmt.Errorf("failed to get token symbol for Managed token pool: %w", err)
+			}
+			pool := chainState.ManagedTokenPools[symbol]
+			pool.UpgradeCapObjectId = addr
 			chainState.ManagedTokenPools[symbol] = pool
 		}
 	}

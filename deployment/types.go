@@ -73,15 +73,17 @@ var (
 	SuiManagedTokenFaucetUpgradeCapObjectIDType deployment.ContractType = "SuiManagedTokenFaucetUpgradeCapObjectID"
 
 	// BnM Token Pool related
-	SuiBnMTokenPoolType        deployment.ContractType = "SuiBnMTokenPool"
-	SuiBnMTokenPoolStateType   deployment.ContractType = "SuiBnMTokenPoolState"
-	SuiBnMTokenPoolOwnerIDType deployment.ContractType = "SuiBnMTokenPoolOwnerID"
+	SuiBnMTokenPoolType                   deployment.ContractType = "SuiBnMTokenPool"
+	SuiBnMTokenPoolStateType              deployment.ContractType = "SuiBnMTokenPoolState"
+	SuiBnMTokenPoolOwnerCapObjectIDType   deployment.ContractType = "SuiBnMTokenPoolOwnerCapObjectID"
+	SuiBnMTokenPoolUpgradeCapObjectIDType deployment.ContractType = "SuiBnMTokenPoolUpgradeCapObjectID"
 
 	// LnR Token Pool related
-	SuiLnRTokenPoolType                deployment.ContractType = "SuiLnRTokenPool"
-	SuiLnRTokenPoolStateType           deployment.ContractType = "SuiLnRTokenPoolState"
-	SuiLnRTokenPoolOwnerIDType         deployment.ContractType = "SuiLnRTokenPoolOwnerID"
-	SuiLnRTokenPoolRebalancerCapIDType deployment.ContractType = "SuiLnRTokenPoolRebalancerCapID"
+	SuiLnRTokenPoolType                   deployment.ContractType = "SuiLnRTokenPool"
+	SuiLnRTokenPoolStateType              deployment.ContractType = "SuiLnRTokenPoolState"
+	SuiLnRTokenPoolOwnerCapObjectIDType   deployment.ContractType = "SuiLnRTokenPoolOwnerCapObjectID"
+	SuiLnRTokenPoolUpgradeCapObjectIDType deployment.ContractType = "SuiLnRTokenPoolUpgradeCapObjectID"
+	SuiLnRTokenPoolRebalancerCapIDType    deployment.ContractType = "SuiLnRTokenPoolRebalancerCapID"
 	// the lock-release coin itself, recorded under its own type rather than the managed-token bucket
 	SuiLnRTokenType               deployment.ContractType = "SuiLnRToken"
 	SuiLnRTokenCoinMetadataIDType deployment.ContractType = "SuiLnRTokenCoinMetadataID"
@@ -89,9 +91,10 @@ var (
 	SuiLnRTokenUpgradeCapIDType   deployment.ContractType = "SuiLnRTokenUpgradeCapID"
 
 	// Managed Token Pool related
-	SuiManagedTokenPoolType        deployment.ContractType = "SuiManagedTokenPool"
-	SuiManagedTokenPoolStateType   deployment.ContractType = "SuiManagedTokenPoolState"
-	SuiManagedTokenPoolOwnerIDType deployment.ContractType = "SuiManagedTokenPoolOwnerID"
+	SuiManagedTokenPoolType                   deployment.ContractType = "SuiManagedTokenPool"
+	SuiManagedTokenPoolStateType              deployment.ContractType = "SuiManagedTokenPoolState"
+	SuiManagedTokenPoolOwnerCapObjectIDType   deployment.ContractType = "SuiManagedTokenPoolOwnerCapObjectID"
+	SuiManagedTokenPoolUpgradeCapObjectIDType deployment.ContractType = "SuiManagedTokenPoolUpgradeCapObjectID"
 
 	// Upgrade Related
 	SuiCCIPMockV2              deployment.ContractType = "SuiCCIPMockV2PackageID"
