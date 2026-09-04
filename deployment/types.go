@@ -65,12 +65,17 @@ var (
 	SuiManagedTokenPackageIDType     deployment.ContractType = "SuiManagedTokenPackageID"
 	SuiManagedTokenOwnerCapObjectID  deployment.ContractType = "SuiManagedTokenOwnerCapObjectID"
 	SuiManagedTokenStateObjectID     deployment.ContractType = "SuiManagedTokenStateObjectID"
-	SuiManagedTokenMinterCapID       deployment.ContractType = "SuiManagedTokenMinterCapID"
 	SuiManagedTokenPublisherObjectId deployment.ContractType = "SuiManagedTokenPublisherObjectId"
+	// SuiManagedTokenMinterCapID is holder-scoped: one cap per authorised minter, qualified
+	// by MinterCapQualifier. The cap the faucet holds has its own type below, because a
+	// faucet is a singleton per token and would otherwise share a holder (the deployer) with
+	// the cap minted at token deploy time.
+	SuiManagedTokenMinterCapID deployment.ContractType = "SuiManagedTokenMinterCapID"
 	// Managed token faucet package
 	SuiManagedTokenFaucetPackageIDType          deployment.ContractType = "SuiManagedTokenFaucetPackageID"
 	SuiManagedTokenFaucetStateObjectIDType      deployment.ContractType = "SuiManagedTokenFaucetStateObjectID"
 	SuiManagedTokenFaucetUpgradeCapObjectIDType deployment.ContractType = "SuiManagedTokenFaucetUpgradeCapObjectID"
+	SuiManagedTokenFaucetMinterCapIDType        deployment.ContractType = "SuiManagedTokenFaucetMinterCapID"
 
 	// BnM Token Pool related
 	SuiBnMTokenPoolType                   deployment.ContractType = "SuiBnMTokenPool"

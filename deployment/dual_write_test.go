@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"errors"
 	"testing"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
@@ -13,6 +14,15 @@ import (
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
 
+type failingAddressRefStore struct {
+	*fdatastore.MemoryAddressRefStore
+	err error
+}
+
+func (s *failingAddressRefStore) Add(fdatastore.AddressRef) error {
+	return s.err
+}
+
 func TestSaveSuiAddress_dualWrite(t *testing.T) {
 	t.Parallel()
 
@@ -21,7 +31,7 @@ func TestSaveSuiAddress_dualWrite(t *testing.T) {
 	ds := fdatastore.NewMemoryDataStore()
 
 	tv := cldf.NewTypeAndVersion(SuiCCIPType, Version1_0_0)
-	require.NoError(t, SaveSuiAddress(ab, ds.Addresses(), selector, "0xccip-pkg", tv))
+	require.NoError(t, SaveSuiAddress(ab, ds.Addresses(), selector, "0xccip-pkg", tv, ChainSingletonQualifier))
 
 	abAddrs, err := ab.AddressesForChain(selector)
 	require.NoError(t, err)
@@ -33,8 +43,27 @@ func TestSaveSuiAddress_dualWrite(t *testing.T) {
 	require.Equal(t, "0xccip-pkg", refs[0].Address)
 	require.Equal(t, fdatastore.ContractType(SuiCCIPType), refs[0].Type)
 	require.Equal(t, "1.0.0", refs[0].Version.String())
-	require.Equal(t, "0xccip-pkg-SuiCCIP", refs[0].Qualifier)
+	require.Empty(t, refs[0].Qualifier)
 	require.True(t, refs[0].Labels.IsEmpty())
+}
+
+func TestSaveSuiAddress_rollsBackAddressBookWhenDatastoreWriteFails(t *testing.T) {
+	t.Parallel()
+
+	selector := cselectors.SUI_TESTNET.Selector
+	ab := cldf.NewMemoryAddressBook()
+	sentinel := errors.New("datastore unavailable")
+	ds := &failingAddressRefStore{
+		MemoryAddressRefStore: fdatastore.NewMemoryAddressRefStore(),
+		err:                   sentinel,
+	}
+	tv := cldf.NewTypeAndVersion(SuiCCIPType, Version1_0_0)
+
+	err := SaveSuiAddress(ab, ds, selector, "0xccip-pkg", tv, ChainSingletonQualifier)
+	require.ErrorIs(t, err, sentinel)
+	abAddrs, abErr := ab.AddressesForChain(selector)
+	require.NoError(t, abErr)
+	require.Empty(t, abAddrs)
 }
 
 func TestSaveSuiAddress_symbolLabelRoundTrip(t *testing.T) {
@@ -46,7 +75,7 @@ func TestSaveSuiAddress_symbolLabelRoundTrip(t *testing.T) {
 
 	tv := cldf.NewTypeAndVersion(SuiManagedTokenPackageIDType, Version1_0_0)
 	tv.AddLabel("USDC")
-	require.NoError(t, SaveSuiAddress(ab, ds.Addresses(), selector, "0xusdc-pkg", tv))
+	require.NoError(t, SaveSuiAddress(ab, ds.Addresses(), selector, "0xusdc-pkg", tv, "USDC"))
 
 	refs := ds.Addresses().Filter(fdatastore.AddressRefByChainSelector(selector))
 	require.Len(t, refs, 1)
@@ -72,7 +101,7 @@ func TestSaveSuiAddress_fastcurseLabelRoundTrip(t *testing.T) {
 
 	tv := cldf.NewTypeAndVersion(SuiMcmsPackageIDType, Version1_0_0)
 	tv.Labels.Add(MCMSFastCurseLabel)
-	require.NoError(t, SaveSuiAddress(ab, ds.Addresses(), selector, "0xfast-pkg", tv))
+	require.NoError(t, SaveSuiAddress(ab, ds.Addresses(), selector, "0xfast-pkg", tv, RMNMCMSQualifier))
 
 	got, err := LoadOnchainStatesui(cldf.Environment{
 		DataStore: ds.Seal(),

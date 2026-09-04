@@ -24,6 +24,10 @@ type DeployTPAndConfigureConfig struct {
 	ManagedTPInput     managedtokenpoolops.DeployAndInitManagedTokenPoolInput
 	LockReleaseTPInput lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolInput
 	BurnMintTpInput    burnminttokenpoolops.DeployAndInitBurnMintTokenPoolInput
+	// ReplaceExisting allows this changeset to take datastore keys that are already recorded,
+	// as redeploying a pool for a token does. Without it, an occupied key is an error raised
+	// before anything is deployed.
+	ReplaceExisting bool `yaml:"replaceExisting"`
 }
 
 // ConnectSuiToEVM connects sui chain with EVM
@@ -129,7 +133,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save BnM Pool to the addressbook
 			typeAndVersionBurnMintTokenPool := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolType, deployment.Version1_0_0)
 			typeAndVersionBurnMintTokenPool.AddLabel(tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.TokenSymbol)
-			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.BurnMintTPPackageID, typeAndVersionBurnMintTokenPool)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.BurnMintTPPackageID, typeAndVersionBurnMintTokenPool, deployment.TokenQualifier(tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPool address %s for Sui chain %d: %w", tokenPoolReport.Output.BurnMintTPPackageID, config.SuiChainSelector, err)
 			}
@@ -137,7 +141,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save BnM Pool State to the addressBook
 			typeAndVersionBurnMintTokenPoolState := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolStateType, deployment.Version1_0_0)
 			typeAndVersionBurnMintTokenPoolState.AddLabel(tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.TokenSymbol)
-			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.StateObjectId, typeAndVersionBurnMintTokenPoolState)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.StateObjectId, typeAndVersionBurnMintTokenPoolState, deployment.TokenQualifier(tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolState address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.StateObjectId, config.SuiChainSelector, err)
 			}
@@ -145,7 +149,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save BnM Pool OwnerId to the addressBook
 			typeAndVersionBurnMintTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolOwnerCapObjectIDType, deployment.Version1_0_0)
 			typeAndVersionBurnMintTokenPoolOwnerId.AddLabel(tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.TokenSymbol)
-			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionBurnMintTokenPoolOwnerId)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionBurnMintTokenPoolOwnerId, deployment.TokenQualifier(tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolOwnerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
@@ -154,7 +158,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save LnR Pool to the addressbook
 			typeAndVersionLnRTokenPool := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolType, deployment.Version1_0_0)
 			typeAndVersionLnRTokenPool.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
-			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.LockReleaseTPPackageID, typeAndVersionLnRTokenPool)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.LockReleaseTPPackageID, typeAndVersionLnRTokenPool, deployment.TokenQualifier(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPool address %s for Sui chain %d: %w", tokenPoolReport.Output.LockReleaseTPPackageID, config.SuiChainSelector, err)
 			}
@@ -162,7 +166,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save LnR Pool State to the addressBook
 			typeAndVersionLnRTokenPoolState := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolStateType, deployment.Version1_0_0)
 			typeAndVersionLnRTokenPoolState.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
-			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.StateObjectId, typeAndVersionLnRTokenPoolState)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.StateObjectId, typeAndVersionLnRTokenPoolState, deployment.TokenQualifier(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPoolState address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.StateObjectId, config.SuiChainSelector, err)
 			}
@@ -170,7 +174,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save LnR Pool OwnerId to the addressBook
 			typeAndVersionLnRTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolOwnerCapObjectIDType, deployment.Version1_0_0)
 			typeAndVersionLnRTokenPoolOwnerId.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
-			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionLnRTokenPoolOwnerId)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionLnRTokenPoolOwnerId, deployment.TokenQualifier(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPoolOwnerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
@@ -178,7 +182,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save LnR Pool RebalancerCapId to the addressBook
 			typeAndVersionLnRTokenPoolRebalancerCapId := cldf.NewTypeAndVersion(deployment.SuiLnRTokenPoolRebalancerCapIDType, deployment.Version1_0_0)
 			typeAndVersionLnRTokenPoolRebalancerCapId.AddLabel(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)
-			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.RebalancerCapObjectId, typeAndVersionLnRTokenPoolRebalancerCapId)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.RebalancerCapObjectId, typeAndVersionLnRTokenPoolRebalancerCapId, deployment.TokenQualifier(tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LnRTokenPoolRebalancerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployLockReleaseTokenPoolOutput.Objects.RebalancerCapObjectId, config.SuiChainSelector, err)
 			}
@@ -186,7 +190,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save Managed Pool to the addressbook
 			typeAndVersionManagedTokenPool := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPoolType, deployment.Version1_0_0)
 			typeAndVersionManagedTokenPool.AddLabel(tokenPoolReport.Output.DeployManagedTokenPoolOutput.TokenSymbol)
-			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.ManagedTPPackageId, typeAndVersionManagedTokenPool)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.ManagedTPPackageId, typeAndVersionManagedTokenPool, deployment.TokenQualifier(tokenPoolReport.Output.DeployManagedTokenPoolOutput.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedTokenPool address %s for Sui chain %d: %w", tokenPoolReport.Output.ManagedTPPackageId, config.SuiChainSelector, err)
 			}
@@ -194,7 +198,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save Managed Pool State to the addressBook
 			typeAndVersionManagedTokenPoolState := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPoolStateType, deployment.Version1_0_0)
 			typeAndVersionManagedTokenPoolState.AddLabel(tokenPoolReport.Output.DeployManagedTokenPoolOutput.TokenSymbol)
-			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.StateObjectId, typeAndVersionManagedTokenPoolState)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.StateObjectId, typeAndVersionManagedTokenPoolState, deployment.TokenQualifier(tokenPoolReport.Output.DeployManagedTokenPoolOutput.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedTokenPoolState address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.StateObjectId, config.SuiChainSelector, err)
 			}
@@ -202,7 +206,7 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			// save Managed Pool OwnerId to the addressBook
 			typeAndVersionManagedTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPoolOwnerCapObjectIDType, deployment.Version1_0_0)
 			typeAndVersionManagedTokenPoolOwnerId.AddLabel(tokenPoolReport.Output.DeployManagedTokenPoolOutput.TokenSymbol)
-			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionManagedTokenPoolOwnerId)
+			err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.SuiChainSelector, tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionManagedTokenPoolOwnerId, deployment.TokenQualifier(tokenPoolReport.Output.DeployManagedTokenPoolOutput.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedTokenPoolOwnerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployManagedTokenPoolOutput.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
@@ -228,5 +232,55 @@ func (d DeployTPAndConfigure) VerifyPreconditions(e cldf.Environment, config Dep
 			config.SuiChainSelector,
 		)
 	}
-	return nil
+
+	return deployment.ValidateNoDatastoreConflicts(e, config.SuiChainSelector, config.ReplaceExisting, func() ([]deployment.PlannedRef, error) {
+		return plannedTokenPoolRefs(e, config)
+	})
+}
+
+func plannedTokenPoolRefs(e cldf.Environment, config DeployTPAndConfigureConfig) ([]deployment.PlannedRef, error) {
+	var planned []deployment.PlannedRef
+	for _, tokenPoolType := range config.TokenPoolTypes {
+		var (
+			coinObjectTypeArg string
+			types             []cldf.ContractType
+		)
+		switch tokenPoolType {
+		case deployment.TokenPoolTypeBurnMint:
+			coinObjectTypeArg = config.BurnMintTpInput.CoinObjectTypeArg
+			types = []cldf.ContractType{
+				deployment.SuiBnMTokenPoolType,
+				deployment.SuiBnMTokenPoolStateType,
+				deployment.SuiBnMTokenPoolOwnerCapObjectIDType,
+			}
+		case deployment.TokenPoolTypeLockRelease:
+			coinObjectTypeArg = config.LockReleaseTPInput.CoinObjectTypeArg
+			types = []cldf.ContractType{
+				deployment.SuiLnRTokenPoolType,
+				deployment.SuiLnRTokenPoolStateType,
+				deployment.SuiLnRTokenPoolOwnerCapObjectIDType,
+				deployment.SuiLnRTokenPoolRebalancerCapIDType,
+			}
+		case deployment.TokenPoolTypeManaged:
+			coinObjectTypeArg = config.ManagedTPInput.CoinObjectTypeArg
+			types = []cldf.ContractType{
+				deployment.SuiManagedTokenPoolType,
+				deployment.SuiManagedTokenPoolStateType,
+				deployment.SuiManagedTokenPoolOwnerCapObjectIDType,
+			}
+		default:
+			return nil, fmt.Errorf("unknown token pool type %v", tokenPoolType)
+		}
+
+		symbol, err := coinSymbol(e, config.SuiChainSelector, coinObjectTypeArg)
+		if err != nil {
+			return nil, err
+		}
+		qualifier := deployment.TokenQualifier(symbol)
+		for _, t := range types {
+			planned = append(planned, deployment.PlannedRef{Type: t, Qualifier: qualifier})
+		}
+	}
+
+	return planned, nil
 }
