@@ -121,14 +121,16 @@ func (s *CCIPCurseMCMSTestSuite) deployFastMCMS() {
 }
 
 func (s *CCIPCurseMCMSTestSuite) newAdapter() *adapters.CurseAdapter {
-	return &adapters.CurseAdapter{
+	a := adapters.NewCurseAdapter()
+	a.SetChainState(uint64(s.chainSelector), adapters.SuiChainState{
 		CCIPAddress:          s.ccipPackageId,
 		CCIPObjectRef:        s.ccipObjects.CCIPObjectRefObjectId,
 		CCIPOwnerCapObjectID: s.ccipObjects.OwnerCapObjectId,
 		CurserCapObjectID:    s.curserCapObjectID,
 		RouterAddress:        s.ccipRouterPackageId,
 		RouterStateObjectID:  s.ccipRouterObjects.RouterStateObjectId,
-	}
+	})
+	return a
 }
 
 func (s *CCIPCurseMCMSTestSuite) buildSuiChains(includeSigner bool) cldf_chain.BlockChains {
@@ -404,7 +406,9 @@ func (s *CCIPCurseMCMSTestSuite) testFastMCMSCurseViaCurserCap() {
 	s.bootstrapCurserCap()
 
 	a := s.newAdapter()
-	s.Require().Equal(s.curserCapObjectID, a.CurserCapObjectID)
+	st, ok := a.ChainState(uint64(s.chainSelector))
+	s.Require().True(ok, "adapter must be initialized for the suite selector")
+	s.Require().Equal(s.curserCapObjectID, st.CurserCapObjectID)
 	env := s.buildEnv()
 	chains := s.buildSuiChains(false)
 	bundle := s.NewOpBundle()
@@ -445,13 +449,14 @@ func (s *CCIPCurseMCMSTestSuite) testFastMCMSCurseViaCurserCap() {
 	s.executeFastProposalE2e(proposal, s.fastBypasserConfig, 0)
 	s.assertIsCursed(a, env, subject, true)
 
-	slowAdapter := &adapters.CurseAdapter{
+	slowAdapter := adapters.NewCurseAdapter()
+	slowAdapter.SetChainState(uint64(s.chainSelector), adapters.SuiChainState{
 		CCIPAddress:          s.ccipPackageId,
 		CCIPObjectRef:        s.ccipObjects.CCIPObjectRefObjectId,
 		CCIPOwnerCapObjectID: s.ccipObjects.OwnerCapObjectId,
 		RouterAddress:        s.ccipRouterPackageId,
 		RouterStateObjectID:  s.ccipRouterObjects.RouterStateObjectId,
-	}
+	})
 
 	uncurseReport, err := cld_ops.ExecuteSequence(bundle, slowAdapter.Uncurse(), chains, curseInput)
 	s.Require().NoError(err, "building slow MCMS uncurse batch operations for cleanup")
@@ -508,13 +513,14 @@ func (s *CCIPCurseMCMSTestSuite) testSlowMCMSUncurseAfterFastCurse() {
 	s.executeFastProposalE2e(curseProposal, s.fastBypasserConfig, 0)
 	s.assertIsCursed(a, env, subject, true)
 
-	slowAdapter := &adapters.CurseAdapter{
+	slowAdapter := adapters.NewCurseAdapter()
+	slowAdapter.SetChainState(uint64(s.chainSelector), adapters.SuiChainState{
 		CCIPAddress:          s.ccipPackageId,
 		CCIPObjectRef:        s.ccipObjects.CCIPObjectRefObjectId,
 		CCIPOwnerCapObjectID: s.ccipObjects.OwnerCapObjectId,
 		RouterAddress:        s.ccipRouterPackageId,
 		RouterStateObjectID:  s.ccipRouterObjects.RouterStateObjectId,
-	}
+	})
 
 	uncurseReport, err := cld_ops.ExecuteSequence(bundle, slowAdapter.Uncurse(), chains, curseInput)
 	s.Require().NoError(err)

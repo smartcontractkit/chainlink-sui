@@ -72,9 +72,11 @@ func TestCurseAdapter_Curse_UsesFastCurseSequence(t *testing.T) {
 
 	selector := cselectors.SUI_TESTNET.Selector
 	adapter := adapters.NewCurseAdapter()
-	adapter.CCIPAddress = testCCIPPackageID
-	adapter.CCIPObjectRef = testCCIPObjectRef
-	adapter.CurserCapObjectID = testCurserCapID
+	adapter.SetChainState(selector, adapters.SuiChainState{
+		CCIPAddress:       testCCIPPackageID,
+		CCIPObjectRef:     testCCIPObjectRef,
+		CurserCapObjectID: testCurserCapID,
+	})
 
 	chains := cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
 		selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
@@ -106,8 +108,10 @@ func TestCurseAdapter_Curse_RequiresRegisteredCurserCap(t *testing.T) {
 
 	selector := cselectors.SUI_TESTNET.Selector
 	adapter := adapters.NewCurseAdapter()
-	adapter.CCIPAddress = testCCIPPackageID
-	adapter.CCIPObjectRef = testCCIPObjectRef
+	adapter.SetChainState(selector, adapters.SuiChainState{
+		CCIPAddress:   testCCIPPackageID,
+		CCIPObjectRef: testCCIPObjectRef,
+	})
 
 	chains := cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
 		selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
@@ -131,10 +135,12 @@ func TestCurseAdapter_Curse_WithUpgradedPackage_PropagatesLatestPackageID(t *tes
 
 	selector := cselectors.SUI_TESTNET.Selector
 	adapter := adapters.NewCurseAdapter()
-	adapter.CCIPAddress = testCCIPPackageID
-	adapter.LatestCCIPPackageID = testLatestCCIPPackageID
-	adapter.CCIPObjectRef = testCCIPObjectRef
-	adapter.CurserCapObjectID = testCurserCapID
+	adapter.SetChainState(selector, adapters.SuiChainState{
+		CCIPAddress:         testCCIPPackageID,
+		LatestCCIPPackageID: testLatestCCIPPackageID,
+		CCIPObjectRef:       testCCIPObjectRef,
+		CurserCapObjectID:   testCurserCapID,
+	})
 
 	chains := cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
 		selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
@@ -166,9 +172,11 @@ func TestCurseAdapter_Uncurse_UsesOwnerCapSequence(t *testing.T) {
 
 	selector := cselectors.SUI_TESTNET.Selector
 	adapter := adapters.NewCurseAdapter()
-	adapter.CCIPAddress = testCCIPPackageID
-	adapter.CCIPObjectRef = testCCIPObjectRef
-	adapter.CCIPOwnerCapObjectID = "0x3333333333333333333333333333333333333333333333333333333333333333"
+	adapter.SetChainState(selector, adapters.SuiChainState{
+		CCIPAddress:          testCCIPPackageID,
+		CCIPObjectRef:        testCCIPObjectRef,
+		CCIPOwnerCapObjectID: "0x3333333333333333333333333333333333333333333333333333333333333333",
+	})
 
 	chains := cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
 		selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
@@ -200,10 +208,12 @@ func TestCurseAdapter_Uncurse_WithUpgradedPackage_PropagatesLatestPackageID(t *t
 
 	selector := cselectors.SUI_TESTNET.Selector
 	adapter := adapters.NewCurseAdapter()
-	adapter.CCIPAddress = testCCIPPackageID
-	adapter.LatestCCIPPackageID = testLatestCCIPPackageID
-	adapter.CCIPObjectRef = testCCIPObjectRef
-	adapter.CCIPOwnerCapObjectID = "0x3333333333333333333333333333333333333333333333333333333333333333"
+	adapter.SetChainState(selector, adapters.SuiChainState{
+		CCIPAddress:          testCCIPPackageID,
+		LatestCCIPPackageID:  testLatestCCIPPackageID,
+		CCIPObjectRef:        testCCIPObjectRef,
+		CCIPOwnerCapObjectID: "0x3333333333333333333333333333333333333333333333333333333333333333",
+	})
 
 	chains := cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
 		selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
@@ -235,9 +245,11 @@ func TestCurseAdapter_Uncurse_MultipleSubjects(t *testing.T) {
 
 	selector := cselectors.SUI_TESTNET.Selector
 	adapter := adapters.NewCurseAdapter()
-	adapter.CCIPAddress = testCCIPPackageID
-	adapter.CCIPObjectRef = testCCIPObjectRef
-	adapter.CCIPOwnerCapObjectID = "0x3333333333333333333333333333333333333333333333333333333333333333"
+	adapter.SetChainState(selector, adapters.SuiChainState{
+		CCIPAddress:          testCCIPPackageID,
+		CCIPObjectRef:        testCCIPObjectRef,
+		CCIPOwnerCapObjectID: "0x3333333333333333333333333333333333333333333333333333333333333333",
+	})
 
 	chains := cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
 		selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
@@ -276,9 +288,11 @@ func TestCurseAdapter_Curse_ForcesProposalOnly_WhenChainHasSigner(t *testing.T) 
 
 	selector := cselectors.SUI_TESTNET.Selector
 	adapter := adapters.NewCurseAdapter()
-	adapter.CCIPAddress = testCCIPPackageID
-	adapter.CCIPObjectRef = testCCIPObjectRef
-	adapter.CurserCapObjectID = testCurserCapID
+	adapter.SetChainState(selector, adapters.SuiChainState{
+		CCIPAddress:       testCCIPPackageID,
+		CCIPObjectRef:     testCCIPObjectRef,
+		CurserCapObjectID: testCurserCapID,
+	})
 
 	chains := cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
 		selector: cldfsui.Chain{
@@ -315,9 +329,11 @@ func TestCurseAdapter_Uncurse_ForcesProposalOnly_WhenChainHasSigner(t *testing.T
 
 	selector := cselectors.SUI_TESTNET.Selector
 	adapter := adapters.NewCurseAdapter()
-	adapter.CCIPAddress = testCCIPPackageID
-	adapter.CCIPObjectRef = testCCIPObjectRef
-	adapter.CCIPOwnerCapObjectID = "0x3333333333333333333333333333333333333333333333333333333333333333"
+	adapter.SetChainState(selector, adapters.SuiChainState{
+		CCIPAddress:          testCCIPPackageID,
+		CCIPObjectRef:        testCCIPObjectRef,
+		CCIPOwnerCapObjectID: "0x3333333333333333333333333333333333333333333333333333333333333333",
+	})
 
 	chains := cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
 		selector: cldfsui.Chain{
@@ -343,4 +359,68 @@ func TestCurseAdapter_Uncurse_ForcesProposalOnly_WhenChainHasSigner(t *testing.T
 	fields := txAdditionalFields(t, tx)
 	require.Equal(t, "rmn_remote", fields.ModuleName)
 	require.Equal(t, "uncurse_multiple", fields.Function)
+}
+
+// TestCurseAdapter_Curse_MultiSelector_NoClobber is the regression test for the whole point of the
+// selector-keyed refactor: the fastcurse registry stores one shared CurseAdapter instance per
+// family+version, so initializing/cursing a second Sui selector must not clobber the first. With
+// the old flat-field design, populating selB overwrote selA's CCIPAddress and a later Curse for
+// selA would route against selB's package. Here we populate two selectors with distinct
+// CCIPAddresses and assert each Curse still targets its own.
+func TestCurseAdapter_Curse_MultiSelector_NoClobber(t *testing.T) {
+	t.Parallel()
+
+	selA := cselectors.SUI_TESTNET.Selector
+	selB := cselectors.SUI_MAINNET.Selector
+	require.NotEqual(t, selA, selB)
+
+	addrA := testCCIPPackageID
+	addrB := "0x5555555555555555555555555555555555555555555555555555555555555555"
+
+	adapter := adapters.NewCurseAdapter()
+	adapter.SetChainState(selA, adapters.SuiChainState{
+		CCIPAddress:       addrA,
+		CCIPObjectRef:     testCCIPObjectRef,
+		CurserCapObjectID: testCurserCapID,
+	})
+	adapter.SetChainState(selB, adapters.SuiChainState{
+		CCIPAddress:       addrB,
+		CCIPObjectRef:     testCCIPObjectRef,
+		CurserCapObjectID: testCurserCapID,
+	})
+
+	chains := cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
+		selA: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selA}},
+		selB: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selB}},
+	})
+
+	// Cursing selA after selB was populated must still target addrA (no clobber).
+	reportA, err := cld_ops.ExecuteSequence(
+		fastCurseTestBundle(t),
+		adapter.Curse(),
+		chains,
+		fastcurse.CurseInput{
+			ChainSelector: selA,
+			Subjects:      []fastcurse.Subject{fastcurse.GlobalCurseSubject()},
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, reportA.Output.BatchOps, 1)
+	require.Len(t, reportA.Output.BatchOps[0].Transactions, 1)
+	require.Equal(t, addrA, reportA.Output.BatchOps[0].Transactions[0].To)
+
+	// Cursing selB must target addrB.
+	reportB, err := cld_ops.ExecuteSequence(
+		fastCurseTestBundle(t),
+		adapter.Curse(),
+		chains,
+		fastcurse.CurseInput{
+			ChainSelector: selB,
+			Subjects:      []fastcurse.Subject{fastcurse.GlobalCurseSubject()},
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, reportB.Output.BatchOps, 1)
+	require.Len(t, reportB.Output.BatchOps[0].Transactions, 1)
+	require.Equal(t, addrB, reportB.Output.BatchOps[0].Transactions[0].To)
 }
