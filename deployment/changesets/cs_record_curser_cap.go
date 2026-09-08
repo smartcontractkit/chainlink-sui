@@ -63,7 +63,8 @@ func (c RecordCurserCap) Apply(e cldf.Environment, cfg RecordCurserCapConfig) (c
 	if !ok {
 		return cldf.ChangesetOutput{}, fmt.Errorf("no Sui chain state for selector %d", cfg.SuiChainSelector)
 	}
-	if registered := chainState.CurserCapObjectId; registered != "" && registered != capID {
+	// Accept equivalent Sui address spellings.
+	if registered := chainState.CurserCapObjectId; registered != "" && !deployment.SuiAddressesEqual(capID, registered) {
 		return cldf.ChangesetOutput{}, fmt.Errorf(
 			"curserCapObjectId %q conflicts with registered CurserCap %q",
 			capID, registered,

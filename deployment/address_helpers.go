@@ -3,7 +3,6 @@ package deployment
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -30,7 +29,11 @@ func SaveSuiAddress(
 	tv cldf.TypeAndVersion,
 	qualifier string,
 ) error {
-	if address != "" && strings.Contains(strings.ToLower(qualifier), strings.ToLower(address)) {
+	// Canonical spelling, so one object cannot enter the registries as 0xab and 0x000…ab.
+	if canonical, ok := canonicalSuiAddress(address); ok {
+		address = canonical
+	}
+	if QualifierContainsSuiAddress(qualifier, address) {
 		return fmt.Errorf(
 			"qualifier %q for %s contains the address being written: a qualifier must identify the instance in domain terms, not by its own address",
 			qualifier, tv.Type,

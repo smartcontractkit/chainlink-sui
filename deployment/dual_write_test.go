@@ -47,6 +47,45 @@ func TestSaveSuiAddress_dualWrite(t *testing.T) {
 	require.True(t, refs[0].Labels.IsEmpty())
 }
 
+// An address supplied unpadded or in mixed hex case is stored in the canonical form,
+// so one object cannot enter the registries under two spellings.
+func TestSaveSuiAddress_canonicalizesAddress(t *testing.T) {
+	t.Parallel()
+
+	selector := cselectors.SUI_TESTNET.Selector
+	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
+
+	canonical := paddedSuiAddr("ab")
+	tv := cldf.NewTypeAndVersion(SuiCCIPType, Version1_0_0)
+	require.NoError(t, SaveSuiAddress(ab, ds.Addresses(), selector, "0xaB", tv, ChainSingletonQualifier))
+
+	refs := ds.Addresses().Filter(fdatastore.AddressRefByChainSelector(selector))
+	require.Len(t, refs, 1)
+	require.Equal(t, canonical, refs[0].Address)
+
+	abAddrs, err := ab.AddressesForChain(selector)
+	require.NoError(t, err)
+	require.Contains(t, abAddrs, canonical)
+}
+
+// The empty address is the key-reservation shape and must be preserved as-is: the codec
+// would otherwise silently map it to the zero address.
+func TestSaveSuiAddress_preservesEmptyAddress(t *testing.T) {
+	t.Parallel()
+
+	selector := cselectors.SUI_TESTNET.Selector
+	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
+
+	tv := cldf.NewTypeAndVersion(SuiCCIPType, Version1_0_0)
+	require.NoError(t, SaveSuiAddress(ab, ds.Addresses(), selector, "", tv, ChainSingletonQualifier))
+
+	refs := ds.Addresses().Filter(fdatastore.AddressRefByChainSelector(selector))
+	require.Len(t, refs, 1)
+	require.Empty(t, refs[0].Address)
+}
+
 func TestSaveSuiAddress_rollsBackAddressBookWhenDatastoreWriteFails(t *testing.T) {
 	t.Parallel()
 

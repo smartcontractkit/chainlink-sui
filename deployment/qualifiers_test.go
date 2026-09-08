@@ -25,10 +25,18 @@ func TestTokenQualifier_usesSymbolFormNotDisplayName(t *testing.T) {
 
 func TestMinterCapQualifier_normalizesHolderAddress(t *testing.T) {
 	t.Parallel()
-	require.Equal(t, "CCIP-BnM-0xab", MinterCapQualifier("CCIP BnM", "0xab"))
-	require.Equal(t, "CCIP-BnM-0xab", MinterCapQualifier("CCIP BnM", "0xAB"))
-	require.Equal(t, "CCIP-BnM-0xab", MinterCapQualifier("CCIP BnM", "ab"))
-	require.Equal(t, "CCIP-BnM-0xab", MinterCapQualifier("CCIP BnM", " 0xAb "))
+
+	// Equivalent address spellings produce one key.
+	canonical := paddedSuiAddr("ab")
+	require.Equal(t, "CCIP-BnM-"+canonical, MinterCapQualifier("CCIP BnM", "0xab"))
+	require.Equal(t, "CCIP-BnM-"+canonical, MinterCapQualifier("CCIP BnM", "0xAB"))
+	require.Equal(t, "CCIP-BnM-"+canonical, MinterCapQualifier("CCIP BnM", "ab"))
+	require.Equal(t, "CCIP-BnM-"+canonical, MinterCapQualifier("CCIP BnM", " 0xAb "))
+	require.Equal(t, "CCIP-BnM-"+canonical, MinterCapQualifier("CCIP BnM", canonical))
+
+	// Preserve legacy handling for non-address values.
+	require.Equal(t, "CCIP-BnM-0xminter", MinterCapQualifier("CCIP BnM", "0xminter"))
+	require.Equal(t, "CCIP-BnM-", MinterCapQualifier("CCIP BnM", ""))
 }
 
 func TestSaveSuiAddress_rejectsAddressDerivedQualifier(t *testing.T) {
@@ -40,9 +48,12 @@ func TestSaveSuiAddress_rejectsAddressDerivedQualifier(t *testing.T) {
 
 	// The shim the convention exists to eliminate: a qualifier you can only supply if you
 	// already know the address you are looking up.
+	padded := paddedSuiAddr("abc123")
 	for _, qualifier := range []string{
 		address + "-" + string(SuiCCIPType),
 		"0xabc123-SuiCCIP", // the detector is case-insensitive
+		padded + "-SuiCCIP",
+		paddedSuiAddr("ABC123") + "-SuiCCIP", // and padding-insensitive
 		address,
 	} {
 		ab := cldf.NewMemoryAddressBook()

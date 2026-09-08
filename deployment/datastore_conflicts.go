@@ -114,7 +114,7 @@ func ValidateNoDatastoreConflicts(
 		if err != nil {
 			return fmt.Errorf("checking datastore for %s: %w", describe(ref), err)
 		}
-		if ref.Address != "" && ref.Address == existing.Address {
+		if ref.Address != "" && SuiAddressesEqual(ref.Address, existing.Address) {
 			// Re-recording the object the key already points at: a no-op, not a takeover.
 			continue
 		}

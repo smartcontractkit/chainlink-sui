@@ -15,9 +15,18 @@ func TokenQualifier(symbol string) string {
 
 // MinterCapQualifier qualifies a token minter capability by token and holder.
 func MinterCapQualifier(symbol string, holder string) string {
-	holder = strings.TrimSpace(strings.ToLower(holder))
-	if holder != "" && !strings.HasPrefix(holder, "0x") {
-		holder = "0x" + holder
+	holder = strings.TrimSpace(holder)
+	if holder == "" {
+		return TokenQualifier(symbol) + "-"
+	}
+	if canonical, ok := canonicalSuiAddress(holder); ok {
+		holder = canonical
+	} else {
+		// Preserve legacy handling for non-address values.
+		holder = strings.ToLower(holder)
+		if !strings.HasPrefix(holder, "0x") {
+			holder = "0x" + holder
+		}
 	}
 	return TokenQualifier(symbol) + "-" + holder
 }

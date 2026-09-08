@@ -1329,7 +1329,7 @@ func suiTokenQualifier(ref datastore.AddressRef) (string, error) {
 	if ref.Qualifier == "" {
 		return "", errors.New("token ref has no qualifier")
 	}
-	if ref.Address != "" && strings.Contains(strings.ToLower(ref.Qualifier), strings.ToLower(ref.Address)) {
+	if ref.Address != "" && suideploy.QualifierContainsSuiAddress(ref.Qualifier, ref.Address) {
 		return "", fmt.Errorf("qualifier %q is derived from the ref address %q", ref.Qualifier, ref.Address)
 	}
 	return ref.Qualifier, nil

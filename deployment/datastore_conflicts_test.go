@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
@@ -163,11 +164,26 @@ func TestValidateNoDatastoreConflicts_sameAddressRerecordIsNoOp(t *testing.T) {
 		return []PlannedRef{{Type: SuiManagedTokenMinterCapID, Qualifier: ChainSingletonQualifier, Address: "0xexisting-cap"}}, nil
 	}))
 
-	// A different address under the key: conflict, and Sui addresses are case-sensitive.
+	// Equivalent Sui address spellings are the same object.
+	padded := "0x" + strings.Repeat("0", 62) + "ab"
+	paddedEnv := conflictEnv(t, selector, minterCapRef(selector, padded, ChainSingletonQualifier))
+	for _, addr := range []string{"0xaB", "0xab", "ab", " 0xaB ", padded} {
+		require.NoError(t, ValidateNoDatastoreConflicts(paddedEnv, selector, false, func() ([]PlannedRef, error) {
+			return []PlannedRef{{Type: SuiManagedTokenMinterCapID, Qualifier: ChainSingletonQualifier, Address: addr}}, nil
+		}), "address %q must match the recorded object", addr)
+	}
+
+	// A different address under the key: conflict. (These fakes are not valid Sui hex,
+	// so they can only conflict with themselves, byte-identical.)
 	for _, addr := range []string{"0xother-cap", "0xEXISTING-cap"} {
 		err := ValidateNoDatastoreConflicts(e, selector, false, func() ([]PlannedRef, error) {
 			return []PlannedRef{{Type: SuiManagedTokenMinterCapID, Qualifier: ChainSingletonQualifier, Address: addr}}, nil
 		})
 		require.ErrorContains(t, err, "0xexisting-cap", "address %q must conflict", addr)
 	}
+
+	err := ValidateNoDatastoreConflicts(paddedEnv, selector, false, func() ([]PlannedRef, error) {
+		return []PlannedRef{{Type: SuiManagedTokenMinterCapID, Qualifier: ChainSingletonQualifier, Address: "0x" + strings.Repeat("0", 62) + "ac"}}, nil
+	})
+	require.ErrorContains(t, err, padded)
 }

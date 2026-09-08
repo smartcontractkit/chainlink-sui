@@ -212,7 +212,8 @@ func resolveCurserCapObjectID(e cldf.Environment, chainSelector uint64, cfgCurse
 
 	registered := chainState.CurserCapObjectId
 	if cfgCurserCapObjectID != "" {
-		if registered != "" && cfgCurserCapObjectID != registered {
+		// Accept equivalent Sui address spellings.
+		if registered != "" && !deployment.SuiAddressesEqual(cfgCurserCapObjectID, registered) {
 			return "", fmt.Errorf(
 				"curserCapObjectId %q does not match registered CurserCap %q",
 				cfgCurserCapObjectID,
