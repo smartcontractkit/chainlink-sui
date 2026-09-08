@@ -18,6 +18,7 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260713194119-2689c5708c8b
 	github.com/smartcontractkit/chainlink-deployments-framework v0.116.1
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20260713213943-b588203d6679
+	github.com/smartcontractkit/chainlink-sui/codec v0.0.0-20260713202800-ac352a2c68f0
 	github.com/smartcontractkit/mcms v0.52.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.54.0
@@ -144,7 +145,6 @@ require (
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.20.0 // indirect
 	github.com/smartcontractkit/chainlink-protos/linking-service/go v0.0.0-20251002192024-d2ad9222409b // indirect
 	github.com/smartcontractkit/chainlink-protos/node-platform v0.0.0-20260709145319-7782fb89eb16 // indirect
-	github.com/smartcontractkit/chainlink-sui/codec v0.0.0-20260713202800-ac352a2c68f0 // indirect
 	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260713162202-124316cd10ff // indirect
 	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.0 // indirect
 	github.com/smartcontractkit/chainlink-tron/relayer v0.0.11-0.20251014143056-a0c6328c91e9 // indirect

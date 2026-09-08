@@ -133,6 +133,50 @@ func TestDatastoreRefLabels_ignoresAddressTypeQualifier(t *testing.T) {
 	require.Empty(t, labels)
 }
 
+func TestAddressesForSuiChainFromDatastore_preservesQualifier(t *testing.T) {
+	t.Parallel()
+
+	selector := cselectors.SUI_TESTNET.Selector
+	ds := fdatastore.NewMemoryDataStore()
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xpool",
+		Type:          fdatastore.ContractType(SuiManagedTokenPoolType),
+		Version:       &Version1_0_0,
+		Qualifier:     "CCIP-BnM",
+		Labels:        fdatastore.NewLabelSet("CCIP BnM"),
+	}))
+
+	refs, ok, err := addressesForSuiChainFromDatastore(cldf.Environment{DataStore: ds.Seal()}, selector)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Len(t, refs["0xpool"], 1)
+	require.Equal(t, "CCIP-BnM", refs["0xpool"][0].qualifier)
+}
+
+func TestLoadOnchainStatesui_prefersSemanticRefOverLegacyShim(t *testing.T) {
+	t.Parallel()
+
+	symbol := "CCIP BnM"
+	tv := cldf.NewTypeAndVersion(SuiBnMTokenPoolType, Version1_0_0)
+	tv.AddLabel(symbol)
+
+	state, err := loadsuiChainStateFromAddresses(map[string][]suiAddressRef{
+		"0xlegacy": {{
+			address:   "0xlegacy",
+			tv:        tv,
+			qualifier: "0xlegacy-" + string(SuiBnMTokenPoolType),
+		}},
+		"0xcurrent": {{
+			address:   "0xcurrent",
+			tv:        tv,
+			qualifier: TokenQualifier(symbol),
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "0xcurrent", state.BnMTokenPools[symbol].PackageID)
+}
+
 // TestLoadOnchainStatesui_fromDatastore_mcmsRoleRefCollision pins that the generic MCMS
 // role refs (Canceller/BypasserManyChainMultiSig), which reuse the SuiManyChainMultisigObjectID
 // address because roles are internal to the Sui MCMS state object, do not clobber the MCMS
@@ -202,4 +246,72 @@ func TestLoadOnchainStatesui_fromDatastore_mcmsRoleRefCollision(t *testing.T) {
 	require.Equal(t, "0xslow_package", slowFields.PackageID)
 	require.Equal(t, "0xfast_state", fastFields.StateObjectID)
 	require.Equal(t, "0xfast_package", fastFields.PackageID)
+}
+
+// The purpose qualifier is what identifies the MCMS instance now; the legacy "fastcurse"
+// value stays recognised because rows written before the purposes existed carry it.
+func TestLoadOnchainStatesui_fromDatastore_purposeQualifierFallback(t *testing.T) {
+	t.Parallel()
+
+	selector := cselectors.SUI_TESTNET.Selector
+
+	ds := fdatastore.NewMemoryDataStore()
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xfast_package",
+		Type:          fdatastore.ContractType(SuiMcmsPackageIDType),
+		Version:       &Version1_0_0,
+		Qualifier:     RMNMCMSQualifier,
+	}))
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xslow_package",
+		Type:          fdatastore.ContractType(SuiMcmsPackageIDType),
+		Version:       &Version1_0_0,
+		Qualifier:     CLLCCIPQualifier,
+	}))
+
+	got, err := LoadOnchainStatesui(cldf.Environment{
+		DataStore: ds.Seal(),
+		BlockChains: chain.NewBlockChains(map[uint64]chain.BlockChain{
+			selector: sui.Chain{},
+		}),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "0xfast_package", got[selector].FastCurseMCMSPackageID)
+	require.Equal(t, "0xslow_package", got[selector].MCMSPackageID)
+}
+
+// A redeployed contract leaves its old row in place, labelled rather than deleted, so the
+// loader must not let the stale address win the field.
+func TestLoadOnchainStatesui_fromDatastore_skipsSuperseded(t *testing.T) {
+	t.Parallel()
+
+	selector := cselectors.SUI_TESTNET.Selector
+
+	ds := fdatastore.NewMemoryDataStore()
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xold_router",
+		Type:          fdatastore.ContractType(SuiCCIPRouterType),
+		Version:       &Version1_0_0,
+		Qualifier:     "0xold_router-SuiRouter",
+		Labels:        fdatastore.NewLabelSet(SupersededLabel),
+	}))
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xcurrent_router",
+		Type:          fdatastore.ContractType(SuiCCIPRouterType),
+		Version:       &Version1_0_0,
+		Qualifier:     ChainSingletonQualifier,
+	}))
+
+	got, err := LoadOnchainStatesui(cldf.Environment{
+		DataStore: ds.Seal(),
+		BlockChains: chain.NewBlockChains(map[uint64]chain.BlockChain{
+			selector: sui.Chain{},
+		}),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "0xcurrent_router", got[selector].CCIPRouterAddress)
 }

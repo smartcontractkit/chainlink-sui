@@ -15,6 +15,10 @@ import (
 type DeployManagedTokenConfig struct {
 	managedtokenops.DeployAndInitManagedTokenInput
 	ChainSelector uint64 `yaml:"chainSelector"`
+	// ReplaceExisting allows this changeset to take datastore keys that are already recorded,
+	// as a redeploy of an existing managed token does. Without it, an occupied key is an error
+	// raised before anything is deployed.
+	ReplaceExisting bool `yaml:"replaceExisting"`
 }
 
 var _ cldf.ChangeSetV2[DeployManagedTokenConfig] = DeployManagedToken{}
@@ -65,7 +69,7 @@ func (d DeployManagedToken) Apply(e cldf.Environment, config DeployManagedTokenC
 	// save the new managed token package id address to the addressbook
 	typeAndVersionManagedTokenPackageID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPackageIDType, deployment.Version1_0_0)
 	typeAndVersionManagedTokenPackageID.AddLabel(managedTokenReport.Output.TokenSymbol)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, managedTokenReport.Output.ManagedTokenPackageId, typeAndVersionManagedTokenPackageID)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, managedTokenReport.Output.ManagedTokenPackageId, typeAndVersionManagedTokenPackageID, deployment.TokenQualifier(managedTokenReport.Output.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken address %s for Sui chain %d: %w", managedTokenReport.Output.ManagedTokenPackageId, config.ChainSelector, err)
 	}
@@ -73,7 +77,7 @@ func (d DeployManagedToken) Apply(e cldf.Environment, config DeployManagedTokenC
 	// save ManagedTokenOwnerCapObjectID address to the addressbook
 	typeAndVersionOwnerCapObjectID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenOwnerCapObjectID, deployment.Version1_0_0)
 	typeAndVersionOwnerCapObjectID.AddLabel(managedTokenReport.Output.TokenSymbol)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, managedTokenReport.Output.Objects.OwnerCapObjectId, typeAndVersionOwnerCapObjectID)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, managedTokenReport.Output.Objects.OwnerCapObjectId, typeAndVersionOwnerCapObjectID, deployment.TokenQualifier(managedTokenReport.Output.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken OwnerCapObjectId address %s for Sui chain %d: %w", managedTokenReport.Output.Objects.OwnerCapObjectId, config.ChainSelector, err)
 	}
@@ -82,7 +86,9 @@ func (d DeployManagedToken) Apply(e cldf.Environment, config DeployManagedTokenC
 		// save ManagedTokenMinterCapID address to the addressbook
 		typeAndVersionMinterCapID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenMinterCapID, deployment.Version1_0_0)
 		typeAndVersionMinterCapID.AddLabel(managedTokenReport.Output.TokenSymbol)
-		err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, managedTokenReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID)
+		// holder-scoped: this token can have a cap per minter, so the symbol alone is not a key
+		minterCapQualifier := deployment.MinterCapQualifier(managedTokenReport.Output.TokenSymbol, config.MinterAddress)
+		err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, managedTokenReport.Output.Objects.MinterCapObjectId, typeAndVersionMinterCapID, minterCapQualifier)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken MinterCapObjectId address %s for Sui chain %d: %w", managedTokenReport.Output.Objects.MinterCapObjectId, config.ChainSelector, err)
 		}
@@ -91,7 +97,7 @@ func (d DeployManagedToken) Apply(e cldf.Environment, config DeployManagedTokenC
 	// save ManagedTokenStateObjectID address to the addressbook
 	typeAndVersionStateObjectID := cldf.NewTypeAndVersion(deployment.SuiManagedTokenStateObjectID, deployment.Version1_0_0)
 	typeAndVersionStateObjectID.AddLabel(managedTokenReport.Output.TokenSymbol)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, managedTokenReport.Output.Objects.StateObjectId, typeAndVersionStateObjectID)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, managedTokenReport.Output.Objects.StateObjectId, typeAndVersionStateObjectID, deployment.TokenQualifier(managedTokenReport.Output.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken StateObjectId address %s for Sui chain %d: %w", managedTokenReport.Output.Objects.StateObjectId, config.ChainSelector, err)
 	}
@@ -99,7 +105,7 @@ func (d DeployManagedToken) Apply(e cldf.Environment, config DeployManagedTokenC
 	// save PublisherObjectId address to the addressbook
 	typeAndVersionPublisherObjectId := cldf.NewTypeAndVersion(deployment.SuiManagedTokenPublisherObjectId, deployment.Version1_0_0)
 	typeAndVersionPublisherObjectId.AddLabel(managedTokenReport.Output.TokenSymbol)
-	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, managedTokenReport.Output.Objects.PublisherObjectId, typeAndVersionPublisherObjectId)
+	err = deployment.SaveSuiAddress(ab, ds.Addresses(), config.ChainSelector, managedTokenReport.Output.Objects.PublisherObjectId, typeAndVersionPublisherObjectId, deployment.TokenQualifier(managedTokenReport.Output.TokenSymbol)) // token-scoped; the label keeps the display name, the key uses the symbol form
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save ManagedToken PublisherObjectId address %s for Sui chain %d: %w", managedTokenReport.Output.Objects.PublisherObjectId, config.ChainSelector, err)
 	}
@@ -113,5 +119,27 @@ func (d DeployManagedToken) Apply(e cldf.Environment, config DeployManagedTokenC
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
 func (d DeployManagedToken) VerifyPreconditions(e cldf.Environment, config DeployManagedTokenConfig) error {
-	return nil
+	return deployment.ValidateNoDatastoreConflicts(e, config.ChainSelector, config.ReplaceExisting,
+		func() ([]deployment.PlannedRef, error) {
+			symbol, err := coinSymbol(e, config.ChainSelector, config.CoinObjectTypeArg)
+			if err != nil {
+				return nil, err
+			}
+			qualifier := deployment.TokenQualifier(symbol)
+
+			planned := []deployment.PlannedRef{
+				{Type: deployment.SuiManagedTokenPackageIDType, Qualifier: qualifier},
+				{Type: deployment.SuiManagedTokenOwnerCapObjectID, Qualifier: qualifier},
+				{Type: deployment.SuiManagedTokenStateObjectID, Qualifier: qualifier},
+				{Type: deployment.SuiManagedTokenPublisherObjectId, Qualifier: qualifier},
+			}
+			if config.MinterAddress != "" {
+				planned = append(planned, deployment.PlannedRef{
+					Type:      deployment.SuiManagedTokenMinterCapID,
+					Qualifier: deployment.MinterCapQualifier(symbol, config.MinterAddress),
+				})
+			}
+
+			return planned, nil
+		})
 }
