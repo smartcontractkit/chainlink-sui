@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
@@ -105,8 +106,7 @@ func (s *DeployTestSuite) DeployMCMS() {
 	})
 	s.Require().NoError(err, "failed to deploy MCMS")
 
-	err = s.env.ExistingAddresses.Merge(out.AddressBook)
-	s.Require().NoError(err, "failed to merge MCMS addresses")
+	s.mergeChangesetOutput(out)
 }
 
 func (s *DeployTestSuite) DeployLink() {
@@ -116,20 +116,17 @@ func (s *DeployTestSuite) DeployLink() {
 		ChainSelector: SuiChainSelector,
 	})
 	s.Require().NoError(err, "failed to deploy LINK token")
-	err = s.env.ExistingAddresses.Merge(out.AddressBook)
-	s.Require().NoError(err, "failed to merge LINK token addresses")
+	s.mergeChangesetOutput(out)
 
 	// Cache addresses
-	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
-	s.Require().NoError(err, "failed to get addresses")
-	for addr, typeAndVersion := range addresses {
-		switch typeAndVersion.Type {
-		case deployment.SuiLinkTokenType:
-			s.linkTokenPackageID = addr
-		case deployment.SuiLinkTokenObjectMetadataID:
-			s.linkTokenMetadataID = addr
-		case deployment.SuiLinkTokenTreasuryCapID:
-			s.linkTokenTreasuryCapID = addr
+	for _, ref := range s.suiDatastoreRefs(SuiChainSelector) {
+		switch ref.Type {
+		case fdatastore.ContractType(deployment.SuiLinkTokenType):
+			s.linkTokenPackageID = ref.Address
+		case fdatastore.ContractType(deployment.SuiLinkTokenObjectMetadataID):
+			s.linkTokenMetadataID = ref.Address
+		case fdatastore.ContractType(deployment.SuiLinkTokenTreasuryCapID):
+			s.linkTokenTreasuryCapID = ref.Address
 		}
 	}
 }
@@ -146,25 +143,22 @@ func (s *DeployTestSuite) DeployCCIPCore() {
 		LinkTokenCoinMetadataObjectId: s.linkTokenMetadataID,
 	})
 	s.Require().NoError(err, "failed to deploy CCIP")
-	err = s.env.ExistingAddresses.Merge(out.AddressBook)
-	s.Require().NoError(err, "failed to merge CCIP addresses")
+	s.mergeChangesetOutput(out)
 
 	// Cache addresses
 	s.deployerAddr, err = s.signer.GetAddress()
 	s.Require().NoError(err, "failed to get deployer address")
-	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
-	s.Require().NoError(err, "failed to get addresses")
-	for addr, typeAndVersion := range addresses {
-		switch typeAndVersion.Type {
-		case deployment.SuiCCIPType:
-			s.ccipPackageID = addr
-		case deployment.SuiCCIPObjectRefType:
-			s.ccipObjectRef = addr
-		case deployment.SuiMcmsPackageIDType:
-			if typeAndVersion.Labels.Contains(deployment.MCMSFastCurseLabel) {
-				s.fastMcmsPackageID = addr
+	for _, ref := range s.suiDatastoreRefs(SuiChainSelector) {
+		switch ref.Type {
+		case fdatastore.ContractType(deployment.SuiCCIPType):
+			s.ccipPackageID = ref.Address
+		case fdatastore.ContractType(deployment.SuiCCIPObjectRefType):
+			s.ccipObjectRef = ref.Address
+		case fdatastore.ContractType(deployment.SuiMcmsPackageIDType):
+			if ref.Labels.Contains(deployment.MCMSFastCurseLabel) {
+				s.fastMcmsPackageID = ref.Address
 			} else {
-				s.mcmsPackageID = addr
+				s.mcmsPackageID = ref.Address
 			}
 		}
 	}
@@ -173,7 +167,7 @@ func (s *DeployTestSuite) DeployCCIPCore() {
 func (s *DeployTestSuite) ConnectLanes() {
 	s.T().Log("Phase 4: Connecting Lanes...")
 
-	_, err := changesets.ConnectSuiToEVM{}.Apply(s.env, changesets.ConnectSuiToEVMConfig{
+	out, err := changesets.ConnectSuiToEVM{}.Apply(s.env, changesets.ConnectSuiToEVMConfig{
 		SuiChainSelector: SuiChainSelector,
 		FeeQuoterApplyTokenTransferFeeConfigUpdatesInput:     TokenTransferFeeConfig,
 		FeeQuoterApplyDestChainConfigUpdatesInput:            DestChainConfigUpdatesInput,
@@ -182,6 +176,7 @@ func (s *DeployTestSuite) ConnectLanes() {
 		ApplySourceChainConfigUpdateInput:                    SourceChainConfigUpdate,
 	})
 	s.Require().NoError(err, "failed to connect lanes")
+	s.mergeChangesetOutput(out)
 }
 
 func (s *DeployTestSuite) DeployLinkBurnMintTokenPool() {
@@ -229,8 +224,7 @@ func (s *DeployTestSuite) DeployLinkBurnMintTokenPool() {
 	})
 	s.Require().NoError(err, "failed to deploy LINK token pool")
 
-	err = s.env.ExistingAddresses.Merge(tokenPoolOut.AddressBook)
-	s.Require().NoError(err, "failed to merge LINK token pool addresses")
+	s.mergeChangesetOutput(tokenPoolOut)
 }
 
 func (s *DeployTestSuite) DeployBnMToken() {
@@ -246,8 +240,7 @@ func (s *DeployTestSuite) DeployBnMToken() {
 	})
 
 	s.Require().NoError(err, "failed to deploy CCIP BnM Token")
-	err = s.env.ExistingAddresses.Merge(out.AddressBook)
-	s.Require().NoError(err, "failed to merge CCIP BnM Token addresses")
+	s.mergeChangesetOutput(out)
 }
 
 func (s *DeployTestSuite) DeployLnRToken() {
@@ -263,28 +256,23 @@ func (s *DeployTestSuite) DeployLnRToken() {
 	})
 
 	s.Require().NoError(err, "failed to deploy CCIP LnR Token")
-	err = s.env.ExistingAddresses.Merge(out.AddressBook)
-	s.Require().NoError(err, "failed to merge CCIP LnR Token addresses")
+	s.mergeChangesetOutput(out)
 }
 
 func (s *DeployTestSuite) DeployManagedToken() {
 	s.T().Log("Phase 7: Deploying Managed Token...")
 
 	// Get the BnM token addresses that were just deployed
-	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
-	s.Require().NoError(err, "failed to get addresses")
-
 	var bnmPackageID, bnmTreasuryCapID string
-	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenType {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				bnmPackageID = addr
-			}
+	for _, ref := range s.suiDatastoreRefs(SuiChainSelector) {
+		if !ref.Labels.Contains(changesets.CCIPBnMSymbol) {
+			continue
 		}
-		if typeAndVersion.Type == deployment.SuiManagedTokenTreasuryCapIDType {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				bnmTreasuryCapID = addr
-			}
+		switch ref.Type {
+		case fdatastore.ContractType(deployment.SuiManagedTokenType):
+			bnmPackageID = ref.Address
+		case fdatastore.ContractType(deployment.SuiManagedTokenTreasuryCapIDType):
+			bnmTreasuryCapID = ref.Address
 		}
 	}
 	s.Require().NotEmpty(bnmPackageID, "CCIP BnM token package ID not found")
@@ -306,50 +294,36 @@ func (s *DeployTestSuite) DeployManagedToken() {
 	})
 
 	s.Require().NoError(err, "failed to deploy managed token")
-	err = s.env.ExistingAddresses.Merge(out.AddressBook)
-	s.Require().NoError(err, "failed to merge managed token addresses")
+	s.mergeChangesetOutput(out)
 }
 
 func (s *DeployTestSuite) ConfigureDeployerAsMinter() {
 	s.T().Log("Phase 9: Configuring Deployer as Minter...")
 
-	// Get the managed token addresses
-	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
-	s.Require().NoError(err, "failed to get addresses")
-
-	var managedTokenPackageID, managedTokenStateID, managedTokenOwnerCapID string
-	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenPackageIDType {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				managedTokenPackageID = addr
-			}
+	// Get the managed token addresses and the BnM token package ID for coin type
+	var (
+		managedTokenPackageID, managedTokenStateID, managedTokenOwnerCapID string
+		bnmPackageID                                                       string
+	)
+	for _, ref := range s.suiDatastoreRefs(SuiChainSelector) {
+		if !ref.Labels.Contains(changesets.CCIPBnMSymbol) {
+			continue
 		}
-		if typeAndVersion.Type == deployment.SuiManagedTokenStateObjectID {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				managedTokenStateID = addr
-			}
-		}
-		if typeAndVersion.Type == deployment.SuiManagedTokenOwnerCapObjectID {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				managedTokenOwnerCapID = addr
-			}
+		switch ref.Type {
+		case fdatastore.ContractType(deployment.SuiManagedTokenPackageIDType):
+			managedTokenPackageID = ref.Address
+		case fdatastore.ContractType(deployment.SuiManagedTokenStateObjectID):
+			managedTokenStateID = ref.Address
+		case fdatastore.ContractType(deployment.SuiManagedTokenOwnerCapObjectID):
+			managedTokenOwnerCapID = ref.Address
+		case fdatastore.ContractType(deployment.SuiManagedTokenType):
+			bnmPackageID = ref.Address
 		}
 	}
 
 	s.Require().NotEmpty(managedTokenPackageID, "Managed token package ID not found")
 	s.Require().NotEmpty(managedTokenStateID, "Managed token state object ID not found")
 	s.Require().NotEmpty(managedTokenOwnerCapID, "Managed token owner cap ID not found")
-
-	// Get the BnM token package ID for coin type
-	var bnmPackageID string
-	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenType {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				bnmPackageID = addr
-				break
-			}
-		}
-	}
 	s.Require().NotEmpty(bnmPackageID, "CCIP BnM token package ID not found")
 
 	coinTypeArg := fmt.Sprintf("%s::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", bnmPackageID)
@@ -367,24 +341,19 @@ func (s *DeployTestSuite) ConfigureDeployerAsMinter() {
 	})
 
 	s.Require().NoError(err, "failed to configure deployer as minter")
-	err = s.env.ExistingAddresses.Merge(out.AddressBook)
-	s.Require().NoError(err, "failed to merge minter configuration addresses")
+	s.mergeChangesetOutput(out)
 }
 
 func (s *DeployTestSuite) DeployManagedTokenFaucet() {
 	s.T().Log("Phase 8: Deploying Managed Token Faucet...")
 
 	// Get the CCIP BnM token addresses (the underlying token)
-	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
-	s.Require().NoError(err, "failed to get addresses")
-
 	var bnmPackageID string
-	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenType {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				bnmPackageID = addr
-				break
-			}
+	for _, ref := range s.suiDatastoreRefs(SuiChainSelector) {
+		if ref.Type == fdatastore.ContractType(deployment.SuiManagedTokenType) &&
+			ref.Labels.Contains(changesets.CCIPBnMSymbol) {
+			bnmPackageID = ref.Address
+			break
 		}
 	}
 	s.Require().NotEmpty(bnmPackageID, "CCIP BnM token package ID not found")
@@ -400,17 +369,13 @@ func (s *DeployTestSuite) DeployManagedTokenFaucet() {
 	})
 
 	s.Require().NoError(err, "failed to deploy managed token faucet")
-	err = s.env.ExistingAddresses.Merge(out.AddressBook)
-	s.Require().NoError(err, "failed to merge managed token faucet addresses")
+	s.mergeChangesetOutput(out)
 
 	// Print the mint cap object ID from DeployManagedTokenFaucet
-	addresses, err = s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
-	s.Require().NoError(err, "failed to get addresses")
-	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenMinterCapID {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				s.T().Logf("DeployManagedTokenFaucet mint cap object ID: %s", addr)
-			}
+	for _, ref := range s.suiDatastoreRefs(SuiChainSelector) {
+		if ref.Type == fdatastore.ContractType(deployment.SuiManagedTokenMinterCapID) &&
+			ref.Labels.Contains(changesets.CCIPBnMSymbol) {
+			s.T().Logf("DeployManagedTokenFaucet mint cap object ID: %s", ref.Address)
 		}
 	}
 }
@@ -418,35 +383,25 @@ func (s *DeployTestSuite) DeployManagedTokenFaucet() {
 func (s *DeployTestSuite) DeployManagedTokenPool() {
 	s.T().Log("Phase 10: Deploying Managed Token Pool...")
 
-	// Get addresses from previous deployments
-	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
-	s.Require().NoError(err, "failed to get addresses")
-
 	var (
 		managedTokenPackageID, managedTokenStateID, managedTokenOwnerCapID string
-		bnmCoinMetadataID                                                  string
+		bnmCoinMetadataID, bnmPackageID                                    string
 	)
 
-	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenType {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				managedTokenPackageID = addr
-			}
+	for _, ref := range s.suiDatastoreRefs(SuiChainSelector) {
+		if !ref.Labels.Contains(changesets.CCIPBnMSymbol) {
+			continue
 		}
-		if typeAndVersion.Type == deployment.SuiManagedTokenStateObjectID {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				managedTokenStateID = addr
-			}
-		}
-		if typeAndVersion.Type == deployment.SuiManagedTokenOwnerCapObjectID {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				managedTokenOwnerCapID = addr
-			}
-		}
-		if typeAndVersion.Type == deployment.SuiManagedTokenCoinMetadataIDType {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				bnmCoinMetadataID = addr
-			}
+		switch ref.Type {
+		case fdatastore.ContractType(deployment.SuiManagedTokenType):
+			managedTokenPackageID = ref.Address
+			bnmPackageID = ref.Address
+		case fdatastore.ContractType(deployment.SuiManagedTokenStateObjectID):
+			managedTokenStateID = ref.Address
+		case fdatastore.ContractType(deployment.SuiManagedTokenOwnerCapObjectID):
+			managedTokenOwnerCapID = ref.Address
+		case fdatastore.ContractType(deployment.SuiManagedTokenCoinMetadataIDType):
+			bnmCoinMetadataID = ref.Address
 		}
 	}
 
@@ -464,15 +419,6 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 	s.Require().NotEmpty(managedTokenMinterCapID, "Unused managed token minter cap ID not found")
 
 	// Construct coin type from CCIP BnM token package ID
-	bnmPackageID := ""
-	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenType {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				bnmPackageID = addr
-				break
-			}
-		}
-	}
 	s.Require().NotEmpty(bnmPackageID, "CCIP BnM token package ID not found")
 
 	coinTypeArg := fmt.Sprintf("%s::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN", bnmPackageID)
@@ -510,8 +456,7 @@ func (s *DeployTestSuite) DeployManagedTokenPool() {
 	})
 
 	s.Require().NoError(err, "failed to deploy managed token pool")
-	err = s.env.ExistingAddresses.Merge(tokenPoolOut.AddressBook)
-	s.Require().NoError(err, "failed to merge managed token pool addresses")
+	s.mergeChangesetOutput(tokenPoolOut)
 }
 
 func (s *DeployTestSuite) assertRMNCurseSubjects(selector uint64, expectCursed bool) {

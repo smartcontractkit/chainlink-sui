@@ -38,14 +38,44 @@ const (
 	testSlowMcmsDeployer  = "0x0909090909090909090909090909090909090909090909090909090909090909"
 )
 
+// mcmsReaderEnv builds an environment whose datastore carries the CCIP package and
+// object refs plus one MCMS instance recorded by the dual-write helper.
+func mcmsReaderEnv(
+	t *testing.T,
+	selector uint64,
+	mcmsInstance deployment.MCMSInstance,
+	report mcmsops.DeployMCMSSeqOutput,
+) cldf.Environment {
+	t.Helper()
+
+	ds := fdatastore.NewMemoryDataStore()
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       testMcmsReaderCCIPPackageID,
+		Type:          fdatastore.ContractType(deployment.SuiCCIPType),
+		Version:       &deployment.Version1_0_0,
+	}))
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       testMcmsReaderCCIPObjectRef,
+		Type:          fdatastore.ContractType(deployment.SuiCCIPObjectRefType),
+		Version:       &deployment.Version1_0_0,
+	}))
+	require.NoError(t, deployment.StoreMCMSInAddressBook(cldf.NewMemoryAddressBook(), ds.Addresses(), selector, report, mcmsInstance))
+
+	return cldf.Environment{
+		DataStore: ds.Seal(),
+		BlockChains: cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
+			selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
+		}),
+	}
+}
+
 func TestMCMSReader_FastCurseQualifiers_SelectFastMCMS(t *testing.T) {
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
-	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPPackageID, cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
-	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPObjectRef, cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)))
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
+	env := mcmsReaderEnv(t, selector, deployment.MCMSInstanceFastCurse, mcmsops.DeployMCMSSeqOutput{
 		PackageId: testFastMcmsPackageID,
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   testFastMcmsState,
@@ -55,14 +85,7 @@ func TestMCMSReader_FastCurseQualifiers_SelectFastMCMS(t *testing.T) {
 			TimelockObjectId:            testFastMcmsTimelock,
 			McmsDeployerStateObjectId:   testFastMcmsDeployer,
 		},
-	}, deployment.MCMSInstanceFastCurse))
-
-	env := cldf.Environment{
-		ExistingAddresses: ab,
-		BlockChains: cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
-			selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
-		}),
-	}
+	})
 
 	reader := &adapters.MCMSReader{}
 	for _, qualifier := range []string{"RMNMCMS", "UltraFastCurse", "fastcurse-devenv-curse"} {
@@ -88,10 +111,7 @@ func TestMCMSReader_RMNMCMSQualifier_SelectsFastMCMS(t *testing.T) {
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
-	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPPackageID, cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
-	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPObjectRef, cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)))
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
+	env := mcmsReaderEnv(t, selector, deployment.MCMSInstanceFastCurse, mcmsops.DeployMCMSSeqOutput{
 		PackageId: testFastMcmsPackageID,
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   testFastMcmsState,
@@ -101,14 +121,7 @@ func TestMCMSReader_RMNMCMSQualifier_SelectsFastMCMS(t *testing.T) {
 			TimelockObjectId:            testFastMcmsTimelock,
 			McmsDeployerStateObjectId:   testFastMcmsDeployer,
 		},
-	}, deployment.MCMSInstanceFastCurse))
-
-	env := cldf.Environment{
-		ExistingAddresses: ab,
-		BlockChains: cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
-			selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
-		}),
-	}
+	})
 
 	reader := &adapters.MCMSReader{}
 	input := ccipmcms.Input{
@@ -131,10 +144,7 @@ func TestMCMSReader_EmptyQualifier_SelectsSlowMCMS(t *testing.T) {
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
-	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPPackageID, cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
-	require.NoError(t, ab.Save(selector, testMcmsReaderCCIPObjectRef, cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)))
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
+	env := mcmsReaderEnv(t, selector, deployment.MCMSInstanceSlow, mcmsops.DeployMCMSSeqOutput{
 		PackageId: testSlowMcmsPackageID,
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   testSlowMcmsState,
@@ -144,14 +154,7 @@ func TestMCMSReader_EmptyQualifier_SelectsSlowMCMS(t *testing.T) {
 			TimelockObjectId:            testSlowMcmsTimelock,
 			McmsDeployerStateObjectId:   testSlowMcmsDeployer,
 		},
-	}, deployment.MCMSInstanceSlow))
-
-	env := cldf.Environment{
-		ExistingAddresses: ab,
-		BlockChains: cldf_chain.NewBlockChains(map[uint64]cldf_chain.BlockChain{
-			selector: cldfsui.Chain{ChainMetadata: cldfsui.ChainMetadata{Selector: selector}},
-		}),
-	}
+	})
 
 	reader := &adapters.MCMSReader{}
 

@@ -10,8 +10,8 @@ import (
 
 // connectChainsEnv carries the active CLDF environment while ConnectChains runs.
 // LaneAdapter address getters only receive datastore.DataStore, not Environment, so
-// Sui resolves package IDs from LoadOnchainStatesui (datastore address refs first,
-// legacy addresses.json fallback) using this scope.
+// Sui resolves package IDs from LoadOnchainStatesui (datastore address refs) using
+// this scope.
 //
 // CLD must invoke ConnectChains inside WithConnectChainsEnvironment. Other chain
 // families are unaffected.

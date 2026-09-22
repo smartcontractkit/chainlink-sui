@@ -41,7 +41,7 @@ const (
 )
 
 func TestConfigureLaneLegAsSource_MCMSBatchOp_EncoderParity(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+	env := testEnvWithDatastore(t)
 	chains := testSuiChains()
 	evmRouter := common.HexToAddress(evmRouterAddress).Bytes()
 	input := sourceLegInput(evmRouter)
@@ -144,7 +144,7 @@ func TestConfigureLaneLegAsSource_MCMSBatchOp_EncoderParity(t *testing.T) {
 }
 
 func TestConfigureLaneLegAsSource_OnRampEncoderParity_20And32ByteRouterEquivalent(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+	env := testEnvWithDatastore(t)
 	chains := testSuiChains()
 	evmRouter := common.HexToAddress(evmRouterAddress).Bytes()
 
@@ -165,7 +165,7 @@ func TestConfigureLaneLegAsSource_OnRampEncoderParity_20And32ByteRouterEquivalen
 }
 
 func TestConfigureLaneLegAsDest_MCMSBatchOp_EncoderParity(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+	env := testEnvWithDatastore(t)
 	input := destLegInput()
 
 	var report cldf_ops.SequenceReport[laneapi.UpdateLanesInput, sequences.OnChainOutput]
@@ -204,7 +204,7 @@ func TestConfigureLaneLegAsDest_MCMSBatchOp_EncoderParity(t *testing.T) {
 }
 
 func TestConfigureLaneLegAsDest_Flags(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+	env := testEnvWithDatastore(t)
 	chains := testSuiChains()
 
 	tests := []struct {
@@ -262,7 +262,7 @@ func TestConfigureLaneLegAsDest_Flags(t *testing.T) {
 }
 
 func TestConfigureLaneLegAsDest_PartialLatestPackageIDs(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+	env := testEnvWithDatastore(t)
 	const latestOffRampPackageID = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 
 	var report cldf_ops.SequenceReport[laneapi.UpdateLanesInput, sequences.OnChainOutput]
@@ -287,7 +287,7 @@ func TestConfigureLaneLegAsDest_PartialLatestPackageIDs(t *testing.T) {
 }
 
 func TestRunConnectChainsWithSuiScopes(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+	env := testEnvWithDatastore(t)
 	adapter := &lanes.SuiAdapter{}
 	const latestOffRamp = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 
@@ -378,7 +378,7 @@ func TestSuiLaneAdapter_RegisteredInRegistry(t *testing.T) {
 }
 
 func TestConfigureLaneLegAsSource_AllowListEnabled(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+	env := testEnvWithDatastore(t)
 	chains := testSuiChains()
 	input := sourceLegInput(common.HexToAddress(evmRouterAddress).Bytes())
 	input.Source.AllowListEnabled = true
@@ -431,8 +431,8 @@ func testEnvOmittingAddressTypes(t *testing.T, omitTypes ...string) cldf.Environ
 	addrsByChain[suiTestnetSelector] = filtered
 
 	return cldf.Environment{
-		Name:              "test",
-		ExistingAddresses: cldf.NewMemoryAddressBookFromMap(addrsByChain),
+		Name:      "test",
+		DataStore: seedTestDatastore(t, addrsByChain),
 		BlockChains: chain.NewBlockChains(map[uint64]chain.BlockChain{
 			suiTestnetSelector: sui.Chain{},
 		}),

@@ -420,8 +420,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 }
 
 // LoadOnchainStatesui loads chain state for Sui chains from env.
-// Address metadata is read from env.DataStore (address_refs.json) when refs exist
-// for a chain; otherwise it falls back to env.ExistingAddresses (addresses.json).
+// Address metadata is read from env.DataStore (address_refs.json).
 func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error) {
 	rawChains := env.BlockChains.SuiChains()
 	suiChains := make(map[uint64]CCIPChainState)

@@ -3,12 +3,14 @@ package deployment
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/stretchr/testify/require"
 )
@@ -24,8 +26,8 @@ func TestLoadOnchainStatesui(t *testing.T) {
 		{
 			name: "load sui state successfully",
 			env: cldf.Environment{
-				Name:              "test",
-				ExistingAddresses: loadTestAddressBook(t),
+				Name:      "test",
+				DataStore: loadTestDatastore(t),
 				BlockChains: chain.NewBlockChains(
 					map[uint64]chain.BlockChain{
 						9762610643973837292: sui.Chain{},
@@ -57,7 +59,9 @@ func TestLoadOnchainStatesui(t *testing.T) {
 	}
 }
 
-func loadTestAddressBook(t *testing.T) cldf.AddressBook {
+// loadTestDatastore converts the legacy fixture to datastore refs. Addresses are used as
+// test-only qualifiers so refs with the same type/version remain distinct.
+func loadTestDatastore(t *testing.T) fdatastore.DataStore {
 	filePath := "testdata/addresses.json"
 	b, err := os.ReadFile(filePath)
 	require.NoError(t, err, "failed to read test address book file")
@@ -66,7 +70,26 @@ func loadTestAddressBook(t *testing.T) cldf.AddressBook {
 	err = json.Unmarshal(b, &addrsByChain)
 	require.NoError(t, err, "failed to unmarshal JSON")
 
-	return cldf.NewMemoryAddressBookFromMap(addrsByChain)
+	ds := fdatastore.NewMemoryDataStore()
+	for chainSelector, addrs := range addrsByChain {
+		for addr, tv := range addrs {
+			version := tv.Version
+			labels := tv.Labels.List()
+			qualifier := ""
+			if len(labels) > 0 {
+				qualifier = strings.Join(labels, ",") + "-" + addr
+			}
+			require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+				ChainSelector: chainSelector,
+				Address:       addr,
+				Type:          fdatastore.ContractType(tv.Type),
+				Version:       &version,
+				Qualifier:     qualifier,
+				Labels:        fdatastore.NewLabelSet(labels...),
+			}))
+		}
+	}
+	return ds.Seal()
 }
 
 func getExpectedSuiChainState() CCIPChainState {
