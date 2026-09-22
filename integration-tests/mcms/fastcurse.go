@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldfsui "github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
@@ -375,14 +376,18 @@ func (s *CCIPCurseMCMSTestSuite) bootstrapCurserCap() {
 	s.Require().NotEmpty(s.curserCapObjectID)
 	s.T().Logf("Registered CurserCap %s in fast MCMS Registry", s.curserCapObjectID)
 
-	ab := cldf.NewMemoryAddressBook()
-	tv := cldf.NewTypeAndVersion(deployment.SuiCurserCapObjectIDType, deployment.Version1_0_0)
-	s.Require().NoError(ab.Save(uint64(s.chainSelector), s.curserCapObjectID, tv))
-
 	// Concern 2: off-chain validation accepts the issued cap id from state and rejects mismatches.
+	// The state loader is datastore-only, so the cap goes into a datastore ref.
+	ds := fdatastore.NewMemoryDataStore()
+	s.Require().NoError(ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: uint64(s.chainSelector),
+		Address:       s.curserCapObjectID,
+		Type:          fdatastore.ContractType(deployment.SuiCurserCapObjectIDType),
+		Version:       &deployment.Version1_0_0,
+	}))
 	envWithCap := cldf.Environment{
-		ExistingAddresses: ab,
-		BlockChains:       s.buildSuiChains(false),
+		DataStore:   ds.Seal(),
+		BlockChains: s.buildSuiChains(false),
 	}
 	cs := changesets.CurseUncurseChains{}
 	s.Require().NoError(cs.VerifyPreconditions(envWithCap, changesets.CurseUncurseChainsConfig{

@@ -10,6 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldfsui "github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
+	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/stretchr/testify/suite"
@@ -29,6 +30,9 @@ type DeployTestSuite struct {
 	signer bindutils.SuiSigner
 	client client.SuiPTBClient
 	env    cldf.Environment
+	// ds is the mutable backing store of env.DataStore: the state loader is
+	// datastore-only, so each phase's changeset output must be merged into it.
+	ds *fdatastore.MemoryDataStore
 
 	// Cached deployment addresses
 	linkTokenPackageID     string
@@ -55,10 +59,13 @@ func (s *DeployTestSuite) SetupSuite() {
 		cld_ops.WithOperationRegistry(registry),
 	)
 
+	s.ds = fdatastore.NewMemoryDataStore()
+
 	s.env = cldf.Environment{
 		Name:              "test",
 		Logger:            s.lggr,
 		ExistingAddresses: cldf.NewMemoryAddressBook(),
+		DataStore:         s.ds.Seal(),
 		BlockChains: chain.NewBlockChains(
 			map[uint64]chain.BlockChain{
 				cselectors.SUI_LOCALNET.Selector: cldfsui.Chain{
@@ -73,30 +80,45 @@ func (s *DeployTestSuite) SetupSuite() {
 	}
 }
 
+// mergeChangesetOutput merges a changeset output into the suite environment: the address
+// book and the datastore. The state loader is datastore-only, so the datastore merge is
+// what makes each phase's deployments visible to the next phase's state loads.
+// (The sealed env.DataStore wraps the same underlying stores, so merging into s.ds is
+// observed through the environment without resealing.)
+func (s *DeployTestSuite) mergeChangesetOutput(out cldf.ChangesetOutput) {
+	s.T().Helper()
+	if out.AddressBook != nil {
+		s.Require().NoError(s.env.ExistingAddresses.Merge(out.AddressBook), "failed to merge address book")
+	}
+	if out.DataStore != nil {
+		s.Require().NoError(s.ds.Merge(out.DataStore.Seal()), "failed to merge datastore")
+	}
+}
+
+// suiDatastoreRefs returns the chain's datastore address refs — the datastore-only
+// replacement for address-book lookups.
+func (s *DeployTestSuite) suiDatastoreRefs(selector uint64) []fdatastore.AddressRef {
+	return s.ds.Addresses().Filter(fdatastore.AddressRefByChainSelector(selector))
+}
+
 // findUnusedManagedTokenMinterCapID finds the mint cap ID that wasn't consumed by the faucet.
 // The faucet consumes its mint cap during initialization, so we check which mint caps still
 // exist on-chain. The one that exists is the unused one (from ConfigureDeployerAsMinter).
 func (s *DeployTestSuite) findUnusedManagedTokenMinterCapID() (string, error) {
-	addresses, err := s.env.ExistingAddresses.AddressesForChain(SuiChainSelector)
-	if err != nil {
-		return "", fmt.Errorf("failed to get addresses: %w", err)
-	}
-
 	ctx := s.T().Context()
 	var unusedMintCapID string
 
 	// Find all mint caps and check which ones still exist on-chain
-	for addr, typeAndVersion := range addresses {
-		if typeAndVersion.Type == deployment.SuiManagedTokenMinterCapID {
-			if _, exists := typeAndVersion.Labels[changesets.CCIPBnMSymbol]; exists {
-				// Check if this object still exists on-chain (not consumed/deleted by faucet)
-				resp, err := bind.ReadObject(ctx, addr, s.client)
-				// If the object exists (no error and has data), it's the unused one
-				if err == nil && resp != nil && resp.Data != nil {
-					unusedMintCapID = addr
-					s.T().Logf("Found unused managed token minter cap ID: %s", addr)
-					break
-				}
+	for _, ref := range s.suiDatastoreRefs(SuiChainSelector) {
+		if ref.Type == fdatastore.ContractType(deployment.SuiManagedTokenMinterCapID) &&
+			ref.Labels.Contains(changesets.CCIPBnMSymbol) {
+			// Check if this object still exists on-chain (not consumed/deleted by faucet)
+			resp, err := bind.ReadObject(ctx, ref.Address, s.client)
+			// If the object exists (no error and has data), it's the unused one
+			if err == nil && resp != nil && resp.Data != nil {
+				unusedMintCapID = ref.Address
+				s.T().Logf("Found unused managed token minter cap ID: %s", ref.Address)
+				break
 			}
 		}
 	}

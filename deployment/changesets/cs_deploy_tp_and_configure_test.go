@@ -1,8 +1,10 @@
 package changesets
 
 import (
+	"context"
 	"testing"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	cselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
@@ -11,7 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-sui/deployment"
+	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	"github.com/smartcontractkit/chainlink-sui/deployment/ops/mcmstest"
+	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
 type stubSigner struct{}
@@ -19,19 +24,31 @@ type stubSigner struct{}
 func (stubSigner) Sign([]byte) ([]string, error) { return nil, nil }
 func (stubSigner) GetAddress() (string, error)   { return "0x1", nil }
 
-func deployTPEnv(t *testing.T, ab *cldf.AddressBookMap, selector uint64) cldf.Environment {
+// stubCoinMetadataPTBClient supplies the metadata read used by preconditions.
+type stubCoinMetadataPTBClient struct {
+	testutils.FakeSuiPTBClient
+}
+
+func (stubCoinMetadataPTBClient) GetCoinMetadata(context.Context, string) (models.CoinMetadataResponse, error) {
+	return models.CoinMetadataResponse{Symbol: "CCIP-BnM"}, nil
+}
+
+const testBurnMintCoinType = "0xcoin::ccip_burn_mint::CCIP_BNM"
+
+func deployTPEnv(t *testing.T, ds fdatastore.DataStore, selector uint64) cldf.Environment {
 	t.Helper()
 	return cldf.Environment{
-		ExistingAddresses: ab,
+		DataStore:        ds,
+		OperationsBundle: mcmstest.Bundle(t),
 		BlockChains: chain.NewBlockChains(map[uint64]chain.BlockChain{
-			selector: sui.Chain{Signer: stubSigner{}},
+			selector: sui.Chain{Signer: stubSigner{}, Client: &stubCoinMetadataPTBClient{}},
 		}),
 	}
 }
 
-func storeSlowMCMS(t *testing.T, ab *cldf.AddressBookMap, selector uint64) {
+func storeSlowMCMS(t *testing.T, ds *fdatastore.MemoryDataStore, selector uint64) {
 	t.Helper()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(cldf.NewMemoryAddressBook(), ds.Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -44,9 +61,9 @@ func storeSlowMCMS(t *testing.T, ab *cldf.AddressBookMap, selector uint64) {
 	}, deployment.MCMSInstanceSlow))
 }
 
-func storeFastMCMS(t *testing.T, ab *cldf.AddressBookMap, selector uint64) {
+func storeFastMCMS(t *testing.T, ds *fdatastore.MemoryDataStore, selector uint64) {
 	t.Helper()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(cldf.NewMemoryAddressBook(), ds.Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xfast_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xfast_state",
@@ -63,11 +80,11 @@ func TestDeployTPAndConfigure_VerifyPreconditions_RequiresFastMCMS(t *testing.T)
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
-	ab := cldf.NewMemoryAddressBook()
-	storeSlowMCMS(t, ab, selector)
+	ds := fdatastore.NewMemoryDataStore()
+	storeSlowMCMS(t, ds, selector)
 
 	cs := DeployTPAndConfigure{}
-	err := cs.VerifyPreconditions(deployTPEnv(t, ab, selector), DeployTPAndConfigureConfig{
+	err := cs.VerifyPreconditions(deployTPEnv(t, ds.Seal(), selector), DeployTPAndConfigureConfig{
 		SuiChainSelector: selector,
 		TokenPoolTypes:   []deployment.TokenPoolType{deployment.TokenPoolTypeManaged},
 	})
@@ -79,14 +96,17 @@ func TestDeployTPAndConfigure_VerifyPreconditions_SucceedsWithFastMCMS(t *testin
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
-	ab := cldf.NewMemoryAddressBook()
-	storeSlowMCMS(t, ab, selector)
-	storeFastMCMS(t, ab, selector)
+	ds := fdatastore.NewMemoryDataStore()
+	storeSlowMCMS(t, ds, selector)
+	storeFastMCMS(t, ds, selector)
 
 	cs := DeployTPAndConfigure{}
-	err := cs.VerifyPreconditions(deployTPEnv(t, ab, selector), DeployTPAndConfigureConfig{
+	err := cs.VerifyPreconditions(deployTPEnv(t, ds.Seal(), selector), DeployTPAndConfigureConfig{
 		SuiChainSelector: selector,
 		TokenPoolTypes:   []deployment.TokenPoolType{deployment.TokenPoolTypeBurnMint},
+		BurnMintTpInput: burnminttokenpoolops.DeployAndInitBurnMintTokenPoolInput{
+			CoinObjectTypeArg: testBurnMintCoinType,
+		},
 	})
 	require.NoError(t, err)
 }
@@ -95,10 +115,10 @@ func TestDeployTPAndConfigure_Apply_RequiresFastMCMS(t *testing.T) {
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
-	ab := cldf.NewMemoryAddressBook()
-	storeSlowMCMS(t, ab, selector)
+	ds := fdatastore.NewMemoryDataStore()
+	storeSlowMCMS(t, ds, selector)
 
-	_, err := DeployTPAndConfigure{}.Apply(deployTPEnv(t, ab, selector), DeployTPAndConfigureConfig{
+	_, err := DeployTPAndConfigure{}.Apply(deployTPEnv(t, ds.Seal(), selector), DeployTPAndConfigureConfig{
 		SuiChainSelector: selector,
 		TokenPoolTypes:   []deployment.TokenPoolType{deployment.TokenPoolTypeLockRelease},
 	})

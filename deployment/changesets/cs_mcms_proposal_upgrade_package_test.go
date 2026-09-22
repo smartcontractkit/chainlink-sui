@@ -18,8 +18,8 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_RequiresFastMCMSForCCIP(
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
-	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
+	ds := fdatastore.NewMemoryDataStore()
+	require.NoError(t, deployment.StoreMCMSInAddressBook(cldf.NewMemoryAddressBook(), ds.Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -32,7 +32,7 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_RequiresFastMCMSForCCIP(
 	}, deployment.MCMSInstanceSlow))
 
 	cs := MCMSProposalUpgradePackage{}
-	err := cs.VerifyPreconditions(dualMCMSEnv(t, ab, selector), UpgradePackageConfig{
+	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), UpgradePackageConfig{
 		UpgradeCCIPInput: mcmsops.UpgradeCCIPInput{
 			ChainSelector:   selector,
 			PackageName:     contracts.CCIP,
@@ -43,12 +43,12 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_RequiresFastMCMSForCCIP(
 	require.Contains(t, err.Error(), "fast_mcms")
 }
 
-func TestMCMSProposalUpgradePackage_VerifyPreconditions_SucceedsWithFastMCMSInAddressBook(t *testing.T) {
+func TestMCMSProposalUpgradePackage_VerifyPreconditions_SucceedsWithFastMCMSInDatastore(t *testing.T) {
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
-	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
+	ds := fdatastore.NewMemoryDataStore()
+	require.NoError(t, deployment.StoreMCMSInAddressBook(cldf.NewMemoryAddressBook(), ds.Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -59,7 +59,7 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_SucceedsWithFastMCMSInAd
 			McmsDeployerStateObjectId:   "0xslow_deployer",
 		},
 	}, deployment.MCMSInstanceSlow))
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
+	require.NoError(t, deployment.StoreMCMSInAddressBook(cldf.NewMemoryAddressBook(), ds.Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xfast_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xfast_state",
@@ -70,10 +70,15 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_SucceedsWithFastMCMSInAd
 			McmsDeployerStateObjectId:   "0xfast_deployer",
 		},
 	}, deployment.MCMSInstanceFastCurse))
-	require.NoError(t, ab.Save(selector, "0xccip_genesis", cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xccip_genesis",
+		Type:          fdatastore.ContractType(deployment.SuiCCIPType),
+		Version:       &deployment.Version1_0_0,
+	}))
 
 	cs := MCMSProposalUpgradePackage{}
-	err := cs.VerifyPreconditions(dualMCMSEnv(t, ab, selector), UpgradePackageConfig{
+	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), UpgradePackageConfig{
 		UpgradeCCIPInput: mcmsops.UpgradeCCIPInput{
 			ChainSelector:   selector,
 			PackageName:     contracts.CCIP,
@@ -87,8 +92,8 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_ExplicitFastMCMSOverride
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
-	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
+	ds := fdatastore.NewMemoryDataStore()
+	require.NoError(t, deployment.StoreMCMSInAddressBook(cldf.NewMemoryAddressBook(), ds.Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -99,10 +104,15 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_ExplicitFastMCMSOverride
 			McmsDeployerStateObjectId:   "0xslow_deployer",
 		},
 	}, deployment.MCMSInstanceSlow))
-	require.NoError(t, ab.Save(selector, "0xccip_genesis", cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
+	require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+		ChainSelector: selector,
+		Address:       "0xccip_genesis",
+		Type:          fdatastore.ContractType(deployment.SuiCCIPType),
+		Version:       &deployment.Version1_0_0,
+	}))
 
 	cs := MCMSProposalUpgradePackage{}
-	err := cs.VerifyPreconditions(dualMCMSEnv(t, ab, selector), UpgradePackageConfig{
+	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), UpgradePackageConfig{
 		UpgradeCCIPInput: mcmsops.UpgradeCCIPInput{
 			ChainSelector:   selector,
 			PackageName:     contracts.CCIP,
@@ -119,8 +129,8 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_LINKDoesNotRequireFastMC
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
-	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
+	ds := fdatastore.NewMemoryDataStore()
+	require.NoError(t, deployment.StoreMCMSInAddressBook(cldf.NewMemoryAddressBook(), ds.Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -133,7 +143,7 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_LINKDoesNotRequireFastMC
 	}, deployment.MCMSInstanceSlow))
 
 	cs := MCMSProposalUpgradePackage{}
-	err := cs.VerifyPreconditions(dualMCMSEnv(t, ab, selector), UpgradePackageConfig{
+	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), UpgradePackageConfig{
 		UpgradeCCIPInput: mcmsops.UpgradeCCIPInput{
 			ChainSelector:   selector,
 			PackageName:     contracts.LINK,

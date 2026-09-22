@@ -74,8 +74,8 @@ func suiChainStateFromCCIP(state deployment.CCIPChainState) SuiChainState {
 }
 
 // Initialize populates the adapter's per-selector state from the on-chain state for the given
-// selector. Chain metadata is resolved via LoadOnchainStatesui, which prefers datastore address
-// refs (address_refs.json) and falls back to the legacy address book (addresses.json).
+// selector. Chain metadata is resolved via LoadOnchainStatesui, which reads datastore address
+// refs (address_refs.json).
 //
 // Initialize is additive and idempotent: a selector already cached is left untouched (a second
 // init for a different selector does not clobber the first). This mirrors the EVM adapter and

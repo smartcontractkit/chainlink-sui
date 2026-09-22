@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/sui"
+	cldf_datastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/smartcontractkit/chainlink-sui/deployment/lanes"
@@ -17,19 +18,20 @@ import (
 
 const suiTestnetSelector = uint64(9762610643973837292)
 
-func testEnvWithAddressBook(t *testing.T) cldf.Environment {
+func testEnvWithDatastore(t *testing.T) cldf.Environment {
 	t.Helper()
 
 	return cldf.Environment{
-		Name:              "test",
-		ExistingAddresses: loadTestAddressBook(t),
+		Name:      "test",
+		DataStore: loadTestDatastore(t),
 		BlockChains: chain.NewBlockChains(map[uint64]chain.BlockChain{
 			suiTestnetSelector: sui.Chain{},
 		}),
 	}
 }
 
-func loadTestAddressBook(t *testing.T) cldf.AddressBook {
+// loadTestDatastore loads the shared test fixture rows as datastore address refs.
+func loadTestDatastore(t *testing.T) cldf_datastore.DataStore {
 	t.Helper()
 
 	b, err := os.ReadFile("../testdata/addresses.json")
@@ -38,11 +40,34 @@ func loadTestAddressBook(t *testing.T) cldf.AddressBook {
 	addrsByChain := make(map[uint64]map[string]cldf.TypeAndVersion)
 	require.NoError(t, json.Unmarshal(b, &addrsByChain))
 
-	return cldf.NewMemoryAddressBookFromMap(addrsByChain)
+	return seedTestDatastore(t, addrsByChain)
 }
 
-func TestSuiAdapter_AddressGettersFromAddressBook(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+// seedTestDatastore converts the legacy fixture into datastore refs. The address is a
+// test-only qualifier so refs with the same type/version remain distinct.
+func seedTestDatastore(t *testing.T, addrsByChain map[uint64]map[string]cldf.TypeAndVersion) cldf_datastore.DataStore {
+	t.Helper()
+
+	ds := cldf_datastore.NewMemoryDataStore()
+	for chainSelector, addrs := range addrsByChain {
+		for addr, tv := range addrs {
+			version := tv.Version
+			labels := tv.Labels.List()
+			require.NoError(t, ds.Addresses().Upsert(cldf_datastore.AddressRef{
+				ChainSelector: chainSelector,
+				Address:       addr,
+				Type:          cldf_datastore.ContractType(tv.Type),
+				Version:       &version,
+				Qualifier:     addr,
+				Labels:        cldf_datastore.NewLabelSet(labels...),
+			}))
+		}
+	}
+	return ds.Seal()
+}
+
+func TestSuiAdapter_AddressGettersFromDatastore(t *testing.T) {
+	env := testEnvWithDatastore(t)
 	adapter := &lanes.SuiAdapter{}
 
 	onRampPkg := "0xf87c6010be571a304f0d860857204bc66f037842156f0f6c9d80be265fd83752"
@@ -72,10 +97,9 @@ func TestSuiAdapter_AddressGettersFromAddressBook(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestSuiAdapter_AddressGettersFromAddressBook_MissingRef(t *testing.T) {
+func TestSuiAdapter_AddressGetters_MissingRef(t *testing.T) {
 	adapter := &lanes.SuiAdapter{}
 	env := cldf.Environment{
-		ExistingAddresses: cldf.NewMemoryAddressBook(),
 		BlockChains: chain.NewBlockChains(map[uint64]chain.BlockChain{
 			suiTestnetSelector: sui.Chain{},
 		}),

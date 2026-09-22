@@ -69,7 +69,7 @@ func sourceLegInput(destRouter []byte) laneapi.UpdateLanesInput {
 }
 
 func TestConfigureLaneLegAsDest_MCMSBatchOp(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+	env := testEnvWithDatastore(t)
 	input := destLegInput()
 
 	var report cldf_ops.SequenceReport[laneapi.UpdateLanesInput, sequences.OnChainOutput]
@@ -97,7 +97,7 @@ func TestConfigureLaneLegAsDest_MCMSBatchOp(t *testing.T) {
 }
 
 func TestConfigureLaneLegAsDest_MCMSBatchOp_WithLatestPackageID(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+	env := testEnvWithDatastore(t)
 	const latestOffRampPackageID = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 	input := destLegInput()
 
@@ -126,7 +126,7 @@ func TestConfigureLaneLegAsDest_MCMSBatchOp_WithLatestPackageID(t *testing.T) {
 }
 
 func TestConfigureLaneLegAsDest_ValidationErrors(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+	env := testEnvWithDatastore(t)
 	chains := testSuiChains()
 
 	t.Run("requires ConnectChains scope", func(t *testing.T) {
@@ -185,7 +185,7 @@ func TestConfigureLaneLegAsSource_ValidationErrors(t *testing.T) {
 }
 
 func TestConfigureLaneLegAsSource_RouterAddressBytes(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+	env := testEnvWithDatastore(t)
 	chains := testSuiChains()
 	evmAddr := common.HexToAddress(evmRouterAddress)
 
@@ -218,7 +218,7 @@ func TestConfigureLaneLegAsSource_RouterAddressBytes(t *testing.T) {
 }
 
 func TestConfigureLaneLegAsSource_MCMSBatchOp_WithLatestPackageIDs(t *testing.T) {
-	env := testEnvWithAddressBook(t)
+	env := testEnvWithDatastore(t)
 	chains := testSuiChains()
 	input := sourceLegInput(common.HexToAddress(evmRouterAddress).Bytes())
 
