@@ -12,8 +12,8 @@
 
       # Required for Sui CLI (Move compilation)
       git
-      # Go 1.26.2+ + tools
-      go_1_26
+      # Go 1.27.1+ + tools
+      go_1_27
       gopls
       mockgen
 
@@ -35,17 +35,17 @@
     unset GOROOT
     unset GOPATH
     unset GOTOOLDIR
-    # Require Go 1.26.2; allow toolchain auto-selection to upgrade if needed
+    # Require Go 1.27.1; allow toolchain auto-selection to upgrade if needed
     export GOTOOLCHAIN=auto
     # Add Nix-provided Go binary path to ensure consistency
     export PATH=$(go env GOROOT)/bin:$PATH
     # Debug info
     >&2 echo "Using Go at: $(which go)"
     >&2 go version
-    required_go="1.26.2"
+    required_go="1.27.1"
     current_go=$(go version | awk '{print $3}' | sed 's/go//')
     if [ "$(printf '%s\n' "$required_go" "$current_go" | sort -V | head -n1)" != "$required_go" ]; then
-      >&2 echo "Go $current_go found, but >= $required_go is required. Update Nix or go_1_26."
+      >&2 echo "Go $current_go found, but >= $required_go is required. Update Nix or go_1_27."
       return 1
     fi
     >&2 bun --version
