@@ -48,7 +48,9 @@ func TestLoadOnchainStatesui_prefersDatastoreOverAddressBook(t *testing.T) {
 	require.Equal(t, objectRef, got[selector].CCIPObjectRef)
 }
 
-func TestLoadOnchainStatesui_fallsBackToAddressBookWhenDatastoreEmpty(t *testing.T) {
+// The loader is datastore-only: address-book content must be ignored even when the
+// datastore holds no refs for the chain.
+func TestLoadOnchainStatesui_ignoresAddressBookWhenDatastoreEmpty(t *testing.T) {
 	t.Parallel()
 
 	selector := cselectors.SUI_TESTNET.Selector
@@ -65,7 +67,7 @@ func TestLoadOnchainStatesui_fallsBackToAddressBookWhenDatastoreEmpty(t *testing
 		}),
 	})
 	require.NoError(t, err)
-	require.Equal(t, abCCIP, got[selector].CCIPAddress)
+	require.Empty(t, got[selector].CCIPAddress)
 }
 
 func TestLoadOnchainStatesui_fromDatastore_fastcurseLabels(t *testing.T) {

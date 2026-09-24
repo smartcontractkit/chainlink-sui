@@ -19,11 +19,11 @@ func TestCurseUncurseChains_VerifyPreconditions_FastCurseUsesRegisteredCurserCap
 	selector := cselectors.SUI_TESTNET.Selector
 
 	env := cldf.Environment{
-		ExistingAddresses: cldf.NewMemoryAddressBookFromMap(map[uint64]map[string]cldf.TypeAndVersion{
+		DataStore: seedDatastore(t, map[uint64]map[string]cldf.TypeAndVersion{
 			selector: {
 				registeredCap: cldf.NewTypeAndVersion(deployment.SuiCurserCapObjectIDType, deployment.Version1_0_0),
 			},
-		}),
+		}).Seal(),
 		BlockChains: chain.NewBlockChains(map[uint64]chain.BlockChain{
 			selector: sui.Chain{},
 		}),

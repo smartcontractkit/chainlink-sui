@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -15,16 +14,17 @@ type suiAddressRef struct {
 	qualifier string
 }
 
-// addressesForSuiChain loads address/type metadata for one Sui chain.
-// It prefers env.DataStore address refs (address_refs.json) when present and
-// falls back to env.ExistingAddresses (addresses.json).
+// addressesForSuiChain loads address/type metadata for one Sui chain from
+// env.DataStore (address_refs.json). A chain with no refs yields empty state.
 func addressesForSuiChain(env cldf.Environment, chainSelector uint64) (map[string][]suiAddressRef, error) {
-	if addresses, ok, err := addressesForSuiChainFromDatastore(env, chainSelector); err != nil {
+	addresses, ok, err := addressesForSuiChainFromDatastore(env, chainSelector)
+	if err != nil {
 		return nil, err
-	} else if ok {
-		return addresses, nil
 	}
-	return addressesForSuiChainFromAddressBook(env, chainSelector)
+	if !ok {
+		return make(map[string][]suiAddressRef), nil
+	}
+	return addresses, nil
 }
 
 func addressesForSuiChainFromDatastore(env cldf.Environment, chainSelector uint64) (map[string][]suiAddressRef, bool, error) {
@@ -51,24 +51,6 @@ func addressesForSuiChainFromDatastore(env cldf.Environment, chainSelector uint6
 		})
 	}
 	return addresses, true, nil
-}
-
-func addressesForSuiChainFromAddressBook(env cldf.Environment, chainSelector uint64) (map[string][]suiAddressRef, error) {
-	abAddresses, err := env.ExistingAddresses.AddressesForChain(chainSelector)
-	if err != nil {
-		if errors.Is(err, cldf.ErrChainNotFound) {
-			return make(map[string][]suiAddressRef), nil
-		}
-		return nil, fmt.Errorf("failed to get addresses for chain %d: %w", chainSelector, err)
-	}
-	addresses := make(map[string][]suiAddressRef, len(abAddresses))
-	for addr, tv := range abAddresses {
-		if tv.Labels.Contains(SupersededLabel) {
-			continue
-		}
-		addresses[addr] = []suiAddressRef{{address: addr, tv: tv}}
-	}
-	return addresses, nil
 }
 
 func typeAndVersionFromDatastoreRef(ref fdatastore.AddressRef) (cldf.TypeAndVersion, error) {

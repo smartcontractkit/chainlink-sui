@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
-	fdatastore "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
@@ -51,13 +50,16 @@ func TestDeregisterCurserCap_VerifyPreconditions_RequiresSlowMCMS(t *testing.T) 
 	selector := cselectors.SUI_TESTNET.Selector
 	const capID = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 
-	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, ab.Save(selector, "0xccip_pkg", cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
-	require.NoError(t, ab.Save(selector, "0xccip_ref", cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)))
-	require.NoError(t, ab.Save(selector, "0xowner_cap", cldf.NewTypeAndVersion(deployment.SuiCCIPOwnerCapObjectIDType, deployment.Version1_0_0)))
+	ds := seedDatastore(t, map[uint64]map[string]cldf.TypeAndVersion{
+		selector: {
+			"0xccip_pkg":  cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0),
+			"0xccip_ref":  cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0),
+			"0xowner_cap": cldf.NewTypeAndVersion(deployment.SuiCCIPOwnerCapObjectIDType, deployment.Version1_0_0),
+		},
+	})
 
 	cs := DeregisterCurserCap{}
-	err := cs.VerifyPreconditions(dualMCMSEnv(t, ab, selector), DeregisterCurserCapConfig{
+	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), DeregisterCurserCapConfig{
 		SuiChainSelector:   selector,
 		CurserCapObjectIds: []string{capID},
 		TimelockConfig:     &utils.TimelockConfig{MCMSAction: types.TimelockActionBypass},
@@ -72,11 +74,14 @@ func TestDeregisterCurserCap_VerifyPreconditions_SucceedsWithSlowMCMS(t *testing
 	selector := cselectors.SUI_TESTNET.Selector
 	const capID = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 
-	ab := cldf.NewMemoryAddressBook()
-	require.NoError(t, ab.Save(selector, "0xccip_pkg", cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0)))
-	require.NoError(t, ab.Save(selector, "0xccip_ref", cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0)))
-	require.NoError(t, ab.Save(selector, "0xowner_cap", cldf.NewTypeAndVersion(deployment.SuiCCIPOwnerCapObjectIDType, deployment.Version1_0_0)))
-	require.NoError(t, deployment.StoreMCMSInAddressBook(ab, fdatastore.NewMemoryDataStore().Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
+	ds := seedDatastore(t, map[uint64]map[string]cldf.TypeAndVersion{
+		selector: {
+			"0xccip_pkg":  cldf.NewTypeAndVersion(deployment.SuiCCIPType, deployment.Version1_0_0),
+			"0xccip_ref":  cldf.NewTypeAndVersion(deployment.SuiCCIPObjectRefType, deployment.Version1_0_0),
+			"0xowner_cap": cldf.NewTypeAndVersion(deployment.SuiCCIPOwnerCapObjectIDType, deployment.Version1_0_0),
+		},
+	})
+	require.NoError(t, deployment.StoreMCMSInAddressBook(cldf.NewMemoryAddressBook(), ds.Addresses(), selector, mcmsops.DeployMCMSSeqOutput{
 		PackageId: "0xslow_pkg",
 		Objects: mcmsops.DeployMCMSObjects{
 			McmsMultisigStateObjectId:   "0xslow_state",
@@ -89,7 +94,7 @@ func TestDeregisterCurserCap_VerifyPreconditions_SucceedsWithSlowMCMS(t *testing
 	}, deployment.MCMSInstanceSlow))
 
 	cs := DeregisterCurserCap{}
-	err := cs.VerifyPreconditions(dualMCMSEnv(t, ab, selector), DeregisterCurserCapConfig{
+	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), DeregisterCurserCapConfig{
 		SuiChainSelector:   selector,
 		CurserCapObjectIds: []string{capID},
 		TimelockConfig:     &utils.TimelockConfig{MCMSAction: types.TimelockActionBypass},

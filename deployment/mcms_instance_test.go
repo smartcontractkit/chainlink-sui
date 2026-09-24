@@ -35,18 +35,28 @@ func TestLoadOnchainStatesui_DualMCMS(t *testing.T) {
 		"0xfast_deployer": SuiMcmsDeployerObjectIDType,
 	}
 
-	ab := cldf.NewMemoryAddressBook()
+	ds := fdatastore.NewMemoryDataStore()
 	for addr, typ := range slow {
-		require.NoError(t, ab.Save(selector, addr, cldf.NewTypeAndVersion(typ, Version1_0_0)))
+		require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+			ChainSelector: selector,
+			Address:       addr,
+			Type:          fdatastore.ContractType(typ),
+			Version:       &Version1_0_0,
+		}))
 	}
 	for addr, typ := range fast {
-		tv := cldf.NewTypeAndVersion(typ, Version1_0_0)
-		tv.Labels.Add(MCMSFastCurseLabel)
-		require.NoError(t, ab.Save(selector, addr, tv))
+		require.NoError(t, ds.Addresses().Upsert(fdatastore.AddressRef{
+			ChainSelector: selector,
+			Address:       addr,
+			Type:          fdatastore.ContractType(typ),
+			Version:       &Version1_0_0,
+			Qualifier:     MCMSInstanceFastCurse.DatastoreQualifier(),
+			Labels:        fdatastore.NewLabelSet(MCMSFastCurseLabel),
+		}))
 	}
 
 	got, err := LoadOnchainStatesui(cldf.Environment{
-		ExistingAddresses: ab,
+		DataStore: ds.Seal(),
 		BlockChains: chain.NewBlockChains(map[uint64]chain.BlockChain{
 			selector: sui.Chain{},
 		}),

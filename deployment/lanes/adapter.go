@@ -13,8 +13,8 @@ import (
 var suiFamilySelector = [4]byte{0xc4, 0xe0, 0x59, 0x53}
 
 // SuiAdapter implements laneapi.LaneAdapter for Sui CCIP 1.6.0 lanes.
-// Package IDs are resolved via LoadOnchainStatesui (datastore address refs first,
-// legacy addresses.json fallback); the ds parameter is unused.
+// Package IDs are resolved via LoadOnchainStatesui (datastore address refs); the ds
+// parameter is unused.
 // ConnectChains must run inside WithConnectChainsEnvironment.
 type SuiAdapter struct{}
 
