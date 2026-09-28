@@ -16,8 +16,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
@@ -86,7 +86,7 @@ type SuiTx struct {
 func (tx *SuiTx) UpdateBSCPayload(
 	ctx context.Context,
 	lggr logger.Logger,
-	keystoreService loop.Keystore,
+	keystoreService core.Keystore,
 	suiClient client.SuiPTBClient,
 ) error {
 	signerAddress, err := client.GetAddressFromPublicKey(tx.PublicKey)
@@ -167,7 +167,7 @@ func GeneratePTBTransactionWithGasEstimation(
 	ctx context.Context,
 	pubKey []byte,
 	lggr logger.Logger,
-	keystoreService loop.Keystore,
+	keystoreService core.Keystore,
 	suiClient client.SuiPTBClient,
 	requestType string,
 	transactionID string,

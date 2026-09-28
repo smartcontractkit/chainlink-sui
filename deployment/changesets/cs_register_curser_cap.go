@@ -2,6 +2,7 @@ package changesets
 
 import (
 	"fmt"
+	"slices"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -118,9 +119,9 @@ func (c RegisterCurserCap) Apply(e cldf.Environment, cfg RegisterCurserCapConfig
 // LastSuccessfulReportTxDigest returns the transaction hash from the last successful
 // MCMS timelock execution report.
 func LastSuccessfulReportTxDigest(reports []types.TransactionResult) (string, error) {
-	for i := len(reports) - 1; i >= 0; i-- {
-		if reports[i].Hash != "" {
-			return reports[i].Hash, nil
+	for _, report := range slices.Backward(reports) {
+		if report.Hash != "" {
+			return report.Hash, nil
 		}
 	}
 	return "", fmt.Errorf("no transaction hash in execution reports")

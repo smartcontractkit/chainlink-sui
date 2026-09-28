@@ -45,8 +45,8 @@ func TestDeployMCMS_VerifyPreconditions_RejectsDuplicateInstance(t *testing.T) {
 
 	cs := DeployMCMS{}
 	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), DeployMCMSConfig{
-		DeployMCMSSeqInput: mcmsops.DeployMCMSSeqInput{ChainSelector: selector},
-		IsFastCurse:        false,
+		ChainSelector: selector,
+		IsFastCurse:   false,
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "slow MCMS is already recorded")
@@ -71,8 +71,8 @@ func TestDeployMCMS_VerifyPreconditions_RejectsDuplicateFastInstance(t *testing.
 
 	cs := DeployMCMS{}
 	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), DeployMCMSConfig{
-		DeployMCMSSeqInput: mcmsops.DeployMCMSSeqInput{ChainSelector: selector},
-		IsFastCurse:        true,
+		ChainSelector: selector,
+		IsFastCurse:   true,
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "fastcurse MCMS is already recorded")
@@ -97,8 +97,8 @@ func TestDeployMCMS_VerifyPreconditions_AllowsFastWhenOnlySlowExists(t *testing.
 
 	cs := DeployMCMS{}
 	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), DeployMCMSConfig{
-		DeployMCMSSeqInput: mcmsops.DeployMCMSSeqInput{ChainSelector: selector},
-		IsFastCurse:        true,
+		ChainSelector: selector,
+		IsFastCurse:   true,
 	})
 	require.NoError(t, err)
 }

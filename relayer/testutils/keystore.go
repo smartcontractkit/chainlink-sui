@@ -11,8 +11,9 @@ import (
 	"testing"
 
 	"github.com/block-vision/sui-go-sdk/signer"
-	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"gopkg.in/yaml.v3"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 )
 
 // NewTestKeystore creates a new test keystore
@@ -27,7 +28,7 @@ type TestKeystore struct {
 	Keys map[string]ed25519.PrivateKey
 }
 
-var _ loop.Keystore = &TestKeystore{}
+var _ core.Keystore = &TestKeystore{}
 
 // AddKey adds a private key to the keystore
 func (tk *TestKeystore) AddKey(key ed25519.PrivateKey) {

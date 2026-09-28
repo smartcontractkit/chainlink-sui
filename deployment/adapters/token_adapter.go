@@ -1344,8 +1344,8 @@ const suiCoinTypeLabelPrefix = "coinType="
 // ref, or "" when no such label is set.
 func coinTypeSuffixFromLabels(r datastore.AddressRef) string {
 	for _, l := range r.Labels.List() {
-		if strings.HasPrefix(l, suiCoinTypeLabelPrefix) {
-			return strings.TrimPrefix(l, suiCoinTypeLabelPrefix)
+		if after, ok := strings.CutPrefix(l, suiCoinTypeLabelPrefix); ok {
+			return after
 		}
 	}
 	return ""

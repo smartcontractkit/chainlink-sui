@@ -5,13 +5,13 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/block-vision/sui-go-sdk/transaction"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
-	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
@@ -30,13 +30,13 @@ type TxManager interface {
 type SuiTxm struct {
 	lggr                  logger.Logger
 	suiGateway            client.SuiPTBClient
-	keystoreService       loop.Keystore
+	keystoreService       core.Keystore
 	transactionRepository TxmStore
 	retryManager          RetryManager
 	gasManager            GasManager
 	coinManager           GasCoinManager
 	configuration         Config
-	Starter               commonutils.StartStopOnce
+	Starter               services.StateMachine
 	done                  sync.WaitGroup
 	broadcastChannel      chan string
 	stopChannel           chan struct{}
@@ -46,7 +46,7 @@ type SuiTxm struct {
 }
 
 func NewSuiTxm(
-	lggr logger.Logger, gateway client.SuiPTBClient, k loop.Keystore,
+	lggr logger.Logger, gateway client.SuiPTBClient, k core.Keystore,
 	conf Config, transactionsRepository TxmStore,
 	retryManager RetryManager, gasManager GasManager,
 ) (*SuiTxm, error) {

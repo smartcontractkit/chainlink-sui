@@ -608,7 +608,7 @@ func TestSuiTokenAdapter_ManualRegistration_Noop(t *testing.T) {
 		a.ManualRegistration(),
 		cldf_chain.BlockChains{},
 		tokensapi.ManualRegistrationSequenceInput{
-			RegisterTokenConfig: tokensapi.RegisterTokenConfig{ChainSelector: 123},
+			ChainSelector: 123,
 		},
 	)
 	require.NoError(t, err)

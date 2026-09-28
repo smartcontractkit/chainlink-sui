@@ -65,13 +65,11 @@ func GenerateRouterView(
 	}
 
 	return RouterView{
-		ContractMetaData: ContractMetaData{
-			Address:        routerPackageID,
-			Owner:          owner,
-			TypeAndVersion: typeAndVersion,
-			StateObjectID:  routerStateObjectID,
-		},
-		IsTestRouter: false, // TODO: Determine from contract state or config
-		OnRamps:      onRamps,
+		Address:        routerPackageID,
+		Owner:          owner,
+		TypeAndVersion: typeAndVersion,
+		StateObjectID:  routerStateObjectID,
+		IsTestRouter:   false, // TODO: Determine from contract state or config
+		OnRamps:        onRamps,
 	}, nil
 }

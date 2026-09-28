@@ -22,8 +22,8 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 	sui0 "github.com/smartcontractkit/chainlink-common/pkg/types/sui"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
@@ -145,7 +145,7 @@ type PTBClient struct {
 	connPool           *grpcConnPool
 	maxRetries         *int
 	transactionTimeout time.Duration
-	keystoreService    loop.Keystore
+	keystoreService    core.Keystore
 	rateLimiter        *semaphore.Weighted
 	defaultRequestType TransactionRequestType
 	devInspectSigner   *signer.Signer

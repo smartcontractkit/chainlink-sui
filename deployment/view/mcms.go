@@ -179,12 +179,10 @@ func GenerateMCMSWithTimelockView(
 	}
 
 	return MCMSWithTimelockView{
-		ContractMetaData: ContractMetaData{
-			Address:        mcmsPackageID,
-			Owner:          owner,
-			TypeAndVersion: mcmsTypeAndVersion,
-			StateObjectID:  mcmsStateObjectID,
-		},
+		Address:                  mcmsPackageID,
+		Owner:                    owner,
+		TypeAndVersion:           mcmsTypeAndVersion,
+		StateObjectID:            mcmsStateObjectID,
 		Bypasser:                 *tBypasserCfg,
 		Proposer:                 *tProposerCfg,
 		Canceller:                *tCancellerCfg,

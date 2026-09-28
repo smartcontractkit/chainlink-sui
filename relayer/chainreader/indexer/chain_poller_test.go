@@ -111,8 +111,6 @@ func TestIsCheckpointNotFound(t *testing.T) {
 	require.False(t, isCheckpointNotFound(errors.New("timeout")))
 }
 
-func strPtr(s string) *string { return &s }
-
 func TestEventMatchesSelector(t *testing.T) {
 	t.Parallel()
 
@@ -136,9 +134,9 @@ func TestEventMatchesSelector(t *testing.T) {
 		{
 			name: "upgraded package: emitting package is latest, type string carries original",
 			event: &suirpcv2.Event{
-				PackageId: strPtr(latestPkg),
-				Module:    strPtr("onramp"),
-				EventType: strPtr(originalPkg + "::onramp::CCIPMessageSent"),
+				PackageId: new(latestPkg),
+				Module:    new("onramp"),
+				EventType: new(originalPkg + "::onramp::CCIPMessageSent"),
 			},
 			sel:  selector,
 			want: true,
@@ -146,9 +144,9 @@ func TestEventMatchesSelector(t *testing.T) {
 		{
 			name: "exact match, no upgrade",
 			event: &suirpcv2.Event{
-				PackageId: strPtr(originalPkg),
-				Module:    strPtr("onramp"),
-				EventType: strPtr(originalPkg + "::onramp::CCIPMessageSent"),
+				PackageId: new(originalPkg),
+				Module:    new("onramp"),
+				EventType: new(originalPkg + "::onramp::CCIPMessageSent"),
 			},
 			sel:  selector,
 			want: true,
@@ -156,9 +154,9 @@ func TestEventMatchesSelector(t *testing.T) {
 		{
 			name: "package mismatch in type string",
 			event: &suirpcv2.Event{
-				PackageId: strPtr(latestPkg),
-				Module:    strPtr("onramp"),
-				EventType: strPtr(latestPkg + "::onramp::CCIPMessageSent"),
+				PackageId: new(latestPkg),
+				Module:    new("onramp"),
+				EventType: new(latestPkg + "::onramp::CCIPMessageSent"),
 			},
 			sel:  selector,
 			want: false,
@@ -166,9 +164,9 @@ func TestEventMatchesSelector(t *testing.T) {
 		{
 			name: "module mismatch",
 			event: &suirpcv2.Event{
-				PackageId: strPtr(originalPkg),
-				Module:    strPtr("offramp"),
-				EventType: strPtr(originalPkg + "::offramp::CCIPMessageSent"),
+				PackageId: new(originalPkg),
+				Module:    new("offramp"),
+				EventType: new(originalPkg + "::offramp::CCIPMessageSent"),
 			},
 			sel:  selector,
 			want: false,
@@ -176,9 +174,9 @@ func TestEventMatchesSelector(t *testing.T) {
 		{
 			name: "event name mismatch",
 			event: &suirpcv2.Event{
-				PackageId: strPtr(originalPkg),
-				Module:    strPtr("onramp"),
-				EventType: strPtr(originalPkg + "::onramp::ExecutionStateChanged"),
+				PackageId: new(originalPkg),
+				Module:    new("onramp"),
+				EventType: new(originalPkg + "::onramp::ExecutionStateChanged"),
 			},
 			sel:  selector,
 			want: false,
@@ -186,9 +184,9 @@ func TestEventMatchesSelector(t *testing.T) {
 		{
 			name: "malformed event type with fewer than three segments",
 			event: &suirpcv2.Event{
-				PackageId: strPtr(originalPkg),
-				Module:    strPtr("onramp"),
-				EventType: strPtr(originalPkg + "::onramp"),
+				PackageId: new(originalPkg),
+				Module:    new("onramp"),
+				EventType: new(originalPkg + "::onramp"),
 			},
 			sel:  selector,
 			want: false,
@@ -202,7 +200,7 @@ func TestEventMatchesSelector(t *testing.T) {
 		{
 			name: "nil selector",
 			event: &suirpcv2.Event{
-				EventType: strPtr(originalPkg + "::onramp::CCIPMessageSent"),
+				EventType: new(originalPkg + "::onramp::CCIPMessageSent"),
 			},
 			sel:  nil,
 			want: false,

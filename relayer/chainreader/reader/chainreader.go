@@ -664,11 +664,9 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 		eventConfig = &sui.ChainReaderEvent{
 			Name:      filter.Key,
 			EventType: filter.Key,
-			EventSelector: sui.EventFilterByMoveEventModule{
-				Package: contract.Address,
-				Module:  contract.Name,
-				Event:   filter.Key,
-			},
+			Package:   contract.Address,
+			Module:    contract.Name,
+			Event:     filter.Key,
 		}
 	} else if err != nil {
 		return nil, err
@@ -1321,13 +1319,11 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 		cursor := fmt.Sprintf(`{"event_offset": %d}`, record.EventOffset)
 
 		sequence := pkgtypes.Sequence{
-			Cursor: cursor,
-			Data:   eventData,
-			Head: pkgtypes.Head{
-				Timestamp: record.BlockTimestamp,
-				Hash:      record.BlockHash,
-				Height:    record.BlockHeight,
-			},
+			Cursor:    cursor,
+			Data:      eventData,
+			Timestamp: record.BlockTimestamp,
+			Hash:      record.BlockHash,
+			Height:    record.BlockHeight,
 		}
 
 		// If we are simply querying the keys without metadata (non enriched), then we don't need the

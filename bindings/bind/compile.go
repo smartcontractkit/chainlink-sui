@@ -1122,7 +1122,7 @@ func getDynamicSuiRPC() (string, error) {
 	for part := range strings.SplitSeq(strings.TrimSpace(string(out)), ",") {
 		p := strings.TrimSpace(part)
 		if strings.Contains(p, "->9000") {
-			hostPort := strings.Split(strings.Split(p, ":")[1], "->")[0]
+			hostPort, _, _ := strings.Cut(strings.Split(p, ":")[1], "->")
 			return fmt.Sprintf("http://127.0.0.1:%s", hostPort), nil
 		}
 	}
