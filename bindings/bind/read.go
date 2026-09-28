@@ -36,9 +36,7 @@ func ReadObject(ctx context.Context, objectId string, chainClient client.Binding
 		fields := obj.GetJson().AsInterface()
 		if fieldMap, ok := fields.(map[string]any); ok {
 			resp.Data.Content = &models.SuiParsedData{
-				SuiMoveObject: models.SuiMoveObject{
-					Fields: fieldMap,
-				},
+				Fields: fieldMap,
 			}
 		}
 	}

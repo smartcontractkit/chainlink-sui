@@ -48,11 +48,9 @@ var DefaultCCIPSeqConfig = ccipops.DeployAndInitCCIPSeqInput{
 }
 
 var DefaultOffRampSeqConfig = offrampops.DeployAndInitCCIPOffRampSeqInput{
-	InitializeOffRampInput: offrampops.InitializeOffRampInput{
-		PremissionExecThresholdSeconds:        uint32(60 * 60 * 8), // 8 hours
-		SourceChainsIsEnabled:                 []bool{true},
-		SourceChainsIsRMNVerificationDisabled: []bool{true},
-	},
+	PremissionExecThresholdSeconds:        uint32(60 * 60 * 8), // 8 hours
+	SourceChainsIsEnabled:                 []bool{true},
+	SourceChainsIsRMNVerificationDisabled: []bool{true},
 }
 
 var DefaultOnRampSeqConfig = onrampops.DeployAndInitCCIPOnRampSeqInput{

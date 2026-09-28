@@ -505,12 +505,6 @@ func (m *metadataPTBClient) ReadObjectMetadata(context.Context, string) (*suirpc
 	return m.obj, m.err
 }
 
-func strPtr(s string) *string {
-	return &s
-}
-
-func ownerKindPtr(k suirpcv2.Owner_OwnerKind) *suirpcv2.Owner_OwnerKind { return &k }
-
 func TestValidateReceiverObjectOwner(t *testing.T) {
 	ctx := context.Background()
 	transmitter := validSuiAddress() // 0x...0001
@@ -525,25 +519,25 @@ func TestValidateReceiverObjectOwner(t *testing.T) {
 	}{
 		{
 			name:    "transmitter-owned address object is rejected",
-			owner:   &suirpcv2.Owner{Kind: ownerKindPtr(suirpcv2.Owner_ADDRESS), Address: strPtr(transmitter)},
+			owner:   &suirpcv2.Owner{Kind: new(suirpcv2.Owner_ADDRESS), Address: new(transmitter)},
 			wantErr: true,
 		},
 		{
 			name:    "transmitter-owned but uppercased address still rejected after normalization",
-			owner:   &suirpcv2.Owner{Kind: ownerKindPtr(suirpcv2.Owner_ADDRESS), Address: strPtr("0x0000000000000000000000000000000000000000000000000000000000000001")},
+			owner:   &suirpcv2.Owner{Kind: new(suirpcv2.Owner_ADDRESS), Address: new("0x0000000000000000000000000000000000000000000000000000000000000001")},
 			wantErr: true,
 		},
 		{
 			name:  "address-owned by a different address is allowed",
-			owner: &suirpcv2.Owner{Kind: ownerKindPtr(suirpcv2.Owner_ADDRESS), Address: strPtr(otherAddr)},
+			owner: &suirpcv2.Owner{Kind: new(suirpcv2.Owner_ADDRESS), Address: new(otherAddr)},
 		},
 		{
 			name:  "shared object is allowed",
-			owner: &suirpcv2.Owner{Kind: ownerKindPtr(suirpcv2.Owner_SHARED)},
+			owner: &suirpcv2.Owner{Kind: new(suirpcv2.Owner_SHARED)},
 		},
 		{
 			name:  "immutable object is allowed",
-			owner: &suirpcv2.Owner{Kind: ownerKindPtr(suirpcv2.Owner_IMMUTABLE)},
+			owner: &suirpcv2.Owner{Kind: new(suirpcv2.Owner_IMMUTABLE)},
 		},
 		{
 			name:    "metadata read error is surfaced",
@@ -576,7 +570,7 @@ func TestValidateReceiverObjectOwner(t *testing.T) {
 	t.Run("transmitter-owned rejection wraps sentinel", func(t *testing.T) {
 		cli := &metadataPTBClient{
 			obj: &suirpcv2.Object{Owner: &suirpcv2.Owner{
-				Kind: ownerKindPtr(suirpcv2.Owner_ADDRESS), Address: strPtr(transmitter),
+				Kind: new(suirpcv2.Owner_ADDRESS), Address: new(transmitter),
 			}},
 		}
 		err := ValidateObjectOwner(ctx, cli, objectId, transmitter)

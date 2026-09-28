@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/loop"
-	"github.com/test-go/testify/require"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
@@ -27,7 +28,7 @@ type TestState struct {
 	AccountAddress  string
 	PublicKeyBytes  []byte
 	SuiGateway      *client.PTBClient
-	KeystoreGateway loop.Keystore
+	KeystoreGateway core.Keystore
 	TxManager       *txm.SuiTxm
 	TxStore         *txm.InMemoryStore
 	Contracts       []Contracts
@@ -51,7 +52,7 @@ type Contracts struct {
 func SetupClients(
 	t *testing.T,
 	rpcURL string,
-	keystore loop.Keystore,
+	keystore core.Keystore,
 	logg logger.Logger,
 	gasLimit int64,
 ) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore) {

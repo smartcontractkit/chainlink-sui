@@ -254,8 +254,8 @@ func (r *SuiFeeResolver) GetOnRampRef(_ cldf_ops.Bundle, _ cldf_chain.BlockChain
 func feeRefLabelValue(ref datastore.AddressRef, key string) string {
 	prefix := key + ":"
 	for _, l := range ref.Labels.List() {
-		if strings.HasPrefix(l, prefix) {
-			return strings.TrimPrefix(l, prefix)
+		if after, ok := strings.CutPrefix(l, prefix); ok {
+			return after
 		}
 	}
 	return ""

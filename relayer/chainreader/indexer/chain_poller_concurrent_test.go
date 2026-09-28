@@ -190,14 +190,12 @@ func firstOccurrences(seqs []uint64) []uint64 {
 	return out
 }
 
-func uint64Ptr(v uint64) *uint64 { return &v }
-
 func testPollerConfig(start uint64) sui.ChainPollerConfig {
 	return sui.ChainPollerConfig{
 		PollingInterval:         10 * time.Millisecond,
 		SyncTimeout:             time.Minute,
 		ChannelBufferSize:       16,
-		StartCheckpointSequence: uint64Ptr(start),
+		StartCheckpointSequence: new(start),
 	}
 }
 
@@ -412,7 +410,7 @@ func TestComputeStartSequenceWithCursor(t *testing.T) {
 		t.Parallel()
 		cp := newPoller(sui.ChainPollerConfig{
 			SyncTimeout:             time.Minute,
-			StartCheckpointSequence: uint64Ptr(1500),
+			StartCheckpointSequence: new(uint64(1500)),
 		}, &fakeCursorStore{seq: 1000, found: true})
 		start, err := cp.computeStartSequence(ctx)
 		require.NoError(t, err)
@@ -423,7 +421,7 @@ func TestComputeStartSequenceWithCursor(t *testing.T) {
 		t.Parallel()
 		cp := newPoller(sui.ChainPollerConfig{
 			SyncTimeout:             time.Minute,
-			StartCheckpointSequence: uint64Ptr(500),
+			StartCheckpointSequence: new(uint64(500)),
 		}, &fakeCursorStore{seq: 1000, found: true})
 		start, err := cp.computeStartSequence(ctx)
 		require.NoError(t, err)
@@ -442,7 +440,7 @@ func TestComputeStartSequenceWithCursor(t *testing.T) {
 		t.Parallel()
 		cp := newPoller(sui.ChainPollerConfig{
 			SyncTimeout:             time.Minute,
-			StartCheckpointSequence: uint64Ptr(700),
+			StartCheckpointSequence: new(uint64(700)),
 		}, &fakeCursorStore{getErr: errors.New("db down")})
 		start, err := cp.computeStartSequence(ctx)
 		require.NoError(t, err)

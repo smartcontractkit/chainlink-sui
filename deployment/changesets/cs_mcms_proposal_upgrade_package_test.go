@@ -33,11 +33,9 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_RequiresFastMCMSForCCIP(
 
 	cs := MCMSProposalUpgradePackage{}
 	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), UpgradePackageConfig{
-		UpgradeCCIPInput: mcmsops.UpgradeCCIPInput{
-			ChainSelector:   selector,
-			PackageName:     contracts.CCIP,
-			TargetPackageId: "0xccip_genesis",
-		},
+		ChainSelector:   selector,
+		PackageName:     contracts.CCIP,
+		TargetPackageId: "0xccip_genesis",
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "fast_mcms")
@@ -79,11 +77,9 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_SucceedsWithFastMCMSInDa
 
 	cs := MCMSProposalUpgradePackage{}
 	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), UpgradePackageConfig{
-		UpgradeCCIPInput: mcmsops.UpgradeCCIPInput{
-			ChainSelector:   selector,
-			PackageName:     contracts.CCIP,
-			TargetPackageId: "0xccip_genesis",
-		},
+		ChainSelector:   selector,
+		PackageName:     contracts.CCIP,
+		TargetPackageId: "0xccip_genesis",
 	})
 	require.NoError(t, err)
 }
@@ -113,13 +109,11 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_ExplicitFastMCMSOverride
 
 	cs := MCMSProposalUpgradePackage{}
 	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), UpgradePackageConfig{
-		UpgradeCCIPInput: mcmsops.UpgradeCCIPInput{
-			ChainSelector:   selector,
-			PackageName:     contracts.CCIP,
-			TargetPackageId: "0xccip_genesis",
-			NamedAddresses: map[string]string{
-				"fast_mcms": "0xexplicit_fast",
-			},
+		ChainSelector:   selector,
+		PackageName:     contracts.CCIP,
+		TargetPackageId: "0xccip_genesis",
+		NamedAddresses: map[string]string{
+			"fast_mcms": "0xexplicit_fast",
 		},
 	})
 	require.NoError(t, err)
@@ -144,11 +138,9 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_LINKDoesNotRequireFastMC
 
 	cs := MCMSProposalUpgradePackage{}
 	err := cs.VerifyPreconditions(dualMCMSEnv(t, ds.Seal(), selector), UpgradePackageConfig{
-		UpgradeCCIPInput: mcmsops.UpgradeCCIPInput{
-			ChainSelector:   selector,
-			PackageName:     contracts.LINK,
-			TargetPackageId: "0xlink_pkg",
-		},
+		ChainSelector:   selector,
+		PackageName:     contracts.LINK,
+		TargetPackageId: "0xlink_pkg",
 	})
 	require.NoError(t, err)
 }
@@ -170,9 +162,7 @@ func TestBackfillUpgradePackageConfig_FillsMCMSAndNamedAddresses(t *testing.T) {
 	}
 
 	cfg := UpgradePackageConfig{
-		UpgradeCCIPInput: mcmsops.UpgradeCCIPInput{
-			PackageName: contracts.CCIP,
-		},
+		PackageName: contracts.CCIP,
 		IsFastCurse: false,
 	}
 
@@ -218,11 +208,9 @@ func TestMCMSProposalUpgradePackage_VerifyPreconditions_RequiresSuiChainClient(t
 	err := cs.VerifyPreconditions(cldf.Environment{
 		BlockChains: chain.NewBlockChains(map[uint64]chain.BlockChain{}),
 	}, UpgradePackageConfig{
-		UpgradeCCIPInput: mcmsops.UpgradeCCIPInput{
-			ChainSelector:   cselectors.SUI_TESTNET.Selector,
-			PackageName:     contracts.LINK,
-			TargetPackageId: "0xlink",
-		},
+		ChainSelector:   cselectors.SUI_TESTNET.Selector,
+		PackageName:     contracts.LINK,
+		TargetPackageId: "0xlink",
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no Sui chain client")

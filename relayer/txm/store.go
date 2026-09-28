@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
@@ -43,7 +43,7 @@ type TxmStore interface {
 	// Returns an error if the transaction is not found or if updating the payload fails.
 	UpdateTransactionGas(
 		ctx context.Context,
-		keystoreService loop.Keystore,
+		keystoreService core.Keystore,
 		suiClient client.SuiPTBClient,
 		transactionID string,
 		gasBudget *big.Int,
@@ -293,7 +293,7 @@ func (s *InMemoryStore) GetInflightTransactions() ([]SuiTx, error) {
 // UpdateTransactionGas implements TxmStore.
 func (s *InMemoryStore) UpdateTransactionGas(
 	ctx context.Context,
-	keystoreService loop.Keystore,
+	keystoreService core.Keystore,
 	suiClient client.SuiPTBClient,
 	transactionID string,
 	gasBudget *big.Int,

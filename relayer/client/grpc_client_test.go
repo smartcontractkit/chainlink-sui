@@ -12,12 +12,11 @@ import (
 	suirpcv2 "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/block-vision/sui-go-sdk/utils"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/test-go/testify/require"
 
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 

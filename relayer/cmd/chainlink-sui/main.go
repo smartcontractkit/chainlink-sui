@@ -25,7 +25,7 @@ func main() {
 	s := loop.MustNewStartedServer(loggerName)
 	defer s.Stop()
 
-	p := &pluginRelayer{Plugin: loop.Plugin{Logger: s.Logger}, db: s.DataSource, lgr: s.Logger}
+	p := &pluginRelayer{Logger: s.Logger, db: s.DataSource, lgr: s.Logger}
 	defer s.Logger.ErrorIfFn(p.Close, "Failed to close")
 
 	s.MustRegister(p)
@@ -38,11 +38,9 @@ func main() {
 		Plugins: map[string]plugin.Plugin{
 			loop.PluginRelayerName: &loop.GRPCPluginRelayer{
 				PluginServer: p,
-				BrokerConfig: loop.BrokerConfig{
-					StopCh:   stopCh,
-					Logger:   s.Logger,
-					GRPCOpts: s.GRPCOpts,
-				},
+				StopCh:       stopCh,
+				Logger:       s.Logger,
+				GRPCOpts:     s.GRPCOpts,
 			},
 		},
 		GRPCServer: s.GRPCOpts.NewServer,
@@ -57,7 +55,7 @@ type pluginRelayer struct {
 
 var _ loop.PluginRelayer = &pluginRelayer{}
 
-func (c *pluginRelayer) NewRelayer(ctx context.Context, rawConfig string, keystore, csa loop.Keystore, capRegistry core.CapabilitiesRegistry) (loop.Relayer, error) {
+func (c *pluginRelayer) NewRelayer(ctx context.Context, rawConfig string, keystore, csa core.Keystore, capRegistry core.CapabilitiesRegistry) (loop.Relayer, error) {
 	cfg, err := config2.NewDecodedTOMLConfig(rawConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read configs: %w", err)

@@ -174,11 +174,9 @@ func GenerateCCIPView(
 	}
 
 	return CCIPView{
-		ContractMetaData: ContractMetaData{
-			Address:       ccipPackageID,
-			Owner:         owner,
-			StateObjectID: ccipObjectRef,
-		},
+		Address:            ccipPackageID,
+		Owner:              owner,
+		StateObjectID:      ccipObjectRef,
 		FeeQuoter:          feeQuoterView,
 		RMNRemote:          rmnRemoteView,
 		TokenAdminRegistry: tokenAdminRegistryView,
@@ -269,13 +267,11 @@ func generateFeeQuoterView(
 	}
 
 	return FeeQuoterView{
-		ContractMetaData: ContractMetaData{
-			Address:        ccipPackageID,
-			Owner:          "",
-			TypeAndVersion: typeAndVersion,
-			StateObjectID:  ccipRefObj.Id,
-		},
-		FeeTokens: feeTokens,
+		Address:        ccipPackageID,
+		Owner:          "",
+		TypeAndVersion: typeAndVersion,
+		StateObjectID:  ccipRefObj.Id,
+		FeeTokens:      feeTokens,
 		StaticConfig: FeeQuoterStaticConfig{
 			MaxFeeJuelsPerMsg:            staticConfig.MaxFeeJuelsPerMsg.String(),
 			LinkToken:                    staticConfig.LinkToken,
@@ -380,12 +376,10 @@ func generateRMNRemoteView(
 	}
 
 	return RMNRemoteView{
-		ContractMetaData: ContractMetaData{
-			Address:        ccipPackageID,
-			Owner:          "",
-			TypeAndVersion: typeAndVersion,
-			StateObjectID:  ccipRefObj.Id,
-		},
+		Address:              ccipPackageID,
+		Owner:                "",
+		TypeAndVersion:       typeAndVersion,
+		StateObjectID:        ccipRefObj.Id,
 		IsCursed:             isCursed,
 		Config:               versionedConfig,
 		CursedSubjectEntries: cursedSubjectEntries,
@@ -448,13 +442,11 @@ func generateTokenAdminRegistryView(
 	}
 
 	return TokenAdminRegistryView{
-		ContractMetaData: ContractMetaData{
-			Address:        ccipPackageID,
-			Owner:          "",
-			TypeAndVersion: typeAndVersion,
-			StateObjectID:  ccipRefObj.Id,
-		},
-		TokenConfigs: tokenConfigs,
+		Address:        ccipPackageID,
+		Owner:          "",
+		TypeAndVersion: typeAndVersion,
+		StateObjectID:  ccipRefObj.Id,
+		TokenConfigs:   tokenConfigs,
 	}, nil
 }
 
@@ -477,11 +469,9 @@ func generateNonceManagerView(
 	}
 
 	return NonceManagerView{
-		ContractMetaData: ContractMetaData{
-			Address:        ccipPackageID,
-			Owner:          "",
-			TypeAndVersion: typeAndVersion,
-		},
+		Address:        ccipPackageID,
+		Owner:          "",
+		TypeAndVersion: typeAndVersion,
 	}, nil
 }
 
@@ -504,10 +494,8 @@ func generateReceiverRegistryView(
 	}
 
 	return ReceiverRegistryView{
-		ContractMetaData: ContractMetaData{
-			Address:        ccipPackageID,
-			Owner:          "",
-			TypeAndVersion: typeAndVersion,
-		},
+		Address:        ccipPackageID,
+		Owner:          "",
+		TypeAndVersion: typeAndVersion,
 	}, nil
 }

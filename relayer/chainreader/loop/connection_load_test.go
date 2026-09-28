@@ -40,14 +40,14 @@ import (
 // mockRPCNode tracks in-flight RPCs and per-method call counts for a mock Sui read node.
 type mockRPCNode struct {
 	latency     time.Duration
-	inFlight    int64
-	maxInFlight int64
-	totalCalls  int64
+	inFlight    atomic.Int64
+	maxInFlight atomic.Int64
+	totalCalls  atomic.Int64
 
-	getObjectCalls        int64
-	simulateCalls         int64
-	listOwnedObjectsCalls int64
-	getEpochCalls         int64
+	getObjectCalls        atomic.Int64
+	simulateCalls         atomic.Int64
+	listOwnedObjectsCalls atomic.Int64
+	getEpochCalls         atomic.Int64
 
 	// pathSem models a shared transport choke that sits BETWEEN the client and the node and is shared
 	// across every gRPC connection — e.g. Docker Desktop's userland proxy / VM network gateway on macOS,
@@ -57,11 +57,11 @@ type mockRPCNode struct {
 	// concurrency (maxInFlight) stays low and its CPU stays idle even while client latency runs away.
 	pathSem chan struct{}
 	// pathWaitNanos accumulates total time spent blocked on pathSem (the "stuck in the network path" time).
-	pathWaitNanos int64
+	pathWaitNanos atomic.Int64
 }
 
 func (m *mockRPCNode) track(ctx context.Context) error {
-	atomic.AddInt64(&m.totalCalls, 1)
+	m.totalCalls.Add(1)
 
 	// Queue in the shared transport path first. This is connection-count independent: opening more
 	// pooled connections does not widen this gate, which is the whole point of the Docker-path scenario.
@@ -70,12 +70,12 @@ func (m *mockRPCNode) track(ctx context.Context) error {
 		select {
 		case m.pathSem <- struct{}{}:
 			if wait := time.Since(waitStart); wait > 0 {
-				atomic.AddInt64(&m.pathWaitNanos, int64(wait))
+				m.pathWaitNanos.Add(int64(wait))
 			}
 			defer func() { <-m.pathSem }()
 		case <-ctx.Done():
 			if wait := time.Since(waitStart); wait > 0 {
-				atomic.AddInt64(&m.pathWaitNanos, int64(wait))
+				m.pathWaitNanos.Add(int64(wait))
 			}
 			return ctx.Err()
 		}
@@ -83,12 +83,12 @@ func (m *mockRPCNode) track(ctx context.Context) error {
 
 	// Past the path gate the request reaches the node. Node-observed concurrency is therefore bounded by
 	// the path capacity, not the pool size.
-	cur := atomic.AddInt64(&m.inFlight, 1)
-	defer atomic.AddInt64(&m.inFlight, -1)
+	cur := m.inFlight.Add(1)
+	defer m.inFlight.Add(-1)
 
 	for {
-		old := atomic.LoadInt64(&m.maxInFlight)
-		if cur <= old || atomic.CompareAndSwapInt64(&m.maxInFlight, old, cur) {
+		old := m.maxInFlight.Load()
+		if cur <= old || m.maxInFlight.CompareAndSwap(old, cur) {
 			break
 		}
 	}
@@ -110,7 +110,7 @@ type mockLedgerServer struct {
 }
 
 func (m *mockLedgerServer) GetObject(ctx context.Context, _ *suirpcv2.GetObjectRequest) (*suirpcv2.GetObjectResponse, error) {
-	atomic.AddInt64(&m.node.getObjectCalls, 1)
+	m.node.getObjectCalls.Add(1)
 	if err := m.node.track(ctx); err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ type mockSuiReadNode struct {
 }
 
 func (m *mockSuiReadNode) GetObject(ctx context.Context, _ *suirpcv2.GetObjectRequest) (*suirpcv2.GetObjectResponse, error) {
-	atomic.AddInt64(&m.node.getObjectCalls, 1)
+	m.node.getObjectCalls.Add(1)
 	if err := m.node.track(ctx); err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (m *mockSuiReadNode) GetObject(ctx context.Context, _ *suirpcv2.GetObjectRe
 }
 
 func (m *mockSuiReadNode) GetEpoch(ctx context.Context, _ *suirpcv2.GetEpochRequest) (*suirpcv2.GetEpochResponse, error) {
-	atomic.AddInt64(&m.node.getEpochCalls, 1)
+	m.node.getEpochCalls.Add(1)
 	if err := m.node.track(ctx); err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (m *mockSuiReadNode) GetEpoch(ctx context.Context, _ *suirpcv2.GetEpochRequ
 }
 
 func (m *mockSuiReadNode) ListOwnedObjects(ctx context.Context, _ *suirpcv2.ListOwnedObjectsRequest) (*suirpcv2.ListOwnedObjectsResponse, error) {
-	atomic.AddInt64(&m.node.listOwnedObjectsCalls, 1)
+	m.node.listOwnedObjectsCalls.Add(1)
 	if err := m.node.track(ctx); err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (m *mockSuiReadNode) ListOwnedObjects(ctx context.Context, _ *suirpcv2.List
 }
 
 func (m *mockSuiReadNode) SimulateTransaction(ctx context.Context, _ *suirpcv2.SimulateTransactionRequest) (*suirpcv2.SimulateTransactionResponse, error) {
-	atomic.AddInt64(&m.node.simulateCalls, 1)
+	m.node.simulateCalls.Add(1)
 	if err := m.node.track(ctx); err != nil {
 		return nil, err
 	}
@@ -360,8 +360,8 @@ func runLoadScenario(t *testing.T, s loadScenario) loadResult {
 		WallTime:   wall,
 		P50:        latencies[len(latencies)/2],
 		P99:        latencies[(len(latencies)*99)/100],
-		ServerPeak: atomic.LoadInt64(&mock.maxInFlight),
-		TotalCalls: atomic.LoadInt64(&mock.totalCalls),
+		ServerPeak: mock.maxInFlight.Load(),
+		TotalCalls: mock.totalCalls.Load(),
 		Errors:     int(errCount),
 		PoolSize:   s.PoolSize,
 	}
@@ -465,7 +465,7 @@ func runCCIPMixedLoadScenario(t *testing.T, s ccipLoadScenario) ccipLoadResult {
 	totalWorkers := s.BatchCount + s.BackgroundWorkers
 	latencies := make([]time.Duration, totalWorkers)
 	var errCount int64
-	var batchErrCount int64
+	var batchErrCount atomic.Int64
 
 	var wg sync.WaitGroup
 	wg.Add(totalWorkers)
@@ -487,7 +487,7 @@ func runCCIPMixedLoadScenario(t *testing.T, s ccipLoadScenario) ccipLoadResult {
 			callStart := time.Now()
 			if err := runBatchGetLatestValuesWorkload(batchCtx, c, s.ReadsPerBatch, s.IntraBatchConcurrency, s.ObjectRefsPerRead, simBCS); err != nil {
 				atomic.AddInt64(&errCount, 1)
-				atomic.AddInt64(&batchErrCount, 1)
+				batchErrCount.Add(1)
 			}
 			latencies[idx] = time.Since(callStart)
 		}(batch)
@@ -510,21 +510,19 @@ func runCCIPMixedLoadScenario(t *testing.T, s ccipLoadScenario) ccipLoadResult {
 	slices.Sort(latencies)
 
 	return ccipLoadResult{
-		loadResult: loadResult{
-			WallTime:   wall,
-			P50:        latencies[len(latencies)/2],
-			P99:        latencies[(len(latencies)*99)/100],
-			ServerPeak: atomic.LoadInt64(&mock.maxInFlight),
-			TotalCalls: atomic.LoadInt64(&mock.totalCalls),
-			Errors:     int(errCount),
-			PoolSize:   s.PoolSize,
-		},
-		GetObjectCalls:        atomic.LoadInt64(&mock.getObjectCalls),
-		SimulateCalls:         atomic.LoadInt64(&mock.simulateCalls),
-		ListOwnedObjectsCalls: atomic.LoadInt64(&mock.listOwnedObjectsCalls),
-		GetEpochCalls:         atomic.LoadInt64(&mock.getEpochCalls),
-		BatchErrors:           int(atomic.LoadInt64(&batchErrCount)),
-		PathWait:              time.Duration(atomic.LoadInt64(&mock.pathWaitNanos)),
+		WallTime:              wall,
+		P50:                   latencies[len(latencies)/2],
+		P99:                   latencies[(len(latencies)*99)/100],
+		ServerPeak:            mock.maxInFlight.Load(),
+		TotalCalls:            mock.totalCalls.Load(),
+		Errors:                int(errCount),
+		PoolSize:              s.PoolSize,
+		GetObjectCalls:        mock.getObjectCalls.Load(),
+		SimulateCalls:         mock.simulateCalls.Load(),
+		ListOwnedObjectsCalls: mock.listOwnedObjectsCalls.Load(),
+		GetEpochCalls:         mock.getEpochCalls.Load(),
+		BatchErrors:           int(batchErrCount.Load()),
+		PathWait:              time.Duration(mock.pathWaitNanos.Load()),
 	}
 }
 
@@ -624,10 +622,8 @@ func TestMixedCCIPReadLoadOnReadNodeConnection(t *testing.T) {
 	)
 
 	base := ccipLoadScenario{
-		loadScenario: loadScenario{
-			StreamLimit: streamLimit,
-			CallLatency: latency,
-		},
+		StreamLimit:           streamLimit,
+		CallLatency:           latency,
 		BatchCount:            4,
 		ReadsPerBatch:         6,
 		IntraBatchConcurrency: 6,
@@ -636,12 +632,10 @@ func TestMixedCCIPReadLoadOnReadNodeConnection(t *testing.T) {
 	}
 
 	single := runCCIPMixedLoadScenario(t, ccipLoadScenario{
-		loadScenario: loadScenario{
-			Name:        "single-read-node",
-			PoolSize:    1,
-			StreamLimit: base.StreamLimit,
-			CallLatency: base.CallLatency,
-		},
+		Name:                  "single-read-node",
+		PoolSize:              1,
+		StreamLimit:           base.StreamLimit,
+		CallLatency:           base.CallLatency,
 		BatchCount:            base.BatchCount,
 		ReadsPerBatch:         base.ReadsPerBatch,
 		IntraBatchConcurrency: base.IntraBatchConcurrency,
@@ -651,12 +645,10 @@ func TestMixedCCIPReadLoadOnReadNodeConnection(t *testing.T) {
 	logCCIPResult(t, "single-read-node", single)
 
 	pooled := runCCIPMixedLoadScenario(t, ccipLoadScenario{
-		loadScenario: loadScenario{
-			Name:        "pooled-read-node",
-			PoolSize:    poolSize,
-			StreamLimit: base.StreamLimit,
-			CallLatency: base.CallLatency,
-		},
+		Name:                  "pooled-read-node",
+		PoolSize:              poolSize,
+		StreamLimit:           base.StreamLimit,
+		CallLatency:           base.CallLatency,
 		BatchCount:            base.BatchCount,
 		ReadsPerBatch:         base.ReadsPerBatch,
 		IntraBatchConcurrency: base.IntraBatchConcurrency,
@@ -731,12 +723,10 @@ func TestConnectionPoolPreventsReadDeadlineExceeded(t *testing.T) {
 
 	base := func(poolSize int, name string) ccipLoadScenario {
 		return ccipLoadScenario{
-			loadScenario: loadScenario{
-				Name:        name,
-				PoolSize:    poolSize,
-				StreamLimit: streamLimit,
-				CallLatency: latency,
-			},
+			Name:              name,
+			PoolSize:          poolSize,
+			StreamLimit:       streamLimit,
+			CallLatency:       latency,
 			BatchCount:        batchCount,
 			ReadsPerBatch:     6,
 			ObjectRefsPerRead: 2,
@@ -796,13 +786,11 @@ func TestSharedTransportChokeIsPoolInvariant(t *testing.T) {
 
 	scenario := func(poolSize int, name string) ccipLoadScenario {
 		return ccipLoadScenario{
-			loadScenario: loadScenario{
-				Name:            name,
-				PoolSize:        poolSize,
-				StreamLimit:     streamLimit,
-				CallLatency:     latency,
-				SharedPathLimit: sharedPathLimit,
-			},
+			Name:              name,
+			PoolSize:          poolSize,
+			StreamLimit:       streamLimit,
+			CallLatency:       latency,
+			SharedPathLimit:   sharedPathLimit,
 			BatchCount:        batchCount,
 			ReadsPerBatch:     6,
 			ObjectRefsPerRead: 2,

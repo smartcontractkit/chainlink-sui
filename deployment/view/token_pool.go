@@ -165,12 +165,10 @@ func GenerateTokenPoolView[T TokenBucketWrapper](
 	}
 
 	return TokenPoolView{
-		ContractMetaData: ContractMetaData{
-			TypeAndVersion: typeAndVersion,
-			Owner:          owner,
-			Address:        poolPackageID,
-			StateObjectID:  poolStateObjectID,
-		},
+		TypeAndVersion:     typeAndVersion,
+		Owner:              owner,
+		Address:            poolPackageID,
+		StateObjectID:      poolStateObjectID,
 		Token:              token,
 		RemoteChainConfigs: remoteChainConfigs,
 		AllowList:          allowlist,

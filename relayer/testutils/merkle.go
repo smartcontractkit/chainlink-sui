@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
-	"github.com/test-go/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 type MerkleTree [][32]byte

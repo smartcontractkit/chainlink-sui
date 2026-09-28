@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suigrpcconn"
 )
 
@@ -57,7 +57,7 @@ type PTBClientConfig struct {
 	GrpcToken             string
 	MaxRetries            *int
 	TransactionTimeout    time.Duration
-	KeystoreService       loop.Keystore
+	KeystoreService       core.Keystore
 	MaxConcurrentRequests int64
 	// MaxGrpcConnections is the size of the round-robin gRPC connection pool. Zero means use
 	// DefaultMaxGrpcConnections.
