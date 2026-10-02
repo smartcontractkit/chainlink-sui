@@ -2,6 +2,9 @@ package adapters
 
 import (
 	"fmt"
+	"maps"
+	"regexp"
+	"slices"
 	"strings"
 
 	semver "github.com/Masterminds/semver/v3"
@@ -48,8 +51,6 @@ const (
 // 1.6.0 (the adapter version; Sui contract refs are stored at 1.0.0) and stashes the
 // CCIPObjectRef / CCIPOwnerCap / latest package id as labels so the FQ ops and DevInspect reads
 // have everything they need.
-//
-// ApplyDestChainConfigUpdates and GetOnchainDestChainConfig return nil or an error until wired.
 type SuiFeeAdapter struct{}
 
 // GetFeeContractRef returns the FeeQuoter address ref for the source chain. On Sui the
@@ -203,23 +204,112 @@ func (a *SuiFeeAdapter) GetOnchainTokenTransferFeeConfig(b cldf_ops.Bundle, chai
 	return fqConfigToArgs(cfg), nil
 }
 
-// ================================================================
-// === Stubs: not yet implemented                                ===
-// ================================================================
-
-func (a *SuiFeeAdapter) ApplyDestChainConfigUpdates(_ datastore.DataStore, _ datastore.AddressRef) *cldf_ops.Sequence[fees.ApplyDestChainConfigSequenceInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
+// ApplyDestChainConfigUpdates applies dest chain config updates to the Sui FeeQuoter
+// as an MCMS proposal. Per destination chain it maps the generic lane config onto the
+// FeeQuoterApplyDestChainConfigUpdates op input via TranslateDestChainConfig, executes
+// the op in proposal mode (nil signer), and bridges the encoded call into
+// OnChainOutput.BatchOps. Note the Move setter replaces the whole 21-field dest chain
+// config per selector, so callers must supply complete configs (the generic
+// UpdateFeeQuoterDests flow reads the on-chain config or adapter defaults first).
+// Dest selectors are iterated in sorted order so the batch-op (and any downstream
+// proposal built from it) is byte-deterministic across runs.
+func (a *SuiFeeAdapter) ApplyDestChainConfigUpdates(_ datastore.DataStore, feeRef datastore.AddressRef) *cldf_ops.Sequence[fees.ApplyDestChainConfigSequenceInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"sui-fee-adapter:apply-dest-chain-config-updates",
 		semver.MustParse("1.6.0"),
-		"Apply FeeQuoter destination chain config updates on Sui as an MCMS proposal (not yet implemented)",
-		func(_ cldf_ops.Bundle, _ cldf_chain.BlockChains, _ fees.ApplyDestChainConfigSequenceInput) (sequences.OnChainOutput, error) {
-			return sequences.OnChainOutput{}, fmt.Errorf("ApplyDestChainConfigUpdates is not implemented on SuiFeeAdapter yet")
+		"Apply FeeQuoter destination chain config updates on Sui as an MCMS proposal",
+		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input fees.ApplyDestChainConfigSequenceInput) (sequences.OnChainOutput, error) {
+			chain, ok := chains.SuiChains()[input.Selector]
+			if !ok {
+				return sequences.OnChainOutput{}, fmt.Errorf("sui chain with selector %d not found", input.Selector)
+			}
+			ccipPkg := feeRef.Address
+			if ccipPkg == "" {
+				return sequences.OnChainOutput{}, fmt.Errorf("fee ref has empty CCIP package address on chain %d", input.Selector)
+			}
+			ccipObjRef := feeRefLabelValue(feeRef, suiFeeCCIPObjectRefLabel)
+			ownerCap := feeRefLabelValue(feeRef, suiFeeCCIPOwnerCapLabel)
+			if ccipObjRef == "" || ownerCap == "" {
+				return sequences.OnChainOutput{}, fmt.Errorf("fee ref is missing ccip-object-ref/ccip-owner-cap labels on chain %d", input.Selector)
+			}
+			latestPkg := feeRefLabelValue(feeRef, suiFeeLatestCCIPPkgLabel)
+			deps := suiDeps(chain)
+
+			batchOps := make([]mcmstypes.BatchOperation, 0)
+			for _, dst := range slices.Sorted(maps.Keys(input.Settings)) {
+				opInput := suilanes.TranslateDestChainConfig(input.Settings[dst], dst)
+				opInput.CCIPPackageId = ccipPkg
+				opInput.LatestPackageId = latestPkg
+				opInput.StateObjectId = ccipObjRef
+				opInput.OwnerCapObjectId = ownerCap
+				r, err := cldf_ops.ExecuteOperation(b, ccipops.FeeQuoterApplyDestChainConfigUpdatesOp, deps, opInput)
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to apply dest chain config for dst %d: %w", dst, err)
+				}
+				out, err := batchOpFromCall(input.Selector, r.Output.Call)
+				if err != nil {
+					return sequences.OnChainOutput{}, err
+				}
+				batchOps = append(batchOps, out.BatchOps...)
+			}
+			return sequences.OnChainOutput{BatchOps: batchOps}, nil
 		},
 	)
 }
 
-func (a *SuiFeeAdapter) GetOnchainDestChainConfig(_ cldf_ops.Bundle, _ cldf_chain.BlockChains, _ datastore.AddressRef, _ uint64, _ uint64) (lanes.FeeQuoterDestChainConfig, error) {
-	return lanes.FeeQuoterDestChainConfig{}, fmt.Errorf("GetOnchainDestChainConfig is not implemented on SuiFeeAdapter yet")
+// GetOnchainDestChainConfig reads a dest chain config from the Sui FeeQuoter via
+// DevInspect and maps it onto the chain-agnostic lane config (inverse of
+// TranslateDestChainConfig). When no config exists on-chain for the dest selector the
+// Move read aborts with fee_quoter::EUnknownDestChainSelector (code 3); this returns a
+// zero config so the generic UpdateFeeQuoterDests flow falls back to the adapter
+// defaults (parity with the Solana adapter's rpc.ErrNotFound handling).
+func (a *SuiFeeAdapter) GetOnchainDestChainConfig(b cldf_ops.Bundle, chains cldf_chain.BlockChains, feeRef datastore.AddressRef, src uint64, dst uint64) (lanes.FeeQuoterDestChainConfig, error) {
+	chain, ok := chains.SuiChains()[src]
+	if !ok {
+		return lanes.FeeQuoterDestChainConfig{}, fmt.Errorf("sui chain with selector %d not found", src)
+	}
+	ccipPkg := feeRef.Address
+	if ccipPkg == "" {
+		return lanes.FeeQuoterDestChainConfig{}, fmt.Errorf("fee ref has empty CCIP package address for src %d dst %d", src, dst)
+	}
+	ccipObjRef := feeRefLabelValue(feeRef, suiFeeCCIPObjectRefLabel)
+	if ccipObjRef == "" {
+		return lanes.FeeQuoterDestChainConfig{}, fmt.Errorf("fee ref is missing ccip-object-ref label for src %d dst %d", src, dst)
+	}
+	// DevInspect reads current state, so target the upgraded package head when present.
+	readPkg := feeRefLabelValue(feeRef, suiFeeLatestCCIPPkgLabel)
+	if readPkg == "" {
+		readPkg = ccipPkg
+	}
+	contract, err := module_fee_quoter.NewFeeQuoter(readPkg, chain.Client)
+	if err != nil {
+		return lanes.FeeQuoterDestChainConfig{}, fmt.Errorf("failed to instantiate FeeQuoter at %s on chain %d: %w", readPkg, src, err)
+	}
+	cfg, err := contract.DevInspect().GetDestChainConfig(b.GetContext(), &bind.CallOpts{Signer: chain.Signer}, bind.Object{Id: ccipObjRef}, dst)
+	if err != nil {
+		if isUnknownDestChainAbort(err) {
+			b.Logger.Warnf("no dest chain config on chain for src %d dst %d; caller should fall back to defaults", src, dst)
+			return lanes.FeeQuoterDestChainConfig{}, nil
+		}
+		return lanes.FeeQuoterDestChainConfig{}, fmt.Errorf("failed to read dest chain config from FeeQuoter at %s for src %d dst %d: %w", readPkg, src, dst, err)
+	}
+	b.Logger.Infof("Fetched on-chain dest chain config for src %d, dst %d: %+v", src, dst, cfg)
+	return suilanes.TranslateDestChainConfigFromMove(cfg)
+}
+
+// unknownDestChainAbortRe matches the Sui node's simulate-abort description for the
+// FeeQuoter's EUnknownDestChainSelector abort. The description encodes the aborting
+// module and abort code (but not the constant name) in a `simulate failed: ...` error;
+// code 3 is unique to EUnknownDestChainSelector within the fee_quoter module, so
+// matching module + code is precise. The exact wording of the description is pinned by
+// TestTranslateDestChainConfigFromMove in the integration suite; if the node ever
+// changes it, prefer propagating the error over loosening this pattern.
+var unknownDestChainAbortRe = regexp.MustCompile(`fee_quoter.*code[ :=]+3\b|code[ :=]+3\b.*fee_quoter`)
+
+// isUnknownDestChainAbort reports whether err is the FeeQuoter's
+// EUnknownDestChainSelector (code 3) abort from a DevInspect read.
+func isUnknownDestChainAbort(err error) bool {
+	return err != nil && unknownDestChainAbortRe.MatchString(err.Error())
 }
 
 // ================================================================
