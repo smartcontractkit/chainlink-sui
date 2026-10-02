@@ -160,6 +160,46 @@ public fun release_upgrade_cap<T: drop>(
     upgrade_cap
 }
 
+/// Release the upgrade cap for a registered package using the caller-supplied CURRENT package
+/// address for the `upgrade_caps` lookup.
+///
+/// `release_upgrade_cap` derives the lookup key from `with_original_ids<T>()`, i.e. the ORIGINAL
+/// (publish-time) package address. Once a package has been upgraded, `commit_upgrade` re-keys its
+/// `UpgradeCap` under the NEW (current) package address, so the ORIGINAL-based lookup can no longer
+/// find it and the release aborts. This variant keeps the same ORIGINAL-based registry proof
+/// authorization but performs the `upgrade_caps` lookup/removal with `package_address`, allowing the
+/// cap to be released after one or more upgrades.
+///
+/// This must be called before calling `mcms_registry::release_cap` as it relies on registered proof
+/// types in registry.
+public fun release_upgrade_cap_current<T: drop>(
+    state: &mut DeployerState,
+    registry: &Registry,
+    package_address: address,
+    _proof: T,
+): UpgradeCap {
+    let proof_type = type_name::with_original_ids<T>();
+    let proof_account_address = proof_type.address_string();
+
+    assert!(
+        mcms_registry::is_package_registered(registry, proof_account_address),
+        EPackageAddressNotRegistered,
+    );
+
+    let expected_proof_type = mcms_registry::get_registered_proof_type(
+        registry,
+        proof_account_address,
+    );
+    assert!(proof_type == expected_proof_type, EWrongProofType);
+
+    assert!(state.upgrade_caps.contains(package_address), EPackageAddressNotRegistered);
+
+    let upgrade_cap = state.upgrade_caps.remove(package_address);
+    state.cap_to_package.remove(object::id(&upgrade_cap));
+
+    upgrade_cap
+}
+
 public fun has_upgrade_cap(state: &DeployerState, package_address: address): bool {
     state.upgrade_caps.contains(package_address)
 }
