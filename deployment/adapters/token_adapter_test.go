@@ -15,6 +15,8 @@ import (
 	suideploy "github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	mcmstest "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcmstest"
+
+	mcmstypes "github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -514,6 +516,138 @@ func repeatHex(n int) string {
 		b[i] = '0'
 	}
 	return string(b)
+}
+
+func TestBatchOpFromCalls(t *testing.T) {
+	t.Parallel()
+	t.Run("no calls returns empty output", func(t *testing.T) {
+		t.Parallel()
+		for _, calls := range [][]sui_ops.TransactionCall{nil, {}} {
+			out, err := batchOpFromCalls(123, calls)
+			require.NoError(t, err)
+			require.Empty(t, out.BatchOps)
+		}
+	})
+	t.Run("multiple calls become one ordered batch operation", func(t *testing.T) {
+		t.Parallel()
+		call1 := sui_ops.TransactionCall{
+			PackageID:  "0x" + repeatHex(63) + "1",
+			Module:     "burn_mint_token_pool",
+			Function:   "apply_chain_updates",
+			Data:       []byte{0x00},
+			StateObjID: "0x" + repeatHex(64),
+			TypeArgs:   []string{"0x1::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"},
+		}
+		call2 := sui_ops.TransactionCall{
+			PackageID:  "0x" + repeatHex(63) + "2",
+			Module:     "burn_mint_token_pool",
+			Function:   "add_remote_pool",
+			Data:       []byte{0x01},
+			StateObjID: "0x" + repeatHex(64),
+			TypeArgs:   []string{"0x1::ccip_burn_mint_token::CCIP_BURN_MINT_TOKEN"},
+		}
+		out, err := batchOpFromCalls(123, []sui_ops.TransactionCall{call1, call2})
+		require.NoError(t, err)
+		require.Len(t, out.BatchOps, 1)
+		require.Equal(t, mcmstypes.ChainSelector(123), out.BatchOps[0].ChainSelector)
+		require.Len(t, out.BatchOps[0].Transactions, 2)
+		require.Equal(t, call1.PackageID, out.BatchOps[0].Transactions[0].To)
+		require.Equal(t, call2.PackageID, out.BatchOps[0].Transactions[1].To)
+	})
+}
+
+func TestClassifyRemoteChainUpdate(t *testing.T) {
+	t.Parallel()
+	const selector = uint64(16015286601757825753)
+	token := []byte{0xaa, 0xbb}
+	otherToken := []byte{0xcc, 0xdd}
+	poolA := []byte{0x01}
+	poolB := []byte{0x02}
+
+	tests := []struct {
+		name                string
+		desiredRemoteToken  []byte
+		desiredRemotePool   []byte
+		supported           bool
+		existingRemoteToken []byte
+		existingRemotePools [][]byte
+		wantAction          remoteChainAction
+		wantErr             string
+	}{
+		{
+			name:               "unsupported chain is added via apply chain updates",
+			desiredRemoteToken: token,
+			desiredRemotePool:  poolA,
+			wantAction:         remoteChainActionAddChain,
+		},
+		{
+			name:              "unsupported chain with empty desired pool errors",
+			desiredRemotePool: nil,
+			wantErr:           "remote pool address is empty",
+		},
+		{
+			name:                "supported chain with desired pool already present is skipped",
+			desiredRemoteToken:  token,
+			desiredRemotePool:   poolB,
+			supported:           true,
+			existingRemoteToken: token,
+			existingRemotePools: [][]byte{poolA, poolB},
+			wantAction:          remoteChainActionNone,
+		},
+		{
+			name:                "supported chain with desired pool absent adds the pool",
+			desiredRemoteToken:  token,
+			desiredRemotePool:   poolB,
+			supported:           true,
+			existingRemoteToken: token,
+			existingRemotePools: [][]byte{poolA},
+			wantAction:          remoteChainActionAddPool,
+		},
+		{
+			name:                "supported chain with no existing pools adds the pool",
+			desiredRemoteToken:  token,
+			desiredRemotePool:   poolA,
+			supported:           true,
+			existingRemoteToken: token,
+			wantAction:          remoteChainActionAddPool,
+		},
+		{
+			name:                "supported chain with different stored remote token errors",
+			desiredRemoteToken:  otherToken,
+			desiredRemotePool:   poolA,
+			supported:           true,
+			existingRemoteToken: token,
+			existingRemotePools: [][]byte{poolA},
+			wantErr:             "16015286601757825753",
+		},
+		{
+			name:                "supported chain with empty desired token errors on token mismatch",
+			desiredRemotePool:   poolA,
+			supported:           true,
+			existingRemoteToken: token,
+			wantErr:             "16015286601757825753",
+		},
+		{
+			name:                "supported chain with empty desired pool errors",
+			desiredRemotePool:   nil,
+			supported:           true,
+			existingRemoteToken: token,
+			wantErr:             "remote pool address is empty",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := classifyRemoteChainUpdate(selector, tt.desiredRemoteToken, tt.desiredRemotePool,
+				tt.supported, tt.existingRemoteToken, tt.existingRemotePools)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantAction, got)
+		})
+	}
 }
 
 func TestSuiPoolTypeFromStr(t *testing.T) {

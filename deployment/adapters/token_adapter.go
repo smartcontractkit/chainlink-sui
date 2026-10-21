@@ -1,6 +1,8 @@
 package adapters
 
 import (
+	"bytes"
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -248,6 +250,9 @@ func (a *SuiTokenAdapter) SetTokenPoolRateLimits() *cldf_ops.Sequence[tokensapi.
 //     (ETransferNotAccepted), so it cannot run before steps 1-2.
 //
 // OnChainOutput.BatchOps can only carry MCMS proposals, so only step 2 belongs here.
+// When no ownership transfer is pending the pool is already fully owned, so step 2 is
+// complete and the sequence returns an empty output rather than proposing an accept that
+// would abort ENoPendingTransfer.
 func (a *SuiTokenAdapter) UpdateAuthorities() *cldf_ops.Sequence[tokensapi.UpdateAuthoritiesInput, sequences.OnChainOutput, *deployment.Environment] {
 	return cldf_ops.NewSequence(
 		"sui-adapter:update-authorities",
@@ -269,6 +274,16 @@ func (a *SuiTokenAdapter) UpdateAuthorities() *cldf_ops.Sequence[tokensapi.Updat
 			stateObjID, _, err := resolveSuiPoolObjects(e.DataStore, input.ChainSelector, input.TokenPoolRef.Type, qualifier)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to resolve sui pool objects: %w", err)
+			}
+
+			pending, err := suiPoolHasPendingTransfer(b, chain, input.TokenPoolRef.Type, input.TokenPoolRef.Address, coinType, stateObjID)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to read pending ownership transfer on chain %d: %w", input.ChainSelector, err)
+			}
+			if !pending {
+				b.Logger.Infow("Pool has no pending ownership transfer, skipping accept_ownership proposal",
+					"chainSelector", input.ChainSelector, "pool", input.TokenPoolRef.Address)
+				return sequences.OnChainOutput{}, nil
 			}
 
 			deps := suiDeps(chain)
@@ -459,60 +474,131 @@ func (a *SuiTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 			} else {
 				deps = suiDeps(chain)
 			}
+			supportedSelectors, err := suiPoolSupportedChains(b, chain, poolType, pkgID, coinType, stateObjID)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to read supported chains on chain %d: %w", input.ChainSelector, err)
+			}
+			supportedChains := make(map[uint64]bool, len(supportedSelectors))
+			for _, sel := range supportedSelectors {
+				supportedChains[sel] = true
+			}
 			batchOps := make([]mcmstypes.BatchOperation, 0)
 			for remoteSelector, rc := range input.RemoteChains {
 				if err := rc.Validate(); err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("remote chain config for selector %d: %w", remoteSelector, err)
 				}
+				supported := supportedChains[remoteSelector]
+				var existingToken []byte
+				var existingPools [][]byte
+				if supported {
+					existingToken, existingPools, err = suiPoolRemoteChain(b, chain, poolType, pkgID, coinType, stateObjID, remoteSelector)
+					if err != nil {
+						return sequences.OnChainOutput{}, fmt.Errorf("failed to read remote chain config for selector %d on chain %d: %w", remoteSelector, input.ChainSelector, err)
+					}
+				}
+				action, err := classifyRemoteChainUpdate(remoteSelector, rc.RemoteToken, rc.RemotePool, supported, existingToken, existingPools)
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("remote chain config for selector %d on chain %d: %w", remoteSelector, input.ChainSelector, err)
+				}
 				remoteTokenHex := "0x" + hex.EncodeToString(rc.RemoteToken)
 				remotePoolHex := "0x" + hex.EncodeToString(rc.RemotePool)
 
 				calls := make([]sui_ops.TransactionCall, 0, 2)
-				switch poolType {
-				case datastore.ContractType(suideploy.SuiBnMTokenPoolType):
-					r, err := cldf_ops.ExecuteOperation(b, burnminttokenpoolops.BurnMintTokenPoolApplyChainUpdatesOp, deps, burnminttokenpoolops.BurnMintTokenPoolApplyChainUpdatesInput{
-						BurnMintPackageId:         pkgID,
-						CoinObjectTypeArg:         coinType,
-						StateObjectId:             stateObjID,
-						OwnerCap:                  ownerCapID,
-						RemoteChainSelectorsToAdd: []uint64{remoteSelector},
-						RemotePoolAddressesToAdd:  [][]string{{remotePoolHex}},
-						RemoteTokenAddressesToAdd: []string{remoteTokenHex},
-					})
-					if err != nil {
-						return sequences.OnChainOutput{}, fmt.Errorf("apply chain updates for remote %d: %w", remoteSelector, err)
+				if action == remoteChainActionNone {
+					b.Logger.Infow("Remote chain already at desired config, skipping chain-config call",
+						"remoteSelector", remoteSelector, "chainSelector", input.ChainSelector)
+				} else {
+					switch poolType {
+					case datastore.ContractType(suideploy.SuiBnMTokenPoolType):
+						if action == remoteChainActionAddPool {
+							r, err := cldf_ops.ExecuteOperation(b, burnminttokenpoolops.BurnMintTokenPoolAddRemotePoolOp, deps, burnminttokenpoolops.BurnMintTokenPoolAddRemotePoolInput{
+								BurnMintTokenPoolPackageId: pkgID,
+								CoinObjectTypeArg:          coinType,
+								StateObjectId:              stateObjID,
+								OwnerCap:                   ownerCapID,
+								RemoteChainSelector:        remoteSelector,
+								RemotePoolAddress:          remotePoolHex,
+							})
+							if err != nil {
+								return sequences.OnChainOutput{}, fmt.Errorf("add remote pool for remote %d: %w", remoteSelector, err)
+							}
+							calls = append(calls, r.Output.Call)
+						} else {
+							r, err := cldf_ops.ExecuteOperation(b, burnminttokenpoolops.BurnMintTokenPoolApplyChainUpdatesOp, deps, burnminttokenpoolops.BurnMintTokenPoolApplyChainUpdatesInput{
+								BurnMintPackageId:         pkgID,
+								CoinObjectTypeArg:         coinType,
+								StateObjectId:             stateObjID,
+								OwnerCap:                  ownerCapID,
+								RemoteChainSelectorsToAdd: []uint64{remoteSelector},
+								RemotePoolAddressesToAdd:  [][]string{{remotePoolHex}},
+								RemoteTokenAddressesToAdd: []string{remoteTokenHex},
+							})
+							if err != nil {
+								return sequences.OnChainOutput{}, fmt.Errorf("apply chain updates for remote %d: %w", remoteSelector, err)
+							}
+							calls = append(calls, r.Output.Call)
+						}
+					case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
+						if action == remoteChainActionAddPool {
+							r, err := cldf_ops.ExecuteOperation(b, managedtokenpoolops.ManagedTokenPoolAddRemotePoolOp, deps, managedtokenpoolops.ManagedTokenPoolAddRemotePoolInput{
+								ManagedTokenPoolPackageId: pkgID,
+								CoinObjectTypeArg:         coinType,
+								StateObjectId:             stateObjID,
+								OwnerCap:                  ownerCapID,
+								RemoteChainSelector:       remoteSelector,
+								RemotePoolAddress:         remotePoolHex,
+							})
+							if err != nil {
+								return sequences.OnChainOutput{}, fmt.Errorf("add remote pool for remote %d: %w", remoteSelector, err)
+							}
+							calls = append(calls, r.Output.Call)
+						} else {
+							r, err := cldf_ops.ExecuteOperation(b, managedtokenpoolops.ManagedTokenPoolApplyChainUpdatesOp, deps, managedtokenpoolops.ManagedTokenPoolApplyChainUpdatesInput{
+								ManagedTokenPoolPackageId: pkgID,
+								CoinObjectTypeArg:         coinType,
+								StateObjectId:             stateObjID,
+								OwnerCap:                  ownerCapID,
+								RemoteChainSelectorsToAdd: []uint64{remoteSelector},
+								RemotePoolAddressesToAdd:  [][]string{{remotePoolHex}},
+								RemoteTokenAddressesToAdd: []string{remoteTokenHex},
+							})
+							if err != nil {
+								return sequences.OnChainOutput{}, fmt.Errorf("apply chain updates for remote %d: %w", remoteSelector, err)
+							}
+							calls = append(calls, r.Output.Call)
+						}
+					case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
+						if action == remoteChainActionAddPool {
+							r, err := cldf_ops.ExecuteOperation(b, lockreleasetokenpoolops.LockReleaseTokenPoolAddRemotePoolOp, deps, lockreleasetokenpoolops.LockReleaseTokenPoolAddRemotePoolInput{
+								LockReleaseTokenPoolPackageId: pkgID,
+								CoinObjectTypeArg:             coinType,
+								StateObjectId:                 stateObjID,
+								OwnerCap:                      ownerCapID,
+								RemoteChainSelector:           remoteSelector,
+								RemotePoolAddress:             remotePoolHex,
+							})
+							if err != nil {
+								return sequences.OnChainOutput{}, fmt.Errorf("add remote pool for remote %d: %w", remoteSelector, err)
+							}
+							calls = append(calls, r.Output.Call)
+						} else {
+							r, err := cldf_ops.ExecuteOperation(b, lockreleasetokenpoolops.LockReleaseTokenPoolApplyChainUpdatesOp, deps, lockreleasetokenpoolops.LockReleaseTokenPoolApplyChainUpdatesInput{
+								LockReleasePackageId:      pkgID,
+								CoinObjectTypeArg:         coinType,
+								StateObjectId:             stateObjID,
+								OwnerCap:                  ownerCapID,
+								RemoteChainSelectorsToAdd: []uint64{remoteSelector},
+								RemotePoolAddressesToAdd:  [][]string{{remotePoolHex}},
+								RemoteTokenAddressesToAdd: []string{remoteTokenHex},
+							})
+							if err != nil {
+								return sequences.OnChainOutput{}, fmt.Errorf("apply chain updates for remote %d: %w", remoteSelector, err)
+							}
+							calls = append(calls, r.Output.Call)
+						}
+					default:
+						return sequences.OnChainOutput{}, fmt.Errorf("unsupported sui token pool type %s for ConfigureTokenForTransfers", poolType)
 					}
-					calls = append(calls, r.Output.Call)
-				case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
-					r, err := cldf_ops.ExecuteOperation(b, managedtokenpoolops.ManagedTokenPoolApplyChainUpdatesOp, deps, managedtokenpoolops.ManagedTokenPoolApplyChainUpdatesInput{
-						ManagedTokenPoolPackageId: pkgID,
-						CoinObjectTypeArg:         coinType,
-						StateObjectId:             stateObjID,
-						OwnerCap:                  ownerCapID,
-						RemoteChainSelectorsToAdd: []uint64{remoteSelector},
-						RemotePoolAddressesToAdd:  [][]string{{remotePoolHex}},
-						RemoteTokenAddressesToAdd: []string{remoteTokenHex},
-					})
-					if err != nil {
-						return sequences.OnChainOutput{}, fmt.Errorf("apply chain updates for remote %d: %w", remoteSelector, err)
-					}
-					calls = append(calls, r.Output.Call)
-				case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
-					r, err := cldf_ops.ExecuteOperation(b, lockreleasetokenpoolops.LockReleaseTokenPoolApplyChainUpdatesOp, deps, lockreleasetokenpoolops.LockReleaseTokenPoolApplyChainUpdatesInput{
-						LockReleasePackageId:      pkgID,
-						CoinObjectTypeArg:         coinType,
-						StateObjectId:             stateObjID,
-						OwnerCap:                  ownerCapID,
-						RemoteChainSelectorsToAdd: []uint64{remoteSelector},
-						RemotePoolAddressesToAdd:  [][]string{{remotePoolHex}},
-						RemoteTokenAddressesToAdd: []string{remoteTokenHex},
-					})
-					if err != nil {
-						return sequences.OnChainOutput{}, fmt.Errorf("apply chain updates for remote %d: %w", remoteSelector, err)
-					}
-					calls = append(calls, r.Output.Call)
-				default:
-					return sequences.OnChainOutput{}, fmt.Errorf("unsupported sui token pool type %s for ConfigureTokenForTransfers", poolType)
 				}
 
 				obBucket, obOk := rc.GetOutboundRateLimitBuckets().DefaultBucket()
@@ -984,6 +1070,130 @@ func suiPoolOwner(b cldf_ops.Bundle, chain cldfsui.Chain, poolType datastore.Con
 	default:
 		return "", fmt.Errorf("unsupported sui token pool type %s for owner read", poolType)
 	}
+}
+
+// suiPoolDevInspect is the subset of pool DevInspect getters the adapter reads to decide
+// between add-chain, add-remote-pool and skip.
+type suiPoolDevInspect interface {
+	GetSupportedChains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]uint64, error)
+	GetRemoteToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([]byte, error)
+	GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([][]byte, error)
+	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
+}
+
+// newSuiPoolDevInspect builds the typed DevInspect reader for one pool type.
+func newSuiPoolDevInspect(poolType datastore.ContractType, pkgID string, chain cldfsui.Chain) (suiPoolDevInspect, error) {
+	switch poolType {
+	case datastore.ContractType(suideploy.SuiBnMTokenPoolType):
+		contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(pkgID, chain.Client)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create burn-mint token pool contract: %w", err)
+		}
+		return contract.DevInspect(), nil
+	case datastore.ContractType(suideploy.SuiManagedTokenPoolType):
+		contract, err := module_managed_token_pool.NewManagedTokenPool(pkgID, chain.Client)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create managed token pool contract: %w", err)
+		}
+		return contract.DevInspect(), nil
+	case datastore.ContractType(suideploy.SuiLnRTokenPoolType):
+		contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(pkgID, chain.Client)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create lock-release token pool contract: %w", err)
+		}
+		return contract.DevInspect(), nil
+	default:
+		return nil, fmt.Errorf("unsupported sui token pool type %s for dev inspect read", poolType)
+	}
+}
+
+// suiPoolSupportedChains reads the pool's supported remote chain selectors via DevInspect.
+func suiPoolSupportedChains(b cldf_ops.Bundle, chain cldfsui.Chain, poolType datastore.ContractType,
+	pkgID, coinType, stateObjID string,
+) ([]uint64, error) {
+	reader, err := newSuiPoolDevInspect(poolType, pkgID, chain)
+	if err != nil {
+		return nil, err
+	}
+	opts := &bind.CallOpts{Signer: chain.Signer}
+	state := bind.Object{Id: stateObjID}
+	typeArgs := []string{coinType}
+	return reader.GetSupportedChains(b.GetContext(), opts, typeArgs, state)
+}
+
+// suiPoolRemoteChain reads the stored remote token and pool addresses for one supported
+// remote chain. The Move getters abort for an unsupported selector, so callers must only
+// query chains confirmed supported.
+func suiPoolRemoteChain(b cldf_ops.Bundle, chain cldfsui.Chain, poolType datastore.ContractType,
+	pkgID, coinType, stateObjID string, remoteSelector uint64,
+) (remoteToken []byte, remotePools [][]byte, err error) {
+	reader, err := newSuiPoolDevInspect(poolType, pkgID, chain)
+	if err != nil {
+		return nil, nil, err
+	}
+	opts := &bind.CallOpts{Signer: chain.Signer}
+	state := bind.Object{Id: stateObjID}
+	typeArgs := []string{coinType}
+	remoteToken, err = reader.GetRemoteToken(b.GetContext(), opts, typeArgs, state, remoteSelector)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get remote token: %w", err)
+	}
+	remotePools, err = reader.GetRemotePools(b.GetContext(), opts, typeArgs, state, remoteSelector)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get remote pools: %w", err)
+	}
+	return remoteToken, remotePools, nil
+}
+
+// suiPoolHasPendingTransfer reads whether an ownership transfer is pending on the pool.
+func suiPoolHasPendingTransfer(b cldf_ops.Bundle, chain cldfsui.Chain, poolType datastore.ContractType,
+	pkgID, coinType, stateObjID string,
+) (bool, error) {
+	reader, err := newSuiPoolDevInspect(poolType, pkgID, chain)
+	if err != nil {
+		return false, err
+	}
+	opts := &bind.CallOpts{Signer: chain.Signer}
+	state := bind.Object{Id: stateObjID}
+	typeArgs := []string{coinType}
+	return reader.HasPendingTransfer(b.GetContext(), opts, typeArgs, state)
+}
+
+// remoteChainAction selects how one remote chain reaches its desired config on a deployed pool.
+type remoteChainAction int
+
+const (
+	remoteChainActionAddChain remoteChainAction = iota
+	remoteChainActionAddPool
+	remoteChainActionNone
+)
+
+// classifyRemoteChainUpdate decides how to configure one remote chain on an existing pool.
+// A supported chain whose stored remote token differs from the desired one is an error:
+// changing it requires remove and re-add, which drops the chain's pools and rate limits,
+// an operator decision rather than an automatic step.
+func classifyRemoteChainUpdate(
+	remoteSelector uint64,
+	desiredRemoteToken, desiredRemotePool []byte,
+	supported bool,
+	existingRemoteToken []byte,
+	existingRemotePools [][]byte,
+) (remoteChainAction, error) {
+	if len(desiredRemotePool) == 0 {
+		return 0, fmt.Errorf("remote pool address is empty for remote chain %d", remoteSelector)
+	}
+	if !supported {
+		return remoteChainActionAddChain, nil
+	}
+	if !bytes.Equal(existingRemoteToken, desiredRemoteToken) {
+		return 0, fmt.Errorf("remote chain %d is already supported with remote token 0x%x, desired remote token is 0x%x; reconfiguring a supported chain requires removing and re-adding it", remoteSelector, existingRemoteToken, desiredRemoteToken)
+	}
+	for _, p := range existingRemotePools {
+		if bytes.Equal(p, desiredRemotePool) {
+			return remoteChainActionNone, nil
+		}
+	}
+	return remoteChainActionAddPool, nil
 }
 
 // suiAddrEqual compares two Sui addresses after normalizing to lowercase with a 0x prefix.
