@@ -18,13 +18,14 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"mcms","module":"mcms_deployer","name":"authorize_upgrade","parameters":[{"name":"_","type":"OwnerCap"},{"name":"state","type":"DeployerState"},{"name":"policy","type":"u8"},{"name":"digest","type":"vector<u8>"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_deployer","name":"commit_upgrade","parameters":[{"name":"state","type":"DeployerState"},{"name":"receipt","type":"UpgradeReceipt"}]},{"package":"mcms","module":"mcms_deployer","name":"has_upgrade_cap","parameters":[{"name":"state","type":"DeployerState"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_deployer","name":"register_upgrade_cap","parameters":[{"name":"state","type":"DeployerState"},{"name":"registry","type":"Registry"},{"name":"upgrade_cap","type":"UpgradeCap"}]},{"package":"mcms","module":"mcms_deployer","name":"release_upgrade_cap","parameters":[{"name":"state","type":"DeployerState"},{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"}]}]`
+const FunctionInfo = `[{"package":"mcms","module":"mcms_deployer","name":"authorize_upgrade","parameters":[{"name":"_","type":"OwnerCap"},{"name":"state","type":"DeployerState"},{"name":"policy","type":"u8"},{"name":"digest","type":"vector<u8>"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_deployer","name":"commit_upgrade","parameters":[{"name":"state","type":"DeployerState"},{"name":"receipt","type":"UpgradeReceipt"}]},{"package":"mcms","module":"mcms_deployer","name":"has_upgrade_cap","parameters":[{"name":"state","type":"DeployerState"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_deployer","name":"register_upgrade_cap","parameters":[{"name":"state","type":"DeployerState"},{"name":"registry","type":"Registry"},{"name":"upgrade_cap","type":"UpgradeCap"}]},{"package":"mcms","module":"mcms_deployer","name":"release_upgrade_cap","parameters":[{"name":"state","type":"DeployerState"},{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_deployer","name":"release_upgrade_cap_current","parameters":[{"name":"state","type":"DeployerState"},{"name":"registry","type":"Registry"},{"name":"package_address","type":"address"},{"name":"_proof","type":"T"}]}]`
 
 type IMcmsDeployer interface {
 	RegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, upgradeCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AuthorizeUpgrade(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (*models.SuiTransactionBlockResponse, error)
 	CommitUpgrade(ctx context.Context, opts *bind.CallOpts, state bind.Object, receipt bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ReleaseUpgradeCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ReleaseUpgradeCapCurrent(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, packageAddress string, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasUpgradeCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, packageAddress string) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IMcmsDeployerDevInspect
 	Encoder() McmsDeployerEncoder
@@ -34,6 +35,7 @@ type IMcmsDeployer interface {
 type IMcmsDeployerDevInspect interface {
 	AuthorizeUpgrade(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (bind.Object, error)
 	ReleaseUpgradeCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, proof bind.Object) (bind.Object, error)
+	ReleaseUpgradeCapCurrent(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, packageAddress string, proof bind.Object) (bind.Object, error)
 	HasUpgradeCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, packageAddress string) (bool, error)
 }
 
@@ -46,6 +48,8 @@ type McmsDeployerEncoder interface {
 	CommitUpgradeWithArgs(args ...any) (*bind.EncodedCall, error)
 	ReleaseUpgradeCap(typeArgs []string, state bind.Object, registry bind.Object, proof bind.Object) (*bind.EncodedCall, error)
 	ReleaseUpgradeCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	ReleaseUpgradeCapCurrent(typeArgs []string, state bind.Object, registry bind.Object, packageAddress string, proof bind.Object) (*bind.EncodedCall, error)
+	ReleaseUpgradeCapCurrentWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	HasUpgradeCap(state bind.Object, packageAddress string) (*bind.EncodedCall, error)
 	HasUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
 }
@@ -158,6 +162,16 @@ func (c *McmsDeployerContract) ReleaseUpgradeCap(ctx context.Context, opts *bind
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// ReleaseUpgradeCapCurrent executes the release_upgrade_cap_current Move function.
+func (c *McmsDeployerContract) ReleaseUpgradeCapCurrent(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, packageAddress string, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsDeployerEncoder.ReleaseUpgradeCapCurrent(typeArgs, state, registry, packageAddress, proof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // HasUpgradeCap executes the has_upgrade_cap Move function.
 func (c *McmsDeployerContract) HasUpgradeCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, packageAddress string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.mcmsDeployerEncoder.HasUpgradeCap(state, packageAddress)
@@ -195,6 +209,28 @@ func (d *McmsDeployerDevInspect) AuthorizeUpgrade(ctx context.Context, opts *bin
 // Returns: UpgradeCap
 func (d *McmsDeployerDevInspect) ReleaseUpgradeCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, proof bind.Object) (bind.Object, error) {
 	encoded, err := d.contract.mcmsDeployerEncoder.ReleaseUpgradeCap(typeArgs, state, registry, proof)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	var result bind.Object
+	if err := bind.DecodeJSONReturn(results[0], &result); err != nil {
+		return bind.Object{}, fmt.Errorf("failed to decode return value: %w", err)
+	}
+	return result, nil
+}
+
+// ReleaseUpgradeCapCurrent executes the release_upgrade_cap_current Move function using DevInspect to get return values.
+//
+// Returns: UpgradeCap
+func (d *McmsDeployerDevInspect) ReleaseUpgradeCapCurrent(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, packageAddress string, proof bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.mcmsDeployerEncoder.ReleaseUpgradeCapCurrent(typeArgs, state, registry, packageAddress, proof)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -377,6 +413,49 @@ func (c mcmsDeployerEncoder) ReleaseUpgradeCapWithArgs(typeArgs []string, args .
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("release_upgrade_cap", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"UpgradeCap",
+	})
+}
+
+// ReleaseUpgradeCapCurrent encodes a call to the release_upgrade_cap_current Move function.
+func (c mcmsDeployerEncoder) ReleaseUpgradeCapCurrent(typeArgs []string, state bind.Object, registry bind.Object, packageAddress string, proof bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("release_upgrade_cap_current", typeArgsList, typeParamsList, []string{
+		"&mut DeployerState",
+		"&Registry",
+		"address",
+		"T",
+	}, []any{
+		state,
+		registry,
+		packageAddress,
+		proof,
+	}, []string{
+		"UpgradeCap",
+	})
+}
+
+// ReleaseUpgradeCapCurrentWithArgs encodes a call to the release_upgrade_cap_current Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsDeployerEncoder) ReleaseUpgradeCapCurrentWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut DeployerState",
+		"&Registry",
+		"address",
+		"T",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("release_upgrade_cap_current", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"UpgradeCap",
 	})
 }
