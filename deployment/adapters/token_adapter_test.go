@@ -561,6 +561,8 @@ func TestClassifyRemoteChainUpdate(t *testing.T) {
 	const selector = uint64(16015286601757825753)
 	token := []byte{0xaa, 0xbb}
 	otherToken := []byte{0xcc, 0xdd}
+	// A realistic 20-byte EVM token address (LINK on Sepolia).
+	evmTokenBytes := []byte{0x77, 0x98, 0x77, 0xa7, 0xb0, 0xd9, 0xe8, 0x60, 0x31, 0x69, 0xdd, 0xbd, 0x78, 0x36, 0xe4, 0x78, 0xb4, 0x62, 0x47, 0x89}
 	poolA := []byte{0x01}
 	poolB := []byte{0x02}
 
@@ -619,6 +621,27 @@ func TestClassifyRemoteChainUpdate(t *testing.T) {
 			existingRemoteToken: token,
 			existingRemotePools: [][]byte{poolA},
 			wantErr:             "16015286601757825753",
+		},
+		{
+			// Regression: pool ops store remote tokens left-padded to 32 bytes
+			// (deployment.StrTo32), so a raw 20-byte EVM address in the desired
+			// config must compare equal to its stored padded form.
+			name:                "stored 32-byte padded token matches raw 20-byte desired",
+			desiredRemoteToken:  evmTokenBytes,
+			desiredRemotePool:   poolA,
+			supported:           true,
+			existingRemoteToken: padRemoteToken32(evmTokenBytes),
+			existingRemotePools: [][]byte{poolA},
+			wantAction:          remoteChainActionNone,
+		},
+		{
+			name:                "stored raw 20-byte token matches 32-byte padded desired",
+			desiredRemoteToken:  padRemoteToken32(evmTokenBytes),
+			desiredRemotePool:   poolA,
+			supported:           true,
+			existingRemoteToken: evmTokenBytes,
+			existingRemotePools: [][]byte{poolA},
+			wantAction:          remoteChainActionNone,
 		},
 		{
 			name:                "supported chain with empty desired token errors on token mismatch",
