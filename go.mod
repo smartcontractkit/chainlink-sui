@@ -1,11 +1,11 @@
 module github.com/smartcontractkit/chainlink-sui
 
-go 1.27.1
+go 1.27.3
 
 require (
 	github.com/aptos-labs/aptos-go-sdk v1.13.0
 	github.com/aptos-labs/tree-sitter-move-on-aptos v0.0.0-20250321090037-c820eb4716e1
-	github.com/block-vision/sui-go-sdk v1.2.1
+	github.com/block-vision/sui-go-sdk v1.3.1
 	github.com/ethereum/go-ethereum v1.17.4
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-plugin v1.8.0
