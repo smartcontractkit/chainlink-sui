@@ -1185,7 +1185,7 @@ func classifyRemoteChainUpdate(
 	if !supported {
 		return remoteChainActionAddChain, nil
 	}
-	if !bytes.Equal(existingRemoteToken, desiredRemoteToken) {
+	if !remoteTokenEqual(existingRemoteToken, desiredRemoteToken) {
 		return 0, fmt.Errorf("remote chain %d is already supported with remote token 0x%x, desired remote token is 0x%x; reconfiguring a supported chain requires removing and re-adding it", remoteSelector, existingRemoteToken, desiredRemoteToken)
 	}
 	for _, p := range existingRemotePools {
@@ -1194,6 +1194,26 @@ func classifyRemoteChainUpdate(
 		}
 	}
 	return remoteChainActionAddPool, nil
+}
+
+// remoteTokenEqual compares remote token addresses after left-padding both to 32
+// bytes. Pool ops store remote tokens 32-byte left-padded (deployment.StrTo32),
+// matching the wire format and the shared ConfigureTokenForTransfers planner
+// (common.LeftPadBytes(_, 32)); a raw 20-byte EVM address passed as the desired
+// token must compare equal to its stored padded form so an identical re-run is a
+// no-op instead of a spurious remove-and-re-add error.
+func remoteTokenEqual(a, b []byte) bool {
+	return bytes.Equal(padRemoteToken32(a), padRemoteToken32(b))
+}
+
+// padRemoteToken32 left-pads b to 32 bytes; inputs of 32 bytes or more are unchanged.
+func padRemoteToken32(b []byte) []byte {
+	if len(b) >= 32 {
+		return b
+	}
+	out := make([]byte, 32)
+	copy(out[32-len(b):], b)
+	return out
 }
 
 // suiAddrEqual compares two Sui addresses after normalizing to lowercase with a 0x prefix.
