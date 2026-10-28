@@ -261,7 +261,7 @@ func TestChainReaderTestnet(t *testing.T) {
 	indexerInstance.Start(ctx)
 
 	// ChainReader in non-loop mode
-	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance, nil)
+	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance, nil, "")
 	require.NoError(t, err)
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{{

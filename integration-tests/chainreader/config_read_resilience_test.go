@@ -202,7 +202,7 @@ func TestSuiConfigReadResilience(t *testing.T) {
 		}, evIndexer.GetEventSelectors)
 		indexerInstance := indexer.NewIndexerFromComponents(log, chainPoller, evIndexer, txnIndexer)
 
-		cr, cErr := reader.NewChainReader(ctx, log, relayerClient, crConfig, db, indexerInstance, rc)
+		cr, cErr := reader.NewChainReader(ctx, log, relayerClient, crConfig, db, indexerInstance, rc, "")
 		require.NoError(t, cErr)
 		require.NoError(t, cr.Bind(ctx, []types.BoundContract{counterBinding}))
 		require.NoError(t, indexerInstance.Start(ctx))

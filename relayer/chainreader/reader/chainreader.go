@@ -32,6 +32,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+	ccipconsts "github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/sui"
@@ -58,14 +59,16 @@ func ctxErrStr(ctx context.Context) string {
 type suiChainReader struct {
 	pkgtypes.UnimplementedContractReader
 
-	logger          logger.Logger
-	config          sui.ChainReaderConfig
-	starter         services.StateMachine
-	packageResolver *crUtil.PackageResolver
-	client          *client.PTBClient
-	dbStore         *database.DBStore
-	indexer         indexer.IndexerApi
-	readerCache     *Cache
+	logger logger.Logger
+	config sui.ChainReaderConfig
+	// Per-network SUI token key returned for Router GetWrappedNative; empty disables the override.
+	wrappedNativeToken string
+	starter            services.StateMachine
+	packageResolver    *crUtil.PackageResolver
+	client             *client.PTBClient
+	dbStore            *database.DBStore
+	indexer            indexer.IndexerApi
+	readerCache        *Cache
 
 	// Cache of parent object IDs for pointer objects
 	// Key format: "{packageID}::{module}::{pointerName}"
@@ -96,6 +99,7 @@ func NewChainReader(
 	db sqlutil.DataSource,
 	indexer indexer.IndexerApi,
 	readerCache *Cache,
+	wrappedNativeToken string,
 ) (pkgtypes.ContractReader, error) {
 	dbStore := database.NewDBStore(db, lgr)
 
@@ -105,11 +109,12 @@ func NewChainReader(
 	}
 
 	return &suiChainReader{
-		logger:          logger.Named(lgr, "SuiChainReader"),
-		client:          ptbClient,
-		config:          configs,
-		dbStore:         dbStore,
-		packageResolver: crUtil.NewPackageResolver(lgr, ptbClient),
+		logger:             logger.Named(lgr, "SuiChainReader"),
+		client:             ptbClient,
+		config:             configs,
+		wrappedNativeToken: wrappedNativeToken,
+		dbStore:            dbStore,
+		packageResolver:    crUtil.NewPackageResolver(lgr, ptbClient),
 		// indexers
 		indexer:         indexer,
 		readerCache:     readerCache,
@@ -404,6 +409,20 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		return err
 	}
 	_, contractName, method := parsed.address, parsed.contractName, parsed.readName
+
+	// CCIP 1.6 asks the Router for its wrapped native token during config refresh. Sui has no
+	// Router module config for it, so answer from the chain's known SUI token key instead.
+	if contractName == ccipconsts.ContractNameRouter && method == ccipconsts.MethodNameRouterGetWrappedNative && s.wrappedNativeToken != "" {
+		if err = s.packageResolver.ValidateBinding(contractName, parsed.address); err != nil {
+			return fmt.Errorf("invalid binding for contract: %s", contractName)
+		}
+
+		if s.config.IsLoopPlugin {
+			return s.encodeLoopResult([]any{s.wrappedNativeToken}, returnVal)
+		}
+
+		return codec.DecodeSuiJsonValue(s.wrappedNativeToken, returnVal)
+	}
 
 	if err = s.validateContractBindingAndConfig(parsed.contractName, parsed.address); err != nil {
 		return err

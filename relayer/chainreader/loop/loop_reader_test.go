@@ -297,7 +297,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		txnIndexer,
 	)
 
-	chainReader, err := reader.NewChainReader(ctx, log, relayerClient, chainReaderConfigs, db, indexerInstance, nil)
+	chainReader, err := reader.NewChainReader(ctx, log, relayerClient, chainReaderConfigs, db, indexerInstance, nil, "")
 	require.NoError(t, err)
 
 	// Wrap the base chain reader with loop chain reader
