@@ -20,12 +20,11 @@ func TestWrappedNativeTokenForChain(t *testing.T) {
 		chainID *big.Int
 		want    string
 	}{
-		{name: "mainnet hex identifier", chainID: big.NewInt(0x35834a8a), want: mainnetToken},
-		{name: "testnet hex identifier", chainID: big.NewInt(0x4c78adac), want: testnetToken},
-		{name: "mainnet decimal identifier", chainID: big.NewInt(897796746), want: mainnetToken},
-		{name: "testnet decimal identifier", chainID: big.NewInt(1282977196), want: testnetToken},
+		{name: "mainnet chain id", chainID: big.NewInt(1), want: mainnetToken},
+		{name: "testnet chain id", chainID: big.NewInt(2), want: testnetToken},
 		{name: "nil chain id", chainID: nil, want: ""},
-		{name: "unknown chain id", chainID: big.NewInt(1), want: ""},
+		{name: "unknown chain id", chainID: big.NewInt(99), want: ""},
+		{name: "genesis identifier is not a chain id", chainID: big.NewInt(0x35834a8a), want: ""},
 	}
 
 	for _, tt := range tests {
