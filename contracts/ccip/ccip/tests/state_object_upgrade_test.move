@@ -292,3 +292,71 @@ fun test_multiple_upgrades_chain_correctly() {
 
     ts::end(scenario);
 }
+
+// End-to-end (through the CCIP registration path): after an upgrade re-keys the cap to the CURRENT
+// address, `release_upgrade_cap_current` releases it using the caller-supplied current address,
+// while the registry proof authorization still uses the ORIGINAL McmsCallback package id.
+#[test]
+fun test_release_upgrade_cap_current_after_upgrade() {
+    let mut scenario = ts::begin(ADMIN);
+
+    init_mcms_and_ccip(ts::ctx(&mut scenario));
+    transfer_ownership_to_mcms(&mut scenario);
+
+    // Register an UpgradeCap for the (test) package.
+    ts::next_tx(&mut scenario, PACKAGE_OWNER);
+    let mut deployer_state = ts::take_shared<DeployerState>(&scenario);
+    let upgrade_cap = package::test_publish(TEST_PACKAGE.to_id(), ts::ctx(&mut scenario));
+    let old_package_address = upgrade_cap.package().to_address();
+    mcms_deployer::test_register_upgrade_cap(&mut deployer_state, upgrade_cap, ts::ctx(&mut scenario));
+    ts::return_shared(deployer_state);
+
+    // Perform one upgrade so the cap is re-keyed to the CURRENT address.
+    let new_package_address: address;
+    {
+        ts::next_tx(&mut scenario, ADMIN);
+        let mut deployer_state = ts::take_shared<DeployerState>(&scenario);
+        let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&scenario);
+        let ctx = ts::ctx(&mut scenario);
+
+        let ticket = mcms_deployer::authorize_upgrade(
+            &owner_cap,
+            &mut deployer_state,
+            0,
+            vector[],
+            old_package_address,
+            ctx,
+        );
+        let receipt = package::test_upgrade(ticket);
+        new_package_address = receipt.package().to_address();
+        mcms_deployer::commit_upgrade(&mut deployer_state, receipt, ctx);
+
+        assert!(!mcms_deployer::has_upgrade_cap(&deployer_state, old_package_address), 0);
+        assert!(mcms_deployer::has_upgrade_cap(&deployer_state, new_package_address), 1);
+
+        ts::return_to_sender(&scenario, owner_cap);
+        ts::return_shared(deployer_state);
+    };
+
+    // Release the re-keyed cap using its CURRENT address and the CCIP McmsCallback proof.
+    {
+        ts::next_tx(&mut scenario, ADMIN);
+        let mut deployer_state = ts::take_shared<DeployerState>(&scenario);
+        let registry = ts::take_shared<Registry>(&scenario);
+
+        let released_cap = mcms_deployer::release_upgrade_cap_current(
+            &mut deployer_state,
+            &registry,
+            new_package_address,
+            state_object::test_create_mcms_callback(),
+        );
+
+        assert!(!mcms_deployer::has_upgrade_cap(&deployer_state, new_package_address), 2);
+
+        transfer::public_transfer(released_cap, ADMIN);
+        ts::return_shared(deployer_state);
+        ts::return_shared(registry);
+    };
+
+    ts::end(scenario);
+}
