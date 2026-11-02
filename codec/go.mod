@@ -1,10 +1,10 @@
 module github.com/smartcontractkit/chainlink-sui/codec
 
-go 1.26.2
+go 1.27.3
 
 require (
 	github.com/aptos-labs/aptos-go-sdk v1.13.0
-	github.com/block-vision/sui-go-sdk v1.2.1
+	github.com/block-vision/sui-go-sdk v1.3.1
 	github.com/mitchellh/mapstructure v1.5.1-0.20220423185008-bf980b35cac4
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260714095740-4b29a5655cd2
 	github.com/stretchr/testify v1.11.1
@@ -13,6 +13,7 @@ require (
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect

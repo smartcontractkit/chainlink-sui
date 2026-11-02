@@ -21,7 +21,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Nix
-        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+        with:
+          extra-conf: |
+            sandbox = relaxed
 
       - name: Run Unit Tests
         run: |
@@ -71,7 +74,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Nix
-        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+        with:
+          extra-conf: |
+            sandbox = relaxed
 
       - name: Setup Sui Environment
         run: |
@@ -98,7 +104,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Nix
-        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+        with:
+          extra-conf: |
+            sandbox = relaxed
 
       - name: Setup Sui Environment
         run: |
@@ -141,7 +150,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Nix
-        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+        with:
+          extra-conf: |
+            sandbox = relaxed
 
       - name: Setup Sui Environment
         run: |
@@ -185,7 +197,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Nix
-        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+        with:
+          extra-conf: |
+            sandbox = relaxed
 
       - name: Setup Sui Environment
         run: |
@@ -210,7 +225,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Nix
-        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+        with:
+          extra-conf: |
+            sandbox = relaxed
 
       - name: Run Integration Tests (Testnet)
         run: |
@@ -223,7 +241,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Nix
-        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+        with:
+          extra-conf: |
+            sandbox = relaxed
 
       - name: Install latest gomods and modgraph
         run: |

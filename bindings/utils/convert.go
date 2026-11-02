@@ -132,21 +132,21 @@ func ConvertTypeStringToTypeTag(typeStr string) (*transaction.TypeTag, error) {
 
 	switch typeStr {
 	case "bool":
-		return &transaction.TypeTag{Bool: &[]bool{true}[0]}, nil
+		return &transaction.TypeTag{Bool: &struct{}{}}, nil
 	case "u8":
-		return &transaction.TypeTag{U8: &[]bool{true}[0]}, nil
+		return &transaction.TypeTag{U8: &struct{}{}}, nil
 	case "u16":
-		return &transaction.TypeTag{U16: &[]bool{true}[0]}, nil
+		return &transaction.TypeTag{U16: &struct{}{}}, nil
 	case "u32":
-		return &transaction.TypeTag{U32: &[]bool{true}[0]}, nil
+		return &transaction.TypeTag{U32: &struct{}{}}, nil
 	case "u64":
-		return &transaction.TypeTag{U64: &[]bool{true}[0]}, nil
+		return &transaction.TypeTag{U64: &struct{}{}}, nil
 	case "u128":
-		return &transaction.TypeTag{U128: &[]bool{true}[0]}, nil
+		return &transaction.TypeTag{U128: &struct{}{}}, nil
 	case "u256":
-		return &transaction.TypeTag{U256: &[]bool{true}[0]}, nil
+		return &transaction.TypeTag{U256: &struct{}{}}, nil
 	case "address":
-		return &transaction.TypeTag{Address: &[]bool{true}[0]}, nil
+		return &transaction.TypeTag{Address: &struct{}{}}, nil
 	}
 
 	// check for vector
