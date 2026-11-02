@@ -234,6 +234,7 @@ func TestTransactionsIndexer(t *testing.T) {
 		db,
 		indexerInstance,
 		nil,
+		"",
 	)
 	require.NoError(t, err)
 

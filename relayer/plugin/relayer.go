@@ -408,7 +408,8 @@ func (r *SuiRelayer) NewContractReader(ctx context.Context, contractReaderConfig
 	}
 
 	// TODO: validate chainConfig
-	chainReader, err := chainreader.NewChainReader(ctx, r.lggr, r.client, chainConfig, r.db, r.indexer, r.readerCache)
+	wrappedNativeToken := wrappedNativeTokenForChain(r.chainIdNum)
+	chainReader, err := chainreader.NewChainReader(ctx, r.lggr, r.client, chainConfig, r.db, r.indexer, r.readerCache, wrappedNativeToken)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractReader: %w", err)
 	}
