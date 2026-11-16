@@ -711,9 +711,10 @@ public fun mcms_execute_ownership_transfer<T>(
     // Release the upgrade cap before `release_cap`, which removes the registry proof state
     // that `release_upgrade_cap` depends on.
     if (mcms_deployer::has_upgrade_cap(deployer_state, package_address)) {
-        let upgrade_cap = mcms_deployer::release_upgrade_cap(
+        let upgrade_cap = mcms_deployer::release_upgrade_cap_current(
             deployer_state,
             registry,
+            package_address,
             McmsCallback {},
         );
         transfer::public_transfer(upgrade_cap, to);
